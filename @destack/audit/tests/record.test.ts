@@ -1,7 +1,7 @@
 import { test, expect } from "@destack/test";
 import { AuditError } from "../src/error/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
-import { defineAuditAction } from "../src/index.ts";
+import { AuditCall, defineAuditAction } from "../src/index.ts";
 import { document } from "./stack/index.ts";
 import { identifier, schema } from "@destack/schema";
 import { AuditRecorder } from "../src/record/recorder.ts";
@@ -79,7 +79,7 @@ test("record a running call, then its outcome once, accepting repeats and refusi
         const finished = storage.recorder.finish(running, { kind: "success" });
         await storage.recorder.append(finished);
         storage = await storage.reopen();
-        await storage.recorder.append(JSON.parse(JSON.stringify(finished)));
+        await storage.recorder.append(AuditCall.parse(JSON.parse(JSON.stringify(finished))));
         expect(await storage.journal.read()).toEqual([finished]);
 
         // refuse a finished call with other contents
@@ -131,10 +131,10 @@ test("leave sensitive values out of running and read details", async () => {
                 targets: renameDocument.targets,
                 details: schema.object({
                     method: schema.string(),
-                    code: schema.sensitive(schema.string()).optional(),
+                    code: schema.sensitive(schema.string()).exactOptional(),
                     account: schema
                         .object({ id: schema.string(), secret: schema.sensitive(schema.string()) })
-                        .optional(),
+                        .exactOptional(),
                 }),
             },
             { package: renameDocument.package },

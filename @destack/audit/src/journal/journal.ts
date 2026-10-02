@@ -1,4 +1,5 @@
 import {
+    Change,
     and,
     asc,
     eq,
@@ -17,12 +18,11 @@ import {
     index,
     uniqueIndex,
     type DatabaseConnection,
-    type Table,
     type TransactionOptions,
+    CHAIN_TERMS,
 } from "@destack/db";
-import { Digest, Duration } from "@destack/schema";
-import { canonicalize } from "@destack/schema/json";
-import { ServiceError } from "@destack/service/error";
+import { Digest, Duration, canonicalize } from "@destack/schema";
+import { errorOf, ServiceError } from "@destack/service/error";
 import { domainFailure } from "@destack/service/server";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
@@ -31,7 +31,6 @@ import {
     type RequestIdentity,
 } from "@destack/service/request";
 import type { Controller } from "@destack/service/control";
-import { CHAIN_TERMS } from "@destack/db/query";
 import { Failure, type Outcome } from "@destack/sync";
 import { AuditError } from "../error/index.ts";
 import { AuditHistory } from "../history/history.ts";
@@ -56,7 +55,7 @@ export const journal = defineTable(
     "journal",
     {
         /** The call's identity. */
-        id: identifier("id", "call").primaryKey().notNull(),
+        id: identifier("id", "call").primaryKey(),
         /** The scope whose history receives the call. */
         scope: text("scope").notNull(),
         /** The object type and method, such as page.create. */
@@ -393,11 +392,16 @@ export class Journal {
     controller(history?: AuditDestination): Controller {
         return {
             name: "journal",
-            watches: history === undefined ? [] : [journal as Table],
+            watches: history === undefined ? [] : [journal],
             keys: (change) => {
+                // read only the journal's changes
+                if (!Change.of(change, journal)) {
+                    return [];
+                }
+
                 // deliver a pending audited call, and look again once a call is delivered
-                const after = change.after as JournalTimes | undefined;
-                const before = change.before as JournalTimes | undefined;
+                const after: JournalTimes | null = Change.after(change);
+                const before: JournalTimes | null = Change.before(change);
                 const isPending =
                     history !== undefined &&
                     after?.isAudited === true &&
@@ -414,7 +418,10 @@ export class Journal {
             reconcile: async (key) => {
                 // look again while full batches remain to deliver
                 if (key === "audit") {
-                    const delivered = await this.deliver(history!);
+                    if (history === undefined) {
+                        throw new TypeError("the journal delivers to no history");
+                    }
+                    const delivered = await this.deliver(history);
 
                     return delivered === this.batch ? 0 : undefined;
                 }
@@ -479,9 +486,11 @@ export class Journal {
         // throw a recorded failure, else return the results
         const values: unknown[] = [];
         for (const call of calls) {
-            const outcome = call.execution.outcome!;
-            if (outcome.kind !== "success") {
-                throw new ServiceError(outcome.error.code, outcome.error);
+            const outcome = call.execution.outcome;
+            if (outcome === undefined) {
+                throw new TypeError(`replayed call ${call.execution.id} has no outcome`);
+            } else if (outcome.kind !== "success") {
+                throw errorOf(outcome.error);
             }
             values.push(outcome.value);
         }

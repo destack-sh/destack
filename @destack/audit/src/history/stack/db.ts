@@ -15,7 +15,7 @@ export const auditCall = defineTable(
     "call",
     {
         /** The call's identity. */
-        id: identifier("id", "call").primaryKey().notNull(),
+        id: identifier("id", "call").primaryKey(),
         /** The scope whose history keeps the call. */
         scope: text("scope").notNull(),
         /** The object type and method, such as page.create. */
@@ -52,7 +52,7 @@ export const auditTarget = defineTable(
     "target",
     {
         /** The target identity. */
-        id: identifier("id", "audit-target").primaryKey().notNull(),
+        id: identifier("id", "audit-target").primaryKey(),
         /** The call naming the target. */
         call: identifier("call_id", "call")
             .notNull()

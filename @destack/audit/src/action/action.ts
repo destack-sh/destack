@@ -4,7 +4,7 @@ import { ModuleMetadata, Package } from "@destack/package";
 
 /** A package-local action name in the form noun.verb. */
 export const AuditActionName = defineSchema(
-    schema.string().regex(/^[a-z][A-Za-z0-9]*(?:\.[a-z][A-Za-z0-9]*)+$/),
+    schema.string().regex(/^[a-z][A-Za-z0-9]*(?:\.[a-z][A-Za-z0-9]*)+$/u),
 );
 
 /** A typed action declared by a package. */

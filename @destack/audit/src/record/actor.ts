@@ -11,7 +11,7 @@ export const AuditActor = defineSchema(
             /** The principal that acted. */
             subject: Subject,
             /** The display name captured when recording. */
-            name: schema.string().optional(),
+            name: schema.string().exactOptional(),
         }),
         schema.object({
             /** The platform acted on its own. */
@@ -37,9 +37,9 @@ const auditCaller = defineSchema(
             /** The represented subject. */
             subject: Subject,
             /** The principals acting for the subject in order; the last sent the call. */
-            delegates: schema.array(Delegate).optional(),
+            delegates: schema.array(Delegate).exactOptional(),
             /** The represented subject's display name captured when recording. */
-            name: schema.string().optional(),
+            name: schema.string().exactOptional(),
         }),
         schema.object({
             /** The platform called on its own. */

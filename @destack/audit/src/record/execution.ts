@@ -1,5 +1,4 @@
-import { defineSchema, Instant, schema } from "@destack/schema";
-import { identifier } from "@destack/schema/identifier";
+import { defineSchema, Instant, schema, identifier } from "@destack/schema";
 import { Outcome } from "@destack/sync";
 import { AuditContext } from "./context.ts";
 
@@ -14,9 +13,9 @@ export const AuditTarget = defineSchema(
         /** The object identifier. */
         id: schema.string().min(1),
         /** The display name at the time of the call. */
-        name: schema.string().optional(),
+        name: schema.string().exactOptional(),
         /** The object version. */
-        version: schema.string().optional(),
+        version: schema.string().exactOptional(),
     }),
 );
 /** An object a call affected. */
@@ -28,7 +27,7 @@ export const AuditExecution = defineSchema(
         /** The call's identity. */
         id: identifier("call"),
         /** The request the call belongs to, which retries repeat. */
-        requestId: schema.string().min(1).optional(),
+        requestId: schema.string().min(1).exactOptional(),
         /** A write, a read of data, or a refused call. */
         category: schema.enum(["activity", "access", "denial"]),
         /** The authority and origin. */
@@ -38,15 +37,15 @@ export const AuditExecution = defineSchema(
         /** The details the method's audit schema accepts, sensitive values redacted. */
         details: schema.json(),
         /** The digest of the input, sensitive values fingerprinted under the call key. */
-        digest: schema.string().optional(),
+        digest: schema.string().exactOptional(),
         /** The transaction identity of the call's logged changes. */
-        transaction: schema.string().optional(),
+        transaction: schema.string().exactOptional(),
         /** How the call ended, absent while it runs. */
-        outcome: Outcome.optional(),
+        outcome: Outcome.exactOptional(),
         /** The start time, in UTC epoch milliseconds. */
         startedAt: Instant,
         /** The end time, in UTC epoch milliseconds, absent while it runs. */
-        finishedAt: Instant.optional(),
+        finishedAt: Instant.exactOptional(),
     }),
 );
 /** The execution of a call: who ran it where, what it affected, and how it ended. */

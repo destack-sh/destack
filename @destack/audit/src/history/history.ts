@@ -15,8 +15,7 @@ import {
     type SQL,
 } from "@destack/db";
 import { Subject } from "@destack/sync";
-import { canonicalize } from "@destack/schema/json";
-import { identifier } from "@destack/schema/identifier";
+import { canonicalize, identifier } from "@destack/schema";
 import { AuditError } from "../error/index.ts";
 import { AuditBatch, AuditPrune, AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
 import { auditCall, auditTarget } from "./stack/index.ts";
@@ -92,10 +91,13 @@ export class AuditHistory {
             .select({ call: auditCall.call })
             .from(auditCall)
             .where(eq(auditCall.id, execution.id));
-        const isRepeat = canonicalize(existing!.call) === canonicalize(call);
+        if (existing === undefined) {
+            throw new TypeError(`audited call ${execution.id} conflicted but is missing`);
+        }
+        const isRepeat = canonicalize(existing.call) === canonicalize(call);
         const isOutcome =
-            existing!.call.execution.outcome === undefined &&
-            canonicalize(AuditHistory.#origin(existing!.call)) ===
+            existing.call.execution.outcome === undefined &&
+            canonicalize(AuditHistory.#origin(existing.call)) ===
                 canonicalize(AuditHistory.#origin(call));
         if (!isRepeat && !isOutcome) {
             throw new AuditError("CONFLICT", "audited call has conflicting contents");
@@ -159,30 +161,30 @@ export class AuditHistory {
         const filters: (SQL | undefined)[] = [eq(auditCall.scope, query.scope)];
 
         // filter by method and package
-        if (query.method) {
+        if (query.method !== undefined) {
             filters.push(eq(auditCall.method, query.method));
         }
-        if (query.packageId) {
+        if (query.packageId !== undefined) {
             filters.push(eq(auditCall.packageId, query.packageId));
         }
 
         // filter by actor
-        if (query.actor) {
+        if (query.actor !== undefined) {
             filters.push(eq(auditCall.actor, actorKey(query.actor)));
         }
 
         // filter by category
-        if (query.category) {
+        if (query.category !== undefined) {
             filters.push(eq(auditCall.category, query.category));
         }
 
         // filter by outcome
-        if (query.outcome) {
+        if (query.outcome !== undefined) {
             filters.push(eq(auditCall.outcome, query.outcome));
         }
 
         // find calls still running
-        if (query.isRunning) {
+        if (query.isRunning === true) {
             filters.push(isNull(auditCall.outcome));
         }
 

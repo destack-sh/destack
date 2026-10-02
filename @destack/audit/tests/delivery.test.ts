@@ -40,8 +40,8 @@ test("deliver calls and their outcomes as they commit through control loops of c
     const stopping = new AbortController();
     const failures: unknown[] = [];
     const report = (_controller: unknown, _key: string, error: unknown) => failures.push(error);
-    const loops = [storage.journal, new Journal(connection, testCallKey)].map((journal) =>
-        new ControlLoop(journal.database, [journal.controller(storage.history)], { report }).run(
+    const loops = [storage.journal, new Journal(connection, testCallKey)].map((source) =>
+        new ControlLoop(source.database, [source.controller(storage.history)], { report }).run(
             stopping.signal,
         ),
     );

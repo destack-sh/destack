@@ -3,10 +3,9 @@ import { AuditCall } from "./call.ts";
 import { AuditContext } from "./context.ts";
 import { AuditExecution } from "./execution.ts";
 import { v7 } from "uuid";
-import { identifier, schema } from "@destack/schema";
-import { canonicalize } from "@destack/schema/json";
+import { identifier, schema, canonicalize, JsonValue } from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
-import { denialOf, ServiceError } from "@destack/service";
+import { denialOf, isServiceError, ServiceError } from "@destack/service";
 import type { Authentication } from "@destack/service/authentication";
 import {
     domainFailure,
@@ -75,7 +74,7 @@ export class AuditRecorder<Transaction = never> {
     /** The context of every call. */
     readonly #context: AuditContext;
     /** The request every call belongs to, absent outside a request. */
-    readonly #requestId?: string;
+    readonly #requestId: string | undefined;
     /** The writer calls go to. */
     readonly #writer: AuditWriter<Transaction>;
 
@@ -108,14 +107,19 @@ export class AuditRecorder<Transaction = never> {
         const token = identifier("token").safeParse(presented);
         const span = trace.getSpanContext(context.active());
 
+        // read the request's session, token and trace
+        const sessionId = session.success ? session.data : origin.sessionId;
+        const tokenId = token.success ? token.data : origin.tokenId;
+        const traceId = span && isSpanContextValid(span) ? span.traceId : undefined;
+
         return new AuditRecorder(
             {
                 ...origin,
                 caller: recorded,
-                deploymentId,
-                sessionId: session.success ? session.data : origin.sessionId,
-                tokenId: token.success ? token.data : origin.tokenId,
-                traceId: span && isSpanContextValid(span) ? span.traceId : undefined,
+                ...(deploymentId === undefined ? {} : { deploymentId }),
+                ...(sessionId === undefined ? {} : { sessionId }),
+                ...(tokenId === undefined ? {} : { tokenId }),
+                ...(traceId === undefined ? {} : { traceId }),
             },
             writer,
             requestId,
@@ -127,14 +131,14 @@ export class AuditRecorder<Transaction = never> {
         writer: AuditWriter<Transaction>,
         origin: Omit<AuditOrigin, "scope">,
     ): (scope: string, context?: ServiceContext) => AuditRecorder<Transaction> {
-        return (scope, context) =>
-            context === undefined
+        return (scope, request) =>
+            request === undefined
                 ? AuditRecorder.system(writer, { ...origin, scope })
                 : AuditRecorder.from(
-                      context.authenticationError === undefined ? context.authentication : null,
+                      request.authenticationError === undefined ? request.authentication : null,
                       writer,
                       { ...origin, scope },
-                      context.requestId,
+                      request.requestId,
                   );
     }
 
@@ -149,7 +153,7 @@ export class AuditRecorder<Transaction = never> {
             {
                 ...origin,
                 caller: { type: "system", name: origin.service },
-                traceId: span && isSpanContextValid(span) ? span.traceId : undefined,
+                ...(span && isSpanContextValid(span) ? { traceId: span.traceId } : {}),
             },
             writer,
         );
@@ -201,7 +205,7 @@ export class AuditRecorder<Transaction = never> {
     static outcome(error: unknown): Exclude<Outcome, { kind: "success" }> {
         // map domain failures to service failures
         const known = domainFailure(error) ?? error;
-        const denial = known instanceof ServiceError ? denialOf(known) : undefined;
+        const denial = isServiceError(known) ? denialOf(known) : undefined;
 
         // report rejected access as a denial
         if (denial !== undefined) {
@@ -219,8 +223,8 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Create the recorder. */
-    constructor(context: AuditContext, writer: AuditWriter<Transaction>, requestId?: string) {
-        this.#context = structuredClone(AuditContext.parse(context));
+    constructor(origin: AuditContext, writer: AuditWriter<Transaction>, requestId?: string) {
+        this.#context = structuredClone(AuditContext.parse(origin));
         this.#requestId = requestId;
         this.#writer = writer;
     }
@@ -277,14 +281,10 @@ export class AuditRecorder<Transaction = never> {
             ...call,
             execution: {
                 ...execution,
-                ...(details === undefined
-                    ? {}
-                    : {
-                          details: {
-                              ...(execution.details as Record<string, unknown>),
-                              ...details,
-                          },
-                      }),
+                details:
+                    details === undefined
+                        ? execution.details
+                        : mergeDetails(execution.details, details),
                 outcome,
                 finishedAt: Date.now(),
             },
@@ -433,7 +433,9 @@ export class AuditRecorder<Transaction = never> {
             await write();
         } catch (error) {
             if (cause !== undefined) {
-                throw new AggregateError([cause, error], "call and its recording failed");
+                throw new AggregateError([cause, error], "call and its recording failed", {
+                    cause: error,
+                });
             }
             throw error;
         }
@@ -471,3 +473,15 @@ export class AuditRecorder<Transaction = never> {
 
 /** The recorder methods a procedure's audit uses. */
 type ProcedureRecorder = Pick<AuditRecorder<unknown>, "record">;
+
+/** Merge result details into a call's recorded object details. */
+function mergeDetails(
+    recorded: JsonValue,
+    details: Readonly<Record<string, unknown>>,
+): Record<string, unknown> {
+    if (!JsonValue.isObject(recorded)) {
+        throw new AuditError("INVALID_EVENT", "result details merge only into object details");
+    }
+
+    return { ...recorded, ...details };
+}

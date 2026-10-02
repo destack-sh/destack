@@ -95,7 +95,11 @@ test("authorize producers and readers, stream history, and record denied access"
         const asOwner = new Authorization(authorizer, database, () => owner);
         await copyScope(database, principal.user.reference("universe", "owner"));
         await database.insert(accountRecord).values({ id: context.scope, scope: "owner" });
-        await asOwner.create(accountObject, { owner: owner.subjects[0]! });
+        const [subject] = owner.subjects;
+        if (subject === undefined) {
+            throw new TypeError("the owner has no subject");
+        }
+        await asOwner.create(accountObject, { owner: subject });
         const reader = await asOwner.createRole(accountObject, {
             name: "reader",
             description: "Records and reads the account's history",
@@ -156,7 +160,10 @@ test("authorize producers and readers, stream history, and record denied access"
         const query = { scope, method: publishDocument.name, limit: 1 };
         const first = await history.list(query);
         expect(first.items.map((record) => record.call)).toEqual([earlier]);
-        const second = await history.list({ ...query, cursor: first.cursor! });
+        if (first.cursor === null) {
+            throw new TypeError("the first page has no cursor");
+        }
+        const second = await history.list({ ...query, cursor: first.cursor });
         expect(second.items.map((record) => record.call)).toEqual([later]);
         expect(second.cursor).toBeNull();
         const exported = [];

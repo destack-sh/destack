@@ -1,6 +1,5 @@
-import type { Duration } from "@destack/schema";
+import { type Duration, schema } from "@destack/schema";
 import { testCallKey } from "@destack/service/test";
-import { schema } from "@destack/schema";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { DatabaseConnection } from "@destack/db";
 import { AuditRecorder, defineAuditAction, Journal, journal } from "../src/index.ts";
@@ -66,7 +65,11 @@ export class AuditStorage {
 
     /** Create migrated storage, keeping delivered calls for a lifetime. */
     static async open(lifetime?: Duration): Promise<AuditStorage> {
-        const test = await TestDatabase.create(TEST_DIALECTS.at(-1)!, TABLES, { isMigrated: true });
+        const dialect = TEST_DIALECTS.at(-1);
+        if (dialect === undefined) {
+            throw new TypeError("no test dialect");
+        }
+        const test = await TestDatabase.create(dialect, TABLES, { isMigrated: true });
 
         return new AuditStorage(test, test.database, lifetime);
     }

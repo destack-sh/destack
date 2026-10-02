@@ -1,7 +1,6 @@
 import { AuditActor } from "../record/actor.ts";
 import { AuditCall } from "../record/call.ts";
-import { defineSchema, Instant, schema } from "@destack/schema";
-import { identifier } from "@destack/schema/identifier";
+import { defineSchema, Instant, schema, identifier } from "@destack/schema";
 import { AuditActionName } from "../action/index.ts";
 import { PackageId } from "@destack/package";
 
@@ -28,27 +27,27 @@ export const AuditQuery = defineSchema(
         /** The scope whose history the query reads. */
         scope: AuditScope,
         /** The method the calls ran. */
-        method: AuditActionName.optional(),
+        method: AuditActionName.exactOptional(),
         /** The package serving the calls. */
-        packageId: PackageId.optional(),
+        packageId: PackageId.exactOptional(),
         /** The actor the calls record. */
-        actor: AuditActor.optional(),
+        actor: AuditActor.exactOptional(),
         /** An object the calls name. */
         target: schema
             .object({ type: schema.string().min(1), id: schema.string().min(1) })
-            .optional(),
+            .exactOptional(),
         /** The category of the calls. */
-        category: schema.enum(["activity", "access", "denial"]).optional(),
+        category: schema.enum(["activity", "access", "denial"]).exactOptional(),
         /** How the calls ended. */
-        outcome: schema.enum(["success", "failure", "denied", "cancelled"]).optional(),
+        outcome: schema.enum(["success", "failure", "denied", "cancelled"]).exactOptional(),
         /** Whether to return only calls still running. */
-        isRunning: schema.boolean().optional(),
+        isRunning: schema.boolean().exactOptional(),
         /** The inclusive earliest acceptance time, in UTC milliseconds. */
-        from: Instant.optional(),
+        from: Instant.exactOptional(),
         /** The exclusive latest acceptance time, in UTC milliseconds. */
-        before: Instant.optional(),
+        before: Instant.exactOptional(),
         /** The position after which the page continues. */
-        cursor: AuditCursor.optional(),
+        cursor: AuditCursor.exactOptional(),
         /** The maximum number of calls in the page. */
         limit: schema.number().int().min(1).max(MAX_AUDIT_BATCH),
     }),

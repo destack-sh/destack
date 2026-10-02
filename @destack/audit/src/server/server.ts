@@ -1,6 +1,6 @@
 import { auditExport, auditPrune } from "../history/action.ts";
 import { Scope } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
+import { Snapshot } from "@destack/db";
 import {
     implement,
     type ServiceAccess,
@@ -48,7 +48,10 @@ export function implementService(
                                 message: `permission denied: ${permission}`,
                             });
                         }
-                        await context.authorization!.require(
+                        if (context.authorization === undefined) {
+                            throw new TypeError("the audit service runs without authorization");
+                        }
+                        await context.authorization.require(
                             call.permission(permission),
                             link.object,
                         );
@@ -64,7 +67,9 @@ export function implementService(
         router: implementation.router({
             ingest: implementation.ingest.handler(async ({ input, context }) => {
                 // reject calls of the universe and authorize each scope
-                const scopes = new Set(input.calls.map((call) => call.execution.context.scope));
+                const scopes = new Set(
+                    input.calls.map((ingested) => ingested.execution.context.scope),
+                );
                 if (scopes.has(Scope.universe.id)) {
                     throw new ServiceError("BAD_REQUEST", {
                         message: "only the universe records its own audited calls",
@@ -101,9 +106,9 @@ export function implementService(
             ),
         }),
         clientInterceptors: [
-            async ({ next }) => {
+            async (interception) => {
                 try {
-                    return await next();
+                    return await interception.next();
                 } catch (error) {
                     // map audit failures to service failures
                     if (error instanceof AuditError) {

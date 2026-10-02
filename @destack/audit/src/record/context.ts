@@ -1,5 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
-import { identifier } from "@destack/schema/identifier";
+import { defineSchema, schema, identifier } from "@destack/schema";
 import { Package } from "@destack/package";
 import { AuditCaller } from "./actor.ts";
 
@@ -15,28 +14,28 @@ export const AuditContext = defineSchema(
         /** The service serving the call. */
         service: schema.string().min(1),
         /** The deployment executing the service. */
-        deploymentId: identifier("deployment").optional(),
+        deploymentId: identifier("deployment").exactOptional(),
         /** The instance executing the service. */
-        instanceId: identifier("instance").optional(),
+        instanceId: identifier("instance").exactOptional(),
         /** The host executing the service. */
-        hostId: identifier("host").optional(),
+        hostId: identifier("host").exactOptional(),
         /** The device the caller authenticated on. */
-        deviceId: identifier("device").optional(),
+        deviceId: identifier("device").exactOptional(),
         /** The caller's session, without its credential. */
-        sessionId: identifier("session").optional(),
+        sessionId: identifier("session").exactOptional(),
         /** The caller's token, without its secret. */
-        tokenId: identifier("token").optional(),
+        tokenId: identifier("token").exactOptional(),
         /** The call that caused this one. */
-        causeId: identifier("call").optional(),
+        causeId: identifier("call").exactOptional(),
         /** The trace the call belongs to, as 32 lowercase hexadecimal digits. */
         traceId: schema
             .string()
-            .regex(/^[0-9a-f]{32}$/)
-            .optional(),
+            .regex(/^[0-9a-f]{32}$/u)
+            .exactOptional(),
         /** The caller's network address, as the host saw it. */
-        address: schema.string().optional(),
+        address: schema.string().exactOptional(),
         /** The caller's user agent, as the host saw it. */
-        userAgent: schema.string().optional(),
+        userAgent: schema.string().exactOptional(),
     }),
 );
 /** The authority and origin of an executed call, as its host supplied them. */
