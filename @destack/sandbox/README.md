@@ -1,8 +1,10 @@
-Run processes with explicit filesystem and network permissions on macOS (Seatbelt) and Linux (bubblewrap with `socat` and `ripgrep`) through a separate sandbox manager.
+# @destack/sandbox
+
+Run processes with explicit filesystem and network permissions on macOS (Seatbelt) and Linux (bubblewrap with `socat` and `ripgrep`).
 
 ## Processes
 
-`Sandbox.start` runs an executable with only the environment, paths and hosts its options grant.
+`Sandbox.start` runs an executable with only the environment, paths and hosts its options list.
 
 ```ts
 import { Sandbox } from "@destack/sandbox";
@@ -23,13 +25,25 @@ sandbox.stderr.pipe(process.stderr);
 const exit = await sandbox.exited; // { code, signal }
 ```
 
-A workload writes its private temporary folder (`TMPDIR`) and serves and reaches Unix sockets in it, removed when it stops.
-`sockets` names further Unix sockets the host mediates service connections through.
-`SandboxOptions` and `SandboxExit` are schemas as well as types, since both sides of the sandbox parse their messages.
+## Sockets
+
+`sockets` lists further Unix sockets the workload connects to, in addition to its private `TMPDIR` that the sandbox removes when the workload stops.
+
+```ts
+await using sandbox = await Sandbox.start({ ...options, sockets: ["/run/destack/services.sock"] });
+```
+
+## Messages
+
+`SandboxOptions` and `SandboxExit` are schemas that parse the messages between the host and the sandbox launcher.
+
+```ts
+const options = SandboxOptions.parse(JSON.parse(line));
+```
 
 ## Runners
 
-A runner serving its host reads its standard input and listens on loopback ports with `allowsListening`.
+`allowsListening` lets the workload listen on loopback ports, and `stdin` writes to its standard input.
 
 ```ts
 await using runner = await Sandbox.start({ ...options, allowsListening: true });
@@ -38,19 +52,25 @@ runner.stdin.end(`${JSON.stringify(start)}\n`);
 
 ## Network
 
-A workload reaches the network only through the sandbox's proxy, which `HTTP_PROXY` and `HTTPS_PROXY` name, with `NO_PROXY` cleared so loopback hosts go through it too.
+`network` lists the hosts a workload connects to as names, `*.` wildcards or IP addresses with optional ports, and the workload connects to them only through the proxy in `HTTP_PROXY` and `HTTPS_PROXY`.
 
 ```ts
 const options = { ...base, network: ["api.example.com", "*.example.org", "203.0.113.7:8443"] };
 ```
 
-`network` lists names, `*.` wildcards and IP addresses, each optionally qualified by a port.
-The proxy answers a request to any other host with status 403, for plain HTTP and an HTTPS tunnel alike, and the operating system refuses direct connections.
-With `allowsListening`, the operating system also lets the workload connect to loopback ports directly.
+## Refusals
+
+The proxy answers HTTP requests and HTTPS tunnels to a host outside `network` with status 403, and the operating system refuses direct connections.
+
+```http
+CONNECT other.example.com:443 HTTP/1.1
+
+HTTP/1.1 403 Forbidden
+```
 
 ## Errors
 
-A failed start or stop throws a `SandboxError` from `@destack/sandbox/error` with the code `UNSUPPORTED`, `START_FAILED` or `STOP_FAILED`.
+A failed start or stop throws a `SandboxError` with the code `UNSUPPORTED`, `START_FAILED` or `STOP_FAILED`.
 
 ```ts
 import { SandboxError } from "@destack/sandbox/error";
