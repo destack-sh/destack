@@ -1,6 +1,7 @@
 import { Address, type Compare, type Plan, type Step } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { defineSchema, type schema } from "@destack/schema";
+import { graph } from "@destack/package";
+import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { DatabaseKind, type Database } from "../declare/database.ts";
 import { planTables } from "../migration/plan.ts";
 import { DatabaseState } from "../migration/state.ts";
@@ -11,6 +12,9 @@ export const DatabaseDeclaration = defineSchema(
 );
 /** A declared database and its required tables, as the manifest records it. */
 export type DatabaseDeclaration = schema.Infer<typeof DatabaseDeclaration>;
+
+/** A table's state in one dialect, as a database declaration records it. */
+type TableState = DatabaseDeclaration["tables"][keyof DatabaseDeclaration["tables"]][number];
 
 /** Describe a declared database. */
 export function describeDatabase(database: Database): DatabaseDeclaration {
@@ -62,3 +66,22 @@ export const compareDatabase: Compare = (before, after) => {
 
     return { steps: [...steps.values()] };
 };
+
+/** List a database's tables as its member symbols, each described by its state in every dialect. */
+export function databaseSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
+    // collect each table's state by dialect
+    const database = DatabaseDeclaration.parse(input);
+    const tables = new Map<string, Record<string, TableState>>();
+    for (const [dialect, states] of Object.entries(database.tables)) {
+        for (const state of states) {
+            tables.set(state.table.name, { ...tables.get(state.table.name), [dialect]: state });
+        }
+    }
+
+    return schema.array(graph.MemberSymbol).parse(
+        [...tables].map(([name, description]) => ({
+            member: { kind: "table", name, description },
+            relationships: [],
+        })),
+    );
+}

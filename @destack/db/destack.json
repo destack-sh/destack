@@ -21,7 +21,8 @@
                 {
                     "kind": "resource",
                     "function": "./inspect#describeDatabase",
-                    "compare": "./inspect#compareDatabase"
+                    "compare": "./inspect#compareDatabase",
+                    "symbols": "./inspect#databaseSymbols"
                 }
             ]
         },
