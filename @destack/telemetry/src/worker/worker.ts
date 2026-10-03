@@ -18,6 +18,7 @@ export interface ExecutionContext {
 /**
  * Run an invocation with isolated providers and export before releasing them.
  *
+ * Record a failure the operation throws before throwing it on.
  * Use the supplied providers and pass trace context explicitly between operations.
  * Pass telemetry.propagator to extractContext and injectContext for HTTP propagation.
  * Resolve the operation after its instrumented work finishes.
@@ -33,6 +34,9 @@ export async function withTelemetry<Result>(
     // keep exporters and credentials within their originating invocation
     try {
         return await operation(telemetry);
+    } catch (error) {
+        telemetry.capture(error);
+        throw error;
     } finally {
         context.waitUntil(telemetry.shutdown());
     }

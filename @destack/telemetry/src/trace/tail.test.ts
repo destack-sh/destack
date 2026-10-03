@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
+import { schema } from "@destack/schema";
 import { ROOT_CONTEXT } from "@opentelemetry/api";
 import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { BatchSpanProcessor, SamplingDecision } from "@opentelemetry/sdk-trace";
@@ -15,24 +16,38 @@ const source = {
     version: "2026.9.0",
 };
 
-/** The span and log record names an export request carries. */
-type Named = {
-    resourceSpans?: Group<"scopeSpans", "spans">[];
-    resourceLogs?: Group<"scopeLogs", "logRecords">[];
-};
+/** A named span or log record. */
+const NamedItem = schema.looseObject({
+    name: schema.string().exactOptional(),
+    eventName: schema.string().exactOptional(),
+});
 
-/** One resource's group of items. */
-type Group<Scopes extends string, Items extends string> = Record<
-    Scopes,
-    Record<Items, { name?: string; eventName?: string }[]>[]
->;
+/** The span and log record names an export request carries. */
+const Named = schema.looseObject({
+    resourceSpans: schema
+        .array(
+            schema.looseObject({
+                scopeSpans: schema.array(schema.looseObject({ spans: schema.array(NamedItem) })),
+            }),
+        )
+        .exactOptional(),
+    resourceLogs: schema
+        .array(
+            schema.looseObject({
+                scopeLogs: schema.array(
+                    schema.looseObject({ logRecords: schema.array(NamedItem) }),
+                ),
+            }),
+        )
+        .exactOptional(),
+});
 
 test("keep failed and slow unsampled traces with their records, warnings alone, and records outside traces", async () => {
     // export through a tail sampler behind a sampler keeping no trace by ratio
     const exported: string[] = [];
     const exporter = new OtlpExporter(
         async (_, body) => {
-            const request = JSON.parse(new TextDecoder().decode(body)) as Named;
+            const request = Named.parse(JSON.parse(new TextDecoder().decode(body)));
             for (const group of request.resourceSpans ?? []) {
                 exported.push(
                     ...group.scopeSpans.flatMap((scope) =>
@@ -78,7 +93,9 @@ test("keep failed and slow unsampled traces with their records, warnings alone, 
         }).catch(() => {});
         await span("slow", {}, async () => {
             log.debug("slow.waiting");
-            await new Promise((resolve) => setTimeout(resolve, 30));
+            await new Promise((resolve) => {
+                setTimeout(resolve, 30);
+            });
         });
         await span("warned", {}, () => log.warn("warned.conflict"));
         log.info("outside.started");

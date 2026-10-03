@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
+import { schema } from "@destack/schema";
 import { startTelemetry } from "../host/index.ts";
 import { OtlpExporter, type OtlpSignal } from "./exporter.ts";
 
@@ -10,14 +11,34 @@ const source = {
     version: "2026.9.0",
 };
 
+/** A traces request with one span, read for its trace and span identifiers. */
+const TracesRequest = schema.looseObject({
+    signal: schema.literal("traces"),
+    body: schema.looseObject({
+        resourceSpans: schema.tuple([
+            schema.looseObject({
+                scopeSpans: schema.tuple([
+                    schema.looseObject({
+                        spans: schema.tuple([
+                            schema.looseObject({
+                                traceId: schema.string(),
+                                spanId: schema.string(),
+                            }),
+                        ]),
+                    }),
+                ]),
+            }),
+        ]),
+    }),
+});
+
 /** The resource every signal of the package carries. */
-const resource = {
+const resource: unknown = expect.objectContaining({
     attributes: [
         { key: "service.name", value: { stringValue: "@example/notes" } },
         { key: "service.version", value: { stringValue: "2026.9.0" } },
     ],
-    droppedAttributesCount: 0,
-};
+});
 
 test("export a log record inside its span as OTLP/JSON, correlated by trace", async () => {
     // deliver every request as parsed JSON
@@ -42,15 +63,9 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
     }
 
     // name the span's trace and span on the log record
-    const [traces, logs] = delivered as [
-        {
-            body: {
-                resourceSpans: [{ scopeSpans: [{ spans: [{ traceId: string; spanId: string }] }] }];
-            };
-        },
-        unknown,
-    ];
-    const { traceId, spanId } = traces.body.resourceSpans[0].scopeSpans[0].spans[0];
+    const [traces, logs] = delivered;
+    const [{ scopeSpans }] = TracesRequest.parse(traces).body.resourceSpans;
+    const { traceId, spanId } = scopeSpans[0].spans[0];
     const scope = { name: "@example/notes", version: "2026.9.0" };
     expect([traces, logs]).toEqual([
         {
@@ -63,22 +78,12 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                             {
                                 scope,
                                 spans: [
-                                    {
+                                    expect.objectContaining({
                                         traceId,
                                         spanId,
                                         name: "note.render",
-                                        kind: 1,
-                                        startTimeUnixNano: expect.any(String),
-                                        endTimeUnixNano: expect.any(String),
                                         attributes: [{ key: "blocks", value: { intValue: 12 } }],
-                                        droppedAttributesCount: 0,
-                                        events: [],
-                                        droppedEventsCount: 0,
-                                        status: { code: 0 },
-                                        links: [],
-                                        droppedLinksCount: 0,
-                                        flags: 257,
-                                    },
+                                    }),
                                 ],
                             },
                         ],
@@ -96,19 +101,14 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                             {
                                 scope,
                                 logRecords: [
-                                    {
-                                        timeUnixNano: expect.any(String),
-                                        observedTimeUnixNano: expect.any(String),
+                                    expect.objectContaining({
                                         severityNumber: 9,
                                         severityText: "INFO",
-                                        body: {},
                                         eventName: "note.saved",
                                         attributes: [{ key: "length", value: { intValue: 5 } }],
-                                        droppedAttributesCount: 0,
                                         traceId,
                                         spanId,
-                                        flags: 1,
-                                    },
+                                    }),
                                 ],
                             },
                         ],

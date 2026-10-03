@@ -9,7 +9,7 @@ import {
     type TextMapPropagator,
     trace,
 } from "@opentelemetry/api";
-import { logs } from "@opentelemetry/api-logs";
+import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
 import {
     CompositePropagator,
     W3CBaggagePropagator,
@@ -20,15 +20,18 @@ import { LoggerProvider, type LoggerProviderOptions } from "@opentelemetry/sdk-l
 import { MeterProvider, type MeterProviderOptions } from "@opentelemetry/sdk-metrics";
 import { TracerProvider, type TracerProviderOptions } from "@opentelemetry/sdk-trace";
 import type { Package } from "@destack/package";
-import { instrument, type TelemetryScope } from "../scope/index.ts";
+import { ATTR_DESTACK_BUILD_MANIFEST } from "../convention/source.ts";
+import { exceptionAttributes, instrument, type TelemetryScope } from "../scope/index.ts";
 import { TraceIdGenerator } from "../trace/generator.ts";
 
 /** Configure one application's identity and its three telemetry providers. */
 export interface TelemetryOptions {
     /** The running service or frontend name. */
     name: string;
-    /** The deployed package version. */
+    /** The deployed package version, the release every signal names. */
     version: string;
+    /** The digest of the running build's manifest, naming the exact build on every signal. */
+    manifest?: string;
     /** Deployment attributes shared by every exported signal. */
     attributes?: Attributes;
     /** HTTP propagation; defaults to W3C trace context and baggage. */
@@ -43,6 +46,9 @@ export interface TelemetryOptions {
     report: (error: Error) => void;
 }
 
+/** Install a realm's capture of uncaught failures into running telemetry, returning how to remove it. */
+export type Capture = (telemetry: Telemetry) => () => void;
+
 /** Manage one application's trace, metric, and log providers. */
 export class Telemetry {
     /** The HTTP trace context and baggage propagator. */
@@ -53,6 +59,8 @@ export class Telemetry {
     readonly metrics: MeterProvider;
     /** The structured log provider. */
     readonly logs: LoggerProvider;
+    /** The application's logger recording uncaught failures. */
+    private readonly exceptions: Logger;
     /** Remove only registrations made by this instance. */
     private readonly unregister: (() => void)[] = [];
     /** The shared shutdown operation. */
@@ -72,6 +80,9 @@ export class Telemetry {
             ...options.attributes,
             "service.name": options.name,
             "service.version": options.version,
+            ...(options.manifest === undefined
+                ? {}
+                : { [ATTR_DESTACK_BUILD_MANIFEST]: options.manifest }),
         });
         this.traces = new TracerProvider({
             idGenerator: new TraceIdGenerator(),
@@ -80,6 +91,7 @@ export class Telemetry {
         });
         this.metrics = new MeterProvider({ ...options.metrics, resource });
         this.logs = new LoggerProvider({ ...options.logs, resource });
+        this.exceptions = this.logs.getLogger(options.name, options.version);
     }
 
     /** Attribute instrumentation to a package using this instance's providers. */
@@ -91,22 +103,26 @@ export class Telemetry {
         );
     }
 
-    /** Register providers and the host's context manager once per application. */
-    static async start(options: TelemetryOptions, manager: ContextManager): Promise<Telemetry> {
+    /** Record an uncaught failure as an error log record in the active trace. */
+    capture(error: unknown): void {
+        this.exceptions.emit({
+            eventName: "exception",
+            severityNumber: SeverityNumber.ERROR,
+            severityText: "ERROR",
+            attributes: exceptionAttributes(error),
+        });
+    }
+
+    /** Register providers, the host's context manager and the realm's capture once per application. */
+    static async start(
+        options: TelemetryOptions,
+        manager: ContextManager,
+        capture?: Capture,
+    ): Promise<Telemetry> {
         const telemetry = new Telemetry(options);
 
         // reject competing global providers and undo partial registration on failure
         try {
-            const report = (message: string, ...details: unknown[]) =>
-                options.report(new Error([message, ...details.map(String)].join(" ")));
-            const logger = {
-                error: report,
-                warn: report,
-                info: () => {},
-                debug: () => {},
-                verbose: () => {},
-            };
-            telemetry.register(diag.setLogger(logger, DiagLogLevel.WARN), () => diag.disable());
             telemetry.register(context.setGlobalContextManager(manager), () => context.disable());
             manager.enable();
             telemetry.register(propagation.setGlobalPropagator(telemetry.propagator), () =>
@@ -122,12 +138,29 @@ export class Telemetry {
                 logs.setGlobalLoggerProvider(telemetry.logs) === telemetry.logs,
                 () => logs.disable(),
             );
+
+            // report the SDK's warnings once no competing application's logger can be replaced
+            const report = (message: string, ...details: unknown[]) =>
+                options.report(new Error([message, ...details.map(String)].join(" ")));
+            const logger = {
+                error: report,
+                warn: report,
+                info: () => {},
+                debug: () => {},
+                verbose: () => {},
+            };
+            telemetry.register(diag.setLogger(logger, DiagLogLevel.WARN), () => diag.disable());
+            if (capture !== undefined) {
+                telemetry.unregister.push(capture(telemetry));
+            }
         } catch (error) {
             // preserve the registration failure if cleanup also fails
             try {
                 await telemetry.shutdown();
             } catch (cleanupError) {
-                throw new AggregateError([error, cleanupError], "telemetry initialization failed");
+                throw new AggregateError([error, cleanupError], "telemetry initialization failed", {
+                    cause: cleanupError,
+                });
             }
 
             throw error;
@@ -156,7 +189,7 @@ export class Telemetry {
         }
 
         // release registrations in reverse order
-        for (const unregister of this.unregister.splice(0).reverse()) {
+        for (const unregister of this.unregister.splice(0).toReversed()) {
             unregister();
         }
 
@@ -182,9 +215,9 @@ export class Telemetry {
 /** Wait for every provider and report every failure. */
 async function complete(operations: Promise<void>[]): Promise<void> {
     const results = await Promise.allSettled(operations);
-    const errors = results
-        .filter((result) => result.status === "rejected")
-        .map((result) => result.reason);
+    const errors = results.flatMap((result): unknown[] =>
+        result.status === "rejected" ? [result.reason] : [],
+    );
     if (errors.length > 0) {
         throw new AggregateError(errors, "telemetry export failed");
     }

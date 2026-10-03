@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import type { Attributes } from "@opentelemetry/api";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
@@ -25,6 +26,16 @@ import { TailSampler } from "../trace/tail.ts";
 
 /** How often metrics export: once a minute, the resolution monitors store points at. */
 const METRIC_INTERVAL_MILLISECONDS = 60_000;
+
+/** An OTLP/HTTP export response, reporting rejected items in its partial success. */
+const ExportResponse = schema.looseObject({
+    partialSuccess: schema
+        .looseObject({ errorMessage: schema.string().exactOptional() })
+        .exactOptional(),
+});
+
+/** The same-origin path below which an installation's origin receives its pages' OTLP/HTTP exports. */
+export const OTLP_ORIGIN_PATH = "/.destack/telemetry";
 
 /** The OTLP signals, named as their HTTP paths name them. */
 export type OtlpSignal = "traces" | "logs" | "metrics";
@@ -82,32 +93,35 @@ export class OtlpExporter {
         authorization: () => string,
         report: (error: Error) => void,
     ): OtlpExporter {
-        return new OtlpExporter(async (signal, body) => {
-            // post the request to the signal's path
-            const response = await fetch(`${endpoint}/v1/${signal}`, {
-                method: "POST",
-                headers: { "content-type": "application/json", authorization: authorization() },
-                body: body as Uint8Array<ArrayBuffer>,
-            });
+        return new OtlpExporter(
+            (signal, body) =>
+                post(fetch, `${endpoint}/v1/${signal}`, signal, body, {
+                    headers: { authorization: authorization() },
+                }),
+            report,
+        );
+    }
 
-            // refuse a delivery the endpoint refused
-            const text = await response.text();
-            if (!response.ok) {
-                throw new Error(`otlp ${signal} export failed with ${response.status}: ${text}`);
-            }
-
-            // refuse a delivery the endpoint accepted only in part
-            const partial = text === "" ? undefined : JSON.parse(text).partialSuccess;
-            if (partial?.errorMessage) {
-                throw new Error(`otlp ${signal} export partly rejected: ${partial.errorMessage}`);
-            }
-        }, report);
+    /** Export a page's signals over OTLP/HTTP to its own origin, as its session, delivering as the page unloads. */
+    static origin(
+        report: (error: Error) => void,
+        send: (url: string, options: RequestInit) => Promise<Response> = fetch,
+    ): OtlpExporter {
+        return new OtlpExporter(
+            (signal, body) =>
+                post(send, `${OTLP_ORIGIN_PATH}/v1/${signal}`, signal, body, { keepalive: true }),
+            report,
+        );
     }
 
     /** Build telemetry options sampling an owner's traces and batching its signals through this exporter. */
     options(
         owner: { readonly name: string; readonly version: string },
-        options: { readonly attributes?: Attributes; readonly ratio?: number } = {},
+        options: {
+            readonly attributes?: Attributes;
+            readonly ratio?: number;
+            readonly manifest?: string;
+        } = {},
     ): TelemetryOptions {
         // keep a ratio of traces, and every failed or slow one
         const tail = new TailSampler(
@@ -118,6 +132,7 @@ export class OtlpExporter {
         return {
             name: owner.name,
             version: owner.version,
+            ...(options.manifest === undefined ? {} : { manifest: options.manifest }),
             attributes: options.attributes ?? {},
             report: this.#report,
             traces: {
@@ -167,5 +182,41 @@ export class OtlpExporter {
     /** Wait for the deliveries in flight. */
     async #drain(): Promise<void> {
         await Promise.all(this.#pending);
+    }
+}
+
+/** Post one OTLP/JSON request of a signal, refusing a delivery the endpoint refused in whole or in part. */
+async function post(
+    send: (url: string, options: RequestInit) => Promise<Response>,
+    url: string,
+    signal: OtlpSignal,
+    body: Uint8Array,
+    delivery: { readonly headers?: Record<string, string>; readonly keepalive?: boolean },
+): Promise<void> {
+    // view the serialized bytes over their ArrayBuffer
+    const buffer = body.buffer;
+    if (!(buffer instanceof ArrayBuffer)) {
+        throw new TypeError("otlp request bytes must sit in an ArrayBuffer");
+    }
+    const bytes = new Uint8Array(buffer, body.byteOffset, body.byteLength);
+
+    // post the request to the signal's path
+    const response = await send(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...delivery.headers },
+        body: bytes,
+        ...(delivery.keepalive === undefined ? {} : { keepalive: delivery.keepalive }),
+    });
+
+    // refuse a delivery the endpoint refused
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`otlp ${signal} export failed with ${response.status}: ${text}`);
+    }
+
+    // refuse a delivery the endpoint accepted only in part
+    const partial = text === "" ? undefined : ExportResponse.parse(JSON.parse(text)).partialSuccess;
+    if (partial?.errorMessage !== undefined && partial.errorMessage !== "") {
+        throw new Error(`otlp ${signal} export partly rejected: ${partial.errorMessage}`);
     }
 }

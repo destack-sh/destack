@@ -8,20 +8,20 @@ import type {} from "@destack/package/import-meta";
 /** How long a local root runs before its trace counts as slow and is kept: a second. */
 const SLOW_MILLISECONDS = 1000;
 
-/** The most unsampled local traces held at once: older ones are dropped beyond it. */
-const HELD_TRACES = 1000;
+/** The most unsampled local traces pending at once: older ones are dropped beyond it. */
+const PENDING_TRACES = 1000;
 
-/** The unsampled traces dropped undecided because too many were held. */
+/** The unsampled traces dropped undecided because too many were pending. */
 const evicted = telemetry
     .scope(import.meta.destack.package)
     .metric.counter("telemetry.tail.evicted", {
         unit: "{trace}",
-        description: "Unsampled traces dropped undecided because too many were held.",
+        description: "Unsampled traces dropped undecided because too many were pending.",
         attributes: {},
     });
 
-/** The unsampled spans and log records of one local trace, held until its local root ends. */
-interface HeldTrace {
+/** The unsampled spans and log records of one local trace, buffered until its local root ends. */
+interface PendingTrace {
     /** The ended spans. */
     readonly spans: ReadableSpan[];
     /** The informational and debug log records. */
@@ -38,8 +38,8 @@ export class TailSampler {
     readonly #logs: LogRecordProcessor;
     /** How long a local root runs before its trace is kept, in milliseconds. */
     readonly #slowMilliseconds: number;
-    /** The held traces, by trace identifier, oldest first. */
-    readonly #held = new Map<string, HeldTrace>();
+    /** The pending traces, by trace identifier, oldest first. */
+    readonly #pending = new Map<string, PendingTrace>();
 
     /** The span processor: sampled spans pass, unsampled ones wait for their local root. */
     readonly spans: SpanProcessor = {
@@ -67,19 +67,19 @@ export class TailSampler {
         this.#slowMilliseconds = slowMilliseconds;
     }
 
-    /** Start holding an unsampled local root's trace, and pass sampled spans on. */
+    /** Start buffering an unsampled local root's trace, and pass sampled spans on. */
     #start(span: Span, context: Context): void {
-        // pass sampled spans, and hold a trace from its unsampled local root
+        // pass sampled spans, and buffer a trace from its unsampled local root
         const { traceId, traceFlags } = span.spanContext();
         if ((traceFlags & TraceFlags.SAMPLED) !== 0) {
             this.#spans.onStart(span, context);
-        } else if (!this.#held.has(traceId)) {
-            this.#held.set(traceId, { spans: [], logs: [], isFailed: false });
+        } else if (!this.#pending.has(traceId)) {
+            this.#pending.set(traceId, { spans: [], logs: [], isFailed: false });
             this.#evict();
         }
     }
 
-    /** Pass a sampled span on, or hold an unsampled one and decide its trace when its root ends. */
+    /** Pass a sampled span on, or buffer an unsampled one and decide its trace when its root ends. */
     #end(span: ReadableSpan): void {
         // pass sampled spans
         const { traceId, traceFlags } = span.spanContext();
@@ -89,60 +89,61 @@ export class TailSampler {
             return;
         }
 
-        // hold the span, noting a failure
-        const held = this.#held.get(traceId);
-        if (held === undefined) {
+        // buffer the span, noting a failure
+        const pending = this.#pending.get(traceId);
+        if (pending === undefined) {
             return;
         }
-        held.spans.push(span);
-        held.isFailed ||= span.status.code === SpanStatusCode.ERROR;
+        pending.spans.push(span);
+        pending.isFailed ||= span.status.code === SpanStatusCode.ERROR;
 
         // decide the trace once its local root ends: keep it when it failed or ran slow
         const isLocalRoot =
             span.parentSpanContext === undefined || span.parentSpanContext.isRemote === true;
         if (isLocalRoot) {
-            this.#held.delete(traceId);
+            this.#pending.delete(traceId);
             const milliseconds = span.duration[0] * 1000 + span.duration[1] / 1e6;
-            if (held.isFailed || milliseconds >= this.#slowMilliseconds) {
-                this.#keep(held);
+            if (pending.isFailed || milliseconds >= this.#slowMilliseconds) {
+                this.#keep(pending);
             }
         }
     }
 
-    /** Pass warnings and records outside held traces on, and hold the rest with their trace. */
+    /** Pass warnings and records outside pending traces on, and buffer the rest with their trace. */
     #emit(record: ReadWriteLogRecord, context?: Context): void {
         // pass warnings, records outside any trace and records of sampled traces
         const span =
             record.spanContext ??
             (context === undefined ? undefined : trace.getSpanContext(context));
-        const isWarning = (record.severityNumber ?? 0) >= SeverityNumber.WARN;
-        const held = span === undefined ? undefined : this.#held.get(span.traceId);
+        const isWarning =
+            (record.severityNumber ?? SeverityNumber.UNSPECIFIED) >= SeverityNumber.WARN;
+        const pending = span === undefined ? undefined : this.#pending.get(span.traceId);
         if (isWarning || span === undefined || (span.traceFlags & TraceFlags.SAMPLED) !== 0) {
             this.#logs.onEmit(record, context);
         }
-        // hold the rest with their trace, dropping those of traces already decided
-        else if (held !== undefined) {
-            held.logs.push(record);
+        // buffer the rest with their trace, dropping those of traces already decided
+        else if (pending !== undefined) {
+            pending.logs.push(record);
         }
     }
 
     /** Pass a kept trace's spans on as sampled, then its log records. */
-    #keep(held: HeldTrace): void {
-        for (const span of held.spans) {
+    #keep(pending: PendingTrace): void {
+        for (const span of pending.spans) {
             this.#spans.onEnd(sampled(span));
         }
-        for (const record of held.logs) {
+        for (const record of pending.logs) {
             this.#logs.onEmit(record);
         }
     }
 
-    /** Drop the oldest held traces beyond the bound, counting each. */
+    /** Drop the oldest pending traces beyond the bound, counting each. */
     #evict(): void {
-        for (const traceId of this.#held.keys()) {
-            if (this.#held.size <= HELD_TRACES) {
+        for (const traceId of this.#pending.keys()) {
+            if (this.#pending.size <= PENDING_TRACES) {
                 break;
             }
-            this.#held.delete(traceId);
+            this.#pending.delete(traceId);
             evicted.add(1);
         }
     }
@@ -150,10 +151,33 @@ export class TailSampler {
 
 /** View an ended span as sampled, so downstream processors export it. */
 function sampled(span: ReadableSpan): ReadableSpan {
+    // mark the context sampled
     const context = {
         ...span.spanContext(),
         traceFlags: span.spanContext().traceFlags | TraceFlags.SAMPLED,
     };
 
-    return Object.create(span, { spanContext: { value: () => context } }) as ReadableSpan;
+    // copy every readable field, keeping the parent only when the span has one
+    const parent = span.parentSpanContext;
+    const view: ReadableSpan = {
+        name: span.name,
+        kind: span.kind,
+        spanContext: () => context,
+        ...(parent === undefined ? {} : { parentSpanContext: parent }),
+        startTime: span.startTime,
+        endTime: span.endTime,
+        status: span.status,
+        attributes: span.attributes,
+        links: span.links,
+        events: span.events,
+        duration: span.duration,
+        ended: span.ended,
+        resource: span.resource,
+        instrumentationScope: span.instrumentationScope,
+        droppedAttributesCount: span.droppedAttributesCount,
+        droppedEventsCount: span.droppedEventsCount,
+        droppedLinksCount: span.droppedLinksCount,
+    };
+
+    return view;
 }

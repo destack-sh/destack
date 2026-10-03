@@ -13,5 +13,14 @@
         "./host": {
             "runtimes": ["bun"]
         }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/browser/devtools.ts"],
+                "rules": ["eslint/no-console"],
+                "reason": "the devtools exporter writes telemetry to the browser console, which is its purpose"
+            }
+        ]
     }
 }

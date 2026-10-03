@@ -1,4 +1,5 @@
 import type { Attributes } from "@opentelemetry/api";
+import { SeverityNumber } from "@opentelemetry/api-logs";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
     type LogRecordExporter,
@@ -12,9 +13,6 @@ import {
 } from "@opentelemetry/sdk-trace";
 import type { TelemetryOptions } from "../sdk/index.ts";
 
-/** The lowest OpenTelemetry severity numbers of warnings and errors. */
-const SEVERITY = { warn: 13, error: 17 } as const;
-
 /** Exports a browser's log records and spans to the developer tools console. */
 export class DevtoolsExporter {
     /** The log record exporter, writing each record at its severity. */
@@ -24,10 +22,10 @@ export class DevtoolsExporter {
                 const body =
                     typeof record.body === "string" ? record.body : JSON.stringify(record.body);
                 const name = record.eventName ?? body;
-                const severity = record.severityNumber ?? 0;
-                if (severity >= SEVERITY.error) {
+                const severity = record.severityNumber ?? SeverityNumber.UNSPECIFIED;
+                if (severity >= SeverityNumber.ERROR) {
                     console.error(name, record.attributes);
-                } else if (severity >= SEVERITY.warn) {
+                } else if (severity >= SeverityNumber.WARN) {
                     console.warn(name, record.attributes);
                 } else {
                     console.info(name, record.attributes);
@@ -64,7 +62,12 @@ export class DevtoolsExporter {
             traces: { spanProcessors: [new SimpleSpanProcessor({ exporter: this.traces })] },
             logs: { processors: [new SimpleLogRecordProcessor({ exporter: this.logs })] },
             metrics: {},
-            report: (error) => console.warn("telemetry failed:", error),
+            report: reportToDevtools,
         };
     }
+}
+
+/** Report a failure of telemetry itself to the developer tools console, outside the page's captured errors. */
+export function reportToDevtools(error: Error): void {
+    console.warn("telemetry failed:", error);
 }

@@ -1,5 +1,6 @@
-import { expect, test } from "@destack/test";
+import { expect, expectTypeOf, test } from "@destack/test";
 import { PackageId } from "@destack/package";
+import { schema } from "@destack/schema";
 import { startTelemetry } from "../host/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 
@@ -11,17 +12,32 @@ const source = {
 };
 
 /** The metrics of an export request, by name. */
-type Exported = {
-    resourceMetrics: {
-        scopeMetrics: {
-            metrics: {
-                name: string;
-                unit: string;
-                sum?: { dataPoints: { attributes: unknown[]; asDouble?: number }[] };
-            }[];
-        }[];
-    }[];
-};
+const Exported = schema.looseObject({
+    resourceMetrics: schema.array(
+        schema.looseObject({
+            scopeMetrics: schema.array(
+                schema.looseObject({
+                    metrics: schema.array(
+                        schema.looseObject({
+                            name: schema.string(),
+                            unit: schema.string(),
+                            sum: schema
+                                .looseObject({
+                                    dataPoints: schema.array(
+                                        schema.looseObject({
+                                            attributes: schema.array(schema.unknown()),
+                                            asDouble: schema.number().exactOptional(),
+                                        }),
+                                    ),
+                                })
+                                .exactOptional(),
+                        }),
+                    ),
+                }),
+            ),
+        }),
+    ),
+});
 
 test("declare metrics whose attributes take only their declared values, and export them with their unit", async () => {
     // collect the metrics each export carries
@@ -29,7 +45,7 @@ test("declare metrics whose attributes take only their declared values, and expo
     const exporter = new OtlpExporter(
         async (signal, body) => {
             if (signal === "metrics") {
-                const request = JSON.parse(new TextDecoder().decode(body)) as Exported;
+                const request = Exported.parse(JSON.parse(new TextDecoder().decode(body)));
                 for (const group of request.resourceMetrics) {
                     for (const scope of group.scopeMetrics) {
                         metrics.push(
@@ -59,12 +75,9 @@ test("declare metrics whose attributes take only their declared values, and expo
             attributes: { notebook: ["personal", "shared"] },
         });
         saves.add(2, { notebook: "shared" });
-        const _refused = () => {
-            // @ts-expect-error an undeclared value
-            saves.add(1, { notebook: "archive" });
-            // @ts-expect-error an undeclared attribute
-            saves.add(1, { folder: "inbox" });
-        };
+        expectTypeOf<{ notebook: "shared" }>().toExtend<Parameters<typeof saves.add>[1]>();
+        expectTypeOf<{ notebook: "archive" }>().not.toExtend<Parameters<typeof saves.add>[1]>();
+        expectTypeOf<{ folder: "inbox" }>().not.toExtend<Parameters<typeof saves.add>[1]>();
         await telemetry.flush();
     } finally {
         await telemetry.shutdown();
