@@ -1,9 +1,10 @@
-Define, validate and describe the data of Destack packages, based on [Zod](https://zod.dev/).
+# @destack/schema
+
+Define, validate and describe the values of Destack packages, based on [Zod](https://zod.dev/).
 
 ## Schemas
 
-`schema` is Zod's API.
-`defineSchema` and `toJsonSchema` accept only rules JSON Schema can express: they reject transforms, refinements, dates and loose objects.
+`schema` is the Zod API, and `defineSchema` and `toJsonSchema` reject rules that JSON Schema cannot express, such as transforms, refinements, dates and loose objects.
 
 ```ts
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
@@ -17,7 +18,9 @@ Note.parse({ title: "Hello", archived: false });
 toJsonSchema(Note);
 ```
 
-A described schema validates again after it travels as JSON Schema.
+## JSON Schema
+
+`fromJsonSchema` turns a JSON Schema back into a schema that validates the same values.
 
 ```ts
 import { fromJsonSchema } from "@destack/schema";
@@ -25,7 +28,9 @@ import { fromJsonSchema } from "@destack/schema";
 fromJsonSchema(toJsonSchema(Note)).parse({ title: "Hello", archived: false });
 ```
 
-Two described schemas compare by the values each accepts.
+## Comparisons
+
+`compareJsonSchemas` compares two JSON Schemas by the values each accepts.
 
 ```ts
 import { compareJsonSchemas } from "@destack/schema";
@@ -35,16 +40,21 @@ compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.string().m
 compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.number())); // "incompatible"
 ```
 
-| Change         | Meaning                                            |
-| -------------- | -------------------------------------------------- |
-| `same`         | each accepts exactly the other's values            |
-| `wider`        | the new schema accepts every old value             |
-| `narrower`     | the old schema accepts every new value             |
-| `incompatible` | neither is true, or the comparison cannot prove it |
+## Comparison results
+
+`SchemaComparison` states how the values of the new schema relate to the values of the old one.
+
+```ts
+type SchemaComparison =
+    | "same" // each accepts exactly the other's values
+    | "wider" // the new schema accepts every old value
+    | "narrower" // the old schema accepts every new value
+    | "incompatible"; // neither is true, or the comparison cannot prove it
+```
 
 ## Identifiers
 
-An identifier is a lowercase prefix and a UUIDv7, branded by its prefix.
+`schema.identifier` validates a lowercase prefix and a UUIDv7 and brands the type by the prefix, and `Identifier.uuid` returns the UUID.
 
 ```ts
 import { Identifier, schema } from "@destack/schema";
@@ -56,7 +66,7 @@ Identifier.uuid(id); // "01995f12-3456-7890-8abc-123456789abc"
 
 ## Versions
 
-A version is a calendar release, and a nightly build sorts before its release.
+`Version.compare` orders calendar versions and sorts a nightly build before its release, and `Version.between` lists the entries after one release and up to another.
 
 ```ts
 import { Version } from "@destack/schema";
@@ -67,16 +77,20 @@ Version.between({ "2026.9.0": a, "2026.10.0": b }, "2026.8.0", "2026.9.0"); // [
 
 ## Time
 
-Time values follow Temporal's names and keep their JSON forms.
+The time types take their names from Temporal and keep their JSON forms.
 
-| Value       | Form                                                   |
-| ----------- | ------------------------------------------------------ |
-| `Instant`   | UTC epoch milliseconds                                 |
-| `Duration`  | `{ days?, hours?, minutes?, seconds?, milliseconds? }` |
-| `PlainDate` | `{ year, month, day }`                                 |
-| `PlainTime` | `"HH:MM"` on a 24-hour clock                           |
-| `Weekday`   | 1 for Monday to 7 for Sunday                           |
-| `TimeZone`  | an IANA name, such as `"Europe/Vienna"`                |
+```ts
+const instant: Instant = 1_760_000_000_000; // UTC epoch milliseconds
+const duration: Duration = { hours: 1, minutes: 30 }; // days, hours, minutes, seconds and milliseconds, each optional
+const date: PlainDate = { year: 2026, month: 10, day: 3 };
+const time: PlainTime = "09:30"; // HH:MM on a 24-hour clock
+const weekday: Weekday = 1; // 1 for Monday to 7 for Sunday
+const zone: TimeZone = "Europe/Vienna"; // an IANA name
+```
+
+## Time arithmetic
+
+`Duration.milliseconds` converts a duration to milliseconds, and `TimeZone.next` returns the next of some local times in a time zone.
 
 ```ts
 import { Duration, TimeZone } from "@destack/schema";
@@ -87,7 +101,7 @@ TimeZone.next("Europe/Vienna", ["09:00", "17:00"], Date.now()); // the next 09:0
 
 ## Sensitivity
 
-A sensitive schema's values stay in their own column: nothing derived from a request or record, such as a log entry or a journal fingerprint, keeps them.
+`schema.sensitive` marks a value that log entries, journal fingerprints and other derived records leave out, and `schema.redact` removes such values from an object.
 
 ```ts
 const Credential = schema.object({
@@ -100,7 +114,7 @@ schema.redact(Credential, { name: "ci", token: "secret" }); // { name: "ci" }
 
 ## JSON
 
-`JsonValue` is a JSON value as readers see it, and `schema.json()` validates one.
+`JsonValue.of` converts a value to its JSON form, and `schema.json()` validates a JSON value.
 
 ```ts
 import { JsonValue, schema } from "@destack/schema";
@@ -111,7 +125,7 @@ schema.json().parse({ tags: ["a"] }); // { tags: ["a"] }
 
 ## Checked reads
 
-These reads refuse a missing value instead of passing `undefined` on.
+`present`, `found`, `aligned` and `zip` throw on a missing value instead of returning `undefined`.
 
 ```ts
 import { aligned, found, present, zip } from "@destack/schema";
@@ -123,6 +137,8 @@ zip(ids, rows); // [[id, row], ...], or RangeError for lists of different length
 ```
 
 ## Digests
+
+`canonicalize` writes JSON with sorted object keys, and `Digest.json` hashes that form.
 
 ```ts
 import { canonicalize, Digest } from "@destack/schema";
