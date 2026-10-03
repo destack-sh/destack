@@ -118,7 +118,7 @@ test("copy a bucket to another host: follow its catalogue and blobs, then captur
     const controller = new AbortController();
     const following = copy.follow(
         to.database,
-        (after, signal) => feed.subscribe(copy.queries, after, signal),
+        ({ after }, signal) => feed.subscribe(copy.queries, after, signal),
         controller.signal,
         { blobs },
     );

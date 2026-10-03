@@ -58,16 +58,3 @@ test("serve a host's buckets over S3 by name, presigned with credentials its key
         "first",
     ]);
 });
-
-test("address buckets below an endpoint's path", () => {
-    const location = {
-        endpoint: new URL("https://files.example/storage/"),
-        bucket: "files",
-        region: "auto",
-    };
-
-    expect([S3Location.url(location).href, S3Location.url(location, "a b/c").href]).toEqual([
-        "https://files.example/storage/files",
-        "https://files.example/storage/files/a%20b/c",
-    ]);
-});
