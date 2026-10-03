@@ -13,18 +13,17 @@ Templates are ordinary packages with a `template` declaration in `destack.json`.
 ## Generation
 
 ```ts
-import { generateTemplate, readTemplate, writeTemplate } from "@destack/build/template";
+import { Template } from "@destack/build/template";
 
-const source = await readTemplate("@destack/template-blank");
-const files = generateTemplate(source, {
+const template = await Template.read("./@template/blank");
+await template.write("./notes", {
+    id: PackageId.parse(`package-${v7()}`),
     name: "@florian/notes",
     dependencies: {
-        "@destack/template-stack": { name: "@florian/stack", version: "2026.9.0" },
+        "@template/stack": { id: stackId, name: "@florian/stack", version: "2026.9.0" },
     },
 });
-await writeTemplate(files, "./notes");
 ```
 
-Registry consumers supply the verified source files from a selected package release.
-Generation updates JSON metadata and parsed module references.
-It does not execute template code, install dependencies, or provision resources.
+Registry consumers read the verified source files of a selected package release.
+Generation rewrites the JSON metadata and the parsed module references, and leaves template code unexecuted, dependencies uninstalled and resources unprovisioned.
