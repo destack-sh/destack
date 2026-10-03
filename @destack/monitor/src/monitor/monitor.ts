@@ -11,12 +11,11 @@ import {
     lte,
     sql,
     type DatabaseConnection,
+    type Select,
     type SQL,
     type Channel,
-    Snapshot,
     typedChannel,
 } from "@destack/db";
-import { Scope } from "@destack/sync";
 import type { Bucket } from "@destack/bucket";
 import { schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
@@ -35,7 +34,7 @@ import {
     type Series,
 } from "../entry/index.ts";
 import { aggregate } from "./series.ts";
-import { setting } from "@destack/setting/object";
+import { SettingValue } from "@destack/setting/object";
 import { POINT_BIT, Segment, UNSPECIFIED_BIT } from "../segment/segment.ts";
 import { telemetryRetention, traceSampling } from "../setting/setting.ts";
 import type { Setting } from "@destack/setting";
@@ -60,7 +59,7 @@ const SWEEP_GRACE_MILLISECONDS = 10 * 60 * 1000;
 /** The most segment files one query reads at once: ~8 streams of R2's 50-100 MB/s each. */
 const READ_CONCURRENCY = 8;
 
-/** The longest trace span; the lookup cuts traces with spans further apart. */
+/** The longest trace span, beyond which the lookup cuts traces. */
 const TRACE_MICROSECONDS = 60 * 60 * 1_000_000;
 
 /** How often an instance announces itself and its tails to the others: ten seconds. */
@@ -466,52 +465,59 @@ export class Monitor {
             if (hour >= current) {
                 continue;
             }
-            for (const rows of fitting(
-                segments.toSorted((first, second) => first.from - second.from),
-            )) {
-                if (rows.length < 2) {
-                    continue;
+            const ordered = segments.toSorted((first, second) => first.from - second.from);
+            for (const rows of fitting(ordered)) {
+                if (rows.length >= 2) {
+                    await this.#merge(scope, installation, rows, now);
                 }
-
-                // read the group's entries, a bounded number of files at once, oldest first
-                const window = {
-                    from: Math.min(...rows.map((row) => row.from)),
-                    to: Math.max(...rows.map((row) => row.to)),
-                };
-                const entries = (await this.#read(rows, installation, window, () => true)).flat();
-                const merged = new Segment(installation);
-                for (const entry of entries.toSorted((first, second) => first.time - second.time)) {
-                    merged.append(entry);
-                }
-
-                // store the merged file, then replace the minute rows with its row
-                const id = schema.identifier("segment").parse(`segment-${v7()}`);
-                const key = `${scope}/${installation ?? "host"}/${merged.from}-${id}.parquet`;
-                const body = await merged.encode();
-                await this.bucket.put(key, body);
-                await this.database.transaction(async (transaction) => {
-                    await transaction.insert(monitorSegment).values({
-                        id,
-                        scope,
-                        installationId: installation ?? null,
-                        from: merged.from,
-                        to: merged.to,
-                        level: 1,
-                        rows: merged.entries.length,
-                        bytes: body.byteLength,
-                        contents: merged.contents,
-                        key,
-                        createdAt: now,
-                    });
-                    await transaction.delete(monitorSegment).where(
-                        inArray(
-                            monitorSegment.id,
-                            rows.map((row) => row.id),
-                        ),
-                    );
-                });
             }
         }
+    }
+
+    /** Merge a group of minute segments into one, storing its file before replacing their rows. */
+    async #merge(
+        scope: string,
+        installation: Identifier<"installation"> | undefined,
+        rows: readonly Select<typeof monitorSegment>[],
+        now: number,
+    ): Promise<void> {
+        // read the group's entries, a bounded number of files at once, oldest first
+        const window = {
+            from: Math.min(...rows.map((row) => row.from)),
+            to: Math.max(...rows.map((row) => row.to)),
+        };
+        const entries = (await this.#read(rows, installation, window, () => true)).flat();
+        const merged = new Segment(installation);
+        for (const entry of entries.toSorted((first, second) => first.time - second.time)) {
+            merged.append(entry);
+        }
+
+        // store the merged file, then replace the minute rows with its row
+        const id = schema.identifier("segment").parse(`segment-${v7()}`);
+        const key = `${scope}/${installation ?? "host"}/${merged.from}-${id}.parquet`;
+        const body = await merged.encode();
+        await this.bucket.put(key, body);
+        await this.database.transaction(async (transaction) => {
+            await transaction.insert(monitorSegment).values({
+                id,
+                scope,
+                installationId: installation ?? null,
+                from: merged.from,
+                to: merged.to,
+                level: 1,
+                rows: merged.entries.length,
+                bytes: body.byteLength,
+                contents: merged.contents,
+                key,
+                createdAt: now,
+            });
+            await transaction.delete(monitorSegment).where(
+                inArray(
+                    monitorSegment.id,
+                    rows.map((row) => row.id),
+                ),
+            );
+        });
     }
 
     /** Drop the segments of an installation, or of the scope's host, older than its retention. */
@@ -575,27 +581,12 @@ export class Monitor {
         scope: string,
         installation: Identifier<"installation"> | undefined,
     ): Promise<schema.Infer<Value>> {
-        // take the default for the host's own entries
+        // take the default for the host's entries
         if (installation === undefined) {
             return declared.definition.default;
         }
 
-        // read the values the space and the scopes above it set for the setting
-        const selection = { scope, installation };
-        const snapshot = Snapshot.live(this.database);
-        const chain = await Scope.chain(snapshot, scope);
-        const values = await snapshot.rows(setting.table, {
-            AND: [
-                declared.condition(selection),
-                { scope: { in: chain.map((link) => link.object.id) } },
-            ],
-        });
-
-        return declared.resolve(
-            selection,
-            values,
-            chain.map((link) => link.object.id),
-        ).value;
+        return SettingValue.resolve(this.database, declared, { scope, installation });
     }
 
     /** Aggregate a metric's points in a window into steps per attribute group, across sealed and open segments. */
@@ -716,8 +707,8 @@ export class Monitor {
         window: { readonly from: number; readonly to: number },
         query: EntryQuery,
     ): Promise<Entry[]> {
-        // read this instance's own open entries
-        const own = this.#openEntries(
+        // read this instance's open entries
+        const local = this.#openEntries(
             scope,
             installation,
             window,
@@ -725,16 +716,31 @@ export class Monitor {
         );
         const peers = [...this.#alive()];
         if (this.#channel === undefined || peers.length === 0) {
-            return own;
+            return local;
         }
 
         // ask the other instances, taking the answers that arrive in time
+        const asked = await this.#ask(this.#channel, peers, scope, installation, window, query);
+
+        return [...local, ...asked];
+    }
+
+    /** Ask other instances for their open entries a query wants, collecting the answers that arrive in time. */
+    async #ask(
+        channel: Channel<MonitorMessage>,
+        peers: readonly string[],
+        scope: string,
+        installation: Identifier<"installation"> | undefined,
+        window: { readonly from: number; readonly to: number },
+        query: EntryQuery,
+    ): Promise<Entry[]> {
+        // wait for every answer, or the timeout
         const request = crypto.randomUUID();
         const answered = Promise.withResolvers<void>();
         const entries: Entry[] = [];
         const asking = { waiting: new Set(peers), entries, done: answered.resolve };
         this.#asking.set(request, asking);
-        this.#channel.notify({
+        channel.notify({
             kind: "ask",
             request,
             instance: this.#instance,
@@ -748,7 +754,7 @@ export class Monitor {
         clearTimeout(timeout);
         this.#asking.delete(request);
 
-        return [...own, ...entries];
+        return entries;
     }
 
     /** Take a message from another instance's monitor. */
@@ -895,10 +901,12 @@ export class Monitor {
 }
 
 /** Pack segments into consecutive groups of at most one segment's rows, so each merge fits in memory. */
-function fitting<Row extends { readonly rows: number }>(segments: readonly Row[]): Row[][] {
+function fitting<Stored extends { readonly rows: number }>(
+    segments: readonly Stored[],
+): Stored[][] {
     // fill each group up to the rows one segment keeps
-    const groups: Row[][] = [];
-    let group: Row[] = [];
+    const groups: Stored[][] = [];
+    let group: Stored[] = [];
     let rows = 0;
     for (const segment of segments) {
         // close the group once the segment would not fit
