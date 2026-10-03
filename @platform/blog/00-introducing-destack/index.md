@@ -5,20 +5,22 @@ date: "2026-10-05"
 author: "Florian"
 ---
 
-Software is entering another Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
+Software is entering its Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
 Both products and processes will evolve under intense competition, with free migrations enabling the full exploration of the space of all possible software - until a new optima is found.
 
-<!-- Publication license pending: Christian Jégou / Science Source. -->
 :::figure width="600" src="./cambrian-sea.jpg" alt="Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges."
 [Cambrian marine life](https://es.knowablemagazine.org/content/articulo/alimentos-ambiente/2026/como-los-herbivoros-obtienen-aminoacidos-esenciales) — Christian Jégou, Science Source.
 :::
 
-It's about time too, because the current stack is fundamentally broken:
-we've got a thousand little software silos, each with their own slightly incompatible slice of the stack, each gluing its own auth and telemetry and compute and storage, all awkwardly encapsulated from its users, and completely impossible to modify or even properly integrate.
+It's about time.
+The current stack is fundamentally broken.
+We've got a thousand little software silos, each with their own slightly incompatible slice of the stack, each gluing its own auth and telemetry and compute and storage, partly encapsulated from its users, all locking out the next generation of software by design.
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
+
+cannot leverage neither probabilistic computing nor personal software.
 
 Half a century after the last software crisis, the software stack is once again buckling under the weight, volume and speed of a more powerful machine.
 Once more, we will have to retrace from the beginning, reconsider what programming even means, and reshape what software systems should look like for the 21st century.
@@ -43,23 +45,28 @@ Agents are on pace to outnumber human users by multiple orders of magnitude very
 Until very recently, the key issue with "malleable software" was that approximately nobody _wants_ to build *and maintain* "owned software".
 Building custom software is enticing but difficult: it never ends, it rarely works _quite_ as well as the off-the-shelf SaaS alternative, and in any case there was little benefit to owning the stack.
 
-Now, the equation has flipped - building is cheap, the lack of integration is expensive.
-How do you join, in one transaction, write "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
-It simply does not compute - the depth of integration required is impossible by tying together slices of the old stack.
+Now, the equation has flipped - building is cheap, the lack of integration and control is expensive.
+How do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
+It simply does not compute - the depth of integration required is impossible to achieve by merely tying together slices of the old stack.
 
 :::figure width="640" src="./wright-flyer-wind-tunnel.jpg" alt="A full-size Wright Flyer replica mounted on a test stand inside the Ames wind tunnel, with two engineers standing beside it."
 [Wright Flyer replica in the Ames wind tunnel](https://www.nasa.gov/image-article/wright-flyer/) — NASA, public domain.
 :::
 
-Every discerning developer knows that the software crisis already goes far beyond "lack of integration":
+Our current software crisis goes well beyond a mere "lack of integration":
 it's not just that software doesn't work well _together_, it's that they doesn't work well _at all_.
 If software is solved, why is there still so much bad software?
 And how _do_ we solve it?
 How do we put the "engineering" into "software engineering"?
 
+Excruciaingly, there are all these amazing new probabilistic computing capabilities to embed deep and wide into our symbolic stack.
+Where is all the automation? 
+Why aren't all form fields automatically pre-filled?
+Why doesn't _every_ textbox have autocomplete based on my own profile..?
+
 The brute acceleration of old processes with "self-driving factories" will not magically yield a better stack with better software, just _more_ of the same old stack with the same old problems - except with less oversight, and more impact.
 No.
-The precise manufacture of the integrated high quality malleable software we need logically requires _new_ integrated processes, not just for production, but design, analysis, and deployment.
+The precise manufacture of malleable software requires _new_ integrated processes, and those processes need to span the entire lifecycle beyond just production.
 
 # Higher Order Programming
 
