@@ -1,4 +1,4 @@
-import type { DatabaseConnection, Select, Snapshot } from "@destack/db";
+import type { DatabaseConnection, Row, Select, Snapshot } from "@destack/db";
 import { Replica, type ScopeLink, Scope, type ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../policy/policy.ts";
@@ -9,7 +9,7 @@ import { AccessContext, Caller, Contact } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { RelationshipRow } from "../relationship/table.ts";
+import type { EncodedRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { Role } from "../role/role.ts";
 import type { DefinedRole, RoleGrant } from "../role/closure.ts";
@@ -180,47 +180,13 @@ export class Access {
      * A scope this one does not enclose is left out.
      */
     async descend(snapshot: Snapshot, scopes: readonly string[]): Promise<Map<string, Access>> {
-        // read the scopes' rows and the rows between them and this scope
-        const chain = new Set(this.#links.map((link) => link.object.id));
-        const rows = new Map<string, Select<typeof Scope.table>>();
-        for (let wanted = scopes.filter((id) => !chain.has(id)); wanted.length > 0;) {
-            const read = await snapshot.select(
-                Scope.table,
-                ["scope"],
-                wanted.map((id) => [id]),
-            );
-            for (const row of read) {
-                rows.set(row.scope, row);
-            }
-            wanted = [...new Set(read.map((row) => row.parent))].filter(
-                (id) => !rows.has(id) && !chain.has(id),
-            );
-        }
-
         // link each scope up to this one, leaving out the scopes it does not enclose
+        const rows = await this.#readBetween(snapshot, scopes);
         const below = new Map<string, ScopeLink[]>();
         for (const scope of new Set(scopes)) {
-            const links: ScopeLink[] = [];
-            let current = rows.get(scope);
-            const visited = new Set<string>();
-            while (current !== undefined && !visited.has(current.scope)) {
-                visited.add(current.scope);
-                links.push({
-                    object: {
-                        packageId: current.packageId,
-                        type: current.type,
-                        scope: current.parent,
-                        id: current.scope,
-                    },
-                    parent: current.parent,
-                    isSuspended: current.suspendedAt !== null,
-                    movedTo: current.movedTo ?? undefined,
-                });
-                if (current.parent === this.scope) {
-                    below.set(scope, links);
-                    break;
-                }
-                current = rows.get(current.parent);
+            const links = this.#linksUp(rows, scope);
+            if (links !== undefined) {
+                below.set(scope, links);
             }
         }
 
@@ -238,58 +204,129 @@ export class Access {
         ]);
         const defined = new Set(defining.map((row) => row.scope));
 
-        // reuse this scope's roles below it, reading the roles of a chain that defines more
+        // resolve each scope below this one
         const resolved = new Map<string, Access>();
         for (const [scope, links] of below) {
-            // expand the authorities again for a chain whose scopes take sets from the scopes enclosing them
-            const objects = [...links, ...this.#links].map((link) => link.object);
-            const expansions = links.some((link) => this.#authorizer.isEnclosed(link.object))
-                ? await Promise.all(
-                      this.authorities.map(async (authority) => ({
-                          authority,
-                          expanded: await Access.expand(
-                              snapshot,
-                              authority.subjects,
-                              this.context,
-                              this.#authorizer,
-                              objects,
-                          ),
-                      })),
-                  )
-                : [];
-            const authorities =
-                expansions.length === 0
-                    ? this.authorities
-                    : expansions.map(
-                          ({ authority, expanded }) =>
-                              new Authority(expanded.subjects, authority.delegation),
-                      );
-
-            const roles = links.some((link) => defined.has(link.object.id))
-                ? await readRoles(
-                      snapshot,
-                      [...links, ...this.#links].map((link) => link.object.id),
-                      this.context,
-                  )
-                : { grants: this.grants, until: undefined };
-            resolved.set(
-                scope,
-                new Access(this.#authorizer, {
-                    scope,
-                    context: this.context,
-                    authorities,
-                    links: [...links, ...this.#links],
-                    grants: roles.grants,
-                    until: earliest([
-                        this.until,
-                        roles.until,
-                        ...expansions.map(({ expanded }) => expanded.until),
-                    ]),
-                }),
-            );
+            resolved.set(scope, await this.#below(snapshot, scope, links, defined));
         }
 
         return resolved;
+    }
+
+    /** Read the rows of some scopes and of the scopes between them and this scope's chain. */
+    async #readBetween(
+        snapshot: Snapshot,
+        scopes: readonly string[],
+    ): Promise<Map<string, Select<typeof Scope.table>>> {
+        // read up from the scopes until this scope's chain
+        const chain = new Set(this.#links.map((link) => link.object.id));
+        const rows = new Map<string, Select<typeof Scope.table>>();
+        for (let wanted = scopes.filter((id) => !chain.has(id)); wanted.length > 0;) {
+            // read the wanted rows, then their parents
+            const read = await snapshot.select(
+                Scope.table,
+                ["scope"],
+                wanted.map((id) => [id]),
+            );
+            for (const row of read) {
+                rows.set(row.scope, row);
+            }
+            wanted = [...new Set(read.map((row) => row.parent))].filter(
+                (id) => !rows.has(id) && !chain.has(id),
+            );
+        }
+
+        return rows;
+    }
+
+    /** Link a scope up to this one, absent for a scope this one does not enclose. */
+    #linksUp(
+        rows: ReadonlyMap<string, Select<typeof Scope.table>>,
+        scope: string,
+    ): ScopeLink[] | undefined {
+        // walk the parents once each
+        const links: ScopeLink[] = [];
+        const visited = new Set<string>();
+        for (
+            let current = rows.get(scope);
+            current !== undefined && !visited.has(current.scope);
+            current = rows.get(current.parent)
+        ) {
+            // link the row, ending at this scope
+            visited.add(current.scope);
+            links.push({
+                object: {
+                    packageId: current.packageId,
+                    type: current.type,
+                    scope: current.parent,
+                    id: current.scope,
+                },
+                parent: current.parent,
+                isSuspended: current.suspendedAt !== null,
+                movedTo: current.movedTo ?? undefined,
+            });
+            if (current.parent === this.scope) {
+                return links;
+            }
+        }
+
+        return undefined;
+    }
+
+    /** Resolve the caller in one enclosed scope, reusing this scope's roles unless the chain defines more. */
+    async #below(
+        snapshot: Snapshot,
+        scope: string,
+        links: readonly ScopeLink[],
+        defined: ReadonlySet<string>,
+    ): Promise<Access> {
+        // expand the authorities again for a chain whose scopes take sets from the scopes enclosing them
+        const chain = [...links, ...this.#links];
+        const isEnclosed = links.some((link) => this.#authorizer.isEnclosed(link.object));
+        const expansions = isEnclosed
+            ? await Promise.all(
+                  this.authorities.map(async (authority) => ({
+                      authority,
+                      expanded: await Access.expand(
+                          snapshot,
+                          authority.subjects,
+                          this.context,
+                          this.#authorizer,
+                          chain.map((link) => link.object),
+                      ),
+                  })),
+              )
+            : [];
+        const authorities =
+            expansions.length === 0
+                ? this.authorities
+                : expansions.map(
+                      ({ authority, expanded }) =>
+                          new Authority(expanded.subjects, authority.delegation),
+                  );
+
+        // read the roles of a chain that defines more
+        const isDefining = links.some((link) => defined.has(link.object.id));
+        const roles = isDefining
+            ? await readRoles(
+                  snapshot,
+                  chain.map((link) => link.object.id),
+                  this.context,
+              )
+            : { grants: this.grants, until: undefined };
+
+        return new Access(this.#authorizer, {
+            scope,
+            context: this.context,
+            authorities,
+            links: chain,
+            grants: roles.grants,
+            until: earliest([
+                this.until,
+                roles.until,
+                ...expansions.map(({ expanded }) => expanded.until),
+            ]),
+        });
     }
 
     /**
@@ -309,7 +346,7 @@ export class Access {
     }> {
         // admit the identities and verified subject sets, with the sets they reach on the chain
         const expanded = new Map<string, Subject>();
-        const boundaries: (number | undefined)[] = [];
+        const moments: (number | undefined)[] = [];
         let frontier = Access.#admit(subjects, expanded, authorizer, chain);
         while (frontier.length > 0) {
             // read the sets relationships and fields make the frontier subjects members of, together
@@ -320,7 +357,7 @@ export class Access {
             ]);
 
             // note when each relationship making a membership next changes by time
-            boundaries.push(...related.map((row) => GrantCondition.boundary(row, context)));
+            moments.push(...related.map((row) => GrantCondition.until(row, context)));
 
             // continue from each relationship's set and the permissions accepted as subject sets it decides
             const found = [
@@ -345,7 +382,7 @@ export class Access {
             frontier = Access.#admit(found, expanded, authorizer, chain);
         }
 
-        return { subjects: [...expanded.values()], until: earliest(boundaries) };
+        return { subjects: [...expanded.values()], until: earliest(moments) };
     }
 
     /** Add the subjects not seen before to an expansion, with the sets they reach on the chain's enclosed scopes, returning those added. */
@@ -404,12 +441,8 @@ export class Access {
     }
 
     /** Read the gate a request fails on a row before any grant: its credential, elevation or suspension. */
-    gate(
-        permission: PermissionReference,
-        mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
-    ): Gate | undefined {
-        return this.admits(permission, String(row[mapping.id]), { mapping, row })
+    gate(permission: PermissionReference, mapping: TableMapping, row: Row): Gate | undefined {
+        return this.admits(permission, TableMapping.text(row, mapping.id), { mapping, row })
             ? this.blocked(permission)
             : "restricted";
     }
@@ -424,7 +457,7 @@ export class Access {
         id: string,
         stored?: {
             readonly mapping: TableMapping;
-            readonly row: Readonly<Record<string, unknown>>;
+            readonly row: Row;
         },
     ): boolean {
         // allow a permission the credential names
@@ -476,16 +509,17 @@ export class Access {
         return elevation === undefined || Elevation.admits(elevation, this.context);
     }
 
-    /** Read the scope's own object from its containing scope when a mapping has its type. */
-    own(mapping: TableMapping): ObjectReference | undefined {
-        const own = this.scopes[0];
+    /** Read the object that is the scope, from its containing scope, when a mapping has its type. */
+    scopeObject(mapping: TableMapping): ObjectReference | undefined {
+        // match the containing scope's object by the mapped type
+        const object = this.scopes[0];
         const definition = mapping.policy.definition;
+        const isMapped =
+            object !== undefined &&
+            object.packageId === definition.packageId &&
+            object.type === definition.name;
 
-        return own !== undefined &&
-            own.packageId === definition.packageId &&
-            own.type === definition.name
-            ? own
-            : undefined;
+        return isMapped ? object : undefined;
     }
 }
 
@@ -558,7 +592,7 @@ async function readRoles(
                 included: include.subjectId,
             })),
         ),
-        until: earliest(includes.map((include) => GrantCondition.boundary(include, context))),
+        until: earliest(includes.map((include) => GrantCondition.until(include, context))),
     };
 }
 
@@ -568,7 +602,7 @@ async function memberships(
     subjects: readonly Subject[],
     context: ConditionContext,
     sets: readonly SubjectType[] | undefined,
-): Promise<RelationshipRow[]> {
+): Promise<EncodedRelationship[]> {
     const rows = await Relationship.readBySubject(snapshot, subjects);
 
     return rows.filter(

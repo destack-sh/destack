@@ -1,5 +1,6 @@
 import {
-    Condition,
+    type Condition,
+    Predicate,
     sql,
     TABLE,
     type Column,
@@ -8,6 +9,7 @@ import {
     type Snapshot,
     type Table,
     type Tree,
+    type Row,
 } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
@@ -23,7 +25,7 @@ export interface TableMapping {
     readonly table: Table;
     /** The column identifying an object within its scope. */
     readonly id: string;
-    /** The column selecting the object's scope; objects without one live in the universe. */
+    /** The column selecting the object's scope, absent for objects living in the universe. */
     readonly scope?: string;
     /** Whether the table has several object types, told apart by its packageId and type columns. */
     readonly isShared?: boolean;
@@ -31,14 +33,14 @@ export interface TableMapping {
     readonly inherited?: Condition;
     /** Application columns supplying declared scalar attributes. */
     readonly attributes: Readonly<Record<string, string>>;
-    /** Relations with the subject in a field; relationships keep all others. */
+    /** Relations with the subject in a field, the others kept in relationships. */
     readonly relations: Readonly<
         Record<
             string,
             {
                 /** The column with the subject identifier. */
                 readonly column: string;
-                /** The scope of every subject in the column; the object's own scope when absent. */
+                /** The scope of every subject in the column, the object's own scope when absent. */
                 readonly scope?: string;
                 /** The columns with the subject's type, scope and relation, for relations with several subject types. */
                 readonly subject?: Omit<ReferenceColumns, "id"> & {
@@ -73,10 +75,8 @@ export const TableMapping = {
 };
 
 /** Decide whether a mapping reads every attribute a policy condition reads, which a scope type mapped onto its scope rows does not. */
-function decides(mapping: TableMapping, condition: Condition): boolean {
-    return [...Condition.columns(condition)].every(
-        (name) => mapping.attributes[name] !== undefined,
-    );
+function decides(mapping: TableMapping, predicate: Predicate): boolean {
+    return [...Predicate.fields(predicate)].every((name) => mapping.attributes[name] !== undefined);
 }
 
 /** The columns naming an object of any type: its package, type, scope and identifier. */
@@ -225,7 +225,7 @@ async function read(
     mapping: TableMapping,
     within: string,
     ids: readonly string[],
-): Promise<Record<string, unknown>[]> {
+): Promise<Row[]> {
     const definition = mapping.policy.definition;
     const rows = await snapshot.select(
         mapping.table,
@@ -242,12 +242,12 @@ async function read(
 }
 
 /** Read the scope a mapped row lives in. */
-function scope(mapping: TableMapping, row: Readonly<Record<string, unknown>>): string {
+function scope(mapping: TableMapping, row: Row): string {
     return mapping.scope === undefined ? Scope.universe.id : text(row, mapping.scope);
 }
 
 /** Read a mapped row's text column, refusing a value of another kind. */
-function text(row: Readonly<Record<string, unknown>>, name: string): string {
+function text(row: Row, name: string): string {
     const value = row[name];
     if (typeof value !== "string") {
         throw new TypeError(`column ${name} keeps no text`);

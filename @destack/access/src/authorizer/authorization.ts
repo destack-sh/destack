@@ -1,6 +1,15 @@
-import { and, asc, eq, or, type DatabaseConnection, type Select, Snapshot } from "@destack/db";
+import {
+    and,
+    asc,
+    eq,
+    or,
+    type DatabaseConnection,
+    type Row,
+    type Select,
+    Snapshot,
+} from "@destack/db";
 import { Scope, type ObjectReference, Subject } from "@destack/sync";
-import { aligned, identifier } from "@destack/schema";
+import { aligned, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import type { PermissionReference } from "../policy/policy.ts";
@@ -13,7 +22,7 @@ import {
     type RelationshipRequest,
 } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
-import { Capability, type Link } from "../relationship/link.ts";
+import { LinkSecret, type Link } from "../relationship/link.ts";
 import {
     Proposal,
     PROPOSAL_LIFETIME_MILLISECONDS,
@@ -147,7 +156,7 @@ export class Authorization {
     async checkRows(
         permission: PermissionReference,
         scope: string,
-        rows: readonly Readonly<Record<string, unknown>>[],
+        rows: readonly Row[],
         reader?: GrantReader,
         below?: ReadonlyMap<string, Access>,
     ): Promise<Admission> {
@@ -259,7 +268,7 @@ export class Authorization {
         await this.#suspension(object, this.context(object.id).now);
     }
 
-    /** Resume a suspended scope; its caller requires the permission to. */
+    /** Resume a suspended scope as a caller with the permission to. */
     async resume(object: ObjectReference): Promise<void> {
         await this.#suspension(object, null);
     }
@@ -277,12 +286,12 @@ export class Authorization {
         return relationship;
     }
 
-    /** Revoke one relationship of an object, as the caller may; the log keeps its history. */
+    /** Revoke one relationship of an object as the caller may, keeping its history in the log. */
     async revoke(object: ObjectReference, id: string): Promise<Relationship> {
         return this.database.transaction(async (transaction) => {
             // load the object's relationship inside the authorization transaction
             const authorization = this.within(transaction);
-            const key = identifier("relationship").parse(id);
+            const key = schema.identifier("relationship").parse(id);
             const [row] = await transaction
                 .select()
                 .from(accessRelationship)
@@ -310,14 +319,14 @@ export class Authorization {
         readonly relation: string;
         readonly expiresAt?: number;
     }): Promise<Link> {
-        const capability = await Capability.create();
+        const linkSecret = await LinkSecret.create();
         const relationship = await this.grant({
             ...request,
             subject: anyone.reference("*", "*"),
-            conditions: { capability: capability.digest },
+            conditions: { linkSecret: linkSecret.digest },
         });
 
-        return { id: relationship.id, secret: capability.secret };
+        return { id: relationship.id, secret: linkSecret.secret };
     }
 
     /**
@@ -359,7 +368,7 @@ export class Authorization {
 
             // store the proposal apart from the relationships that apply
             const proposal: Proposal = {
-                id: identifier("proposal").parse(`proposal-${v7()}`),
+                id: schema.identifier("proposal").parse(`proposal-${v7()}`),
                 relationship: {
                     object: proposed.object,
                     ...Relationship.via(proposed),
@@ -478,7 +487,10 @@ export class Authorization {
                             : eq(accessProposal.relation, request.relation),
                         request.role === undefined
                             ? undefined
-                            : eq(accessProposal.roleId, identifier("role").parse(request.role)),
+                            : eq(
+                                  accessProposal.roleId,
+                                  schema.identifier("role").parse(request.role),
+                              ),
                         Proposal.pending(page, context.now),
                     ),
                 )
@@ -504,7 +516,7 @@ export class Authorization {
             const [record] = await transaction
                 .insert(accessRole)
                 .values({
-                    id: identifier("role").parse(`role-${v7()}`),
+                    id: schema.identifier("role").parse(`role-${v7()}`),
                     createdAt: context.now,
                     updatedAt: context.now,
                     scope: scope.id,
@@ -615,7 +627,7 @@ export class Authorization {
         });
     }
 
-    /** Require the grant permission and, for a role, every permission the role grants; a delegation needs only its lender. */
+    /** Require the grant permission and every permission a granted role grants, or only the lender for a delegation. */
     protected async authorizeGrant(request: Grantable): Promise<void> {
         // write only the access of an object this database keeps
         await this.authorizer.requireLocal(this.database, request.object);
@@ -691,7 +703,7 @@ export class Authorization {
         const context = this.context(scope);
         this.authorizer.validate(request, context.now);
         const relationship: Relationship = {
-            id: identifier("relationship").parse(`relationship-${v7()}`),
+            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
             object: request.object,
             ...Relationship.via(request),
             subject: request.subject,
