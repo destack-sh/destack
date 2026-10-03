@@ -4,7 +4,6 @@
     "language": "typescript",
     "template": {
         "files": [
-            "AGENTS.md",
             "src",
             "package.json",
             "destack.json",
