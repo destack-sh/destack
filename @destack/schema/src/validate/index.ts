@@ -66,14 +66,14 @@ export {
     ZodType as Schema,
 } from "zod";
 export { ZodError as Error } from "zod";
-export type { input as Input, output as Output, ZodOptional as Optional } from "zod";
+export type { input as Input, output as Output, ZodExactOptional as ExactOptional } from "zod";
 export type { infer as Infer } from "zod";
 export type { $ZodIssue as Issue } from "zod/v4/core";
 export { flattenError, prettifyError, treeifyError } from "zod";
 export { isSensitive, redact, redactFields, sensitive } from "./sensitive.ts";
 export { defined } from "./defined.ts";
 export { anyIdentifier, identifier } from "../identifier/identifier.ts";
-export { json } from "./json.ts";
+export { json, type JsonObject } from "./json.ts";
 export {
     standard,
     type StandardIssue,

@@ -37,7 +37,11 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
     },
 
     /** Refuse keys that are no releases, or releases after the declaring one, such as a declaration's conversions. */
-    requireUpTo(keyed: Readonly<Record<string, unknown>>, release: string, name: string): void {
+    requireUpTo<Value>(
+        keyed: Readonly<Record<string, Value>>,
+        release: string,
+        name: string,
+    ): void {
         for (const key of Object.keys(keyed)) {
             // refuse a key that is no release, then one after the declaring release
             if (!Version.safeParse(key).success) {

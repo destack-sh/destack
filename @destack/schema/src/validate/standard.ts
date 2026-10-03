@@ -13,9 +13,7 @@ export interface StandardProperties<Input = unknown, Output = Input> {
     /** The library implementing the validator. */
     readonly vendor: string;
     /** Validate a value into the output or the issues found. */
-    readonly validate: (
-        value: unknown,
-    ) => StandardResult<Output> | Promise<StandardResult<Output>>;
+    readonly validate: (value: unknown) => StandardResult<Output> | Promise<StandardResult<Output>>;
     /** The input and output types, for inference only. */
     readonly types?: { readonly input: Input; readonly output: Output } | undefined;
 }
