@@ -10,7 +10,7 @@ export function describeTrigger(trigger: Trigger): TriggerDescription {
     if ("schedule" in on) {
         describeTiming(on.schedule.timing);
 
-        return TriggerDescription.parse({ name: trigger.name, on, call: trigger.call });
+        return TriggerDescription.parse({ name: trigger.name, on });
     }
     // describe the changed object type by reference
     else if ("change" in on) {

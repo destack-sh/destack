@@ -1,4 +1,5 @@
 import { defineSchema, Instant, schema, TimeZone } from "@destack/schema";
+import { Call } from "@destack/sync";
 
 /** How a schedule trigger's runs may overlap. */
 export const CONCURRENCIES = ["allow", "forbid", "replace"] as const;
@@ -11,13 +12,13 @@ const CRON = schema.object({
     /** A calendar schedule. */
     timing: schema.literal("cron"),
     /** A five-field cron expression. */
-    cron: schema.string().regex(/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/),
+    cron: schema.string().regex(/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/u),
     /** The IANA time zone. */
     timezone: TimeZone,
     /** The earliest occurrence time, in UTC epoch milliseconds. */
-    startsAt: Instant.optional(),
+    startsAt: Instant.exactOptional(),
     /** The exclusive end time, in UTC epoch milliseconds. */
-    endsAt: Instant.optional(),
+    endsAt: Instant.exactOptional(),
 });
 
 /** A repeating interval timing. */
@@ -29,7 +30,7 @@ const INTERVAL = schema.object({
     /** The first occurrence time, in UTC epoch milliseconds. */
     startsAt: Instant,
     /** The exclusive end time, in UTC epoch milliseconds. */
-    endsAt: Instant.optional(),
+    endsAt: Instant.exactOptional(),
 });
 
 /** A one-off timing. */
@@ -54,6 +55,8 @@ export const ScheduleOn = defineSchema(
         concurrency: schema.enum(CONCURRENCIES),
         /** How late an occurrence may start, in milliseconds. */
         deadline: schema.number().int().nonnegative(),
+        /** The call each occurrence runs, in the installation's space. */
+        call: Call,
     }),
 );
 /** A schedule a trigger fires on. */

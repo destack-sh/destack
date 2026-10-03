@@ -1,8 +1,7 @@
 import { defineSchema, Instant, schema } from "@destack/schema";
 import { DeclarationName, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
-import { LogPosition } from "@destack/db/log";
-import type { Condition } from "@destack/db/query";
+import { LogPosition, type Condition } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
 import { Call } from "@destack/sync";
 import {
@@ -49,23 +48,19 @@ export const TriggerDescription = defineSchema(
     schema.object({
         /** The package-local trigger name. */
         name: DeclarationName,
-        /** What the trigger fires on. */
+        /** What the trigger fires on, a schedule with the call each occurrence runs. */
         on: TriggerOn,
-        /** The call each occurrence of a schedule runs, absent for triggers whose code builds it. */
-        call: Call.optional(),
     }),
 );
 /** A trigger in the manifest. */
 export type TriggerDescription = schema.Infer<typeof TriggerDescription>;
 
-/** A trigger firing on a schedule, each occurrence running one object method call. */
+/** A trigger firing on a schedule, each occurrence running the schedule's object method call. */
 export interface ScheduleTrigger extends Declaration {
     /** The declaration kind. */
     readonly kind: "trigger";
-    /** The schedule whose occurrences fire. */
+    /** The schedule whose occurrences fire, with the call each runs. */
     readonly on: { readonly schedule: ScheduleOn };
-    /** The call each occurrence runs, in the installation's space. */
-    readonly call: Call;
 }
 
 /** A trigger firing on one object type's changes, each admitted change running one object method call. */
@@ -99,7 +94,10 @@ export interface WebhookTrigger extends Declaration {
     readonly on: {
         readonly webhook: WebhookOn & {
             /** Read the signing secret of a delivery's route parameters from the installation's resources. */
-            secret(parameters: WebhookParameters, resources: ResourceContext): Promise<string>;
+            readonly secret: (
+                parameters: WebhookParameters,
+                resources: ResourceContext,
+            ) => Promise<string>;
         };
     };
     /** Build the call a verified delivery runs. */
@@ -107,7 +105,7 @@ export interface WebhookTrigger extends Declaration {
 }
 
 /** A declared trigger: what fires it and the object method call each event runs. */
-export type Trigger = ScheduleTrigger | ChangeTrigger<any> | WebhookTrigger;
+export type Trigger = ScheduleTrigger | ChangeTrigger | WebhookTrigger;
 
 /** What a trigger fires on as its package writes it, before the defaults of a change trigger. */
 export type TriggerOnDefinition<Target extends Declaration = Declaration> =
@@ -118,36 +116,44 @@ export type TriggerOnDefinition<Target extends Declaration = Declaration> =
       }
     | WebhookTrigger["on"];
 
-/** The call a trigger runs for what fires it: a schedule's call, or the code building a change's or a delivery's. */
-export type TriggerCall<On> = On extends { readonly schedule: unknown }
-    ? Call
-    : On extends { readonly change: { readonly object: infer Target } }
-      ? (change: ObjectChange<Target>) => Call
-      : (delivery: WebhookDelivery) => Call;
-
-/** A trigger as its package writes it. */
-export interface TriggerDefinition<On> {
-    /** The package-local trigger name. */
-    readonly name: string;
-    /** What fires the trigger. */
-    readonly on: On;
-    /** The call each event runs. */
-    readonly call: TriggerCall<On>;
-}
+/** A trigger as its package writes it, with the call matching what fires it. */
+type WrittenTrigger = { readonly name: string } & (
+    | { readonly on: ScheduleTrigger["on"] }
+    | {
+          readonly on: Extract<TriggerOnDefinition, { readonly change: unknown }>;
+          readonly call: ChangeTrigger["call"];
+      }
+    | { readonly on: WebhookTrigger["on"]; readonly call: WebhookTrigger["call"] }
+);
 
 /** The triggers of each kind. */
 export const Trigger = {
     /** Read the kind of event a trigger fires on. */
-    kind(on: TriggerOn | Trigger["on"]): TriggerKind {
-        return "schedule" in on ? "schedule" : "change" in on ? "change" : "webhook";
+    kind(on: TriggerOn | Trigger["on"] | TriggerOnDefinition): TriggerKind {
+        // read the key naming the kind
+        if ("schedule" in on) {
+            return "schedule";
+        } else if ("change" in on) {
+            return "change";
+        } else {
+            return "webhook";
+        }
+    },
+
+    /** Report whether a trigger, as declared or as written, fires on a kind of event. */
+    is<Value extends Trigger | WrittenTrigger, Kind extends TriggerKind>(
+        trigger: Value,
+        kind: Kind,
+    ): trigger is Extract<Value, { readonly on: Record<Kind, object> }> {
+        return Trigger.kind(trigger.on) === kind;
     },
 
     /** Select a trigger of a kind, absent for one of another kind. */
     of<Kind extends TriggerKind>(
         trigger: Trigger,
         kind: Kind,
-    ): Extract<Trigger, { readonly on: Record<Kind, unknown> }> | undefined {
-        return Trigger.kind(trigger.on) === kind ? (trigger as never) : undefined;
+    ): Extract<Trigger, { readonly on: Record<Kind, object> }> | undefined {
+        return Trigger.is(trigger, kind) ? trigger : undefined;
     },
 };
 
@@ -173,7 +179,7 @@ const event = defineSchema(
                 /** The change's position in the log. */
                 position: LogPosition,
                 /** The row a snapshot delivers at the position, absent for a logged change. */
-                key: schema.string().min(1).optional(),
+                key: schema.string().min(1).exactOptional(),
             }),
         }),
     ]),
@@ -207,10 +213,10 @@ export const RunEvent = Object.assign(event, {
 const SENT = schema.object({
     /** The object method call the run makes. */
     call: Call,
-    /** When the call runs, in UTC epoch milliseconds; when the cell records it when absent. */
-    at: Instant.optional(),
+    /** When the call runs in UTC epoch milliseconds, at recording when absent. */
+    at: Instant.exactOptional(),
     /** The lending of the sending caller's authority, so the call runs on that caller's behalf. */
-    delegation: schema.string().min(1).optional(),
+    delegation: schema.string().min(1).exactOptional(),
 });
 
 /** A call one of the installation's triggers runs for an event, once per event. */
@@ -247,37 +253,64 @@ export interface RunClient {
     send(request: RunRequest, delivery?: RunDelivery): Promise<void>;
 }
 
-/** Declare a trigger: a schedule with its call, or changes or webhook deliveries with the code building theirs. */
-export function defineTrigger<const On extends TriggerOnDefinition<any>>(
-    definition: TriggerDefinition<On>,
+/** Declare a trigger firing on a schedule, its call inside the schedule. */
+export function defineTrigger(
+    definition: { readonly name: string; readonly on: ScheduleTrigger["on"] },
     module?: ModuleMetadata,
-): Trigger {
+): Trigger;
+/** Declare a trigger firing on an object's changes, with the code building each change's call. */
+export function defineTrigger<const Target extends Declaration>(
+    definition: {
+        readonly name: string;
+        readonly on: Extract<TriggerOnDefinition<Target>, { readonly change: unknown }>;
+        readonly call: (change: ObjectChange<Target>) => Call;
+    },
+    module?: ModuleMetadata,
+): Trigger;
+/** Declare a trigger firing on webhook deliveries, with the code building each delivery's call. */
+export function defineTrigger(
+    definition: {
+        readonly name: string;
+        readonly on: WebhookTrigger["on"];
+        readonly call: (delivery: WebhookDelivery) => Call;
+    },
+    module?: ModuleMetadata,
+): Trigger;
+/** Declare a trigger: a schedule with its call, or changes or webhook deliveries with the code building theirs. */
+export function defineTrigger(definition: WrittenTrigger, module?: ModuleMetadata): Trigger {
     // stamp the declaring package
     const owner = ModuleMetadata.require(module, "defineTrigger").package;
     const name = DeclarationName.parse(definition.name);
-    const declared = { kind: "trigger" as const, name, package: owner, call: definition.call };
-    const on = definition.on as TriggerOnDefinition;
+    const declared = { kind: "trigger" as const, name, package: owner };
 
     // check a schedule against its schema
-    if ("schedule" in on) {
-        return Object.freeze({
+    if (Trigger.is(definition, "schedule")) {
+        const trigger: ScheduleTrigger = {
             ...declared,
-            on: { schedule: ScheduleOn.parse(on.schedule) },
-        }) as ScheduleTrigger;
+            on: { schedule: ScheduleOn.parse(definition.on.schedule) },
+        };
+
+        return Object.freeze(trigger);
     }
     // check a webhook's route
-    else if ("webhook" in on) {
-        const { secret, ...fields } = on.webhook;
+    else if (Trigger.is(definition, "webhook")) {
+        const { secret, ...fields } = definition.on.webhook;
         WebhookOn.parameters(WebhookOn.parse(fields).route);
-
-        return Object.freeze({
+        const trigger: WebhookTrigger = {
             ...declared,
             on: { webhook: { ...fields, secret } },
-        }) as WebhookTrigger;
+            call: definition.call,
+        };
+
+        return Object.freeze(trigger);
+    }
+    // require a change trigger
+    else if (!Trigger.is(definition, "change")) {
+        throw new TypeError(`trigger ${name} fires on no known event`);
     }
 
     // default where a change trigger starts and how far it may lag, requiring creations for a snapshot
-    const { object, where, ...fields } = on.change;
+    const { object, where, ...fields } = definition.on.change;
     const change = ChangeOn.omit({ object: true, where: true }).parse({
         from: "now",
         maxLag: MAX_LAG_MILLISECONDS,
@@ -289,8 +322,12 @@ export function defineTrigger<const On extends TriggerOnDefinition<any>>(
         );
     }
 
-    return Object.freeze({
+    // keep the change trigger's call
+    const trigger: ChangeTrigger = {
         ...declared,
         on: { change: { ...change, object, ...(where === undefined ? {} : { where }) } },
-    }) as ChangeTrigger;
+        call: definition.call,
+    };
+
+    return Object.freeze(trigger);
 }

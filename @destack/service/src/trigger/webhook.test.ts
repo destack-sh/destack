@@ -1,8 +1,8 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { describeTrigger } from "../inspect/index.ts";
 import { ResourceContext } from "@destack/resource/context";
 import { WebhookOn } from "./webhook.ts";
-import { defineTrigger, type WebhookTrigger } from "./trigger.ts";
+import { defineTrigger, Trigger } from "./trigger.ts";
 import {
     GitHubSignature,
     StandardSignature,
@@ -12,9 +12,15 @@ import {
 
 /** Push the delivered branch to the repository its route names. */
 function push(delivery: WebhookDelivery) {
+    // require the route's repository
+    const repository = delivery.parameters["repository"];
+    if (repository === undefined) {
+        throw new TypeError("a push delivery's route has a repository");
+    }
+
     return {
         method: "repository.push",
-        input: { repository: delivery.parameters.repository!, payload: delivery.payload },
+        input: { repository, payload: delivery.payload },
         release: "2026.9.0",
     };
 }
@@ -46,9 +52,15 @@ function post(headers: Headers, body: string): Request {
     return new Request("https://hooks.test/webhooks/github", { method: "POST", headers, body });
 }
 
-/** Read the body digest a GitHub signature carries, which identifies its delivery. */
+/** Read the body digest of a GitHub signature, which identifies its delivery. */
 function digestOf(headers: Headers): string {
-    return headers.get("x-hub-signature-256")!.slice("sha256=".length);
+    // require the signature header
+    const signature = headers.get("x-hub-signature-256");
+    if (signature === null) {
+        throw new TypeError("a GitHub delivery carries a signature");
+    }
+
+    return signature.slice("sha256=".length);
 }
 
 test("sign the Standard Webhooks and GitHub reference examples exactly", async () => {
@@ -89,15 +101,14 @@ test("verify a Standard Webhooks delivery and refuse forged, stale and unsigned 
     });
 
     // refuse a changed body, a stale delivery and missing headers
-    const refusal = (request: Request, now: number) =>
-        signature.verify(request, STANDARD_EXAMPLE.secret, {}, now).then(
-            () => "accepted",
-            (error: { code: string; message: string }) => `${error.code}: ${error.message}`,
+    const verdict = (request: Request, now: number) =>
+        refusal(signature.verify(request, STANDARD_EXAMPLE.secret, {}, now)).then((refused) =>
+            refused === "done" ? "accepted" : refused.join(": "),
         );
     expect([
-        await refusal(post(headers, body.replace("main", "next")), NOW),
-        await refusal(post(headers, body), message.sentAt + 5 * 60_000 + 1000),
-        await refusal(post(new Headers(), body), NOW),
+        await verdict(post(headers, body.replace("main", "next")), NOW),
+        await verdict(post(headers, body), message.sentAt + 5 * 60_000 + 1000),
+        await verdict(post(new Headers(), body), NOW),
     ]).toEqual([
         "UNAUTHORIZED: webhook signature does not match",
         "UNAUTHORIZED: webhook timestamp is outside the tolerance",
@@ -155,7 +166,7 @@ test("describe a declared webhook trigger with its verification and route for th
 test("receive a delivery with its route's parameters and the secret they resolve, and build its call", async () => {
     // resolve each repository's secret
     const requested: unknown[] = [];
-    const trigger = defineTrigger({
+    const declared = defineTrigger({
         name: "pushes",
         on: {
             webhook: {
@@ -164,14 +175,18 @@ test("receive a delivery with its route's parameters and the secret they resolve
                 secret: async (parameters) => {
                     requested.push(parameters);
 
-                    return parameters.repository === "acme site"
+                    return parameters["repository"] === "acme site"
                         ? GITHUB_EXAMPLE.secret
                         : "another secret";
                 },
             },
         },
         call: push,
-    }) as WebhookTrigger;
+    });
+    const trigger = Trigger.of(declared, "webhook");
+    if (trigger === undefined) {
+        throw new TypeError("a trigger on webhooks fires on webhooks");
+    }
     const resources = new ResourceContext();
 
     // accept the repository's signed delivery
@@ -201,17 +216,16 @@ test("receive a delivery with its route's parameters and the secret they resolve
     ]);
 
     // refuse another repository's secret and paths outside the route
-    const refusal = (path: string) =>
-        WebhookOn.receive(trigger.on.webhook, post(headers, body), path, NOW, resources).then(
-            () => "accepted",
-            (error: { code: string; message: string }) => `${error.code}: ${error.message}`,
-        );
+    const verdict = (path: string) =>
+        refusal(
+            WebhookOn.receive(trigger.on.webhook, post(headers, body), path, NOW, resources),
+        ).then((refused) => (refused === "done" ? "accepted" : refused.join(": ")));
     expect([
-        await refusal("/repositories/other"),
-        await refusal("/repositories"),
-        await refusal("/repositories/acme/site"),
-        await refusal("/projects/acme"),
-        await refusal("/repositories/%E0"),
+        await verdict("/repositories/other"),
+        await verdict("/repositories"),
+        await verdict("/repositories/acme/site"),
+        await verdict("/projects/acme"),
+        await verdict("/repositories/%E0"),
     ]).toEqual([
         "UNAUTHORIZED: webhook signature does not match",
         "NOT_FOUND: webhook route does not match: /repositories",
@@ -223,7 +237,7 @@ test("receive a delivery with its route's parameters and the secret they resolve
 });
 
 test("refuse webhook routes with malformed segments or a repeated parameter", () => {
-    const refusal = (route: string) => {
+    const verdict = (route: string) => {
         try {
             defineTrigger({
                 name: "pushes",
@@ -238,11 +252,11 @@ test("refuse webhook routes with malformed segments or a repeated parameter", ()
     };
 
     expect([
-        refusal("/"),
-        refusal(""),
-        refusal("/{repository}/"),
-        refusal("/{Repository}"),
-        refusal("/{repository}/{repository}"),
+        verdict("/"),
+        verdict(""),
+        verdict("/{repository}/"),
+        verdict("/{Repository}"),
+        verdict("/{repository}/{repository}"),
     ]).toEqual([
         "accepted",
         "invalid route",

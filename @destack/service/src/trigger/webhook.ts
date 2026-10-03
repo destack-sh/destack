@@ -1,12 +1,12 @@
 import type { ResourceContext } from "@destack/resource/context";
-import { defineSchema, Instant, schema } from "@destack/schema";
+import { aligned, defineSchema, Instant, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 
 /** The webhook signature schemes. */
 export const WEBHOOK_VERIFICATIONS = ["standard", "github"] as const;
 
 /** A route of literal and `{name}` segments, or `/` alone. */
-const ROUTE_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/;
+const ROUTE_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/u;
 
 /** The Standard Webhooks timestamp tolerance, five minutes as in the reference libraries. */
 const STANDARD_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
@@ -101,9 +101,15 @@ function match(route: string, path: string): WebhookParameters {
     // bind parameters and compare literals
     const parameters: Record<string, string> = {};
     for (const [index, segment] of expected.entries()) {
-        const value = segment.startsWith("{") ? decode(actual[index]!) : actual[index];
+        const value = segment.startsWith("{")
+            ? decode(aligned(actual, index))
+            : aligned(actual, index);
         // refuse an empty or undecodable parameter, or another literal
-        if (!value || (!segment.startsWith("{") && segment !== value)) {
+        if (
+            value === undefined ||
+            value === "" ||
+            (!segment.startsWith("{") && segment !== value)
+        ) {
             throw new ServiceError("NOT_FOUND", {
                 message: `webhook route does not match: ${path}`,
             });
@@ -188,7 +194,7 @@ export class StandardSignature implements WebhookSignature {
             throw new ServiceError("UNAUTHORIZED", { message: "missing standard webhook headers" });
         }
         const sentAt = Number(timestamp) * 1000;
-        if (!/^\d+$/.test(timestamp) || Math.abs(now - sentAt) > STANDARD_TOLERANCE_MILLISECONDS) {
+        if (!/^\d+$/u.test(timestamp) || Math.abs(now - sentAt) > STANDARD_TOLERANCE_MILLISECONDS) {
             throw new ServiceError("UNAUTHORIZED", {
                 message: "webhook timestamp is outside the tolerance",
             });
@@ -214,7 +220,7 @@ export class StandardSignature implements WebhookSignature {
         const payload = parsePayload(body);
         const event = schema
             .object({ type: schema.string().min(1) })
-            .passthrough()
+            .loose()
             .safeParse(payload);
         if (!event.success) {
             throw new ServiceError("BAD_REQUEST", {
@@ -282,7 +288,7 @@ export class GitHubSignature implements WebhookSignature {
             throw new ServiceError("UNAUTHORIZED", { message: "webhook signature does not match" });
         }
 
-        // know the delivery by its signed body, since GitHub signs no delivery header
+        // know a GitHub delivery by its signed body
         return WebhookDelivery.parse({
             id: digest.toHex(),
             event,

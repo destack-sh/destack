@@ -1,8 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { DeclarationReference } from "@destack/package/declare";
-import type { Table } from "@destack/db";
-import { type ChangeRow, LogPosition } from "@destack/db/log";
-import { Condition } from "@destack/db/query";
+import { type Key, type Table, type Logged, type Row, LogPosition, Condition } from "@destack/db";
 
 /**
  * The default change retention of a change trigger, in milliseconds.
@@ -25,7 +23,7 @@ export const ChangeOn = defineSchema(
         /** The changed object type. */
         object: DeclarationReference,
         /** The condition on the object's rows. */
-        where: Condition.schema.optional(),
+        where: Condition.schema.exactOptional(),
         /** The operations fired on. */
         operations: schema.array(ChangeOperation).min(1),
         /** Where a new trigger starts: at the log's head, or with every matching row as created. */
@@ -37,23 +35,23 @@ export const ChangeOn = defineSchema(
 /** The changes of one object type a trigger fires on, as the manifest describes them. */
 export type ChangeOn = schema.Infer<typeof ChangeOn>;
 
-/** A row of a changed object type. */
-export type ChangedRow<Target> = Target extends {
+/** The changed object. */
+export type ChangedObject<Target> = Target extends {
     readonly table: infer Definition extends Table;
 }
-    ? ChangeRow<Definition>
-    : Readonly<Record<string, unknown>>;
+    ? Logged<Definition>
+    : Row;
 
 /** One change a change trigger fires on. */
 export interface ObjectChange<Target = unknown> {
     /** The change's position in the log. */
     readonly position: LogPosition;
     /** The row's key, for snapshot rows. */
-    readonly key?: Readonly<Record<string, unknown>>;
+    readonly key?: Key;
     /** The change as the trigger sees it. */
     readonly operation: ChangeOperation;
     /** The row before an update or deletion. */
-    readonly before?: ChangedRow<Target>;
+    readonly before?: ChangedObject<Target>;
     /** The row after a creation or update. */
-    readonly after?: ChangedRow<Target>;
+    readonly after?: ChangedObject<Target>;
 }
