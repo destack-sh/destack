@@ -5,8 +5,7 @@ import type { Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { VaultError } from "../error/index.ts";
 import { vaultKey } from "../stack/db.ts";
-import type { Envelope } from "./envelope.ts";
-import { type Keyring, LocalKeyring } from "./keyring.ts";
+import { type Keyring, LocalKeyring, type WrappedKey } from "@destack/host/keychain";
 
 /** The protocol the vault key's wrapping authenticates, beside its location and vault. */
 const VAULT_KEY_PROTOCOL = "@destack/vault/key";
@@ -229,7 +228,7 @@ export class VaultKey implements Keyring {
             },
             authenticated(location, vaultId),
         );
-        // seal it to the recipient, clearing the raw key either way
+        // encrypt it to the recipient, clearing the raw key either way
         try {
             const sealed = await recipient.seal(raw, transit(vaultId));
 
@@ -277,7 +276,7 @@ export class VaultKey implements Keyring {
     async wrap(
         value: Uint8Array<ArrayBuffer>,
         context: Uint8Array<ArrayBuffer>,
-    ): Promise<Pick<Envelope, "keyId" | "wrappedKey" | "keyNonce">> {
+    ): Promise<WrappedKey> {
         const nonce = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
         const wrapped = await crypto.subtle.encrypt(
             { name: "AES-GCM", iv: nonce, additionalData: context },
@@ -294,10 +293,10 @@ export class VaultKey implements Keyring {
 
     /** Unwrap a data key wrapped under the vault key, refusing one wrapped under another key. */
     async unwrap(
-        envelope: Pick<Envelope, "keyId" | "wrappedKey" | "keyNonce">,
+        envelope: WrappedKey,
         context: Uint8Array<ArrayBuffer>,
     ): Promise<Uint8Array<ArrayBuffer>> {
-        // require the vault's own key
+        // require the vault's key
         if (envelope.keyId !== this.id) {
             throw new VaultError("KEY_UNAVAILABLE", "the value is wrapped under another vault key");
         }
@@ -315,7 +314,11 @@ export class VaultKey implements Keyring {
             );
 
             return new Uint8Array(value);
-        } catch {
+        } catch (error) {
+            // report a failed authentication without its inputs
+            if (!(error instanceof DOMException && error.name === "OperationError")) {
+                throw error;
+            }
             throw new VaultError("DECRYPTION_FAILED", "data key authentication failed");
         }
     }

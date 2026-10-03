@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { VaultError } from "../error/index.ts";
-import type { Keyring } from "./keyring.ts";
+import type { Keyring, WrappedKey } from "@destack/host/keychain";
 
 /** The protocol every ciphertext authenticates, independent of package metadata. */
 const ENCRYPTION_PROTOCOL = "@destack/vault";
@@ -41,19 +41,13 @@ export const EncryptionContext = {
 };
 
 /** A sealed value: its ciphertext, and its data key wrapped under a keyring. */
-export interface Envelope {
+export interface Envelope extends WrappedKey {
     /** The envelope format. */
     readonly format: typeof ENCRYPTION_FORMAT;
-    /** The keyring key the data key is wrapped under. */
-    readonly keyId: string;
     /** The base64 ciphertext with its authentication tag. */
     readonly ciphertext: string;
     /** The base64 value nonce. */
     readonly nonce: string;
-    /** The base64 wrapped data key with its authentication tag. */
-    readonly wrappedKey: string;
-    /** The base64 key nonce. */
-    readonly keyNonce: string;
 }
 
 /** Sealed values. */
@@ -143,7 +137,11 @@ async function decrypt(
         );
 
         return new Uint8Array(plaintext);
-    } catch {
+    } catch (error) {
+        // report a failed authentication without its inputs
+        if (!(error instanceof DOMException && error.name === "OperationError")) {
+            throw error;
+        }
         throw new VaultError("DECRYPTION_FAILED", "secret authentication failed");
     } finally {
         raw.fill(0);
