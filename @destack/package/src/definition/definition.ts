@@ -60,7 +60,7 @@ const definition = defineSchema(
         capabilities: Capabilities.exactOptional(),
         /** The declaration constructors the package exports, by name. */
         declarations: DeclarationConstructorMap.exactOptional(),
-        /** The extension building the packages that use this one, such as `./build#viewBuild`. */
+        /** The extension building the packages that use this one, such as `./build#viewExtension`. */
         build: FunctionReference.exactOptional(),
         /** How the registry publishes the package. */
         publication: Publication.schema.exactOptional(),
