@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Plan } from "@destack/resource";
-import { identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineTable, sql, TABLE, text } from "../index.ts";
@@ -22,14 +22,14 @@ const beside = defineTable("beside", { id: text("id").primaryKey() });
 const notes = defineDatabase({ name: "notes", tables: [note] });
 
 /** Close a connection once it opens, or read why it failed to. */
-function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Promise<string> {
+function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Promise<unknown> {
     return connecting.then(
         async (connection) => {
             await connection[Symbol.asyncDispose]();
 
             return "connected";
         },
-        (error: Error) => error.message,
+        (error: unknown) => (error instanceof Error ? error.message : error),
     );
 }
 
@@ -40,7 +40,7 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
     const provider = sqliteProvider(pathToFileURL(`${directory}/`), "database");
     const record = {
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000001"),
-        scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
         spec: { tier: "zonal" as const },
         reference: null,
@@ -54,18 +54,18 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
 
     // provision the file, and refuse connecting before its tables apply
     const qualified = note[TABLE].sqlName;
-    const { reference } = await provider.provision(record);
+    const { reference } = await provider.provision.provision(record);
     const provisioned = { ...record, reference };
     const early = await outcome(sqliteConnector.connect(bound(reference), notes));
 
     // plan and apply the declared tables, then connect
     const desired = [notes.state()];
-    const plan = await provider.plan(provisioned, desired);
-    await provider.apply(provisioned, desired, await Plan.digest(plan));
+    const plan = await provider.reconcile.plan(provisioned, desired);
+    await provider.reconcile.apply(provisioned, desired, await Plan.digest(plan));
     const applied = await outcome(sqliteConnector.connect(bound(reference), notes));
 
     // destroy the file
-    await provider.destroy(provisioned);
+    await provider.provision.destroy(provisioned);
     const isGone = await stat(fileURLToPath(reference)).then(
         () => false,
         () => true,
@@ -85,17 +85,21 @@ test("open a provisioned SQLite database over its desired tables, migrating tabl
     const provider = sqliteProvider(pathToFileURL(`${directory}/`), "database");
     const empty = {
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000003"),
-        scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
         spec: { tier: "zonal" as const },
         reference: null,
     };
-    const record = { ...empty, ...(await provider.provision(empty)) };
+    const record = { ...empty, ...(await provider.provision.provision(empty)) };
     const desired = [notes.state()];
-    await provider.apply(record, desired, await Plan.digest(await provider.plan(record, desired)));
+    await provider.reconcile.apply(
+        record,
+        desired,
+        await Plan.digest(await provider.reconcile.plan(record, desired)),
+    );
 
     // migrate a table beside the notes, and write into both through the handle
-    const handle = await provider.open(record, desired);
+    const handle = await provider.open.open(record, desired);
     onTestFinished(() => handle.close());
     await handle.migrate([beside]);
     await handle.database.insert(beside).values({ id: "a" });
