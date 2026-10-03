@@ -1,8 +1,16 @@
+import { schema } from "@destack/schema";
 import type { BucketFile } from "./file.ts";
 import { StorageError } from "../error/index.ts";
 
 /** The most files one listing page or one delete names, the S3 and R2 limit. */
 export const MAX_BATCH_FILES = 1000;
+
+/** A file-list continuation with the backend and selection it continues. */
+const Cursor = schema.object({
+    backend: schema.string(),
+    selection: schema.string(),
+    continuation: schema.string(),
+});
 
 /** A lexicographically ordered page of files. */
 export type BucketListing = {
@@ -48,14 +56,12 @@ function encodeCursor(backend: string, selection: string, continuation: string):
 /** Read a continuation for the same backend and selection. */
 function decodeCursor(value: string, backend: string, selection: string): string {
     try {
-        const cursor = JSON.parse(
-            new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.fromBase64(value)),
+        const cursor = Cursor.parse(
+            JSON.parse(
+                new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.fromBase64(value)),
+            ),
         );
-        if (
-            cursor.backend !== backend ||
-            cursor.selection !== selection ||
-            typeof cursor.continuation !== "string"
-        ) {
+        if (cursor.backend !== backend || cursor.selection !== selection) {
             throw new StorageError("INVALID_CURSOR", "invalid file listing cursor");
         }
 

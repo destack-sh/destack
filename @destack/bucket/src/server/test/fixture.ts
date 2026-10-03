@@ -21,7 +21,7 @@ import { type BucketReference, S3Server, SignatureV4 } from "../../s3/index.ts";
 import { and, eq, type DatabaseConnection, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { Authentication, type AuthenticationClaims } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
@@ -63,15 +63,15 @@ export const PRESIGNED =
 /** A space with a local bucket served over S3, a member role on it, and an object server presigning. */
 export class BucketFixture implements AsyncDisposable {
     /** The account of the space with members for the role to bind. */
-    readonly accountId = identifier("account").parse(`account-${v7()}`);
+    readonly accountId = schema.identifier("account").parse(`account-${v7()}`);
     /** The space of the bucket. */
-    readonly spaceId = identifier("space").parse(`space-${v7()}`);
+    readonly spaceId = schema.identifier("space").parse(`space-${v7()}`);
     /** The bucket resource. */
-    readonly bucketId = identifier("bucket").parse(`bucket-${v7()}`);
+    readonly bucketId = schema.identifier("bucket").parse(`bucket-${v7()}`);
     /** The member calling the bucket's methods. */
-    readonly userId = identifier("user").parse(`user-${v7()}`);
+    readonly userId = schema.identifier("user").parse(`user-${v7()}`);
     /** The role granting the bucket permissions in the space. */
-    readonly roleId = identifier("role").parse(`role-${v7()}`);
+    readonly roleId = schema.identifier("role").parse(`role-${v7()}`);
     /** The migrated spaces database. */
     readonly database: DatabaseConnection;
     /** The bucket's files. */
@@ -174,7 +174,7 @@ export class BucketFixture implements AsyncDisposable {
     member(): Authentication {
         return this.authenticate(principal.user.reference("universe", this.userId), [
             principal.user.reference("universe", this.userId),
-            { ...accountObject.account.reference(this.userId, this.accountId), relation: "member" },
+            { ...accountObject.account.reference(this.userId, this.accountId), relation: "editor" },
         ]);
     }
 
@@ -212,7 +212,7 @@ export class BucketFixture implements AsyncDisposable {
 
                 return subject?.id === this.userId || subject?.scope === this.spaceId;
             })
-            .sort((left, right) => left.execution.id.localeCompare(right.execution.id));
+            .toSorted((left, right) => left.execution.id.localeCompare(right.execution.id));
     }
 
     /** Send a request through a presigned lease, as its holder would: GET to read, PUT to write. */
@@ -242,7 +242,13 @@ export class BucketFixture implements AsyncDisposable {
             Date.now(),
         );
 
-        return new URL(presigned.url).searchParams.get("X-Amz-Signature")!;
+        // read the signature from the query
+        const signed = new URL(presigned.url).searchParams.get("X-Amz-Signature");
+        if (signed === null) {
+            throw new TypeError("a presigned url carries no signature");
+        }
+
+        return signed;
     }
 
     /** Open the fixture's bucket, the only one its host serves. */
@@ -257,7 +263,7 @@ export class BucketFixture implements AsyncDisposable {
     /** Grant the role a bucket permission in the space. */
     async grant(name: string): Promise<void> {
         await this.database.insert(accessRolePermission).values({
-            id: identifier("role-permission").parse(`role-permission-${v7()}`),
+            id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
             roleId: this.roleId,
             scope: this.spaceId,
             packageId: bucketObject.bucket.policy.definition.packageId,
@@ -297,11 +303,11 @@ export class BucketFixture implements AsyncDisposable {
         );
     }
 
-    /** Install the package, relating it to the bucket as a user, as the binder does for a live deployment's capture. */
+    /** Install the package and relate it to the bucket as a consumer, as the binder does. */
     async install(name: string) {
         // install the package
         const now = Date.now();
-        const installationId = identifier("installation").parse(`installation-${v7()}`);
+        const installationId = schema.identifier("installation").parse(`installation-${v7()}`);
         await this.database.insert(installation.table).values({
             id: installationId,
             scope: this.spaceId,
@@ -313,13 +319,13 @@ export class BucketFixture implements AsyncDisposable {
             updatedAt: now,
         });
 
-        // relate it to the bucket as a user
+        // relate it to the bucket as a consumer
         await this.database.insert(accessRelationship).values(
             Relationship.encode(
                 {
                     id: `relationship-${v7()}`,
                     object: bucketObject.bucket.reference(this.spaceId, this.bucketId),
-                    relation: "user",
+                    relation: "consumer",
                     subject: principal.installation.reference(this.spaceId, installationId),
                     createdAt: now,
                     expiresAt: null,
@@ -395,7 +401,7 @@ export class BucketFixture implements AsyncDisposable {
         });
         await this.bind({
             ...accountObject.account.reference(this.userId, this.accountId),
-            relation: "member",
+            relation: "editor",
         });
         for (const name of Object.keys(bucketObject.bucket.policy.definition.permissions)) {
             await this.grant(name);
@@ -405,8 +411,8 @@ export class BucketFixture implements AsyncDisposable {
     /** Record another space of the account with its own bucket and no role, and select it. */
     async neighbour() {
         // record the space and its bucket under new identifiers
-        const spaceId = identifier("space").parse(`space-${v7()}`);
-        const bucketId = identifier("bucket").parse(`bucket-${v7()}`);
+        const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+        const bucketId = schema.identifier("bucket").parse(`bucket-${v7()}`);
         await this.#record(spaceId, bucketId, "neighbour");
 
         return { spaceId, id: bucketId };

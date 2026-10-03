@@ -32,7 +32,7 @@ function matches(file: BucketFile | null, condition?: BucketCondition): boolean 
     const isDifferent =
         condition.etagDoesNotMatch === undefined ||
         !matchesEtag(condition.etagDoesNotMatch, file.etag);
-    const divisor = condition.secondsGranularity ? 1000 : 1;
+    const divisor = condition.secondsGranularity === true ? 1000 : 1;
     const uploaded = Math.floor(file.uploaded.getTime() / divisor);
     const isAfter =
         condition.uploadedAfter === undefined ||

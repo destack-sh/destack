@@ -1,7 +1,8 @@
+import { aligned } from "@destack/schema";
 import { BucketFileBody, MAX_BATCH_FILES, MAX_PART_NUMBER, UploadedPart } from "../bucket/index.ts";
 import type { S3Bucket } from "./bucket.ts";
 import { S3Error } from "./error.ts";
-import { type CopySource, keyEncoder, optional, xmlResponse } from "./operation.ts";
+import { type CopySource, keyEncoder, xmlResponse } from "./operation.ts";
 import { S3_STORAGE_CLASSES, type S3Request } from "./request.ts";
 
 /** The query parameters of ListMultipartUploads. */
@@ -27,12 +28,15 @@ export const S3Upload = {
 
 /** Answer CreateMultipartUpload with the new upload's identifier. */
 async function createUpload(call: S3Request, bucket: S3Bucket): Promise<Response> {
+    // start the upload with the request's metadata, storage class and key
     call.checkParameters(["uploads"]);
+    const storageClass = call.storageClass();
+    const ssecKey = call.ssecKey();
     const upload = await bucket.createMultipartUpload(call.key, {
         httpMetadata: call.httpMetadata(),
         customMetadata: call.customMetadata(),
-        ...optional("storageClass", call.storageClass()),
-        ...optional("ssecKey", call.ssecKey()),
+        ...(storageClass === undefined ? {} : { storageClass }),
+        ...(ssecKey === undefined ? {} : { ssecKey }),
     });
 
     return xmlResponse("InitiateMultipartUploadResult", {
@@ -46,11 +50,12 @@ async function createUpload(call: S3Request, bucket: S3Bucket): Promise<Response
 async function uploadPart(call: S3Request, bucket: S3Bucket): Promise<Response> {
     // stream the verified body into the numbered part
     call.checkParameters(["partNumber", "uploadId"]);
-    const upload = bucket.resumeMultipartUpload(call.key, call.query.get("uploadId")!);
+    const upload = bucket.resumeMultipartUpload(call.key, call.uploadId());
+    const ssecKey = call.ssecKey();
     const part = await upload.uploadPart(
         call.partNumber(),
         call.body(),
-        optional("ssecKey", call.ssecKey()),
+        ssecKey === undefined ? {} : { ssecKey },
     );
 
     return new Response(null, { headers: { etag: `"${part.etag}"` } });
@@ -64,11 +69,12 @@ async function uploadPartCopy(
 ): Promise<Response> {
     // read the part, source range and source conditions
     call.checkParameters(["partNumber", "uploadId"]);
-    const upload = bucket.resumeMultipartUpload(call.key, call.query.get("uploadId")!);
+    const upload = bucket.resumeMultipartUpload(call.key, call.uploadId());
     const partNumber = call.partNumber();
+    const range = call.copySourceRange();
     const options = {
-        ...optional("range", call.copySourceRange()),
-        ...optional("onlyIf", source.onlyIf),
+        ...(range === undefined ? {} : { range }),
+        ...(source.onlyIf === undefined ? {} : { onlyIf: source.onlyIf }),
     };
 
     // copy within the bucket, or stream the source from another bucket
@@ -100,7 +106,7 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
     const document = await call.document();
     const parts = document.all("Part").map((part) => ({
         partNumber: Number(part.value("PartNumber")),
-        etag: (part.value("ETag") ?? "").replace(/^"(.*)"$/, "$1"),
+        etag: (part.value("ETag") ?? "").replace(/^"(.*)"$/u, "$1"),
     }));
     if (document.name !== "CompleteMultipartUpload" || parts.length === 0) {
         throw new S3Error("MalformedXML", "the document must list the parts to complete");
@@ -110,12 +116,12 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
     for (const part of parts) {
         UploadedPart.checkNumber(part.partNumber);
     }
-    if (parts.some((part, index) => index > 0 && part.partNumber <= parts[index - 1]!.partNumber)) {
+    if (parts.slice(1).some((part, index) => part.partNumber <= aligned(parts, index).partNumber)) {
         throw new S3Error("InvalidPartOrder", "the list of parts was not in ascending order");
     }
 
     // assemble the file
-    const upload = bucket.resumeMultipartUpload(call.key, call.query.get("uploadId")!);
+    const upload = bucket.resumeMultipartUpload(call.key, call.uploadId());
     const file = await upload.complete(parts);
 
     return xmlResponse("CompleteMultipartUploadResult", {
@@ -129,7 +135,7 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
 /** Answer AbortMultipartUpload by discarding the upload and its parts. */
 async function abortUpload(call: S3Request, bucket: S3Bucket): Promise<Response> {
     call.checkParameters(["uploadId"]);
-    await bucket.resumeMultipartUpload(call.key, call.query.get("uploadId")!).abort();
+    await bucket.resumeMultipartUpload(call.key, call.uploadId()).abort();
 
     return new Response(null, { status: 204 });
 }
@@ -138,7 +144,7 @@ async function abortUpload(call: S3Request, bucket: S3Bucket): Promise<Response>
 async function listParts(call: S3Request, bucket: S3Bucket): Promise<Response> {
     // read one page after the part number marker
     call.checkParameters(["uploadId", "max-parts", "part-number-marker"]);
-    const uploadId = call.query.get("uploadId")!;
+    const uploadId = call.uploadId();
     const limit = Math.min(
         call.integer("max-parts", 0, Number.MAX_SAFE_INTEGER) ?? MAX_BATCH_FILES,
         MAX_BATCH_FILES,
@@ -181,19 +187,25 @@ async function listUploads(call: S3Request, bucket: S3Bucket): Promise<Response>
         MAX_BATCH_FILES,
     );
     const page = await bucket.listUploads({
-        ...optional("prefix", prefix),
-        ...optional("keyMarker", keyMarker),
-        ...optional("uploadIdMarker", keyMarker === undefined ? undefined : uploadIdMarker),
+        ...(prefix === undefined ? {} : { prefix }),
+        ...(keyMarker === undefined ? {} : { keyMarker }),
+        ...(keyMarker === undefined || uploadIdMarker === undefined ? {} : { uploadIdMarker }),
         limit,
     });
+
+    // mark the next page after the last upload of a truncated one
     const last = page.uploads.at(-1);
+    if (page.truncated && last === undefined) {
+        throw new TypeError("a truncated upload page lists no uploads");
+    }
+    const next = page.truncated ? last : undefined;
 
     return xmlResponse("ListMultipartUploadsResult", {
         Bucket: call.bucketName,
         KeyMarker: encode(keyMarker ?? ""),
         UploadIdMarker: uploadIdMarker ?? "",
-        NextKeyMarker: page.truncated ? encode(last!.key) : undefined,
-        NextUploadIdMarker: page.truncated ? last!.uploadId : undefined,
+        NextKeyMarker: next === undefined ? undefined : encode(next.key),
+        NextUploadIdMarker: next?.uploadId,
         Prefix: encode(prefix ?? ""),
         EncodingType: call.query.get("encoding-type"),
         MaxUploads: limit,

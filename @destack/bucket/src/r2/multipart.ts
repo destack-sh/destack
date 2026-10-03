@@ -6,6 +6,7 @@ import type {
     UploadedPart,
     UploadPartOptions,
 } from "../bucket/index.ts";
+import { R2Body } from "./body.ts";
 import { R2File } from "./file.ts";
 
 /** A multipart upload supplied by an R2 binding. */
@@ -33,11 +34,7 @@ export class R2MultipartUpload implements MultipartUpload {
         body: BucketBody,
         options?: UploadPartOptions,
     ): Promise<UploadedPart> {
-        return this.#upload.uploadPart(
-            partNumber,
-            body as Parameters<Cloudflare.R2MultipartUpload["uploadPart"]>[1],
-            options,
-        );
+        return this.#upload.uploadPart(partNumber, R2Body.write(body), options);
     }
 
     /** Assemble the selected part uploads into one file. */

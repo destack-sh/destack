@@ -76,11 +76,13 @@ export class S3Error extends Error {
         // keep S3 errors and translate storage failures the request caused
         if (error instanceof S3Error) {
             return error;
+        } else if (!(error instanceof StorageError)) {
+            return undefined;
         }
-        const code = error instanceof StorageError ? STORAGE_ERROR_CODE[error.code] : undefined;
 
-        return code === undefined
-            ? undefined
-            : new S3Error(code, (error as Error).message, { cause: error });
+        // translate a storage failure with an S3 code
+        const code = STORAGE_ERROR_CODE[error.code];
+
+        return code === undefined ? undefined : new S3Error(code, error.message, { cause: error });
     }
 }

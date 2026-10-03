@@ -57,19 +57,22 @@ export class Content {
     /** Write contents into the blob store before the catalogue refers to them. */
     static async write(
         blobs: BlobStore,
-        body: BucketBody,
+        body: BucketBody | null,
         options: BucketPutOptions = {},
         key?: CustomerKey,
     ): Promise<Content> {
         // accept at most one supplied checksum
-        const supplied = CHECKSUM_ALGORITHMS.filter(
-            (algorithm) => options[algorithm] !== undefined,
-        );
+        const supplied = CHECKSUM_ALGORITHMS.flatMap((name) => {
+            const value = options[name];
+
+            return value === undefined ? [] : [{ name, value }];
+        });
         if (supplied.length > 1) {
             throw new StorageError("INVALID_CHECKSUM", "supply at most one checksum");
         }
-        const algorithm = supplied[0];
-        const expected = algorithm === undefined ? undefined : options[algorithm]!;
+        const [checksum] = supplied;
+        const algorithm = checksum?.name;
+        const expected = checksum?.value;
 
         // stream the stored bytes into the store, which keeps none of a mismatched body
         const nonce = key === undefined ? null : CustomerKey.nonce();
@@ -82,22 +85,26 @@ export class Content {
             expected: expected === undefined ? undefined : hexadecimal(expected),
             size: 0,
         };
-        const cipher = nonce === null ? undefined : key!.cipher(nonce);
+        const cipher = key === undefined || nonce === null ? undefined : key.cipher(nonce);
         const blob = await blobs.write(encode(body, cipher, hashes));
 
         // keep the checked checksum of plain content
-        const checksums: StringChecksums = { md5: hashes.etag! };
+        const { etag, actual } = hashes;
+        if (etag === undefined || actual === undefined) {
+            throw new TypeError("content hashes are unfinished after the write");
+        }
+        const checksums: StringChecksums = { md5: etag };
         if (algorithm !== undefined && key === undefined) {
-            checksums[algorithm] = hashes.actual!;
+            checksums[algorithm] = actual;
         }
 
-        return new Content(crypto.randomUUID(), blob, nonce, hashes.size, hashes.etag!, checksums);
+        return new Content(crypto.randomUUID(), blob, nonce, hashes.size, etag, checksums);
     }
 }
 
 /** Encrypt a body's chunks for storage while hashing them, refusing a mismatched checksum at its end. */
 async function* encode(
-    body: BucketBody,
+    body: BucketBody | null,
     cipher: ContentCipher | undefined,
     hashes: ContentHashes,
 ): AsyncIterable<Uint8Array> {
@@ -105,8 +112,11 @@ async function* encode(
     const content = ArrayBuffer.isView(body)
         ? new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
         : body;
-    const stream =
-        body instanceof ReadableStream ? body : new Response(content ?? new Uint8Array()).body!;
+    const stream: ReadableStream<Uint8Array> | null =
+        body instanceof ReadableStream ? body : new Response(content ?? new Uint8Array()).body;
+    if (stream === null) {
+        throw new TypeError("a buffered body has no stream");
+    }
 
     // hash the bytes stored and the bytes given
     for await (const chunk of stream) {

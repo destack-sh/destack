@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import {
     CopyObjectCommand,
     DeleteObjectCommand,
@@ -27,8 +28,11 @@ test("store, read and delete objects with metadata through the AWS SDK", async (
             StorageClass: "STANDARD_IA",
         }),
     );
-    const file = await fixture.buckets.get("files")!.head("documents/readme.txt");
-    expect(stored.ETag).toBe(file!.httpEtag);
+    const file = present(
+        await present(fixture.buckets.get("files"), "files").head("documents/readme.txt"),
+        "file",
+    );
+    expect(stored.ETag).toBe(file.httpEtag);
 
     // read its metadata and its body
     const head = await client.send(
@@ -48,13 +52,13 @@ test("store, read and delete objects with metadata through the AWS SDK", async (
         cache: "max-age=60",
         metadata: { author: "alice" },
         storageClass: "STANDARD_IA",
-        etag: file!.httpEtag,
-        modified: Math.floor(file!.uploaded.getTime() / 1000) * 1000,
+        etag: file.httpEtag,
+        modified: Math.floor(file.uploaded.getTime() / 1000) * 1000,
     });
     const object = await client.send(
         new GetObjectCommand({ Bucket: "files", Key: "documents/readme.txt" }),
     );
-    expect(await object.Body!.transformToString()).toBe("Hello, bucket");
+    expect(await present(object.Body, "Body").transformToString()).toBe("Hello, bucket");
 
     // delete it, after which reads find no key
     await client.send(new DeleteObjectCommand({ Bucket: "files", Key: "documents/readme.txt" }));
@@ -108,7 +112,10 @@ test("apply conditional headers and byte ranges through the AWS SDK", async () =
         status: 304,
     });
     expect(
-        await (await get({ IfMatch: etag, IfUnmodifiedSince: earlier })).Body!.transformToString(),
+        await present(
+            (await get({ IfMatch: etag, IfUnmodifiedSince: earlier })).Body,
+            "Body",
+        ).transformToString(),
     ).toBe("abcdef");
 
     // refuse conditional writes whose preconditions fail
@@ -142,15 +149,21 @@ test("apply conditional headers and byte ranges through the AWS SDK", async () =
     expect({
         range: ranged.ContentRange,
         length: ranged.ContentLength,
-        body: await ranged.Body!.transformToString(),
+        body: await present(ranged.Body, "Body").transformToString(),
     }).toEqual({
         range: "bytes 1-3/6",
         length: 3,
         body: "bcd",
     });
-    expect(await (await get({ Range: "bytes=-2" })).Body!.transformToString()).toBe("ef");
-    expect(await (await get({ Range: "bytes=4-" })).Body!.transformToString()).toBe("ef");
-    expect(await (await get({ Range: "bytes=1-2,4-5" })).Body!.transformToString()).toBe("abcdef");
+    expect(await present((await get({ Range: "bytes=-2" })).Body, "Body").transformToString()).toBe(
+        "ef",
+    );
+    expect(await present((await get({ Range: "bytes=4-" })).Body, "Body").transformToString()).toBe(
+        "ef",
+    );
+    expect(
+        await present((await get({ Range: "bytes=1-2,4-5" })).Body, "Body").transformToString(),
+    ).toBe("abcdef");
     expect(await failure(get({ Range: "bytes=6-" }))).toEqual({
         name: "InvalidRange",
         status: 416,
@@ -179,7 +192,7 @@ test("copy objects within and between buckets through the AWS SDK", async () => 
             CopySourceIfMatch: etag,
         }),
     );
-    expect(copy.CopyObjectResult!.ETag).toBe(etag);
+    expect(present(copy.CopyObjectResult, "CopyObjectResult").ETag).toBe(etag);
     const archived = await client.send(
         new CopyObjectCommand({
             Bucket: "archive",
@@ -190,7 +203,7 @@ test("copy objects within and between buckets through the AWS SDK", async () => 
             Metadata: { reviewed: "yes" },
         }),
     );
-    expect(archived.CopyObjectResult!.ETag).toBe(etag);
+    expect(present(archived.CopyObjectResult, "CopyObjectResult").ETag).toBe(etag);
     const heads = await Promise.all(
         [
             ["files", "copy.txt"],
@@ -270,12 +283,15 @@ test("list objects by prefix, delimiter and continuation through the AWS SDK", a
 
     // list after a key, with the size, entity tag and storage class of each file
     const after = await list({ StartAfter: "photos/index.html" });
-    const file = await fixture.buckets.get("files")!.head("readme.txt");
+    const file = present(
+        await present(fixture.buckets.get("files"), "files").head("readme.txt"),
+        "readme.txt",
+    );
     expect(after.Contents).toEqual([
         {
             Key: "readme.txt",
-            LastModified: new Date(file!.uploaded.toISOString()),
-            ETag: file!.httpEtag,
+            LastModified: new Date(file.uploaded.toISOString()),
+            ETag: file.httpEtag,
             Size: 10,
             StorageClass: "STANDARD",
         },
@@ -332,10 +348,15 @@ test("match If-Match entity-tag lists on reads and writes through the AWS SDK", 
         );
 
     // read and write when the list includes the current tag
-    expect(await (await get(`"other", ${etag}`)).Body!.transformToString()).toBe("abcdef");
+    expect(await present((await get(`"other", ${etag}`)).Body, "Body").transformToString()).toBe(
+        "abcdef",
+    );
     const stored = await put(`${etag}, "other"`, "ghijkl");
-    const file = await fixture.buckets.get("files")!.head("report.txt");
-    expect(stored.ETag).toBe(file!.httpEtag);
+    const file = present(
+        await present(fixture.buckets.get("files"), "files").head("report.txt"),
+        "report.txt",
+    );
+    expect(stored.ETag).toBe(file.httpEtag);
 
     // refuse reads and writes when the list names only other tags
     expect(await failure(get(`"other", ${etag}`))).toEqual({
@@ -346,7 +367,12 @@ test("match If-Match entity-tag lists on reads and writes through the AWS SDK", 
         name: "PreconditionFailed",
         status: 412,
     });
-    expect(await (await fixture.buckets.get("files")!.get("report.txt"))!.text()).toBe("ghijkl");
+    expect(
+        await present(
+            await present(fixture.buckets.get("files"), "files").get("report.txt"),
+            "report.txt",
+        ).text(),
+    ).toBe("ghijkl");
 });
 
 test("refuse a write whose If-Match list names only an older version, storing nothing", async () => {
@@ -371,7 +397,12 @@ test("refuse a write whose If-Match list names only an older version, storing no
         name: "PreconditionFailed",
         status: 412,
     });
-    expect(await (await fixture.buckets.get("files")!.get("report.txt"))!.text()).toBe("second");
+    expect(
+        await present(
+            await present(fixture.buckets.get("files"), "files").get("report.txt"),
+            "report.txt",
+        ).text(),
+    ).toBe("second");
 });
 
 test("compare weak If-None-Match tags weakly on reads and refuse them on writes", async () => {
@@ -407,7 +438,12 @@ test("compare weak If-None-Match tags weakly on reads and refuse them on writes"
             ),
         ),
     ).toEqual({ name: "NotImplemented", status: 501 });
-    expect(await (await fixture.buckets.get("files")!.get("report.txt"))!.text()).toBe("abcdef");
+    expect(
+        await present(
+            await present(fixture.buckets.get("files"), "files").get("report.txt"),
+            "report.txt",
+        ).text(),
+    ).toBe("abcdef");
 });
 
 test("match copy-source entity-tag lists against the current source through the AWS SDK", async () => {
@@ -431,7 +467,7 @@ test("match copy-source entity-tag lists against the current source through the 
     // copy when the list includes the current tag
     const { ETag: older } = await put("first");
     const copy = await copyTo("copy.txt", { CopySourceIfMatch: `"other", ${older}` });
-    expect(copy.CopyObjectResult!.ETag).toBe(older);
+    expect(present(copy.CopyObjectResult, "CopyObjectResult").ETag).toBe(older);
 
     // refuse lists without the current tag, weak matches of it, and tags of an older version
     const { ETag: etag } = await put("second");
@@ -447,7 +483,7 @@ test("match copy-source entity-tag lists against the current source through the 
     ]);
 
     // store none of the refused copies
-    const listed = await fixture.buckets.get("files")!.list();
+    const listed = await present(fixture.buckets.get("files"), "files").list();
     expect(listed.files.map((file) => file.key)).toEqual(["copy.txt", "source.txt"]);
 });
 
@@ -475,7 +511,7 @@ test("store and read objects under customer keys through the AWS SDK", async () 
     const read = await client.send(
         new GetObjectCommand({ Bucket: "files", Key: "sealed.txt", ...customer }),
     );
-    expect(await read.Body!.transformToString()).toBe("hidden");
+    expect(await present(read.Body, "Body").transformToString()).toBe("hidden");
     expect(
         await failure(client.send(new GetObjectCommand({ Bucket: "files", Key: "sealed.txt" }))),
     ).toEqual({ name: "InvalidRequest", status: 400 });

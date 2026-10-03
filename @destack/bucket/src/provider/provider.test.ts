@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { ResourceId } from "@destack/resource";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { identifier } from "@destack/schema";
+import { aligned, schema, present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { LocalBucketHost } from "../local/index.ts";
 import { segment } from "../local/stack/index.ts";
@@ -14,7 +14,7 @@ import { localBucketProvider } from "./provider.ts";
 /** The bucket resource both hosts keep. */
 const record = {
     id: ResourceId.parse("bucket-01996ab0-0000-7000-8000-000000000002"),
-    scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001"),
+    scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001"),
     spec: {},
     reference: null,
 };
@@ -41,14 +41,14 @@ test("provision a bucket once and destroy it with its files", async () => {
     const provider = localBucketProvider(buckets);
 
     // provision twice under one reference, keeping a file
-    const provision = await provider.provision(record);
-    expect(await provider.provision(record)).toEqual(provision);
-    const bucket = await buckets.open({ bucketId: identifier("bucket").parse(record.id) });
+    const provision = await provider.provision.provision(record);
+    expect(await provider.provision.provision(record)).toEqual(provision);
+    const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
     await bucket.put("notes/a.txt", "first");
     expect(await readdir(directory)).toEqual([record.id]);
 
     // destroy the bucket's directory with its files
-    await provider.destroy({ ...record, ...provision });
+    await provider.provision.destroy({ ...record, ...provision });
     expect(await readdir(directory)).toEqual([]);
 });
 
@@ -61,21 +61,21 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
         credentials: CREDENTIALS,
     });
     const provider = localBucketProvider(buckets);
-    const provision = await provider.provision(record);
-    const bucket = await buckets.open({ bucketId: identifier("bucket").parse(record.id) });
+    const provision = await provider.provision.provision(record);
+    const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
     await bucket.put("notes/a.txt", "first");
 
     // read the file's segment, logged under the space, and its blob's bytes
-    const handle = await provider.open({ ...record, ...provision }, []);
+    const handle = await provider.open.open({ ...record, ...provision }, []);
     onTestFinished(() => handle.close());
-    const [stored] = await handle.database.select().from(segment);
+    const stored = aligned(await handle.database.select().from(segment), 0);
     const changes = await handle.database.log.read({ tables: [segment], after: 0 });
     const read: Uint8Array[] = [];
-    for await (const chunk of handle.blobs!.read(stored!.blob)) {
+    for await (const chunk of present(handle.blobs, "blobs").read(stored.blob)) {
         read.push(chunk);
     }
     expect([
-        stored!.blob,
+        stored.blob,
         changes.changes.map((change) => change.scope),
         new TextDecoder().decode(Buffer.concat(read)),
     ]).toEqual([createHash("sha256").update("first").digest("hex"), [record.scope], "first"]);
@@ -97,18 +97,24 @@ test("copy a bucket to another host: follow its catalogue and blobs, then captur
         credentials: CREDENTIALS,
     });
     const [source, target] = [localBucketProvider(sourceHost), localBucketProvider(targetHost)];
-    const bucketId = identifier("bucket").parse(record.id);
+    const bucketId = schema.identifier("bucket").parse(record.id);
     const written = await sourceHost.open({ bucketId }, record.scope);
     await written.put("notes/a.txt", "first");
-    const from = await source.open({ ...record, ...(await source.provision(record)) }, []);
+    const from = await source.open.open(
+        { ...record, ...(await source.provision.provision(record)) },
+        [],
+    );
     onTestFinished(() => from.close());
-    const to = await target.open({ ...record, ...(await target.provision(record)) }, []);
+    const to = await target.open.open(
+        { ...record, ...(await target.provision.provision(record)) },
+        [],
+    );
     await to.migrate(replicaTables);
 
     // follow the catalogue, fetching each referenced blob, while the source writes another file
-    const copy = ZoneTransfer.database(record.id, to.database);
+    const copy = ZoneTransfer.copy(record.id, to.database);
     const feed = new Feed(from.database, copy.tables);
-    const blobs = { store: to.blobs!, source: from.blobs! };
+    const blobs = { store: present(to.blobs, "blobs"), source: present(from.blobs, "blobs") };
     const controller = new AbortController();
     const following = copy.follow(
         to.database,
@@ -124,11 +130,7 @@ test("copy a bucket to another host: follow its catalogue and blobs, then captur
 
     // capture the rest once the source stops, then own the copy and drop its bookkeeping
     await written.delete("notes/a.txt");
-    for await (const _page of copy.apply(to.database, feed.capture(copy.captured, signal), {
-        blobs,
-    })) {
-        // apply each captured page
-    }
+    await Array.fromAsync(copy.apply(to.database, feed.capture(copy.captured, signal), { blobs }));
     await copy.promote(to.database);
     await to.migrate([]);
     await to.close();
@@ -138,6 +140,6 @@ test("copy a bucket to another host: follow its catalogue and blobs, then captur
     const listed = await received.list();
     expect([
         listed.files.map((file) => file.key),
-        await (await received.get("notes/b.txt"))!.text(),
+        await present(await received.get("notes/b.txt"), "notes/b.txt").text(),
     ]).toEqual([["notes/b.txt"], "second"]);
 });

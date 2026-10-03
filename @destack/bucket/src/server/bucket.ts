@@ -1,10 +1,10 @@
 import type { Call } from "@destack/object";
-import { identifier, type schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { BucketHttpMetadata, type BucketFile } from "../bucket/index.ts";
 import { StorageError, type StorageErrorCode } from "../error/index.ts";
 import type { Lease, LeaseMode } from "@destack/resource";
-import { bucket, FileInput, type FileMetadata } from "../object/index.ts";
+import { bucket, type FileMetadata } from "../object/index.ts";
 import {
     type BucketHost,
     type BucketReference,
@@ -52,7 +52,7 @@ export function serveBucket(host: BucketHost) {
         files: (call) =>
             files(host, call, async (opened) => {
                 // list a page of files with their metadata
-                const input = call.input as Input<"files">;
+                const input = call.input;
                 const page = await opened.list({
                     ...(input.prefix === undefined ? {} : { prefix: input.prefix }),
                     ...(input.delimiter === undefined ? {} : { delimiter: input.delimiter }),
@@ -69,23 +69,22 @@ export function serveBucket(host: BucketHost) {
             }),
         file: (call) =>
             files(host, call, async (opened) => {
-                const file = await opened.head((call.input as Input<"file">).key);
+                const file = await opened.head(call.input.key);
 
                 return file === null ? null : describe(file);
             }),
         open: {
             authorize: async (call) => {
                 // require the right to upload for a write
-                if ((call.input as Input<"open">).mode === "write") {
-                    await call.authorization!.require(
-                        bucket.permission("upload"),
-                        call.reference(),
-                    );
+                if (call.input.mode === "write") {
+                    await call
+                        .requireAuthorization()
+                        .require(bucket.permission("write"), call.reference());
                 }
             },
-            effect: (call) => {
+            handler: (call) => {
                 // bind a read's range and entity tag
-                const input = call.input as Input<"open">;
+                const input = call.input;
                 const headers = new Headers();
                 if (input.mode === "read") {
                     if (input.range !== undefined) {
@@ -122,14 +121,14 @@ export function serveBucket(host: BucketHost) {
         },
         remove: (call) =>
             files(host, call, async (opened) => {
-                await opened.delete((call.input as Input<"remove">).keys);
+                await opened.delete(call.input.keys);
 
                 return {};
             }),
         createUpload: (call) =>
             files(host, call, async (opened) => {
                 // create the upload with the metadata its file receives
-                const input = call.input as Input<"createUpload">;
+                const input = call.input;
                 requireMetadata(input.customMetadata);
                 const upload = await opened.createMultipartUpload(input.key, {
                     httpMetadata: httpMetadata(input.httpMetadata),
@@ -143,7 +142,7 @@ export function serveBucket(host: BucketHost) {
             }),
         uploadPart: (call) => {
             // bind the part's length and number
-            const input = call.input as Input<"uploadPart">;
+            const input = call.input;
             const headers = new Headers({ "content-length": String(input.size) });
             encrypt(headers, input.customerKey);
 
@@ -157,18 +156,18 @@ export function serveBucket(host: BucketHost) {
         completeUpload: (call) =>
             files(host, call, async (opened) => {
                 // assemble the parts by the opaque tags their quoted entity tags carry
-                const input = call.input as Input<"completeUpload">;
+                const input = call.input;
                 const upload = opened.resumeMultipartUpload(input.key, input.uploadId);
                 const parts = input.parts.map((part) => ({
                     partNumber: part.partNumber,
-                    etag: part.etag.replace(/^"(.*)"$/, "$1"),
+                    etag: part.etag.replace(/^"(.*)"$/u, "$1"),
                 }));
 
                 return describe(await upload.complete(parts));
             }),
         abortUpload: (call) =>
             files(host, call, async (opened) => {
-                const input = call.input as Input<"abortUpload">;
+                const input = call.input;
                 await opened.resumeMultipartUpload(input.key, input.uploadId).abort();
 
                 return {};
@@ -176,36 +175,37 @@ export function serveBucket(host: BucketHost) {
     });
 }
 
-/** A file method's input. */
-type Input<Name extends keyof typeof FileInput> = schema.Infer<(typeof FileInput)[Name]>;
+/** A call of a bucket's method. */
+type BucketCall = Call<(typeof bucket)["table"]>;
 
 /** Read the bucket a call targets. */
-function reference(call: Call): BucketReference {
+function reference(call: BucketCall): BucketReference {
     return {
-        scope: identifier("space").parse(call.scope),
-        bucketId: identifier("bucket").parse(call.target!.id),
+        scope: schema.identifier("space").parse(call.scope),
+        bucketId: schema.identifier("bucket").parse(call.requireTarget().id),
     };
 }
 
 /** Work on the bucket a call targets, reporting storage failures the request caused. */
 async function files<Value>(
     host: BucketHost,
-    call: Call,
+    call: BucketCall,
     work: (opened: Awaited<ReturnType<BucketHost["open"]>>) => Promise<Value>,
 ): Promise<Value> {
     try {
         return await work(await host.open(reference(call)));
     } catch (error) {
+        // rethrow failures the request did not cause
         const code = error instanceof StorageError ? REQUEST_FAILURES[error.code] : undefined;
-        if (code === undefined) {
+        if (!(error instanceof StorageError) || code === undefined) {
             throw error;
         }
-        throw new ServiceError(code, { message: (error as StorageError).message, cause: error });
+        throw new ServiceError(code, { message: error.message, cause: error });
     }
 }
 
 /** Presign one S3 request on the bucket a call targets. */
-async function presign(host: BucketHost, call: Call, lease: LeaseRequest): Promise<Lease> {
+async function presign(host: BucketHost, call: BucketCall, lease: LeaseRequest): Promise<Lease> {
     // address the key, and the part the query selects, at the bucket's S3 location
     const { location, credentials } = await host.locate(reference(call));
     const url = S3Location.url(location, lease.key);

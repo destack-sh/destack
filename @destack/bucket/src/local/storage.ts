@@ -1,3 +1,4 @@
+import { found } from "@destack/schema";
 import { mkdir, opendir, stat, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { and, asc, eq, gt, gte, inArray, lt, lte, type Table } from "@destack/db";
@@ -42,7 +43,7 @@ export class LocalStorage implements AsyncDisposable {
     /** Whether the bucket has released its database and lock. */
     #isClosed = false;
     /** Share an in-progress close between concurrent callers. */
-    #closing?: Promise<void>;
+    #closing: Promise<void> | undefined;
 
     /** Retain an opened catalogue and its blobs. */
     private constructor(
@@ -127,7 +128,9 @@ export class LocalStorage implements AsyncDisposable {
                 failures.push(cleanup);
             }
             if (failures.length > 1) {
-                throw new AggregateError(failures, "storage initialization and closure failed");
+                throw new AggregateError(failures, "storage initialization and closure failed", {
+                    cause: error,
+                });
             }
             throw error;
         }
@@ -287,7 +290,7 @@ export class LocalStorage implements AsyncDisposable {
 
     /** Release a retained blob. */
     release(digest: string): void {
-        const remaining = this.#readers.get(digest)! - 1;
+        const remaining = found(this.#readers, digest) - 1;
         if (remaining === 0) {
             this.#readers.delete(digest);
         } else {
@@ -390,10 +393,10 @@ export class LocalStorage implements AsyncDisposable {
             checksums: file.checksums,
             storageClass: file.storageClass,
             ssecKeyMd5: file.ssecKeyMd5,
-            ...(options.include?.includes("httpMetadata")
+            ...(options.include?.includes("httpMetadata") === true
                 ? { httpMetadata: file.httpMetadata }
                 : {}),
-            ...(options.include?.includes("customMetadata")
+            ...(options.include?.includes("customMetadata") === true
                 ? { customMetadata: file.customMetadata }
                 : {}),
         };
@@ -441,11 +444,15 @@ export class LocalStorage implements AsyncDisposable {
             // retain one lookahead entry to determine whether another page exists
             for (const entry of entries) {
                 if (files.length + delimitedPrefixes.length === limit) {
+                    if (after === undefined) {
+                        throw new TypeError("a full listing page has no last key");
+                    }
+
                     return {
                         files,
                         delimitedPrefixes,
                         truncated: true,
-                        cursor: BucketListing.encodeCursor("local", selection, after!),
+                        cursor: BucketListing.encodeCursor("local", selection, after),
                     };
                 }
                 const index = delimiter === "" ? -1 : entry.key.indexOf(delimiter, prefix.length);

@@ -4,14 +4,28 @@ import { S3Error } from "./error.ts";
 import { customerKeyHeaders, S3Request } from "./request.ts";
 import type { S3Authorization } from "./signature.ts";
 
-test("write a customer key's SSE-C headers, which a request reads back as the key", () => {
+test("write a customer key's SSE-C headers, which a request reads back as the key", async () => {
     const key = new Uint8Array(32).fill(7);
     const headers = customerKeyHeaders(key.toBase64());
+    const authorization: S3Authorization = {
+        accessKeyId: "tester",
+        signingKey: await crypto.subtle.importKey(
+            "raw",
+            new Uint8Array(32),
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["sign"],
+        ),
+        date: "20260929T100000Z",
+        scope: "20260929/auto/s3/aws4_request",
+        signature: "0".repeat(64),
+        payloadHash: "UNSIGNED-PAYLOAD",
+    };
     const request = new S3Request(
         new Request("https://s3.test/files/sealed.txt", { headers }),
         "files",
         "sealed.txt",
-        {} as S3Authorization,
+        authorization,
     );
 
     expect([headers, request.ssecKey()]).toEqual([

@@ -69,41 +69,47 @@ test("sign the documented ranged GET example", async () => {
 
 test("decode the documented signed aws-chunked upload", async () => {
     // build the example body of 65536 and 1024 bytes and its chunk signatures
-    const chunk = (size: number, signature: string) =>
-        `${size.toString(16)};chunk-signature=${signature}\r\n${"a".repeat(size)}\r\n`;
     const body = [
         chunk(65536, "ad80c730a21e5b8d04586a2213dd63b9a0e99e0e2307b0ade35a65485a288648"),
         chunk(1024, "0055627c9e194cb4542bae2aa5492e3c1575bbb81b612b7d234b86a503ef5497"),
         chunk(0, "b6c6ea8a5354eaf15b3cb7646744f4275b71ea724fed81ceb9323e279d449df9"),
     ].join("");
-    const request = (content: string) =>
-        new Request("https://s3.amazonaws.com/examplebucket/chunkObject.txt", {
-            method: "PUT",
-            headers: {
-                host: "s3.amazonaws.com",
-                "x-amz-date": "20130524T000000Z",
-                "x-amz-storage-class": "REDUCED_REDUNDANCY",
-                authorization:
-                    "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9",
-                "x-amz-content-sha256": "STREAMING-AWS4-HMAC-SHA256-PAYLOAD",
-                "content-encoding": "aws-chunked",
-                "x-amz-decoded-content-length": "66560",
-                "content-length": "66824",
-            },
-            body: content,
-        });
 
     // verify the seed signature, then every chunk signature while decoding
-    const signed = request(body);
+    const signed = chunkedRequest(body);
     const authorization = await SIGNER.authenticate(signed, async () => CREDENTIALS, NOW);
     const decoded = await new Response(Payload.open(signed, signed.headers, authorization)).text();
     expect(decoded).toBe("a".repeat(66560));
 
     // refuse a changed chunk
-    const changed = request(body.replace("aaaa\r\n400", "aaab\r\n400"));
+    const changed = chunkedRequest(body.replace("aaaa\r\n400", "aaab\r\n400"));
     const stream = Payload.open(changed, changed.headers, authorization);
     await expect(new Response(stream).text()).rejects.toMatchObject({
         code: "SignatureDoesNotMatch",
         message: "an aws-chunked chunk signature does not match",
     });
 });
+
+/** Write one signed aws-chunked chunk of a size. */
+function chunk(size: number, signature: string): string {
+    return `${size.toString(16)};chunk-signature=${signature}\r\n${"a".repeat(size)}\r\n`;
+}
+
+/** Build the documented chunked upload request with a body. */
+function chunkedRequest(content: string): Request {
+    return new Request("https://s3.amazonaws.com/examplebucket/chunkObject.txt", {
+        method: "PUT",
+        headers: {
+            host: "s3.amazonaws.com",
+            "x-amz-date": "20130524T000000Z",
+            "x-amz-storage-class": "REDUCED_REDUNDANCY",
+            authorization:
+                "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=content-encoding;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class,Signature=4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9",
+            "x-amz-content-sha256": "STREAMING-AWS4-HMAC-SHA256-PAYLOAD",
+            "content-encoding": "aws-chunked",
+            "x-amz-decoded-content-length": "66560",
+            "content-length": "66824",
+        },
+        body: content,
+    });
+}

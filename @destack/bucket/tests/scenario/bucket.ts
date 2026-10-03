@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import type { Bucket } from "../../src/index.ts";
@@ -9,10 +10,10 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
     assert.strictEqual(await bucket.get("missing"), null);
     const empty = await bucket.put("empty", null);
     assert.strictEqual(empty.size, 0);
-    const emptyBody = await bucket.get("empty");
-    assert.strictEqual(emptyBody!.bodyUsed, false);
-    assert.strictEqual(await emptyBody!.text(), "");
-    assert.strictEqual(emptyBody!.bodyUsed, true);
+    const emptyBody = present(await bucket.get("empty"), "emptyBody");
+    assert.strictEqual(emptyBody.bodyUsed, false);
+    assert.strictEqual(await emptyBody.text(), "");
+    assert.strictEqual(emptyBody.bodyUsed, true);
     await bucket.delete("empty");
 
     // preserve byte-view boundaries and stored HTTP metadata
@@ -20,11 +21,11 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
     await bucket.put("view", new DataView(bytes.buffer, 1, 2), {
         httpMetadata: { contentType: "text/plain", cacheControl: "no-cache" },
     });
-    const view = await bucket.get("view");
-    assert.strictEqual(await view!.text(), "AB");
+    const view = present(await bucket.get("view"), "view");
+    assert.strictEqual(await view.text(), "AB");
     assert.deepStrictEqual(
         Object.fromEntries(
-            Object.entries(view!.httpMetadata).filter(([, value]) => value !== undefined),
+            Object.entries(view.httpMetadata).filter(([, value]) => value !== undefined),
         ),
         {
             contentType: "text/plain",
@@ -43,9 +44,9 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
             md5,
             [algorithm]: digest,
         });
-        const restored = await bucket.get("checksum");
-        assert.deepStrictEqual(restored!.checksums.toJSON(), file.checksums.toJSON());
-        assert.deepStrictEqual(new Uint8Array(await restored!.arrayBuffer()), value);
+        const restored = present(await bucket.get("checksum"), "restored");
+        assert.deepStrictEqual(restored.checksums.toJSON(), file.checksums.toJSON());
+        assert.deepStrictEqual(new Uint8Array(await restored.arrayBuffer()), value);
     }
     await bucket.delete("checksum");
 }
@@ -57,21 +58,24 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
  */
 export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false): Promise<void> {
     // publish immutable content and retain metadata through listing and reads
-    const first = await bucket.put("📁/one", "abcdef", {
-        onlyIf: { etagDoesNotMatch: "*" },
-        httpMetadata: {
-            contentType: "text/plain",
-            contentLanguage: "en",
-            contentDisposition: "attachment; filename=one.txt",
-            contentEncoding: "identity",
-            cacheControl: "max-age=60",
-            cacheExpiry: new Date("2030-01-01T00:00:00.000Z"),
-        },
-        customMetadata: { owner: "alice" },
-    });
+    const first = present(
+        await bucket.put("📁/one", "abcdef", {
+            onlyIf: { etagDoesNotMatch: "*" },
+            httpMetadata: {
+                contentType: "text/plain",
+                contentLanguage: "en",
+                contentDisposition: "attachment; filename=one.txt",
+                contentEncoding: "identity",
+                cacheControl: "max-age=60",
+                cacheExpiry: new Date("2030-01-01T00:00:00.000Z"),
+            },
+            customMetadata: { owner: "alice" },
+        }),
+        "first",
+    );
     assert.deepStrictEqual(await bucket.head("📁/one"), first);
     const headers = new Headers();
-    first!.writeHttpMetadata(headers);
+    first.writeHttpMetadata(headers);
     assert.deepStrictEqual(Object.fromEntries(headers), {
         "cache-control": "max-age=60",
         "content-disposition": "attachment; filename=one.txt",
@@ -80,37 +84,43 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
         "content-type": "text/plain",
         expires: "Tue, 01 Jan 2030 00:00:00 GMT",
     });
-    assert.strictEqual(first!.httpEtag, `"${first!.etag}"`);
-    assert.strictEqual(first!.uploaded instanceof Date, true);
+    assert.strictEqual(first.httpEtag, `"${first.etag}"`);
+    assert.strictEqual(first.uploaded instanceof Date, true);
 
     // apply the same date and entity tag precedence in both implementations
-    const earlier = new Date(first!.uploaded.getTime() - 1000);
-    const later = new Date(first!.uploaded.getTime() + 1000);
+    const earlier = new Date(first.uploaded.getTime() - 1000);
+    const later = new Date(first.uploaded.getTime() + 1000);
     assert.deepStrictEqual(await bucket.get("📁/one", { onlyIf: { uploadedAfter: later } }), first);
     assert.deepStrictEqual(
         await bucket.get("📁/one", { onlyIf: { uploadedBefore: earlier } }),
         first,
     );
     const matching = await bucket.get("📁/one", {
-        onlyIf: { etagMatches: first!.etag, uploadedBefore: earlier },
+        onlyIf: { etagMatches: first.etag, uploadedBefore: earlier },
     });
     assert.strictEqual(matching && "body" in matching ? await matching.text() : matching, "abcdef");
     assert.strictEqual(
         await bucket.put("📁/one", "wrong", { onlyIf: { uploadedAfter: later } }),
         null,
     );
-    const retained = await bucket.get("📁/one");
-    const sliced = await bucket.get("📁/one", { range: { offset: 1, length: 3 } });
-    assert.strictEqual(await new Response(sliced!.body).text(), "bcd");
-    assert.deepStrictEqual(sliced!.range, { offset: 1, length: 3 });
-    const suffix = await bucket.get("📁/one", { range: { suffix: 2 } });
-    assert.strictEqual(await new Response(suffix!.body).text(), "ef");
-    const prefix = await bucket.get("📁/one", { range: { length: 2 } });
-    assert.strictEqual(await prefix!.text(), "ab");
+    const retained = present(await bucket.get("📁/one"), "retained");
+    const sliced = present(
+        await bucket.get("📁/one", { range: { offset: 1, length: 3 } }),
+        "sliced",
+    );
+    assert.strictEqual(await new Response(sliced.body).text(), "bcd");
+    assert.deepStrictEqual(sliced.range, { offset: 1, length: 3 });
+    const suffix = present(await bucket.get("📁/one", { range: { suffix: 2 } }), "suffix");
+    assert.strictEqual(await new Response(suffix.body).text(), "ef");
+    const prefix = present(await bucket.get("📁/one", { range: { length: 2 } }), "prefix");
+    assert.strictEqual(await prefix.text(), "ab");
 
     // clamp a range reaching past the end
-    const clamped = await bucket.get("📁/one", { range: { offset: 4, length: 100 } });
-    assert.strictEqual(await clamped!.text(), "ef");
+    const clamped = present(
+        await bucket.get("📁/one", { range: { offset: 4, length: 100 } }),
+        "clamped",
+    );
+    assert.strictEqual(await clamped.text(), "ef");
 
     // refuse a range starting at the end, which the simulator reports without R2's code
     if (!isSimulatedR2) {
@@ -142,8 +152,8 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
 
     // accept one of two competing replacements of the previous entity tag
     const replacements = await Promise.all([
-        bucket.put("📁/one", "second", { onlyIf: { etagMatches: first!.etag } }),
-        bucket.put("📁/one", "third", { onlyIf: { etagMatches: first!.etag } }),
+        bucket.put("📁/one", "second", { onlyIf: { etagMatches: first.etag } }),
+        bucket.put("📁/one", "third", { onlyIf: { etagMatches: first.etag } }),
     ]);
     assert.deepStrictEqual(
         replacements.filter((entry) => entry === null),
@@ -153,7 +163,7 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
         replacements.filter((entry) => entry !== null),
         [await bucket.head("📁/one")],
     );
-    assert.strictEqual(await new Response(retained!.body).text(), "abcdef");
+    assert.strictEqual(await new Response(retained.body).text(), "abcdef");
 }
 
 /** Page literal file keys and delete exact selections. */
@@ -168,7 +178,7 @@ export async function exerciseListing(bucket: Bucket): Promise<void> {
         include: ["httpMetadata", "customMetadata"],
     });
     assert.deepStrictEqual(page.files, [await bucket.head("📁/one")]);
-    assert.strictEqual(typeof page.cursor, "string");
+    assert.strictEqual(page.truncated, true);
     await assert.rejects(async () => bucket.list({ prefix: "other/", cursor: page.cursor }), {
         code: "INVALID_CURSOR",
     });
@@ -201,6 +211,7 @@ export async function exerciseGroups(bucket: Bucket): Promise<void> {
         await bucket.put(key, key);
     }
     const group = await bucket.list({ prefix: "files/", delimiter: "/", limit: 1 });
+    assert.strictEqual(group.truncated, true);
     assert.deepStrictEqual(
         { ...group, cursor: undefined },
         {
@@ -217,6 +228,7 @@ export async function exerciseGroups(bucket: Bucket): Promise<void> {
         limit: 1,
         cursor: group.cursor,
     });
+    assert.strictEqual(nextGroup.truncated, true);
     assert.deepStrictEqual(
         { ...nextGroup, cursor: undefined },
         {
@@ -255,7 +267,12 @@ export async function exerciseMarkers(bucket: Bucket): Promise<void> {
     const pages = [];
     let cursor: string | undefined;
     do {
-        const page = await bucket.list({ prefix: "marks/", delimiter: "/", limit: 1, cursor });
+        const page = await bucket.list({
+            prefix: "marks/",
+            delimiter: "/",
+            limit: 1,
+            ...(cursor === undefined ? {} : { cursor }),
+        });
         pages.push([page.files.map((entry) => entry.key), page.delimitedPrefixes, page.truncated]);
         cursor = page.cursor;
     } while (cursor !== undefined);

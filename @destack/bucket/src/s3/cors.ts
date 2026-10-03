@@ -38,11 +38,11 @@ function preflight(rules: CorsRule[], request: Request): Response {
 
     // select the first rule allowing everything the preflight asks for
     const rule = rules.find(
-        (rule) =>
-            allowsOrigin(rule, origin) &&
-            rule.allowed.methods.includes(method) &&
+        (candidate) =>
+            allowsOrigin(candidate, origin) &&
+            candidate.allowed.methods.includes(method) &&
             requested.every((header) =>
-                (rule.allowed.headers ?? []).some((pattern) =>
+                (candidate.allowed.headers ?? []).some((pattern) =>
                     matches(pattern.toLowerCase(), header),
                 ),
             ),
@@ -79,7 +79,8 @@ function apply(rules: CorsRule[], request: Request, headers: Headers): void {
     }
     headers.append("vary", "Origin");
     const rule = rules.find(
-        (rule) => allowsOrigin(rule, origin) && rule.allowed.methods.includes(request.method),
+        (candidate) =>
+            allowsOrigin(candidate, origin) && candidate.allowed.methods.includes(request.method),
     );
     if (rule === undefined) {
         return;

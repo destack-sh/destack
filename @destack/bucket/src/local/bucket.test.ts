@@ -1,10 +1,12 @@
+import { present } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UploadedPart } from "../bucket/index.ts";
+import { StorageClass } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
 
 test("retain local files across reopen and failed streamed uploads", async () => {
@@ -37,9 +39,9 @@ test("retain local files across reopen and failed streamed uploads", async () =>
             });
         }
         await using restored = await LocalBucket.open(directory, "space-test");
-        const document = await restored.get("document");
-        expect(await new Response(document!.body).text()).toBe("original");
-        expect(document!.httpMetadata.contentType).toBe("text/plain");
+        const document = present(await restored.get("document"), "document");
+        expect(await new Response(document.body).text()).toBe("original");
+        expect(document.httpMetadata.contentType).toBe("text/plain");
         expect(await readdir(join(directory, "files"))).toEqual([digestOf("original")]);
     } finally {
         await rm(directory, { recursive: true });
@@ -94,8 +96,8 @@ test("recover the catalogue and reclaim an upload after terminating its host", a
 
         // reopen the bucket once the operating system releases the lock, removing uncommitted contents
         await using restored = await LocalBucket.open(directory, "space-test");
-        const document = await restored.get("document");
-        expect(await new Response(document!.body).text()).toBe("committed");
+        const document = present(await restored.get("document"), "document");
+        expect(await new Response(document.body).text()).toBe("committed");
         expect(await readdir(join(directory, "files"))).toEqual([digestOf("committed")]);
     } finally {
         if (!isTerminated) {
@@ -112,11 +114,11 @@ test("close storage immediately after consuming or cancelling a body", async () 
         for (const operation of ["consume", "cancel"] as const) {
             await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", new Uint8Array(128 * 1024));
-            const file = await bucket.get("document");
+            const file = present(await bucket.get("document"), "file");
             if (operation === "consume") {
-                expect((await file!.bytes()).length).toBe(128 * 1024);
+                expect((await file.bytes()).length).toBe(128 * 1024);
             } else {
-                await file!.body.cancel();
+                await file.body.cancel();
             }
         }
     } finally {
@@ -143,10 +145,12 @@ test("recover multiple batches of abandoned files without deleting files or uplo
         }
         await writeFile(join(directory, "files", `.${crypto.randomUUID()}`), "interrupted");
         await using bucket = await LocalBucket.open(directory, "space-test");
-        expect(await (await bucket.get("document"))!.text()).toBe("retained");
+        expect(await present(await bucket.get("document"), "document").text()).toBe("retained");
         expect((await readdir(join(directory, "files"))).length).toBe(2);
         await bucket.resumeMultipartUpload("multipart", uploadId).complete([selected]);
-        expect(await (await bucket.get("multipart"))!.text()).toBe("retained part");
+        expect(await present(await bucket.get("multipart"), "multipart").text()).toBe(
+            "retained part",
+        );
     } finally {
         await rm(directory, { recursive: true });
     }
@@ -172,7 +176,9 @@ test("report reclamation failures separately from committed file replacements", 
                 syscall: "unlink",
                 path,
             });
-            expect(await (await bucket.get("document"))!.text()).toBe("replacement");
+            expect(await present(await bucket.get("document"), "document").text()).toBe(
+                "replacement",
+            );
         } finally {
             await rm(path, { recursive: true });
             await rename(retained, path);
@@ -196,22 +202,25 @@ test("copy files by sharing their contents until the last reference goes", async
         });
 
         // copy with the source's metadata, or with replaced metadata and storage class
-        const copy = await bucket.copy("source", "copy");
-        const replaced = await bucket.copy("source", "replaced", {
-            httpMetadata: { contentType: "text/markdown" },
-            customMetadata: {},
-            storageClass: "InfrequentAccess",
-        });
+        const copy = present(await bucket.copy("source", "copy"), "copy");
+        const replaced = present(
+            await bucket.copy("source", "replaced", {
+                httpMetadata: { contentType: "text/markdown" },
+                customMetadata: {},
+                storageClass: "InfrequentAccess",
+            }),
+            "replaced",
+        );
         expect([copy, replaced]).toEqual([
             await bucket.head("copy"),
             await bucket.head("replaced"),
         ]);
         expect({
-            etags: [copy!.etag, replaced!.etag],
-            isVersionNew: copy!.version !== source.version,
-            httpMetadata: [copy!.httpMetadata, replaced!.httpMetadata],
-            customMetadata: [copy!.customMetadata, replaced!.customMetadata],
-            storageClass: [copy!.storageClass, replaced!.storageClass],
+            etags: [copy.etag, replaced.etag],
+            isVersionNew: copy.version !== source.version,
+            httpMetadata: [copy.httpMetadata, replaced.httpMetadata],
+            customMetadata: [copy.customMetadata, replaced.customMetadata],
+            storageClass: [copy.storageClass, replaced.storageClass],
         }).toEqual({
             etags: [source.etag, source.etag],
             isVersionNew: true,
@@ -233,7 +242,7 @@ test("copy files by sharing their contents until the last reference goes", async
         await bucket.delete(["source", "copy"]);
         await bucket.collect();
         expect(await readdir(join(directory, "files"))).toEqual([digestOf("shared")]);
-        expect(await (await bucket.get("replaced"))!.text()).toBe("shared");
+        expect(await present(await bucket.get("replaced"), "replaced").text()).toBe("shared");
         await bucket.delete("replaced");
         await bucket.collect();
         expect(await readdir(join(directory, "files"))).toEqual([]);
@@ -247,19 +256,18 @@ test("record storage classes and refuse storage classes R2 does not offer", asyn
     try {
         await using bucket = await LocalBucket.open(directory, "space-test");
         const cold = await bucket.put("cold", "rarely read", { storageClass: "InfrequentAccess" });
-        expect({ put: cold.storageClass, head: (await bucket.head("cold"))!.storageClass }).toEqual(
-            {
-                put: "InfrequentAccess",
-                head: "InfrequentAccess",
-            },
-        );
+        expect({
+            put: cold.storageClass,
+            head: present(await bucket.head("cold"), "cold").storageClass,
+        }).toEqual({
+            put: "InfrequentAccess",
+            head: "InfrequentAccess",
+        });
         const listed = await bucket.list();
         expect(listed.files.map((file) => file.storageClass)).toEqual(["InfrequentAccess"]);
 
-        // refuse storage classes R2 does not offer
-        await expect(
-            bucket.put("glacier", "archived", { storageClass: "Glacier" as "Standard" }),
-        ).rejects.toMatchObject({
+        // refuse storage classes R2 does not offer when reading them from a caller
+        await expect(Promise.try(() => StorageClass.read("Glacier"))).rejects.toMatchObject({
             code: "INVALID_STORAGE_CLASS",
             message: "unknown storage class Glacier",
         });
@@ -285,14 +293,17 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
         );
         expect([
             stored.ssecKeyMd5,
-            (await bucket.head("sealed"))!.ssecKeyMd5,
+            present(await bucket.head("sealed"), "sealed").ssecKeyMd5,
             onDisk.includes(text),
         ]).toEqual([md5, md5, false]);
 
         // read the whole file and an unaligned range with the key
-        const whole = await bucket.get("sealed", { ssecKey });
-        const range = await bucket.get("sealed", { ssecKey, range: { offset: 21, length: 13 } });
-        expect([await whole!.text(), await range!.text()]).toEqual([text, text.slice(21, 34)]);
+        const whole = present(await bucket.get("sealed", { ssecKey }), "whole");
+        const range = present(
+            await bucket.get("sealed", { ssecKey, range: { offset: 21, length: 13 } }),
+            "range",
+        );
+        expect([await whole.text(), await range.text()]).toEqual([text, text.slice(21, 34)]);
 
         // refuse reading without the key, with another key, and a plain file with a key
         await bucket.put("plain", "open");
@@ -302,12 +313,7 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
                 bucket.get("sealed", { ssecKey: "b2".repeat(32) }),
                 bucket.get("plain", { ssecKey }),
                 bucket.put("short", "x", { ssecKey: "00" }),
-            ].map((pending) =>
-                pending.then(
-                    () => undefined,
-                    (error: { code: string; message: string }) => [error.code, error.message],
-                ),
-            ),
+            ].map((pending) => refusal(pending)),
         );
         expect(refusals).toEqual([
             ["INVALID_CUSTOMER_KEY", "the file is encrypted with another customer key"],
@@ -326,7 +332,7 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
         const completed = await upload.complete([part]);
         expect([
             completed.ssecKeyMd5,
-            await (await bucket.get("parts", { ssecKey }))!.text(),
+            await present(await bucket.get("parts", { ssecKey }), "parts").text(),
         ]).toEqual([md5, "parted contents"]);
     } finally {
         await rm(directory, { recursive: true });

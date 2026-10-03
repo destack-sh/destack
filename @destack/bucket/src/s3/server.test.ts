@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
@@ -22,12 +23,12 @@ test("accept the AWS SDK's default checksums, trailers included", async () => {
             ContentLength: 17,
         }),
     );
-    const bucket = fixture.buckets.get("files")!;
+    const bucket = present(fixture.buckets.get("files"), "files");
     expect({
         payloadHashes: fixture.payloadHashes,
         bodies: [
-            await (await bucket.get("buffered.txt"))!.text(),
-            await (await bucket.get("streamed.txt"))!.text(),
+            await present(await bucket.get("buffered.txt"), "buffered.txt").text(),
+            await present(await bucket.get("streamed.txt"), "streamed.txt").text(),
         ],
     }).toEqual({
         payloadHashes: [
@@ -92,7 +93,7 @@ test("follow presigned GET and PUT URLs and refuse forged or expired ones", asyn
     const codes = await Promise.all(
         [await fixture.fetch(expired), forged].map(async (response) => ({
             status: response.status,
-            code: /<Code>(\w+)<\/Code>/.exec(await response.text())?.[1],
+            code: /<Code>(\w+)<\/Code>/u.exec(await response.text())?.[1],
         })),
     );
     expect(codes).toEqual([
@@ -136,7 +137,7 @@ test("answer failures with S3 error documents", async () => {
     const response = await fixture.fetch(unknown);
     expect({
         status: response.status,
-        code: /<Code>(\w+)<\/Code>/.exec(await response.text())?.[1],
+        code: /<Code>(\w+)<\/Code>/u.exec(await response.text())?.[1],
     }).toEqual({
         status: 403,
         code: "InvalidAccessKeyId",
@@ -175,7 +176,7 @@ test("answer CORS preflights and expose headers to allowed origins", async () =>
     });
     expect({
         status: refused.status,
-        code: /<Code>(\w+)<\/Code>/.exec(await refused.text())?.[1],
+        code: /<Code>(\w+)<\/Code>/u.exec(await refused.text())?.[1],
     }).toEqual({
         status: 403,
         code: "AccessForbidden",
@@ -215,7 +216,7 @@ test("refuse bodies whose signed hash or checksum differs, storing nothing", asy
 
             return {
                 status: response.status,
-                code: /<Code>(\w+)<\/Code>/.exec(await response.text())?.[1],
+                code: /<Code>(\w+)<\/Code>/u.exec(await response.text())?.[1],
             };
         }),
     );
@@ -223,7 +224,7 @@ test("refuse bodies whose signed hash or checksum differs, storing nothing", asy
         { status: 400, code: "XAmzContentSHA256Mismatch" },
         { status: 400, code: "BadDigest" },
     ]);
-    expect(await fixture.buckets.get("files")!.list()).toEqual({
+    expect(await present(fixture.buckets.get("files"), "files").list()).toEqual({
         files: [],
         delimitedPrefixes: [],
         truncated: false,

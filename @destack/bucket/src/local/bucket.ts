@@ -77,6 +77,11 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         options?: BucketGetOptions & { onlyIf?: undefined },
     ): Promise<BucketFileBody | null>;
     get(key: string, options: BucketGetOptions): Promise<BucketFileBody | BucketFile | null>;
+    /**
+     * Read a file, or its metadata when a precondition fails.
+     *
+     * @construct only an `onlyIf` precondition answers metadata without a body.
+     */
     async get(
         key: string,
         options: BucketGetOptions = {},
@@ -126,7 +131,13 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
                 try {
                     await reader.stream.cancel();
                 } catch (cleanup) {
-                    throw new AggregateError([error, cleanup], "file read and cancellation failed");
+                    throw new AggregateError(
+                        [error, cleanup],
+                        "file read and cancellation failed",
+                        {
+                            cause: cleanup,
+                        },
+                    );
                 }
                 throw error;
             }
@@ -136,13 +147,22 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
     /** Write immutable contents, then atomically publish their catalogue entry. */
     put(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options?: BucketPutOptions & { onlyIf?: undefined },
     ): Promise<BucketFile>;
-    put(key: string, body: BucketBody, options: BucketPutOptions): Promise<BucketFile | null>;
+    put(
+        key: string,
+        body: BucketBody | null,
+        options: BucketPutOptions,
+    ): Promise<BucketFile | null>;
+    /**
+     * Write a file, or answer null when its precondition fails.
+     *
+     * @construct only an `onlyIf` precondition refuses a write.
+     */
     async put(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options: BucketPutOptions = {},
     ): Promise<BucketFile | null> {
         return this.#write(key, body, options);
@@ -151,10 +171,11 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
     /** Write a file with the entity tag, version and upload time another bucket gave it. */
     async restore(
         key: string,
-        body: BucketBody,
-        file: Pick<BucketFile, "etag" | "version" | "uploaded"> & Omit<BucketPutOptions, "onlyIf">,
+        body: BucketBody | null,
+        stored: Pick<BucketFile, "etag" | "version" | "uploaded"> &
+            Omit<BucketPutOptions, "onlyIf">,
     ): Promise<BucketFile> {
-        const { etag, version, uploaded, ...options } = file;
+        const { etag, version, uploaded, ...options } = stored;
 
         return this.#write(key, body, options, { etag, version, uploaded });
     }
@@ -162,13 +183,13 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
     /** Fetch a file from a URL with the identity another bucket gave it, unless the bucket has it at that version. */
     async fetch(
         url: string,
-        file: Pick<BucketFile, "key" | "etag" | "version" | "uploaded"> &
+        source: Pick<BucketFile, "key" | "etag" | "version" | "uploaded"> &
             Omit<BucketPutOptions, "onlyIf">,
     ): Promise<void> {
         // skip a file the bucket has at the same version
-        const { key, ...identity } = file;
+        const { key, ...identity } = source;
         const present = await this.head(key);
-        if (present?.etag === file.etag && present.version === file.version) {
+        if (present?.etag === source.etag && present.version === source.version) {
             return;
         }
 
@@ -183,19 +204,20 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
     /** List the keys in a range: after one key, up to and including another, by UTF-8 bytes as listings sort them. */
     async keys(range: { readonly after?: string; readonly last?: string }): Promise<string[]> {
         // list pages after the first key until one passes the last
-        const isAfter = (key: string, other: string) =>
-            Buffer.compare(Buffer.from(key), Buffer.from(other)) > 0;
         const { after, last } = range;
         const keys: string[] = [];
         let cursor: string | undefined;
+        let isPast = false;
         do {
             const page = await this.list({
                 ...(cursor === undefined ? {} : { cursor }),
                 ...(after === undefined ? {} : { startAfter: after }),
             });
-            keys.push(...page.files.map((file) => file.key));
+            keys.push(...page.files.map((listed) => listed.key));
             cursor = page.cursor;
-        } while (cursor !== undefined && (last === undefined || !isAfter(keys.at(-1)!, last)));
+            const final = keys.at(-1);
+            isPast = last !== undefined && final !== undefined && isAfter(final, last);
+        } while (cursor !== undefined && !isPast);
 
         return last === undefined ? keys : keys.filter((key) => !isAfter(key, last));
     }
@@ -203,21 +225,25 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
     /** Write and publish a file with no precondition. */
     #write(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options: BucketPutOptions & { onlyIf?: undefined },
         identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
     ): Promise<BucketFile>;
     /** Write and publish a file when its precondition matches, else answer null. */
     #write(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options: BucketPutOptions,
         identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
     ): Promise<BucketFile | null>;
-    /** Write immutable contents, then publish their catalogue entry under its own or a restored identity. */
+    /**
+     * Write immutable contents, then publish their catalogue entry under its own or a restored identity.
+     *
+     * @construct only an `onlyIf` precondition refuses a write.
+     */
     async #write(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options: BucketPutOptions,
         identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
     ): Promise<BucketFile | null> {
@@ -337,8 +363,8 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         if (keys.length > MAX_BATCH_FILES) {
             throw new StorageError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
         }
-        for (const key of keys) {
-            BucketKey.check(key);
+        for (const each of keys) {
+            BucketKey.check(each);
         }
 
         // delete the keys under the catalogue lock
@@ -400,4 +426,9 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#storage[Symbol.asyncDispose]();
     }
+}
+
+/** Report whether a key sorts after another by UTF-8 bytes, as listings sort them. */
+function isAfter(key: string, other: string): boolean {
+    return Buffer.compare(Buffer.from(key), Buffer.from(other)) > 0;
 }

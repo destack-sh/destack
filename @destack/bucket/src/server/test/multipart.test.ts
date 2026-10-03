@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { ServiceError } from "@destack/service/error";
@@ -35,7 +36,9 @@ const PART_SIZE = 5 * 1024 * 1024;
 test.for(TEST_DIALECTS)(
     "assemble a file from parts uploaded through presigned transfers on %s",
     async (dialect) => {
-        await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
         const { client, bucket } = fixture;
         const key = "media/video.bin";
 
@@ -75,7 +78,10 @@ test.for(TEST_DIALECTS)(
             // upload the part and keep its entity tag
             const response = await fixture.transfer(signed, body);
             expect(response.status).toBe(200);
-            parts.push({ partNumber: index + 1, etag: response.headers.get("etag")! });
+            parts.push({
+                partNumber: index + 1,
+                etag: present(response.headers.get("etag"), "etag"),
+            });
         }
 
         // complete the upload into one file with the upload's metadata
@@ -111,7 +117,9 @@ test.for(TEST_DIALECTS)(
 
 /** Discard an aborted upload and refuse its later parts and completion. */
 test.for(TEST_DIALECTS)("abort a multipart upload on %s", async (dialect) => {
-    await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+    await using fixture = await BucketFixture.open(
+        present(databases.get(dialect), "dialect").database,
+    );
     const { client, bucket } = fixture;
     const key = "draft.bin";
 
@@ -125,7 +133,7 @@ test.for(TEST_DIALECTS)("abort a multipart upload on %s", async (dialect) => {
     });
     const part = { ...bucket, key, uploadId, partNumber: 1, size: 5 };
     const uploaded = await fixture.transfer(await client.uploadPart(part), "draft");
-    const etag = uploaded.headers.get("etag")!;
+    const etag = present(uploaded.headers.get("etag"), "etag");
     expect(
         await client.abortUpload({
             ...bucket,

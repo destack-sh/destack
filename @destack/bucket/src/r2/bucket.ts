@@ -13,6 +13,7 @@ import { BucketKey } from "../bucket/key.ts";
 import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
 import { BucketRange } from "../bucket/range.ts";
 import { StorageError } from "../error/index.ts";
+import { R2Body } from "./body.ts";
 import { R2MultipartUpload } from "./multipart.ts";
 import { R2File } from "./file.ts";
 
@@ -43,6 +44,11 @@ export class R2Bucket implements Bucket {
         options?: BucketGetOptions & { onlyIf?: undefined },
     ): Promise<BucketFileBody | null>;
     get(key: string, options: BucketGetOptions): Promise<BucketFileBody | BucketFile | null>;
+    /**
+     * Read a file, or its metadata when a precondition fails.
+     *
+     * @construct only an `onlyIf` precondition answers metadata without a body.
+     */
     async get(
         key: string,
         options: BucketGetOptions = {},
@@ -53,12 +59,10 @@ export class R2Bucket implements Bucket {
             BucketRange.check(options.range);
         }
 
-        // pass the structured options through the separately declared Workers types
-        const entry = await this.#bucket
-            .get(key, options as Cloudflare.R2GetOptions)
-            .catch((error: unknown) => {
-                throw readError(error);
-            });
+        // pass the structured options to R2
+        const entry = await this.#bucket.get(key, options).catch((error: unknown) => {
+            throw readError(error);
+        });
         if (!entry) {
             return null;
         }
@@ -67,7 +71,7 @@ export class R2Bucket implements Bucket {
         }
 
         // return the body with its resolved range
-        const body = entry.body as unknown as ReadableStream<Uint8Array>;
+        const body = R2Body.read(entry);
         try {
             const range = options.range
                 ? BucketRange.resolve(entry.size, options.range)
@@ -78,7 +82,9 @@ export class R2Bucket implements Bucket {
             try {
                 await body.cancel();
             } catch (cleanup) {
-                throw new AggregateError([error, cleanup], "file read and cancellation failed");
+                throw new AggregateError([error, cleanup], "file read and cancellation failed", {
+                    cause: cleanup,
+                });
             }
             throw error;
         }
@@ -87,25 +93,30 @@ export class R2Bucket implements Bucket {
     /** Publish a file with its metadata and optional precondition. */
     put(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options?: BucketPutOptions & { onlyIf?: undefined },
     ): Promise<BucketFile>;
-    put(key: string, body: BucketBody, options: BucketPutOptions): Promise<BucketFile | null>;
+    put(
+        key: string,
+        body: BucketBody | null,
+        options: BucketPutOptions,
+    ): Promise<BucketFile | null>;
+    /**
+     * Write a file, or answer null when its precondition fails.
+     *
+     * @construct only an `onlyIf` precondition refuses a write.
+     */
     async put(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options: BucketPutOptions = {},
     ): Promise<BucketFile | null> {
+        // validate the key and pass the body as R2 takes it
         BucketKey.check(key);
+        const value = body === null ? null : R2Body.write(body);
+        const entry = await this.#bucket.put(key, value, options);
 
-        // pass the structured options through the separately declared Workers types
-        const entry = await this.#bucket.put(
-            key,
-            body as Parameters<Cloudflare.R2Bucket["put"]>[1],
-            options as unknown as Cloudflare.R2PutOptions,
-        );
-
-        return entry ? R2File.describe(entry) : null;
+        return entry === null ? null : R2File.describe(entry);
     }
 
     /** Delete the current file. */
@@ -115,8 +126,8 @@ export class R2Bucket implements Bucket {
         if (keys.length > MAX_BATCH_FILES) {
             throw new StorageError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
         }
-        for (const key of keys) {
-            BucketKey.check(key);
+        for (const each of keys) {
+            BucketKey.check(each);
         }
         await this.#bucket.delete(key);
     }
@@ -128,12 +139,7 @@ export class R2Bucket implements Bucket {
     ): Promise<MultipartUpload> {
         BucketKey.check(key);
 
-        return new R2MultipartUpload(
-            await this.#bucket.createMultipartUpload(
-                key,
-                options as unknown as Cloudflare.R2MultipartOptions,
-            ),
-        );
+        return new R2MultipartUpload(await this.#bucket.createMultipartUpload(key, options));
     }
 
     /** Reference an existing R2 upload. */
@@ -156,7 +162,7 @@ export class R2Bucket implements Bucket {
                 : BucketListing.decodeCursor(options.cursor, "r2", selection);
         const page = await this.#bucket.list({
             ...options,
-            cursor,
+            ...(cursor === undefined ? {} : { cursor }),
         });
 
         return {
@@ -174,7 +180,12 @@ export class R2Bucket implements Bucket {
 
 /** Report R2's unsatisfiable range as the storage failure of the same meaning, and any other failure as itself. */
 function readError(error: unknown): unknown {
-    if ((error as Cloudflare.R2Error).code === INVALID_RANGE_CODE) {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === INVALID_RANGE_CODE
+    ) {
         return new StorageError("INVALID_RANGE", "the requested file range is not satisfiable", {
             cause: error,
         });

@@ -14,7 +14,14 @@ export async function runR2(name: string): Promise<void> {
         format: "esm",
         platform: "neutral",
         external: ["node:*"],
-    }).then((result) => result.outputFiles[0].text);
+    }).then(({ outputFiles: [script] }) => {
+        // require the single bundled script
+        if (script === undefined) {
+            throw new Error("expected one bundled scenario script");
+        }
+
+        return script.text;
+    });
 
     // give each scenario an independent R2 binding
     const worker = new Miniflare({

@@ -17,14 +17,6 @@ export interface CopySource {
     onlyIf?: BucketCondition;
 }
 
-/** Spread a field only when its value is defined, as exact optional properties require. */
-export function optional<Name extends string, Value>(
-    name: Name,
-    value: Value | undefined,
-): { [Key in Name]?: Value } {
-    return (value === undefined ? {} : { [name]: value }) as { [Key in Name]?: Value };
-}
-
 /** Answer with an S3 XML document. */
 export function xmlResponse(name: string, root: XmlElement): Response {
     return new Response(writeXml(name, root), { headers: { "content-type": "application/xml" } });

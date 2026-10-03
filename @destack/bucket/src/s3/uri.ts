@@ -4,7 +4,7 @@ import { S3Error } from "./error.ts";
 export function encodeUri(value: string, isPath: boolean): string {
     // escape the reserved characters encodeURIComponent leaves unescaped
     const encoded = encodeURIComponent(value).replace(
-        /[!'()*]/g,
+        /[!'()*]/gu,
         (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
     );
 

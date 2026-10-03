@@ -1,6 +1,6 @@
-Declare and access file storage in Destack.
+Declare file storage, read and write its files, and serve it over S3.
 
-## Usage
+## Declarations
 
 A package declares a bucket by name, and the host provides it.
 
@@ -13,6 +13,8 @@ export const files = defineBucket({
 });
 ```
 
+## Files
+
 A handler reads and writes files through its bucket.
 
 ```ts
@@ -21,6 +23,8 @@ await bucket.put("documents/readme.txt", "Hello", { httpMetadata: { contentType:
 const document = await bucket.get("documents/readme.txt");
 const text = document ? await document.text() : undefined;
 ```
+
+## Multipart uploads
 
 Large files upload in parts.
 
@@ -32,6 +36,8 @@ const first = await upload.uploadPart(1, firstChunk);
 const last = await upload.uploadPart(2, lastChunk);
 await upload.complete([first, last]);
 ```
+
+## Encryption
 
 A customer key encrypts a file's content, and every read of it sends the same key.
 
@@ -61,6 +67,8 @@ import { R2Bucket } from "@destack/bucket/r2";
 context.bind(files, new R2Bucket(environment.FILES));
 ```
 
+## Device hosts
+
 A device host keeps its buckets in `LocalBucketHost`, serves them over S3, and provides them to its spaces.
 
 ```ts
@@ -85,15 +93,8 @@ const provider = localBucketProvider(buckets);
 
 ## Access
 
-Roles in a space grant the `bucket` object's permissions on each bucket.
-
-| Permission | Grants |
-|---|---|
-| `get`, `list` | The bucket records |
-| `files` | File keys and metadata |
-| `download` | `open` in `read` mode: a presigned lease on a file's body |
-| `upload` | `open` in `write` mode, and multipart uploads |
-| `remove` | Removing files |
+A bucket is a provisioned resource, and an installation using it reads and writes it as its `consumer`.
+Every method requires the bucket's `read` or `write` permission.
 
 ## S3
 
@@ -111,6 +112,8 @@ const server = new S3Server({
 const response = await server.fetch(request);
 ```
 
+## Presigned URLs
+
 A presigned URL grants one request on one key until it expires, and any S3 client or plain `fetch` can follow it.
 
 ```ts
@@ -126,13 +129,15 @@ const presigned = await new SignatureV4({ region: location.region }).presign(
 );
 ```
 
+## S3 coverage
+
 The server covers R2's S3-compatible subset.
 
-| Area | Supported |
-|---|---|
-| Objects | GetObject, HeadObject, PutObject, DeleteObject, DeleteObjects, CopyObject, ListObjectsV2 |
-| Multipart | CreateMultipartUpload, UploadPart, UploadPartCopy, CompleteMultipartUpload, AbortMultipartUpload, ListParts, ListMultipartUploads |
-| Authentication | SigV4 headers, presigned queries, `aws-chunked` bodies with signed chunks, or unsigned chunks and a trailing checksum |
-| Requests | conditional and copy-source conditional headers, ranges, CORS, `STANDARD` and `STANDARD_IA` storage classes |
-| Integrity | `x-amz-content-sha256`, `Content-MD5`, and CRC32, CRC32C and SHA-256 checksums |
-| Encryption | customer keys (SSE-C) on reads, writes and multipart uploads |
+| Area           | Supported                                                                                                                         |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Objects        | GetObject, HeadObject, PutObject, DeleteObject, DeleteObjects, CopyObject, ListObjectsV2                                          |
+| Multipart      | CreateMultipartUpload, UploadPart, UploadPartCopy, CompleteMultipartUpload, AbortMultipartUpload, ListParts, ListMultipartUploads |
+| Authentication | SigV4 headers, presigned queries, `aws-chunked` bodies with signed chunks, or unsigned chunks and a trailing checksum             |
+| Requests       | conditional and copy-source conditional headers, ranges, CORS, `STANDARD` and `STANDARD_IA` storage classes                       |
+| Integrity      | `x-amz-content-sha256`, `Content-MD5`, and CRC32, CRC32C and SHA-256 checksums                                                    |
+| Encryption     | customer keys (SSE-C) on reads, writes and multipart uploads                                                                      |

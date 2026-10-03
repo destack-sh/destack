@@ -1,8 +1,7 @@
-import { relation } from "@destack/access";
 import { schema } from "@destack/schema";
-import { defineObject, method } from "@destack/object";
+import { defineObject } from "@destack/object";
 import { SpaceResource } from "@destack/space/declare";
-import { Resource, space } from "@destack/space/object";
+import { space } from "@destack/space/object";
 import { BucketKind } from "../declare/bucket.ts";
 import { Lease } from "@destack/resource";
 import { FileInput, FileMetadata, FilePage } from "./file.ts";
@@ -12,70 +11,53 @@ export const bucket = defineObject({
     name: "bucket",
     plural: "buckets",
     scope: space,
-    controlled: true,
     declarable: { schema: SpaceResource },
-    fields: Resource.fields(BucketKind),
-    indexes: Resource.indexes,
-    constraints: Resource.constraints("bucket"),
-    relations: Resource.relations,
-    permissions: {
-        ...Resource.permissions,
-
-        files: relation("user"),
-        download: relation("user"),
-        upload: relation("user"),
-        remove: relation("user"),
-    },
+    provisioned: { kind: BucketKind },
+    fields: {},
     administration: ["read"],
-    methods: {
-        ...Resource.methods,
-
+    methods: (method) => ({
         // read files, and presign their transfers
-        files: method({
-            permission: "files",
-            mutates: false,
+        files: method.query({
+            permission: "read",
             input: FileInput.files,
             output: FilePage,
         }),
-        file: method({
-            permission: "files",
-            mutates: false,
+        file: method.query({
+            permission: "read",
             input: FileInput.file,
             output: FileMetadata.nullable(),
         }),
-        open: method({
-            permission: "download",
-            mutates: false,
+        open: method.query({
+            permission: "read",
             input: FileInput.open,
             output: Lease,
         }),
-        uploadPart: method({
-            permission: "upload",
-            mutates: false,
+        uploadPart: method.query({
+            permission: "write",
             input: FileInput.uploadPart,
             output: Lease,
         }),
 
         // change files, directly or in parts
-        remove: method({
-            permission: "remove",
+        remove: method.mutation({
+            permission: "write",
             input: FileInput.remove,
             output: schema.object({}),
         }),
-        createUpload: method({
-            permission: "upload",
+        createUpload: method.mutation({
+            permission: "write",
             input: FileInput.createUpload,
             output: schema.object({ uploadId: schema.string(), key: schema.string() }),
         }),
-        completeUpload: method({
-            permission: "upload",
+        completeUpload: method.mutation({
+            permission: "write",
             input: FileInput.completeUpload,
             output: FileMetadata,
         }),
-        abortUpload: method({
-            permission: "upload",
+        abortUpload: method.mutation({
+            permission: "write",
             input: FileInput.abortUpload,
             output: schema.object({}),
         }),
-    },
+    }),
 });

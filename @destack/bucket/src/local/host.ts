@@ -1,7 +1,7 @@
 import { rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { Keychain } from "@destack/host/keychain";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { BucketEndpoint, BucketHost, BucketReference } from "../s3/index.ts";
 import { S3Credentials } from "../s3/index.ts";
 import { LocalBucket } from "./bucket.ts";
@@ -86,7 +86,7 @@ export class LocalBucketHost implements BucketHost, AsyncDisposable {
     /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */
     async named(name: string): Promise<LocalBucket | undefined> {
         // refuse a name no bucket takes, and a bucket without a directory
-        const bucketId = identifier("bucket").safeParse(name);
+        const bucketId = schema.identifier("bucket").safeParse(name);
         if (!bucketId.success) {
             return undefined;
         }
@@ -127,7 +127,7 @@ export class LocalBucketHost implements BucketHost, AsyncDisposable {
     /** Close every opened bucket. */
     async [Symbol.asyncDispose](): Promise<void> {
         for (const bucketId of this.#opened.keys()) {
-            await this.close({ bucketId: identifier("bucket").parse(bucketId) });
+            await this.close({ bucketId: schema.identifier("bucket").parse(bucketId) });
         }
     }
 }

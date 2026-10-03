@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { R2Bucket } from "../../src/r2/index.ts";
@@ -31,8 +32,10 @@ export default {
                 md5: "b86fc6b051f63d73de262d4c34e3a0a9",
             });
             assert.equal(original.storageClass, "Standard");
-            assert.equal(await (await bucket.get("document"))!.text(), "AB");
-            assert.deepEqual((await bucket.head("document"))!.customMetadata, { author: "alice" });
+            assert.equal(await present(await bucket.get("document"), "document").text(), "AB");
+            assert.deepEqual(present(await bucket.head("document"), "document").customMetadata, {
+                author: "alice",
+            });
             assert.equal(
                 await bucket.put("document", "wrong", {
                     onlyIf: { etagDoesNotMatch: "*" },
@@ -46,19 +49,24 @@ export default {
             assert.equal(conditional.etag, original.etag);
 
             // check ranged responses and empty contents against the hosted service
-            const ranged = await bucket.get("document", { range: { offset: 1, length: 1 } });
-            assert.equal(await ranged!.text(), "B");
-            assert.deepEqual(ranged!.range, { offset: 1, length: 1 });
+            const ranged = present(
+                await bucket.get("document", { range: { offset: 1, length: 1 } }),
+                "ranged",
+            );
+            assert.equal(await ranged.text(), "B");
+            assert.deepEqual(ranged.range, { offset: 1, length: 1 });
             for (const [range, expected] of [
                 [{ suffix: 1 }, "B"],
                 [{ offset: 0, length: 100 }, "AB"],
                 [{ length: 1 }, "A"],
             ] as const) {
                 try {
-                    const file = await bucket.get("document", { range });
-                    assert.equal(await file!.text(), expected);
+                    const file = present(await bucket.get("document", { range }), "file");
+                    assert.equal(await file.text(), expected);
                 } catch (error) {
-                    throw new Error(`range ${JSON.stringify(range)}: ${String(error)}`);
+                    throw new Error(`range ${JSON.stringify(range)}: ${String(error)}`, {
+                        cause: error,
+                    });
                 }
             }
             await assert.rejects(async () => bucket.get("document", { range: { offset: 2 } }), {
@@ -66,7 +74,7 @@ export default {
                 message: "the requested file range is not satisfiable",
             });
             await bucket.put("empty", null);
-            assert.equal(await (await bucket.get("empty"))!.text(), "");
+            assert.equal(await present(await bucket.get("empty"), "empty").text(), "");
 
             // follow opaque cursors across grouped listings
             await bucket.put("files/a/one", "one");
@@ -92,7 +100,7 @@ export default {
                 const resumed = bucket.resumeMultipartUpload(upload.key, upload.uploadId);
                 const completed = await resumed.complete([first, last]);
                 assert.equal(completed.size, contents.length + 4);
-                const restored = await (await bucket.get("multipart"))!.bytes();
+                const restored = await present(await bucket.get("multipart"), "multipart").bytes();
                 const [expected, actual] = await Promise.all([
                     crypto.subtle.digest("SHA-256", contents),
                     crypto.subtle.digest("SHA-256", restored.subarray(0, contents.length)),

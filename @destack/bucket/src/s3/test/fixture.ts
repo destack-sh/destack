@@ -1,6 +1,8 @@
+import { schema } from "@destack/schema";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
 import { S3Client } from "@aws-sdk/client-s3";
 import { LocalBucket } from "../../local/index.ts";
@@ -84,7 +86,11 @@ export class S3Fixture implements AsyncDisposable {
     /** Convert an SDK request to a fetch request and its response back. */
     async #handle(request: SdkRequest): Promise<{ response: SdkResponse }> {
         // record the payload hash, then rebuild the URL and body the SDK describes
-        this.payloadHashes.push(request.headers["x-amz-content-sha256"]!);
+        const payloadHash = request.headers["x-amz-content-sha256"];
+        if (payloadHash === undefined) {
+            throw new TypeError("the sdk sent no payload hash");
+        }
+        this.payloadHashes.push(payloadHash);
         const query = Object.entries(request.query ?? {})
             .flatMap(([name, value]) =>
                 (Array.isArray(value) ? value : [value]).map((entry) =>
@@ -96,10 +102,7 @@ export class S3Fixture implements AsyncDisposable {
             .join("&");
         const port = request.port === undefined ? "" : `:${request.port}`;
         const url = `${request.protocol}//${request.hostname}${port}${request.path}${query ? `?${query}` : ""}`;
-        const body =
-            request.body instanceof Readable
-                ? (Readable.toWeb(request.body) as ReadableStream<Uint8Array>)
-                : request.body;
+        const body = request.body instanceof Readable ? await read(request.body) : request.body;
 
         // answer with a Node stream, as the SDK reads bodies in Node runtimes
         const response = await this.server.fetch(
@@ -114,10 +117,7 @@ export class S3Fixture implements AsyncDisposable {
             response: {
                 statusCode: response.status,
                 headers: Object.fromEntries(response.headers),
-                body: Readable.fromWeb(
-                    (response.body ??
-                        new Blob().stream()) as import("node:stream/web").ReadableStream,
-                ),
+                body: Readable.from([new Uint8Array(await response.arrayBuffer())]),
             },
         };
     }
@@ -129,6 +129,19 @@ export class S3Fixture implements AsyncDisposable {
         }
         await rm(this.#directory, { recursive: true });
     }
+}
+
+/** Read a Node stream's bytes. */
+async function read(stream: Readable): Promise<Uint8Array<ArrayBuffer>> {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of stream) {
+        if (!(chunk instanceof Uint8Array)) {
+            throw new TypeError("the sdk sent a body chunk that is not bytes");
+        }
+        chunks.push(chunk);
+    }
+
+    return new Uint8Array(Buffer.concat(chunks));
 }
 
 /** The request shape SDK request handlers receive. */
@@ -161,17 +174,21 @@ interface SdkResponse {
     body: Readable;
 }
 
+/** A failed SDK call's error, read for its name and HTTP status. */
+const SdkFailure = schema.looseObject({
+    name: schema.string(),
+    $metadata: schema.looseObject({ httpStatusCode: schema.number().exactOptional() }),
+});
+
 /** Read a failed SDK call's error name and HTTP status. */
 export async function failure(call: Promise<unknown>): Promise<{ name: string; status?: number }> {
     try {
         await call;
     } catch (error) {
-        const { name, $metadata } = error as {
-            name: string;
-            $metadata: { httpStatusCode?: number };
-        };
+        const { name, $metadata } = SdkFailure.parse(error);
+        const status = $metadata.httpStatusCode;
 
-        return { name, status: $metadata.httpStatusCode };
+        return { name, ...(status === undefined ? {} : { status }) };
     }
     throw new Error("the call succeeded");
 }

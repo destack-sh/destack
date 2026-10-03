@@ -24,7 +24,7 @@ export interface BucketEndpoint {
 
 /** Address a key of the bucket, or the bucket itself without a key, below the endpoint's path. */
 function url(location: S3Location, key?: string): URL {
-    const base = location.endpoint.pathname.replace(/\/$/, "");
+    const base = location.endpoint.pathname.replace(/\/$/u, "");
     const path = key === undefined ? "" : `/${encodeUri(key, true)}`;
 
     return new URL(`${base}/${encodeUri(location.bucket, false)}${path}`, location.endpoint);

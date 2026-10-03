@@ -1,5 +1,6 @@
+import { aligned } from "@destack/schema";
 import type { BucketHttpMetadata, BucketRange, StorageClass } from "../bucket/index.ts";
-import { HTTP_METADATA_FIELDS, UploadedPart } from "../bucket/index.ts";
+import { HTTP_METADATA_FIELDS, STORAGE_CLASSES, UploadedPart } from "../bucket/index.ts";
 import { EntityTag, type S3Condition } from "./condition.ts";
 import { CryptoHasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
@@ -75,7 +76,7 @@ export class S3Request {
         this.query = new Map();
         for (const [name, value] of readQuery(this.url)) {
             const lowercase = name.toLowerCase();
-            if ((PRESIGN_PARAMETERS as readonly string[]).includes(name)) {
+            if (PRESIGN_PARAMETERS.some((parameter) => parameter === name)) {
                 continue;
             }
             if (lowercase.startsWith("x-amz-")) {
@@ -109,7 +110,7 @@ export class S3Request {
         }
 
         // require a decimal integer within the bounds
-        const number = /^\d{1,15}$/.test(value) ? Number(value) : Number.NaN;
+        const number = /^\d{1,15}$/u.test(value) ? Number(value) : Number.NaN;
         if (!(number >= minimum && number <= maximum)) {
             throw new S3Error(
                 "InvalidArgument",
@@ -118,6 +119,16 @@ export class S3Request {
         }
 
         return number;
+    }
+
+    /** Read the upload an upload request names. */
+    uploadId(): string {
+        const uploadId = this.query.get("uploadId");
+        if (uploadId === undefined) {
+            throw new S3Error("InvalidArgument", "upload requests require an uploadId");
+        }
+
+        return uploadId;
     }
 
     /** Read the part number of a part request. */
@@ -159,16 +170,20 @@ export class S3Request {
     /** Read one byte range of the Range header, ignoring malformed and multiple ranges as S3 does. */
     range(): BucketRange | undefined {
         // match one span with at least one end, whose last byte does not precede its first
-        const match = /^bytes=(\d*)-(\d*)$/.exec(this.headers.get("range")?.trim() ?? "");
-        const isEmpty = match === null || (match[1] === "" && match[2] === "");
+        const match = /^bytes=(\d*)-(\d*)$/u.exec(this.headers.get("range")?.trim() ?? "");
+        if (match === null) {
+            return undefined;
+        }
+        const first = aligned(match, 1);
+        const last = aligned(match, 2);
         if (
-            isEmpty ||
-            (match[1] !== "" && match[2] !== "" && Number(match[2]) < Number(match[1]))
+            (first === "" && last === "") ||
+            (first !== "" && last !== "" && Number(last) < Number(first))
         ) {
             return undefined;
         }
 
-        return readRange(match[1]!, match[2]!);
+        return readRange(first, last);
     }
 
     /** Read the copy source range, which must name both ends. */
@@ -180,23 +195,28 @@ export class S3Request {
         }
 
         // require both ends in order
-        const match = /^bytes=(\d+)-(\d+)$/.exec(value.trim());
-        if (match === null || Number(match[2]) < Number(match[1])) {
+        const match = /^bytes=(\d+)-(\d+)$/u.exec(value.trim());
+        const first = match === null ? undefined : aligned(match, 1);
+        const last = match === null ? undefined : aligned(match, 2);
+        if (first === undefined || last === undefined || Number(last) < Number(first)) {
             throw new S3Error(
                 "InvalidArgument",
                 "x-amz-copy-source-range must have the form bytes=first-last",
             );
         }
 
-        return readRange(match[1]!, match[2]!);
+        return readRange(first, last);
     }
 
     /** Read the bucket and key the copy source header names. */
     copySource(): { bucketName: string; key: string } {
         // refuse versioned sources and customer keys of the source
-        const value = this.headers.get("x-amz-copy-source")!;
-        const [path, version] = value.split("?");
-        if (version !== undefined) {
+        const value = this.headers.get("x-amz-copy-source");
+        if (value === null) {
+            throw new TypeError("a copy reads its source without the x-amz-copy-source header");
+        }
+        const parts = value.split("?");
+        if (parts.length > 1) {
             throw new S3Error("NotImplemented", "copy sources with a version are not supported");
         }
         if (this.headers.has("x-amz-copy-source-server-side-encryption-customer-algorithm")) {
@@ -204,7 +224,7 @@ export class S3Request {
         }
 
         // split the bucket from the key after an optional leading slash
-        const source = decodeUri(path!.replace(/^\//, ""));
+        const source = decodeUri(aligned(parts, 0).replace(/^\//u, ""));
         const separator = source.indexOf("/");
         if (separator <= 0 || separator === source.length - 1) {
             throw new S3Error("InvalidArgument", "x-amz-copy-source must give a bucket and a key");
@@ -217,10 +237,10 @@ export class S3Request {
     httpMetadata(): BucketHttpMetadata {
         // copy the supported header fields
         const metadata: BucketHttpMetadata = {};
-        for (const [field, name] of Object.entries(HTTP_METADATA_FIELDS)) {
+        for (const [field, name] of HTTP_METADATA_FIELDS) {
             const value = this.headers.get(name);
             if (value !== null) {
-                metadata[field as keyof typeof HTTP_METADATA_FIELDS] = value;
+                metadata[field] = value;
             }
         }
 
@@ -279,9 +299,7 @@ export class S3Request {
         }
 
         // map the S3 name to a storage class
-        const storageClass = (Object.keys(S3_STORAGE_CLASSES) as StorageClass[]).find(
-            (entry) => S3_STORAGE_CLASSES[entry] === value,
-        );
+        const storageClass = STORAGE_CLASSES.find((entry) => S3_STORAGE_CLASSES[entry] === value);
         if (storageClass === undefined) {
             throw new S3Error("InvalidStorageClass", `the storage class ${value} is not supported`);
         }

@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MemoryKeychain } from "@destack/host/keychain";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { S3Location, S3Server, SignatureV4 } from "../s3/index.ts";
 import { LocalBucketHost } from "./host.ts";
@@ -33,10 +33,10 @@ test("serve a host's buckets over S3 by name, presigned with credentials its key
         open: (name) => buckets.named(name),
     });
     const reference = {
-        scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001"),
-        bucketId: identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000002"),
+        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001"),
+        bucketId: schema.identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000002"),
     };
-    const other = identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000003");
+    const other = schema.identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000003");
     expect([await buckets.named(other), await buckets.named("files")]).toEqual([
         undefined,
         undefined,

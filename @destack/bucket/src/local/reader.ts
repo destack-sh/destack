@@ -1,3 +1,4 @@
+import { aligned } from "@destack/schema";
 import { open, type FileHandle } from "node:fs/promises";
 import type { LocalBlobStore } from "@destack/db/blob/local";
 import { StorageError } from "../error/index.ts";
@@ -29,11 +30,11 @@ export class ContentReader {
     /** The remaining selected bytes. */
     #remaining: number;
     /** The open blob file of the current segment. */
-    #file?: FileHandle;
+    #file: FileHandle | undefined;
     /** The cipher of the current segment, absent for plain content. */
     #cipher: ContentCipher | undefined;
     /** The pending or completed closure. */
-    #closing?: Promise<void>;
+    #closing: Promise<void> | undefined;
     /** Whether the consumer cancelled this stream. */
     #isCancelled = false;
 
@@ -53,8 +54,11 @@ export class ContentReader {
         this.#key = key;
         this.#offset = offset;
         this.#remaining = length;
-        while (this.#index < segments.length && this.#offset >= segments[this.#index]!.size) {
-            this.#offset -= segments[this.#index]!.size;
+        for (const segment of segments) {
+            if (this.#offset < segment.size) {
+                break;
+            }
+            this.#offset -= segment.size;
             this.#index++;
         }
 
@@ -70,7 +74,7 @@ export class ContentReader {
         try {
             if (this.#remaining !== 0) {
                 // open the current segment unless the consumer cancelled meanwhile
-                const segment = this.#segments[this.#index]!;
+                const segment = aligned(this.#segments, this.#index);
                 if (this.#file === undefined) {
                     const cipher =
                         segment.nonce === null ? undefined : this.#key?.cipher(segment.nonce);

@@ -1,5 +1,6 @@
 import { BucketHttpMetadata } from "./metadata.ts";
 import { BucketChecksums } from "./checksum.ts";
+import { schema, type JsonValue } from "@destack/schema";
 import { StorageError } from "../error/index.ts";
 
 /** The storage classes R2 offers, in its own spelling. */
@@ -32,7 +33,7 @@ export class BucketFile {
     /** The storage class. */
     readonly storageClass: StorageClass;
     /** The MD5 digest of the customer key encrypting the file, as base64. */
-    readonly ssecKeyMd5?: string;
+    readonly ssecKeyMd5: string | undefined;
 
     /** Retain the uploaded file's metadata. */
     constructor(
@@ -76,7 +77,7 @@ export class BucketFileBody extends BucketFile {
     /** The selected bytes; consume or cancel this stream. */
     readonly body: ReadableStream<Uint8Array>;
     /** The returned range, when requested. */
-    readonly range?: { offset: number; length: number };
+    readonly range: { offset: number; length: number } | undefined;
 
     /** The response used for Web body consumption. */
     readonly #response: Response;
@@ -126,9 +127,9 @@ export class BucketFileBody extends BucketFile {
         return this.#response.text();
     }
 
-    /** Read the body as JSON. */
-    json<Value = unknown>(): Promise<Value> {
-        return this.#response.json() as Promise<Value>;
+    /** Read the body as a JSON value. */
+    async json(): Promise<JsonValue> {
+        return schema.json().parse(await this.#response.json());
     }
 
     /** Read the body as a blob with its content type. */

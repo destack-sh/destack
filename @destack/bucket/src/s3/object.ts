@@ -4,7 +4,7 @@ import { BucketKey } from "../bucket/key.ts";
 import type { BucketCopyOptions, S3Bucket } from "./bucket.ts";
 import { S3Condition } from "./condition.ts";
 import { S3Error } from "./error.ts";
-import { type CopySource, keyEncoder, optional, xmlResponse } from "./operation.ts";
+import { type CopySource, keyEncoder, xmlResponse } from "./operation.ts";
 import { S3_STORAGE_CLASSES, type S3Request } from "./request.ts";
 import type { XmlElement } from "./xml.ts";
 
@@ -47,19 +47,21 @@ async function getObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
     const condition = call.condition();
     const resolution = await S3Condition.resolve(condition, () => bucket.head(call.key));
     if ("failed" in resolution) {
-        return preconditionFailure(requireFile(resolution.failed), condition!);
+        return preconditionFailure(requireFile(resolution.failed), condition);
     }
 
     // read the file under the resolved conditions and the request's range
+    const range = call.range();
+    const ssecKey = call.ssecKey();
     const file = requireFile(
         await bucket.get(call.key, {
-            ...optional("onlyIf", resolution.onlyIf),
-            ...optional("range", call.range()),
-            ...optional("ssecKey", call.ssecKey()),
+            ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
+            ...(range === undefined ? {} : { range }),
+            ...(ssecKey === undefined ? {} : { ssecKey }),
         }),
     );
     if (!(file instanceof BucketFileBody)) {
-        return preconditionFailure(file, condition!);
+        return preconditionFailure(file, condition);
     }
 
     // describe the returned bytes, with the overrides the query names
@@ -86,7 +88,7 @@ async function headObject(call: S3Request, bucket: S3Bucket): Promise<Response> 
     const file = requireFile(await bucket.head(call.key));
     const condition = call.condition();
     if (!S3Condition.matches(file, condition)) {
-        return preconditionFailure(file, condition!);
+        return preconditionFailure(file, condition);
     }
 
     // describe the whole file, or the requested range of it
@@ -117,12 +119,14 @@ async function putObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
     }
 
     // store the verified body with the request's metadata
+    const storageClass = call.storageClass();
+    const ssecKey = call.ssecKey();
     const file = await bucket.put(call.key, call.body(), {
         httpMetadata: call.httpMetadata(),
         customMetadata: call.customMetadata(),
-        ...optional("storageClass", call.storageClass()),
-        ...optional("ssecKey", call.ssecKey()),
-        ...optional("onlyIf", resolution.onlyIf),
+        ...(storageClass === undefined ? {} : { storageClass }),
+        ...(ssecKey === undefined ? {} : { ssecKey }),
+        ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
     });
     if (file === null) {
         return writeConditionFailure(call, await bucket.head(call.key));
@@ -178,8 +182,8 @@ async function copyObject(
             : {};
     const options = {
         ...metadata,
-        ...optional("storageClass", storageClass),
-        ...optional("onlyIf", source.onlyIf),
+        ...(storageClass === undefined ? {} : { storageClass }),
+        ...(source.onlyIf === undefined ? {} : { onlyIf: source.onlyIf }),
     };
     const file = source.isSameBucket
         ? await bucket.copy(source.key, call.key, options)
@@ -215,8 +219,8 @@ async function listObjects(call: S3Request, bucket: S3Bucket): Promise<Response>
             : await bucket.list({
                   ...(prefix === "" ? {} : { prefix }),
                   ...(delimiter === "" ? {} : { delimiter }),
-                  ...optional("cursor", token),
-                  ...optional("startAfter", startAfter),
+                  ...(token === undefined ? {} : { cursor: token }),
+                  ...(startAfter === undefined ? {} : { startAfter }),
                   limit,
               });
 
@@ -238,7 +242,9 @@ async function listObjects(call: S3Request, bucket: S3Bucket): Promise<Response>
             Size: file.size,
             StorageClass: S3_STORAGE_CLASSES[file.storageClass],
         })),
-        CommonPrefixes: page.delimitedPrefixes.map((prefix) => ({ Prefix: encode(prefix) })),
+        CommonPrefixes: page.delimitedPrefixes.map((delimited) => ({
+            Prefix: encode(delimited),
+        })),
     });
 }
 
@@ -301,7 +307,10 @@ async function copyBetween(
 ): Promise<BucketFile | null> {
     // read the source under its conditions
     const file = requireFile(
-        await source.bucket.get(source.key, optional("onlyIf", options.onlyIf)),
+        await source.bucket.get(
+            source.key,
+            options.onlyIf === undefined ? {} : { onlyIf: options.onlyIf },
+        ),
     );
     if (!(file instanceof BucketFileBody)) {
         return null;
@@ -311,7 +320,7 @@ async function copyBetween(
     return await bucket.put(key, file.body, {
         httpMetadata: options.httpMetadata ?? file.httpMetadata,
         customMetadata: options.customMetadata ?? file.customMetadata,
-        ...optional("storageClass", options.storageClass),
+        ...(options.storageClass === undefined ? {} : { storageClass: options.storageClass }),
     });
 }
 
@@ -325,10 +334,18 @@ function requireFile<File extends BucketFile>(file: File | null): File {
 }
 
 /** Answer a failed read precondition: 412 for If-Match and If-Unmodified-Since, else 304. */
-function preconditionFailure(file: BucketFile, condition: S3Condition): Response {
+function preconditionFailure(file: BucketFile, condition: S3Condition | undefined): Response {
+    // require the condition that failed
+    if (condition === undefined) {
+        throw new TypeError("a failed precondition needs its condition");
+    }
+
+    // refuse a failed requirement, and answer an unmodified file otherwise
     const required = {
-        ...optional("etagMatches", condition.etagMatches),
-        ...optional("uploadedBefore", condition.uploadedBefore),
+        ...(condition.etagMatches === undefined ? {} : { etagMatches: condition.etagMatches }),
+        ...(condition.uploadedBefore === undefined
+            ? {}
+            : { uploadedBefore: condition.uploadedBefore }),
     };
     if (!S3Condition.matches(file, required)) {
         throw new S3Error(

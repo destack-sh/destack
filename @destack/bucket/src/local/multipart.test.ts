@@ -1,3 +1,4 @@
+import { aligned, present } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { expect, test } from "@destack/test";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
@@ -17,34 +18,36 @@ test("resume multipart uploads after restart and retain files when completion fa
         {
             await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", "original");
-            const upload = await bucket.createMultipartUpload("document", {
+            const multipart = await bucket.createMultipartUpload("document", {
                 httpMetadata: {
                     contentType: "text/plain",
                     cacheExpiry: new Date("2030-01-01T00:00:00Z"),
                 },
                 customMetadata: { author: "alice" },
             });
-            uploadId = upload.uploadId;
-            selected = await upload.uploadPart(1, "replacement");
+            uploadId = multipart.uploadId;
+            selected = await multipart.uploadPart(1, "replacement");
         }
         {
             await using bucket = await LocalBucket.open(directory, "space-test");
-            const upload = bucket.resumeMultipartUpload("document", uploadId);
-            await expect(upload.complete([{ ...selected, etag: "changed" }])).rejects.toMatchObject(
-                {
-                    code: "INVALID_PART",
-                    message: "a selected part is missing or has changed",
-                },
+            const multipart = bucket.resumeMultipartUpload("document", uploadId);
+            await expect(
+                multipart.complete([{ ...selected, etag: "changed" }]),
+            ).rejects.toMatchObject({
+                code: "INVALID_PART",
+                message: "a selected part is missing or has changed",
+            });
+            expect(await present(await bucket.get("document"), "document").text()).toBe("original");
+            const file = present(await multipart.complete([selected]), "file");
+            expect(await present(await bucket.get("document"), "document").text()).toBe(
+                "replacement",
             );
-            expect(await (await bucket.get("document"))!.text()).toBe("original");
-            const file = await upload.complete([selected]);
-            expect(await (await bucket.get("document"))!.text()).toBe("replacement");
             expect(file.customMetadata).toEqual({ author: "alice" });
             expect(file.httpMetadata).toEqual({
                 contentType: "text/plain",
                 cacheExpiry: new Date("2030-01-01T00:00:00Z"),
             });
-            await expect(upload.complete([selected])).rejects.toMatchObject({
+            await expect(multipart.complete([selected])).rejects.toMatchObject({
                 code: "NO_SUCH_UPLOAD",
                 message: "multipart upload does not exist",
             });
@@ -71,12 +74,12 @@ test("reject undersized completion and an upload part that finishes after abort"
         {
             await using bucket = await LocalBucket.open(directory, "space-test");
             const original = await bucket.put("document", "original");
-            const upload = await bucket.createMultipartUpload("document");
+            const multipart = await bucket.createMultipartUpload("document");
             const uploaded = [
-                await upload.uploadPart(1, "small"),
-                await upload.uploadPart(2, "tail"),
+                await multipart.uploadPart(1, "small"),
+                await multipart.uploadPart(2, "tail"),
             ];
-            await expect(upload.complete(uploaded)).rejects.toMatchObject({
+            await expect(multipart.complete(uploaded)).rejects.toMatchObject({
                 code: "INVALID_PART",
                 message:
                     "multipart parts require equal sizes of at least five MiB, except the final part",
@@ -86,7 +89,7 @@ test("reject undersized completion and an upload part that finishes after abort"
             // finish writing bytes only after another caller has discarded the upload
             const started = Promise.withResolvers<void>();
             const finish = Promise.withResolvers<void>();
-            const writing = upload.uploadPart(
+            const writing = multipart.uploadPart(
                 3,
                 new ReadableStream<Uint8Array>({
                     async start(controller) {
@@ -98,7 +101,7 @@ test("reject undersized completion and an upload part that finishes after abort"
                 }),
             );
             await started.promise;
-            await upload.abort();
+            await multipart.abort();
             finish.resolve();
             await expect(writing).rejects.toMatchObject({
                 code: "NO_SUCH_UPLOAD",
@@ -106,6 +109,8 @@ test("reject undersized completion and an upload part that finishes after abort"
             });
             expect(await bucket.head("document")).toEqual(original);
         }
+
+        // reopen the bucket to sweep the aborted upload's blobs
         await using bucket = await LocalBucket.open(directory, "space-test");
         expect(await readdir(join(directory, "files"))).toEqual([digestOf("original")]);
     } finally {
@@ -119,8 +124,8 @@ test("reclaim expired multipart contents when reopening a bucket", async () => {
         {
             await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", "retained");
-            const upload = await bucket.createMultipartUpload("document");
-            await upload.uploadPart(1, "expired");
+            const multipart = await bucket.createMultipartUpload("document");
+            await multipart.uploadPart(1, "expired");
         }
 
         // advance the stored expiration while the bucket is closed
@@ -132,8 +137,8 @@ test("reclaim expired multipart contents when reopening a bucket", async () => {
         }
 
         await using bucket = await LocalBucket.open(directory, "space-test");
-        const file = await bucket.get("document");
-        expect(await file!.text()).toBe("retained");
+        const file = present(await bucket.get("document"), "document");
+        expect(await file.text()).toBe("retained");
         expect(await readdir(join(directory, "files"))).toEqual([digestOf("retained")]);
     } finally {
         await rm(directory, { recursive: true });
@@ -145,26 +150,29 @@ test("read a completed multipart file across part boundaries and collect its par
     try {
         await using bucket = await LocalBucket.open(directory, "space-test");
         await bucket.put("retained", "kept");
-        const upload = await bucket.createMultipartUpload("document");
+        const multipart = await bucket.createMultipartUpload("document");
 
         // publish a full-size first part and a short final part without copying their bytes
         const first = new Uint8Array(5 * 1024 * 1024).map((_, index) => index % 251);
         const last = new TextEncoder().encode("final bytes");
-        const file = await upload.complete([
-            await upload.uploadPart(1, first),
-            await upload.uploadPart(2, last),
+        const file = await multipart.complete([
+            await multipart.uploadPart(1, first),
+            await multipart.uploadPart(2, last),
         ]);
         const contents = new Uint8Array(first.length + last.length);
         contents.set(first);
         contents.set(last, first.length);
         // compare the five MiB directly, since a structural comparison walks every byte slowly
-        const restored = await (await bucket.get("document"))!.bytes();
+        const restored = await present(await bucket.get("document"), "document").bytes();
         expect(Buffer.compare(restored, contents)).toBe(0);
 
         // read a range that ends three bytes into the final part
         const offset = first.length - 3;
-        const ranged = await bucket.get("document", { range: { offset, length: 6 } });
-        expect(await ranged!.bytes()).toEqual(contents.subarray(offset, offset + 6));
+        const ranged = present(
+            await bucket.get("document", { range: { offset, length: 6 } }),
+            "ranged",
+        );
+        expect(await ranged.bytes()).toEqual(contents.subarray(offset, offset + 6));
 
         // keep both part contents until the file is deleted, then collect them
         expect((await readdir(join(directory, "files"))).length).toBe(3);
@@ -195,7 +203,7 @@ test("list uploads and parts, and copy parts from files", async () => {
                 {
                     key: "media/a",
                     uploadId: first.uploadId,
-                    initiated: uploads.uploads[0]!.initiated,
+                    initiated: aligned(uploads.uploads, 0).initiated,
                     storageClass: "InfrequentAccess",
                 },
             ],
@@ -217,8 +225,8 @@ test("list uploads and parts, and copy parts from files", async () => {
         const parts = await first.listParts();
         expect(parts).toEqual({
             parts: [
-                { ...range, size: 3, uploaded: parts.parts[0]!.uploaded },
-                { ...whole, size: 10, uploaded: parts.parts[1]!.uploaded },
+                { ...range, size: 3, uploaded: aligned(parts.parts, 0).uploaded },
+                { ...whole, size: 10, uploaded: aligned(parts.parts, 1).uploaded },
             ],
             truncated: false,
         });

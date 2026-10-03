@@ -1,3 +1,4 @@
+import { aligned } from "@destack/schema";
 import { Digest } from "@destack/schema";
 import { Crc32, Crc32c, CryptoHasher, type Hasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
@@ -18,13 +19,21 @@ const CHUNK_ALGORITHM = "AWS4-HMAC-SHA256-PAYLOAD";
  */
 const MAX_LINE_BYTES = 1024;
 /** The checksum headers S3 defines, with the digests verifying them and their lengths in bytes. */
-const CHECKSUMS = {
-    "x-amz-checksum-crc32": { create: () => new Crc32(), length: 4 },
-    "x-amz-checksum-crc32c": { create: () => new Crc32c(), length: 4 },
-    "x-amz-checksum-sha256": { create: () => new CryptoHasher("sha256"), length: 32 },
-    "x-amz-checksum-sha1": undefined,
-    "x-amz-checksum-crc64nvme": undefined,
-} as const;
+const CHECKSUMS = new Map<string, Checksum | undefined>([
+    ["x-amz-checksum-crc32", { create: () => new Crc32(), length: 4 }],
+    ["x-amz-checksum-crc32c", { create: () => new Crc32c(), length: 4 }],
+    ["x-amz-checksum-sha256", { create: () => new CryptoHasher("sha256"), length: 32 }],
+    ["x-amz-checksum-sha1", undefined],
+    ["x-amz-checksum-crc64nvme", undefined],
+]);
+
+/** A checksum algorithm: its digest and its length in bytes. */
+interface Checksum {
+    /** Start a digest. */
+    readonly create: () => Hasher;
+    /** The digest's length in bytes. */
+    readonly length: number;
+}
 
 /** A checksum a request declares, verified over the decoded body. */
 interface Check {
@@ -129,7 +138,8 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         authorization: S3Authorization,
     ): ReadableStream<Uint8Array> {
         const payload = new Payload(headers, authorization);
-        const body = request.body ?? new Response(new Uint8Array()).body!;
+        const body =
+            request.body ?? new ReadableStream<Uint8Array>({ start: (empty) => empty.close() });
 
         return body.pipeThrough(new TransformStream(payload));
     }
@@ -278,12 +288,12 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         // read the hexadecimal size and, for signed chunks, the signature
         const match =
             this.#chunks === "signed"
-                ? /^([0-9a-fA-F]{1,16});chunk-signature=([0-9a-f]{64})$/.exec(line)
-                : /^([0-9a-fA-F]{1,16})$/.exec(line);
+                ? /^([0-9a-fA-F]{1,16});chunk-signature=([0-9a-f]{64})$/u.exec(line)
+                : /^([0-9a-fA-F]{1,16})$/u.exec(line);
         if (match === null) {
             throw new S3Error("IncompleteBody", "an aws-chunked chunk header is malformed");
         }
-        this.#remaining = Number.parseInt(match[1]!, 16);
+        this.#remaining = Number.parseInt(aligned(match, 1), 16);
         this.#chunkSignature = match[2] ?? "";
         this.#chunkDigest = new CryptoHasher("sha256");
 
@@ -337,13 +347,13 @@ function readChecks(headers: Headers): Check[] {
     }
 
     // verify at most one x-amz checksum
-    const names = [...headers.keys()].filter((name) => name.startsWith("x-amz-checksum-"));
-    if (names.length > 1) {
+    const declared = [...headers].filter(([name]) => name.startsWith("x-amz-checksum-"));
+    if (declared.length > 1) {
         throw new S3Error("InvalidRequest", "expecting a single x-amz-checksum- header");
     }
-    for (const name of names) {
+    for (const [name, value] of declared) {
         const checksum = readChecksum(name);
-        const expected = readBase64(headers.get(name)!, checksum.length, name);
+        const expected = readBase64(value, checksum.length, name);
         checks.push({ name, digest: checksum.create(), expected });
     }
 
@@ -351,12 +361,11 @@ function readChecks(headers: Headers): Check[] {
 }
 
 /** Select the digest of a checksum header, refusing algorithms this server does not compute. */
-function readChecksum(name: string): { create: () => Hasher; length: number } {
-    if (!(name in CHECKSUMS)) {
+function readChecksum(name: string): Checksum {
+    const checksum = CHECKSUMS.get(name);
+    if (!CHECKSUMS.has(name)) {
         throw new S3Error("InvalidRequest", `the checksum ${name} is not an S3 checksum`);
-    }
-    const checksum = CHECKSUMS[name as keyof typeof CHECKSUMS];
-    if (checksum === undefined) {
+    } else if (checksum === undefined) {
         throw new S3Error("NotImplemented", `the checksum ${name} is not supported`);
     }
 
@@ -384,7 +393,7 @@ function readLength(value: string | null): number {
             "aws-chunked bodies require x-amz-decoded-content-length",
         );
     }
-    if (!/^\d{1,15}$/.test(value)) {
+    if (!/^\d{1,15}$/u.test(value)) {
         throw new S3Error(
             "InvalidArgument",
             "the declared body length must be a non-negative integer",

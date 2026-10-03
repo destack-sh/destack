@@ -34,7 +34,7 @@ export class CustomerKey {
         }
         const bytes =
             typeof value === "string"
-                ? /^[0-9a-fA-F]{64}$/.test(value)
+                ? /^[0-9a-fA-F]{64}$/u.test(value)
                     ? Uint8Array.fromHex(value)
                     : undefined
                 : new Uint8Array(value);

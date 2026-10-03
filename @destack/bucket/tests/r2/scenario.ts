@@ -50,12 +50,18 @@ export default {
 };
 
 /** Fill in the storage class the simulator leaves empty on what R2 calls return; the hosted test:r2 run reads R2's own. */
-function fillStorageClass<Value>(value: Value): Value {
+function fillStorageClass<Value>(value: Value): Value;
+/**
+ * Fill in the storage class on one value.
+ *
+ * @construct the proxy answers every property as the value does, with the default class in place of an empty one, so the value keeps its type.
+ */
+function fillStorageClass(value: unknown): unknown {
     // pass values through, and fill results once they resolve
     if (typeof value !== "object" || value === null) {
         return value;
     } else if (value instanceof Promise) {
-        return value.then(fillStorageClass) as Value;
+        return value.then((resolved: unknown) => fillStorageClass(resolved));
     }
 
     return new Proxy(value, {
@@ -67,12 +73,19 @@ function fillStorageClass<Value>(value: Value): Value {
             }
             // fill each listed file
             else if (property === "objects") {
-                return (field as unknown[]).map(fillStorageClass);
+                if (!Array.isArray(field)) {
+                    throw new TypeError("listed objects are no array");
+                }
+
+                return field.map((item: unknown) => fillStorageClass(item));
             }
             // fill what each call returns
             else if (typeof field === "function") {
-                return (...parameters: unknown[]) =>
-                    fillStorageClass(field.apply(target, parameters));
+                return (...parameters: unknown[]) => {
+                    const result: unknown = field.apply(target, parameters);
+
+                    return fillStorageClass(result);
+                };
             }
             // pass other fields through
             else {

@@ -1,3 +1,4 @@
+import { aligned } from "@destack/schema";
 import { Digest } from "@destack/schema";
 import { copyRequest } from "@destack/service/request";
 import type { S3Credentials } from "./credentials.ts";
@@ -108,12 +109,10 @@ export class SignatureV4 {
         const date = formatDate(now);
         const headers = new Headers(request.headers);
         headers.set("x-amz-date", date);
-        if (!headers.has("x-amz-content-sha256")) {
-            headers.set(
-                "x-amz-content-sha256",
-                request.body === null ? EMPTY_HASH : UNSIGNED_PAYLOAD,
-            );
-        }
+        const payloadHash =
+            headers.get("x-amz-content-sha256") ??
+            (request.body === null ? EMPTY_HASH : UNSIGNED_PAYLOAD);
+        headers.set("x-amz-content-sha256", payloadHash);
 
         // sign every header clients and proxies keep, with the host
         const url = new URL(request.url);
@@ -123,7 +122,7 @@ export class SignatureV4 {
             query: readQuery(url),
             headers: withHost(url, headers),
             signedHeaders: signedHeaderNames(headers),
-            payloadHash: headers.get("x-amz-content-sha256")!,
+            payloadHash,
         };
         const scope = this.#scope(date);
         const signingKey = await this.#signingKey(credentials, date);
@@ -227,7 +226,7 @@ export class SignatureV4 {
     ): Promise<S3Authorization> {
         // read the algorithm, credential, signed headers and signature
         const match =
-            /^AWS4-HMAC-SHA256 +Credential=([^,\s]+), *SignedHeaders=([^,\s]+), *Signature=([0-9a-f]{64})$/.exec(
+            /^AWS4-HMAC-SHA256 +Credential=([^,\s]+), *SignedHeaders=([^,\s]+), *Signature=([0-9a-f]{64})$/u.exec(
                 header.trim(),
             );
         if (match === null) {
@@ -236,12 +235,9 @@ export class SignatureV4 {
                 : "InvalidRequest";
             throw new S3Error(code, "the authorization header must use AWS4-HMAC-SHA256");
         }
-        const [, credential, signedHeaders, signature] = match as unknown as [
-            string,
-            string,
-            string,
-            string,
-        ];
+        const credential = aligned(match, 1);
+        const signedHeaders = aligned(match, 2);
+        const signature = aligned(match, 3);
 
         // require a request time within the clock skew and the credential's day
         const date = request.headers.get("x-amz-date");
@@ -311,7 +307,7 @@ export class SignatureV4 {
         }
 
         // require a valid lifetime of at most seven days
-        const lifetime = /^\d+$/.test(expires) ? Number(expires) : Number.NaN;
+        const lifetime = /^\d+$/u.test(expires) ? Number(expires) : Number.NaN;
         const time = parseDate(date);
         if (!(lifetime >= 1 && lifetime <= MAX_EXPIRES) || time === undefined) {
             throw new S3Error(
@@ -357,7 +353,8 @@ export class SignatureV4 {
         // require the five scope parts with this service
         const [accessKeyId, day, region, service, terminator, ...rest] = credential.split("/");
         if (
-            !accessKeyId ||
+            accessKeyId === undefined ||
+            accessKeyId === "" ||
             rest.length !== 0 ||
             terminator !== TERMINATOR ||
             service !== this.service
@@ -452,7 +449,7 @@ async function signRequest(
 ): Promise<string> {
     // build the canonical request from the signed parts
     const canonicalHeaders = signed.signedHeaders
-        .map((name) => `${name}:${(signed.headers.get(name) ?? "").trim().replace(/\s+/g, " ")}\n`)
+        .map((name) => `${name}:${(signed.headers.get(name) ?? "").trim().replace(/\s+/gu, " ")}\n`)
         .join("");
     const canonical = [
         signed.method,
@@ -478,7 +475,7 @@ function signedHeaderNames(headers: Headers): string[] {
         }
     }
 
-    return [...names].sort();
+    return [...names].toSorted();
 }
 
 /** Add the URL's host to headers that lack one, as HTTP sends it. */
@@ -509,7 +506,7 @@ function checkSignedHeaders(headers: Headers, signedHeaders: string[]): void {
 function canonicalQuery(query: [string, string][]): string {
     return query
         .map(([name, value]) => [encodeUri(name, false), encodeUri(value, false)] as const)
-        .sort(([leftName, leftValue], [rightName, rightValue]) =>
+        .toSorted(([leftName, leftValue], [rightName, rightValue]) =>
             leftName === rightName ? compare(leftValue, rightValue) : compare(leftName, rightName),
         )
         .map(([name, value]) => `${name}=${value}`)
@@ -525,14 +522,14 @@ function isHeaderOnly(name: string): boolean {
 function formatDate(now: number): string {
     return new Date(now)
         .toISOString()
-        .replace(/[-:]/g, "")
-        .replace(/\.\d{3}/, "");
+        .replace(/[-:]/gu, "")
+        .replace(/\.\d{3}/u, "");
 }
 
 /** Parse SigV4's basic ISO 8601 form, or return undefined when malformed. */
 function parseDate(value: string): number | undefined {
     // match the fixed-width fields
-    const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(value);
+    const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/u.exec(value);
     if (match === null) {
         return undefined;
     }

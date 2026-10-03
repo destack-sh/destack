@@ -1,3 +1,4 @@
+import { aligned, found } from "@destack/schema";
 import { S3Error } from "./error.ts";
 
 /** The namespace of S3 response documents. */
@@ -5,13 +6,13 @@ const NAMESPACE = "http://s3.amazonaws.com/doc/2006-03-01/";
 /** The XML declaration S3 documents start with. */
 const DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>';
 /** The characters XML text escapes, with their references. */
-const ESCAPES: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&apos;",
-};
+const ESCAPES = new Map([
+    ["&", "&amp;"],
+    ["<", "&lt;"],
+    [">", "&gt;"],
+    ['"', "&quot;"],
+    ["'", "&apos;"],
+]);
 /** The predefined XML entities and their characters. */
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 /**
@@ -21,7 +22,7 @@ const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"'
  * Attributes are matched and ignored, since S3 request documents carry only the namespace.
  */
 const TOKEN =
-    /<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|(<![^>]*>)|<\/([^\s>]+)\s*>|<([^\s/>]+)(?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*\s*(\/?)>|([^<]+)/y;
+    /<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|(<![^>]*>)|<\/([^\s>]+)\s*>|<([^\s/>]+)(?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*\s*(\/?)>|([^<]+)/uy;
 
 /** A value an XML element has: text, nested elements, or nothing. */
 export type XmlValue = string | number | boolean | Date | XmlElement | undefined;
@@ -54,7 +55,7 @@ export class XmlNode {
         TOKEN.lastIndex = 0;
         while (TOKEN.lastIndex < document.length) {
             const match = TOKEN.exec(document);
-            const current = open.at(-1)!;
+            const current = aligned(open, open.length - 1);
             // refuse text the tokenizer cannot read and document type declarations
             if (match === null || match[2] !== undefined) {
                 throw new S3Error(
@@ -80,9 +81,13 @@ export class XmlNode {
                     open.push(element);
                 }
             }
-            // collect text and character data
-            else if (match[6] !== undefined || match[1] !== undefined) {
-                current.text += match[1] ?? decodeText(match[6]!);
+            // collect character data
+            else if (match[1] !== undefined) {
+                current.text += match[1];
+            }
+            // collect text
+            else if (match[6] !== undefined) {
+                current.text += decodeText(match[6]);
             }
         }
 
@@ -94,7 +99,7 @@ export class XmlNode {
             );
         }
 
-        return root.children[0]!;
+        return aligned(root.children, 0);
     }
 
     /** Select the child elements with a name. */
@@ -127,12 +132,17 @@ export function writeErrorXml(root: XmlElement): string {
 function writeChildren(element: XmlElement): string {
     let output = "";
     for (const [name, value] of Object.entries(element)) {
-        for (const item of (Array.isArray(value) ? value : [value]) as XmlValue[]) {
+        for (const item of isList(value) ? value : [value]) {
             output += item === undefined ? "" : `<${name}>${writeValue(item)}</${name}>`;
         }
     }
 
     return output;
+}
+
+/** Report whether an element's value repeats its name as a list. */
+function isList(value: XmlValue | readonly XmlValue[]): value is readonly XmlValue[] {
+    return Array.isArray(value);
 }
 
 /** Write one element value. */
@@ -147,14 +157,14 @@ function writeValue(value: Exclude<XmlValue, undefined>): string {
     }
     // write escaped text
     else {
-        return String(value).replace(/[&<>"']/g, (character) => ESCAPES[character]!);
+        return String(value).replace(/[&<>"']/gu, (character) => found(ESCAPES, character));
     }
 }
 
 /** Decode the entity and character references of XML text. */
 function decodeText(text: string): string {
     return text.replace(
-        /&(#x[0-9a-fA-F]+|#[0-9]+|[a-z]+);|&/g,
+        /&(#x[0-9a-fA-F]+|#[0-9]+|[a-z]+);|&/gu,
         (reference, name: string | undefined) => {
             // refuse a bare ampersand and unknown entities
             if (name === undefined) {

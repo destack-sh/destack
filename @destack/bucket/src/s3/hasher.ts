@@ -60,8 +60,12 @@ export class Crc32c implements Hasher {
     /** Add bytes to the checksum. */
     update(bytes: Uint8Array): void {
         let crc = this.#crc;
-        for (let index = 0; index < bytes.length; index++) {
-            crc = CRC32C_TABLE[(crc ^ bytes[index]!) & 0xff]! ^ (crc >>> 8);
+        for (const byte of bytes) {
+            const entry = CRC32C_TABLE[(crc ^ byte) & 0xff];
+            if (entry === undefined) {
+                throw new TypeError("crc-32c table lacks a byte's entry");
+            }
+            crc = entry ^ (crc >>> 8);
         }
         this.#crc = crc;
     }

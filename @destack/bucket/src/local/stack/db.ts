@@ -1,16 +1,25 @@
-import { blob, check, index, integer, json, primaryKey, sql, defineTable, text } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import {
+    blob,
+    check,
+    index,
+    integer,
+    json,
+    sql,
+    defineTable,
+    text,
+    defineDatabase,
+} from "@destack/db";
 import { schema } from "@destack/schema";
 import { CHECKSUM_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
 
 /** Stored HTTP metadata with textual expiration times. */
 const HttpMetadata = schema.object({
-    contentType: schema.string().optional(),
-    contentLanguage: schema.string().optional(),
-    contentDisposition: schema.string().optional(),
-    contentEncoding: schema.string().optional(),
-    cacheControl: schema.string().optional(),
-    cacheExpiry: schema.string().optional(),
+    contentType: schema.string().exactOptional(),
+    contentLanguage: schema.string().exactOptional(),
+    contentDisposition: schema.string().exactOptional(),
+    contentEncoding: schema.string().exactOptional(),
+    cacheControl: schema.string().exactOptional(),
+    cacheExpiry: schema.string().exactOptional(),
 });
 
 /** The currently published file at each key. */
@@ -18,7 +27,7 @@ export const file = defineTable(
     "file",
     {
         /** The caller's UTF-8 key. */
-        key: text("key").primaryKey().notNull(),
+        key: text("key").primaryKey(),
         /** The random identifier of the write that made the version. */
         version: text("version").notNull(),
         /** The entity tag. */
@@ -52,9 +61,9 @@ export const segment = defineTable(
     "segment",
     {
         /** The file version. */
-        version: text("version").notNull(),
+        version: text("version").primaryKey(),
         /** The position within the file, from 0. */
-        position: integer("position").notNull(),
+        position: integer("position").primaryKey(),
         /** The stored content. */
         blob: blob("blob").notNull(),
         /** The customer key's counter nonce as hexadecimal, absent for plain content. */
@@ -64,10 +73,7 @@ export const segment = defineTable(
     },
     {
         log: {},
-        constraints: (table) => [
-            primaryKey({ columns: [table.version, table.position] }),
-            index("segment_blob").on(table.blob),
-        ],
+        constraints: (table) => [index("segment_blob").on(table.blob)],
     },
 );
 
@@ -76,7 +82,7 @@ export const upload = defineTable(
     "upload",
     {
         /** The unique upload identifier. */
-        id: text("id").primaryKey().notNull(),
+        id: text("id").primaryKey(),
         /** The destination key. */
         key: text("key").notNull(),
         /** The upload lifecycle. */
@@ -91,8 +97,8 @@ export const upload = defineTable(
         options: json(
             "options",
             schema.object({
-                httpMetadata: HttpMetadata.optional(),
-                customMetadata: schema.record(schema.string(), schema.string()).optional(),
+                httpMetadata: HttpMetadata.exactOptional(),
+                customMetadata: schema.record(schema.string(), schema.string()).exactOptional(),
             }),
         ).notNull(),
     },
@@ -110,9 +116,9 @@ export const part = defineTable(
     "part",
     {
         /** The upload identifier. */
-        uploadId: text("upload_id").notNull(),
+        uploadId: text("upload_id").primaryKey(),
         /** The part number. */
-        partNumber: integer("part_number").notNull(),
+        partNumber: integer("part_number").primaryKey(),
         /** The stored content. */
         blob: blob("blob").notNull(),
         /** The customer key's counter nonce as hexadecimal, absent for plain content. */
@@ -128,10 +134,7 @@ export const part = defineTable(
     },
     {
         log: {},
-        constraints: (table) => [
-            primaryKey({ columns: [table.uploadId, table.partNumber] }),
-            index("part_blob").on(table.blob),
-        ],
+        constraints: (table) => [index("part_blob").on(table.blob)],
     },
 );
 

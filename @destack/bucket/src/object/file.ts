@@ -20,7 +20,7 @@ const MAX_RANGE_LENGTH = 64;
 const CUSTOMER_KEY_LENGTH = 44;
 
 /** A lowercase HTTP header token, the form S3 stores metadata names in (RFC 9110 5.6.2). */
-const METADATA_NAME = /^[!#$%&'*+.^_`|~0-9a-z-]+$/;
+const METADATA_NAME = /^[!#$%&'*+.^_`|~0-9a-z-]+$/u;
 
 /** A customer-provided AES-256 key encrypting a file, as base64. */
 export const CustomerKey = schema.sensitive(schema.base64().length(CUSTOMER_KEY_LENGTH));
@@ -30,7 +30,7 @@ export const FileKey = schema
     .string()
     .min(1)
     .max(MAX_KEY_LENGTH)
-    .regex(/^(?!(?:.*\/)?\.\.?(?:\/|$))/, "file keys refuse . and .. segments");
+    .regex(/^(?!(?:.*\/)?\.\.?(?:\/|$))/u, "file keys refuse . and .. segments");
 
 /** A key prefix or delimiter, up to a key's length. */
 const KeyPart = schema.string().max(MAX_KEY_LENGTH);
@@ -53,17 +53,17 @@ export const FileMetadata = schema.object({
     /** The HTTP headers the file is served with. */
     httpMetadata: schema.object({
         /** The Content-Type header. */
-        contentType: schema.string().optional(),
+        contentType: schema.string().exactOptional(),
         /** The Content-Language header. */
-        contentLanguage: schema.string().optional(),
+        contentLanguage: schema.string().exactOptional(),
         /** The Content-Disposition header. */
-        contentDisposition: schema.string().optional(),
+        contentDisposition: schema.string().exactOptional(),
         /** The Content-Encoding header. */
-        contentEncoding: schema.string().optional(),
+        contentEncoding: schema.string().exactOptional(),
         /** The Cache-Control header. */
-        cacheControl: schema.string().optional(),
+        cacheControl: schema.string().exactOptional(),
         /** The Expires header, in UTC milliseconds. */
-        cacheExpiry: Instant.optional(),
+        cacheExpiry: Instant.exactOptional(),
     }),
     /** The caller's own metadata, sent as `x-amz-meta-` headers. */
     customMetadata: CustomMetadata,
@@ -86,11 +86,11 @@ export const FileInput = {
     /** List a page of files. */
     files: schema.object({
         /** The key prefix to list below. */
-        prefix: KeyPart.optional(),
+        prefix: KeyPart.exactOptional(),
         /** The delimiter grouping keys into prefixes. */
-        delimiter: KeyPart.optional(),
+        delimiter: KeyPart.exactOptional(),
         /** Where a previous page ended. */
-        cursor: schema.string().optional(),
+        cursor: schema.string().exactOptional(),
         /** The most files and prefixes in the page. */
         limit: schema.number().int().min(1).max(MAX_KEYS),
     }),
@@ -106,19 +106,19 @@ export const FileInput = {
         /** The file key. */
         key: FileKey,
         /** The Range header a read binds. */
-        range: schema.string().max(MAX_RANGE_LENGTH).optional(),
+        range: schema.string().max(MAX_RANGE_LENGTH).exactOptional(),
         /** The body length in bytes a write sends. */
-        size: schema.number().int().nonnegative().max(MAX_UPLOAD_BYTES).optional(),
+        size: schema.number().int().nonnegative().max(MAX_UPLOAD_BYTES).exactOptional(),
         /** The HTTP headers a written file is served with. */
-        httpMetadata: FileMetadata.shape.httpMetadata.optional(),
+        httpMetadata: FileMetadata.shape.httpMetadata.exactOptional(),
         /** The caller's own metadata of a written file. */
-        customMetadata: CustomMetadata.optional(),
+        customMetadata: CustomMetadata.exactOptional(),
         /** The entity tag the file must have. */
-        ifMatch: schema.string().optional(),
+        ifMatch: schema.string().exactOptional(),
         /** Refuse a write replacing an existing file. */
-        ifNoneMatch: schema.literal("*").optional(),
+        ifNoneMatch: schema.literal("*").exactOptional(),
         /** The customer key encrypting the file. */
-        customerKey: CustomerKey.optional(),
+        customerKey: CustomerKey.exactOptional(),
     }),
     /** Remove files. */
     remove: schema.object({
@@ -134,7 +134,7 @@ export const FileInput = {
         /** The caller's own metadata. */
         customMetadata: CustomMetadata,
         /** The customer key encrypting the file. */
-        customerKey: CustomerKey.optional(),
+        customerKey: CustomerKey.exactOptional(),
     }),
     /** Presign one part of a multipart upload. */
     uploadPart: schema.object({
@@ -147,7 +147,7 @@ export const FileInput = {
         /** The part's length in bytes. */
         size: schema.number().int().positive().max(MAX_UPLOAD_BYTES),
         /** The customer key encrypting the file. */
-        customerKey: CustomerKey.optional(),
+        customerKey: CustomerKey.exactOptional(),
     }),
     /** Complete a multipart upload. */
     completeUpload: schema.object({

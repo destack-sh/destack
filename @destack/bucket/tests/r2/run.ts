@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import { build, stop } from "esbuild";
 import { fileURLToPath } from "node:url";
 
@@ -5,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const account = process.env["CLOUDFLARE_ACCOUNT_ID"];
 /** The token used only for the Cloudflare management API. */
 const token = process.env["CLOUDFLARE_COMPANY_API_TOKEN"];
-if (!account || !token) {
+if (account === undefined || account === "" || token === undefined || token === "") {
     throw new Error("set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_COMPANY_API_TOKEN");
 }
 
@@ -14,12 +15,15 @@ const name = `ds-storage-${crypto.randomUUID()}`;
 /** Authenticate requests to the temporary Worker. */
 const secret = crypto.randomUUID();
 
-/** Send one bounded management request without printing credentials. */
-async function request<Value = unknown>(
-    path: string,
-    method = "GET",
-    body?: RequestInit["body"],
-): Promise<Value> {
+/** A Cloudflare management API answer. */
+const ManagementResult = schema.looseObject({
+    success: schema.boolean(),
+    errors: schema.array(schema.unknown()),
+    result: schema.unknown(),
+});
+
+/** Send one bounded management request without printing credentials, answering its unchecked result. */
+async function request(path: string, method = "GET", body?: RequestInit["body"]): Promise<unknown> {
     const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${account}/${path}`,
         {
@@ -28,15 +32,11 @@ async function request<Value = unknown>(
                 Authorization: `Bearer ${token}`,
                 ...(typeof body === "string" ? { "Content-Type": "application/json" } : {}),
             },
-            ...(method === "GET" ? {} : { body }),
+            ...(method === "GET" || body === undefined ? {} : { body }),
             signal: AbortSignal.timeout(30000),
         },
     );
-    const result = (await response.json()) as {
-        success: boolean;
-        errors: unknown[];
-        result: Value;
-    };
+    const result = ManagementResult.parse(await response.json());
     if (!response.ok || !result.success) {
         throw new Error(`${method} ${path}: ${response.status} ${JSON.stringify(result.errors)}`);
     }
@@ -56,6 +56,12 @@ const bundle = await build({
 });
 await stop();
 
+/** The bundle's single worker script. */
+const [script] = bundle.outputFiles;
+if (script === undefined) {
+    throw new Error("expected one bundled worker script");
+}
+
 /** Whether the test bucket exists and needs deletion. */
 let isBucketCreated = false;
 /** Whether the test Worker exists and needs deletion. */
@@ -64,10 +70,12 @@ let isWorkerCreated = false;
 const failures: unknown[] = [];
 try {
     // create isolated resources without modifying existing deployments
-    const { subdomain } = await request<{ subdomain: string }>("workers/subdomain");
+    const { subdomain } = schema
+        .looseObject({ subdomain: schema.string() })
+        .parse(await request("workers/subdomain"));
     await request("r2/buckets", "POST", JSON.stringify({ name, locationHint: "weur" }));
     isBucketCreated = true;
-    console.log(`Created temporary bucket ${name}`);
+    process.stdout.write(`Created temporary bucket ${name}\n`);
     const form = new FormData();
     form.set(
         "metadata",
@@ -83,7 +91,7 @@ try {
     );
     form.set(
         "worker.js",
-        new Blob([bundle.outputFiles[0].text], { type: "application/javascript+module" }),
+        new Blob([script.text], { type: "application/javascript+module" }),
         "worker.js",
     );
     await request(`workers/scripts/${name}`, "PUT", form);
@@ -102,7 +110,9 @@ try {
         if (ready.status !== 404 || Date.now() >= deadline) {
             throw new Error(`temporary Worker did not become ready: ${ready.status}`);
         }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 1000);
+        });
     }
 
     // invoke the authenticated suite with a strict execution timeout
@@ -115,7 +125,7 @@ try {
     if (!response.ok || result !== '{"status":"passed"}') {
         throw new Error(`hosted storage check: ${response.status} ${result.slice(0, 2000)}`);
     }
-    console.log("Hosted R2 check passed.");
+    process.stdout.write("Hosted R2 check passed.\n");
 } catch (error) {
     failures.push(error);
 } finally {
@@ -123,7 +133,7 @@ try {
     if (isWorkerCreated) {
         try {
             await request(`workers/scripts/${name}`, "DELETE");
-            console.log(`Removed temporary Worker ${name}`);
+            process.stdout.write(`Removed temporary Worker ${name}\n`);
         } catch (error) {
             failures.push(error);
         }
@@ -132,7 +142,9 @@ try {
         try {
             // remove contents through the management API even if the Worker terminated
             while (true) {
-                const files = await request<{ key: string }[]>(`r2/buckets/${name}/objects`);
+                const files = schema
+                    .array(schema.looseObject({ key: schema.string() }))
+                    .parse(await request(`r2/buckets/${name}/objects`));
                 if (!files.length) {
                     break;
                 }
@@ -144,7 +156,7 @@ try {
                 }
             }
             await request(`r2/buckets/${name}`, "DELETE");
-            console.log(`Removed temporary bucket ${name}`);
+            process.stdout.write(`Removed temporary bucket ${name}\n`);
         } catch (error) {
             failures.push(error);
         }

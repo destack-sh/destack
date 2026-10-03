@@ -4,7 +4,7 @@ import { CorsRule } from "./cors.ts";
 import type { S3Credentials } from "./credentials.ts";
 import { S3Error } from "./error.ts";
 import { S3Object } from "./object.ts";
-import { type CopySource, optional } from "./operation.ts";
+import { type CopySource } from "./operation.ts";
 import { S3Request } from "./request.ts";
 import { SignatureV4 } from "./signature.ts";
 import { S3Upload } from "./upload.ts";
@@ -223,7 +223,7 @@ export class S3Server {
             bucket: sourceBucket,
             key: source.key,
             isSameBucket: sourceBucket === bucket,
-            ...optional("onlyIf", resolution.onlyIf),
+            ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
         };
     }
 }

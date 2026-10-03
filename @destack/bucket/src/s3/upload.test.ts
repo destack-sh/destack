@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import {
     AbortMultipartUploadCommand,
     CompleteMultipartUploadCommand,
@@ -63,7 +64,7 @@ test("assemble, list and abort multipart uploads through the AWS SDK", async () 
     );
     expect(parts.Parts?.map((entry) => [entry.PartNumber, entry.ETag, entry.Size])).toEqual([
         [1, part.ETag, PART_SIZE],
-        [2, copied.CopyPartResult!.ETag, 4],
+        [2, present(copied.CopyPartResult, "CopyPartResult").ETag, 4],
     ]);
     const uploads = await client.send(new ListMultipartUploadsCommand({ Bucket: "files" }));
     expect(
@@ -83,27 +84,33 @@ test("assemble, list and abort multipart uploads through the AWS SDK", async () 
                 MultipartUpload: {
                     Parts: partNumbers.map((number) => ({
                         PartNumber: number,
-                        ETag: number === 1 ? part.ETag : copied.CopyPartResult!.ETag,
+                        ETag:
+                            number === 1
+                                ? part.ETag
+                                : present(copied.CopyPartResult, "CopyPartResult").ETag,
                     })),
                 },
             }),
         );
     expect(await failure(complete([2, 1]))).toEqual({ name: "InvalidPartOrder", status: 400 });
     const completed = await complete([1, 2]);
-    const file = await fixture.buckets.get("files")!.head("video.bin");
+    const file = present(
+        await present(fixture.buckets.get("files"), "files").head("video.bin"),
+        "file",
+    );
     expect({
         etag: completed.ETag,
-        size: file!.size,
-        type: file!.httpMetadata.contentType,
+        size: file.size,
+        type: file.httpMetadata.contentType,
     }).toEqual({
-        etag: file!.httpEtag,
+        etag: file.httpEtag,
         size: PART_SIZE + 4,
         type: "video/mp4",
     });
     const tail = await client.send(
         new GetObjectCommand({ Bucket: "files", Key: "video.bin", Range: "bytes=-5" }),
     );
-    expect(await tail.Body!.transformToString()).toBe("a2345");
+    expect(await present(tail.Body, "Body").transformToString()).toBe("a2345");
 
     // abort the other upload, after which its parts are gone
     await client.send(

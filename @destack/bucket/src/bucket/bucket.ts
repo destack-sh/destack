@@ -19,11 +19,15 @@ export interface Bucket {
     /** Store a file without preconditions. */
     put(
         key: string,
-        body: BucketBody,
+        body: BucketBody | null,
         options?: BucketPutOptions & { onlyIf?: undefined },
     ): Promise<BucketFile>;
     /** Store a complete file and atomically replace any previous value. */
-    put(key: string, body: BucketBody, options: BucketPutOptions): Promise<BucketFile | null>;
+    put(
+        key: string,
+        body: BucketBody | null,
+        options: BucketPutOptions,
+    ): Promise<BucketFile | null>;
     /** Delete up to 1000 files; absent keys remain absent. */
     delete(key: string | string[]): Promise<void>;
     /** List a page of metadata. */
@@ -90,5 +94,4 @@ export type BucketBody =
     | ArrayBufferView<ArrayBuffer>
     | ArrayBuffer
     | string
-    | Blob
-    | null;
+    | Blob;

@@ -1,3 +1,4 @@
+import { aligned } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { and, asc, eq, gt, gte, lt, or } from "@destack/db";
 import type {
@@ -288,9 +289,9 @@ export class LocalMultipartUpload implements S3MultipartUpload {
 
             // match selected entity tags to the exact uploaded parts
             const ordered = selected
-                .map((selected) => {
-                    const entry = indexed.get(selected.partNumber);
-                    if (!entry || entry.etag !== selected.etag) {
+                .map((choice) => {
+                    const entry = indexed.get(choice.partNumber);
+                    if (!entry || entry.etag !== choice.etag) {
                         throw new StorageError(
                             "INVALID_PART",
                             "a selected part is missing or has changed",
@@ -299,18 +300,17 @@ export class LocalMultipartUpload implements S3MultipartUpload {
 
                     return entry;
                 })
-                .sort((left, right) => left.partNumber - right.partNumber);
+                .toSorted((left, right) => left.partNumber - right.partNumber);
 
             // enforce multipart sizes
+            const first = aligned(ordered, 0);
+            const last = aligned(ordered, ordered.length - 1);
             if (
                 ordered.length > 1 &&
                 (ordered
                     .slice(0, -1)
-                    .some(
-                        (entry) =>
-                            entry.size < MINIMUM_PART_SIZE || entry.size !== ordered[0]!.size,
-                    ) ||
-                    ordered.at(-1)!.size > ordered[0]!.size)
+                    .some((entry) => entry.size < MINIMUM_PART_SIZE || entry.size !== first.size) ||
+                    last.size > first.size)
             ) {
                 throw new StorageError(
                     "INVALID_PART",
@@ -325,10 +325,10 @@ export class LocalMultipartUpload implements S3MultipartUpload {
             }
 
             // describe the file its parts' blobs become, versioned as its first part's write
-            const entry = {
+            const published = {
                 key: this.key,
-                version: ordered[0]!.etag,
-                size: ordered.reduce((size, entry) => size + entry.size, 0),
+                version: first.etag,
+                size: ordered.reduce((total, entry) => total + entry.size, 0),
                 etag: `${hash.digest("hex")}-${ordered.length}`,
                 checksums: {},
                 uploaded: Date.now(),
@@ -341,25 +341,25 @@ export class LocalMultipartUpload implements S3MultipartUpload {
             // publish the file and complete its upload in one transaction
             const detached = await this.#storage.database.transaction(async (transaction) => {
                 // publish the segments, then drop the parts and close the upload
-                const detached = await this.#storage.publish(entry, ordered, transaction);
+                const released = await this.#storage.publish(published, ordered, transaction);
                 await transaction.delete(part).where(eq(part.uploadId, this.uploadId));
                 await transaction
                     .update(upload)
                     .set({ state: "completed" })
                     .where(eq(upload.id, this.uploadId));
 
-                return detached;
+                return released;
             });
 
             // retire the replaced blobs and every part's, which collection keeps while a segment references them
             for (const digest of detached) {
                 this.#storage.retired.add(digest);
             }
-            for (const entry of entries) {
-                this.#storage.retired.add(entry.blob);
+            for (const { blob } of entries) {
+                this.#storage.retired.add(blob);
             }
 
-            return LocalFile.describe(entry);
+            return LocalFile.describe(published);
         });
     }
 
@@ -399,8 +399,8 @@ export class LocalMultipartUpload implements S3MultipartUpload {
 
                 return deleted;
             });
-            for (const entry of removed) {
-                this.#storage.retired.add(entry.blob);
+            for (const { blob } of removed) {
+                this.#storage.retired.add(blob);
             }
         });
     }

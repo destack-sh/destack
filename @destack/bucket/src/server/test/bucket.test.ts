@@ -3,7 +3,7 @@ import { principal } from "@destack/access";
 import { invokeService } from "@destack/audit";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { ServiceError } from "@destack/service/error";
-import { identifier } from "@destack/schema";
+import { aligned, schema, present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "@destack/test";
 import { vi } from "vitest";
@@ -37,7 +37,9 @@ afterEach(() => {
 test.for(TEST_DIALECTS)(
     "transfer files through presigned URLs and read their metadata on %s",
     async (dialect) => {
-        await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
         const { client, bucket } = fixture;
 
         // presign an upload that signs its length and type, and moves its metadata into the query
@@ -63,7 +65,7 @@ test.for(TEST_DIALECTS)(
             status: 200,
             headers: {
                 etag: `"${etag}"`,
-                "x-amz-request-id": stored.headers.get("x-amz-request-id")!,
+                "x-amz-request-id": present(stored.headers.get("x-amz-request-id"), "id"),
             },
         });
         const nested = await client.open({
@@ -77,10 +79,10 @@ test.for(TEST_DIALECTS)(
         expect((await fixture.transfer(nested, "notes")).status).toBe(200);
 
         // read the stored metadata, and list it beside the nested prefix
-        const head = await client.file({ ...bucket, key: "documents/readme.txt" });
+        const head = present(await client.file({ ...bucket, key: "documents/readme.txt" }), "head");
         expect(head).toEqual({
             key: "documents/readme.txt",
-            version: head!.version,
+            version: head.version,
             size: 13,
             etag,
             uploaded: NOW,
@@ -108,7 +110,7 @@ test.for(TEST_DIALECTS)(
                 ...bucket,
                 prefix: "documents/",
                 limit: 1,
-                cursor: first.cursor!,
+                cursor: present(first.cursor, "cursor"),
             }),
         ).toEqual({ files: [head], delimitedPrefixes: [], cursor: null });
 
@@ -142,7 +144,7 @@ test.for(TEST_DIALECTS)(
                 etag: `"${etag}"`,
                 "last-modified": new Date(NOW).toUTCString(),
                 "x-amz-meta-author": "fixture",
-                "x-amz-request-id": partial.headers.get("x-amz-request-id")!,
+                "x-amz-request-id": present(partial.headers.get("x-amz-request-id"), "id"),
             },
             body: "Hello",
         });
@@ -171,7 +173,9 @@ test.for(TEST_DIALECTS)(
 
 /** Refuse transfers with failed preconditions. */
 test.for(TEST_DIALECTS)("refuse transfers whose preconditions fail on %s", async (dialect) => {
-    await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+    await using fixture = await BucketFixture.open(
+        present(databases.get(dialect), "dialect").database,
+    );
     const { client, bucket } = fixture;
     const key = "report.txt";
 
@@ -232,9 +236,9 @@ test.for(TEST_DIALECTS)("refuse transfers whose preconditions fail on %s", async
     );
 
     // read the file unchanged where its entity tag matches
-    const head = await client.file({ ...bucket, key });
+    const head = present(await client.file({ ...bucket, key }), "head");
     const current = await fixture.transfer(
-        await client.open({ mode: "read", ...bucket, key, ifMatch: head!.etag }),
+        await client.open({ mode: "read", ...bucket, key, ifMatch: head.etag }),
     );
     expect({ status: current.status, body: await current.text() }).toEqual({
         status: 200,
@@ -244,7 +248,9 @@ test.for(TEST_DIALECTS)("refuse transfers whose preconditions fail on %s", async
 
 /** Bind a customer key into presigned transfers, and refuse reading the file without it. */
 test.for(TEST_DIALECTS)("transfer a file under a customer key on %s", async (dialect) => {
-    await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+    await using fixture = await BucketFixture.open(
+        present(databases.get(dialect), "dialect").database,
+    );
     const { client, bucket } = fixture;
     const customerKey = new Uint8Array(32).fill(7).toBase64();
     const md5 = createHash("md5").update(Uint8Array.fromBase64(customerKey)).digest("base64");
@@ -300,7 +306,9 @@ test.for(TEST_DIALECTS)("transfer a file under a customer key on %s", async (dia
 test.for(TEST_DIALECTS)(
     "refuse keys and cursors the bucket refuses as bad requests on %s",
     async (dialect) => {
-        await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
         const { client, bucket } = fixture;
 
         // refuse a key with a NUL character and a cursor no listing issued
@@ -319,7 +327,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "refuse file keys with dot segments and accept dotted names on %s",
     async (dialect) => {
-        await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
         const { client, bucket } = fixture;
         const refusal = new ServiceError("BAD_REQUEST", {
             message: "invalid input: key: file keys refuse . and .. segments",
@@ -359,7 +369,7 @@ test.for(TEST_DIALECTS)(
         expect(heads).toEqual(
             keys.map((key, index) => ({
                 key,
-                version: heads[index]!.version,
+                version: present(aligned(heads, index), "head").version,
                 size: 1,
                 etag: createHash("md5").update("x").digest("hex"),
                 uploaded: NOW,
@@ -379,7 +389,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "refuse uploads, metadata and ranges beyond their bounds on %s",
     async (dialect) => {
-        await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
         const { client, bucket } = fixture;
         const file = { ...bucket, key: "large.bin", httpMetadata: {}, customMetadata: {} };
 
@@ -420,12 +432,15 @@ test.for(TEST_DIALECTS)(
 
 /** Decide each procedure on the bucket's permission, auditing refused uploads. */
 test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", async (dialect) => {
-    await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+    await using fixture = await BucketFixture.open(
+        present(databases.get(dialect), "dialect").database,
+    );
     const { client, bucket } = fixture;
     const member = principal.user.reference("universe", fixture.userId);
 
-    // refuse a withdrawn permission while the others still apply
-    await fixture.withdraw("upload");
+    // refuse writing once neither write nor edit applies, while reading still does
+    await fixture.withdraw("write");
+    await fixture.withdraw("edit");
     await expect(
         client.open({
             mode: "write",
@@ -436,7 +451,7 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
             customMetadata: {},
         }),
     ).rejects.toEqual(
-        new ServiceError("FORBIDDEN", { message: "permission denied: upload", defined: true }),
+        new ServiceError("FORBIDDEN", { message: "permission denied: write", defined: true }),
     );
     expect(await client.files({ ...bucket, limit: 10 })).toEqual({
         files: [],
@@ -446,7 +461,7 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
 
     // audit the refused upload as a denial in the bucket's space
     const audits = await fixture.audits();
-    const denial = audits[0]!;
+    const denial = aligned(audits, 0);
     expect(audits).toEqual([
         {
             method: invokeService.name,
@@ -465,7 +480,7 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
                 details: { authentication: "public" },
                 outcome: {
                     kind: "denied",
-                    error: { code: "FORBIDDEN", status: 403, message: "permission denied: upload" },
+                    error: { code: "FORBIDDEN", status: 403, message: "permission denied: write" },
                 },
                 targets: { procedure: { type: "procedure", id: "bucket.open" } },
                 startedAt: NOW,
@@ -475,7 +490,7 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
     ]);
 
     // refuse a bucket the space does not have
-    const other = { ...bucket, id: identifier("bucket").parse(`bucket-${v7()}`) };
+    const other = { ...bucket, id: schema.identifier("bucket").parse(`bucket-${v7()}`) };
     await expect(client.files({ ...other, limit: 10 })).rejects.toEqual(
         new ServiceError("NOT_FOUND", { message: `no bucket ${other.id}`, defined: true }),
     );
@@ -491,7 +506,9 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
 test.for(TEST_DIALECTS)(
     "conceal a bucket of another space selected by its identifier on %s",
     async (dialect) => {
-        await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
         const { client } = fixture;
         const neighbour = await fixture.neighbour();
 
@@ -533,15 +550,17 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "reach a bucket's files as an installation using it, and refuse another on %s",
     async (dialect) => {
-        await using fixture = await BucketFixture.open(databases.get(dialect)!.database);
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
         const { client, bucket, spaceId } = fixture;
         const using = principal.installation.reference(spaceId, await fixture.install("files"));
         const other = principal.installation.reference(
             spaceId,
-            identifier("installation").parse(`installation-${v7()}`),
+            schema.identifier("installation").parse(`installation-${v7()}`),
         );
 
-        // upload and list as the installation the bucket's capture relates as a user
+        // upload and list as the installation the bucket's capture relates as a consumer
         fixture.caller = fixture.authenticate(using, [using]);
         const upload = await client.open({
             mode: "write",

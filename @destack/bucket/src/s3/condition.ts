@@ -1,5 +1,5 @@
+import { aligned } from "@destack/schema";
 import type { BucketCondition, BucketFile } from "../bucket/index.ts";
-import { optional } from "./operation.ts";
 
 /** The milliseconds of one second, the resolution of HTTP dates. */
 const SECOND = 1000;
@@ -41,10 +41,14 @@ function readList(value: string): EntityTag[] | "*" {
     }
 
     // read quoted tags, which may contain commas, and bare tokens
-    return Array.from(value.matchAll(/(W\/)?"([^"]*)"|([^\s,"]+)/g), (match) => ({
-        etag: match[2] ?? match[3]!,
-        isWeak: match[1] !== undefined,
-    }));
+    return Array.from(value.matchAll(/(W\/)?"([^"]*)"|([^\s,"]+)/gu), (match) => {
+        const etag = match[2] ?? match[3];
+        if (etag === undefined) {
+            throw new TypeError("entity tag match has no tag");
+        }
+
+        return { etag, isWeak: match[1] !== undefined };
+    });
 }
 
 /** Evaluate the conditions against a file at HTTP's whole-second resolution and precedence. */
@@ -89,10 +93,16 @@ async function resolve(
     if (isDirect(etagMatches, false) && isDirect(etagDoesNotMatch, true)) {
         return {
             onlyIf: {
-                ...optional("etagMatches", etagMatches && directTag(etagMatches)),
-                ...optional("etagDoesNotMatch", etagDoesNotMatch && directTag(etagDoesNotMatch)),
-                ...optional("uploadedBefore", condition.uploadedBefore),
-                ...optional("uploadedAfter", condition.uploadedAfter),
+                ...(etagMatches === undefined ? {} : { etagMatches: directTag(etagMatches) }),
+                ...(etagDoesNotMatch === undefined
+                    ? {}
+                    : { etagDoesNotMatch: directTag(etagDoesNotMatch) }),
+                ...(condition.uploadedBefore === undefined
+                    ? {}
+                    : { uploadedBefore: condition.uploadedBefore }),
+                ...(condition.uploadedAfter === undefined
+                    ? {}
+                    : { uploadedAfter: condition.uploadedAfter }),
                 secondsGranularity: true,
             },
         };
@@ -114,13 +124,13 @@ function isDirect(tags: EntityTag[] | "*" | undefined, isWeakComparison: boolean
     return (
         tags === undefined ||
         tags === "*" ||
-        (tags.length === 1 && (isWeakComparison || !tags[0]!.isWeak))
+        (tags.length === 1 && (isWeakComparison || !aligned(tags, 0).isWeak))
     );
 }
 
 /** The single unquoted tag or asterisk of a direct tag list. */
 function directTag(tags: EntityTag[] | "*"): string {
-    return tags === "*" ? "*" : tags[0]!.etag;
+    return tags === "*" ? "*" : aligned(tags, 0).etag;
 }
 
 /** Whether a tag list includes a file's tag, where strong comparison never matches weak tags. */
