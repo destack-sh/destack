@@ -1,5 +1,3 @@
-# @destack/resource
-
 Declare the resources a package needs, bind their clients, plan their changes and open their content.
 
 ## Declarations
@@ -12,6 +10,14 @@ import { defineResourceKind } from "@destack/resource";
 const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state: DatabaseState });
 const BucketKind = defineResourceKind("bucket", { spec: BucketSpec });
 const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec: {} });
+```
+
+A kind is itself a declaration: builds describe it as a `resource-kind` with the JSON Schemas of its spec and state.
+
+```ts
+import { describeResourceKind } from "@destack/resource/inspect";
+
+const { name, spec, state } = describeResourceKind(DatabaseKind);
 ```
 
 ## Clients
@@ -27,24 +33,17 @@ await database.get(context).select().from(note);
 
 ## Providers
 
-A `Provider` manages one kind's resources on a host, and has the capabilities its kind and technology allow.
+A `Provider` manages one kind's resources on a host, and has the capabilities its kind and technology allow, each a member holding the whole capability: `reconcile`, `provision`, `open` and `rewrap`.
 
-| Capability | Methods | Required |
-|---|---|---|
-| `Reconcile` | `plan`, `apply` | exactly when the kind declares a desired state |
-| `Provision` | `provision`, `destroy` | when the provider hosts what it provides |
-| `Open` | `open` | when the provider keeps content as a database, such as a database file or a bucket catalogue |
-| `Seal` | `table`, `seal`, `unseal` | when the provider binds rows to its host, such as keys wrapped under the host's root key |
-
-A host parses stored rows through the provider's kind and checks a capability before using it.
+A host parses stored rows through the provider's kind and checks a capability's presence before using it.
 
 ```ts
 const record = provider.kind.record(row);
-if (Provider.reconciles(provider)) {
+if (provider.reconcile !== undefined) {
     const desired = provider.kind.states([notes.state(), tasks.state()]);
-    const plan = await provider.plan(record, desired);
+    const plan = await provider.reconcile.plan(record, desired);
     Plan.classify(plan); // "safe", "data-dependent", "backward-incompatible" or "destructive"
-    await provider.apply(record, desired, await Plan.digest(plan));
+    await provider.reconcile.apply(record, desired, await Plan.digest(plan));
 }
 ```
 
@@ -59,23 +58,27 @@ const binding = {
     provider: "sqlite",
     reference: "file:///spaces/space-…/database-….db",
 };
-const connection = await notes.connectors.sqlite!.connect(binding, notes);
+const connector = notes.connectors[binding.provider];
+if (connector === undefined) {
+    throw new TypeError(`no connector for provider ${binding.provider}`);
+}
+const connection = await connector.connect(binding, notes);
 ```
 
 ## Moves
 
-A provider opens a resource's content as a database handle, and seals its host-bound rows to another host's `Recipient`.
+A provider opens a resource's content as a database handle, and rewraps its host-bound rows for another host's `Recipient`.
 
 ```ts
-const handle = await provider.open(record, desired); // { database, blobs?, migrate, close }
+const handle = await provider.open.open(record, desired); // { database, blobs?, migrate, close }
 const recipient = await Recipient.generate();
-const sealed = await source.seal(row, Recipient.of(recipient.key));
-const unsealed = await target.unseal(sealed, recipient);
+const wrapped = await source.rewrap.wrap(row, Recipient.of(recipient.key));
+const unwrapped = await target.rewrap.unwrap(wrapped, recipient);
 ```
 
 ## Plans
 
-A `Plan` lists `Step`s, each an action on an address.
+A `Plan` lists `Step`s, each an action on an address, such as `create`, `replace`, `rename`, `convert` or `restore`.
 
 ```ts
 const plan: Plan = {
@@ -94,22 +97,15 @@ Plan.reaches(plan, "backward-incompatible"); // true: the plan needs approval
 await Plan.digest(plan); // what an approval holds
 ```
 
-| Action | Meaning |
-|---|---|
-| `create`, `update`, `delete` | add, change or remove the target |
-| `replace` | recreate the target, such as rebuilding a table |
-| `rename` | move the target to a new address |
-| `convert` | rewrite stored values, such as rows of an earlier release |
-| `restore` | reuse a removed term under its last definition |
-
 ## Upgrades
 
 A build plans its `Upgrade` from the package's latest release.
 
 ```ts
 const history = await History.read(latest.reader, vocabulary);
-const build = await builder.build({ outputs, dependencies, history });
-const upgrade = await build.reader.read(build.manifest.upgrade!.file, Upgrade);
+const upgrade = Upgrade.plan(history, declarations, (declaration) =>
+    compares.get(declaration.kind),
+);
 // { from: "2026.9.0", steps: [{ action: "delete", target: "object/note/relation/editor", risk: "backward-incompatible", ... }] }
 ```
 

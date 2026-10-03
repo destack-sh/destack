@@ -1,20 +1,19 @@
 import { expect, test } from "@destack/test";
 import { ResourceId } from "./declaration.ts";
-import { identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { defineResourceKind } from "./kind.ts";
 
-test("validate declarations against their kind and spec", () => {
+test("describe declarations of a kind by its name, refusing another kind", () => {
     const bucket = defineResourceKind("bucket", {
         spec: schema.object({ public: schema.boolean() }),
     });
 
-    // accept a declaration of the kind and refuse another kind or spec
+    // accept a declaration of the kind and refuse another kind
     const parse = (value: unknown) => bucket.description.safeParse(value).success;
     expect([
         parse({ name: "files", kind: "bucket", spec: { public: false } }),
         parse({ name: "files", kind: "vault", spec: { public: false } }),
-        parse({ name: "files", kind: "bucket", spec: {} }),
-    ]).toEqual([true, false, false]);
+    ]).toEqual([true, false]);
 });
 
 test("read stored resources and desired states through their kind, refusing another kind's specification, invalid values and states of a stateless kind", () => {
@@ -25,29 +24,20 @@ test("read stored resources and desired states through their kind, refusing anot
     const bucket = defineResourceKind("bucket", { spec: schema.object({}) });
     const stored = {
         id: ResourceId.parse("database-01996ab0-0000-7000-8000-000000000001"),
-        scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         spec: { tier: "zone" },
         reference: null,
     };
 
-    // read a database and its states, and refuse a bucket reading its specification, an invalid spec and states of a stateless kind
+    // read a database and its states, and refuse a bucket reading its specification, an invalid state and states of a stateless kind
     expect([
         outcome(() => database.record(stored).spec),
         outcome(() => database.states([{ tables: ["note"] }])),
         outcome(() => bucket.record(stored)),
-        outcome(() => database.record({ ...stored, spec: { tier: "planet" } })),
         outcome(() => database.states([{ tables: "note" }])),
         outcome(() => bucket.states([{}])),
         outcome(() => bucket.states([{ tables: [] }])),
-    ]).toEqual([
-        { tier: "zone" },
-        [{ tables: ["note"] }],
-        "ZodError",
-        "ZodError",
-        "ZodError",
-        [],
-        "TypeError",
-    ]);
+    ]).toEqual([{ tier: "zone" }, [{ tables: ["note"] }], "ZodError", "ZodError", [], "TypeError"]);
 });
 
 /** Read a value, or the class name of the error reading it throws. */

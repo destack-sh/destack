@@ -1,11 +1,11 @@
-import { anyIdentifier, defineSchema, Duration, identifier, schema } from "@destack/schema";
+import { defineSchema, Duration, schema } from "@destack/schema";
 import { DeclarationName, type Package } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import type { Connector } from "../provider/provider.ts";
 import { ResourceHandle } from "./handle.ts";
 
 /** A resource's identifier, whichever kind it is: the kind's name as prefix and a UUIDv7. */
-export const ResourceId = defineSchema(anyIdentifier());
+export const ResourceId = defineSchema(schema.anyIdentifier());
 /** A resource's identifier, whichever kind it is. */
 export type ResourceId = schema.Infer<typeof ResourceId>;
 
@@ -45,7 +45,7 @@ export const ResourcePlacement = defineSchema(
         /** The location code accepted by the provider adapter. */
         location: schema.string().min(1).exactOptional(),
         /** The host administering the resource. */
-        host: identifier("host").exactOptional(),
+        host: schema.identifier("host").exactOptional(),
     }),
 );
 /** Where a resource is asked to live. */
@@ -55,7 +55,7 @@ export type ResourcePlacement = schema.Infer<typeof ResourcePlacement>;
 export const ResourceReference = defineSchema(
     schema.object({
         /** The space the resource lives in. */
-        scope: identifier("space"),
+        scope: schema.identifier("space"),
         /** The persistent resource identifier. */
         id: ResourceId,
     }),
@@ -82,7 +82,7 @@ export class ResourceDeclaration<
     }
 
     /** The connectors opening clients of this kind's resources on the running runtime, by provider code. */
-    get connectors(): Readonly<Record<string, Connector<Client>>> {
+    get connectors(): Readonly<Record<string, Connector<Client, this>>> {
         return {};
     }
 

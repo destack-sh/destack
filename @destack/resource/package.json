@@ -8,7 +8,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./context": "./src/context/index.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./inspect": "./src/inspect/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
@@ -19,6 +20,7 @@
         "@destack/schema": "workspace:*"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/node": "26.6.1"
     }
 }

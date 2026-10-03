@@ -10,10 +10,11 @@ import type { DeclarationDescription } from "@destack/package/inspect";
 import { PlanError } from "../error/error.ts";
 import { Address } from "./address.ts";
 
+/** The risks of steps, from least to most consequential. */
+export const RISKS = ["safe", "data-dependent", "backward-incompatible", "destructive"] as const;
+
 /** How consequential a step is, from least to most. */
-export const Risk = defineSchema(
-    schema.enum(["safe", "data-dependent", "backward-incompatible", "destructive"]),
-);
+export const Risk = defineSchema(schema.enum(RISKS));
 /** How consequential a step is, from least to most. */
 export type Risk = schema.Infer<typeof Risk>;
 
@@ -47,7 +48,7 @@ export type Step = schema.Infer<typeof Step>;
 /** The changes one review covers, in application order. */
 export interface Plan<Change extends Step = Step> {
     /** The steps in application order. */
-    readonly steps: readonly Change[];
+    readonly steps: Change[];
     /** Why the plan stops before later steps. */
     readonly deferred?: string;
 }

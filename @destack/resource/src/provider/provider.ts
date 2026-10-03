@@ -35,13 +35,16 @@ export const ResourceBinding = defineSchema(
 export type ResourceBinding = schema.Infer<typeof ResourceBinding>;
 
 /** Opens clients of one kind's resources inside a workload, as its declaration supplies it for one provider. */
-export interface Connector<Client = unknown> {
+export interface Connector<
+    Client = unknown,
+    Declaration extends ResourceDeclaration<Client> = ResourceDeclaration<Client>,
+> {
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
     /** Open a client the caller disposes for a bound resource with the declaration's desired state, refusing otherwise. */
     connect(
         binding: ResourceBinding,
-        declaration: ResourceDeclaration<Client>,
+        declaration: Declaration,
     ): Promise<Client & AsyncDisposable>;
 }
 
@@ -54,15 +57,32 @@ export interface Placement {
 }
 
 /** A technology a host manages one kind's resources with, having the capabilities its kind and technology allow. */
-export type Provider<Kind extends ResourceKind = ResourceKind, Object = unknown> = {
+export type Provider<
+    Kind extends ResourceKind = ResourceKind,
+    Object = unknown,
+    Handle = never,
+    Table = never,
+    Row extends object = never,
+> = {
     /** The resource kind managed. */
     readonly kind: Kind;
     /** The provider code recorded on resources and bindings, such as sqlite. */
     readonly code: string;
     /** The object type the kind's resources are in their space, such as a vault. */
     readonly object: Object;
-} & (Kind["state"] extends schema.Schema ? Reconcile<Kind> : unknown) &
-    (Provision<Kind> | { readonly provision?: never; readonly destroy?: never });
+    /** Reconcile resources toward their kind's desired state, required exactly of providers of kinds with one. */
+    readonly reconcile?: Reconcile<Kind>;
+    /** Create and remove the resources the provider hosts. */
+    readonly provision?: Provision<Kind>;
+    /** Open the resources' content as a database. */
+    readonly open?: Open<Kind, Handle>;
+    /** Rewrap the rows the provider binds to its host for another host. */
+    readonly rewrap?: Rewrap<Table, Row>;
+} & (Kind["state"] extends schema.Schema
+    ? { readonly reconcile: Reconcile<Kind> }
+    : Kind["state"] extends undefined
+      ? { readonly reconcile?: never }
+      : unknown);
 
 /** Take a resource to the desired states its kind declares, required of providers of kinds with a state. */
 export interface Reconcile<Kind extends ResourceKind = ResourceKind> {
@@ -99,29 +119,3 @@ export interface Rewrap<Table = unknown, Row extends object = Record<string, unk
     /** Unwrap a row wrapped for this host's recipient, wrapping its values under this host's root key. */
     unwrap(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
 }
-
-/** The fields of any provider the capability checks read, whatever its kind and object. */
-type ProviderShape = { readonly kind: ResourceKind; readonly code: string };
-
-/** The capabilities of providers. */
-export const Provider = {
-    /** Report whether a provider reconciles its resources toward a desired state. */
-    reconciles<Value extends ProviderShape>(provider: Value): provider is Value & Reconcile {
-        return "plan" in provider && "apply" in provider;
-    },
-
-    /** Report whether a provider opens its resources' content as a database. */
-    opens<Value extends ProviderShape>(provider: Value): provider is Value & Open {
-        return "open" in provider;
-    },
-
-    /** Report whether a provider rewraps host-bound rows for another host. */
-    rewraps<Value extends ProviderShape>(provider: Value): provider is Value & Rewrap {
-        return "table" in provider && "wrap" in provider && "unwrap" in provider;
-    },
-
-    /** Report whether a provider creates and removes the resources it hosts. */
-    provisions<Value extends ProviderShape>(provider: Value): provider is Value & Provision {
-        return "provision" in provider && "destroy" in provider;
-    },
-};

@@ -1,5 +1,5 @@
 import { defineSchema, schema, Version } from "@destack/schema";
-import type { DeclarationDescription } from "@destack/package/inspect";
+import { DeclarationDescription } from "@destack/package/inspect";
 import type { BuildReader } from "@destack/package/manifest";
 import { Address } from "./address.ts";
 import { Plan, Step, type Compare } from "./plan.ts";
@@ -21,26 +21,30 @@ export const Upgrade = Object.assign(
 export type Upgrade = schema.Infer<typeof Upgrade>;
 
 /** What a package has published. */
-export const History = {
-    /** Read what a package has published from its latest release and its vocabulary. */
-    async read(latest: BuildReader, vocabulary: Vocabulary): Promise<History> {
-        return {
-            release: latest.manifest.package.version,
-            declarations: await latest.declarations(),
-            vocabulary,
-        };
+export const History = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The latest published release. */
+            release: Version,
+            /** The latest release's own declarations. */
+            declarations: schema.array(DeclarationDescription),
+            /** The terms of the package's published releases. */
+            vocabulary: Vocabulary,
+        }),
+    ),
+    {
+        /** Read what a package has published from its latest release and its vocabulary. */
+        async read(latest: BuildReader, vocabulary: Vocabulary): Promise<History> {
+            return {
+                release: latest.manifest.package.version,
+                declarations: await latest.declarations(),
+                vocabulary,
+            };
+        },
     },
-};
-
+);
 /** What a package has published. */
-export interface History {
-    /** The latest published release. */
-    readonly release: Version;
-    /** The latest release's own declarations. */
-    readonly declarations: readonly DeclarationDescription[];
-    /** The terms of the package's published releases. */
-    readonly vocabulary: Vocabulary;
-}
+export type History = schema.Infer<typeof History>;
 
 /** Plan the upgrade from a package's latest release. */
 function planUpgrade(

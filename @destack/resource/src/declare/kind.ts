@@ -1,5 +1,5 @@
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
-import { DeclarationName } from "@destack/package";
+import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import type { ResourceRecord } from "../provider/provider.ts";
 import { ResourceDescription } from "./declaration.ts";
@@ -15,6 +15,8 @@ export class ResourceKind<
     Spec extends schema.Schema<JsonValue> = schema.Schema<JsonValue>,
     State extends schema.Schema | undefined = schema.Schema | undefined,
 > {
+    /** The declaring package. */
+    readonly package: Package;
     /** The kind's name, such as database. */
     readonly name: Name;
     /** The schema of a declaration's specification. */
@@ -25,9 +27,10 @@ export class ResourceKind<
     readonly description;
 
     /** Define the kind. */
-    constructor(name: Name, spec: Spec, state: State) {
+    constructor(owner: Package, name: Name, spec: Spec, state: State) {
         // require a declaration name and retain the schemas
         DeclarationName.parse(name);
+        this.package = owner;
         this.name = name;
         this.spec = spec;
         this.state = state;
@@ -52,7 +55,11 @@ export class ResourceKind<
 
     /** Read stored desired states of this kind, refusing invalid ones, and any but empty ones of a kind without a state. */
     states(stored: readonly ResourceState[]): KindState<this>[];
-    /** Parse each stored state by the kind's state schema, whose parsed value is the kind's state type. */
+    /**
+     * Parse each stored state by the kind's state schema, whose parsed value is the kind's state type.
+     *
+     * @construct every state parses by this kind's state schema, whose output is the kind's state type.
+     */
     states(stored: readonly ResourceState[]): unknown[] {
         // read none for a kind without a state, whose bindings require nothing
         const state = this.state;
@@ -72,7 +79,11 @@ export class ResourceKind<
 export function defineResourceKind<
     const Name extends string,
     Spec extends schema.Schema<JsonValue>,
->(name: Name, options: { readonly spec: Spec }): ResourceKind<Name, Spec, undefined>;
+>(
+    name: Name,
+    options: { readonly spec: Spec },
+    module?: ModuleMetadata,
+): ResourceKind<Name, Spec, undefined>;
 /** Define a resource kind with the desired state its providers reconcile. */
 export function defineResourceKind<
     const Name extends string,
@@ -81,11 +92,19 @@ export function defineResourceKind<
 >(
     name: Name,
     options: { readonly spec: Spec; readonly state: State },
+    module?: ModuleMetadata,
 ): ResourceKind<Name, Spec, State>;
-/** Define a resource kind, with the desired state its providers reconcile or without one. */
+/**
+ * Define a resource kind, with the desired state its providers reconcile or without one.
+ *
+ * @construct the kind keeps the spec and state schemas it is given, and no state schema without one.
+ */
 export function defineResourceKind(
     name: string,
     options: { readonly spec: schema.Schema<JsonValue>; readonly state?: schema.Schema },
+    module?: ModuleMetadata,
 ): ResourceKind {
-    return new ResourceKind(name, options.spec, options.state);
+    const owner = ModuleMetadata.require(module, "defineResourceKind").package;
+
+    return new ResourceKind(owner, name, options.spec, options.state);
 }

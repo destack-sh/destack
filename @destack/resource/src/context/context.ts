@@ -21,7 +21,11 @@ export class ResourceContext {
 
     /** Return the client selected for this declaration. */
     get<Value>(resource: ResourceHandle<Value>): Value;
-    /** Return the client bound to the declaration, which bind keeps with the declaration's own value type. */
+    /**
+     * Return the client bound to the declaration, which bind keeps with the declaration's own value type.
+     *
+     * @construct bind keeps each client under its own declaration, typed by that declaration's value.
+     */
     get(resource: ResourceHandle<unknown>): unknown {
         // require a bound client
         if (!this.#clients.has(resource)) {

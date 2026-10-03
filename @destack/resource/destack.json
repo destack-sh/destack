@@ -2,5 +2,16 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614f-73eb-9845-7906f2b7cfe0",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "declarations": {
+        "defineResourceKind": {
+            "module": 2,
+            "describes": [
+                {
+                    "kind": "resource-kind",
+                    "function": "./inspect#describeResourceKind"
+                }
+            ]
+        }
+    }
 }
