@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CHAIN_TERMS, fill, or, render, sql, type SQLWrapper } from "../sql/index.ts";
+import { CHAIN_TERMS, exists, fill, or, render, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import type { Session } from "./session.ts";
@@ -28,22 +28,40 @@ import { Commit, typedChannel, type Channel, type OpenChannel } from "../channel
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
 import { qualify } from "../table/namespace.ts";
+import { Relations } from "../query/relation.ts";
+import { RelationalQueryBuilder, type Queries } from "../query/find.ts";
+import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
 
 /** Queries over one database connection or transaction. */
-export class DatabaseConnection {
+export class DatabaseConnection<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> {
     /** The session driver. */
     readonly driver: DatabaseDriver;
     /** The tables the database declares, in declaration order. */
     readonly tables: readonly Table[];
+    /** The relations the database declares, which relational reads name. */
+    readonly relations: Relations<Models>;
     /** The physical connection state. */
     readonly state: ConnectionState;
+    /** The relational reads, made on first use. */
+    #query: Queries<Models> | undefined;
 
-    /** Bind a driver to the declared tables. */
-    constructor(driver: DatabaseDriver, tables: readonly Table[]) {
+    /** Bind a driver to the declared tables and relations. */
+    constructor(driver: DatabaseDriver, tables: readonly Table[], relations: Relations<Models>) {
+        // keep the driver's state beside the declaration
         this.state = driver.state;
         this.driver = driver;
         this.tables = tables;
+        this.relations = relations;
+    }
+
+    /** Read the tables the relations name. */
+    get query(): Queries<Models> {
+        this.#query ??= RelationalQueryBuilder.of(this, this.relations);
+
+        return this.#query;
     }
 
     /** The tier of the database, absent for a connection over bare tables. */
@@ -90,7 +108,11 @@ export class DatabaseConnection {
     select(): SelectBuilder;
     /** Select explicit fields. */
     select<Fields extends Selection>(fields: Fields): SelectBuilder<Fields>;
-    /** Select records or fields, whose signatures above type the builder by them. */
+    /**
+     * Select records or fields.
+     *
+     * @construct the builder keeps the fields it is given, and the source's columns without them.
+     */
     select(fields?: Selection): SelectBuilder<Selection | undefined> {
         return new SelectBuilder(this.driver, fields, false);
     }
@@ -99,7 +121,11 @@ export class DatabaseConnection {
     selectDistinct(): SelectBuilder;
     /** Select distinct explicit fields. */
     selectDistinct<Fields extends Selection>(fields: Fields): SelectBuilder<Fields>;
-    /** Select distinct records or fields, whose signatures above type the builder by them. */
+    /**
+     * Select distinct records or fields.
+     *
+     * @construct the builder keeps the fields it is given, and the source's columns without them.
+     */
     selectDistinct(fields?: Selection): SelectBuilder<Selection | undefined> {
         return new SelectBuilder(this.driver, fields, true);
     }
@@ -119,50 +145,57 @@ export class DatabaseConnection {
         return MutationQuery.of(this.driver, table, "delete");
     }
 
-    /** Upsert rows as they are, writing only each row's own columns, a batch of alike rows per statement. */
-    upsert<Definition extends Table>(
+    /** Upsert rows as they are, writing only the columns each row has, a batch of alike rows per statement. */
+    async upsert<Definition extends Table>(
         table: Definition,
         rows: readonly Insert<Definition>[],
-    ): Promise<void>;
-    /** Upsert rows, whose signature above types them by their table. */
-    async upsert(table: Table, rows: readonly Row[]): Promise<void> {
+    ): Promise<void> {
         // group the rows by the columns they have
-        const groups = new Map<string, Row[]>();
-        for (const row of rows) {
-            const columns = Object.keys(row).toSorted().join();
-            groups.set(columns, [...(groups.get(columns) ?? []), row]);
-        }
+        const records: readonly Row[] = rows;
+        const groups = Map.groupBy(records, (row) => Object.keys(row).toSorted().join());
 
-        // write each group in batches within the parameter budget
+        // write each group
+        for (const group of groups.values()) {
+            await this.#upsertAlike(table, group);
+        }
+    }
+
+    /** Upsert rows that have the same columns, in batches within the parameter budget. */
+    async #upsertAlike(table: Table, rows: readonly Row[]): Promise<void> {
+        // update the written columns outside the key on conflict
         const definition = table[TABLE];
         const target = definition.key.map((name) => definition.column(name));
-        for (const group of groups.values()) {
-            const written = Object.keys(group[0] ?? {});
-            const set = Object.fromEntries(
-                written
-                    .filter((name) => !definition.key.includes(name))
-                    .map((name) => [
-                        name,
-                        sql`excluded.${sql.identifier(definition.column(name).definition.name)}`,
-                    ]),
-            );
-            const size = Math.floor(PARAMETER_BUDGET / written.length);
-            for (let start = 0; start < group.length; start += size) {
-                const insert = this.insert(table).values(group.slice(start, start + size));
-                await (Object.keys(set).length === 0
-                    ? insert.onConflictDoNothing()
-                    : insert.onConflictDoUpdate({ target, set }));
+        const written = Object.keys(rows[0] ?? {});
+        const set = Object.fromEntries(
+            written
+                .filter((name) => !definition.key.includes(name))
+                .map((name) => [
+                    name,
+                    sql`excluded.${sql.identifier(definition.column(name).definition.name)}`,
+                ]),
+        );
+
+        // insert each batch
+        const size = Math.floor(PARAMETER_BUDGET / written.length);
+        for (let start = 0; start < rows.length; start += size) {
+            // keep the stored row when only the key is written
+            const insert = this.insert(table).values(rows.slice(start, start + size));
+            if (Object.keys(set).length === 0) {
+                await insert.onConflictDoNothing();
+            }
+            // update the other written columns otherwise
+            else {
+                await insert.onConflictDoUpdate({ target, set });
             }
         }
     }
 
     /** Delete rows by key, a chain of keys per statement. */
-    remove<Definition extends Table>(
+    async remove<Definition extends Table>(
         table: Definition,
         rows: readonly Key<Definition>[],
-    ): Promise<void>;
-    /** Delete rows by key, whose signature above types the keys by their table. */
-    async remove(table: Table, rows: readonly Key[]): Promise<void> {
+    ): Promise<void> {
+        // delete each chain of keys
         for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
             const matches = rows
                 .slice(start, start + CHAIN_TERMS)
@@ -180,11 +213,27 @@ export class DatabaseConnection {
     execute(statement: SQLWrapper): Promise<Record<string, unknown>[]>;
     /** Run SQL and parse each row by a schema. */
     execute<Row>(statement: SQLWrapper, row: schema.Schema<Row>): Promise<Row[]>;
-    /** Run SQL and read its rows, parsed by a schema when given. */
+    /**
+     * Run SQL and read its rows.
+     *
+     * @construct each row is parsed by the schema when one is given, and is the driver's record by column name otherwise.
+     */
     async execute(statement: SQLWrapper, row?: schema.Schema): Promise<unknown[]> {
         const rows = await this.driver.all(fill(render(statement, this.dialect)));
 
         return row === undefined ? rows : rows.map((value) => row.parse(value));
+    }
+
+    /** Decide whether a query has rows, in one statement. */
+    async exists(query: SQLWrapper): Promise<boolean> {
+        // select the existence and decode it as the dialect answers it
+        const check = exists(query);
+        const [row] = await this.values(sql`SELECT ${check}`);
+        if (row === undefined) {
+            throw new TypeError("an existence check returned no row");
+        }
+
+        return schema.boolean().parse(check.decode(row[0], this.dialect));
     }
 
     /** Run SQL and read its rows as an array of values. */
@@ -233,7 +282,7 @@ export class DatabaseConnection {
 
     /** Commit a callback, or roll back on failure or once the callback rolls back, then resolving undefined. */
     async transaction<Value>(
-        operation: (transaction: DatabaseConnection) => Promise<Value>,
+        operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         options: TransactionOptions = {},
     ): Promise<Value> {
         // reject use after the enclosing transaction
@@ -290,7 +339,7 @@ export class DatabaseConnection {
 
     /** Run work in a transaction and roll its writes back, returning what it read or planned. */
     async rehearse<Value>(
-        operation: (transaction: DatabaseConnection) => Promise<Value>,
+        operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         options: TransactionOptions = {},
     ): Promise<Value> {
         // run the work, keep its result, and unwind the transaction
@@ -317,13 +366,14 @@ export class DatabaseConnection {
     /** Bind a transaction session and drain its queries. */
     #transact<Value>(
         session: Session,
-        operation: (transaction: DatabaseConnection) => Promise<Value>,
+        operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         signal?: AbortSignal,
     ): Promise<Value> {
         const state = new TransactionState(signal);
         const transaction = new DatabaseConnection(
             new DatabaseDriver(session, this.state, state),
             this.tables,
+            this.relations,
         );
 
         return state.execute(() => operation(transaction));

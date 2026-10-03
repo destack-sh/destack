@@ -4,15 +4,18 @@ import type { Table } from "../table/table.ts";
 import { PostgresDatabase } from "./database.ts";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
+import type { Model } from "../query/model.ts";
 
 /** The database log records. */
 const { log } = telemetry.scope(import.meta.destack.package);
 
 /** Connect to a PostgreSQL pool or URL. */
-export async function connect(
+export async function connect<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+>(
     connection: string | postgres.Sql,
-    tables: declaration.Database | readonly Table[] = [],
-): Promise<PostgresDatabase> {
+    tables: declaration.Database<Models> | readonly Table[] = [],
+): Promise<PostgresDatabase<Models>> {
     const client =
         typeof connection === "string"
             ? postgres(connection, { onnotice: reportNotice })

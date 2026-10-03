@@ -8,6 +8,8 @@ import { PostgresSession } from "../database/session.ts";
 import { expandTrees } from "../tree/tree.ts";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
+import { Relations } from "../query/relation.ts";
+import type { Model } from "../query/model.ts";
 
 /** The PostgreSQL type identifiers of json and jsonb. */
 const JSON_TYPES = [114, 3802] as const;
@@ -28,12 +30,14 @@ const CLOSED_CODES: ReadonlySet<string> = new Set(["CONNECTION_DESTROYED", "CONN
 const FRAGMENT = "#";
 
 /** A PostgreSQL database with its own pool. */
-export class PostgresDatabase extends DatabaseConnection {
+export class PostgresDatabase<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> extends DatabaseConnection<Models> {
     /** The PostgreSQL connection pool. */
     readonly $client: postgres.Sql;
 
     /** Bind tables to a connection pool. */
-    constructor(client: postgres.Sql, tables: declaration.Database | readonly Table[]) {
+    constructor(client: postgres.Sql, tables: declaration.Database<Models> | readonly Table[]) {
         // declare the tables with their tree tables
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
         requireDistinct(declared, "postgresql");
@@ -49,6 +53,7 @@ export class PostgresDatabase extends DatabaseConnection {
                 ),
             ),
             declared,
+            "tables" in tables ? tables.relations : new Relations<Models>(),
         );
         this.$client = client;
     }

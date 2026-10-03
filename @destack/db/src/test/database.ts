@@ -4,6 +4,7 @@ import { join } from "node:path";
 import postgres from "postgres";
 import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
+import type { Model } from "../query/model.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
@@ -20,7 +21,7 @@ import { readState, STATE, type TableState } from "../migration/state.ts";
 /** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES has a server address. */
 export const TEST_DIALECTS: readonly Dialect[] = [
     "sqlite",
-    ...(process.env["DESTACK_TEST_POSTGRES"] === undefined ? [] : (["postgresql"] as const)),
+    ...((process.env["DESTACK_TEST_POSTGRES"] ?? "") === "" ? [] : (["postgresql"] as const)),
 ];
 
 /** The connections each test database pools: ten workers stay within a server's hundred. */
@@ -54,9 +55,11 @@ let testServer: Promise<TestServer> | undefined;
  *
  * Migrated PostgreSQL schemas stay on the server by declared state, claimed through advisory locks and reset per test.
  */
-export class TestDatabase {
+export class TestDatabase<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> {
     /** The first connection. */
-    readonly database: DatabaseConnection & { close(): Promise<void> };
+    readonly database: TestConnection<Models>;
     /** Open another connection, absent for SQLite in memory. */
     readonly #open: TestConnector | undefined;
     /** Remove the database. */
@@ -66,7 +69,7 @@ export class TestDatabase {
 
     /** Create the test database. */
     private constructor(
-        database: TestDatabase["database"],
+        database: TestConnection<Models>,
         open: TestConnector | undefined,
         remove: () => Promise<void>,
     ) {
@@ -76,11 +79,13 @@ export class TestDatabase {
     }
 
     /** Create an isolated database, empty or migrated. */
-    static async create(
+    static async create<
+        Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+    >(
         dialect: Dialect,
-        tables: declaration.Database | readonly Table[],
+        tables: declaration.Database<Models> | readonly Table[],
         options: TestDatabaseOptions = {},
-    ): Promise<TestDatabase> {
+    ): Promise<TestDatabase<Models>> {
         const declared = "tables" in tables ? tables.tables : tables;
 
         // claim or create a PostgreSQL schema
@@ -98,8 +103,7 @@ export class TestDatabase {
                     isReplica: options.isReplica ?? false,
                 });
                 const schema = await server.claim(state, tables);
-                const open = (connected: declaration.Database | readonly Table[]) =>
-                    schema.connect(connected);
+                const open: TestConnector = (connected) => schema.connect(connected);
 
                 return new TestDatabase(await open(tables), open, async () => {
                     schema.isIdle = true;
@@ -109,7 +113,7 @@ export class TestDatabase {
             // create an empty schema
             const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
             await server.administration.unsafe(`CREATE SCHEMA "${schema}"`);
-            const open = (connected: declaration.Database | readonly Table[]) =>
+            const open: TestConnector = (connected) =>
                 postgresql.connect(server.connect(schema), connected);
 
             return new TestDatabase(await open(tables), open, async () => {
@@ -140,7 +144,7 @@ export class TestDatabase {
 
                 return party();
             };
-            const open = (connected: declaration.Database | readonly Table[]) =>
+            const open: TestConnector = (connected) =>
                 sqlite.connect(file, connected, { openChannel });
 
             return new TestDatabase(await open(tables), open, () =>
@@ -150,9 +154,9 @@ export class TestDatabase {
     }
 
     /** Open another connection to the same database. */
-    async connect(
-        tables: declaration.Database | readonly Table[],
-    ): Promise<DatabaseConnection & { close(): Promise<void> }> {
+    async connect<Other extends Readonly<Record<string, Model>>>(
+        tables: declaration.Database<Other> | readonly Table[],
+    ): Promise<TestConnection<Other>> {
         // require a reachable database
         if (this.#open === undefined) {
             throw new TypeError("an in-memory SQLite database has no further connections");
@@ -463,7 +467,9 @@ class TestSchema {
     }
 
     /** Connect over an idle or new pool, returning it when the connection closes. */
-    async connect(tables: declaration.Database | readonly Table[]): Promise<TestConnection> {
+    async connect<Models extends Readonly<Record<string, Model>>>(
+        tables: declaration.Database<Models> | readonly Table[],
+    ): Promise<TestConnection<Models>> {
         return new LentDatabase(
             this.pools.pop() ?? this.server.connect(this.name),
             tables,
@@ -473,14 +479,16 @@ class TestSchema {
 }
 
 /** A PostgreSQL database over a pool a test schema lends. */
-class LentDatabase extends PostgresDatabase {
+class LentDatabase<
+    Models extends Readonly<Record<string, Model>>,
+> extends PostgresDatabase<Models> {
     /** The idle pools the pool returns to. */
     readonly #idle: postgres.Sql[];
 
     /** Bind tables to a lent pool. */
     constructor(
         client: postgres.Sql,
-        tables: declaration.Database | readonly Table[],
+        tables: declaration.Database<Models> | readonly Table[],
         idle: postgres.Sql[],
     ) {
         super(client, tables);
@@ -538,7 +546,11 @@ function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<s
 }
 
 /** A connection to a test database. */
-type TestConnection = DatabaseConnection & { close(): Promise<void> };
+type TestConnection<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> = DatabaseConnection<Models> & { close(): Promise<void> };
 
 /** Open a connection to a test database. */
-type TestConnector = (tables: declaration.Database | readonly Table[]) => Promise<TestConnection>;
+type TestConnector = <Models extends Readonly<Record<string, Model>>>(
+    tables: declaration.Database<Models> | readonly Table[],
+) => Promise<TestConnection<Models>>;

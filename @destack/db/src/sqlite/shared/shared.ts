@@ -7,6 +7,7 @@ import { SqliteDatabase } from "../database.ts";
 import { DatabaseError, errorCode } from "../../error/error.ts";
 import { Savepoint, type ConnectionClient, type QueryClient } from "../client.ts";
 import { LOG_TOPIC } from "../../log/schema.ts";
+import type { Model } from "../../query/model.ts";
 
 /**
  * The idle timeout of a party's transaction at the owner, in milliseconds.
@@ -257,11 +258,13 @@ class OpenTransaction {
 }
 
 /** Open a database with statements that the channel's owner runs. */
-export function connectShared(
+export function connectShared<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+>(
     channel: Channel<unknown>,
     party: string,
-    tables: declaration.Database | readonly Table[] = [],
-): SqliteDatabase<SharedClient> {
+    tables: declaration.Database<Models> | readonly Table[] = [],
+): SqliteDatabase<SharedClient, Models> {
     const client = new SharedClient(channel, party);
 
     return new SqliteDatabase(client, tables, "embedded", (name: string) =>

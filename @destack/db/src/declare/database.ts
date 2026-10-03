@@ -1,6 +1,11 @@
 import { defineSchema, schema } from "@destack/schema";
 import { ModuleMetadata, type Package } from "@destack/package";
-import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
+import {
+    defineResourceKind,
+    ResourceDeclaration,
+    type Connector,
+    type ResourceBinding,
+} from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { connectors } from "#connector";
@@ -8,6 +13,8 @@ import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { DatabaseState, declareState } from "../migration/state.ts";
 import { DatabaseTier } from "./tier.ts";
+import { Relations } from "../query/relation.ts";
+import type { Model } from "../query/model.ts";
 
 /** A database's resource settings. */
 export const DatabaseSpec = defineSchema(schema.object({ tier: DatabaseTier }));
@@ -22,19 +29,42 @@ export const DatabaseKind = defineResourceKind("database", {
 /** A named database dependency. */
 export type DatabaseDescription = schema.Infer<typeof DatabaseKind.description>;
 
+/** Opens databases of one provider inside a workload, typed by each declaration's models. */
+export interface DatabaseConnector {
+    /** The provider code the connector connects to, such as sqlite. */
+    readonly code: string;
+    /** Open a database the caller disposes, refusing one lacking its declaration's tables. */
+    connect<Models extends Readonly<Record<string, Model>>>(
+        binding: ResourceBinding,
+        declaration: Database<Models>,
+    ): Promise<DatabaseConnection<Models> & AsyncDisposable>;
+}
+
 /** A database declaration. */
-export class Database extends ResourceDeclaration<DatabaseConnection, DatabaseDescription> {
+export class Database<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> extends ResourceDeclaration<DatabaseConnection<Models>, DatabaseDescription> {
     /** The tables the database keeps, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
+    /** The relations of the tables, which relational reads name. */
+    readonly relations: Relations<Models>;
 
     /** Create the declaration. */
-    constructor(owner: Package, description: DatabaseDescription, tables: readonly Table[]) {
+    constructor(
+        owner: Package,
+        description: DatabaseDescription,
+        tables: readonly Table[],
+        relations: Relations<Models>,
+    ) {
         super(owner, description);
         this.tables = tables;
+        this.relations = relations;
     }
 
     /** The connectors opening databases on the running runtime. */
-    override get connectors() {
+    override get connectors(): Readonly<
+        Record<string, Connector<DatabaseConnection<Models>, this>>
+    > {
         return connectors;
     }
 
@@ -49,7 +79,7 @@ export class Database extends ResourceDeclaration<DatabaseConnection, DatabaseDe
     }
 
     /** Read the connection. */
-    override get(context: ResourceContext): DatabaseConnection {
+    override get(context: ResourceContext): DatabaseConnection<Models> {
         return context.get(this);
     }
 
@@ -60,13 +90,17 @@ export class Database extends ResourceDeclaration<DatabaseConnection, DatabaseDe
 }
 
 /** A database as authored. */
-export interface DatabaseDefinition {
+export interface DatabaseDefinition<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> {
     /** The package-local database name. */
     readonly name: string;
     /** Where the database lives, within one zone when absent. */
     readonly tier?: DatabaseTier;
     /** The tables the database keeps, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
+    /** The relations of the tables. */
+    readonly relations?: Relations<Models>;
 }
 
 /**
@@ -74,7 +108,9 @@ export interface DatabaseDefinition {
  *
  * A database keeps tables of its own tier and of wider ones, whose rows it replicates from their home.
  */
-export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMetadata): Database {
+export function defineDatabase<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+>(definition: DatabaseDefinition<Models>, module?: ModuleMetadata): Database<Models> {
     // reject duplicate SQL names and tables of a narrower tier
     const owner = ModuleMetadata.require(module, "defineDatabase").package;
     const tier = definition.tier ?? "zonal";
@@ -92,6 +128,15 @@ export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMe
         names.set(sqlName, table);
     }
 
+    // require relations among the database's tables
+    const relations = definition.relations ?? new Relations<Models>();
+    const kept = new Set(names.values());
+    for (const [name, table] of Object.entries(relations.tables)) {
+        if (!kept.has(table)) {
+            throw new TypeError(`relations name table ${name}, which the database does not keep`);
+        }
+    }
+
     // validate the resource description
     const description = DatabaseKind.description.parse({
         name: definition.name,
@@ -99,5 +144,5 @@ export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMe
         spec: { tier },
     });
 
-    return new Database(owner, description, [...names.values()]);
+    return new Database(owner, description, [...names.values()], relations);
 }

@@ -1,26 +1,26 @@
 import { fileURLToPath } from "node:url";
-import { type Connector, type ResourceBinding, type ResourceRecord } from "@destack/resource";
-import type { DatabaseConnection } from "../database/connection.ts";
-import { Database } from "../declare/database.ts";
+import { type ResourceBinding, type ResourceRecord } from "@destack/resource";
+import type { Database, DatabaseConnector } from "../declare/database.ts";
+import type { Model } from "../query/model.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Table } from "../table/table.ts";
 import { socketChannel } from "../channel/socket.ts";
 import { connect } from "./bun/connection.ts";
 import type { SqliteDatabase } from "./database.ts";
+import type { BunClient } from "./bun/client.ts";
 
 /** Open SQLite database files inside a workload, refusing one lacking its declaration's tables. */
-export const sqliteConnector: Connector<DatabaseConnection> = {
+export const sqliteConnector: DatabaseConnector = {
     code: "sqlite",
-    connect: async (binding, declaration) => {
+    async connect(binding, declaration) {
         // refuse a database lacking its tables
-        const database = requireDatabase(declaration);
-        const connection = await open(binding, database.tables);
-        const unapplied = await database.check(connection);
+        const connection = await open(binding, declaration);
+        const unapplied = await declaration.check(connection);
         if (unapplied.length > 0) {
             await connection.close();
             throw new DatabaseError(
                 "NOT_APPLIED",
-                `database ${database.name} has not applied ${unapplied.join(", ")}`,
+                `database ${declaration.name} has not applied ${unapplied.join(", ")}`,
             );
         }
 
@@ -37,20 +37,11 @@ export function requireReference(reference: string | null): string {
     return reference;
 }
 
-/** Require a database declaration. */
-function requireDatabase(declaration: unknown): Database {
-    if (!(declaration instanceof Database)) {
-        throw new TypeError("not a database declaration");
-    }
-
-    return declaration;
-}
-
 /** Open a provisioned database file, announcing commits to the file's other writers on its channel. */
-export function open(
+export function open<Models extends Readonly<Record<string, Model>>>(
     resource: Pick<ResourceRecord | ResourceBinding, "reference">,
-    tables: readonly Table[],
-): Promise<SqliteDatabase> {
+    tables: Database<Models> | readonly Table[],
+): Promise<SqliteDatabase<BunClient, Models>> {
     const path = fileURLToPath(requireReference(resource.reference));
 
     return connect(path, tables, { openChannel: (name) => socketChannel(`${path}#${name}`) });

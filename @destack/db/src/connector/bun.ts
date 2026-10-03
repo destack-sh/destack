@@ -1,8 +1,7 @@
-import type { Connector } from "@destack/resource";
-import type { DatabaseConnection } from "../database/connection.ts";
+import type { DatabaseConnector } from "../declare/database.ts";
 
 /** The connectors opening databases on Bun: SQLite files, loaded on first connect. */
-export const connectors: Readonly<Record<string, Connector<DatabaseConnection>>> = {
+export const connectors: Readonly<Record<string, DatabaseConnector>> = {
     sqlite: {
         code: "sqlite",
         connect: async (bound, declaration) => {

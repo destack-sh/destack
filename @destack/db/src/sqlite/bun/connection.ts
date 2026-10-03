@@ -4,6 +4,7 @@ import type * as declaration from "../../declare/database.ts";
 import type { Table } from "../../table/table.ts";
 import { SqliteDatabase, type ConnectOptions } from "../database.ts";
 import { BunClient } from "./client.ts";
+import type { Model } from "../../query/model.ts";
 
 /**
  * The wait for another process's write lock, in milliseconds.
@@ -13,11 +14,13 @@ import { BunClient } from "./client.ts";
 const BUSY_TIMEOUT_MILLISECONDS = 5000;
 
 /** Open a SQLite database file or `:memory:`. */
-export async function connect(
+export async function connect<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+>(
     connection: string | Database,
-    tables: declaration.Database | readonly Table[] = [],
+    tables: declaration.Database<Models> | readonly Table[] = [],
     options: ConnectOptions = {},
-): Promise<SqliteDatabase<BunClient>> {
+): Promise<SqliteDatabase<BunClient, Models>> {
     // open the file, or take the database given
     const database = typeof connection === "string" ? new Database(connection) : connection;
 

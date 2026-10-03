@@ -11,18 +11,21 @@ import { SqliteSession } from "../database/session.ts";
 import { expandTrees } from "../tree/tree.ts";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
+import { Relations } from "../query/relation.ts";
+import type { Model } from "../query/model.ts";
 
 /** A SQLite database with its own connection. */
 export class SqliteDatabase<
     Client extends ConnectionClient = ConnectionClient,
-> extends DatabaseConnection {
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> extends DatabaseConnection<Models> {
     /** The SQLite connection client. */
     readonly $client: Client;
 
     /** Bind tables to a SQLite connection. */
     constructor(
         client: Client,
-        tables: declaration.Database | readonly Table[],
+        tables: declaration.Database<Models> | readonly Table[],
         locality: Locality,
         openChannel: OpenChannel | undefined,
     ) {
@@ -40,6 +43,7 @@ export class SqliteDatabase<
                 ),
             ),
             declared,
+            "tables" in tables ? tables.relations : new Relations<Models>(),
         );
         this.$client = client;
     }
