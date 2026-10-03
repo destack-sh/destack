@@ -1,11 +1,13 @@
-Attach comments, reactions, read receipts, favourites and presence to any object.
+# @destack/social
+
+Attach comments, reactions, read receipts, favourites and presence to objects.
 
 ## Hosts
 
-A host attaches each social type with the host permission it requires, such as `comment` to comment and react.
+Each social type's `attach` adds it to an object type and names the permission it requires on the object, such as `comment` to comment and react.
 
 ```ts
-import { announcement, notification, subscription } from "@destack/notification";
+import { activity, announcement, subscription } from "@destack/notification";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { comment, favourite, presence, reaction, receipt } from "@destack/social";
@@ -23,7 +25,7 @@ export const article = defineObject({
     attachments: [
         comment.attach({ by: "comment" }),
         reaction.attach({ by: "comment" }),
-        notification.attach({ by: "read" }),
+        activity.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
         receipt.attach({ by: "read" }),
@@ -34,19 +36,15 @@ export const article = defineObject({
 });
 ```
 
-## Object types
-
-Comments, reactions, read receipts, favourites and presences each nest in any host that attaches them.
-
 ## Comments
 
-A reply names its thread's first comment as `threadId`.
+`threadId` on a reply names the first comment of its thread, and `resolve` marks the thread resolved.
 
 ```ts
 const parent = { packageId: article.package.id, type: "article", id: articleId };
 const first = await client.mutate(comment).create({
     parent,
-    body: { text: "@bob, tighten this", mentions: [{ offset: 0, length: 4, principal: bob }] },
+    body: { text: "@bob, shorten this", mentions: [{ offset: 0, length: 4, principal: bob }] },
     selection: { field: "body", anchor, head },
 }).predicted;
 client.mutate(comment).create({ parent, body: { text: "Done", mentions: [] }, threadId: first.id });
@@ -55,18 +53,13 @@ client.mutate(comment).resolve({ id: first.id });
 
 ## Notifications
 
-The server's `comment` from `@destack/social/server` subscribes the author and sends the `mention`, `thread` and `reply` notifications.
+`comment` from `@destack/social/server` subscribes the author to the thread and sends the `mention`, `thread` and `reply` notifications.
 
 ```ts
-import { NotificationServer } from "@destack/notification/server";
+import { ActivityServer } from "@destack/notification/server";
 import { mention, reply, thread } from "@destack/social";
 import { comment } from "@destack/social/server";
 
-const notifications = new NotificationServer({
-    notifications: [mention, thread, reply],
-    recipients,
-    push,
-    mail,
-});
-const objects = { ...notifications.objects(), comment, reaction, subscription };
+const activities = new ActivityServer({ notifications: [mention, thread, reply] });
+const objects = { ...activities.objects(), comment, reaction, subscription };
 ```
