@@ -1,17 +1,28 @@
-/** A JSON value, as readers see it. */
-export type JsonValue =
-    | string
-    | number
-    | boolean
-    | null
-    | readonly JsonValue[]
-    | { readonly [key: string]: JsonValue };
+import { json } from "../validate/json.ts";
 
-/** Tell JSON values apart. */
+/** A JSON value, as readers see it. */
+export type JsonValue = string | number | boolean | null | readonly JsonValue[] | JsonObject;
+
+/** A JSON object whose optional fields may be absent, as type-fest's `JsonObject`. */
+export type JsonObject = { readonly [Key in string]: JsonValue } & {
+    readonly [Key in string]?: JsonValue | undefined;
+};
+
+/** Tell JSON values apart, and read values in their JSON form. */
 export const JsonValue = {
     /** Report whether a JSON value is an object, neither an array nor a scalar. */
-    isObject(value: JsonValue): value is { readonly [key: string]: JsonValue } {
+    isObject(value: JsonValue): value is JsonObject {
         return typeof value === "object" && value !== null && !Array.isArray(value);
+    },
+
+    /** Read a value in its JSON form, as `JSON.stringify` writes it. */
+    of(value: unknown): JsonValue {
+        const text = JSON.stringify(value);
+        if (text === undefined) {
+            throw new TypeError("value has no JSON form");
+        }
+
+        return json().parse(JSON.parse(text));
     },
 };
 

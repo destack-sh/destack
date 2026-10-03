@@ -2,7 +2,8 @@ Define, validate and describe the data of Destack packages, based on [Zod](https
 
 ## Schemas
 
-`schema` is Zod's API, limited to rules JSON Schema can express: transforms, refinements, dates and loose objects are rejected.
+`schema` is Zod's API.
+`defineSchema` and `toJsonSchema` accept only rules JSON Schema can express: they reject transforms, refinements, dates and loose objects.
 
 ```ts
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
@@ -46,9 +47,9 @@ compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.number()))
 An identifier is a lowercase prefix and a UUIDv7, branded by its prefix.
 
 ```ts
-import { identifier, Identifier } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 
-const SpaceId = identifier("space");
+const SpaceId = schema.identifier("space");
 const id = SpaceId.parse("space-01995f12-3456-7890-8abc-123456789abc");
 Identifier.uuid(id); // "01995f12-3456-7890-8abc-123456789abc"
 ```
@@ -95,6 +96,30 @@ const Credential = schema.object({
 });
 schema.isSensitive(Credential.shape.token); // true
 schema.redact(Credential, { name: "ci", token: "secret" }); // { name: "ci" }
+```
+
+## JSON
+
+`JsonValue` is a JSON value as readers see it, and `schema.json()` validates one.
+
+```ts
+import { JsonValue, schema } from "@destack/schema";
+
+JsonValue.of(new URL("https://destack.sh")); // "https://destack.sh/"
+schema.json().parse({ tags: ["a"] }); // { tags: ["a"] }
+```
+
+## Checked reads
+
+These reads refuse a missing value instead of passing `undefined` on.
+
+```ts
+import { aligned, found, present, zip } from "@destack/schema";
+
+present(user.email, "email"); // the email, or TypeError "email is missing"
+found(notes, id); // the map's value, or RangeError
+aligned(rows, 2); // the third row, or RangeError
+zip(ids, rows); // [[id, row], ...], or RangeError for lists of different lengths
 ```
 
 ## Digests

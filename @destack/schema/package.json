@@ -4,7 +4,7 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Define Destack's portable values: validation schemas, identifiers, versions, durations, canonical JSON, and the condition and expression language.",
+    "description": "Define Destack's portable values: validation schemas, identifiers, versions, time values, digests and canonical JSON.",
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "publish:dry": "npm publish --dry-run --access public",
