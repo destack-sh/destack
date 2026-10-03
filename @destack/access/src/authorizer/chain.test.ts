@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, type DatabaseConnection, Condition } from "@destack/db";
+import { asc, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope } from "@destack/sync";
 import {
     accessRelationship,
@@ -55,14 +55,18 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
             throw new Error(`no chain request for ${scope}`);
         }
         following.push(
-            app.authorizer
-                .replicaOf(request)
+            app.authorizer.chainShape
+                .replica(request)
                 .follow(
                     app.database,
-                    (after, signal) =>
-                        feed.subscribe(authorizer.replicaOf(request).queries, after, signal),
+                    ({ after }, signal) =>
+                        feed.subscribe(
+                            authorizer.chainShape.replica(request).queries,
+                            after,
+                            signal,
+                        ),
                     controller.signal,
-                    { request },
+                    { subscription: request },
                 ),
         );
     };
@@ -102,29 +106,19 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     // leave the access rows of local types and of universe-living types out of every copy
     const types = [...app.authorizer.local, ...authorizer.universal];
     expect(
-        authorizer
-            .replicaOf({
-                name: "chain",
-                scope: "universe",
-                below: "personal",
-                access: true,
-                local: [...app.authorizer.local],
-                copied: [],
-                rows: [],
-            })
+        authorizer.chainShape
+            .replica(
+                authorizer.chainShape.subscription({
+                    name: "chain",
+                    scope: "universe",
+                    below: "personal",
+                    parameters: { local: [...app.authorizer.local], copied: [] },
+                }),
+            )
             .where.get(accessRelationship),
-    ).toEqual(
-        Condition.not(
-            Condition.any(
-                ...types.map((type) =>
-                    Condition.all(
-                        Condition.eq("packageId", type.packageId),
-                        Condition.eq("type", type.type),
-                    ),
-                ),
-            ),
-        ),
-    );
+    ).toEqual({
+        NOT: { OR: types.map((type) => ({ packageId: type.packageId, type: type.type })) },
+    });
     expect(authorizer.universal.map((type) => type.type)).toEqual(["region", "user"]);
 
     // follow a grant on the account into the copy

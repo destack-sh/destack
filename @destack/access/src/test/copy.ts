@@ -1,6 +1,6 @@
 import { eq, type DatabaseConnection } from "@destack/db";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -54,7 +54,7 @@ export async function copyRole(
     now = Date.now(),
 ): Promise<string> {
     // define the role in the scope
-    const id = identifier("role").parse(`role-${v7()}`);
+    const id = schema.identifier("role").parse(`role-${v7()}`);
     await database.insert(accessRole).values({
         id,
         createdAt: now,
@@ -69,7 +69,7 @@ export async function copyRole(
     await database.insert(accessRelationship).values(
         Relationship.encode(
             {
-                id: identifier("relationship").parse(`relationship-${v7()}`),
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
                 object: scope,
                 role: id,
                 subject,

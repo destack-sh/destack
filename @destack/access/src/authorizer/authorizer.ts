@@ -8,15 +8,20 @@ import {
     type SQL,
     type Table,
     Condition,
+    Placeholder,
+    Predicate,
     Snapshot,
     TABLE,
+    type Row,
 } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { identifier, schema, zip } from "@destack/schema";
+import { schema, zip } from "@destack/schema";
 import {
+    defineShape,
     Replica,
     Scope,
-    type ReplicaRequest,
+    type Shape,
+    type Subscription,
     type ScopeLink,
     type Watch,
     type ObjectReference,
@@ -25,12 +30,13 @@ import {
 } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import { relationsOf, PermissionReference, type Policy } from "../policy/policy.ts";
-import type { AccessExpression } from "../policy/expression.ts";
+import type { AccessExpression, AttributeType, ConditionExpression } from "../policy/expression.ts";
 import { accepts, type RelationDefinition, type SubjectType } from "../policy/subject.ts";
-import { INTRINSIC_POLICIES } from "../policy/principal.ts";
+import { ACCESS_PACKAGE_ID, INTRINSIC_POLICIES } from "../policy/principal.ts";
+import { ACCESS_MAPPINGS } from "../replica/replica.ts";
 import { type AccessContext } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
-import { accessRelationship, type RelationshipRow } from "../relationship/table.ts";
+import { accessRelationship, type EncodedRelationship } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { Creation } from "./authorization.ts";
 import { accessRole } from "../role/table.ts";
@@ -50,6 +56,36 @@ const WILDCARD = "*";
  * Feeds repeat their position every ten seconds, and a copy three beats late has lost its source.
  */
 const LAG_MILLISECONDS = 30_000;
+
+/** The name of the shape copying the universe's rows a scope reads. */
+const UNIVERSE_SHAPE = "universe";
+
+/** The parameters of a chain copy: the object types whose access rows the follower keeps, and those whose rows it copies. */
+const ChainParameters = schema.object({
+    /** The object types whose access rows live in the follower's own database. */
+    local: schema.array(ObjectTypeReference),
+    /** The object types the follower keeps copies of: the inherited rows of inherited types, and the scope's own row of scope types. */
+    copied: schema.array(ObjectTypeReference),
+});
+/** The parameters of a chain copy. */
+export type ChainParameters = schema.Infer<typeof ChainParameters>;
+
+/** The parameters of a copy of the universe's rows: the rows of each object type, decided for their reader. */
+const UniverseParameters = schema.object({
+    /** The rows of each object type. */
+    rows: schema.array(
+        schema.object({
+            /** The object type. */
+            type: ObjectTypeReference,
+            /** The rows copied. */
+            where: Condition.schema,
+            /** The requested object types whose copied rows are the scopes of these rows, absent for rows of the copied scope. */
+            within: schema.array(ObjectTypeReference).min(1).exactOptional(),
+        }),
+    ),
+});
+/** The parameters of a copy of the universe's rows. */
+export type UniverseParameters = schema.Infer<typeof UniverseParameters>;
 
 /** The rows of a set a caller has a permission on, by position, and the next moment time alone may change that. */
 export interface Admission {
@@ -233,8 +269,18 @@ export class Authorizer {
                 relations: {},
             }));
 
+        // map access's types onto its tables where no declared type represents them
+        const unrepresented = ACCESS_MAPPINGS.filter(
+            (mapping) =>
+                this.policy({
+                    packageId: mapping.policy.definition.packageId,
+                    type: mapping.policy.definition.name,
+                }) === mapping.policy &&
+                !mappings.some((declared) => declared.table === mapping.table),
+        );
+
         // register each mapping once and validate its columns against its policy
-        for (const source of [...mappings, ...scopes]) {
+        for (const source of [...mappings, ...scopes, ...unrepresented]) {
             const mapping = TableMapping.freeze(source);
             const definition = mapping.policy.definition;
             if (
@@ -581,11 +627,7 @@ export class Authorizer {
     }
 
     /** Read the object a row's field relation names, absent when the row names none. */
-    related(
-        mapping: TableMapping,
-        relation: string,
-        row: Readonly<Record<string, unknown>>,
-    ): ObjectReference | undefined {
+    related(mapping: TableMapping, relation: string, row: Row): ObjectReference | undefined {
         // read the related identifier
         const field = mapping.relations[relation];
         if (field === undefined) {
@@ -658,7 +700,7 @@ export class Authorizer {
         database: DatabaseConnection,
         below: string,
         options: { readonly isHome: boolean },
-    ): Promise<Omit<ReplicaRequest, "after">[]> {
+    ): Promise<Subscription[]> {
         // read the ancestors the scope's copy lists, the scope alone until it arrives
         const [copy] = await database
             .select({ ancestors: Scope.table.ancestors })
@@ -670,83 +712,131 @@ export class Authorizer {
         ];
 
         // copy each scope's access rows, inherited rows and own object, decided for the scope below
-        return scopes.map((scope) => ({
-            name: COPY_NAME,
-            scope,
-            below,
-            access: true,
-            local: [...this.local],
-            copied: [...this.copied],
-            rows: [],
-        }));
+        return scopes.map((scope) =>
+            this.chainShape.subscription({
+                name: COPY_NAME,
+                scope,
+                below,
+                parameters: { local: [...this.local], copied: [...this.copied] },
+            }),
+        );
     }
 
-    /** Build the copy a request asks for: a scope's access rows, inherited rows and global rows. */
-    replicaOf(request: Omit<ReplicaRequest, "after">): Replica {
+    /** The shape of a scope's chain copy: its access rows, inherited rows and own object, decided for the scope below by containment. */
+    readonly chainShape = defineShape({
+        name: COPY_NAME,
+        parameters: ChainParameters,
+        audience: "contained",
+        replica: ({ name, scope, parameters }) => this.#chainReplica(name, scope, parameters),
+    });
+
+    /** The shape of the rows of the universe a scope reads, decided for their reader where they live. */
+    readonly universeShape = defineShape({
+        name: UNIVERSE_SHAPE,
+        parameters: UniverseParameters,
+        audience: "reader",
+        replica: ({ name, scope, parameters }) => this.#universeReplica(name, scope, parameters),
+    });
+
+    /** The shapes the policies decide: chain copies and the universe's rows. */
+    get shapes(): readonly Shape[] {
+        return [this.chainShape, this.universeShape];
+    }
+
+    /** Build the copy a request of one of the policies' shapes asks for, refusing any other shape. */
+    replicaOf(request: Subscription): Replica {
+        const shape = this.shapes.find((declared) => declared.name === request.shape);
+        if (shape === undefined) {
+            throw new AccessError("NOT_FOUND", `no shape ${request.shape}`);
+        }
+
+        return shape.replica(request);
+    }
+
+    /** Build a chain copy: a scope's access rows, its copied types' inherited rows and its own row. */
+    #chainReplica(name: string, scope: string, parameters: ChainParameters): Replica {
         // leave out the access rows of the objects the follower keeps, and of objects living in the universe
-        const own = Condition.not(
-            Condition.any(
-                ...[...request.local, ...this.universal].map((type) =>
-                    Condition.all(
-                        Condition.eq("packageId", type.packageId),
-                        Condition.eq("type", type.type),
-                    ),
-                ),
-            ),
-        );
-        const access: [Table, Condition | undefined][] = request.access
-            ? decisionTables.map((table) => [table, table === accessRelationship ? own : undefined])
-            : [];
+        const remote: Condition = {
+            NOT: {
+                OR: [...parameters.local, ...this.universal].map((type) => ({
+                    packageId: type.packageId,
+                    type: type.type,
+                })),
+            },
+        };
+        const access = decisionTables.map((table): [Table, Condition | undefined] => [
+            table,
+            table === accessRelationship ? remote : undefined,
+        ]);
 
         // add each copied type's inherited rows, or the scope's own row when its identifier is of a copied scope type
-        const copied = request.copied.flatMap((type): [Table, Condition][] => {
-            // copy an inherited type's inherited rows
-            const mapping = this.mapping(type);
-            const table = this.#copiedTable(type);
-            if (mapping.inherited !== undefined) {
-                return [[table, mapping.inherited]];
-            } else if (mapping.policy.definition.scope !== true) {
-                throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
-            }
-            const scopeIdentifier = column(table, mapping.id).definition.schema;
-
-            return scopeIdentifier.safeParse(request.scope).success
-                ? [[table, Condition.eq(mapping.id, request.scope)]]
-                : [];
-        });
+        const copied = parameters.copied.flatMap((type) => this.#copiedRows(type, scope));
         const owned = new Set(
-            request.copied
+            parameters.copied
                 .filter((type) => this.mapping(type).inherited === undefined)
                 .map((type) => this.#copiedTable(type)),
         );
 
-        // add each requested type's rows
-        const rows = request.rows.map(({ type, where }): [Table, Condition] => [
-            this.#copiedTable(type),
-            where,
-        ]);
-
-        // copy across scopes the rows living in the scopes of other requested types' rows
-        const within = request.rows.flatMap(({ type, within: parents }): [Table, Table[]][] =>
-            parents === undefined
-                ? []
-                : [[this.#copiedTable(type), parents.map((parent) => this.#copiedTable(parent))]],
-        );
-
         // copy them under the request's name and scope
-        const tables = [...access, ...copied, ...rows];
+        const tables = [...access, ...copied];
 
         return new Replica({
-            name: request.name,
-            scope: request.scope,
+            name,
+            scope,
             tables: tables.map(([table]) => table),
             where: new Map(
                 tables.flatMap(([table, where]): [Table, Condition][] =>
                     where === undefined ? [] : [[table, where]],
                 ),
             ),
-            within: new Map(within),
             everywhere: owned,
+        });
+    }
+
+    /** Select a copied type's rows in a chain copy: an inherited type's inherited rows, or the scope's own row of a scope type. */
+    #copiedRows(type: ObjectTypeReference, scope: string): [Table, Condition][] {
+        const mapping = this.mapping(type);
+        const table = this.#copiedTable(type);
+
+        // copy an inherited type's inherited rows
+        if (mapping.inherited !== undefined) {
+            return [[table, mapping.inherited]];
+        }
+        // refuse a type that is neither inherited nor a scope
+        else if (mapping.policy.definition.scope !== true) {
+            throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
+        }
+        // copy the scope's own row when its identifier is of the scope type
+        else {
+            const scopeIdentifier = column(table, mapping.id).definition.schema;
+
+            return scopeIdentifier.safeParse(scope).success
+                ? [[table, { [mapping.id]: scope }]]
+                : [];
+        }
+    }
+
+    /** Build a copy of the universe's rows: each requested type's rows, those living in other requested rows' scopes copied across them. */
+    #universeReplica(name: string, scope: string, parameters: UniverseParameters): Replica {
+        // add each requested type's rows
+        const rows = parameters.rows.map(({ type, where }): [Table, Condition] => [
+            this.#copiedTable(type),
+            where,
+        ]);
+
+        // copy across scopes the rows living in the scopes of other requested types' rows
+        const within = parameters.rows.flatMap(({ type, within: parents }): [Table, Table[]][] =>
+            parents === undefined
+                ? []
+                : [[this.#copiedTable(type), parents.map((parent) => this.#copiedTable(parent))]],
+        );
+
+        return new Replica({
+            name,
+            scope,
+            tables: rows.map(([table]) => table),
+            where: new Map(rows),
+            within: new Map(within),
         });
     }
 
@@ -776,7 +866,7 @@ export class Authorizer {
                       {
                           table: accessRelationship,
                           scopes: "every" as const,
-                          where: Condition.oneOf("subjectId", [...ids, WILDCARD]),
+                          where: { subjectId: { in: [...ids, WILDCARD] } },
                       },
                   ]),
         ];
@@ -786,20 +876,30 @@ export class Authorizer {
     async relationships(
         snapshot: Snapshot,
         object: ObjectReference,
+        access: Access,
         page: { readonly after?: string; readonly limit: number },
     ): Promise<Relationship[]> {
+        // admit the relationships the caller may read, as relationship reads decide them
+        const read = this.policy({ packageId: ACCESS_PACKAGE_ID, type: "relationship" }).permission(
+            "read",
+        );
         const rows = await snapshot.ordered(accessRelationship, {
-            where: Condition.all(
-                Condition.eq("objectScope", object.scope),
-                Condition.eq("packageId", object.packageId),
-                Condition.eq("type", object.type),
-                Condition.eq("objectId", object.id),
-            ),
-            order: [{ column: "id", direction: "asc" }],
+            admits: {
+                current: this.where(read, access, accessRelationship),
+                image: async (row) =>
+                    (await this.checkRows(snapshot, read, access, [row])).permitted.has(0),
+            },
+            where: {
+                objectScope: object.scope,
+                packageId: object.packageId,
+                type: object.type,
+                objectId: object.id,
+            },
+            orderBy: { id: "asc" },
             ...(page.after === undefined
                 ? {}
-                : { after: { id: identifier("relationship").parse(page.after) } }),
-            count: page.limit,
+                : { after: { id: schema.identifier("relationship").parse(page.after) } }),
+            limit: page.limit,
         });
 
         return rows.map((row) => Relationship.decode(row));
@@ -810,7 +910,7 @@ export class Authorizer {
         object: ObjectReference,
         creation: Creation,
         now: number,
-    ): RelationshipRow[] {
+    ): EncodedRelationship[] {
         const scope = this.governingScope(object);
 
         return (creation.relationships ?? []).map((request) => {
@@ -858,7 +958,7 @@ export class Authorizer {
         ) {
             throw new AccessError("FORBIDDEN", `relation ${request.relation} rejects the subject`);
         }
-        // require a role's subject to be named, since a wildcard would bind the role to everyone
+        // refuse a wildcard as a role's subject
         else if (isRole && subject !== undefined && (subject.id === "*" || subject.scope === "*")) {
             throw new AccessError("FORBIDDEN", "a role binds only to named subjects");
         }
@@ -1148,7 +1248,7 @@ export class Authorizer {
         snapshot: Snapshot,
         permission: PermissionReference,
         access: Access,
-        rows: readonly Readonly<Record<string, unknown>>[],
+        rows: readonly Row[],
         reader = this.reader(snapshot, access.scopes),
         below: ReadonlyMap<string, Access> = new Map(),
     ): Promise<Admission> {
@@ -1258,7 +1358,7 @@ export class Authorizer {
     #gate(
         permission: PermissionReference,
         mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         access: Access,
         lookup: Lookup,
     ): ReturnType<Access["gate"]> | "outside" {
@@ -1276,11 +1376,13 @@ export class Authorizer {
         // require a listed row to live in the scope or be the scope's own row, as a row of the mapped type
         const definition = mapping.policy.definition;
         const scope = TableMapping.scope(mapping, row);
-        const own = access.own(mapping);
-        const isOwn =
-            own !== undefined && scope === own.scope && String(row[mapping.id]) === own.id;
+        const object = access.scopeObject(mapping);
+        const isScopeObject =
+            object !== undefined &&
+            scope === object.scope &&
+            TableMapping.text(row, mapping.id) === object.id;
 
-        return (scope !== access.scope && !isOwn) ||
+        return (scope !== access.scope && !isScopeObject) ||
             (mapping.isShared === true &&
                 (row["packageId"] !== definition.packageId || row["type"] !== definition.name))
             ? "outside"
@@ -1305,7 +1407,7 @@ export class Authorizer {
                     `missing tree mapping: ${expression.relation}`,
                 );
             } else if (
-                expression.kind === "grants" &&
+                (expression.kind === "granters" || expression.kind === "readers") &&
                 mapping.references?.[expression.reference] === undefined
             ) {
                 throw new AccessError(
@@ -1476,7 +1578,8 @@ export class Authorizer {
         for (let expression = pending.pop(); expression !== undefined; expression = pending.pop()) {
             switch (expression.kind) {
                 case "none":
-                case "grants":
+                case "granters":
+                case "readers":
                     break;
                 case "union":
                 case "intersection":
@@ -1491,8 +1594,9 @@ export class Authorizer {
                 case "permission":
                     this.#validate(type.permission(expression.name), path);
                     break;
-                case "condition":
-                    validateCondition(expression.condition, type);
+                case "resource":
+                case "context":
+                    validateCondition(expression, type);
                     break;
                 case "through": {
                     // follow the relation to plain objects of types declaring the permission
@@ -1550,58 +1654,138 @@ function grantsUntil(grants: readonly Grant[], access: Access): number | undefin
 
     return earliest(
         grants.flatMap((grant) => [
-            grant.condition?.boundary(context),
-            ...grant.arrows.map((arrow) => arrow.boundary(context)),
+            grant.condition?.until(context),
+            ...grant.arrows.map((arrow) => arrow.until(context)),
         ]),
     );
 }
 
-/** Require a condition to read declared attributes, ordering numbers only and comparing literals of their type. */
-function validateCondition(condition: Condition, type: Policy): void {
-    // refuse conditions that follow relations
-    const [relation] = Condition.relations(condition);
-    if (relation !== undefined) {
+/** Require a condition to read declared attributes of the object or the request, and compare values of their type. */
+function validateCondition(expression: ConditionExpression, type: Policy): void {
+    // read the object's or the request's attributes
+    const isObject = expression.kind === "resource";
+    const definition = type.definition;
+    const predicate = type.resolve(expression);
+
+    // refuse relations and undeclared attributes, which resolve as relations
+    const [relation] = Predicate.relations(predicate);
+    if (relation !== undefined && Object.hasOwn(definition.relations, relation.via)) {
         throw new AccessError(
             "INVALID_DECLARATION",
             `policy conditions follow no relations: ${relation.via}`,
         );
+    } else if (relation !== undefined) {
+        throw new AccessError(
+            "INVALID_DECLARATION",
+            `undeclared ${isObject ? "object" : "request"} attribute: ${relation.via}`,
+        );
     }
 
-    // require each attribute declared
-    const attributes = type.definition.attributes;
-    for (const name of Condition.columns(condition)) {
-        if (!Object.hasOwn(attributes, name)) {
-            throw new AccessError("INVALID_DECLARATION", `undeclared object attribute: ${name}`);
+    // compare values of each attribute's type
+    validatePredicate(
+        predicate,
+        isObject ? definition.attributes : definition.context,
+        isObject ? definition.context : undefined,
+    );
+}
+
+/** Require comparisons with values of each attribute's declared type, ordering only numbers. */
+function validatePredicate(
+    predicate: Predicate,
+    declared: Readonly<Record<string, AttributeType>>,
+    placeholders: Readonly<Record<string, AttributeType>> | undefined,
+): void {
+    switch (predicate.kind) {
+        case "compare": {
+            // read the compared value's type, a placeholder's from its declared request attribute
+            const value = predicate.value;
+            const valueType =
+                value instanceof Placeholder
+                    ? placeholderType(value.placeholder, placeholders)
+                    : typeof value;
+            const isOrdered = predicate.operator !== "eq" && predicate.operator !== "ne";
+            const attribute = attributeType(predicate.name, declared);
+
+            // order only numbers, and compare only values of the attribute's type
+            if (isOrdered && attribute !== "number") {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `ordered comparisons require a number attribute: ${predicate.name}`,
+                );
+            } else if (valueType !== attribute) {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `comparisons require a ${attribute} value: ${predicate.name}`,
+                );
+            }
+            break;
         }
-    }
-
-    // require literals of the attribute's type, and numbers for ordered comparisons
-    if (condition.kind === "compare") {
-        const [attribute, other] =
-            condition.left.kind === "column"
-                ? [condition.left.name, condition.right]
-                : condition.right.kind === "column"
-                  ? [condition.right.name, condition.left]
-                  : [undefined, undefined];
-        const declared = attribute === undefined ? undefined : attributes[attribute];
-        const isOrdered = condition.operator !== "eq" && condition.operator !== "ne";
-        if (
-            (isOrdered && declared !== undefined && declared !== "number") ||
-            (other?.kind === "literal" && declared !== undefined && typeof other.value !== declared)
-        ) {
+        case "oneOf": {
+            // require listed values of the attribute's type
+            const attribute = attributeType(predicate.name, declared);
+            if (predicate.values.some((value) => typeof value !== attribute)) {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `listed values require ${attribute} values: ${predicate.name}`,
+                );
+            }
+            break;
+        }
+        case "missing":
+            attributeType(predicate.name, declared);
+            break;
+        case "like":
+            // require a text attribute for a pattern
+            if (attributeType(predicate.name, declared) !== "string") {
+                throw new AccessError("INVALID_DECLARATION", "patterns match text attributes");
+            }
+            break;
+        case "all":
+        case "any":
+            for (const nested of predicate.predicates) {
+                validatePredicate(nested, declared, placeholders);
+            }
+            break;
+        case "not":
+            validatePredicate(predicate.predicate, declared, placeholders);
+            break;
+        case "exists":
             throw new AccessError(
                 "INVALID_DECLARATION",
-                "ordered comparisons require numbers and equality requires matching types",
+                `policy conditions follow no relations: ${predicate.via}`,
             );
-        }
     }
-    // validate through combinations
-    else if (condition.kind === "all" || condition.kind === "any" || condition.kind === "not") {
-        const nested = condition.kind === "not" ? [condition.condition] : condition.conditions;
-        for (const entry of nested) {
-            validateCondition(entry, type);
-        }
+}
+
+/** Read a declared attribute's type. */
+function attributeType(
+    name: string,
+    declared: Readonly<Record<string, AttributeType>>,
+): AttributeType {
+    const type = Object.hasOwn(declared, name) ? declared[name] : undefined;
+    if (type === undefined) {
+        throw new AccessError("INVALID_DECLARATION", `undeclared attribute: ${name}`);
     }
+
+    return type;
+}
+
+/** Read the type of the request attribute a placeholder reads. */
+function placeholderType(
+    name: string,
+    placeholders: Readonly<Record<string, AttributeType>> | undefined,
+): AttributeType {
+    // refuse placeholders in request conditions, which read request attributes directly
+    if (placeholders === undefined) {
+        throw new AccessError(
+            "INVALID_DECLARATION",
+            `request conditions read no placeholders: ${name}`,
+        );
+    } else if (!Object.hasOwn(placeholders, name)) {
+        throw new AccessError("INVALID_DECLARATION", `undeclared request attribute: ${name}`);
+    }
+
+    return attributeType(name, placeholders);
 }
 
 /** Collect the keys of the permissions policies list as reserved or administrative. */

@@ -5,7 +5,7 @@ import {
     integer,
     TABLE,
     text,
-    Condition,
+    sql,
     type Tree,
 } from "@destack/db";
 import {
@@ -19,7 +19,8 @@ import {
     through,
     intersection,
     exclusion,
-    condition,
+    resource,
+    context,
 } from "../index.ts";
 import { accessTables, type TableMapping } from "../index.ts";
 import { PackageId } from "@destack/package";
@@ -113,6 +114,7 @@ export const node = new Policy(module1.package, {
             ],
         },
         "subtree-editor": { subjects: [principal.user, anyone.all()] },
+        auditor: { subjects: [principal.user], concealed: true },
     },
     permissions: {
         share: relation("owner"),
@@ -123,7 +125,7 @@ export const node = new Policy(module1.package, {
             relation("subtree-editor"),
             through("parent", "edit-descendant", true),
         ),
-        read: union(permission("edit"), relation("viewer")),
+        read: union(permission("edit"), relation("viewer"), relation("auditor")),
     },
     grantedBy: "share",
 });
@@ -139,20 +141,28 @@ export const team = new Policy(module1.package, {
 export const cell = new Policy(module2.package, {
     name: "cell",
     attributes: { row: "number", column: "number", locked: "number" },
+    context: {
+        "first-row": "number",
+        "last-row": "number",
+        "first-column": "number",
+        "last-column": "number",
+    },
     relations: { owner: { subjects: [principal.user] } },
     permissions: {
         read: relation("owner"),
         edit: intersection(
             relation("owner"),
-            condition(
-                Condition.all(
-                    Condition.gte("row", Condition.parameter("first-row")),
-                    Condition.lte("row", Condition.parameter("last-row")),
-                    Condition.gte("column", Condition.parameter("first-column")),
-                    Condition.lte("column", Condition.parameter("last-column")),
-                    Condition.eq("locked", 0),
-                ),
-            ),
+            resource({
+                row: {
+                    gte: sql.placeholder("first-row"),
+                    lte: sql.placeholder("last-row"),
+                },
+                column: {
+                    gte: sql.placeholder("first-column"),
+                    lte: sql.placeholder("last-column"),
+                },
+                locked: 0,
+            }),
         ),
     },
 });
@@ -161,17 +171,16 @@ export const cell = new Policy(module2.package, {
 export const entity = new Policy(module3.package, {
     name: "entity",
     attributes: { team: "number", protected: "number" },
+    context: { team: "number", phase: "string" },
     relations: { owner: { subjects: [principal.user] } },
     permissions: {
         read: relation("owner"),
         edit: exclusion(
-            condition(
-                Condition.all(
-                    Condition.eq("team", Condition.parameter("team")),
-                    Condition.compare("eq", Condition.parameter("phase"), "edit"),
-                ),
+            intersection(
+                resource({ team: { eq: sql.placeholder("team") } }),
+                context({ phase: "edit" }),
             ),
-            condition(Condition.eq("protected", 1)),
+            resource({ protected: 1 }),
         ),
     },
     elevated: { edit: RECENT },
@@ -250,7 +259,7 @@ export const mappings: TableMapping[] = [
         scope: "scope",
         attributes: {},
         relations: {},
-        inherited: Condition.eq("mode", "require"),
+        inherited: { mode: "require" },
     },
     { policy: group, table: groupTable, id: "id", scope: "scope", attributes: {}, relations: {} },
     {

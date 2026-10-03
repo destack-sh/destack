@@ -1,7 +1,6 @@
 {
     "name": "@destack/access",
     "version": "2026.9.0",
-    "private": true,
     "type": "module",
     "license": "MIT",
     "sideEffects": false,
@@ -20,7 +19,8 @@
         "@destack/sync": "workspace:*"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     },
     "scripts": {
         "check": "tsc -p tsconfig.json",

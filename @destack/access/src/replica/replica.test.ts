@@ -49,15 +49,14 @@ function including(entry: TableMapping): TableMapping[] {
 
 /** Build the copy of a scope's chain row an authorizer's database follows. */
 function chainOf(authorizer: Authorizer, scope: string) {
-    return authorizer.replicaOf({
-        name: COPY_NAME,
-        scope,
-        below: scope,
-        access: true,
-        local: [...authorizer.local],
-        copied: [...authorizer.copied],
-        rows: [],
-    });
+    return authorizer.chainShape.replica(
+        authorizer.chainShape.subscription({
+            name: COPY_NAME,
+            scope,
+            below: scope,
+            parameters: { local: [...authorizer.local], copied: [...authorizer.copied] },
+        }),
+    );
 }
 
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
