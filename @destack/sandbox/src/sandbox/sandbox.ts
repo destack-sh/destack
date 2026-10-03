@@ -88,7 +88,7 @@ export class Sandbox implements AsyncDisposable {
             cwd: options.directory,
             env: {
                 PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
-                HOME: options.directory,
+                HOME: tmpdir(),
                 TMPDIR: tmpdir(),
             },
             stdio: ["pipe", "pipe", "pipe", "ipc"],

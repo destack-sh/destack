@@ -269,7 +269,7 @@ test("stop the workload when its supervising client disconnects", async () => {
         ["run", "--no-env-file", fileURLToPath(new URL("../main.ts", import.meta.url))],
         {
             cwd: directory,
-            env: { PATH: "/usr/bin:/bin:/usr/sbin:/sbin", HOME: directory },
+            env: { PATH: "/usr/bin:/bin:/usr/sbin:/sbin", HOME: tmpdir(), TMPDIR: tmpdir() },
             stdio: ["ignore", "pipe", "pipe", "ipc"],
         },
     );
