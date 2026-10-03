@@ -140,3 +140,23 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "refuse inserting and updating properties of no column on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
+        const stray = { owner: "ada", name: "a", value: 1, count: 2 };
+        const changes = { value: 2, count: 2 };
+
+        // refuse the stray property in either write, writing nothing
+        await expect(database.insert(counter).values(stray)).rejects.toThrow(
+            "mutation_counter has no column count",
+        );
+        await expect(
+            database.update(counter).set(changes).where(eq(counter.owner, "ada")),
+        ).rejects.toThrow("mutation_counter has no column count");
+        expect(await database.select().from(counter)).toEqual([]);
+    },
+);

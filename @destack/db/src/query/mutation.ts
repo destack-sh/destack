@@ -10,7 +10,7 @@ import {
     type SQLWrapper,
 } from "../sql/index.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
-import { Column } from "../table/column.ts";
+import { Column, type ColumnValue } from "../table/column.ts";
 import { type Insert, type Select, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -23,6 +23,9 @@ export type InsertValue<Definition extends Table> = {
         | Placeholder
         | undefined;
 };
+
+/** The values one inserted record or one update writes, by property. */
+type Written = Readonly<Record<string, ColumnValue | SQL | Placeholder | undefined>>;
 
 /** The fields a mutation returns. */
 export interface ReturningSelection {
@@ -62,9 +65,9 @@ interface MutationState<Definition extends Table> {
     /** The SQL operation. */
     readonly operation: "insert" | "update" | "delete";
     /** The inserted records by property. */
-    readonly records: readonly Readonly<Record<string, unknown>>[];
+    readonly records: readonly Written[];
     /** The updated values by property. */
-    readonly changes: Readonly<Record<string, unknown>>;
+    readonly changes: Written;
     /** The changed rows of an update or deletion. */
     readonly where: SQLWrapper | undefined;
     /** The insert's conflict handling. */
@@ -112,9 +115,7 @@ export class MutationQuery<
         this: MutationQuery<Definition, Result, "insert">,
         values: InsertValue<Definition> | readonly InsertValue<Definition>[],
     ): MutationQuery<Definition, Result, "insert"> {
-        const records: readonly Readonly<Record<string, unknown>>[] = Array.isArray(values)
-            ? values
-            : [values];
+        const records: readonly Written[] = Array.isArray(values) ? values : [values];
 
         return new MutationQuery({ ...this.state, records });
     }
@@ -177,7 +178,11 @@ export class MutationQuery<
     returning<Fields extends ReturningSelection>(
         fields: Fields,
     ): MutationQuery<Definition, SelectionResult<Fields>[], Operation>;
-    /** Return fields of the changed records, whose signatures above type them by the fields. */
+    /**
+     * Return fields of the changed records, whose signatures above type them by the fields.
+     *
+     * @construct the returned rows decode through the selected fields, or every column, which is how the signatures above map the result.
+     */
     returning(fields?: ReturningSelection): MutationQuery<Definition, unknown[], Operation> {
         return new MutationQuery({
             ...this.state,
@@ -187,7 +192,11 @@ export class MutationQuery<
 
     /** Run the mutation, returning the changed rows when asked. */
     async execute(): Promise<Result>;
-    /** Run the mutation, whose signature above types its result by the returned fields. */
+    /**
+     * Run the mutation, whose signature above types its result by the returned fields.
+     *
+     * @construct the rows decode through the projection of the returned fields, from which the builder computed Result.
+     */
     async execute(): Promise<unknown> {
         // render the mutation for the driver's dialect
         const state = this.state;
@@ -229,13 +238,23 @@ export class MutationQuery<
         const table = state.table;
         const parts: SQL[] = [];
 
-        // insert every written column, defaulting the columns a record leaves out
+        // insert every written column, defaulting the columns a record leaves out and refusing properties of no column
         if (state.operation === "insert") {
             if (state.records.length === 0) {
                 throw new DatabaseError(
                     "INVALID_QUERY",
                     `insert into ${table[TABLE].name} has no records`,
                 );
+            }
+            for (const property of new Set(
+                state.records.flatMap((record) => Object.keys(record)),
+            )) {
+                if (!Object.hasOwn(table[TABLE].columns, property)) {
+                    throw new DatabaseError(
+                        "INVALID_QUERY",
+                        `${table[TABLE].name} has no column ${property}`,
+                    );
+                }
             }
             const written = table[TABLE].entries.filter(
                 ([property, column]) =>
@@ -299,7 +318,7 @@ export class MutationQuery<
 }
 
 /** Write `column = value` for each set property. */
-function assignments(table: Table, changes: Readonly<Record<string, unknown>>): SQL {
+function assignments(table: Table, changes: Written): SQL {
     const set = Object.entries(changes).flatMap(([property, value]) => {
         const column = table[TABLE].columns[property];
         if (column === undefined) {
@@ -343,7 +362,9 @@ function unqualified(fields: ReturningSelection): ReturningSelection {
     return Object.fromEntries(
         Object.entries(fields).map(([property, field]) => [
             property,
-            field instanceof Column ? sql.identifier(field.definition.name).mapWith(field) : field,
+            field instanceof Column
+                ? sql.identifier(field.definition.name).mapWith(field.definition)
+                : field,
         ]),
     );
 }

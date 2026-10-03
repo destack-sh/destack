@@ -2,6 +2,7 @@ import { schema } from "@destack/schema";
 import { and, isNull, sql, type SQL } from "../sql/index.ts";
 import { TABLE, Table, type Select } from "../table/table.ts";
 import type { ColumnValue } from "../table/column.ts";
+import type { Row } from "../table/row.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Condition, Scalar } from "./condition.ts";
 
@@ -52,20 +53,20 @@ export const Key = {
 
     /** Match the rows with any of some keys. */
     any(table: Table, keys: readonly Key[]): Condition {
-        return Condition.any(
-            ...keys.map((key) =>
-                Condition.all(
-                    ...table[TABLE].key.map((property) =>
-                        Condition.eq(
+        return {
+            OR: keys.map((key) =>
+                Condition.equal(
+                    Object.fromEntries(
+                        table[TABLE].key.map((property) => [
                             property,
                             Scalar.parse(
                                 Key.json(table, property, Key.value(table, key, property)),
                             ),
-                        ),
+                        ]),
                     ),
                 ),
             ),
-        );
+        };
     },
 
     /** Build a row's key name from its table and key, alike in every dialect. */
@@ -81,7 +82,7 @@ export const Key = {
     },
 
     /** Read a row's key from any record of its columns, failing for a missing or non-scalar key value. */
-    of(table: Table, row: Readonly<Record<string, unknown>>): Key {
+    of(table: Table, row: Row): Key {
         const key: Record<string, ColumnValue> = {};
         for (const property of table[TABLE].key) {
             const value = row[property];

@@ -2,11 +2,12 @@ import { schema } from "@destack/schema";
 import { CHAIN_TERMS, and, inArray, sql, type SQL } from "../sql/index.ts";
 import { Projection } from "../query/selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { Condition, type Match } from "../query/condition.ts";
+import { Condition } from "../query/condition.ts";
+import { Predicate, type Match } from "../query/predicate.ts";
 import { Key } from "../query/key.ts";
 import { Change } from "./log.ts";
-import { Order } from "../query/order.ts";
-import type { Computed, Namespace } from "../query/namespace.ts";
+import { Order, type OrderBy } from "../query/order.ts";
+import { Namespace, type Extras } from "../query/namespace.ts";
 import { Expression, type Related } from "../expression/expression.ts";
 import { TABLE, Table, type Logged } from "../table/table.ts";
 import { headFields, latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
@@ -29,13 +30,13 @@ const HEAD = schema.tuple([schema.string(), LogInteger.nullable(), LogInteger]);
 const KEYS_PER_READ = CHAIN_TERMS;
 
 /** A read of the first matching rows in an order. */
-export interface OrderedRead {
+export interface OrderedRead<Read = Row> {
     /** The condition the rows meet. */
-    readonly where: Condition;
-    /** The order of the rows. */
-    readonly order: Order;
+    readonly where: Condition<Read>;
+    /** How the rows sort, completed by the primary key. */
+    readonly orderBy: OrderBy<Read>;
     /** The most rows of each window. */
-    readonly count: number;
+    readonly limit: number;
     /** What the read admits beyond the condition. */
     readonly admits?: Admission;
     /** The computed values and relations the condition and order read. */
@@ -83,7 +84,7 @@ export interface Admission {
 /** How a snapshot follows a table's relations in memory. */
 export interface RelationView {
     /** Decide whether a related row met a condition, as of the position. */
-    decide(via: string, where: Condition | undefined, row: Row): Promise<boolean>;
+    decide(via: string, where: Condition, row: Row): Promise<boolean>;
     /** Read the keys of rows with related rows that changed between two sequences. */
     touched(after: number, upto: number): Promise<readonly Row[]>;
     /** Resolve a row's lookups, as of the position. */
@@ -130,18 +131,19 @@ export class Snapshot {
     /** Read a table's rows matching a condition. */
     async rows<Definition extends Table>(
         table: Definition,
-        where: Condition,
+        where: Condition<Logged<NoInfer<Definition>>>,
     ): Promise<Logged<Definition>[]> {
         // read the current rows and the changed rows' images
-        const { rows, sequence } = await this.#read(table, render(where, table));
+        const predicate = Condition.resolve(where, Namespace.fields(table));
+        const { rows, sequence } = await this.#read(table, render(predicate, table));
         const images = await this.#since(table, sequence);
 
         // keep unchanged rows and matching images
-        const match = Condition.compile(where, table);
+        const match = Predicate.compile(predicate, table);
         const kept =
             images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
         for (const image of images.values()) {
-            if (image !== null && Condition.matches(match, image)) {
+            if (image !== null && Predicate.matches(match, image)) {
                 kept.push(image);
             }
         }
@@ -207,9 +209,9 @@ export class Snapshot {
     }
 
     /** Read up to a count of admitted matching rows in an order after a row, with their computed values. */
-    async ordered<Definition extends Table>(
+    async ordered<Definition extends Table, Extra = {}>(
         table: Definition,
-        query: OrderedRead & { readonly after?: Row },
+        query: OrderedRead<Logged<NoInfer<Definition>> & Extra> & { readonly after?: Row },
     ): Promise<(Logged<Definition> & Row)[]> {
         const [rows] = await this.#windows(table, query, undefined);
         if (rows === undefined) {
@@ -220,9 +222,9 @@ export class Snapshot {
     }
 
     /** Read up to a count of admitted matching rows of each partition some values of a column name, in an order, aligned with the values. */
-    async windows<Definition extends Table>(
+    async windows<Definition extends Table, Extra = {}>(
         table: Definition,
-        query: OrderedRead & { readonly partition: Partition },
+        query: OrderedRead<Logged<NoInfer<Definition>> & Extra> & { readonly partition: Partition },
     ): Promise<(Logged<Definition> & Row)[][]> {
         const windows = await this.#windows(table, query, query.partition);
 
@@ -230,16 +232,17 @@ export class Snapshot {
     }
 
     /** Read the first rows of one window, or of each partition's window in one ranked read per round. */
-    async #windows(
+    async #windows<Read>(
         table: Table,
-        query: OrderedRead & { readonly after?: Row },
+        query: OrderedRead<Read> & { readonly after?: Row },
         partition: Partition | undefined,
     ): Promise<Row[][]> {
         // read enough current rows to cover every changed row
         const admits = query.admits;
         const isAdmittedInMemory = admits !== undefined && admits.current === undefined;
-        const order = Order.complete(query.order, table);
-        const namespace = query.namespace ?? { computed: {} };
+        const order = Order.complete(Order.of(query.orderBy), table);
+        const namespace = query.namespace ?? { extras: {} };
+        const predicate = Condition.resolve(query.where, Namespace.fields(table, namespace));
         const relations = query.relations;
         let changed = -1;
         let reached = this.position?.sequence;
@@ -250,13 +253,13 @@ export class Snapshot {
         while (unsettled.size > changed) {
             changed = unsettled.size;
             const selection = and(
-                render(query.where, table, namespace),
+                render(predicate, table, namespace),
                 admits?.current,
                 query.after === undefined
                     ? undefined
                     : Order.after(order, table, query.after, namespace),
             );
-            const limit = isAdmittedInMemory ? undefined : query.count + changed;
+            const limit = isAdmittedInMemory ? undefined : query.limit + changed;
             const read =
                 partition === undefined
                     ? await this.#read(table, selection, order, limit, namespace)
@@ -291,24 +294,49 @@ export class Snapshot {
         }
 
         // overlay the matching admitted images
-        const match = Condition.compile(query.where, table);
+        const kept = await this.#merge(table, rows, unsettled, query, order, predicate);
+
+        // sort each window and keep its first rows
+        const windows = windowsOf(table, kept, partition);
+
+        return windows.map((window) =>
+            window.toSorted((left, right) => Order.rows(order, left, right)).slice(0, query.limit),
+        );
+    }
+
+    /** Keep the admitted current rows no image replaces, and add the admitted images matching a read after its row. */
+    async #merge<Read>(
+        table: Table,
+        rows: Row[],
+        images: ReadonlyMap<string, Row | null>,
+        query: OrderedRead<Read> & { readonly after?: Row },
+        order: Order,
+        predicate: Predicate,
+    ): Promise<Row[]> {
+        // keep the current rows no image replaces
+        const { admits, relations } = query;
+        const namespace = query.namespace ?? { extras: {} };
+        const match = Predicate.compile(predicate, table);
         const current =
-            unsettled.size === 0
-                ? rows
-                : rows.filter((row) => !unsettled.has(Key.name(table, row)));
-        const decided = isAdmittedInMemory
-            ? await Promise.all(current.map((row) => admits.image(row)))
-            : undefined;
+            images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
+
+        // admit them in memory when the read admits no rows in SQL
+        const decided =
+            admits !== undefined && admits.current === undefined
+                ? await Promise.all(current.map((row) => admits.image(row)))
+                : undefined;
         const kept =
             decided === undefined ? current : current.filter((_, index) => decided[index] === true);
-        for (const image of unsettled.values()) {
+
+        // add the admitted images matching the read after its row
+        for (const image of images.values()) {
             const augmented =
                 image === null
                     ? null
-                    : augment(image, namespace.computed, await relations?.resolve(image));
+                    : augment(image, namespace.extras, await relations?.resolve(image));
             if (
                 augmented !== null &&
-                (await decides(match, query.where, augmented, relations)) &&
+                (await decides(match, predicate, augmented, relations)) &&
                 (query.after === undefined || Order.rows(order, augmented, query.after) > 0) &&
                 (admits === undefined || (await admits.image(augmented)))
             ) {
@@ -316,12 +344,7 @@ export class Snapshot {
             }
         }
 
-        // sort each window and keep its first rows
-        const windows = windowsOf(table, kept, partition);
-
-        return windows.map((window) =>
-            window.toSorted((left, right) => Order.rows(order, left, right)).slice(0, query.count),
-        );
+        return kept;
     }
 
     /** Read the rows changed related rows touched between the position and a sequence, once per relations, table and sequence. */
@@ -383,7 +406,7 @@ export class Snapshot {
         selection: SQL,
         order?: Order,
         limit?: number,
-        namespace: Namespace = { computed: {} },
+        namespace: Namespace = { extras: {} },
     ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
         // read the rows with their computed values beside the head
         const query = this.database
@@ -424,15 +447,13 @@ export class Snapshot {
                     WHERE ${sql.identifier("ranked")}.${sql.identifier(RANK)} <= ${limit}`;
         const read = await this.database.values(statement);
 
-        return this.#take(
-            projection.decode<{ readonly head: Head; readonly row: Row }>(read, dialect, new Set()),
-        );
+        return this.#take(projection.decode(read, dialect, new Set()));
     }
 
     /** Select a table's logged columns and computed values beside the log's head. */
     #fields(table: Table, namespace: Namespace) {
-        const computed = Object.fromEntries(
-            Object.entries(namespace.computed).map(([name, expression]) => [
+        const extras = Object.fromEntries(
+            Object.entries(namespace.extras).map(([name, expression]) => [
                 name,
                 Expression.select(expression, table, namespace),
             ]),
@@ -440,7 +461,7 @@ export class Snapshot {
 
         return {
             head: headFields(this.database.dialect),
-            row: { ...table[TABLE].logged, ...computed },
+            row: { ...table[TABLE].logged, ...extras },
         };
     }
 
@@ -519,19 +540,23 @@ export class Snapshot {
 
 /** Type rows a snapshot decoded by a table's logged columns as that table's logged records. */
 function logged<Definition extends Table>(rows: Row[]): (Logged<Definition> & Row)[];
-/** Pass the rows on, whose decoders and log keep exactly the table's logged columns. */
+/**
+ * Pass the rows on, whose decoders and log keep exactly the table's logged columns.
+ *
+ * @construct the snapshot decoded every row through the table's logged columns, which is how Logged maps the table.
+ */
 function logged(rows: Row[]): Row[] {
     return rows;
 }
 
-/** Render a condition over a table. */
-function render(where: Condition, table: Table, namespace: Namespace = { computed: {} }): SQL {
-    return Condition.render(where, Condition.bind(table, {}, namespace));
+/** Render a predicate over a table. */
+function render(predicate: Predicate, table: Table, namespace?: Namespace): SQL {
+    return Predicate.render(predicate, Predicate.bind(table, {}, namespace));
 }
 
 /** Add a row's computed values. */
-function augment(row: Row, computed: Computed, related?: Related): Row {
-    const entries = Object.entries(computed);
+function augment(row: Row, extras: Extras, related?: Related): Row {
+    const entries = Object.entries(extras);
 
     return entries.length === 0
         ? row
@@ -546,17 +571,17 @@ function augment(row: Row, computed: Computed, related?: Related): Row {
           };
 }
 
-/** Decide a condition on a row and read relations only when needed. */
+/** Decide a predicate on a row and read relations only when needed. */
 async function decides(
     match: Match,
-    where: Condition,
+    predicate: Predicate,
     row: Row,
     relations: RelationView | undefined,
 ): Promise<boolean> {
-    // decide by the columns alone
+    // decide by the fields alone
     const binding = {
-        column: (name: string) => row[name],
-        parameter: () => null,
+        field: (name: string) => row[name],
+        placeholder: Predicate.unbound,
         exists: () => undefined,
     };
     const decided = match(binding);
@@ -564,19 +589,18 @@ async function decides(
         return decided === true;
     }
 
-    // read each relation's answer and decide again
-    const answers = new Map<string, boolean>();
-    for (const { via, where: related } of Condition.relations(where)) {
-        answers.set(
-            JSON.stringify([via, related ?? null]),
-            await relations.decide(via, related, row),
-        );
+    // read each relation's answer, by relation and condition
+    const answers = new Map<string, Map<Condition, boolean>>();
+    for (const { via, where } of Predicate.relations(predicate)) {
+        const answered = answers.get(via) ?? new Map<Condition, boolean>();
+        answered.set(where, await relations.decide(via, where, row));
+        answers.set(via, answered);
     }
 
     return (
         match({
             ...binding,
-            exists: (via, related) => answers.get(JSON.stringify([via, related ?? null])),
+            exists: (via, where) => answers.get(via)?.get(where),
         }) === true
     );
 }

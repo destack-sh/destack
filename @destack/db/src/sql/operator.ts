@@ -1,4 +1,11 @@
-import { Column, type ColumnDefinition, type ColumnValue } from "../table/column.ts";
+import {
+    boolean,
+    Column,
+    integer,
+    numeric,
+    type ColumnDefinition,
+    type ColumnValue,
+} from "../table/column.ts";
 import { type Aliased, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from "./sql.ts";
 
 /**
@@ -37,7 +44,11 @@ export const lte: Comparison = (left, right) => compare(left, "<=", right);
 export function and(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL<boolean>;
 /** Combine the present predicates with AND. */
 export function and(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined;
-/** Combine the present predicates with AND, whose signatures above keep a required first predicate present. */
+/**
+ * Combine the present predicates with AND.
+ *
+ * @construct a required first predicate is present, so the combination is too.
+ */
 export function and(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined {
     const present = conditions.filter((condition) => condition !== undefined);
 
@@ -48,7 +59,11 @@ export function and(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | u
 export function or(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL<boolean>;
 /** Combine the present predicates with OR. */
 export function or(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined;
-/** Combine the present predicates with OR, whose signatures above keep a required first predicate present. */
+/**
+ * Combine the present predicates with OR.
+ *
+ * @construct a required first predicate is present, so the combination is too.
+ */
 export function or(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined {
     const present = conditions.filter((condition) => condition !== undefined);
 
@@ -134,14 +149,14 @@ export function notBetween<Value>(
     return sql<boolean>`${value} NOT BETWEEN ${bind(value, lower)} AND ${bind(value, upper)}`;
 }
 
-/** Match when a subquery has rows. */
+/** Match when a subquery has rows, selected as a boolean. */
 export function exists(query: SQLWrapper): SQL<boolean> {
-    return sql<boolean>`EXISTS (${query})`;
+    return sql`EXISTS (${query})`.mapWith(boolean("exists").definition);
 }
 
-/** Match when a subquery has no rows. */
+/** Match when a subquery has no rows, selected as a boolean. */
 export function notExists(query: SQLWrapper): SQL<boolean> {
-    return sql<boolean>`NOT EXISTS (${query})`;
+    return sql`NOT EXISTS (${query})`.mapWith(boolean("exists").definition);
 }
 
 /** Order ascending. */
@@ -156,31 +171,39 @@ export function desc(value: SQLWrapper): SQL {
 
 /** Count rows, or the present values of an expression. */
 export function count(value?: SQLWrapper): SQL<number> {
-    return (value === undefined ? sql`count(*)` : sql`count(${value})`).mapWith(countOf);
+    return (value === undefined ? sql`count(*)` : sql`count(${value})`).mapWith(
+        integer("count").definition,
+    );
 }
 
 /** Count distinct present values. */
 export function countDistinct(value: SQLWrapper): SQL<number> {
-    return sql`count(DISTINCT ${value})`.mapWith(countOf);
+    return sql`count(DISTINCT ${value})`.mapWith(integer("count").definition);
 }
 
 /** Sum numbers, as exact decimal text, missing over no rows. */
 export function sum(value: SQLWrapper): SQL<string | null> {
-    return sql`sum(${value})`.mapWith(nullableText);
+    return sql`sum(${value})`.mapWith(numeric("aggregate").definition);
 }
 
 /** Average numbers, as decimal text, missing over no rows. */
 export function avg(value: SQLWrapper): SQL<string | null> {
-    return sql`avg(${value})`.mapWith(nullableText);
+    return sql`avg(${value})`.mapWith(numeric("aggregate").definition);
 }
 
 /** Return the maximum column value, decoded by the column. */
 export function max<Value extends ColumnValue>(
     value: Column<ColumnDefinition<Value>>,
 ): SQL<Value | null>;
-/** Return the maximum expression value. */
-export function max(value: SQLWrapper): SQL<string | null>;
-/** Return the maximum value, whose signatures above type it by its operand. */
+/** Return the maximum expression value, decoded as the expression decodes. */
+export function max<Value>(value: SQL<Value>): SQL<Value | null>;
+/** Return the maximum of a column or expression, decoded as the operand decodes. */
+export function max(value: SQLWrapper): SQL;
+/**
+ * Return the maximum value.
+ *
+ * @construct the maximum decodes as its operand does: a column by its definition, an expression by its decoder.
+ */
 export function max(value: SQLWrapper): SQL {
     return extreme("max", value);
 }
@@ -189,9 +212,15 @@ export function max(value: SQLWrapper): SQL {
 export function min<Value extends ColumnValue>(
     value: Column<ColumnDefinition<Value>>,
 ): SQL<Value | null>;
-/** Return the minimum expression value. */
-export function min(value: SQLWrapper): SQL<string | null>;
-/** Return the minimum value, whose signatures above type it by its operand. */
+/** Return the minimum expression value, decoded as the expression decodes. */
+export function min<Value>(value: SQL<Value>): SQL<Value | null>;
+/** Return the minimum of a column or expression, decoded as the operand decodes. */
+export function min(value: SQLWrapper): SQL;
+/**
+ * Return the minimum value.
+ *
+ * @construct the minimum decodes as its operand does: a column by its definition, an expression by its decoder.
+ */
 export function min(value: SQLWrapper): SQL {
     return extreme("min", value);
 }
@@ -248,30 +277,7 @@ function membership(
 function extreme(name: "max" | "min", value: SQLWrapper): SQL {
     const aggregate = sql`${sql.raw(name)}(${value})`;
 
-    return Column.is(value) ? aggregate.mapWith(value) : aggregate.mapWith(nullableText);
-}
-
-/** Read a count's driver value: a number, an exact integer or PostgreSQL's decimal text. */
-function countOf(value: unknown): number {
-    const counted = typeof value === "string" || typeof value === "bigint" ? Number(value) : value;
-    if (typeof counted !== "number" || !Number.isSafeInteger(counted)) {
-        throw new TypeError("a count returned a value that is no safe integer");
-    }
-
-    return counted;
-}
-
-/** Read an aggregate's driver value as text, missing as null. */
-function nullableText(value: unknown): string | null {
-    if (value === null) {
-        return null;
-    } else if (
-        typeof value === "string" ||
-        typeof value === "number" ||
-        typeof value === "bigint"
-    ) {
-        return value.toString();
-    }
-
-    throw new TypeError("an aggregate returned a value that is no number");
+    return Column.is(value)
+        ? aggregate.mapWith(value.definition)
+        : new SQL(aggregate.chunks, value.getSQL().decoder);
 }

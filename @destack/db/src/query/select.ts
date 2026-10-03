@@ -139,7 +139,13 @@ export class SelectQuery<
     }
 
     /** Read every row. */
-    async execute(): Promise<Result[]> {
+    async execute(): Promise<Result[]>;
+    /**
+     * Read every row, decoded by the query's selection.
+     *
+     * @construct the rows decode through the projection of this query's fields and joins, from which the builder computed Result.
+     */
+    async execute(): Promise<unknown[]> {
         // run the query and decode its rows, nullable joined groups missing as null
         const projection = this.#projection();
         const rows = await this.state.driver.values(
@@ -151,7 +157,7 @@ export class SelectQuery<
                 .map((join) => join.table[TABLE].sqlName),
         );
 
-        return projection.decode<Result>(rows, this.state.driver.dialect, nullable);
+        return projection.decode(rows, this.state.driver.dialect, nullable);
     }
 
     /** Embed the query as a subquery, such as in `inArray` or `exists`. */

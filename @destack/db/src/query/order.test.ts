@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import type { JsonValue } from "@destack/schema";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable, TABLE, type Table } from "../table/table.ts";
 import { boolean, integer, text } from "../table/column.ts";
@@ -22,7 +23,7 @@ const sample = defineTable("order_sample", {
 });
 
 /** The values of each column. */
-const VALUES: Readonly<Record<string, readonly unknown[]>> = {
+const VALUES: Readonly<Record<string, readonly JsonValue[]>> = {
     name: ["a", "B", "é", "😀", "￿", "", null],
     rank: [-1, 0, 3, null],
     isOpen: [true, false, null],

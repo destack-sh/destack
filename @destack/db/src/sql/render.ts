@@ -65,9 +65,12 @@ export function fill(
         }
 
         // require each named value
-        const value = values[parameter.name];
+        const value = values[parameter.placeholder];
         if (value === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `no value for placeholder ${parameter.name}`);
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `no value for placeholder ${parameter.placeholder}`,
+            );
         }
 
         return value;
@@ -97,19 +100,14 @@ function renderChunk(chunk: Chunk, target: Target): string {
     }
     // bind an encoded value, null as it is, or a placeholder
     else if (chunk instanceof Parameter || chunk instanceof Placeholder) {
-        const value =
-            chunk instanceof Placeholder
-                ? chunk
-                : chunk.encoder === undefined || chunk.value === null
-                  ? driverValue(chunk.value)
-                  : chunk.encoder.definition.encode(chunk.value, dialect);
+        const value = chunk instanceof Placeholder ? chunk : encoded(chunk, dialect);
 
         // write a literal into a declaration, or bind a parameter
         if (target.parameters === undefined) {
             if (value instanceof Placeholder) {
                 throw new DatabaseError(
                     "INVALID_QUERY",
-                    `declarations cannot bind placeholder ${value.name}`,
+                    `declarations cannot bind placeholder ${value.placeholder}`,
                 );
             }
 
@@ -145,9 +143,21 @@ function renderChunk(chunk: Chunk, target: Target): string {
     else if (chunk instanceof Aliased) {
         return renderChunk(chunk.sql, target);
     }
-    // render any other wrapper, such as a query, as its fragment
+    // render any other SQL value, such as a query, as its fragment
     else {
         return renderChunk(chunk.getSQL(), target);
+    }
+}
+
+/** Encode a parameter's value through its column, null and a value without a column as they are. */
+function encoded(parameter: Parameter, dialect: Dialect): DriverValue {
+    // take null and a value without a column as they are
+    if (parameter.encoder === undefined || parameter.value === null) {
+        return driverValue(parameter.value);
+    }
+    // encode through the column
+    else {
+        return parameter.encoder.definition.encode(parameter.value, dialect);
     }
 }
 

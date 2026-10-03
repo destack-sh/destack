@@ -4,7 +4,6 @@ import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable, type Select } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
 import { integer, text } from "../table/column.ts";
-import { Condition } from "../query/condition.ts";
 import { Order } from "../query/order.ts";
 import type { LogPosition } from "./position.ts";
 import { Snapshot } from "./snapshot.ts";
@@ -62,8 +61,8 @@ test.for(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         const database = storage.database;
         const seed = { value: 19 };
-        const where = Condition.all(Condition.eq("scope", "inbox"), Condition.gte("rank", 2));
-        const order = [{ column: "rank", direction: "desc" as const }];
+        const where = { scope: "inbox", rank: { gte: 2 } };
+        const orderBy = { rank: "desc" } as const;
 
         // write at random and capture the rows at each position
         const captured: { readonly position: LogPosition; readonly rows: Select<typeof item>[] }[] =
@@ -93,24 +92,26 @@ test.for(TEST_DIALECTS)(
             const snapshot = database.log.at(position);
             const matching = rows.filter((row) => row.scope === "inbox" && row.rank >= 2);
             const sorted = matching.toSorted((left, right) =>
-                Order.rows(Order.complete(order, item), left, right),
+                Order.rows(Order.complete(Order.of(orderBy), item), left, right),
             );
 
             // read the first rows of each folder at once, as each folder's own read has them
             const firstOf = (scope: string) =>
                 rows
                     .filter((row) => row.scope === scope && row.rank >= 2)
-                    .toSorted((left, right) => Order.rows(Order.complete(order, item), left, right))
+                    .toSorted((left, right) =>
+                        Order.rows(Order.complete(Order.of(orderBy), item), left, right),
+                    )
                     .slice(0, 3);
             expect([
                 position.sequence,
                 byKey(await snapshot.rows(item, where)),
                 await snapshot.row(item, { id: "i3" }),
-                await snapshot.ordered(item, { where, order, count: 3 }),
+                await snapshot.ordered(item, { where, orderBy, limit: 3 }),
                 await snapshot.windows(item, {
-                    where: Condition.gte("rank", 2),
-                    order,
-                    count: 3,
+                    where: { rank: { gte: 2 } },
+                    orderBy,
+                    limit: 3,
                     partition: { column: "scope", values: ["inbox", "archive", "nowhere"] },
                 }),
             ]).toEqual([
@@ -130,7 +131,7 @@ test.for(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, [item, revision], { isMigrated: true });
         onTestFinished(() => storage.close());
         const database = storage.database;
-        const everything = Condition.all();
+        const everything = {};
 
         // write, take a position, change and compact
         await database.insert(item).values({ id: "a", scope: "inbox", rank: 1, label: null });
@@ -175,7 +176,7 @@ test.for(TEST_DIALECTS)(
 
             return [
                 head,
-                await snapshot.rows(item, Condition.eq("scope", "inbox")),
+                await snapshot.rows(item, { scope: "inbox" }),
                 await snapshot.row(item, { id: "i2" }),
             ] as const;
         });
@@ -196,8 +197,8 @@ test.for(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         const database = storage.database;
         const seed = { value: 7 };
-        const where = Condition.all(Condition.eq("scope", "inbox"), Condition.gte("rank", 2));
-        const order = [{ column: "rank", direction: "desc" as const }];
+        const where = { scope: "inbox", rank: { gte: 2 } };
+        const orderBy = { rank: "desc" } as const;
 
         // put rows over some keys and remove others
         const overlay = new Map<string, Select<typeof item> | null>();
@@ -248,13 +249,13 @@ test.for(TEST_DIALECTS)(
             const shown = [...kept, ...[...overlay.values()].filter((row) => row !== null)];
             const matching = shown.filter((row) => row.scope === "inbox" && row.rank >= 2);
             const sorted = matching.toSorted((left, right) =>
-                Order.rows(Order.complete(order, item), left, right),
+                Order.rows(Order.complete(Order.of(orderBy), item), left, right),
             );
             expect([
                 position?.sequence,
                 byKey(await snapshot.rows(item, where)),
                 await snapshot.row(item, { id: "i3" }),
-                await snapshot.ordered(item, { where, order, count: 3 }),
+                await snapshot.ordered(item, { where, orderBy, limit: 3 }),
             ]).toEqual([
                 position?.sequence,
                 byKey(matching),

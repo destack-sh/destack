@@ -54,7 +54,7 @@ const tag = defineTable("tag", {
 });
 
 /** The identifier of a sample. */
-const SampleId = schemas.identifier("sample");
+const SampleId = schemas.schema.identifier("sample");
 
 /** A sample with a value of every kind. */
 const row = {

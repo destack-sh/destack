@@ -4,7 +4,7 @@ import { TABLE, type Table } from "../table/table.ts";
 import type { ColumnKind, ColumnValue } from "../table/column.ts";
 import type { Namespace } from "../query/namespace.ts";
 import { JsonValue, schema, Version } from "@destack/schema";
-import { Condition, Scalar } from "../query/condition.ts";
+import { Condition, Scalar, type JsonCondition } from "../query/condition.ts";
 
 /** The most terms one expression has, bounding compiled SQL; computed fields use under ten. */
 const EXPRESSION_TERMS = 64;
@@ -61,7 +61,7 @@ export type Expression =
           readonly function: Rollup;
           readonly via: string;
           readonly column?: string;
-          readonly where?: Condition;
+          readonly where: JsonCondition;
       }
     | { readonly kind: "json"; readonly value: JsonValue }
     | { readonly kind: "path"; readonly of: Expression; readonly keys: readonly string[] }
@@ -84,15 +84,10 @@ export type Rollup = schema.Infer<typeof Rollup>;
 
 /** The related rows an expression reads. */
 export interface Related {
-    /** Read a column of the related row. */
-    lookup(via: string, column: string): Scalar;
+    /** Read a column of the related row, as rows hold it. */
+    lookup(via: string, column: string): ColumnValue;
     /** Measure the related rows meeting a condition. */
-    rollup(
-        measure: Rollup,
-        via: string,
-        column: string | undefined,
-        where: Condition | undefined,
-    ): Scalar;
+    rollup(measure: Rollup, via: string, column: string | undefined, where: Condition): ColumnValue;
 }
 
 /** The schema of an expression. */
@@ -142,7 +137,7 @@ const expressionSchema: schema.Schema<Expression> = schema.lazy(() =>
             /** The measured column of the related rows, absent for a count. */
             column: schema.string().min(1).exactOptional(),
             /** The condition the measured rows meet. */
-            where: schema.lazy(() => Condition.schema).exactOptional(),
+            where: schema.lazy(() => Condition.schema),
         }),
         schema.object({
             /** Embed a JSON value. */
@@ -235,12 +230,17 @@ export const Expression = {
     /** Read a column of the related row. */
     lookup: (via: string, column: string): Expression => ({ kind: "lookup", via, column }),
     /** Measure a relation's rows meeting a condition. */
-    rollup: (measure: Rollup, via: string, column?: string, where?: Condition): Expression => ({
+    rollup: (
+        measure: Rollup,
+        via: string,
+        column?: string,
+        where: JsonCondition = {},
+    ): Expression => ({
         kind: "rollup",
         function: measure,
         via,
         ...(column === undefined ? {} : { column }),
-        ...(where === undefined ? {} : { where }),
+        where,
     }),
     /** Embed a JSON value. */
     json: (value: JsonValue): Expression => ({ kind: "json", value }),
@@ -392,17 +392,8 @@ export const Expression = {
                 if (typeof left === "object" || typeof right === "object") {
                     return null;
                 }
-                const [first, second] = [Number(left), Number(right)];
 
-                return expression.kind === "add"
-                    ? first + second
-                    : expression.kind === "subtract"
-                      ? first - second
-                      : expression.kind === "multiply"
-                        ? first * second
-                        : second === 0
-                          ? null
-                          : first / second;
+                return arithmetic(expression.kind, Number(left), Number(right));
             }
             case "coalesce":
                 return (
@@ -418,18 +409,21 @@ export const Expression = {
                 }
 
                 return expression.kind === "lookup"
-                    ? related.lookup(expression.via, expression.column)
-                    : related.rollup(
-                          expression.function,
-                          expression.via,
-                          expression.column,
-                          expression.where,
+                    ? jsonOf(related.lookup(expression.via, expression.column), expression.column)
+                    : jsonOf(
+                          related.rollup(
+                              expression.function,
+                              expression.via,
+                              expression.column,
+                              expression.where,
+                          ),
+                          expression.column ?? expression.via,
                       );
         }
     },
 
     /** Require a bounded expression over numeric or text columns. */
-    require(expression: Expression, table: Table, namespace: Namespace = { computed: {} }): void {
+    require(expression: Expression, table: Table, namespace: Namespace = { extras: {} }): void {
         // bound the size
         if (Expression.terms(expression) > EXPRESSION_TERMS) {
             throw new DatabaseError(
@@ -448,7 +442,7 @@ export const Expression = {
     },
 
     /** Read the kind an expression yields. */
-    kind(expression: Expression, table: Table, namespace: Namespace = { computed: {} }): Kind {
+    kind(expression: Expression, table: Table, namespace: Namespace = { extras: {} }): Kind {
         // read an all-null expression as real
         const kind = kindOf(expression, table, namespace);
         if (kind === undefined) {
@@ -459,7 +453,7 @@ export const Expression = {
     },
 
     /** Render an expression as SQL, numbers as 64-bit floats. */
-    render(expression: Expression, table: Table, namespace: Namespace = { computed: {} }): SQL {
+    render(expression: Expression, table: Table, namespace: Namespace = { extras: {} }): SQL {
         return renderAs(
             expression,
             Expression.kind(expression, table, namespace),
@@ -469,7 +463,7 @@ export const Expression = {
     },
 
     /** Render a scalar expression for a selection, read back as text or a number by its kind. */
-    select(expression: Expression, table: Table, namespace: Namespace = { computed: {} }): SQL {
+    select(expression: Expression, table: Table, namespace: Namespace = { extras: {} }): SQL {
         const rendered = Expression.render(expression, table, namespace);
 
         return Expression.kind(expression, table, namespace) === "text"
@@ -543,7 +537,7 @@ function renderAs(expression: Expression, kind: Kind, table: Table, namespace: N
             });
         }
         case "case": {
-            // compare the value with each listed one as its own kind
+            // compare the value with each listed one by the listed one's kind
             const inner = requireKind(kindOf(expression.of, table, namespace));
             if (inner === "json") {
                 throw new DatabaseError(
@@ -577,22 +571,34 @@ function renderAs(expression: Expression, kind: Kind, table: Table, namespace: N
             return isText ? value : float(value);
         }
         case "column": {
-            // read numbers as floats and JSON as JSON
+            // read text as it is
             const column = table[TABLE].column(expression.name);
-
-            return kind === "text"
-                ? sql`${column}`
-                : kind === "json"
-                  ? json(sql`${column}`)
-                  : float(sql`${column}`);
+            if (kind === "text") {
+                return sql`${column}`;
+            }
+            // read JSON as JSON
+            else if (kind === "json") {
+                return json(sql`${column}`);
+            }
+            // read numbers as floats
+            else {
+                return float(sql`${column}`);
+            }
         }
-        case "literal":
-            // type literals by kind
-            return kind === "text"
-                ? sql`CAST(${expression.value} AS TEXT)`
-                : kind === "json"
-                  ? json(sql`${JSON.stringify(expression.value)}`)
-                  : float(sql`${expression.value}`);
+        case "literal": {
+            // type text literals as text
+            if (kind === "text") {
+                return sql`CAST(${expression.value} AS TEXT)`;
+            }
+            // type JSON literals as JSON
+            else if (kind === "json") {
+                return json(sql`${JSON.stringify(expression.value)}`);
+            }
+            // type numeric literals as floats
+            else {
+                return float(sql`${expression.value}`);
+            }
+        }
         case "add":
         case "subtract":
         case "multiply": {
@@ -693,15 +699,7 @@ function kindOf(
             return KINDS[column.definition.kind];
         }
         case "literal":
-            return typeof expression.value === "number"
-                ? Number.isInteger(expression.value)
-                    ? "integer"
-                    : "real"
-                : typeof expression.value === "string"
-                  ? "text"
-                  : expression.value === null
-                    ? "null"
-                    : undefined;
+            return literalKind(expression.value);
         case "add":
         case "subtract":
         case "multiply":
@@ -713,11 +711,18 @@ function kindOf(
             ]);
             kinds.delete("null");
 
-            return kinds.has(undefined) || kinds.has("text") || kinds.has("json")
-                ? undefined
-                : kinds.has("real") || expression.kind === "divide"
-                  ? "real"
-                  : "integer";
+            // refuse operands without a numeric kind
+            if (kinds.has(undefined) || kinds.has("text") || kinds.has("json")) {
+                return undefined;
+            }
+            // yield reals from a real operand or a division
+            else if (kinds.has("real") || expression.kind === "divide") {
+                return "real";
+            }
+            // yield integers otherwise
+            else {
+                return "integer";
+            }
         }
         case "coalesce": {
             // take the shared kind, reals over integers
@@ -771,6 +776,44 @@ function kindOf(
 
             return SCALAR_KINDS[lookup(expression.via, expression.column).definition.kind];
         }
+    }
+}
+
+/** Compute an arithmetic operation, missing for a division by zero. */
+function arithmetic(
+    operation: "add" | "subtract" | "multiply" | "divide",
+    first: number,
+    second: number,
+): number | null {
+    switch (operation) {
+        case "add":
+            return first + second;
+        case "subtract":
+            return first - second;
+        case "multiply":
+            return first * second;
+        case "divide":
+            return second === 0 ? null : first / second;
+    }
+}
+
+/** Read the kind a literal yields: integer, real, text or null, absent for a boolean. */
+function literalKind(value: Scalar): Kind | "null" | undefined {
+    // read numbers as integers or reals
+    if (typeof value === "number") {
+        return Number.isInteger(value) ? "integer" : "real";
+    }
+    // read text
+    else if (typeof value === "string") {
+        return "text";
+    }
+    // read a missing value
+    else if (value === null) {
+        return "null";
+    }
+    // leave a boolean without a kind
+    else {
+        return undefined;
     }
 }
 

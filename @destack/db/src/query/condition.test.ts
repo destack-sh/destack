@@ -1,10 +1,12 @@
-import { asc } from "../sql/index.ts";
+import { asc, sql } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable, type Table } from "../table/table.ts";
 import { bigint, boolean, integer, real, text } from "../table/column.ts";
 import { TABLE } from "../table/table.ts";
-import { Condition, type Scalar } from "./condition.ts";
+import { Condition, type Comparable, type Scalar } from "./condition.ts";
+import { Predicate } from "./predicate.ts";
+import { Namespace } from "./namespace.ts";
 import { Order } from "./order.ts";
 
 /** The encoder of texts' UTF-8 bytes. */
@@ -33,7 +35,7 @@ const sample = defineTable("condition_sample", {
 
 /** The literal values of each column. */
 const VALUES: Readonly<Record<string, readonly Scalar[]>> = {
-    name: ["a", "B", "b", "é", "z", "😀", "￿", "", null],
+    name: ["a", "B", "b", "é", "z", "😀", "￿", "", "a%", "a_", "a\\b", null],
     count: [-2, 0, 1, 7, null],
     ratio: [-0.5, 0, 0.25, 3.5, null],
     isOpen: [true, false, null],
@@ -58,30 +60,59 @@ function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
     return picked;
 }
 
+/** The text patterns matched against names: wildcards, case, accents and astral characters. */
+const PATTERNS = [
+    "a%",
+    "%b",
+    "_",
+    "B",
+    "%é%",
+    "%😀",
+    "%",
+    "",
+    "[a]%",
+    "*",
+    "a\\%",
+    "a\\_",
+    "a\\\\b",
+];
+
+/** The pattern operators drawn against names. */
+const PATTERN_OPERATORS = ["like", "ilike", "notLike", "notIlike"] as const;
+
 /** Build a random nested condition. */
 function draw(seed: { value: number }, depth: number): Condition {
-    // compare, test or combine
+    // compare, list, test, match a pattern, or combine fields and conditions
     const [name, listed] = pick(Object.entries(VALUES), seed);
-    const choice = depth === 0 ? Math.floor(random(seed) * 3) : Math.floor(random(seed) * 6);
+    const values = listed.filter((value): value is Comparable => value !== null);
+    const choice = depth === 0 ? Math.floor(random(seed) * 6) : Math.floor(random(seed) * 11);
     if (choice === 0) {
         const operator = pick(["eq", "ne", "lt", "lte", "gt", "gte"] as const, seed);
 
-        return Condition.compare(operator, name, pick(listed, seed));
-    } else if (choice === 1) {
-        const values = listed.filter(
-            (value): value is Exclude<Scalar, null> => value !== null && random(seed) < 0.5,
-        );
+        return { [name]: { [operator]: pick(values, seed) } };
+    } else if (choice === 1 || choice === 2) {
+        const chosen = values.filter(() => random(seed) < 0.5);
 
-        return Condition.oneOf(name, values);
-    } else if (choice === 2) {
-        return Condition.missing(name);
+        return { [name]: choice === 1 ? { in: chosen } : { notIn: chosen } };
     } else if (choice === 3) {
-        return Condition.all(draw(seed, depth - 1), draw(seed, depth - 1));
+        return { [name]: { isNull: true } };
     } else if (choice === 4) {
-        return Condition.any(draw(seed, depth - 1), draw(seed, depth - 1));
+        return { [name]: { isNotNull: true } };
+    } else if (choice === 5) {
+        return { name: { [pick(PATTERN_OPERATORS, seed)]: pick(PATTERNS, seed) } };
+    } else if (choice === 6) {
+        const operator = pick(["eq", "gte"] as const, seed);
+
+        return { [name]: { OR: [{ isNull: true }, { NOT: { [operator]: pick(values, seed) } }] } };
+    } else if (choice === 7) {
+        return { [name]: { AND: [{ isNotNull: true }, { ne: pick(values, seed) }] } };
+    } else if (choice === 8) {
+        return { AND: [draw(seed, depth - 1), draw(seed, depth - 1)] };
+    } else if (choice === 9) {
+        return { OR: [draw(seed, depth - 1), draw(seed, depth - 1)] };
     }
 
-    return Condition.not(draw(seed, depth - 1));
+    return { NOT: draw(seed, depth - 1) };
 }
 
 test.for(TEST_DIALECTS)(
@@ -109,20 +140,14 @@ test.for(TEST_DIALECTS)(
         // match each condition in SQL and memory alike
         for (let index = 0; index < CONDITIONS; index += 1) {
             const drawn = draw(seed, 3);
+            const predicate = Condition.resolve(drawn, Namespace.fields(sample));
             const selected = await database
                 .select({ id: sample.id })
                 .from(sample)
-                .where(Condition.render(drawn, Condition.bind(sample)))
+                .where(Predicate.render(predicate, Predicate.bind(sample)))
                 .orderBy(asc(sample.id));
-            const match = Condition.compile(drawn, sample);
-            const matched = rows.filter(
-                (row) =>
-                    match({
-                        column: (name: string): unknown => row[name],
-                        parameter: () => null,
-                        exists: () => undefined,
-                    }) === true,
-            );
+            const match = Predicate.compile(predicate, sample);
+            const matched = rows.filter((row) => Predicate.matches(match, row));
             expect([drawn, selected.map((row) => row.id)]).toEqual([
                 drawn,
                 matched.map((row) => row["id"]),
@@ -130,6 +155,27 @@ test.for(TEST_DIALECTS)(
         }
     },
 );
+
+test("escape a pattern's wildcards with a backslash, refusing an escape ending it", () => {
+    // match literal wildcards and backslashes only where escaped
+    const matching = (pattern: string) =>
+        ["a%", "ab", "a_", "a\\b"].filter((name) =>
+            Predicate.matches(
+                Predicate.compile(
+                    Condition.resolve({ name: { like: pattern } }, Namespace.fields(sample)),
+                    sample,
+                ),
+                { name },
+            ),
+        );
+    expect([matching("a\\%"), matching("a%"), matching("a\\_"), matching("a\\\\b")]).toEqual([
+        ["a%"],
+        ["a%", "ab", "a_", "a\\b"],
+        ["a_"],
+        ["a\\b"],
+    ]);
+    expect(() => matching("a\\")).toThrow("a like pattern ends with its escape");
+});
 
 test("order text by code point, as UTF-8 bytes order it", () => {
     const texts = ["😀", "￿", "é", "z", "b", "B", "a", ""];
@@ -142,13 +188,11 @@ test("order text by code point, as UTF-8 bytes order it", () => {
 test("refuse conditions beyond a thousand terms", () => {
     // accept a thousand values and refuse one more
     const values = Array.from({ length: 1000 }, (_, index) => index);
-    Condition.require(Condition.oneOf("count", values), sample);
-    expect(() =>
-        Condition.require(
-            Condition.all(Condition.oneOf("count", values.slice(1)), Condition.eq("name", "a")),
-            sample,
-        ),
-    ).toThrow("condition has 1001 terms, more than 1000");
+    const fields = Namespace.fields(sample);
+    Condition.resolve({ count: { in: values } }, fields);
+    expect(() => Condition.resolve({ count: { in: values.slice(1) }, name: "a" }, fields)).toThrow(
+        "condition has 1001 terms, more than 1000",
+    );
 });
 
 test.for(TEST_DIALECTS)("match a thousand listed values in SQL on %s", async (dialect) => {
@@ -164,27 +208,41 @@ test.for(TEST_DIALECTS)("match a thousand listed values in SQL on %s", async (di
     const rows = await storage.database
         .select()
         .from(sample)
-        .where(Condition.render(Condition.oneOf("count", values), Condition.bind(sample)));
+        .where(
+            Predicate.render(
+                Condition.resolve({ count: { in: values } }, Namespace.fields(sample)),
+                Predicate.bind(sample),
+            ),
+        );
     expect(rows.map((row) => row.id)).toEqual([1]);
 });
 
 test("decide relations through the binding, unknown until the relation is read", () => {
     // decide each relation answer
-    const condition = Condition.any(
-        Condition.not(Condition.exists("marks", Condition.eq("name", "a"))),
-        Condition.eq("count", 1),
+    const predicate = Condition.resolve(
+        { OR: [{ NOT: { marks: { name: "a" } } }, { count: 1 }] },
+        Namespace.fields(sample),
     );
-    const match = Condition.compile(condition, sample);
+    const match = Predicate.compile(predicate, sample);
     const decide = (count: number, exists: boolean | undefined) =>
-        match({ column: () => count, parameter: () => null, exists: () => exists });
+        match({ field: () => count, placeholder: () => null, exists: () => exists });
     expect([decide(1, undefined), decide(0, undefined), decide(0, true), decide(0, false)]).toEqual(
         [true, undefined, false, true],
     );
 
     // refuse undeclared relations
-    expect(() => Condition.render(condition, Condition.bind(sample))).toThrow(
+    expect(() => Predicate.render(predicate, Predicate.bind(sample))).toThrow(
         "condition follows relation marks, which condition_sample does not declare",
     );
+});
+
+test("refuse an unbound placeholder in memory, as rendering refuses it", () => {
+    // match a row against a condition whose placeholder no value binds
+    const match = Predicate.compile(
+        Condition.resolve({ count: { gt: sql.placeholder("least") } }, Namespace.fields(sample)),
+        sample,
+    );
+    expect(() => Predicate.matches(match, { count: 2 })).toThrow("no value for placeholder least");
 });
 
 test("merge ordered rows of two tables into the first of their order, tying by list and key", () => {
@@ -224,31 +282,71 @@ test("merge ordered rows of two tables into the first of their order, tying by l
     ]);
 });
 
-test("build conditions, and read their columns, relations and terms", () => {
-    const condition = Condition.all(
-        Condition.eq("status", "open"),
-        Condition.not(Condition.missing("due")),
-        Condition.oneOf("priority", ["high", "low"]),
-        Condition.exists("assignee", Condition.gt("level", Condition.parameter("level"))),
-    );
+test("resolve conditions by their row's fields, and read their fields, relations and size", () => {
+    const condition: Condition = {
+        status: "open",
+        due: { isNotNull: true },
+        priority: { in: ["high", "low"] },
+        assignee: { level: { gt: sql.placeholder("level") } },
+        labels: true,
+    };
+    const predicate = Condition.resolve(condition, new Set(["status", "due", "priority"]));
 
-    // list what the condition reads
+    // resolve fields to comparisons and any other name to a relation
+    expect(predicate).toEqual({
+        kind: "all",
+        predicates: [
+            { kind: "compare", operator: "eq", name: "status", value: "open" },
+            { kind: "not", predicate: { kind: "missing", name: "due" } },
+            { kind: "oneOf", name: "priority", values: ["high", "low"] },
+            {
+                kind: "exists",
+                via: "assignee",
+                where: { level: { gt: sql.placeholder("level") } },
+            },
+            { kind: "exists", via: "labels", where: {} },
+        ],
+    });
+
+    // list what the predicate reads
     expect([
-        [...Condition.columns(condition)],
-        Condition.relations(condition).map((relation) => relation.via),
-        Condition.terms(condition),
-    ]).toEqual([["status", "due", "priority"], ["assignee"], 8]);
+        [...Predicate.fields(predicate)],
+        Predicate.relations(predicate).map((relation) => relation.via),
+        Predicate.size(predicate),
+    ]).toEqual([["status", "due", "priority"], ["assignee", "labels"], 8]);
 
-    // rename columns, leaving relations to their own rows
-    expect(Condition.rename(condition, (column) => `t_${column}`)).toEqual(
-        Condition.all(
-            Condition.eq("t_status", "open"),
-            Condition.not(Condition.missing("t_due")),
-            Condition.oneOf("t_priority", ["high", "low"]),
-            Condition.exists("assignee", Condition.gt("level", Condition.parameter("level"))),
-        ),
-    );
+    // round-trip through JSON and the schema to the same predicate, placeholders in their JSON form
+    const parsed = Condition.schema.parse(JSON.parse(JSON.stringify(condition)));
+    const resolved = Condition.resolve(parsed, new Set(["status", "due", "priority"]));
+    expect(JSON.parse(JSON.stringify(resolved))).toEqual(JSON.parse(JSON.stringify(predicate)));
+});
 
-    // round-trip through the schema
-    expect(Condition.schema.parse(JSON.parse(JSON.stringify(condition)))).toEqual(condition);
+test("refuse condition entries of the wrong shape, naming each entry", () => {
+    const fields = new Set(["status"]);
+    const refusals = [
+        () => Condition.resolve({ status: ["open"] }, fields),
+        () => Condition.resolve({ status: { between: ["a", "z"] } }, fields),
+        () => Condition.resolve({ AND: ["closed"] }, fields),
+        () => Condition.resolve({ OR: { status: "open" } }, fields),
+        () => Condition.resolve({ NOT: "open" }, fields),
+        () => Condition.resolve({ assignee: "someone" }, fields),
+    ].map((resolve) => {
+        try {
+            resolve();
+        } catch (error) {
+            return error instanceof Error ? error.message : error;
+        }
+
+        return undefined;
+    });
+
+    // name the malformed entry in each refusal
+    expect(refusals).toEqual([
+        "condition field status takes a value or comparisons",
+        "condition field status takes a value or comparisons",
+        "condition AND lists a value",
+        "condition OR takes a list of conditions",
+        "condition NOT takes a condition",
+        "condition names no field assignee",
+    ]);
 });

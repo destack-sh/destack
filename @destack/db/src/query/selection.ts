@@ -60,14 +60,14 @@ interface Group {
 }
 
 /** A selection flattened to fields in order and decoded back into nested records. */
-export class Projection {
+export class Projection<Selected extends Selection = Selection> {
     /** The selected values in field order. */
     readonly fields: readonly (Column | SQL | Aliased)[];
     /** The record shape over the field positions. */
     readonly #root: Group;
 
     /** Flatten a selection in property order. */
-    constructor(selection: Selection) {
+    constructor(selection: Selected) {
         const fields: (Column | SQL | Aliased)[] = [];
         this.#root = group(selection, fields);
         this.fields = fields;
@@ -78,13 +78,17 @@ export class Projection {
         return sql.join(this.fields, sql.raw(", "));
     }
 
-    /** Decode driver rows into records, a nullable group of only missing values as null. */
-    decode<Result>(
+    /** Decode driver rows into records of the selection, a nullable group of only missing values as null. */
+    decode(
         rows: readonly (readonly unknown[])[],
         dialect: Dialect,
         nullable: ReadonlySet<string>,
-    ): Result[];
-    /** Decode driver rows, whose signature above types them by the selection they decode. */
+    ): SelectionResult<Selected>[];
+    /**
+     * Decode driver rows into records shaped as the selection.
+     *
+     * @construct each record nests the selection's groups and decodes each field by its column or SQL decoder, which is how SelectionResult maps the selection.
+     */
     decode(
         rows: readonly (readonly unknown[])[],
         dialect: Dialect,
@@ -121,13 +125,30 @@ function decodeGroup(
     return Object.fromEntries(
         shape.entries.map(([property, entry]) => [
             property,
-            "field" in entry
-                ? decodeValue(entry.field, values[entry.index], dialect)
-                : isMissingGroup(entry, values, nullable)
-                  ? null
-                  : decodeGroup(entry, values, dialect, nullable),
+            decodeEntry(entry, values, dialect, nullable),
         ]),
     );
+}
+
+/** Decode one entry of a group: a field's value, or a nested group's record, null when it is missing. */
+function decodeEntry(
+    entry: Leaf | Group,
+    values: readonly unknown[],
+    dialect: Dialect,
+    nullable: ReadonlySet<string>,
+): unknown {
+    // decode a field
+    if ("field" in entry) {
+        return decodeValue(entry.field, values[entry.index], dialect);
+    }
+    // read a missing nested group as null
+    else if (isMissingGroup(entry, values, nullable)) {
+        return null;
+    }
+    // decode a nested group
+    else {
+        return decodeGroup(entry, values, dialect, nullable);
+    }
 }
 
 /** Report whether a nested group reads only nullable joined columns, all of them missing. */
@@ -150,19 +171,13 @@ function isMissingGroup(
 
 /** Decode one selected driver value by its column or fragment decoder, keeping null. */
 function decodeValue(field: Column | SQL | Aliased, value: unknown, dialect: Dialect): unknown {
-    const decoder =
-        field instanceof Column
-            ? field
-            : field instanceof Aliased
-              ? field.sql.decoder
-              : field.decoder;
     if (value === undefined) {
         throw new TypeError("the database driver returned fewer values than the query selects");
     } else if (value === null) {
         return null;
-    } else if (decoder === undefined) {
-        return value;
+    } else if (field instanceof Column) {
+        return field.definition.decode(value, dialect);
     }
 
-    return decoder instanceof Column ? decoder.definition.decode(value, dialect) : decoder(value);
+    return field.getSQL().decode(value, dialect);
 }

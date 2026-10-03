@@ -17,8 +17,8 @@ export type Chunk =
     | SQLWrapper
     | readonly Chunk[];
 
-/** Decode a selected driver value into its application value. */
-export type Decoder<Value> = Column | ((value: unknown) => Value);
+/** Decode a selected driver value into its application value: as a column kind, or by a function. */
+export type Decoder<Value> = ColumnDefinition | ((value: unknown) => Value);
 
 /** A SQL fragment with the type of the value it computes. */
 export class SQL<Value = unknown> implements SQLWrapper {
@@ -40,13 +40,34 @@ export class SQL<Value = unknown> implements SQLWrapper {
         return this;
     }
 
-    /** Decode the selected value by a column or a function. */
-    mapWith<Next extends ColumnValue>(decoder: Column<ColumnDefinition<Next>>): SQL<Next>;
+    /** Decode the selected value as a column definition's values. */
+    mapWith<Next extends ColumnValue>(decoder: ColumnDefinition<Next>): SQL<Next>;
     /** Decode the selected value by a function. */
     mapWith<Next>(decoder: (value: unknown) => Next): SQL<Next>;
-    /** Decode the selected value, whose signatures above type it by the decoder. */
+    /**
+     * Decode the selected value.
+     *
+     * @construct a column definition decodes its column's values and a function decodes to its return type.
+     */
     mapWith(decoder: Decoder<unknown>): SQL {
         return new SQL(this.chunks, decoder);
+    }
+
+    /** Decode a selected driver value, keeping it as the driver returns it without a decoder. */
+    decode(value: unknown, dialect: Dialect): unknown {
+        // keep the driver value
+        const decoder = this.decoder;
+        if (decoder === undefined) {
+            return value;
+        }
+        // decode by a function
+        else if (typeof decoder === "function") {
+            return decoder(value);
+        }
+        // decode as a column definition's values
+        else {
+            return decoder.decode(value, dialect);
+        }
     }
 
     /** Alias the value in a selection. */
@@ -88,14 +109,23 @@ export class Parameter {
     }
 }
 
-/** A parameter filled by name when a prepared statement runs. */
-export class Placeholder<Name extends string = string> {
+/**
+ * A value filled by name when a statement or condition runs.
+ *
+ * Its one field is its JSON form.
+ */
+export class Placeholder<Name extends string = string> implements SQLWrapper {
     /** The value's name. */
-    readonly name: Name;
+    readonly placeholder: Name;
 
     /** Create the placeholder. */
     constructor(name: Name) {
-        this.name = name;
+        this.placeholder = name;
+    }
+
+    /** Embed the placeholder in a statement. */
+    getSQL(): SQL {
+        return new SQL([this]);
     }
 }
 
@@ -163,9 +193,9 @@ export const sql = Object.assign(
         param<Value>(value: Value, encoder?: Column): SQL<Value> {
             return new SQL<Value>([new Parameter(value, encoder)]);
         },
-        /** Bind a value by name when a prepared statement runs. */
-        placeholder(name: string): SQL {
-            return new SQL([new Placeholder(name)]);
+        /** Bind a value by name when a statement or condition runs. */
+        placeholder<Name extends string>(name: Name): Placeholder<Name> {
+            return new Placeholder(name);
         },
         /** An empty fragment. */
         empty(): SQL {
