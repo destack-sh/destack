@@ -2,6 +2,7 @@ import { defineSchema, Digest, schema } from "@destack/schema";
 import { SourceLocation } from "../source/location.ts";
 import { DependencySymbol } from "../code/reference.ts";
 import { DeclarationName, Package } from "../definition/package.ts";
+import { MemberSymbol } from "../graph/member.ts";
 
 /** A declaration described by its domain inspector. */
 export const DeclarationDescription = defineSchema(
@@ -22,6 +23,8 @@ export const DeclarationDescription = defineSchema(
         description: schema.record(schema.string(), schema.json()),
         /** The declaration's terms, such as `object/note/relation/editor`, with the digest of each definition. */
         vocabulary: schema.record(schema.string(), Digest).exactOptional(),
+        /** The symbols its kind derives with their relationships, absent for a kind listing none. */
+        symbols: schema.array(MemberSymbol).exactOptional(),
     }),
 );
 /** A declaration described by its domain inspector. */

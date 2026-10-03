@@ -142,7 +142,10 @@ function requireRuntimes(value: PackageDefinition): PackageDefinition {
         ...Object.values(value.exports ?? {}).flatMap((entry) => entry.runtimes),
     ];
     if (value.capabilities?.process !== undefined && !runtimes.includes("bun")) {
-        throw new PackageError("INVALID_DEFINITION", "the process capability requires the bun runtime");
+        throw new PackageError(
+            "INVALID_DEFINITION",
+            "the process capability requires the bun runtime",
+        );
     }
 
     return value;

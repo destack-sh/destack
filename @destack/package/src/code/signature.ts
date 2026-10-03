@@ -1,4 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
+import { SymbolReference } from "./reference.ts";
 import { TypeDescription, TypeParameterDescription } from "./type.ts";
 
 /** A function or constructor parameter. */
@@ -6,8 +7,8 @@ export const ParameterDescription = defineSchema(
     schema.object({
         /** The parameter name or binding pattern. */
         name: schema.string(),
-        /** The parameter type. */
-        type: TypeDescription,
+        /** Named declarations the parameter type uses, printed in the signature text. */
+        references: schema.array(SymbolReference),
         /** Whether callers can omit this argument. */
         isOptional: schema.boolean(),
         /** Whether this parameter collects remaining arguments. */
@@ -20,7 +21,7 @@ export const SignatureDescription = defineSchema(
     schema.object({
         /** Whether the signature is called or constructed. */
         kind: schema.enum(["call", "construct"]),
-        /** The complete signature, including predicates and modifiers. */
+        /** The signature with its predicates, truncated as the compiler prints it for display. */
         text: schema.string(),
         /** Generic parameters in declaration order. */
         typeParameters: schema.array(TypeParameterDescription),

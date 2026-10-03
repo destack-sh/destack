@@ -44,8 +44,15 @@ export const ModuleDescription = defineSchema(
         source: PackageFile,
         /** The source length in UTF-16 code units. */
         length: schema.number().int().min(0),
-        /** The declared dependency specifiers, including literal dynamic imports. */
-        imports: schema.array(schema.string().min(1)),
+        /** The declared dependencies, including literal dynamic imports. */
+        imports: schema.array(
+            schema.object({
+                /** The import specifier. */
+                specifier: schema.string().min(1),
+                /** The source module the compiler resolves it to, absent for ambient modules. */
+                target: SymbolReference.exactOptional(),
+            }),
+        ),
         /** Execution APIs referenced by this source module. */
         globals: schema.array(GlobalReference),
         /** Throws, calls, handlers, and unresolved error behavior. */

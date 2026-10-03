@@ -25,6 +25,8 @@ export const DeclarationConstructor = defineSchema(
                     compare: FunctionReference.exactOptional(),
                     /** The function listing a description's terms with their definitions. */
                     vocabulary: FunctionReference.exactOptional(),
+                    /** The function listing the symbols a description derives with their relationships. */
+                    symbols: FunctionReference.exactOptional(),
                 }),
             )
             .min(1)

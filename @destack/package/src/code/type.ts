@@ -4,7 +4,7 @@ import { SymbolReference } from "./reference.ts";
 /** A compiler-rendered type and its named declaration references. */
 export const TypeDescription = defineSchema(
     schema.object({
-        /** The complete type expression in the package's language. */
+        /** The type expression, truncated as the compiler prints it for display. */
         text: schema.string(),
         /** Named declarations used by the type expression. */
         references: schema.array(SymbolReference),
