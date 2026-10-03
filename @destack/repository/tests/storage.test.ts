@@ -1,11 +1,11 @@
 import { expect, test } from "@destack/test";
 import { readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { CodeStorage } from "../src/codestorage/index.ts";
+import { ServiceError } from "@destack/service/error";
+import { ArtifactsStorage } from "../src/artifacts/index.ts";
 import { LocalGitStorage } from "../src/local/index.ts";
 import { GitAdvertisement } from "../src/storage/index.ts";
 import { advertise, git, History, temporary, Worktree } from "./fixture/git.ts";
-import { verifyToken } from "./fixture/token.ts";
 
 test("create a local repository, push a branch and a tag into it, list them and delete it, each step again as well", async () => {
     const storage = new LocalGitStorage(await temporary("destack-storage-"));
@@ -69,68 +69,44 @@ test("parse the reference advertisement git upload-pack serves, peeling annotate
     expect(await storage.references("repository-advertised")).toEqual(listing);
 });
 
-test("create, list and delete a code.storage repository through its HTTP API and Git's advertisement, accepting each step again", async () => {
+test("create, list and delete a Cloudflare Artifacts repository through its REST API and Git's advertisement, accepting each step again", async () => {
     // keep one repository's history for the stand-in to advertise
     const history = new History();
     history.commit("main", "README.md", "# Site\n");
-    const repository = await temporary("destack-code-storage-");
+    const repository = await temporary("destack-artifacts-");
     await git(repository, "init", "--quiet", "--bare", "--initial-branch=main");
     const [commit] = await history.write(repository);
 
-    // stand in for exactly the endpoints the storage calls, recording each with its token's claims
-    const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, [
-        "sign",
-        "verify",
-    ]);
+    // stand in for exactly the endpoints the storage calls, recording each with its credential
     const requests: unknown[] = [];
     let state: "absent" | "created" | "deleted" = "absent";
-    const claimsOf = async (token: string) => {
-        const { alg, claims } = await verifyToken(token, keys.publicKey);
-
-        return [
-            alg,
-            claims.iss,
-            claims.sub,
-            claims.repo,
-            claims.scopes,
-            (claims.exp as number) - (claims.iat as number),
-        ];
-    };
+    const api = "https://api.cloudflare.com/client/v4/accounts/acme/artifacts/namespaces/sites";
     const fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
         const request = new Request(input, options);
-        const authorization = request.headers.get("authorization")!;
-        const [scheme, credential] = authorization.split(" ") as [string, string];
-        const token =
-            scheme === "Basic"
-                ? new TextDecoder().decode(Uint8Array.fromBase64(credential)).slice("t:".length)
-                : credential;
-        const body = request.method === "POST" ? await request.json() : undefined;
-        requests.push([request.method, request.url, scheme, await claimsOf(token), body]);
+        const body: unknown = request.method === "POST" ? await request.json() : undefined;
+        requests.push([request.method, request.url, request.headers.get("authorization"), body]);
 
-        // create, delete and advertise as code.storage documents, answering repeated steps with their problems
-        const problem = (status: number, code: string, detail: string) =>
-            Response.json({ code, detail }, { status });
-        if (request.method === "POST" && state === "created") {
-            return problem(409, "conflict", "repository already exists");
-        } else if (request.method === "POST") {
+        // create, read, delete and issue tokens as Artifacts documents them
+        if (request.url === `${api}/repos` && state === "created") {
+            return envelope(409, null);
+        } else if (request.url === `${api}/repos`) {
             state = "created";
 
-            return Response.json({
-                repo_name: "repository-site",
-                repo_id: "repo_7f2b3d9",
-                http_url: "repository-site",
-                message: "repository created",
-            });
-        } else if (request.method === "DELETE" && state === "deleted") {
-            return problem(409, "repository_deleted", "The repository is already deleted");
+            return envelope(200, { id: "repo_1", name: "repository-site" });
+        } else if (request.method === "GET" && request.url === `${api}/repos/repository-site`) {
+            return envelope(state === "created" ? 200 : 404, { name: "repository-site" });
+        } else if (request.method === "DELETE" && state !== "created") {
+            return envelope(404, null);
         } else if (request.method === "DELETE") {
             state = "deleted";
 
-            return Response.json({
-                repo_name: "repository-site",
-                repo_id: "repo_7f2b3d9",
-                message:
-                    "Repository repository-site deletion initiated. Physical storage cleanup will complete asynchronously.",
+            return envelope(202, { id: "repo_1" });
+        } else if (request.url === `${api}/tokens`) {
+            return envelope(200, {
+                id: "token_1",
+                plaintext: "art_v1_secret?expires=1",
+                scope: "read",
+                expires_at: "2026-10-03T06:00:00Z",
             });
         }
 
@@ -138,11 +114,10 @@ test("create, list and delete a code.storage repository through its HTTP API and
             headers: { "content-type": "application/x-git-upload-pack-advertisement" },
         });
     };
-    const storage = new CodeStorage({
-        organization: "acme",
-        key: keys.privateKey,
-        api: new URL("https://api.acme.code.storage/api"),
-        git: new URL("https://acme.code.storage"),
+    const storage = new ArtifactsStorage({
+        account: "acme",
+        namespace: "sites",
+        token: "api",
         fetch,
     });
 
@@ -154,61 +129,68 @@ test("create, list and delete a code.storage repository through its HTTP API and
     const access = await storage.open(id, "write");
     await storage.delete(id);
     await storage.delete(id);
-    const [username, password] = atob(access.headers.authorization!.slice("Basic ".length)).split(
-        ":",
-    );
-    expect([storage.remote(id), listing, access.url, username]).toEqual([
-        "https://acme.code.storage/repository-site.git",
+    const remote = "https://acme.artifacts.cloudflare.net/git/sites/repository-site.git";
+    const basic = `Basic ${new TextEncoder().encode("x:art_v1_secret?expires=1").toBase64()}`;
+    expect([storage.remote(id), listing, access]).toEqual([
+        remote,
         {
             defaultReference: "refs/heads/main",
             references: [{ name: "refs/heads/main", object: commit, commit }],
         },
-        "https://acme.code.storage/repository-site.git",
-        "t",
-    ]);
-    expect(await claimsOf(password!)).toEqual([
-        "ES256",
-        "acme",
-        "destack-repository",
-        "repository-site",
-        ["git:read", "git:write"],
-        3600,
+        {
+            url: remote,
+            mode: "write",
+            headers: { authorization: basic },
+            expiresAt: Date.parse("2026-10-03T06:00:00Z"),
+        },
     ]);
 
-    // send each request under a token scoped to the repository and the operation
-    const management = [
-        "ES256",
-        "acme",
-        "destack-repository",
-        "repository-site",
-        ["repo:write"],
-        60,
-    ];
-    const create = [
+    // manage under the account's token and read Git under the repository's token
+    const token = (scope: string) => [
         "POST",
-        "https://api.acme.code.storage/api/repos",
-        "Bearer",
-        management,
-        { repo_name: "repository-site" },
-    ];
-    const remove = [
-        "DELETE",
-        "https://api.acme.code.storage/api/repos/repository-site",
-        "Bearer",
-        management,
-        undefined,
+        `${api}/tokens`,
+        "Bearer api",
+        { repo: id, scope, ttl: 3600 },
     ];
     expect(requests).toEqual([
-        create,
-        create,
-        [
-            "GET",
-            "https://acme.code.storage/repository-site.git/info/refs?service=git-upload-pack",
-            "Basic",
-            ["ES256", "acme", "destack-repository", "repository-site", ["git:read"], 3600],
-            undefined,
-        ],
-        remove,
-        remove,
+        ["POST", `${api}/repos`, "Bearer api", { name: id }],
+        ["POST", `${api}/repos`, "Bearer api", { name: id }],
+        ["GET", `${api}/repos/${id}`, "Bearer api", undefined],
+        token("read"),
+        ["GET", `${remote}/info/refs?service=git-upload-pack`, basic, undefined],
+        token("write"),
+        ["DELETE", `${api}/repos/${id}`, "Bearer api", undefined],
+        ["DELETE", `${api}/repos/${id}`, "Bearer api", undefined],
     ]);
 });
+
+test("refuse a Cloudflare Artifacts token whose expiry is no time", async () => {
+    // issue a token with an unreadable expiry
+    const storage = new ArtifactsStorage({
+        account: "acme",
+        namespace: "sites",
+        token: "api",
+        fetch: async () => envelope(200, { plaintext: "art_v1_secret", expires_at: "soon" }),
+    });
+
+    // refuse leasing it
+    await expect(storage.open("repository-site", "read")).rejects.toEqual(
+        new ServiceError("BAD_GATEWAY", {
+            message: "cloudflare artifacts issued a token with an invalid expiry: soon",
+        }),
+    );
+});
+
+/** Answer a Cloudflare API request with its envelope. */
+function envelope(status: number, result: unknown): Response {
+    const isSuccess = status < 300;
+
+    return Response.json(
+        {
+            success: isSuccess,
+            errors: isSuccess ? [] : [{ code: status, message: "refused" }],
+            result,
+        },
+        { status },
+    );
+}

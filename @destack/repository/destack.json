@@ -13,7 +13,7 @@
         "./local": {
             "runtimes": ["bun"]
         },
-        "./codestorage": {
+        "./artifacts": {
             "runtimes": ["bun", "workerd"]
         },
         "./github": {
