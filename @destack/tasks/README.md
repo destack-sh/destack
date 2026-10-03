@@ -1,8 +1,10 @@
+# @destack/tasks
+
 Plan projects as tasks with assignees, states and comment threads.
 
 ## Projects
 
-Projects use the default shareable roles, and their tasks inherit them.
+`task.create` with a project's `parentId` creates a task in it, and the task inherits the grants of the project.
 
 ```ts
 const launch = await client.project.create({ spaceId, requestId, name: "Launch" });
@@ -16,17 +18,53 @@ const draft = await client.task.create({
 });
 ```
 
-A task's assignee reads and works it without any role on the project, and a deleted project stays in the trash for 30 days.
+## Assignees
+
+The `assignee` relation lets a person read and work a task without a role on its project.
+
+```ts
+permissions: {
+    read: union(relation("assignee"), through("parent", "read")),
+    work: union(relation("assignee"), through("parent", "edit")),
+},
+```
+
+## Trash
+
+`project.delete` moves a project to the trash for 30 days, and `project.restore` brings it back for a person who manages it.
+
+```ts
+await client.project.delete({ spaceId, id: launch.id, requestId });
+await client.project.restore({ spaceId, id: launch.id, requestId });
+```
 
 ## Workflow
 
-Each task moves through its `status` by `start`, `complete`, `cancel` and `reopen`.
-Cancelling a task requires `edit`, and the other moves require `work`.
-Editors and the assignee hold `work`, and only managers read and write a task's `budget`.
+Each `status` transition names the states it leaves, the state it enters and the permission it requires.
+
+```ts
+status: field.state({
+    initial: "open",
+    transitions: {
+        start: { from: ["open"], to: "active", permission: "work" },
+        complete: { from: ["open", "active"], to: "done", permission: "work" },
+        cancel: { from: ["open", "active"], to: "cancelled", permission: "edit" },
+        reopen: { from: ["done", "cancelled"], to: "open", permission: "work" },
+    },
+}),
+```
+
+## Budgets
+
+`guard` restricts reads and writes of a task's `budget` to the project's managers.
+
+```ts
+budget: field.number().optional().guard({ read: "manage", write: "manage" }),
+```
 
 ## Comments
 
-Everyone who reads a task comments on it through `@destack/social`, and the people a comment mentions hear of it through `@destack/notification`.
+`comment.create` adds a comment to a task for anyone who reads the task, and each mention notifies the mentioned person.
 
 ```ts
 const first = await client.comment.create({
@@ -39,7 +77,7 @@ const first = await client.comment.create({
 
 ## Installation
 
-A stack installs the package with the database its tasks live in, and another package embeds `tasksTables` in a database of its own.
+`install(tasks, …)` installs the package with its `main` database, and `tasksTables` adds the task tables to another package's database.
 
 ```ts
 import tasks from "@destack/tasks/package";
