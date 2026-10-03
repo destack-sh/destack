@@ -34,17 +34,7 @@ export function redact(
 
     // redact each field of an object
     if (definition instanceof z.ZodObject && typeof value === "object" && !Array.isArray(value)) {
-        const shape: Readonly<Record<string, z.core.$ZodType | undefined>> = definition.shape;
-        const fields: [string, unknown][] = Object.entries(value);
-
-        return Object.fromEntries(
-            fields.flatMap(([name, field]) => {
-                const property = shape[name];
-                const kept = property === undefined ? field : redact(property, field, found);
-
-                return kept === undefined ? [] : [[name, kept]];
-            }),
-        );
+        return redactFields(definition, value, found);
     }
     // redact each element of an array
     else if (definition instanceof z.ZodArray && Array.isArray(value)) {
@@ -67,4 +57,23 @@ export function redact(
     }
 
     return value;
+}
+
+/** Leave out the fields of an object that its schema marks sensitive, handing each dropped value to `found`. */
+export function redactFields(
+    definition: z.ZodObject,
+    value: object,
+    found?: (sensitive: unknown) => void,
+): Record<string, unknown> {
+    const shape: Readonly<Record<string, z.core.$ZodType | undefined>> = definition.shape;
+    const fields: [string, unknown][] = Object.entries(value);
+
+    return Object.fromEntries(
+        fields.flatMap(([name, field]) => {
+            const property = shape[name];
+            const kept = property === undefined ? field : redact(property, field, found);
+
+            return kept === undefined ? [] : [[name, kept]];
+        }),
+    );
 }
