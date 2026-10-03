@@ -18,7 +18,11 @@ export type Identifier<Prefix extends string> = z.output<ReturnType<typeof ident
 export function identifier<const Prefix extends string>(
     prefix: Prefix,
 ): z.core.$ZodBranded<z.ZodString, Prefix>;
-/** Define an identifier validator, whose signature above brands the prefix it reads. */
+/**
+ * Define an identifier validator, whose signature above brands the prefix it reads.
+ *
+ * @construct the validator matches exactly this prefix, and its brand exists only in types, so the cached validator is the prefix's own.
+ */
 export function identifier(prefix: string): z.core.$ZodBranded<z.ZodString, string> {
     // reuse the prefix's validator
     const known = VALIDATORS.get(prefix);

@@ -1,1 +1,1 @@
-export * from "./identifier.ts";
+export { Identifier } from "./identifier.ts";

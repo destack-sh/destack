@@ -70,6 +70,14 @@ export type { input as Input, output as Output, ZodOptional as Optional } from "
 export type { infer as Infer } from "zod";
 export type { $ZodIssue as Issue } from "zod/v4/core";
 export { flattenError, prettifyError, treeifyError } from "zod";
-export { isSensitive, redact, sensitive } from "./sensitive.ts";
+export { isSensitive, redact, redactFields, sensitive } from "./sensitive.ts";
 export { defined } from "./defined.ts";
+export { anyIdentifier, identifier } from "../identifier/identifier.ts";
 export { json } from "./json.ts";
+export {
+    standard,
+    type StandardIssue,
+    type StandardProperties,
+    type StandardResult,
+    type StandardSchema,
+} from "./standard.ts";
