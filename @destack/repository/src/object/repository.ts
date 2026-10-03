@@ -1,29 +1,21 @@
 import { none, principal, relation } from "@destack/access";
 import { check, index, sql, unique, type Select } from "@destack/db";
-import { defineObject, field, method } from "@destack/object";
-import { identifier, schema } from "@destack/schema";
+import { defineObject, field } from "@destack/object";
+import { schema } from "@destack/schema";
 import { Lease, LeaseMode } from "@destack/resource";
 import { GitListing } from "../storage/storage.ts";
 import { account } from "@destack/account/object";
-import { AUTHENTICATIONS, HOSTINGS, ORIGIN_FIELDS, UPDATED_ORIGIN_FIELDS } from "./origin.ts";
+import {
+    AUTHENTICATIONS,
+    HOSTINGS,
+    ORIGIN_FIELDS,
+    OriginColumns,
+    OriginMove,
+    UPDATED_ORIGIN_FIELDS,
+} from "./origin.ts";
 
-/** An account-local repository name: lowercase letters, digits and inner hyphens, at most 63 characters. */
-const RepositoryName = schema.string().regex(/^(?!-)[a-z0-9-]{1,63}(?<!-)$/);
-
-/** Observe the origin's references and default branch. */
-const refresh = method({ permission: "refresh" });
-
-/** Record the references the repository's host observed. */
-const report = method({ permission: "report", input: GitListing });
-
-/** Lease a checkout short-lived, direct access to read the repository, or to write it as well. */
-const open = method({
-    permission: "pull",
-    input: schema.object({ mode: LeaseMode }),
-    output: Lease,
-    mutates: false,
-    audited: true,
-});
+/** An account-local repository name: lowercase letters, digits and hyphens between them, at most 63 characters. */
+const RepositoryName = schema.string().regex(/^(?!-)[a-z0-9-]{1,63}(?<!-)$/u);
 
 /** A Git repository of an account: on platform storage, at GitHub, at any Git remote, or on one of its hosts. */
 export const repository = defineObject({
@@ -47,14 +39,14 @@ export const repository = defineObject({
         defaultReference: field.string().optional(),
         /** How the platform authenticates to a Git remote. */
         authentication: field.enum(AUTHENTICATIONS).optional(),
-        /** The account's connection to the GitHub App installation reaching the origin. */
-        connectedAccountId: field.string(identifier("connected-account")).optional(),
+        /** The account's connection to the GitHub App installation opening the origin. */
+        connectedAccountId: field.string(schema.identifier("connected-account")).optional(),
         /** The space whose vault has the origin's secret credential. */
-        secretSpaceId: field.string(identifier("space")).optional(),
+        secretSpaceId: field.string(schema.identifier("space")).optional(),
         /** The secret with the origin's credential. */
-        secretId: field.string(identifier("secret")).optional(),
+        secretId: field.string(schema.identifier("secret")).optional(),
     },
-    indexes: { name: { on: ["name"], unique: true, across: account } },
+    indexes: { name: { on: ["name"], unique: true, across: () => account } },
     permissions: {
         read: relation("host"),
         create: none(),
@@ -66,51 +58,59 @@ export const repository = defineObject({
         push: none(),
     },
     reserved: ["report"],
-    recoverable: { within: { days: 30 }, by: "delete" },
-    methods: {
+    recoverable: { within: { days: 30 }, by: "delete", prepared: OriginColumns },
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("create", {
             isPredicted: false,
             fields: ["name", ...ORIGIN_FIELDS],
+            prepared: OriginColumns,
         }),
         update: method.update("update", {
             fields: ["name", ...UPDATED_ORIGIN_FIELDS],
+            prepared: OriginMove,
         }),
-        refresh,
-        report,
-        open,
-    },
-    constraints: (repository) => [
-        unique("repository_scope_id").on(repository.scope, repository.id),
-        index("repository_provider_repository").on(repository.providerRepositoryId),
+        /** Observe the origin's references and default branch. */
+        refresh: method.mutation({ permission: "refresh", prepared: GitListing }),
+        /** Record the references the repository's host observed. */
+        report: method.mutation({ permission: "report", input: GitListing }),
+        /** Lease a checkout short-lived, direct access to read the repository, or to write it as well. */
+        open: method.query({
+            permission: "pull",
+            input: schema.object({ mode: LeaseMode }),
+            output: Lease,
+            prepared: Lease,
+            audited: true,
+        }),
+    }),
+    constraints: (columns) => [
+        unique("repository_scope_id").on(columns.scope, columns.id),
+        index("repository_provider_repository").on(columns.providerRepositoryId),
         check(
             "repository_origin",
-            sql`(${repository.hosting} = 'platform' AND ${repository.provider} IS NOT NULL AND ${repository.providerRepositoryId} IS NOT NULL AND ${repository.remote} IS NOT NULL AND ${repository.host} IS NULL)
-            OR (${repository.hosting} = 'github' AND ${repository.provider} IS NULL AND ${repository.providerRepositoryId} IS NOT NULL AND ${repository.remote} IS NOT NULL AND ${repository.host} IS NULL)
-            OR (${repository.hosting} = 'git' AND ${repository.provider} IS NULL AND ${repository.providerRepositoryId} IS NULL AND ${repository.remote} IS NOT NULL AND ${repository.host} IS NULL)
-            OR (${repository.hosting} = 'host' AND ${repository.host} IS NOT NULL AND ${repository.provider} IS NULL AND ${repository.providerRepositoryId} IS NULL AND ${repository.remote} IS NULL)`,
+            sql`(${columns.hosting} = 'platform' AND ${columns.provider} IS NOT NULL AND ${columns.providerRepositoryId} IS NOT NULL AND ${columns.remote} IS NOT NULL AND ${columns.host} IS NULL)
+            OR (${columns.hosting} = 'github' AND ${columns.provider} IS NULL AND ${columns.providerRepositoryId} IS NOT NULL AND ${columns.remote} IS NOT NULL AND ${columns.host} IS NULL)
+            OR (${columns.hosting} = 'git' AND ${columns.provider} IS NULL AND ${columns.providerRepositoryId} IS NULL AND ${columns.remote} IS NOT NULL AND ${columns.host} IS NULL)
+            OR (${columns.hosting} = 'host' AND ${columns.host} IS NOT NULL AND ${columns.provider} IS NULL AND ${columns.providerRepositoryId} IS NULL AND ${columns.remote} IS NULL)`,
         ),
         check(
             "repository_authentication",
-            sql`(${repository.hosting} IN ('platform', 'host') AND ${repository.authentication} IS NULL AND ${repository.connectedAccountId} IS NULL AND ${repository.secretSpaceId} IS NULL AND ${repository.secretId} IS NULL)
-            OR (${repository.hosting} = 'github' AND ${repository.authentication} IS NULL AND ${repository.connectedAccountId} IS NOT NULL AND ${repository.secretSpaceId} IS NULL AND ${repository.secretId} IS NULL)
-            OR (${repository.hosting} = 'git' AND ${repository.connectedAccountId} IS NULL AND (
-                (${repository.authentication} = 'anonymous' AND ${repository.secretSpaceId} IS NULL AND ${repository.secretId} IS NULL)
-                OR (${repository.authentication} = 'secret' AND ${repository.secretSpaceId} IS NOT NULL AND ${repository.secretId} IS NOT NULL)))`,
+            sql`(${columns.hosting} IN ('platform', 'host') AND ${columns.authentication} IS NULL AND ${columns.connectedAccountId} IS NULL AND ${columns.secretSpaceId} IS NULL AND ${columns.secretId} IS NULL)
+            OR (${columns.hosting} = 'github' AND ${columns.authentication} IS NULL AND ${columns.connectedAccountId} IS NOT NULL AND ${columns.secretSpaceId} IS NULL AND ${columns.secretId} IS NULL)
+            OR (${columns.hosting} = 'git' AND ${columns.connectedAccountId} IS NULL AND (
+                (${columns.authentication} = 'anonymous' AND ${columns.secretSpaceId} IS NULL AND ${columns.secretId} IS NULL)
+                OR (${columns.authentication} = 'secret' AND ${columns.secretSpaceId} IS NOT NULL AND ${columns.secretId} IS NOT NULL)))`,
         ),
         check(
             "repository_default_reference",
-            sql`${repository.defaultReference} IS NULL OR ${repository.defaultReference} LIKE 'refs/heads/%'`,
+            sql`${columns.defaultReference} IS NULL OR ${columns.defaultReference} LIKE 'refs/heads/%'`,
         ),
-        check(
-            "repository_remote",
-            sql`${repository.remote} IS NULL OR length(${repository.remote}) > 0`,
-        ),
+        check("repository_remote", sql`${columns.remote} IS NULL OR length(${columns.remote}) > 0`),
         check(
             "repository_provider",
-            sql`(${repository.provider} IS NULL OR length(${repository.provider}) > 0)
-            AND (${repository.providerRepositoryId} IS NULL OR length(${repository.providerRepositoryId}) > 0)`,
+            sql`(${columns.provider} IS NULL OR length(${columns.provider}) > 0)
+            AND (${columns.providerRepositoryId} IS NULL OR length(${columns.providerRepositoryId}) > 0)`,
         ),
     ],
 });

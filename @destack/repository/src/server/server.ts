@@ -3,17 +3,18 @@ import type { CallKey } from "@destack/service/request";
 import type { Directory } from "@destack/directory";
 import { Subject } from "@destack/sync";
 import { Connections } from "@destack/account/server";
-import { and, eq, isNull, type DatabaseConnection, type Insert } from "@destack/db";
-import type { Call } from "@destack/object";
+import { and, eq, isNull, type DatabaseConnection, type Select } from "@destack/db";
+import type { Call, CallOf, PreparedCallOf } from "@destack/object";
 import { ObjectServer, SystemCall } from "@destack/object/server";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import type { ServiceImplementation } from "@destack/service/server";
 import { WEBHOOK_SIGNATURES } from "@destack/service/trigger";
 import { GitHubApp, GitHubEvent } from "../github/index.ts";
 import {
-    ORIGIN_COLUMNS,
     ORIGIN_FIELDS,
+    type OriginColumns,
+    type OriginMove,
     reference,
     repository,
     RepositoryOrigin,
@@ -25,35 +26,37 @@ import { GitAdvertisement, GitListing, type Fetch, type GitStorage } from "../st
 /** The hostings an update may move an origin between. */
 const MOVABLE_HOSTINGS: ReadonlySet<Repository["hosting"]> = new Set(["github", "git"]);
 
+/** The origin fields a call or a repository names, before they are read as an origin. */
+type OriginFields = { readonly [Name in (typeof ORIGIN_FIELDS)[number]]?: unknown };
+
 /** One call of a repository method. */
 type RepositoryCall = Call<typeof repository.table>;
 
-/** The columns naming a repository's origin and the storage or GitHub identity it has there. */
-type OriginColumns = Pick<Insert<typeof repository.table>, (typeof ORIGIN_COLUMNS)[number]>;
+/** The origin columns no origin names, which the columns of each origin overwrite. */
+const BLANK_COLUMNS = {
+    host: null,
+    remote: null,
+    authentication: null,
+    connectedAccountId: null,
+    secretSpaceId: null,
+    secretId: null,
+    provider: null,
+    providerRepositoryId: null,
+} as const satisfies Omit<OriginColumns, "hosting">;
 
-/** The origin an update moves to, prepared at the revision the transaction requires. */
-interface Move {
-    /** The revision the move was prepared at. */
-    readonly revision: number;
-    /** The origin columns the update records. */
-    readonly columns: OriginColumns;
-}
-
-/** What a region serving repositories keeps and reaches. */
+/** The database, directory, storage and GitHub App a region serving repositories uses. */
 export interface RepositoryServerOptions {
     /** The regional database with repositories and their references. */
     readonly database: DatabaseConnection;
     /** The key sensitive call inputs are fingerprinted under in the journal. */
     readonly callKey: CallKey;
-    /** The global database with account connections. */
-    readonly global: DatabaseConnection;
     /** The directory whose key index keeps repository names. */
     readonly directory: Directory;
     /** The storage of platform repositories. */
     readonly storage: GitStorage;
-    /** The GitHub App reaching repositories connected through its installations. */
+    /** The GitHub App opening repositories connected through its installations. */
     readonly github: GitHubApp;
-    /** The fetch reaching Git remotes. */
+    /** The fetch calling Git remotes. */
     readonly fetch?: Fetch;
     /** Report committed external work that fails to settle. */
     readonly report?: (error: unknown) => void;
@@ -68,52 +71,52 @@ export class RepositoryServer {
     }>;
     /** The repository object with this server's handlers. */
     readonly #repository: typeof repository;
-    /** What the region keeps and reaches. */
+    /** The region's database, directory, storage and GitHub App. */
     readonly #options: RepositoryServerOptions;
-    /** The fetch reaching Git remotes. */
+    /** The fetch calling Git remotes. */
     readonly #fetch: Fetch;
 
     /** Serve repositories with the region's storage and GitHub App. */
     constructor(options: RepositoryServerOptions) {
-        // reach origins and storage outside each transaction, and record their results inside it
+        // call origins and storage outside each transaction, and record their results inside it
         this.#options = options;
         this.#fetch = options.fetch ?? globalThis.fetch;
         this.#repository = repository.handle({
             create: {
                 prepare: (call) =>
-                    this.#provide(call.id!, call.scope, RepositoryServer.#origin(call.input)),
-                effect: (call, next) =>
+                    this.#provide(
+                        RepositoryServer.#created(call),
+                        call.scope,
+                        RepositoryServer.#origin(call.input),
+                    ),
+                handler: (call, next) =>
                     next(
                         call.with({
-                            input: { ...call.input, ...(call.prepared as OriginColumns) },
+                            input: { ...call.input, ...call.prepared },
                         }),
                     ),
-                settle: async (call, prepared, isCommitted) => {
-                    if (isCommitted) {
-                        await this.#store(call.id!, prepared as OriginColumns);
-                    }
+                commit: async (call, prepared) => {
+                    await this.#store(call.requireId(), prepared);
                 },
             },
             update: {
                 prepare: (call) => this.#move(call),
-                effect: (call, next) => RepositoryServer.#update(call, next),
+                handler: (call, next) => RepositoryServer.#update(call, next),
             },
             refresh: {
-                prepare: (call) => this.#list(call.target!),
-                effect: (call) => RepositoryServer.#record(call, call.prepared as GitListing),
+                prepare: (call) => this.#list(call.target),
+                handler: (call) => RepositoryServer.#record(call, call.prepared),
             },
-            report: (call) => RepositoryServer.#record(call, GitListing.parse(call.input)),
+            report: (call) => RepositoryServer.#record(call, call.input),
             open: {
                 authorize: (call) => RepositoryServer.#authorizeWrite(call),
-                prepare: (call) => this.#reach(call.target!, LeaseMode.parse(call.input.mode)),
-                effect: async (call) => call.prepared,
+                prepare: (call) => this.#lease(call.target, call.input.mode),
+                handler: async (call) => call.prepared,
             },
             purge: {
-                prepare: async (call) => RepositoryServer.#columns(call.target!),
-                settle: async (_call, prepared, isCommitted) => {
-                    if (isCommitted) {
-                        await this.#erase(prepared as OriginColumns);
-                    }
+                prepare: async (call) => RepositoryServer.#columns(call.target),
+                commit: async (_call, prepared) => {
+                    await this.#erase(prepared);
                 },
             },
         });
@@ -177,9 +180,9 @@ export class RepositoryServer {
     }
 
     /** Prepare the origin an update names, none when it names none of its fields. */
-    async #move(call: RepositoryCall): Promise<Move | null> {
+    async #move(call: CallOf<typeof repository, "update">): Promise<OriginMove> {
         // keep the origin when the update names none of its fields
-        const target = call.target!;
+        const target = call.target;
         const isMoved = ORIGIN_FIELDS.some((name) => call.input[name] !== undefined);
         if (!isMoved) {
             return null;
@@ -213,12 +216,11 @@ export class RepositoryServer {
     /** Read the columns of an origin and its identity in storage or at GitHub. */
     async #provide(id: string, scope: string, origin: RepositoryOrigin): Promise<OriginColumns> {
         const { storage, github } = this.#options;
-        const empty = Object.fromEntries(ORIGIN_COLUMNS.map((name) => [name, null]));
 
         // derive the platform repository the region's storage creates once the repository commits
         if (origin.hosting === "platform") {
             return {
-                ...empty,
+                ...BLANK_COLUMNS,
                 hosting: "platform",
                 provider: storage.provider,
                 providerRepositoryId: id,
@@ -230,15 +232,15 @@ export class RepositoryServer {
             const installation = await this.#installation(scope, origin.connectedAccountId);
             const found = await github.repository(installation, GitHubApp.fullName(origin.remote));
 
-            return { ...empty, ...origin, providerRepositoryId: found.id };
+            return { ...BLANK_COLUMNS, ...origin, providerRepositoryId: found.id };
         }
         // keep a host by its subject's key
         else if (origin.hosting === "host") {
-            return { ...empty, hosting: "host", host: Subject.key(origin.host) };
+            return { ...BLANK_COLUMNS, hosting: "host", host: Subject.key(origin.host) };
         }
         // keep a Git remote as named
         else {
-            return { ...empty, ...origin };
+            return { ...BLANK_COLUMNS, ...origin };
         }
     }
 
@@ -250,32 +252,40 @@ export class RepositoryServer {
         }
 
         // read the advertisement of other remotes with read access
-        return GitAdvertisement.read(await this.#reach(target, "read"), this.#fetch);
+        return GitAdvertisement.read(await this.#lease(target, "read"), this.#fetch);
     }
 
     /** Lease an origin to read, or to write as well. */
-    async #reach(target: Repository, mode: LeaseMode): Promise<Lease> {
+    async #lease(target: Repository, mode: LeaseMode): Promise<Lease> {
         const { storage, github } = this.#options;
 
-        // reach a platform repository through the region's storage
+        // lease a platform repository through the region's storage
         if (target.hosting === "platform") {
             return storage.open(this.#storageId(target), mode);
         }
-        // reach a GitHub repository through an installation token limited to it and the mode
+        // lease a GitHub repository through an installation token limited to it and the mode
         else if (target.hosting === "github") {
-            const installation = await this.#installation(target.scope, target.connectedAccountId!);
+            const { connectedAccountId, providerRepositoryId, remote } = target;
+            if (connectedAccountId === null || providerRepositoryId === null || remote === null) {
+                throw new TypeError(`github repository ${target.id} has no complete origin`);
+            }
+            const installation = await this.#installation(target.scope, connectedAccountId);
 
-            return github.open(installation, target.providerRepositoryId!, target.remote!, mode);
+            return github.open(installation, providerRepositoryId, remote, mode);
         }
         // leave host repositories to their host
         else if (target.hosting === "host") {
             throw new ServiceError("BAD_REQUEST", {
-                message: "host repositories are refreshed and reached through their host",
+                message: "host repositories are refreshed and opened through their host",
             });
         }
         // pull an anonymous remote unchanged
         else if (target.authentication === "anonymous" && mode === "read") {
-            return { url: target.remote!, mode, headers: {} };
+            if (target.remote === null) {
+                throw new TypeError(`git repository ${target.id} has no remote`);
+            }
+
+            return { url: target.remote, mode, headers: {} };
         }
         // refuse pushing to an anonymous remote, for which the platform has no credential
         else if (target.authentication === "anonymous") {
@@ -305,7 +315,7 @@ export class RepositoryServer {
         const [row] = await this.#options.database
             .select({ id: table.id })
             .from(table)
-            .where(eq(table.id, identifier("repository").parse(id)));
+            .where(eq(table.id, schema.identifier("repository").parse(id)));
         if (row === undefined) {
             await this.#options.storage.delete(storageId);
         }
@@ -327,15 +337,22 @@ export class RepositoryServer {
                 message: `repository is stored by ${columns.provider}, this region stores ${storage.provider}`,
             });
         }
+        // refuse a platform repository without its storage identifier
+        else if (
+            columns.providerRepositoryId === null ||
+            columns.providerRepositoryId === undefined
+        ) {
+            throw new TypeError("platform repository has no storage identifier");
+        }
 
-        return columns.providerRepositoryId!;
+        return columns.providerRepositoryId;
     }
 
     /** Read the installation of this GitHub App an account's connection names. */
     async #installation(scope: string, connectedAccountId: string): Promise<string> {
         const [row] = await this.#installations({
-            scope: identifier("account").parse(scope),
-            id: identifier("connected-account").parse(connectedAccountId),
+            scope: schema.identifier("account").parse(scope),
+            id: schema.identifier("connected-account").parse(connectedAccountId),
         });
         if (row === undefined) {
             throw new ServiceError("BAD_REQUEST", {
@@ -353,7 +370,7 @@ export class RepositoryServer {
             "provider" | "applicationId"
         >,
     ) {
-        return Connections.installations(this.#options.global, {
+        return Connections.installations(this.#options.database, {
             ...selection,
             provider: "github",
             applicationId: this.#options.github.id,
@@ -361,25 +378,27 @@ export class RepositoryServer {
     }
 
     /** Require the push permission for push access. */
-    static async #authorizeWrite(call: RepositoryCall): Promise<void> {
-        if (LeaseMode.parse(call.input.mode) === "write") {
-            await call.authorization!.require(repository.permission("push"), call.reference());
+    static async #authorizeWrite(call: CallOf<typeof repository, "open">): Promise<void> {
+        if (call.input.mode === "write") {
+            await call
+                .requireAuthorization()
+                .require(repository.permission("push"), call.reference());
         }
     }
 
     /** Update the repository with its prepared origin, at the prepared revision. */
     static async #update(
-        call: RepositoryCall,
-        next: (call?: RepositoryCall) => Promise<unknown>,
-    ): Promise<unknown> {
+        call: PreparedCallOf<typeof repository, "update">,
+        next: (call?: RepositoryCall) => Promise<Repository>,
+    ): Promise<Repository> {
         // change the repository alone when its origin stays
-        const move = call.prepared as Move | null;
+        const move = call.prepared;
         if (move === null) {
             return next();
         }
 
         // require the revision the origin was prepared at
-        if (call.target!.revision !== move.revision) {
+        if (call.target.revision !== move.revision) {
             throw new ServiceError("CONFLICT", { message: "repository revision has changed" });
         }
 
@@ -387,10 +406,12 @@ export class RepositoryServer {
     }
 
     /** Record a listing's references and default branch. */
-    static async #record(call: RepositoryCall, listing: GitListing): Promise<unknown> {
+    static async #record(
+        call: PreparedCallOf<typeof repository, "refresh"> | CallOf<typeof repository, "report">,
+        listing: GitListing,
+    ): Promise<Repository> {
         // read the recorded references by name
-        const { database, now } = call;
-        const target = call.target!;
+        const { database, target } = call;
         const rows = await database
             .select()
             .from(reference.table)
@@ -398,49 +419,14 @@ export class RepositoryServer {
         const recorded = new Map(rows.map((row) => [row.name, row]));
         const listed = new Map(listing.references.map((entry) => [entry.name, entry]));
 
-        // create new references
-        // NOTE #Performance: one invoked call per reference; a first refresh of 10k tags runs 10k calls
+        // create new references, and update the references that changed
         for (const entry of listing.references) {
             if (!recorded.has(entry.name)) {
-                await call.invoke(reference, "create", {
-                    parentId: target.id,
-                    name: entry.name,
-                    object: entry.object,
-                    commit: entry.commit,
-                    observedAt: now,
-                });
+                await RepositoryServer.#createReference(call, entry);
             }
         }
-
-        // update the references that changed, at their read revisions
         for (const row of rows) {
-            const entry = listed.get(row.name);
-            const isGone = entry === undefined && row.deletedAt === null;
-            const isChanged =
-                entry !== undefined &&
-                (row.object !== entry.object ||
-                    row.commit !== entry.commit ||
-                    row.deletedAt !== null);
-
-            // mark a vanished reference deleted
-            if (isGone) {
-                await call.invoke(reference, "update", {
-                    id: row.id,
-                    revision: row.revision,
-                    deletedAt: now,
-                });
-            }
-            // move or return a changed reference
-            else if (isChanged) {
-                await call.invoke(reference, "update", {
-                    id: row.id,
-                    revision: row.revision,
-                    object: entry.object,
-                    commit: entry.commit,
-                    observedAt: now,
-                    deletedAt: null,
-                });
-            }
+            await RepositoryServer.#updateReference(call, row, listed.get(row.name));
         }
 
         // move the default branch when it changed
@@ -449,15 +435,82 @@ export class RepositoryServer {
             : call.update({ defaultReference: listing.defaultReference });
     }
 
+    /** Create a reference a listing names for the first time. */
+    static async #createReference(
+        call: PreparedCallOf<typeof repository, "refresh"> | CallOf<typeof repository, "report">,
+        entry: GitListing["references"][number],
+    ): Promise<void> {
+        // NOTE #Performance: one invoked call per reference: a first refresh of 10k tags runs 10k calls
+        await call.invoke(reference).create({
+            parentId: call.target.id,
+            name: entry.name,
+            object: entry.object,
+            commit: entry.commit,
+            observedAt: call.now,
+        });
+    }
+
+    /** Mark a recorded reference deleted when the listing lacks it, or move or return it when the listing changed it. */
+    static async #updateReference(
+        call: PreparedCallOf<typeof repository, "refresh"> | CallOf<typeof repository, "report">,
+        row: Select<typeof reference.table>,
+        entry: GitListing["references"][number] | undefined,
+    ): Promise<void> {
+        const isGone = entry === undefined && row.deletedAt === null;
+        const isChanged =
+            entry !== undefined &&
+            (row.object !== entry.object || row.commit !== entry.commit || row.deletedAt !== null);
+
+        // mark a vanished reference deleted, at its read revision
+        if (isGone) {
+            await call.invoke(reference).update({
+                id: row.id,
+                revision: row.revision,
+                deletedAt: call.now,
+            });
+        }
+        // move or return a changed reference, at its read revision
+        else if (isChanged) {
+            await call.invoke(reference).update({
+                id: row.id,
+                revision: row.revision,
+                object: entry.object,
+                commit: entry.commit,
+                observedAt: call.now,
+                deletedAt: null,
+            });
+        }
+    }
+
     /** Read a repository's origin columns. */
     static #columns(target: Repository): OriginColumns {
-        return Object.fromEntries(
-            ORIGIN_COLUMNS.map((name) => [name, target[name]]),
-        ) as OriginColumns;
+        const { hosting, host, remote, authentication, connectedAccountId } = target;
+        const { secretSpaceId, secretId, provider, providerRepositoryId } = target;
+
+        return {
+            hosting,
+            host,
+            remote,
+            authentication,
+            connectedAccountId,
+            secretSpaceId,
+            secretId,
+            provider,
+            providerRepositoryId,
+        };
+    }
+
+    /** Read the identifier of the repository a creation makes. */
+    static #created(call: CallOf<typeof repository, "create">): string {
+        if (call.id === undefined) {
+            throw new TypeError("a repository creation has no identifier");
+        }
+
+        return call.id;
     }
 
     /** Read the origin from a call's fields and refuse invalid combinations. */
-    static #origin(fields: Readonly<Record<string, unknown>>): RepositoryOrigin {
+    static #origin(fields: OriginFields): RepositoryOrigin {
         // parse the call's origin fields and read a host's subject from its key
         const named = Object.fromEntries(
             ORIGIN_FIELDS.filter((name) => fields[name] !== undefined && fields[name] !== null).map(

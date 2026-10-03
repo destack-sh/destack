@@ -2,12 +2,12 @@ import type { Lease, LeaseMode } from "@destack/resource";
 import { Instant, schema } from "@destack/schema";
 
 /** A Git object name: 40 hexadecimal digits for SHA-1, 64 for SHA-256. */
-const ObjectName = schema.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
+const ObjectName = schema.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 
 /** A branch or tag as its origin lists it. */
 export const GitReference = schema.object({
     /** The complete name, such as refs/heads/main or refs/tags/v1. */
-    name: schema.string().regex(/^refs\/(?:heads|tags)\/./),
+    name: schema.string().regex(/^refs\/(?:heads|tags)\/./u),
     /** The object the reference names directly: a commit, or a tag object for annotated tags. */
     object: ObjectName,
     /** The commit the reference resolves to, null when it resolves to no commit. */
@@ -21,7 +21,7 @@ export const GitListing = schema.object({
     /** The branch HEAD names, including refs/heads/, null when HEAD names no existing branch. */
     defaultReference: schema
         .string()
-        .regex(/^refs\/heads\/./)
+        .regex(/^refs\/heads\/./u)
         .nullable(),
     /** The branches and tags. */
     references: schema.array(GitReference),
@@ -56,7 +56,7 @@ export const GitCredential = Object.assign(credential, {
     },
 });
 
-/** The fetch a host supplies for reaching Git hosts and their APIs. */
+/** The fetch a host supplies for calling Git hosts and their APIs. */
 export type Fetch = (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
 
 /** Storage for the repositories the platform hosts, supplied by the host like a bucket. */

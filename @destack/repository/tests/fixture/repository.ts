@@ -10,7 +10,7 @@ import { Journal } from "@destack/audit";
 import type { DatabaseConnection, Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
@@ -27,19 +27,19 @@ import { testCallKey } from "@destack/service/test";
 
 /** The identifiers the fixture's accounts, users, connections and host take. */
 export const ids = {
-    account: identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
-    other: identifier("account").parse("account-01996ab0-0000-7000-8000-000000000002"),
-    owner: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000a"),
-    reader: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000b"),
-    stranger: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000c"),
-    connection: identifier("connected-account").parse(
-        "connected-account-01996ab0-0000-7000-8000-000000000004",
-    ),
-    otherConnection: identifier("connected-account").parse(
-        "connected-account-01996ab0-0000-7000-8000-000000000005",
-    ),
-    host: identifier("host").parse("host-01996ab0-0000-7000-8000-000000000008"),
-    otherHost: identifier("host").parse("host-01996ab0-0000-7000-8000-000000000009"),
+    account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
+    other: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000002"),
+    owner: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000a"),
+    reader: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000b"),
+    stranger: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000c"),
+    connection: schema
+        .identifier("connected-account")
+        .parse("connected-account-01996ab0-0000-7000-8000-000000000004"),
+    otherConnection: schema
+        .identifier("connected-account")
+        .parse("connected-account-01996ab0-0000-7000-8000-000000000005"),
+    host: schema.identifier("host").parse("host-01996ab0-0000-7000-8000-000000000008"),
+    otherHost: schema.identifier("host").parse("host-01996ab0-0000-7000-8000-000000000009"),
 };
 
 /** The installation of the fixture GitHub App in the owner's GitHub organisation. */
@@ -97,7 +97,7 @@ export class RepositoryFixture {
             await regional.close();
         });
 
-        // keep the accounts and their GitHub App installations globally
+        // keep the accounts globally, and their GitHub App installations' connections copied into the region
         const global = globalStorage.database;
         await global.insert(user.table).values({
             id: ids.owner,
@@ -119,7 +119,7 @@ export class RepositoryFixture {
                 createdAt: 1,
                 updatedAt: 1,
             });
-            await global.insert(connection.table).values({
+            await regional.database.insert(connection.table).values({
                 id: connectedAccountId,
                 scope: id,
                 userId: ids.owner,
@@ -153,7 +153,6 @@ export class RepositoryFixture {
         const server = new RepositoryServer({
             callKey: testCallKey,
             database,
-            global,
             directory: new DirectoryStore(global),
             storage,
             github: new GitHubApp({
@@ -180,10 +179,10 @@ export class RepositoryFixture {
     }
 
     /** Connect to the repository service as a user. */
-    connect(user: string) {
+    connect(userId: string) {
         return connect({
             url: "https://repository.test",
-            headers: { "x-user": user },
+            headers: { "x-user": userId },
             fetch: (request) => this.http.fetch(request),
         });
     }
@@ -200,7 +199,7 @@ export class RepositoryFixture {
     /** Define a role granting repository reads and pulls in the account and bind it to the reader. */
     static async #grantReading(database: DatabaseConnection): Promise<void> {
         const now = Date.now();
-        const role = identifier("role").parse("role-01996ab0-0000-7000-8000-000000000006");
+        const role = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-000000000006");
         await database.insert(accessRole).values({
             id: role,
             createdAt: now,
@@ -222,9 +221,9 @@ export class RepositoryFixture {
         await database.insert(accessRelationship).values(
             Relationship.encode(
                 {
-                    id: identifier("relationship").parse(
-                        "relationship-01996ab0-0000-7000-8000-000000000007",
-                    ),
+                    id: schema
+                        .identifier("relationship")
+                        .parse("relationship-01996ab0-0000-7000-8000-000000000007"),
                     object: account.reference("universe", ids.account),
                     role,
                     subject: principal.user.reference("universe", ids.reader),
@@ -251,10 +250,16 @@ export class RepositoryFixture {
             authorizeHost: async () => {},
             authenticate: async (request) => {
                 const host = request.headers.get("x-host");
+                const userId = request.headers.get("x-user");
                 const subject =
-                    host === null
-                        ? principal.user.reference("universe", request.headers.get("x-user")!)
-                        : principal.host.reference(ids.account, host);
+                    host !== null
+                        ? principal.host.reference(ids.account, host)
+                        : userId !== null
+                          ? principal.user.reference("universe", userId)
+                          : null;
+                if (subject === null) {
+                    throw new TypeError("a fixture request names no host or user");
+                }
                 const now = Date.now();
 
                 return new Authentication({

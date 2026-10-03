@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { through } from "@destack/access";
 import { check, dialectSQL, sql, unique } from "@destack/db";
-import { defineObject, field, method } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { repository } from "./repository.ts";
 import { account } from "@destack/account/object";
 
@@ -24,7 +24,7 @@ export const reference = defineObject({
         deletedAt: field.time().optional(),
     },
     permissions: { read: through("parent", "read") },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create(null, {
@@ -35,25 +35,25 @@ export const reference = defineObject({
             isSystem: true,
             fields: ["object", "commit", "observedAt", "deletedAt"],
         }),
-    },
-    constraints: (reference) => [
-        unique("reference_parent_name").on(reference.parentId, reference.name),
+    }),
+    constraints: (columns) => [
+        unique("reference_parent_name").on(columns.parentId, columns.name),
         check(
             "reference_name",
-            sql`${reference.name} LIKE 'refs/heads/%' OR ${reference.name} LIKE 'refs/tags/%'`,
+            sql`${columns.name} LIKE 'refs/heads/%' OR ${columns.name} LIKE 'refs/tags/%'`,
         ),
         check(
             "reference_object",
             dialectSQL({
-                sqlite: sql`length(${reference.object}) IN (40, 64) AND ${reference.object} NOT GLOB '*[^0-9a-f]*'`,
-                postgresql: sql`length(${reference.object}) IN (40, 64) AND (${reference.object} COLLATE "C") !~ '[^0-9a-f]'`,
+                sqlite: sql`length(${columns.object}) IN (40, 64) AND ${columns.object} NOT GLOB '*[^0-9a-f]*'`,
+                postgresql: sql`length(${columns.object}) IN (40, 64) AND (${columns.object} COLLATE "C") !~ '[^0-9a-f]'`,
             }),
         ),
         check(
             "reference_commit",
             dialectSQL({
-                sqlite: sql`${reference.commit} IS NULL OR (length(${reference.commit}) IN (40, 64) AND ${reference.commit} NOT GLOB '*[^0-9a-f]*')`,
-                postgresql: sql`${reference.commit} IS NULL OR (length(${reference.commit}) IN (40, 64) AND (${reference.commit} COLLATE "C") !~ '[^0-9a-f]')`,
+                sqlite: sql`${columns.commit} IS NULL OR (length(${columns.commit}) IN (40, 64) AND ${columns.commit} NOT GLOB '*[^0-9a-f]*')`,
+                postgresql: sql`${columns.commit} IS NULL OR (length(${columns.commit}) IN (40, 64) AND (${columns.commit} COLLATE "C") !~ '[^0-9a-f]')`,
             }),
         ),
     ],

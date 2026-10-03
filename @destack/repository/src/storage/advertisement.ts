@@ -15,16 +15,16 @@ const PEELED_SUFFIX = "^{}";
 const HEAD_CAPABILITY = "symref=HEAD:";
 
 /** The branches and tags a Git server advertises over the smart HTTP protocol. */
-export class GitAdvertisement {
+export const GitAdvertisement = {
     /**
      * Read a remote's advertisement: GET <remote>/info/refs?service=git-upload-pack.
      *
      * Annotated tags arrive with the commit they peel to; other references name their commit directly.
      */
-    static async read(lease: Lease, fetch: Fetch): Promise<GitListing> {
+    async read(lease: Lease, fetch: Fetch): Promise<GitListing> {
         // request the upload-pack advertisement as Git does, with the lease's headers
         const headers = new Headers({ ...lease.headers, "User-Agent": "git/destack" });
-        const url = `${lease.url.replace(/\/$/, "")}/info/refs?service=git-upload-pack`;
+        const url = `${lease.url.replace(/\/$/u, "")}/info/refs?service=git-upload-pack`;
         const response = await fetch(url, { headers });
 
         // require a smart HTTP advertisement
@@ -36,12 +36,12 @@ export class GitAdvertisement {
         }
 
         return GitAdvertisement.parse(new Uint8Array(await response.arrayBuffer()));
-    }
+    },
 
     /** Parse an advertisement's pkt-lines into its branches, tags and default branch. */
-    static parse(body: Uint8Array): GitListing {
+    parse(body: Uint8Array): GitListing {
         // read each pkt-line after the service announcement, skipping flush packets
-        const lines = GitAdvertisement.#lines(body);
+        const lines = packetLines(body);
         if (lines[0] !== "# service=git-upload-pack") {
             throw new ServiceError("BAD_GATEWAY", {
                 message: "git remote announced no upload-pack",
@@ -54,7 +54,12 @@ export class GitAdvertisement {
         const peeled = new Map<string, string>();
         for (const line of lines.slice(1)) {
             const [advertised, capabilities] = line.split("\0");
-            const [object, name] = advertised!.split(" ") as [string, string];
+            const [object, name] = advertised === undefined ? [] : advertised.split(" ");
+            if (object === undefined || name === undefined) {
+                throw new ServiceError("BAD_GATEWAY", {
+                    message: `git remote advertised ${line}`,
+                });
+            }
 
             // read the default branch from HEAD's symref capability
             const symref = capabilities
@@ -83,34 +88,34 @@ export class GitAdvertisement {
             defaultReference: head !== null && objects.has(head) ? head : null,
             references,
         };
-    }
+    },
+};
 
-    /** Split a body into its pkt-lines' text, dropping flush packets. */
-    static #lines(body: Uint8Array): string[] {
-        // walk the packets from the start
-        const decoder = new TextDecoder();
-        const lines: string[] = [];
-        let offset = 0;
-        while (offset < body.length) {
-            // read the length with its own four digits, zero for a flush packet
-            const prefix = decoder.decode(body.subarray(offset, offset + LENGTH_WIDTH));
-            const length = Number.parseInt(prefix, 16);
-            if (!/^[0-9a-f]{4}$/.test(prefix) || (length !== 0 && length < LENGTH_WIDTH)) {
-                throw new ServiceError("BAD_GATEWAY", {
-                    message: `git remote sent pkt-line ${prefix}`,
-                });
-            }
-
-            // keep the payload of a data packet
-            const end = length === 0 ? offset + LENGTH_WIDTH : offset + length;
-            if (length !== 0) {
-                lines.push(
-                    decoder.decode(body.subarray(offset + LENGTH_WIDTH, end)).replace(/\n$/, ""),
-                );
-            }
-            offset = end;
+/** Split a body into its pkt-lines' text, dropping flush packets. */
+function packetLines(body: Uint8Array): string[] {
+    // walk the packets from the start
+    const decoder = new TextDecoder();
+    const lines: string[] = [];
+    let offset = 0;
+    while (offset < body.length) {
+        // read the length from its four hexadecimal digits, zero for a flush packet
+        const prefix = decoder.decode(body.subarray(offset, offset + LENGTH_WIDTH));
+        const length = Number.parseInt(prefix, 16);
+        if (!/^[0-9a-f]{4}$/u.test(prefix) || (length !== 0 && length < LENGTH_WIDTH)) {
+            throw new ServiceError("BAD_GATEWAY", {
+                message: `git remote sent pkt-line ${prefix}`,
+            });
         }
 
-        return lines;
+        // keep the payload of a data packet
+        const end = length === 0 ? offset + LENGTH_WIDTH : offset + length;
+        if (length !== 0) {
+            lines.push(
+                decoder.decode(body.subarray(offset + LENGTH_WIDTH, end)).replace(/\n$/u, ""),
+            );
+        }
+        offset = end;
     }
+
+    return lines;
 }

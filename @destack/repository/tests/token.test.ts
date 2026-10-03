@@ -30,7 +30,10 @@ test("sign claims with ES256 and RS256 keys into tokens their public keys verify
         key: CryptoKey,
         parameters: AlgorithmIdentifier | EcdsaParams,
     ) => {
-        const [header, body, signature] = token.split(".") as [string, string, string];
+        const [header, body, signature] = token.split(".");
+        if (header === undefined || body === undefined || signature === undefined) {
+            throw new TypeError("a compact jwt has three parts");
+        }
         const isValid = await crypto.subtle.verify(
             parameters,
             key,

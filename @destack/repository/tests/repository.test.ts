@@ -1,25 +1,27 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Subject } from "@destack/sync";
 import { reconciliation } from "@destack/service/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { principal } from "@destack/access";
-import { Condition } from "@destack/db/query";
+import { eq } from "@destack/db";
 import { RequestId } from "@destack/service/request";
 import { readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { claimTable } from "@destack/directory";
-import { settlement } from "@destack/object";
-import { eq } from "@destack/db";
+import { QUERIES_SHAPE, settlement } from "@destack/object";
+import { aligned, schema } from "@destack/schema";
 import { reference } from "../src/object/index.ts";
 import { History } from "./fixture/git.ts";
 import { ids, RepositoryFixture } from "./fixture/repository.ts";
 
+/** A directory claim key: the claim's kind, name and holder. */
+const ClaimKey = schema.array(schema.string());
+
 /** Report a call's outcome as its failure code, or as accepted. */
-function outcome(call: Promise<unknown>): Promise<string> {
-    return call.then(
-        () => "accepted",
-        (error: { code: string }) => error.code,
-    );
+async function outcome(call: Promise<unknown>): Promise<string> {
+    const refused = await refusal(call);
+
+    return refused === "done" ? "accepted" : refused[0];
 }
 
 test.each(TEST_DIALECTS)(
@@ -125,7 +127,7 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([["site"], "accepted", "FORBIDDEN", "FORBIDDEN", "NOT_FOUND", "NOT_FOUND"]);
 
         // push a commit and an annotated tag, then observe them and the default branch on refresh
-        const origin = fileURLToPath(created.remote!);
+        const origin = remotePath(created.remote);
         const history = new History();
         history.tag("v1", history.commit("main", "README.md", "# Site\n"));
         const [commit, tag] = await history.write(origin);
@@ -139,8 +141,8 @@ test.each(TEST_DIALECTS)(
             (
                 await reader.reference.list({
                     accountId,
-                    where: Condition.eq("parentId", created.id),
-                    order: [{ column: "name", direction: "asc" }],
+                    where: { parentId: created.id },
+                    orderBy: { name: "asc" },
                 })
             ).items.map((item) => [item.name, item.object, item.commit, item.deletedAt]);
         expect(await references()).toEqual([
@@ -180,16 +182,16 @@ test.each(TEST_DIALECTS)(
             id: created.id,
             requestId: RequestId.create(),
         });
-        const [main, v1] = (
-            await reader.reference.list({
-                accountId,
-                where: Condition.eq("parentId", created.id),
-                order: [{ column: "name", direction: "asc" }],
-            })
-        ).items;
+        const { items } = await reader.reference.list({
+            accountId,
+            where: { parentId: created.id },
+            orderBy: { name: "asc" },
+        });
+        const main = aligned(items, 0);
+        const v1 = aligned(items, 1);
         expect([
-            [main!.object, main!.commit, main!.deletedAt, main!.revision],
-            [v1!.object, v1!.commit, v1!.deletedAt === null, v1!.revision],
+            [main.object, main.commit, main.deletedAt, main.revision],
+            [v1.object, v1.commit, v1.deletedAt === null, v1.revision],
         ]).toEqual([
             [moved, moved, null, 2],
             [tag, commit, false, 2],
@@ -213,7 +215,7 @@ test.each(TEST_DIALECTS)(
         });
         const history = new History();
         history.commit("main", "notes.md", "first\n");
-        const [commit] = await history.write(fileURLToPath(created.remote!));
+        const [commit] = await history.write(remotePath(created.remote));
         await owner.repository.refresh({
             accountId,
             id: created.id,
@@ -225,24 +227,26 @@ test.each(TEST_DIALECTS)(
             const controller = new AbortController();
             const pages = await region
                 .connect(user)
-                .replica.sync(
-                    { scope: accountId, queries: { references: { object: "reference" } } },
+                .replica.stream(
+                    {
+                        name: "objects",
+                        shape: QUERIES_SHAPE,
+                        scope: accountId,
+                        below: accountId,
+                        parameters: { queries: { references: { object: "reference" } } },
+                    },
                     { signal: controller.signal },
                 );
-            const { value } = await pages[Symbol.asyncIterator]().next();
+            const page = await pages[Symbol.asyncIterator]().next();
             controller.abort();
+            if (page.done === true) {
+                throw new Error("the sync ended before its first page");
+            }
 
-            return (value as { changes: { row: Record<string, unknown> }[] }).changes.map(
-                (change) => [change.row.name, change.row.commit],
-            );
+            return page.value.changes.map((change) => [change.row["name"], change.row["commit"]]);
         };
         expect(await follow(ids.reader)).toEqual([["refs/heads/main", commit]]);
-        expect(
-            await follow(ids.stranger).catch((error: { code: string; message: string }) => [
-                error.code,
-                error.message,
-            ]),
-        ).toEqual(["NOT_FOUND", `no scope ${accountId}`]);
+        expect(await refusal(follow(ids.stranger))).toEqual(["NOT_FOUND", `no scope ${accountId}`]);
     },
 );
 
@@ -263,7 +267,7 @@ test.each(TEST_DIALECTS)(
         });
         const history = new History();
         history.commit("main", "README.md", "# Site\n");
-        await history.write(fileURLToPath(site.remote!));
+        await history.write(remotePath(site.remote));
         await owner.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() });
         const mirror = await owner.repository.create({
             accountId,
@@ -277,12 +281,12 @@ test.each(TEST_DIALECTS)(
             (
                 await owner.repository.list({
                     accountId,
-                    order: [{ column: "name", direction: "asc" }],
+                    orderBy: { name: "asc" },
                 })
             ).items.map((item) => item.name),
             (await region.global.select().from(claimTable))
-                .map((row) => (JSON.parse(row.key) as string[])[1])
-                .sort(),
+                .map((row) => aligned(ClaimKey.parse(JSON.parse(row.key)), 1))
+                .toSorted(),
             await readdir(region.storage.directory),
             (await region.database.select().from(reference.table)).map((row) => row.name),
         ];
@@ -361,7 +365,7 @@ test.each(TEST_DIALECTS)(
             }),
         ];
 
-        // reach the platform repository through the storage: the reader pulls, the owner pushes, strangers see nothing
+        // open the platform repository through the storage: the reader pulls, the owner pushes, strangers see nothing
         const local = (mode: "read" | "write") => ({ url: site.remote, mode, headers: {} });
         expect([
             await reader.repository.open({ accountId, id: site.id, mode: "read" }),
@@ -413,6 +417,7 @@ test.each(TEST_DIALECTS)(
             hosting: "platform",
         });
         const kept = await region.database.select().from(settlement);
+        const first = aligned(kept, 0);
         expect([
             await readdir(region.storage.directory),
             kept.map((row) => [row.object, row.method, row.target]),
@@ -422,13 +427,11 @@ test.each(TEST_DIALECTS)(
         // create it through the host's settlement controller after the grace and the failed settle's claim pass
         await region.database
             .update(settlement)
-            .set({ createdAt: kept[0]!.createdAt - 61_000, claimedAt: kept[0]!.createdAt - 61_000 })
-            .where(eq(settlement.id, kept[0]!.id));
-        const controller = region.server.objects
-            .controllers()
-            .find((entry) => entry.name === "settlement")!;
+            .set({ createdAt: first.createdAt - 61_000, claimedAt: first.createdAt - 61_000 })
+            .where(eq(settlement.id, first.id));
+        const controller = settlementController(region);
         expect(
-            await controller.reconcile(kept[0]!.id, reconciliation(AbortSignal.timeout(5000))),
+            await controller.reconcile(first.id, reconciliation(AbortSignal.timeout(5000))),
         ).toBeUndefined();
         expect([
             await readdir(region.storage.directory),
@@ -456,19 +459,17 @@ test.each(TEST_DIALECTS)(
             name: "site",
             hosting: "platform",
         });
-        const [row] = await region.database.select().from(settlement);
+        const row = aligned(await region.database.select().from(settlement), 0);
         await owner.repository.delete({ accountId, id: site.id, requestId: RequestId.create() });
         await owner.repository.purge({ accountId, id: site.id, requestId: RequestId.create() });
 
         // settle the creation after its grace and the failed settle's claim pass, and leave no storage
         await region.database
             .update(settlement)
-            .set({ createdAt: row!.createdAt - 61_000, claimedAt: row!.createdAt - 61_000 })
-            .where(eq(settlement.id, row!.id));
-        const controller = region.server.objects
-            .controllers()
-            .find((entry) => entry.name === "settlement")!;
-        await controller.reconcile(row!.id, reconciliation(AbortSignal.timeout(5000)));
+            .set({ createdAt: row.createdAt - 61_000, claimedAt: row.createdAt - 61_000 })
+            .where(eq(settlement.id, row.id));
+        const controller = settlementController(region);
+        await controller.reconcile(row.id, reconciliation(AbortSignal.timeout(5000)));
         expect([
             await readdir(region.storage.directory),
             await region.database.select().from(settlement),
@@ -512,8 +513,8 @@ test.each(TEST_DIALECTS)(
             (
                 await reader.reference.list({
                     accountId,
-                    where: Condition.eq("parentId", laptop.id),
-                    order: [{ column: "name", direction: "asc" }],
+                    where: { parentId: laptop.id },
+                    orderBy: { name: "asc" },
                 })
             ).items.map((item) => [item.name, item.object, item.commit, item.deletedAt]),
             (await host.repository.list({ accountId })).items.map((item) => item.name),
@@ -527,7 +528,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // hide the repository from another host, and forbid its owner reporting for the host
-        const refusal = (client: ReturnType<RepositoryFixture["connect"]>) =>
+        const hiding = (client: ReturnType<RepositoryFixture["connect"]>) =>
             outcome(
                 client.repository.report({
                     accountId,
@@ -536,9 +537,30 @@ test.each(TEST_DIALECTS)(
                     ...listing,
                 }),
             );
-        expect([await refusal(region.connectHost(ids.otherHost)), await refusal(owner)]).toEqual([
+        expect([await hiding(region.connectHost(ids.otherHost)), await hiding(owner)]).toEqual([
             "NOT_FOUND",
             "FORBIDDEN",
         ]);
     },
 );
+
+/** Read the local path of a platform repository's file remote. */
+function remotePath(remote: string | null): string {
+    if (remote === null) {
+        throw new TypeError("a platform repository has a remote");
+    }
+
+    return fileURLToPath(remote);
+}
+
+/** Find the settlement controller a region's object server runs. */
+function settlementController(region: RepositoryFixture) {
+    const controller = region.server.objects
+        .controllers()
+        .find((entry) => entry.name === "settlement");
+    if (controller === undefined) {
+        throw new TypeError("the object server runs a settlement controller");
+    }
+
+    return controller;
+}

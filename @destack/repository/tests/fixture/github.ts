@@ -1,3 +1,4 @@
+import { aligned, found, schema } from "@destack/schema";
 import { githubPublicKey } from "./key.ts";
 import { verifyToken } from "./token.ts";
 
@@ -9,6 +10,9 @@ export const GITHUB_API = new URL("https://api.github.test");
 
 /** The host serving the stand-in's Git remotes. */
 const GITHUB_HOST = "github.com";
+
+/** The lifetime claims of an app JWT, in epoch seconds. */
+const JwtLifetime = schema.looseObject({ iat: schema.number(), exp: schema.number() });
 
 /** A Git object as GitHub's REST API names it. */
 interface GitObject {
@@ -53,24 +57,17 @@ export class GitHubStandIn {
         // record the request with the credential it presents, as a bearer or as Git's basic password
         const request = new Request(input, options);
         const url = new URL(request.url);
-        const [scheme, presented] = (request.headers.get("authorization") ?? " ").split(" ") as [
-            string,
-            string,
-        ];
-        const secret =
-            scheme === "Basic"
-                ? new TextDecoder().decode(Uint8Array.fromBase64(presented)).split(":")[1]!
-                : presented;
-        const installation = this.#tokens.get(secret);
+        const secret = presentedSecret(request.headers.get("authorization"));
+        const installation = secret === undefined ? undefined : this.#tokens.get(secret);
         const credential = installation === undefined ? "app" : `installation ${installation}`;
         this.requests.push(
             `${request.method} ${url.host}${url.pathname}${url.search} ${credential}`,
         );
 
         // advertise a repository's references to its installation's tokens over Git's smart HTTP
-        const advertised = /^\/([^/]+\/[^/]+)\.git\/info\/refs$/.exec(url.pathname);
-        if (url.host === GITHUB_HOST && advertised) {
-            const hosted = this.repositories.get(advertised[1]!);
+        const advertised = /^\/([^/]+\/[^/]+)\.git\/info\/refs$/u.exec(url.pathname);
+        if (url.host === GITHUB_HOST && advertised !== null) {
+            const hosted = this.repositories.get(aligned(advertised, 1));
             if (hosted === undefined || hosted.installation !== installation) {
                 return new Response("Repository not found.", { status: 404 });
             }
@@ -87,10 +84,18 @@ export class GitHubStandIn {
         }
 
         // create an installation token for an app JWT
-        const token = /^\/app\/installations\/(\d+)\/access_tokens$/.exec(url.pathname);
-        if (request.method === "POST" && token) {
+        const token = /^\/app\/installations\/(\d+)\/access_tokens$/u.exec(url.pathname);
+        if (request.method === "POST" && token !== null) {
+            if (secret === undefined) {
+                throw new TypeError("an installation token request presents no app jwt");
+            }
             const { claims } = await verifyToken(secret, await githubPublicKey());
-            if (claims.iss !== APP_ID || (claims.exp as number) - (claims.iat as number) > 600) {
+            const lifetime = JwtLifetime.safeParse(claims);
+            if (
+                claims["iss"] !== APP_ID ||
+                !lifetime.success ||
+                lifetime.data.exp - lifetime.data.iat > 600
+            ) {
                 return Response.json({ message: "bad jwt" }, { status: 401 });
             }
             const issued = `ghs_${token[1]}_${this.#tokens.size + 1}`;
@@ -109,12 +114,12 @@ export class GitHubStandIn {
         }
 
         // serve the repository the path names to its installation's tokens
-        const path = /^\/repos\/([^/]+\/[^/]+)(\/.*)?$/.exec(url.pathname);
-        const repository = path ? this.repositories.get(path[1]!) : undefined;
-        if (repository === undefined || repository.installation !== installation) {
+        const path = /^\/repos\/([^/]+\/[^/]+)(\/.*)?$/u.exec(url.pathname);
+        const repository = path === null ? undefined : this.repositories.get(aligned(path, 1));
+        if (path === null || repository === undefined || repository.installation !== installation) {
             return Response.json({ message: "Not Found" }, { status: 404 });
         }
-        const rest = path![2] ?? "";
+        const rest = path[2] ?? "";
 
         // read the repository
         if (rest === "") {
@@ -137,27 +142,46 @@ function advertise(repository: StandInRepository): Uint8Array<ArrayBuffer> {
     // name HEAD's commit and branch, then each reference, following tag objects to their commit
     const head = `refs/heads/${repository.defaultBranch}`;
     const lines = [
-        `${repository.references.get(head)!.sha} HEAD\0symref=HEAD:${head} agent=git/github-7c1a`,
+        `${found(repository.references, head).sha} HEAD\0symref=HEAD:${head} agent=git/github-7c1a`,
     ];
-    for (const name of [...repository.references.keys()].sort()) {
-        let object = repository.references.get(name)!;
+    for (const name of [...repository.references.keys()].toSorted()) {
+        let object = found(repository.references, name);
         lines.push(`${object.sha} ${name}`);
         if (object.type === "tag") {
             while (object.type === "tag") {
-                object = repository.tags.get(object.sha)!;
+                object = found(repository.tags, object.sha);
             }
             lines.push(`${object.sha} ${name}^{}`);
         }
     }
 
     // frame the service line, a flush, the references and a closing flush as pkt-lines
-    const packet = (line: string) => {
-        const length = new TextEncoder().encode(line).length + 5;
-
-        return `${length.toString(16).padStart(4, "0")}${line}\n`;
-    };
-
     return new TextEncoder().encode(
         `${packet("# service=git-upload-pack")}0000${lines.map(packet).join("")}0000`,
     );
+}
+
+/** Frame a line as a pkt-line with its newline. */
+function packet(line: string): string {
+    const length = new TextEncoder().encode(line).length + 5;
+
+    return `${length.toString(16).padStart(4, "0")}${line}\n`;
+}
+
+/** Read the secret an authorization header presents, as a bearer or as Git's basic password. */
+function presentedSecret(authorization: string | null): string | undefined {
+    // present nothing without a header
+    if (authorization === null) {
+        return undefined;
+    }
+
+    // read the bearer token, or the password of a basic credential
+    const [scheme, presented] = authorization.split(" ");
+    if (presented === undefined) {
+        throw new TypeError(`authorization ${scheme} presents no credential`);
+    }
+    const password =
+        scheme === "Basic" ? new TextDecoder().decode(Uint8Array.fromBase64(presented)) : undefined;
+
+    return password === undefined ? presented : aligned(password.split(":"), 1);
 }

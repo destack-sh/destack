@@ -1,12 +1,12 @@
 import { principal } from "@destack/access";
 import { Subject } from "@destack/sync";
-import { identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** A host as a subject, read from the key in the repository's host field: the host itself in its account, never a set of hosts. */
 const HostSubject = Subject.omit({ relation: true }).extend({
     packageId: schema.literal(principal.host.definition.packageId),
     type: schema.literal(principal.host.name),
-    id: identifier("host"),
+    id: schema.identifier("host"),
 });
 
 /** Where a repository's authoritative history lives: platform storage, GitHub, any Git remote, or a host. */
@@ -22,7 +22,7 @@ export const RepositoryOrigin = schema.union([
     schema.object({
         hosting: schema.literal("github"),
         remote: schema.url(),
-        connectedAccountId: identifier("connected-account"),
+        connectedAccountId: schema.identifier("connected-account"),
     }),
     schema.object({
         hosting: schema.literal("git"),
@@ -33,8 +33,8 @@ export const RepositoryOrigin = schema.union([
         hosting: schema.literal("git"),
         remote: schema.url(),
         authentication: schema.literal("secret"),
-        secretSpaceId: identifier("space"),
-        secretId: identifier("secret"),
+        secretSpaceId: schema.identifier("space"),
+        secretId: schema.identifier("secret"),
     }),
 ]);
 /** Where a repository's authoritative history lives, and how the platform authenticates to it. */
@@ -57,4 +57,37 @@ export const UPDATED_ORIGIN_FIELDS = ORIGIN_FIELDS.filter(
 );
 
 /** The columns naming a repository's origin and its identity in storage or at GitHub. */
-export const ORIGIN_COLUMNS = [...ORIGIN_FIELDS, "provider", "providerRepositoryId"] as const;
+export const OriginColumns = schema.object({
+    /** Where the repository is hosted. */
+    hosting: schema.enum(HOSTINGS),
+    /** The host serving a host repository. */
+    host: schema.string().nullable(),
+    /** The remote of a GitHub, Git or platform repository. */
+    remote: schema.string().nullable(),
+    /** How a Git repository authenticates. */
+    authentication: schema.enum(AUTHENTICATIONS).nullable(),
+    /** The connected account opening a GitHub repository. */
+    connectedAccountId: schema.identifier("connected-account").nullable(),
+    /** The space holding a Git repository's secret. */
+    secretSpaceId: schema.identifier("space").nullable(),
+    /** The secret a Git repository authenticates with. */
+    secretId: schema.identifier("secret").nullable(),
+    /** The storage provider of a platform repository. */
+    provider: schema.string().nullable(),
+    /** The repository's identity in storage or at GitHub. */
+    providerRepositoryId: schema.string().nullable(),
+});
+/** The columns naming a repository's origin and its identity in storage or at GitHub. */
+export type OriginColumns = schema.Infer<typeof OriginColumns>;
+
+/** The origin an update moves to, prepared at the revision the transaction requires, none when it keeps its origin. */
+export const OriginMove = schema
+    .object({
+        /** The revision the move was prepared at. */
+        revision: schema.int(),
+        /** The origin columns the update records. */
+        columns: OriginColumns,
+    })
+    .nullable();
+/** The origin an update moves to, prepared at the revision the transaction requires, none when it keeps its origin. */
+export type OriginMove = schema.Infer<typeof OriginMove>;

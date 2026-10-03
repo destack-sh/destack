@@ -6,12 +6,10 @@ import type { WebhookDelivery } from "@destack/service/trigger";
 const REFERENCE_EVENTS: ReadonlySet<string> = new Set(["push", "create", "delete"]);
 
 /** The repository and installation a repository event names. */
-const Source = schema
-    .object({
-        repository: schema.object({ id: schema.number().int() }).passthrough(),
-        installation: schema.object({ id: schema.number().int() }).passthrough(),
-    })
-    .passthrough();
+const Source = schema.looseObject({
+    repository: schema.looseObject({ id: schema.number().int() }),
+    installation: schema.looseObject({ id: schema.number().int() }),
+});
 
 /** The GitHub repository with the references one delivery changed. */
 export interface GitHubEvent {

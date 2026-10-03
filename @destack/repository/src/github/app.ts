@@ -1,5 +1,5 @@
 import { JsonWebToken } from "../token/token.ts";
-import { schema } from "@destack/schema";
+import { aligned, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { GitCredential, type Fetch } from "../storage/index.ts";
@@ -26,14 +26,10 @@ const MODE_CONTENTS: Readonly<Record<LeaseMode, "read" | "write">> = {
 };
 
 /** The installation access token GitHub creates. */
-const Token = schema
-    .object({ token: schema.string().min(1), expires_at: schema.string() })
-    .passthrough();
+const Token = schema.looseObject({ token: schema.string().min(1), expires_at: schema.string() });
 
 /** The repository fields read. */
-const Repository = schema
-    .object({ id: schema.number().int(), full_name: schema.string() })
-    .passthrough();
+const Repository = schema.looseObject({ id: schema.number().int(), full_name: schema.string() });
 
 /** An installation access token and its expiry. */
 export interface GitHubToken {
@@ -51,7 +47,7 @@ export interface GitHubRepository {
     readonly fullName: string;
 }
 
-/** The repositories an installation token reaches, by identifier or by name. */
+/** The repositories an installation token opens, by identifier or by name. */
 export type GitHubTokenScope =
     | { readonly ids: readonly string[] }
     | { readonly names: readonly string[] };
@@ -64,7 +60,7 @@ export interface GitHubPermissions {
     readonly metadata?: "read";
 }
 
-/** The GitHub App the platform reaches repositories through, and the REST API it calls. */
+/** The GitHub App the platform opens repositories through, and the REST API it calls. */
 export interface GitHubAppOptions {
     /** The app's client ID or app ID, the JWT issuer and the application connected accounts name. */
     readonly id: string;
@@ -72,11 +68,11 @@ export interface GitHubAppOptions {
     readonly key: CryptoKey;
     /** The REST API base, https://api.github.com for github.com. */
     readonly api: URL;
-    /** The fetch reaching the API. */
+    /** The fetch calling the API. */
     readonly fetch?: Fetch;
 }
 
-/** A GitHub App: app JWTs, installation access tokens, and the repositories installations reach. */
+/** A GitHub App: app JWTs, installation access tokens, and the repositories installations open. */
 export class GitHubApp {
     /** The app's client ID or app ID. */
     readonly id: string;
@@ -84,7 +80,7 @@ export class GitHubApp {
     readonly #key: CryptoKey;
     /** The REST API base. */
     readonly #api: string;
-    /** The fetch reaching the API. */
+    /** The fetch calling the API. */
     readonly #fetch: Fetch;
 
     /** Use an app's identity and key. */
@@ -92,7 +88,7 @@ export class GitHubApp {
         // retain the identity, key and API
         this.id = options.id;
         this.#key = options.key;
-        this.#api = options.api.href.replace(/\/$/, "");
+        this.#api = options.api.href.replace(/\/$/u, "");
         this.#fetch = options.fetch ?? globalThis.fetch;
     }
 
@@ -100,7 +96,7 @@ export class GitHubApp {
     static fullName(remote: string): string {
         // require a github.com path of an owner and a name
         const url = new URL(remote);
-        const match = /^\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(url.pathname);
+        const match = /^\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/u.exec(url.pathname);
         if (url.host !== GITHUB_HOST || match === null) {
             throw new ServiceError("BAD_REQUEST", {
                 message: `not a github.com repository: ${remote}`,
@@ -158,12 +154,12 @@ export class GitHubApp {
         );
     }
 
-    /** Identify a repository an installation reaches by its owner and name: GET /repos/{owner}/{repo}. */
+    /** Identify a repository an installation opens by its owner and name: GET /repos/{owner}/{repo}. */
     async repository(installationId: string, fullName: string): Promise<GitHubRepository> {
-        // mint a metadata token for the repository by name
+        // issue a metadata token for the repository by name
         const token = await this.token(
             installationId,
-            { names: [fullName.split("/")[1]!] },
+            { names: [aligned(fullName.split("/"), 1)] },
             { metadata: "read" },
         );
 

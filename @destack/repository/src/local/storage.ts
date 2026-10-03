@@ -2,10 +2,11 @@ import { pathToFileURL } from "node:url";
 import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { Lease, LeaseMode } from "@destack/resource";
+import { found, zip } from "@destack/schema";
 import type { GitListing, GitReference, GitStorage } from "../storage/index.ts";
 
 /** The names a stored repository's directory may take: no separators, no leading dot. */
-const NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+const NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/u;
 
 /** The prefix of the directories for new repositories, with a leading dot apart from names. */
 const STAGING_PREFIX = ".create-";
@@ -16,7 +17,21 @@ const DELETION_PREFIX = ".delete-";
 /** The branch a new repository's HEAD names. */
 const INITIAL_BRANCH = "main";
 
-/** Bare repositories in a host directory, driven by the git command line. */
+/** A reference as git for-each-ref lists it: its name, object and type, and a tag's tagged object and type. */
+interface ListedReference {
+    /** The reference's name. */
+    readonly name: string;
+    /** The object it names. */
+    readonly object: string;
+    /** The type of that object. */
+    readonly type: string;
+    /** The object an annotated tag names. */
+    readonly tagged: string;
+    /** The type of the tagged object. */
+    readonly taggedType: string;
+}
+
+/** Bare repositories in a host directory, run by the git command line. */
 export class LocalGitStorage implements GitStorage {
     /** The provider name repositories stored here record. */
     readonly provider = "local";
@@ -53,7 +68,7 @@ export class LocalGitStorage implements GitStorage {
         } catch (error) {
             // drop the staging directory, accepting a repository another create finished
             await rm(staging, { recursive: true, force: true });
-            const code = (error as NodeJS.ErrnoException).code;
+            const code = systemCode(error);
             if (code !== "ENOTEMPTY" && code !== "EEXIST") {
                 throw error;
             }
@@ -67,13 +82,13 @@ export class LocalGitStorage implements GitStorage {
         try {
             await rename(this.#path(id), trash);
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            if (systemCode(error) === "ENOENT") {
                 return;
             }
             throw error;
         }
 
-        // remove it where nothing else reaches it
+        // remove it where nothing else opens it
         await rm(trash, { recursive: true, force: true });
     }
 
@@ -96,10 +111,10 @@ export class LocalGitStorage implements GitStorage {
         const rows = listed
             .split("\n")
             .filter((line) => line !== "")
-            .map((line) => line.split(" ") as [string, string, string, string, string]);
+            .map((line) => LocalGitStorage.#row(line));
 
         // peel tags of tags to the commit they finally name, or to none, in one batch
-        const nested = rows.filter(([, , , , tagged]) => tagged === "tag").map(([name]) => name);
+        const nested = rows.filter((row) => row.taggedType === "tag").map((row) => row.name);
         const peeled =
             nested.length === 0
                 ? ""
@@ -108,29 +123,20 @@ export class LocalGitStorage implements GitStorage {
                       path,
                       nested.map((name) => `${name}^{commit}\n`).join(""),
                   );
+        const answers = peeled.split("\n").filter((line) => line !== "");
         const commits = new Map(
-            peeled
-                .split("\n")
-                .filter((line) => line !== "")
-                .map((line, index) => {
-                    const [object, type] = line.split(" ");
+            zip(nested, answers).map(([name, answer]) => {
+                const [object, type] = answer.split(" ");
 
-                    return [nested[index]!, type === "commit" ? object! : null] as const;
-                }),
+                return [name, type === "commit" && object !== undefined ? object : null] as const;
+            }),
         );
 
         // resolve commits directly, annotated tags through their tagged commit, and tags of tags through the batch
-        const references: GitReference[] = rows.map(([name, object, type, tagged, taggedType]) => ({
-            name,
-            object,
-            commit:
-                type === "commit"
-                    ? object
-                    : taggedType === "commit"
-                      ? tagged
-                      : taggedType === "tag"
-                        ? commits.get(name)!
-                        : null,
+        const references: GitReference[] = rows.map((row) => ({
+            name: row.name,
+            object: row.object,
+            commit: LocalGitStorage.#commit(row, commits),
         }));
         const head = symbolic.trim();
 
@@ -152,6 +158,38 @@ export class LocalGitStorage implements GitStorage {
         }
 
         return join(this.directory, `${name}.git`);
+    }
+
+    /** Resolve the commit a reference names: itself, an annotated tag's tagged commit, a tag of tags' peeled commit, or none. */
+    static #commit(
+        row: ListedReference,
+        peeled: ReadonlyMap<string, string | null>,
+    ): string | null {
+        if (row.type === "commit") {
+            return row.object;
+        } else if (row.taggedType === "commit") {
+            return row.tagged;
+        } else if (row.taggedType === "tag") {
+            return found(peeled, row.name);
+        }
+
+        return null;
+    }
+
+    /** Read a for-each-ref line: the name, object and type, and a tag's tagged object and type. */
+    static #row(line: string): ListedReference {
+        const [name, object, type, tagged, taggedType] = line.split(" ");
+        if (
+            name === undefined ||
+            object === undefined ||
+            type === undefined ||
+            tagged === undefined ||
+            taggedType === undefined
+        ) {
+            throw new TypeError(`git for-each-ref printed ${line}`);
+        }
+
+        return { name, object, type, tagged, taggedType };
     }
 
     /** Run git in a repository, returning its output and failing loudly on a nonzero exit. */
@@ -176,11 +214,16 @@ export class LocalGitStorage implements GitStorage {
             new Response(child.stderr).text(),
         ]);
 
-        // fail with git's own message
+        // fail with git's message
         if (code !== 0) {
             throw new Error(`git ${arguments_[0]} failed with ${code}: ${errors.trim()}`);
         }
 
         return output;
     }
+}
+
+/** Read the system error code of a failure, absent for failures without one. */
+function systemCode(error: unknown): unknown {
+    return error instanceof Error && "code" in error ? error.code : undefined;
 }

@@ -1,8 +1,8 @@
 import { AuditCaller } from "@destack/audit";
-import { expect, test } from "@destack/test";
+import { found } from "@destack/schema";
+import { expect, refusal, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { principal } from "@destack/access";
-import { Condition } from "@destack/db/query";
 import { RequestId } from "@destack/service/request";
 import { WEBHOOK_SIGNATURES } from "@destack/service/trigger";
 import { GitHubApp } from "../src/github/index.ts";
@@ -42,7 +42,7 @@ function site(github: GitHubStandIn) {
     });
 }
 
-/** The repository and installation objects GitHub's repository events carry. */
+/** The repository and installation objects GitHub's repository events send. */
 function source(installation: number) {
     return {
         repository: {
@@ -151,8 +151,8 @@ test.each(TEST_DIALECTS)(
             (
                 await owner.reference.list({
                     accountId,
-                    where: Condition.eq("parentId", created.id),
-                    order: [{ column: "name", direction: "asc" }],
+                    where: { parentId: created.id },
+                    orderBy: { name: "asc" },
                 })
             ).items.map((item) => [item.name, item.object, item.commit, item.deletedAt === null]);
         expect(await references()).toEqual([
@@ -163,7 +163,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // receive a branch push, a tag creation, a branch deletion, a ping and another installation's push
-        const hosted = region.github.repositories.get("acme/site")!;
+        const hosted = found(region.github.repositories, "acme/site");
         hosted.references.set("refs/heads/main", { type: "commit", sha: objects.third });
         hosted.references.set("refs/tags/v2", { type: "tag", sha: objects.patch });
         hosted.tags.set(objects.patch, { type: "commit", sha: objects.third });
@@ -244,12 +244,13 @@ test.each(TEST_DIALECTS)(
         expect(
             (await region.journal.read())
                 .filter(
-                    (call) => AuditCaller.actor(call.execution!.context.caller).type === "system",
+                    (call) => AuditCaller.actor(call.execution.context.caller).type === "system",
                 )
                 .map((call) => [
                     call.method,
-                    call.execution!.targets.repository ?? call.execution!.targets.reference!.type,
-                    call.execution!.outcome,
+                    call.execution.targets["repository"] ??
+                        call.execution.targets["reference"]?.type,
+                    call.execution.outcome,
                 ]),
         ).toEqual([
             ["reference.create", "reference", success],
@@ -260,7 +261,7 @@ test.each(TEST_DIALECTS)(
             refreshed,
         ]);
 
-        // refuse a delivery signed with another secret before it reaches the workload
+        // refuse a delivery signed with another secret before the workload sees it
         const forged = await deliver(
             "5a6f3c10-9b8e-11f0-8c1e-6a7c2d3b1e06",
             "delete",
@@ -272,13 +273,12 @@ test.each(TEST_DIALECTS)(
             },
             "another secret",
         );
-        expect(
-            await region.server
-                .receive(forged, WEBHOOK_SECRET)
-                .catch((error: { code: string; message: string }) => [error.code, error.message]),
-        ).toEqual(["UNAUTHORIZED", "webhook signature does not match"]);
+        expect(await refusal(region.server.receive(forged, WEBHOOK_SECRET))).toEqual([
+            "UNAUTHORIZED",
+            "webhook signature does not match",
+        ]);
 
-        // reach the repository as an anonymous Git remote without GitHub's identity or the installation
+        // open the repository as an anonymous Git remote without GitHub's identity or the installation
         const anonymous = await owner.repository.update({
             accountId,
             id: created.id,
@@ -314,20 +314,12 @@ test.each(TEST_DIALECTS)(
 
         // lease each token as Git's basic credential for the recorded remote
         region.github.requests.length = 0;
-        const lease = (mode: "read" | "write", password: string) => ({
-            url: "https://github.com/acme/site.git",
-            mode,
-            headers: {
-                authorization: `Basic ${new TextEncoder().encode(`x-access-token:${password}`).toBase64()}`,
-            },
-            expiresAt: Date.parse("2026-09-27T13:00:00Z"),
-        });
         expect([
             await owner.repository.open({ accountId, id: created.id, mode: "read" }),
             await owner.repository.open({ accountId, id: created.id, mode: "write" }),
         ]).toEqual([lease("read", "ghs_4242_2"), lease("write", "ghs_4242_3")]);
 
-        // mint each token for GitHub's repository identifier alone, with the contents permission of its mode
+        // issue each token for GitHub's repository identifier alone, with the contents permission of its mode
         expect(region.github.requests).toEqual([
             "POST api.github.test/app/installations/4242/access_tokens app",
             '  body {"repository_ids":[1296269],"permissions":{"contents":"read"}}',
@@ -342,10 +334,10 @@ test.each(TEST_DIALECTS)(
             (await region.journal.read())
                 .filter((call) => call.method === "repository.open")
                 .map((call) => [
-                    AuditCaller.actor(call.execution!.context.caller),
-                    call.execution!.targets,
-                    call.execution!.details,
-                    call.execution!.outcome,
+                    AuditCaller.actor(call.execution.context.caller),
+                    call.execution.targets,
+                    call.execution.details,
+                    call.execution.outcome,
                 ]),
         ).toEqual([
             [actor, target, {}, { kind: "success" }],
@@ -353,3 +345,15 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
+
+/** Build the lease of a GitHub installation token as Git's basic credential for the recorded remote. */
+function lease(mode: "read" | "write", password: string) {
+    return {
+        url: "https://github.com/acme/site.git",
+        mode,
+        headers: {
+            authorization: `Basic ${new TextEncoder().encode(`x-access-token:${password}`).toBase64()}`,
+        },
+        expiresAt: Date.parse("2026-09-27T13:00:00Z"),
+    };
+}
