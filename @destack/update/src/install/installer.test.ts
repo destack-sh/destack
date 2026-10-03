@@ -38,11 +38,15 @@ test("recover interrupted activation and retain both distributions", async () =>
 
         // interrupt the second activation after persisting its intent
         const [first, second] = installed;
+        if (first === undefined || second === undefined) {
+            throw new Error("expected two staged distributions");
+        }
         await installer.activate(first);
         await writeFile(
             join(installer.directory, "activate.json"),
             JSON.stringify({
-                ...second.release,
+                version: second.release.version,
+                target: second.release.target,
                 sha256: second.sha256,
             }),
         );
@@ -65,7 +69,8 @@ test("recover interrupted activation and retain both distributions", async () =>
         await writeFile(
             join(installer.directory, "activate.json"),
             JSON.stringify({
-                ...first.release,
+                version: first.release.version,
+                target: first.release.target,
                 sha256: first.sha256,
             }),
         );

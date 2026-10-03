@@ -28,15 +28,15 @@ export async function installApplication(
         await verifyApplication(pending, identifier);
 
         // exchange complete bundles in one filesystem operation and retain the old release archive
-        let hasDestination = true;
-        try {
-            await lstat(destination);
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-                throw error;
-            }
-            hasDestination = false;
-        }
+        const hasDestination = await lstat(destination).then(
+            () => true,
+            (error: NodeJS.ErrnoException) => {
+                if (error.code !== "ENOENT") {
+                    throw error;
+                }
+                return false;
+            },
+        );
         if (hasDestination) {
             await verifyApplication(destination, identifier);
             const system = dlopen("/usr/lib/libSystem.B.dylib", {

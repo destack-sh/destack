@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
-import { createReadStream } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { join } from "node:path";
 import {
@@ -14,6 +13,7 @@ import {
     Timestamp,
 } from "@tufjs/models";
 import type { SigningKey } from "./key.ts";
+import { parseObject } from "./json.ts";
 import { TrustedRoot } from "./root.ts";
 
 /** Keys authorized to publish routine release metadata. */
@@ -57,13 +57,13 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     const metadata = join(directory, "metadata");
     const files = await readdir(metadata);
     const versions = files
-        .filter((file) => /^[1-9]\d*\.root\.json$/.test(file))
-        .map((file) => Number(file.split(".")[0]))
-        .sort((left, right) => left - right);
+        .filter((file) => /^[1-9]\d*\.root\.json$/u.test(file))
+        .map((file) => Number.parseInt(file, 10))
+        .toSorted((left, right) => left - right);
     for (const version of versions) {
         const next = Metadata.fromJSON(
             MetadataKind.Root,
-            JSON.parse(await readFile(join(metadata, `${version}.root.json`), "utf8")),
+            parseObject(await readFile(join(metadata, `${version}.root.json`), "utf8")),
         );
         // retain only the trusted root or consecutive authorized replacements
         if (version === root.signed.version) {
@@ -82,7 +82,7 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     // authenticate the timestamp before using its snapshot reference
     const timestamp = Metadata.fromJSON(
         MetadataKind.Timestamp,
-        JSON.parse(await readFile(join(metadata, "timestamp.json"), "utf8")),
+        parseObject(await readFile(join(metadata, "timestamp.json"), "utf8")),
     );
     root.verifyDelegate("timestamp", timestamp);
     const snapshotReference = timestamp.signed.snapshotMeta;
@@ -94,7 +94,7 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     // authenticate the snapshot before using its targets reference
     const snapshot = Metadata.fromJSON(
         MetadataKind.Snapshot,
-        JSON.parse(snapshotBytes.toString("utf8")),
+        parseObject(snapshotBytes.toString("utf8")),
     );
     root.verifyDelegate("snapshot", snapshot);
     const targetsReference = snapshot.signed.meta["targets.json"];
@@ -107,7 +107,7 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     // reject expired authorization and mismatched signed versions
     const targets = Metadata.fromJSON(
         MetadataKind.Targets,
-        JSON.parse(targetsBytes.toString("utf8")),
+        parseObject(targetsBytes.toString("utf8")),
     );
     root.verifyDelegate("targets", targets);
     if (targets.signed.version !== targetsReference.version) {
@@ -151,7 +151,7 @@ async function createRepository(
             throw new Error(`duplicate target: ${path}`);
         }
         const hash = createHash("sha256");
-        for await (const bytes of createReadStream(distribution.archive)) {
+        for await (const bytes of Bun.file(distribution.archive).stream()) {
             hash.update(bytes);
         }
         const sha256 = hash.digest("hex");
@@ -207,7 +207,7 @@ async function renewMetadata(
     // verify the existing authorization before signing its continued availability
     const targets = Metadata.fromJSON(
         MetadataKind.Targets,
-        JSON.parse(targetBytes.toString("utf8")),
+        parseObject(targetBytes.toString("utf8")),
     );
     root.verifyDelegate("root", root);
     root.verifyDelegate("targets", targets);

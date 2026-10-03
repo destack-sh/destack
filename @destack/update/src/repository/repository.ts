@@ -1,9 +1,8 @@
-/* oxlint-disable destack/prevent-abbreviations -- tuf-js names its directory options metadataDir and targetDir */
 import { Digest } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type TargetFile, Updater } from "tuf-js";
+import { type TargetFile, Updater, type UpdaterOptions } from "tuf-js";
 import { Release, type Target } from "../release/release.ts";
 import { DownloadFetcher, type DownloadOptions } from "./download.ts";
 
@@ -22,12 +21,10 @@ export class UpdateRepository {
     /** Metadata selected by this session, indexed by immutable release identity. */
     private readonly selected = new Map<string, TargetFile>();
     /** Metadata and download locations for target-specific fetchers. */
-    private readonly locations: {
-        metadataDir: string;
-        targetDir: string;
-        metadataBaseUrl: string;
-        targetBaseUrl: string;
-    };
+    private readonly locations: Pick<
+        UpdaterOptions,
+        "metadataDir" | "targetDir" | "metadataBaseUrl" | "targetBaseUrl"
+    >;
 
     /** Configure a repository after initializing its trusted root. */
     private constructor(directory: string, url: URL) {
@@ -53,31 +50,28 @@ export class UpdateRepository {
         // retain previously verified metadata across process and release changes
         await mkdir(join(directory, "metadata"), { recursive: true, mode: 0o700 });
         await mkdir(join(directory, "downloads"), { recursive: true, mode: 0o700 });
-        try {
-            await writeFile(join(directory, "metadata/root.json"), root, {
-                flag: "wx",
-                mode: 0o600,
-            });
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+        await writeFile(join(directory, "metadata/root.json"), root, {
+            flag: "wx",
+            mode: 0o600,
+        }).catch((error: NodeJS.ErrnoException) => {
+            if (error.code !== "EEXIST") {
                 throw error;
             }
-        }
+        });
 
         // prevent one cache from accepting metadata from multiple repositories
         const source = join(directory, "repository.txt");
-        try {
-            await writeFile(source, url.href, { flag: "wx", mode: 0o600 });
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
-                throw error;
-            }
-            if ((await readFile(source, "utf8")) !== url.href) {
-                throw new UpdateError(
-                    "REPOSITORY",
-                    "update cache belongs to a different repository",
-                );
-            }
+        const isClaimed = await writeFile(source, url.href, { flag: "wx", mode: 0o600 }).then(
+            () => false,
+            (error: NodeJS.ErrnoException) => {
+                if (error.code !== "EEXIST") {
+                    throw error;
+                }
+                return true;
+            },
+        );
+        if (isClaimed && (await readFile(source, "utf8")) !== url.href) {
+            throw new UpdateError("REPOSITORY", "update cache belongs to a different repository");
         }
 
         return new UpdateRepository(directory, url);
@@ -97,7 +91,7 @@ export class UpdateRepository {
         }
 
         // retain the exact signed target even if the repository publishes another release
-        const release = new Release(artifact.custom.version, target);
+        const release = new Release(artifact.custom["version"], target);
         const previous = this.selected.get(release.directory);
         if (previous && !previous.equals(artifact)) {
             throw new UpdateError("REPOSITORY", "published release changed");
@@ -111,7 +105,7 @@ export class UpdateRepository {
     digest(release: Release): string {
         // read the digest selected by the update check
         const artifact = this.selected.get(release.directory);
-        const digest = Digest.safeParse(artifact?.hashes.sha256);
+        const digest = Digest.safeParse(artifact?.hashes["sha256"]);
         if (!digest.success) {
             throw new UpdateError("REPOSITORY", "invalid release archive digest");
         }
@@ -128,13 +122,13 @@ export class UpdateRepository {
         // require the selected release and its signed size and digest
         options.signal?.throwIfAborted();
         const artifact = this.selected.get(release.directory);
-        if (!artifact || artifact.custom.version !== release.version) {
+        if (!artifact || artifact.custom["version"] !== release.version) {
             throw new UpdateError("REPOSITORY", "release changed after selection");
         }
         if (
             artifact.length > 2 * 1024 ** 3 ||
-            artifact.hashes.sha256 === undefined ||
-            !Digest.safeParse(artifact.hashes.sha256).success
+            artifact.hashes["sha256"] === undefined ||
+            !Digest.safeParse(artifact.hashes["sha256"]).success
         ) {
             throw new UpdateError("REPOSITORY", "invalid release archive metadata");
         }
@@ -145,15 +139,15 @@ export class UpdateRepository {
             fetcher: new DownloadFetcher(artifact.length, options),
         });
         const cached = await downloader.findCachedTarget(artifact, candidate);
-        if (candidate && !cached) {
+        if (candidate !== undefined && candidate !== "" && cached === undefined) {
             throw new UpdateError("REPOSITORY", "installer archive failed verification");
         }
         const archive = cached ?? (await downloader.downloadTarget(artifact));
         options.signal?.throwIfAborted();
-        if (cached) {
+        if (cached !== undefined) {
             options.onProgress?.({ received: artifact.length, total: artifact.length });
         }
 
-        return { release, archive, sha256: artifact.hashes.sha256 };
+        return { release, archive, sha256: artifact.hashes["sha256"] };
     }
 }

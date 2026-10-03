@@ -1,4 +1,4 @@
-import { Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 
 /** Operating systems and architectures supported by Destack distributions. */
@@ -11,7 +11,10 @@ export const TARGETS = [
 ] as const;
 
 /** A supported distribution target. */
-export type Target = (typeof TARGETS)[number];
+export const Target = schema.enum(TARGETS);
+
+/** A supported distribution target. */
+export type Target = schema.Infer<typeof Target>;
 
 /** A calendar release identified by authenticated update metadata. */
 export class Release {
@@ -28,15 +31,15 @@ export class Release {
                   : process.platform === "win32"
                     ? "pc-windows-msvc"
                     : undefined;
-        const target = `${architecture}-${system}`;
-        if (!TARGETS.includes(target as Target)) {
+        const target = Target.safeParse(`${architecture}-${system}`);
+        if (!target.success) {
             throw new UpdateError(
                 "RELEASE",
                 `unsupported target: ${process.platform}/${process.arch}`,
             );
         }
 
-        return target as Target;
+        return target.data;
     }
 
     /** Calendar version of the distribution. */
@@ -47,14 +50,16 @@ export class Release {
     /** Validate the version and target from signed metadata. */
     constructor(version: unknown, target: string) {
         // validate the public release identity before selecting its platform
-        if (!Version.safeParse(version).success) {
+        const parsedVersion = Version.safeParse(version);
+        if (!parsedVersion.success) {
             throw new UpdateError("RELEASE", "invalid release version");
         }
-        if (!TARGETS.includes(target as Target)) {
+        const parsedTarget = Target.safeParse(target);
+        if (!parsedTarget.success) {
             throw new UpdateError("RELEASE", `unsupported target: ${target}`);
         }
-        this.version = version as string;
-        this.target = target as Target;
+        this.version = parsedVersion.data;
+        this.target = parsedTarget.data;
         Object.freeze(this);
     }
 

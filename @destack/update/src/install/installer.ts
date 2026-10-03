@@ -1,4 +1,5 @@
-import { Digest } from "@destack/schema";
+import { readOptional } from "@destack/fs";
+import { Digest, schema } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 import {
     lstat,
@@ -17,6 +18,36 @@ import type { Stats } from "node:fs";
 import type { Download } from "../repository/repository.ts";
 import { Release } from "../release/release.ts";
 import { installApplication } from "./macos.ts";
+
+/** The persisted record of the current release. */
+const CurrentRecord = schema.object({
+    /** The calendar version. */
+    version: schema.string(),
+    /** The operating system and architecture. */
+    target: schema.string(),
+    /** The archive digest. */
+    sha256: Digest,
+});
+
+/** The persisted record of a staged release. */
+const StagedRecord = CurrentRecord.extend({
+    /** The archive digest installed before staging, when present. */
+    previous: Digest.exactOptional(),
+});
+
+/** The persisted intent to activate a staged release. */
+const ActivationRecord = CurrentRecord.extend({
+    /** The absolute native application destination, for macOS releases. */
+    application: schema.string().exactOptional(),
+    /** The native application bundle identifier, for macOS releases. */
+    applicationIdentifier: schema.string().exactOptional(),
+});
+
+/** The receipt written into a verified distribution directory. */
+const Receipt = schema.object({
+    /** The archive digest the distribution was extracted from. */
+    sha256: Digest,
+});
 
 /** A complete distribution selected by an atomic installation record. */
 export interface InstalledRelease {
@@ -47,7 +78,12 @@ export class Installer {
     /** Retain a staged release across updater sessions. */
     async remember(staged: StagedRelease): Promise<void> {
         // write the staged record atomically
-        const record = { ...staged.release, sha256: staged.sha256, previous: staged.previous };
+        const record = {
+            version: staged.release.version,
+            target: staged.release.target,
+            sha256: staged.sha256,
+            previous: staged.previous,
+        };
         const temporary = join(this.directory, `staged.${crypto.randomUUID()}.json`);
         await writeFile(temporary, JSON.stringify(record), { flag: "wx", mode: 0o600 });
         await rename(temporary, join(this.directory, "staged.json"));
@@ -56,53 +92,38 @@ export class Installer {
     /** Read the distribution waiting for an explicit restart. */
     async staged(): Promise<StagedRelease | undefined> {
         // read the staged release record, absent when none is staged
-        let source: string;
-        try {
-            source = await readFile(join(this.directory, "staged.json"), "utf8");
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-                return undefined;
-            }
-            throw error;
+        const source = await readOptional(join(this.directory, "staged.json"));
+        if (source === undefined) {
+            return undefined;
         }
 
         // validate persisted identifiers before constructing installation paths
-        const record = JSON.parse(source);
-        const release = new Release(record.version, record.target);
-        if (
-            !Digest.safeParse(record.sha256).success ||
-            (record.previous !== undefined && !Digest.safeParse(record.previous).success)
-        ) {
-            throw new UpdateError("INSTALL", "invalid staged release digest");
+        const record = StagedRecord.safeParse(JSON.parse(source));
+        if (!record.success) {
+            throw new UpdateError("INSTALL", "invalid staged release record");
         }
+        const { version, target, ...digests } = record.data;
+        const release = new Release(version, target);
 
-        return {
-            release,
-            sha256: record.sha256,
-            previous: record.previous,
-            directory: this.path(release),
-        };
+        return { release, ...digests, directory: this.path(release) };
     }
 
     /** Read the current release without modifying application files. */
     async current(): Promise<InstalledRelease | undefined> {
         // read the current release record, absent before installation
-        let source: string;
-        try {
-            source = await readFile(join(this.directory, "current.json"), "utf8");
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-                return undefined;
-            }
-            throw error;
-        }
-        const record = JSON.parse(source);
-        const release = new Release(record.version, record.target);
-        if (!Digest.safeParse(record.sha256).success) {
-            throw new UpdateError("INSTALL", "invalid installed release digest");
+        const source = await readOptional(join(this.directory, "current.json"));
+        if (source === undefined) {
+            return undefined;
         }
 
-        return { release, sha256: record.sha256, directory: this.path(release) };
+        // validate the persisted release before constructing its path
+        const record = CurrentRecord.safeParse(JSON.parse(source));
+        if (!record.success) {
+            throw new UpdateError("INSTALL", "invalid installed release record");
+        }
+        const release = new Release(record.data.version, record.data.target);
+
+        return { release, sha256: record.data.sha256, directory: this.path(release) };
     }
 
     /** Extract a verified distribution and check its executables before activation. */
@@ -131,27 +152,19 @@ export class Installer {
         await mkdir(versions, { recursive: true, mode: 0o700 });
         const staging = await mkdtemp(join(versions, ".install-"));
         try {
-            let rejected: unknown;
+            let rejected: UpdateError | undefined;
             await extract({
                 file: download.archive,
                 cwd: staging,
                 strict: true,
                 preservePaths: false,
                 filter(path, entry) {
-                    if (rejected) {
-                        return false;
-                    }
-                    try {
-                        verifyEntry(path, entry, staging);
-                        return true;
-                    } catch (error) {
-                        // reject through the extraction promise after the parser drains
-                        rejected = error;
-                        return false;
-                    }
+                    // keep the first rejection and fail after the parser drains
+                    rejected ??= rejectEntry(path, entry, staging);
+                    return rejected === undefined;
                 },
             });
-            if (rejected) {
+            if (rejected !== undefined) {
                 throw rejected;
             }
             await verifyLinks(staging, staging);
@@ -161,13 +174,16 @@ export class Installer {
             const destination = this.path(download.release);
             const receipt = JSON.stringify({ sha256: download.sha256 });
             await writeFile(join(staging, "receipt.json"), receipt, { flag: "wx", mode: 0o600 });
-            try {
-                await rename(staging, destination);
-            } catch (error) {
-                const code = (error as NodeJS.ErrnoException).code;
-                if (code !== "EEXIST" && code !== "ENOTEMPTY") {
-                    throw error;
-                }
+            const isPresent = await rename(staging, destination).then(
+                () => false,
+                (error: NodeJS.ErrnoException) => {
+                    if (error.code !== "EEXIST" && error.code !== "ENOTEMPTY") {
+                        throw error;
+                    }
+                    return true;
+                },
+            );
+            if (isPresent) {
                 if ((await readFile(join(destination, "receipt.json"), "utf8")) !== receipt) {
                     throw new UpdateError(
                         "INSTALL",
@@ -194,7 +210,8 @@ export class Installer {
 
         // require a destination for native macOS bundles
         const isMac = installed.release.target.endsWith("apple-darwin");
-        if (isMac !== (application !== undefined) || (isMac && !applicationIdentifier)) {
+        const isIdentified = applicationIdentifier !== undefined && applicationIdentifier !== "";
+        if (isMac !== (application !== undefined) || (isMac && !isIdentified)) {
             throw new UpdateError(
                 "INSTALL",
                 "macOS releases require an application destination and identifier",
@@ -217,7 +234,7 @@ export class Installer {
         } catch (error) {
             throw new UpdateError(
                 "ACTIVATION",
-                "activation did not finish. Retry destack update --activate before restarting applications",
+                "activation did not finish; retry `destack update --activate` before restarting applications",
                 { cause: error },
             );
         }
@@ -226,26 +243,23 @@ export class Installer {
     /** Complete a recorded activation after affected processes have stopped. */
     async recover(): Promise<void> {
         // read only activations that were committed to the installation directory
-        let source: string;
-        try {
-            source = await readFile(join(this.directory, "activate.json"), "utf8");
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-                return;
-            }
-            throw error;
+        const source = await readOptional(join(this.directory, "activate.json"));
+        if (source === undefined) {
+            return;
         }
 
         // verify the staged receipt before replacing the native application
-        const record = JSON.parse(source);
+        const parsed = ActivationRecord.safeParse(JSON.parse(source));
+        if (!parsed.success) {
+            throw new UpdateError("INSTALL", "invalid activation record");
+        }
+        const record = parsed.data;
         const release = new Release(record.version, record.target);
         const directory = this.path(release);
-        const receipt = JSON.parse(await readFile(join(directory, "receipt.json"), "utf8"));
-        if (
-            typeof record.sha256 !== "string" ||
-            !Digest.safeParse(record.sha256).success ||
-            receipt.sha256 !== record.sha256
-        ) {
+        const receipt = Receipt.safeParse(
+            JSON.parse(await readFile(join(directory, "receipt.json"), "utf8")),
+        );
+        if (!receipt.success || receipt.data.sha256 !== record.sha256) {
             throw new UpdateError(
                 "INSTALL",
                 "activation receipt does not match the staged release",
@@ -253,11 +267,12 @@ export class Installer {
         }
         await this.checkActivation(release, record.sha256);
         if (release.target.endsWith("apple-darwin")) {
+            const { application, applicationIdentifier } = record;
             if (
-                typeof record.application !== "string" ||
-                !isAbsolute(record.application) ||
-                typeof record.applicationIdentifier !== "string" ||
-                !record.applicationIdentifier
+                application === undefined ||
+                !isAbsolute(application) ||
+                applicationIdentifier === undefined ||
+                applicationIdentifier === ""
             ) {
                 throw new UpdateError(
                     "INSTALL",
@@ -266,8 +281,8 @@ export class Installer {
             }
             await installApplication(
                 join(directory, "Destack.app"),
-                record.application,
-                record.applicationIdentifier,
+                application,
+                applicationIdentifier,
             );
         }
 
@@ -326,26 +341,41 @@ async function verifyLinks(root: string, directory: string): Promise<void> {
     }
 }
 
-/** Reject archive paths and entry types that can write outside the staged distribution. */
-function verifyEntry(path: string, entry: Stats | ReadEntry, root: string): void {
-    if (!("type" in entry)) {
-        throw new UpdateError("INSTALL", "expected an archive entry");
-    }
+/** Find why an archive entry could write outside the staged distribution, if it could. */
+function rejectEntry(
+    path: string,
+    entry: Stats | ReadEntry,
+    root: string,
+): UpdateError | undefined {
+    // split the path on both separators
     const components = path.replaceAll("\\", "/").split("/");
-    if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/.test(path)) {
-        throw new UpdateError("INSTALL", `unsafe archive path: ${path}`);
+
+    // require a tar entry
+    if (!("type" in entry)) {
+        return new UpdateError("INSTALL", "expected an archive entry");
     }
-    if (!["File", "Directory", "SymbolicLink"].includes(entry.type)) {
-        throw new UpdateError("INSTALL", `unsupported archive entry: ${path} (${entry.type})`);
+    // require a relative path inside the distribution
+    else if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/u.test(path)) {
+        return new UpdateError("INSTALL", `unsafe archive path: ${path}`);
     }
-    if (entry.type === "SymbolicLink") {
-        if (!entry.linkpath) {
-            throw new UpdateError("INSTALL", `missing archive link target: ${path}`);
-        }
-        const target = resolve(root, path, "..", entry.linkpath);
-        const relation = relative(root, target);
-        if (isAbsolute(entry.linkpath) || relation === ".." || relation.startsWith(`..${sep}`)) {
-            throw new UpdateError("INSTALL", `archive link escapes the distribution: ${path}`);
-        }
+    // require a supported entry type
+    else if (!["File", "Directory", "SymbolicLink"].includes(entry.type)) {
+        return new UpdateError("INSTALL", `unsupported archive entry: ${path} (${entry.type})`);
     }
+    // accept files and directories
+    else if (entry.type !== "SymbolicLink") {
+        return undefined;
+    }
+
+    // require a link target inside the distribution
+    if (entry.linkpath === undefined || entry.linkpath === "") {
+        return new UpdateError("INSTALL", `missing archive link target: ${path}`);
+    }
+    const target = resolve(root, path, "..", entry.linkpath);
+    const relation = relative(root, target);
+    if (isAbsolute(entry.linkpath) || relation === ".." || relation.startsWith(`..${sep}`)) {
+        return new UpdateError("INSTALL", `archive link escapes the distribution: ${path}`);
+    }
+
+    return undefined;
 }

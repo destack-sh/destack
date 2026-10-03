@@ -59,14 +59,22 @@ export class Repository implements AsyncDisposable {
         }
 
         // serve the on-disk repository through real HTTP requests
-        this.server = createServer(async (request, response) => {
-            try {
-                response.end(await readFile(join(this.path, request.url!)));
-            } catch (error) {
-                response.statusCode =
-                    (error as NodeJS.ErrnoException).code === "ENOENT" ? 404 : 500;
+        this.server = createServer((request, response) => {
+            // reject requests without a path
+            if (request.url === undefined) {
+                response.statusCode = 400;
                 response.end();
+                return;
             }
+
+            // answer with the file, or 404 when it does not exist
+            readFile(join(this.path, request.url)).then(
+                (bytes) => response.end(bytes),
+                (error: NodeJS.ErrnoException) => {
+                    response.statusCode = error.code === "ENOENT" ? 404 : 500;
+                    response.end();
+                },
+            );
         });
         this.options = {
             directory: join(directory, "installation"),
@@ -98,7 +106,7 @@ export class Repository implements AsyncDisposable {
                 repository.server.listen(0, "127.0.0.1", resolve);
             });
             const address = repository.server.address();
-            if (!address || typeof address === "string") {
+            if (address === null || typeof address === "string") {
                 throw new Error("missing server address");
             }
             repository.options.repository.port = String(address.port);
@@ -115,9 +123,18 @@ export class Repository implements AsyncDisposable {
         // release HTTP resources before deleting the served repository
         this.server.closeAllConnections();
         if (this.server.listening) {
-            await new Promise<void>((resolve, reject) =>
-                this.server.close((error) => (error ? reject(error) : resolve())),
-            );
+            await new Promise<void>((resolve, reject) => {
+                this.server.close((error) => {
+                    // settle once closed
+                    if (error === undefined) {
+                        resolve();
+                    }
+                    // fail with the close error
+                    else {
+                        reject(error);
+                    }
+                });
+            });
         }
         await rm(this.directory, { recursive: true, force: true });
     }
@@ -128,5 +145,5 @@ export function createRootKey(): SigningKey {
     // retain private material only inside this test process
     const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });
 
-    return new SigningKey(pair.privateKey.export({ format: "pem", type: "pkcs8" }).toString());
+    return new SigningKey(pair.privateKey.export({ format: "pem", type: "pkcs8" }));
 }

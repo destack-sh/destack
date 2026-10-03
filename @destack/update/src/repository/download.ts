@@ -36,7 +36,7 @@ export class DownloadFetcher extends BaseFetcher {
         const { total, options } = this;
 
         return response.body.pipeThrough(
-            new TransformStream({
+            new TransformStream<Uint8Array<ArrayBuffer>, Uint8Array<ArrayBuffer>>({
                 transform(chunk, controller) {
                     received += chunk.byteLength;
                     options.onProgress?.({ received, total });

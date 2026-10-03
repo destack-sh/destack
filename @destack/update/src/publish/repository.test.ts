@@ -1,15 +1,18 @@
 import { expect, test } from "@destack/test";
-import { Metadata, MetadataKind } from "@tufjs/models";
+import { Metadata, MetadataKind, Targets } from "@tufjs/models";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SigningKey } from "./key.ts";
 import { TrustedRoot } from "./root.ts";
+import { parseObject } from "./json.ts";
 import { SignedRepository } from "./repository.ts";
 
 test("renew freshness while preserving exact targets authorization", async () => {
     // prepare independent roles and a quorum using disposable keys
-    const roots = Array.from({ length: 3 }, () => SigningKey.generate());
+    const first = SigningKey.generate();
+    const second = SigningKey.generate();
+    const roots = [first, second, SigningKey.generate()];
     const keys = {
         targets: SigningKey.generate(),
         snapshot: SigningKey.generate(),
@@ -25,8 +28,8 @@ test("renew freshness while preserving exact targets authorization", async () =>
         },
         new Date(Date.now() + 365 * 86_400_000).toISOString(),
     );
-    root.sign((bytes) => roots[0]!.sign(bytes));
-    root.sign((bytes) => roots[1]!.sign(bytes));
+    root.sign((bytes) => first.sign(bytes));
+    root.sign((bytes) => second.sign(bytes));
 
     // publish a complete repository and renew without the targets private key
     const directory = await mkdtemp(join(tmpdir(), "destack-repository-"));
@@ -48,18 +51,22 @@ test("renew freshness while preserving exact targets authorization", async () =>
         expect(await readFile(join(directory, "metadata/1.targets.json"))).toEqual(original);
         const snapshot = Metadata.fromJSON(
             MetadataKind.Snapshot,
-            JSON.parse(await readFile(join(directory, "metadata/2.snapshot.json"), "utf8")),
+            parseObject(await readFile(join(directory, "metadata/2.snapshot.json"), "utf8")),
         );
         const timestamp = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            JSON.parse(await readFile(join(directory, "metadata/timestamp.json"), "utf8")),
+            parseObject(await readFile(join(directory, "metadata/timestamp.json"), "utf8")),
         );
         root.verifyDelegate("snapshot", snapshot);
         root.verifyDelegate("timestamp", timestamp);
+        const reference = snapshot.signed.meta["targets.json"];
+        if (reference === undefined) {
+            throw new Error("expected a targets reference in the snapshot");
+        }
         expect(snapshot.signed.version).toBe(2);
-        expect(snapshot.signed.meta["targets.json"]!.version).toBe(1);
+        expect(reference.version).toBe(1);
         expect(timestamp.signed.snapshotMeta.version).toBe(2);
-        snapshot.signed.meta["targets.json"]!.verify(original);
+        reference.verify(original);
 
         // authenticate the complete outgoing graph before allowing publication
         const verified = await SignedRepository.read(directory, root);
@@ -68,16 +75,13 @@ test("renew freshness while preserving exact targets authorization", async () =>
         expect(verified.targets.toJSON()).toEqual(JSON.parse(original.toString("utf8")));
 
         // reject a different authorization key even when its metadata is well formed
-        const changed = JSON.parse(original.toString());
-        changed.signed.version = 3;
+        const signed = Metadata.fromJSON(MetadataKind.Targets, parseObject(original.toString()));
+        const changed = new Metadata(
+            Targets.fromJSON({ ...signed.signed.toJSON(), version: 3 }),
+            signed.signatures,
+        );
         await expect(
-            SignedRepository.renew(
-                directory,
-                3,
-                root,
-                renewal,
-                Buffer.from(JSON.stringify(changed)),
-            ),
+            SignedRepository.renew(directory, 3, root, renewal, SignedRepository.encode(changed)),
         ).rejects.toThrow("targets was signed by 0/1 keys");
     } finally {
         await rm(directory, { recursive: true, force: true });

@@ -12,7 +12,7 @@ export class SigningKey {
     constructor(privateKey: string) {
         this.private = privateKey;
         this.public = readPublicKey(
-            createPublicKey(privateKey).export({ format: "pem", type: "spki" }).toString(),
+            createPublicKey(privateKey).export({ format: "pem", type: "spki" }),
         );
     }
 
@@ -20,7 +20,7 @@ export class SigningKey {
     static generate(): SigningKey {
         const pair = generateKeyPairSync("ed25519");
 
-        return new SigningKey(pair.privateKey.export({ format: "pem", type: "pkcs8" }).toString());
+        return new SigningKey(pair.privateKey.export({ format: "pem", type: "pkcs8" }));
     }
 
     /** Sign the canonical bytes supplied by the TUF metadata implementation. */
@@ -49,7 +49,7 @@ export function readPublicKey(pem: string): Key {
     // retain the compact Ed25519 representation used by routine release signing
     if (key.asymmetricKeyType === "ed25519") {
         const jwk = key.export({ format: "jwk" });
-        if (!jwk.x) {
+        if (jwk.x === undefined || jwk.x === "") {
             throw new Error("missing Ed25519 public key");
         }
         const bytes = Buffer.from(jwk.x, "base64url");
@@ -73,7 +73,7 @@ export function readPublicKey(pem: string): Key {
             keyID: createHash("sha256").update(bytes).digest("hex"),
             keyType: "rsa",
             scheme: "rsassa-pss-sha256",
-            keyVal: { public: key.export({ format: "pem", type: "spki" }).toString() },
+            keyVal: { public: key.export({ format: "pem", type: "spki" }) },
         });
     } else {
         throw new Error("unsupported signing key algorithm");

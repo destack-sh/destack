@@ -8,7 +8,6 @@
     "exports": {
         ".": "./src/index.ts",
         "./release": "./src/release/index.ts",
-        "./process": "./src/process/index.ts",
         "./install/macos": "./src/install/macos.ts",
         "./error": "./src/error/index.ts",
         "./publish": "./src/publish/index.ts",
@@ -22,7 +21,8 @@
         "tuf-js": "6.0.0"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",

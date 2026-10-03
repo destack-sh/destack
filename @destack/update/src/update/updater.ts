@@ -6,9 +6,16 @@ import { type Download, UpdateRepository } from "../repository/repository.ts";
 import { Update } from "./update.ts";
 import { FileLock } from "@destack/fs";
 import { mkdir, stat } from "node:fs/promises";
+import { schema } from "@destack/schema";
 
 /** Maximum time allowed for a staged executable to report its version, in milliseconds. */
 const VERIFY_TIMEOUT_MS = 60_000;
+
+/** The version report a staged executable prints in update check mode. */
+const VersionReport = schema.looseObject({
+    /** The calendar version of the executable. */
+    version: schema.string(),
+});
 
 /** A locked update session for one installed Destack distribution. */
 export class Updater implements AsyncDisposable {
@@ -23,7 +30,7 @@ export class Updater implements AsyncDisposable {
     /** Whether this session has released its lock. */
     private isClosed = false;
     /** Whether an operation is accessing metadata or installation files. */
-    private operation?: PromiseWithResolvers<void>;
+    private operation: PromiseWithResolvers<void> | undefined;
 
     /** Construct an updater after acquiring its installation lock. */
     private constructor(options: UpdaterOptions, lock: FileLock, repository: UpdateRepository) {
@@ -43,7 +50,9 @@ export class Updater implements AsyncDisposable {
         const isMac = options.target.endsWith("apple-darwin");
         if (
             isMac !== (options.application !== undefined) ||
-            (isMac && !options.applicationIdentifier) ||
+            (isMac &&
+                (options.applicationIdentifier === undefined ||
+                    options.applicationIdentifier === "")) ||
             (options.application !== undefined && !isAbsolute(options.application))
         ) {
             throw new UpdateError(
@@ -149,7 +158,10 @@ export class Updater implements AsyncDisposable {
         const installed = await this.installer.stage(verified, (directory) =>
             verifyRelease(directory, verified.release),
         );
-        const staged = { ...installed, previous: previous?.sha256 };
+        const staged = {
+            ...installed,
+            ...(previous === undefined ? {} : { previous: previous.sha256 }),
+        };
         await this.installer.remember(staged);
 
         return staged;
@@ -263,7 +275,8 @@ async function verifyRelease(directory: string, release: Release): Promise<void>
     }
 
     // reject incomplete distributions before changing the active release
-    if (JSON.parse(stdout).version !== release.version) {
+    const report = VersionReport.safeParse(JSON.parse(stdout));
+    if (!report.success || report.data.version !== release.version) {
         throw new UpdateError(
             "RELEASE",
             "downloaded CLI version does not match the signed release",

@@ -1,5 +1,6 @@
 import { Key, Metadata, MetadataKind, Root } from "@tufjs/models";
 import { readFile } from "node:fs/promises";
+import { parseObject } from "./json.ts";
 
 /** Independent public keys for automated metadata roles. */
 export interface ReleasePublicKey {
@@ -31,7 +32,7 @@ function createRoot(
     if (
         roots.length !== 3 ||
         new Set(all.map((key) => key.keyID)).size !== 6 ||
-        new Set(all.map((key) => key.keyVal.public)).size !== 6
+        new Set(all.map((key) => key.keyVal["public"])).size !== 6
     ) {
         throw new Error("root requires three independent keys and three distinct online keys");
     }
@@ -81,7 +82,7 @@ function verifyRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
 /** Authenticate bootstrap trust or a consecutive rotation, including expired historical roots. */
 function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
     // preserve the agreed root quorum independently of signature validity
-    const role = root.signed.roles.root;
+    const role = root.signed.roles["root"];
     if (role?.threshold !== 2 || role.keyIDs.length !== 3 || new Set(role.keyIDs).size !== 3) {
         throw new Error("root policy must require two of three independent keys");
     }
@@ -102,5 +103,5 @@ function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>): void
 
 /** Read a public root document, including partially signed ceremony documents. */
 async function readRoot(path: string): Promise<Metadata<Root>> {
-    return Metadata.fromJSON(MetadataKind.Root, JSON.parse(await readFile(path, "utf8")));
+    return Metadata.fromJSON(MetadataKind.Root, parseObject(await readFile(path, "utf8")));
 }
