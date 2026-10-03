@@ -1,5 +1,5 @@
 import { defineSchema, Digest, schema, Version } from "@destack/schema";
-import type { DeclarationDescription } from "@destack/package/inspect";
+import type { graph } from "@destack/package";
 import { PlanError } from "../error/error.ts";
 import { Address } from "./address.ts";
 import type { Plan, Step } from "./plan.ts";
@@ -29,7 +29,7 @@ export type Vocabulary = schema.Infer<typeof Vocabulary>;
 /** Plan a release's terms, refusing a removed term under another definition. */
 function plan(
     vocabulary: Vocabulary,
-    declarations: readonly Pick<DeclarationDescription, "vocabulary">[],
+    declarations: readonly Pick<graph.Declaration, "vocabulary">[],
 ): Plan {
     // compare each declared term with its entry
     const declared = terms(declarations);
@@ -40,7 +40,7 @@ function plan(
         // restore a removed term under its last definition
         if (entry?.removed !== undefined && entry.digest === digest) {
             const detail = `restore after its removal in ${entry.removed}: data stored under it applies again`;
-            steps.push({ action: "restore", target: term, risk: "data-dependent", detail });
+            steps.push({ action: "restore", target: term, risk: "fallible", detail });
         }
         // refuse a removed term under another definition
         else if (entry?.removed !== undefined) {
@@ -66,7 +66,7 @@ function plan(
 /** Advance a vocabulary to a release's terms. */
 function advance(
     vocabulary: Vocabulary,
-    declarations: readonly Pick<DeclarationDescription, "vocabulary">[],
+    declarations: readonly Pick<graph.Declaration, "vocabulary">[],
     release: Version,
 ): Vocabulary {
     // keep each declared term under its current definition, restoring removed ones
@@ -88,7 +88,7 @@ function advance(
 
 /** Collect the terms of a release's declarations with their definitions' digests. */
 function terms(
-    declarations: readonly Pick<DeclarationDescription, "vocabulary">[],
+    declarations: readonly Pick<graph.Declaration, "vocabulary">[],
 ): Map<string, Digest> {
     return new Map(
         declarations.flatMap((declaration) => Object.entries(declaration.vocabulary ?? {})),

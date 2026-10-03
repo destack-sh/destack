@@ -1,14 +1,14 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** The path of a part of a declaration or resource, such as `database/main/table/note/column/title`. */
+/** The path of a declaration, a resource or a target inside one, such as `database/main/table/note/column/title`. */
 export const Address = Object.assign(
     defineSchema(schema.string().regex(/^[^/\s]+(?:\/[^/\s]+)*$(?![\s\S])/u)),
     {
-        /** Join address parts, such as a declaration's kind and name. */
-        join(...parts: readonly string[]): string {
-            return parts.join("/");
+        /** Join address segments, such as a declaration's kind and name. */
+        join(...segments: readonly string[]): string {
+            return segments.join("/");
         },
     },
 );
-/** The path of a part of a declaration or resource. */
+/** The path of a declaration, a resource or a target inside one. */
 export type Address = schema.Infer<typeof Address>;

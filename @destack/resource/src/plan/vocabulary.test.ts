@@ -69,7 +69,7 @@ test("advance a vocabulary through removal and restoration, refusing a redefined
     expect(plan(second, restored)).toEqual([
         {
             action: "restore",
-            risk: "data-dependent",
+            risk: "fallible",
             target: "object/note/relation/editor",
             detail: "restore after its removal in 2026.9.0: data stored under it applies again",
         },

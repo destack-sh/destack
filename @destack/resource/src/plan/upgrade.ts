@@ -1,5 +1,5 @@
 import { defineSchema, schema, Version } from "@destack/schema";
-import { DeclarationDescription } from "@destack/package/inspect";
+import { graph, type Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Address } from "./address.ts";
 import { Plan, Step, type Compare } from "./plan.ts";
@@ -26,8 +26,8 @@ export const History = Object.assign(
         schema.object({
             /** The latest published release. */
             release: Version,
-            /** The latest release's own declarations. */
-            declarations: schema.array(DeclarationDescription),
+            /** The latest release's declarations, without the members they derive. */
+            declarations: schema.array(graph.Declaration),
             /** The terms of the package's published releases. */
             vocabulary: Vocabulary,
         }),
@@ -46,17 +46,22 @@ export const History = Object.assign(
 /** What a package has published. */
 export type History = schema.Infer<typeof History>;
 
-/** Plan the upgrade from a package's latest release. */
+/** Plan the upgrade from a package's latest release to a release declaring its declarations. */
 function planUpgrade(
     history: History,
-    declarations: readonly DeclarationDescription[],
-    compare: (declaration: DeclarationDescription) => Compare | undefined,
+    release: Package,
+    declarations: readonly graph.Declaration[],
+    compare: (declaration: graph.Declaration) => Compare | undefined,
 ): Upgrade {
+    // name the releases declaring each side of a comparison
+    const earlier = { package: { ...release, version: history.release } };
+    const later = { package: release };
+
     // pair the releases' declarations by kind and name
     const remaining = new Map(history.declarations.map((entry) => [key(entry), entry]));
 
     // add new declarations and compare kept ones
-    const parts: (() => Plan)[] = [];
+    const plans: (() => Plan)[] = [];
     for (const declaration of declarations) {
         const previous = remaining.get(key(declaration));
         const comparison = compare(declaration);
@@ -65,11 +70,16 @@ function planUpgrade(
         // add a new declaration
         if (previous === undefined) {
             const step = { action: "create", target: key(declaration), risk: "safe" } as const;
-            parts.push(() => ({ steps: [{ ...step, detail: `add ${declaration.kind}` }] }));
+            plans.push(() => ({ steps: [{ ...step, detail: `add ${declaration.kind}` }] }));
         }
         // compare a kept declaration its kind compares
         else if (comparison !== undefined) {
-            parts.push(() => comparison(previous, declaration));
+            plans.push(() =>
+                comparison(
+                    { description: previous.description, symbol: earlier },
+                    { description: declaration.description, symbol: later },
+                ),
+            );
         }
     }
 
@@ -83,15 +93,15 @@ function planUpgrade(
                 risk: "backward-incompatible",
                 detail,
             } as const;
-            parts.push(() => ({ steps: [step] }));
+            plans.push(() => ({ steps: [step] }));
         }
     }
-    parts.push(() => Vocabulary.plan(history.vocabulary, declarations));
+    plans.push(() => Vocabulary.plan(history.vocabulary, declarations));
 
-    return { from: history.release, steps: [...Plan.join(parts).steps] };
+    return { from: history.release, steps: [...Plan.join(plans).steps] };
 }
 
 /** Address a declaration by its kind and name. */
-function key(declaration: DeclarationDescription): string {
+function key(declaration: graph.Declaration): string {
     return Address.join(declaration.kind, declaration.name);
 }
