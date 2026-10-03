@@ -2,24 +2,11 @@ import { asc } from "@destack/db";
 import { principal } from "@destack/access";
 import { Subject, Scope } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { expect, onTestFinished, test } from "@destack/test";
-import { reportError } from "@destack/service/server";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { setting } from "../src/object/index.ts";
 import { alice, named, selection } from "./fixture/value.ts";
 import { editor, lineNumbers } from "./fixture/settings/index.ts";
 import { Storage } from "./fixture/storage.ts";
-
-/** Read a refused call's failure as the caller receives it: its code and message. */
-async function refusal(call: Promise<unknown>): Promise<{ code: string; message: string }> {
-    const error = reportError(
-        await call.then(
-            () => undefined,
-            (failure: unknown) => failure,
-        ),
-    );
-
-    return { code: error.code, message: error.message };
-}
 
 test.each(TEST_DIALECTS)(
     "write declared values at their placements and refuse invalid, undeclared and misplaced ones on %s",
@@ -42,14 +29,14 @@ test.each(TEST_DIALECTS)(
         const base = await create({});
         const override = await create({
             installation: selection.installation,
-            device: laptop.id,
+            deviceId: laptop.id,
             value: "standard",
         });
         const changed = await call("update", { id: override.id, value: "vim" });
         const rows = await storage.database
             .select()
             .from(setting.table)
-            .orderBy(asc(setting.table.revision), asc(setting.table.device));
+            .orderBy(asc(setting.table.revision), asc(setting.table.deviceId));
         const author = Subject.key(principal.user.reference(Scope.universe.id, alice));
         const written = {
             createdBy: author,
@@ -74,7 +61,7 @@ test.each(TEST_DIALECTS)(
                 createdAt: base.createdAt,
                 updatedAt: base.updatedAt,
                 installation: null,
-                device: null,
+                deviceId: null,
                 value: "vim",
             },
             {
@@ -84,17 +71,14 @@ test.each(TEST_DIALECTS)(
                 updatedAt: changed.updatedAt,
                 revision: 2,
                 installation: selection.installation,
-                device: laptop.id,
+                deviceId: laptop.id,
                 value: "vim",
             },
         ]);
 
         // refuse a second value at the same placement, values the setting rejects on creation
         //  and update, a value of a later release, an undeclared setting, and misplaced values
-        const mismatch = {
-            code: "BAD_REQUEST",
-            message: "setting value does not match its declaration",
-        };
+        const mismatch = ["BAD_REQUEST", "setting value does not match its declaration"];
         expect([
             await refusal(create({})),
             await refusal(create({ value: "emacs" })),
@@ -104,22 +88,13 @@ test.each(TEST_DIALECTS)(
             await refusal(create({ mode: "recommend" })),
             await refusal(create({ ...named(lineNumbers), space: selection.space, value: false })),
         ]).toEqual([
-            { code: "CONFLICT", message: "a record with the same unique key exists" },
+            ["DUPLICATE", "a record with the same unique key exists"],
             mismatch,
             mismatch,
-            {
-                code: "BAD_REQUEST",
-                message: "setting value is at release 2026.10.0, its declaration at 2026.9.0",
-            },
-            {
-                code: "NOT_FOUND",
-                message: `setting ${editor.reference.packageId}/editor.theme is not declared`,
-            },
-            { code: "BAD_REQUEST", message: "setting value in its declared scope must be set" },
-            {
-                code: "BAD_REQUEST",
-                message: "setting value uses an unsupported setting override",
-            },
+            ["BAD_REQUEST", "setting value is at release 2026.10.0, its declaration at 2026.9.0"],
+            ["NOT_FOUND", `setting ${editor.reference.packageId}/editor.theme is not declared`],
+            ["BAD_REQUEST", "setting value in its declared scope must be set"],
+            ["BAD_REQUEST", "setting value uses an unsupported setting override"],
         ]);
     },
 );
@@ -134,10 +109,10 @@ test.each(TEST_DIALECTS)("refuse values for devices no one registered on %s", as
         mode: "set",
         value: "vim",
         release: editor.package.version,
-        device: selection.device,
+        deviceId: selection.deviceId,
     });
-    expect(await refusal(unknown)).toEqual({
-        code: "CONFLICT",
-        message: "the change would leave a reference to a missing record",
-    });
+    expect(await refusal(unknown)).toEqual([
+        "BROKEN_REFERENCE",
+        "the change would leave a reference to a missing record",
+    ]);
 });

@@ -44,11 +44,6 @@ export class Storage {
         this.objects = new ObjectServer({
             objects: { ...servedObjects(this.release), device },
             database: test.database,
-            context: (context) => ({
-                subjects: [context.requireAuthentication().claims.subject],
-                now: Date.now(),
-                attributes: {},
-            }),
             callKey: testCallKey,
             origin: { package: settingService.package, service: settingService.name },
         });

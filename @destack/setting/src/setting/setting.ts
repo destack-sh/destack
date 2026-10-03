@@ -1,5 +1,5 @@
 import { PackageId, type Package } from "@destack/package";
-import { aligned, defineSchema, identifier, schema, Version, canonicalize } from "@destack/schema";
+import { aligned, defineSchema, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
@@ -95,15 +95,15 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
 
     /** Match the values a resolution reads: those set in the selected scope, and the recommendations and requirements above it. */
     condition(selection: SettingSelection): Condition {
-        const policy = Condition.ne("mode", "set");
+        const policy = { mode: { ne: "set" } };
 
-        return Condition.all(
-            Condition.eq("packageId", this.reference.packageId),
-            Condition.eq("name", this.reference.name),
-            selection.scope === null
-                ? policy
-                : Condition.any(Condition.eq("scope", selection.scope), policy),
-        );
+        return {
+            AND: [
+                { packageId: this.reference.packageId },
+                { name: this.reference.name },
+                selection.scope === null ? policy : { OR: [{ scope: selection.scope }, policy] },
+            ],
+        };
     }
 
     /**
@@ -116,7 +116,11 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         values: readonly SettingValue[],
         chain: readonly string[],
     ): SettingResolution<schema.Infer<Value>>;
-    /** Resolve the winning candidate's value. */
+    /**
+     * Resolve the winning candidate's value.
+     *
+     * @construct every value that wins has parsed by this setting's schema, since invalid stored values are skipped as invalid sources.
+     */
     resolve(
         selection: SettingSelection,
         values: readonly SettingValue[],
@@ -126,7 +130,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const isSelectable =
             selection.scope === null
                 ? this.definition.scope === "user"
-                : identifier(this.definition.scope).safeParse(selection.scope).success;
+                : schema.identifier(this.definition.scope).safeParse(selection.scope).success;
         if (!isSelectable) {
             throw new SettingError(
                 "INVALID_PLACEMENT",
@@ -230,7 +234,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         this.requireValue(converted.value);
 
         // require the placement of the setting's own scope, or of an enclosing one
-        const position = identifier(this.definition.scope).safeParse(scope).success
+        const position = schema.identifier(this.definition.scope).safeParse(scope).success
             ? "own"
             : "enclosing";
         this.requirePlacement(write, position);
@@ -267,9 +271,16 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // permit the declared overrides in the own scope, and an installation from enclosing scopes
         const permitted: readonly string[] =
             position === "own" ? this.definition.overrides : ["installation"];
-        const overrides = (["package", "space", "installation", "device"] as const).filter(
-            (override) => value[override] !== undefined,
-        );
+        const overrides = (
+            [
+                ["package", value.package],
+                ["space", value.space],
+                ["installation", value.installation],
+                ["device", value.deviceId],
+            ] as const
+        )
+            .filter(([, placed]) => placed !== undefined)
+            .map(([override]) => override);
         if (overrides.some((override) => !permitted.includes(override))) {
             throw new SettingError(
                 "INVALID_PLACEMENT",
@@ -400,7 +411,7 @@ function setWeight(placement: SettingPlacement, selection: SettingSelection): nu
             weight: INSTALLATION_WEIGHT,
         },
         { override: placement.space, selected: selection.space, weight: SPACE_WEIGHT },
-        { override: placement.device, selected: selection.device, weight: DEVICE_WEIGHT },
+        { override: placement.deviceId, selected: selection.deviceId, weight: DEVICE_WEIGHT },
     ].filter((match) => match.override !== undefined);
 
     return matches.every((match) => match.override === match.selected)

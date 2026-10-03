@@ -1,10 +1,10 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Scope } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
 import { Stack } from "@destack/object/server";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
@@ -20,14 +20,14 @@ const template = defineSetting(
 
 /** The stack applying the values. */
 const manager = {
-    installationId: identifier("installation").parse(
-        "installation-01996ab0-0000-7000-8000-000000000001",
-    ),
-    packageId: identifier("package").parse("package-01996ab0-0000-7000-8000-000000000002"),
+    installationId: schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-000000000001"),
+    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000002"),
 };
 
 /** The space receiving the values. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
 test.each(TEST_DIALECTS)(
     "set, recommend and require declared values in the space and refuse undeclared or misplaced ones on %s",
@@ -69,7 +69,7 @@ test.each(TEST_DIALECTS)(
             package: null,
             space: null,
             installation: null,
-            device: null,
+            deviceId: null,
             value: "vim",
             release: "2026.9.0",
         };
@@ -101,27 +101,20 @@ test.each(TEST_DIALECTS)(
         // refuse values outside the setting's schema, undeclared settings,
         //  and a user's value set in the space, which may only recommend or require it
         const unknown = { ...editor.reference, name: "editor.theme" };
-        const refusal = (settings: Readonly<Record<string, unknown>>) =>
-            apply(settings).then(
-                () => "accepted",
-                (error: { code: string; message: string }) => ({
-                    code: error.code,
-                    message: error.message,
-                }),
-            );
         expect([
-            await refusal({
-                template: { setting: template.reference, value: "emacs", mode: "set" },
-            }),
-            await refusal({ theme: { setting: unknown, value: "vim", mode: "recommend" } }),
-            await refusal({ editor: { setting: editor.reference, value: "vim", mode: "set" } }),
+            await refusal(
+                apply({
+                    template: { setting: template.reference, value: "emacs", mode: "set" },
+                }),
+            ),
+            await refusal(apply({ theme: { setting: unknown, value: "vim", mode: "recommend" } })),
+            await refusal(
+                apply({ editor: { setting: editor.reference, value: "vim", mode: "set" } }),
+            ),
         ]).toEqual([
-            { code: "BAD_REQUEST", message: "setting value does not match its declaration" },
-            { code: "NOT_FOUND", message: `setting ${notes.id}/editor.theme is not declared` },
-            {
-                code: "BAD_REQUEST",
-                message: "setting value outside its declared scope must recommend or require",
-            },
+            ["BAD_REQUEST", "setting value does not match its declaration"],
+            ["NOT_FOUND", `setting ${notes.id}/editor.theme is not declared`],
+            ["BAD_REQUEST", "setting value outside its declared scope must recommend or require"],
         ]);
 
         // turn the recommendation into a requirement of the space's users

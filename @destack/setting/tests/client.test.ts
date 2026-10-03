@@ -1,9 +1,8 @@
-import { Condition } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier, canonicalize } from "@destack/schema";
+import { schema, canonicalize } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Observable } from "@destack/service/observable";
@@ -22,7 +21,7 @@ import { settingService, Storage } from "./fixture/storage.ts";
 import { alice, named, source } from "./fixture/value.ts";
 
 /** The space Alice acts in. */
-const spaceId = identifier("space").parse("space-019f5530-8000-7000-8000-000000000030");
+const spaceId = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000000000030");
 
 test.each(TEST_DIALECTS)(
     "resolve and watch values over live queries of the user's scope and the space she acts in on %s",
@@ -37,8 +36,10 @@ test.each(TEST_DIALECTS)(
             follow(storage, spaceId),
         ]);
         const selection = SettingSelection.parse({ scope: alice, space: spaceId });
-        const where = Condition.any(editor.condition(selection), lineNumbers.condition(selection));
-        const queries = [personal, acted].map((client) => client.subscribe(setting, { where }));
+        const where = { OR: [editor.condition(selection), lineNumbers.condition(selection)] };
+        const queries = [personal, acted].map((client) =>
+            client.query.setting.findMany({ where }).subscribe(),
+        );
         onTestFinished(async () => {
             await Promise.all(queries.map((query) => query.close()));
         });
@@ -132,7 +133,9 @@ test.each(TEST_DIALECTS)(
 
         // resolve the space's recommendation for an anonymous visitor from the space alone
         const anonymous = SettingSelection.parse({ scope: null });
-        const visited = acted.subscribe(setting, { where: lineNumbers.condition(anonymous) });
+        const visited = acted.query.setting
+            .findMany({ where: lineNumbers.condition(anonymous) })
+            .subscribe();
         onTestFinished(() => visited.close());
         await visited.ready;
         expect(lineNumbers.resolve(anonymous, await visited.read(), chain)).toEqual({
@@ -144,7 +147,10 @@ test.each(TEST_DIALECTS)(
 );
 
 /** Serve a scope's values to Alice and follow them into a local copy. */
-async function follow(storage: Storage, scope: string): Promise<ObjectClient> {
+async function follow(
+    storage: Storage,
+    scope: string,
+): Promise<ObjectClient<{ readonly setting: typeof setting }>> {
     // serve the scope as Alice
     const server = Server.start({
         ...storage.objects.implement(settingService),
@@ -168,14 +174,14 @@ async function follow(storage: Storage, scope: string): Promise<ObjectClient> {
     onTestFinished(() => server.close());
 
     // copy the scope's values into a local database
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables([setting]), {
+    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ setting }), {
         isMigrated: true,
         isReplica: true,
     });
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
         database: local.database,
-        objects: [setting],
+        objects: { setting },
         scope,
         caller: storage.subject,
         endpoint: { url: "https://settings.test", fetch: (request) => server.fetch(request) },

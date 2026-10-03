@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
@@ -158,7 +158,7 @@ test("compare required structured values independently of key order", () => {
     };
     const equivalent: SettingValue = {
         ...requirement,
-        id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000010"),
+        id: schema.identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000010"),
         scope: account,
         value: { compact: true, width: 80 },
     };
@@ -260,9 +260,9 @@ test("resolve space settings per installation and host settings per host", () =>
         { ...editor.definition, name: "template", scope: "space", overrides: ["installation"] },
         { package: notes },
     );
-    const placed = identifier("installation").parse(
-        "installation-019f5530-8000-7000-8000-000000000004",
-    );
+    const placed = schema
+        .identifier("installation")
+        .parse("installation-019f5530-8000-7000-8000-000000000004");
     const first = SettingSelection.parse({ scope: space, installation: placed });
     const second = SettingSelection.parse({
         scope: space,
@@ -341,7 +341,9 @@ test("refuse placements and writes a setting does not permit", () => {
         message: "setting value uses an unsupported setting override",
     };
     expect([
-        failure(() => plain.requirePlacement({ installation, device, mode: "set" }, "own")),
+        failure(() =>
+            plain.requirePlacement({ installation, deviceId: device, mode: "set" }, "own"),
+        ),
         failure(() => plain.resolve(selection, [override], chain)),
         failure(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
         failure(() => editor.requirePlacement({ mode: "recommend" }, "own")),
@@ -413,7 +415,7 @@ test("skip stored values a changed schema rejects, falling through to the next s
     const resolution = upgraded.resolve(selection, [personal], chain);
     expect([
         SettingResolution.observed(resolution, { scope: alice }),
-        SettingResolution.observed(resolution, { scope: alice, device }),
+        SettingResolution.observed(resolution, { scope: alice, deviceId: device }),
     ]).toEqual([{ id: personal.id, revision: personal.revision }, null]);
 });
 
@@ -505,7 +507,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
     const nearer: SettingValue = { ...required, mode: "recommend" };
     const farther: SettingValue = {
         ...nearer,
-        id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000022"),
+        id: schema.identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000022"),
         scope: account,
         value: "standard",
     };
@@ -519,7 +521,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
     // refuse disagreeing recommendations of one scope
     const sibling: SettingValue = {
         ...nearer,
-        id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000024"),
+        id: schema.identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000024"),
         value: "standard",
     };
     expect(failure(() => shared.resolve(home, [nearer, sibling], chain))).toEqual({

@@ -1,6 +1,6 @@
-import { check, index, sql, uniqueIndex, type Select, Condition } from "@destack/db";
+import { check, index, sql, uniqueIndex, type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { identifier, schema, Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { SpaceSetting } from "../declare/space.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
@@ -16,7 +16,7 @@ export const setting = defineObject({
     scope: [user, space, account, organisation, host],
     declarable: { schema: SpaceSetting },
     // hand recommendations and requirements down to the scopes inside
-    inherited: { where: Condition.ne("mode", "set") },
+    inherited: { where: { mode: { ne: "set" } } },
     fields: {
         /** The package declaring the setting. */
         packageId: field.string(PackageId),
@@ -27,9 +27,9 @@ export const setting = defineObject({
         /** The consuming package the value applies to. */
         package: field.string(PackageId).optional(),
         /** The space the value applies in. */
-        space: field.string(identifier("space")).optional(),
+        space: field.string(schema.identifier("space")).optional(),
         /** The installation the value applies to. */
-        installation: field.string(identifier("installation")).optional(),
+        installation: field.string(schema.identifier("installation")).optional(),
         // reference the device, which lives in the same user scope as the values set for it
         /** The user's device the value applies on. */
         device: field.reference(device, { delete: "cascade" }).optional(),
@@ -58,12 +58,12 @@ export const setting = defineObject({
             sql`coalesce(${value.package}, '')`,
             sql`coalesce(${value.space}, '')`,
             sql`coalesce(${value.installation}, '')`,
-            sql`coalesce(${value.device}, '')`,
+            sql`coalesce(${value.deviceId}, '')`,
         ),
         index("setting_scope").on(value.scope, value.id),
         check(
             "setting_override",
-            sql`(${value.installation} IS NULL OR ${value.space} IS NULL) AND (${value.mode} = 'set' OR (${value.package} IS NULL AND ${value.space} IS NULL AND ${value.device} IS NULL))`,
+            sql`(${value.installation} IS NULL OR ${value.space} IS NULL) AND (${value.mode} = 'set' OR (${value.package} IS NULL AND ${value.space} IS NULL AND ${value.deviceId} IS NULL))`,
         ),
     ],
 });

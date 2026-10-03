@@ -1,5 +1,5 @@
 import { Package } from "@destack/package";
-import { defineSchema, identifier, schema, canonicalize } from "@destack/schema";
+import { defineSchema, schema, canonicalize } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
 import { SettingReference } from "./setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
@@ -7,7 +7,7 @@ import { SettingPlacement, SettingSelection } from "./placement.ts";
 /** A placed value's identity: the row and the revision a resolution read. */
 const PlacedValue = SettingPlacement.extend({
     /** The value's identifier. */
-    id: identifier("setting"),
+    id: schema.identifier("setting"),
     /** The value's revision. */
     revision: schema.number().int().min(1),
 });
