@@ -1,5 +1,5 @@
 import net from "node:net";
-import { Mailbox, type MimeMessage } from "../mime/index.ts";
+import { Mailbox, type Envelope, type MimeMessage } from "../mime/index.ts";
 import { SmtpConnection } from "./connection.ts";
 import { SmtpError } from "./error.ts";
 import { Extensions } from "./extensions.ts";
@@ -57,14 +57,6 @@ export interface SmtpOptions {
     readonly deadline?: number;
     /** The PEM certificates trusted as authorities instead of the system's. */
     readonly certificateAuthorities?: readonly string[];
-}
-
-/** The RFC 5321 envelope of one message: its sender and every recipient, blind copies included. */
-export interface Envelope {
-    /** The reverse-path address, which bounces return to. */
-    readonly sender: string;
-    /** The forward-path addresses, in order. */
-    readonly recipients: readonly string[];
 }
 
 /** One recipient's reply to RCPT TO. */

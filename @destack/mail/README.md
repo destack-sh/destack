@@ -1,6 +1,6 @@
-Compose and submit mail in Destack.
+Compose mail and submit it over SMTP or through Amazon SES.
 
-## Usage
+## Messages
 
 `MimeMessage` composes an RFC 5322 message whose Message-ID digests the From address and the key.
 
@@ -17,6 +17,8 @@ const message = await MimeMessage.compose({
     html: "<p>A new device signed in.</p>",
 });
 ```
+
+## SMTP
 
 `SmtpClient` submits the message to the envelope's recipients and returns the server's replies.
 
@@ -39,13 +41,15 @@ const submission = await client.submit(
 
 `security` sets how the session protects its bytes.
 
-| Security | Port | Session |
-|---|---|---|
-| `tls` | 465 | TLS from the first byte |
-| `starttls` | 587 | a STARTTLS upgrade before authentication |
-| `none` | any | plain text, to loopback hosts only |
+| Security   | Port | Session                                  |
+| ---------- | ---- | ---------------------------------------- |
+| `tls`      | 465  | TLS from the first byte                  |
+| `starttls` | 587  | a STARTTLS upgrade before authentication |
+| `none`     | any  | plain text, to loopback hosts only       |
 
-XOAUTH2 asks its token supplier once per session.
+## Authentication
+
+`authentication` signs in with `plain` credentials or `xoauth2`, which asks its token supplier once per session.
 
 ```ts
 const authentication = {
@@ -53,6 +57,44 @@ const authentication = {
     username: "notices@destack.app",
     token: () => tokens.current(),
 };
+```
+
+## SES
+
+`SesClient` sends a composed message through the SESv2 HTTP API and returns SES's MessageId, signing with Signature Version 4 over WebCrypto in Bun, workerd and browsers.
+
+```ts
+import { SesClient } from "@destack/mail/ses";
+
+const client = new SesClient({
+    region: "eu-central-1",
+    credentials: async () => ({ accessKeyId, secretAccessKey, sessionToken }),
+    configurationSet: "destack",
+});
+const messageId = await client.send(
+    { sender: "notices@destack.app", recipients: ["ada@example.com"] },
+    message,
+);
+```
+
+The client asks its credential supplier once per send.
+
+## SES errors
+
+A refused send throws a `SesError` with its code, SES's AWS code in `awsCode`, its HTTP status in `status`, and `isRetryable` when the same message may pass later.
+
+## Signing
+
+`signRequest` signs any AWS request and returns its headers, canonical request and string to sign.
+
+```ts
+import { signRequest } from "@destack/mail/ses";
+
+const signed = await signRequest(
+    { method: "POST", url, headers: { "content-type": "application/json" }, body },
+    { credentials, region: "eu-central-1", service: "ses", date: new Date() },
+);
+await fetch(url, { method: "POST", headers: signed.headers, body });
 ```
 
 ## Test server

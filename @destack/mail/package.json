@@ -7,6 +7,7 @@
     "description": "Compose and submit mail in Destack.",
     "exports": {
         "./mime": "./src/mime/index.ts",
+        "./ses": "./src/ses/index.ts",
         "./smtp": "./src/smtp/index.ts",
         "./test": "./src/test/index.ts"
     },
@@ -15,7 +16,8 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     },
     "dependencies": {
         "@destack/schema": "workspace:*"

@@ -1,14 +1,8 @@
 import net from "node:net";
 import { beforeAll, expect, test } from "@destack/test";
-import { MimeMessage } from "../mime/index.ts";
+import { MimeMessage, type Envelope } from "../mime/index.ts";
 import { SmtpTestServer, TestCertificate } from "../test/index.ts";
-import {
-    SmtpClient,
-    SmtpError,
-    type Authentication,
-    type Envelope,
-    type SmtpOptions,
-} from "./index.ts";
+import { SmtpClient, SmtpError, type Authentication, type SmtpOptions } from "./index.ts";
 
 /** The PLAIN credentials the test servers accept. */
 const PLAIN = { username: "ada", password: "secret" };

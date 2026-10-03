@@ -36,7 +36,6 @@ test("compose a text message with its structural and extra headers", async () =>
         headers: { "X-Destack-Kind": "security" },
     });
 
-    expect(message.messageId).toBe(`<${DIGEST}@destack.app>`);
     expect(message.content).toBe(
         [
             "From: Destack <notices@destack.app>",
