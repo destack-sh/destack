@@ -1,8 +1,10 @@
+# @destack/notes
+
 Keep notes in notebooks, shared with the people who need them.
 
 ## Notes
 
-Notes and notebooks use the default shareable roles, and a note's `body` is text its editors write together.
+`note.create` creates a note in the notebook `parentId` names, or outside any notebook without it, and `note.grant` gives a person a role on the note.
 
 ```ts
 const created = await client.note.create({
@@ -14,11 +16,18 @@ const created = await client.note.create({
 await client.note.grant({ spaceId, id: created.id, requestId, relation: "editor", subject: bob });
 ```
 
-A note may stand outside any notebook, and a deleted note stays in the trash for 30 days.
+## Trash
+
+`note.delete` moves a note to the trash for 30 days, and `note.restore` brings it back for a person who manages it.
+
+```ts
+await client.note.delete({ spaceId, id: created.id, requestId });
+await client.note.restore({ spaceId, id: created.id, requestId });
+```
 
 ## View
 
-The `notes` view lists notebooks and notes and edits the open note live.
+The `notes` view lists notebooks and notes and opens a note in a live editor.
 
 ```ts
 import { notes } from "@destack/notes/view";
@@ -26,7 +35,7 @@ import { notes } from "@destack/notes/view";
 
 ## Installation
 
-A stack installs the package with the database its notes live in, and another package embeds `notesTables` in a database of its own.
+`install(notes, …)` installs the package with its `main` database, and `notesTables` adds the note tables to another package's database.
 
 ```ts
 import notes from "@destack/notes/package";

@@ -1,8 +1,10 @@
+# @destack/pages
+
 Write pages in nested trees, shared with people or published by link.
 
 ## Pages
 
-Pages use the default shareable roles, and every page below a page inherits its sharing.
+`page.create` with a `parentId` creates a subpage, and a subpage inherits the grants of the pages above it.
 
 ```ts
 const root = await client.page.create({ spaceId, requestId, title: "Handbook" });
@@ -14,11 +16,26 @@ const child = await client.page.create({
 });
 ```
 
-A page keeps its place among its siblings in `position`, and a deleted page stays in the trash for 30 days.
+## Order
+
+`position` orders a page among its siblings as a fractional index.
+
+```ts
+await client.page.update({ spaceId, id: child.id, requestId, position: "a1" });
+```
+
+## Trash
+
+`page.delete` moves a page to the trash for 30 days, and `page.restore` brings it back for a person who manages it.
+
+```ts
+await client.page.delete({ spaceId, id: child.id, requestId });
+await client.page.restore({ spaceId, id: child.id, requestId });
+```
 
 ## Links
 
-A `viewer` grant to anyone presenting a link's secret publishes the page and its subpages.
+`page.grant` with the `viewer` relation, the `anyone` subject and a link secret condition publishes a page and its subpages to everyone with the link.
 
 ```ts
 import { anyone, LinkSecret } from "@destack/access";
@@ -36,7 +53,7 @@ await client.page.grant({
 
 ## Installation
 
-A stack installs the package with the database its pages live in, and another package embeds `pagesTables` in a database of its own.
+`install(pages, …)` installs the package with its `main` database, and `pagesTables` adds the page tables to another package's database.
 
 ```ts
 import pages from "@destack/pages/package";

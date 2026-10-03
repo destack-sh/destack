@@ -1,18 +1,20 @@
+# @destack/relay
+
 Relay HTTP requests for Destack names to the hosts and regions serving them.
 
 ## Names
 
-The relay sends each name to the cell serving it, through the host's tunnel or to the region.
+The relay forwards a request for a name to the cell serving it, through the host's tunnel or to the region.
 
-| Name                                                   | Cell                                                              |
-| ------------------------------------------------------ | ----------------------------------------------------------------- |
-| `notes.personal.flotothemoon.destack.space`            | the host or region serving the space `personal` of `flotothemoon` |
-| `notes.feature-x--personal.flotothemoon.destack.space` | the same cell, for the branch `feature-x`                         |
-| `macbook.flotothemoon.destack.computer`                | the host `macbook` of `flotothemoon`                              |
+```text
+notes.personal.flotothemoon.destack.space             the cell serving the space personal of flotothemoon
+notes.feature-x--personal.flotothemoon.destack.space  the same cell, for the branch feature-x
+macbook.flotothemoon.destack.computer                 the host macbook of flotothemoon
+```
 
 ## Relays
 
-`RelayServer` serves a relay's names and its hosts' tunnels on one listener in one process.
+`RelayServer.start` serves the relay's names and its hosts' tunnels on one listener.
 
 ```ts
 import { Resolver } from "@destack/account/directory";
@@ -38,7 +40,7 @@ const relay = RelayServer.start({
 
 ## Tunnels
 
-A host keeps its tunnel open with `TunnelClient`, which dials again with backoff whenever the tunnel ends.
+`TunnelClient.open` opens a host's tunnel to the relay and dials again with backoff whenever the tunnel ends.
 
 ```ts
 import { RELAY_PACKAGE } from "@destack/relay/server";
@@ -54,19 +56,35 @@ const tunnel = TunnelClient.open({
 
 ## Limits
 
-Each tunnel bounds its frame payload, its open requests per host and its wait for a response head, and closes when the relay refuses a token renewal.
+A tunnel caps each frame payload, the requests open per host and the wait for a response head, and closes when the relay refuses a token renewal.
+
+```ts
+export const MAX_PAYLOAD_BYTES = 64 * 1024;
+export const MAX_STREAMS = 100;
+const ANSWER_TIMEOUT_MILLISECONDS = 100_000;
+```
 
 ## Protocol
 
-A tunnel is a WebSocket carrying one yamux-shaped frame per binary message.
+A tunnel sends one yamux frame per binary WebSocket message, and the relay opens the even streams.
 
-| Bytes | Field                                                 |
-| ----- | ----------------------------------------------------- |
-| 0     | type: data, window, ping, go-away                     |
-| 1     | flags: SYN, ACK, FIN, RST                             |
-| 2–5   | stream; the relay opens even streams                  |
-| 6–9   | window delta, ping value or go-away code              |
-| 10–   | payload: body bytes, or the head a SYN or ACK carries |
+```text
+byte 0      type: data, window, ping, go-away
+byte 1      flags: SYN, ACK, FIN, RST
+bytes 2-5   stream
+bytes 6-9   window delta, ping value or go-away code
+bytes 10-   payload: body bytes, or the request or response head of a SYN or ACK
+```
 
-A host offers two subprotocols: `destack.tunnel`, and `destack.bearer.` followed by its token in base64url.
-The relay verifies the token and answers with `destack.tunnel` alone.
+## Handshake
+
+A host sends its token in base64url as a second WebSocket subprotocol after `destack.tunnel`, and the relay verifies the token and answers with `destack.tunnel` alone.
+
+```http
+GET /tunnel HTTP/1.1
+Upgrade: websocket
+Sec-WebSocket-Protocol: destack.tunnel, destack.bearer.<token>
+
+HTTP/1.1 101 Switching Protocols
+Sec-WebSocket-Protocol: destack.tunnel
+```
