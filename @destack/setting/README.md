@@ -1,8 +1,10 @@
+# @destack/setting
+
 Declare, place and resolve scoped settings.
 
 ## Declarations
 
-A package declares a typed setting with its scope and the overrides it permits.
+`defineSetting` declares a typed setting with its scope and the overrides it permits.
 
 ```ts
 import { defineSetting } from "@destack/setting/declare";
@@ -22,7 +24,7 @@ export const editorMode = defineSetting({
 
 ## Reading
 
-A client subscribes to the `setting` rows of the user's scope and the space the user acts in, and resolves each setting from them along the space's scope chain.
+`resolve` reads a setting's value from the `setting` rows a client follows along the space's scope chain.
 
 ```ts
 import { SettingSelection } from "@destack/setting";
@@ -40,7 +42,7 @@ const mode = editorMode.resolve(selection, rows, chain);
 
 ## Editing
 
-An editor finds the row at the placement it edits, and creates, updates or deletes it through the `setting` object's methods.
+The `setting` object's methods create, update and delete the row at a placement.
 
 ```ts
 import { SettingPlacement, SettingResolution } from "@destack/setting";
@@ -62,12 +64,23 @@ const saved =
 await saved.confirmed;
 ```
 
-A placement carries the override columns of a `setting` row, with its device as `deviceId`, so it spreads into a created value.
-Reading values requires the `read` permission, and creating, updating or deleting one requires `write`.
+## Placements
+
+A placement holds the override columns of a `setting` row, its device as `deviceId`, and spreads into a created value.
+
+```ts
+const placement = SettingPlacement.of({
+    scope: userId,
+    space: spaceId,
+    installation: null,
+    deviceId,
+});
+// { scope: userId, space: spaceId, deviceId }
+```
 
 ## Stacks
 
-A stack sets values in its space, or recommends or requires them for the space's users.
+`mode` sets a stack's value in its space, or recommends or requires it for the space's users.
 
 ```ts
 import { defineSpace } from "@destack/space";
@@ -79,21 +92,9 @@ export const personal = defineSpace({
 });
 ```
 
-## Resolution
-
-A resolution takes the value of the highest applicable source, listed lowest first, and requirements must agree.
-
-| Source              | Placed in             | Applies when                                              | Precedence within                                        |
-| ------------------- | --------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
-| declaration default | the declaring release | always                                                    |                                                          |
-| `recommend`         | an enclosing scope    | it carries no installation or the selected one            | the nearer scope, then one for the selected installation |
-| `set`               | the selected scope    | every override it carries matches                         | device, then installation, then space, then package      |
-| `require`           | an enclosing scope    | as `recommend`                                            | none: equal values only                                  |
-| `invalid`           | any scope             | never: the declaration no longer accepts the stored value |                                                          |
-
 ## Releases
 
-Values record the release they were written against, and a setting that narrows its schema converts earlier values by the release introducing the change.
+`convert` upgrades a setting's earlier values by the release narrowing its schema.
 
 ```ts
 export const keymap = defineSetting({
@@ -106,7 +107,7 @@ export const keymap = defineSetting({
 
 ## Hosting
 
-A space's object server serves the `setting` objects, which apply the values stacks place in their spaces and check them against the declaring release.
+The `setting` objects apply the values stacks place and check them against the declaring release.
 
 ```ts
 import { servedObjects } from "@destack/setting/server";

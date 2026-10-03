@@ -9,7 +9,7 @@ import { space } from "@destack/space/object";
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
 import { servedObjects } from "../src/server/index.ts";
-import { editor, notes } from "./fixture/settings/editor.ts";
+import { editor, notes } from "./fixture/setting/editor.ts";
 import { Storage } from "./fixture/storage.ts";
 
 /** A space-wide template the space's stack selects. */

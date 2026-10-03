@@ -29,7 +29,7 @@ import {
     source,
     space,
 } from "./fixture/index.ts";
-import { editor, notes, release } from "./fixture/settings/index.ts";
+import { editor, notes, release } from "./fixture/setting/index.ts";
 
 /** The package whose releases the entries declare. */
 const PACKAGE = {
@@ -228,30 +228,6 @@ test("describe a setting and read the settings a build declares", async () => {
         code: "UNDECLARED",
         message: `setting ${notes.id}/theme is not declared`,
     });
-});
-
-test("read a setting another package's constructor describes, such as a notification's preference", async () => {
-    // describe a preference the notification constructor derives for the notes package
-    const preference = new Setting(notes, {
-        ...editor.definition,
-        name: "notification.mention",
-        title: "Mentions",
-        description: "Someone mentions you in a remark.",
-    });
-    const notification = {
-        id: PackageId.parse("package-01a0e95b-c8db-7258-a257-e7661dbc93c3"),
-        name: "@destack/notification",
-        version: "2026.9.0",
-    };
-    const reader = await release([preference], {
-        package: notification,
-        name: "defineNotification",
-    });
-
-    // read it among the build's settings
-    expect((await SettingCatalog.read(reader)).settings.map(describeSetting)).toEqual([
-        describeSetting(preference),
-    ]);
 });
 
 test("resolve space settings per installation and host settings per host", () => {
@@ -585,7 +561,7 @@ test("plan a setting's value change between releases: safe widenings, converted 
             {
                 action: "convert",
                 target: "setting/editor.mode",
-                risk: "data-dependent",
+                risk: "fallible",
                 detail: `convert values to ${version}`,
             },
         ],

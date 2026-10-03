@@ -16,7 +16,7 @@ import {
     SettingResolution,
     SettingSelection,
 } from "../src/setting/index.ts";
-import { editor, lineNumbers, notes } from "./fixture/settings/index.ts";
+import { editor, lineNumbers, notes } from "./fixture/setting/index.ts";
 import { settingService, Storage } from "./fixture/storage.ts";
 import { alice, named, source } from "./fixture/value.ts";
 

@@ -9,7 +9,7 @@ export const notes = Package.parse({
     version: "2026.9.0",
 });
 
-/** A personal editor choice with every supported contextual refinement. */
+/** A personal editor choice with every contextual refinement. */
 export const editor = defineSetting(
     {
         name: "editor.mode",

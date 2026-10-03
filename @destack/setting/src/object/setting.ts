@@ -1,4 +1,15 @@
-import { check, index, sql, uniqueIndex, type Select } from "@destack/db";
+import {
+    check,
+    type DatabaseConnection,
+    index,
+    Snapshot,
+    sql,
+    uniqueIndex,
+    type Select,
+} from "@destack/db";
+import { Scope } from "@destack/sync";
+import type { Setting } from "../setting/setting.ts";
+import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
 import { schema, Version } from "@destack/schema";
 import { PackageId } from "@destack/package";
@@ -23,7 +34,7 @@ export const setting = defineObject({
         /** The setting's name in its declaring package. */
         name: field.string(SettingName),
 
-        // hold the package, space and installation overrides as identifiers, since they live in other databases
+        // hold the overrides kept in other databases as identifiers
         /** The consuming package the value applies to. */
         package: field.string(PackageId).optional(),
         /** The space the value applies in. */
@@ -70,3 +81,22 @@ export const setting = defineObject({
 
 /** A setting value as its row holds it. */
 export type SettingValue = Select<typeof setting.table>;
+
+/** Reads of the setting values placed in a database. */
+export const SettingValue = {
+    /** Resolve a setting for a selection from the values placed along its scope's chain. */
+    async resolve<Value extends schema.Schema>(
+        database: DatabaseConnection,
+        declared: Setting<Value>,
+        selection: SettingSelection & { readonly scope: string },
+    ): Promise<schema.Infer<Value>> {
+        // read the values the scope and the scopes above it set
+        const snapshot = Snapshot.live(database);
+        const chain = (await Scope.chain(snapshot, selection.scope)).map((link) => link.object.id);
+        const values = await snapshot.rows(setting.table, {
+            AND: [declared.condition(selection), { scope: { in: chain } }],
+        });
+
+        return declared.resolve(selection, values, chain).value;
+    },
+};

@@ -1,7 +1,6 @@
 {
     "name": "@destack/setting",
     "version": "2026.9.0",
-    "private": true,
     "type": "module",
     "license": "MIT",
     "sideEffects": false,

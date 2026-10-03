@@ -4,7 +4,7 @@ import { Scope } from "@destack/sync";
 import { SettingPlacement, SettingSelection } from "../../src/setting/placement.ts";
 import type { SettingSource } from "../../src/setting/resolution.ts";
 import type { Setting } from "../../src/setting/setting.ts";
-import { editor } from "./settings/index.ts";
+import { editor } from "./setting/index.ts";
 
 /** Alice's personal scope. */
 export const alice = "user-019f5530-8000-7000-8000-000000000003";

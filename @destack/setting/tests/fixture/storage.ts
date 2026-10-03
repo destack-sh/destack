@@ -14,7 +14,7 @@ import { setting } from "../../src/object/index.ts";
 import { type OpenRelease, servedObjects } from "../../src/server/index.ts";
 import { defineService } from "@destack/service";
 import type { Setting } from "../../src/setting/index.ts";
-import { editor, lineNumbers, release } from "./settings/index.ts";
+import { editor, lineNumbers, release } from "./setting/index.ts";
 import { alice } from "./value.ts";
 import { subjectContext, testCallKey } from "@destack/service/test";
 
