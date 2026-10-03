@@ -1,6 +1,4 @@
-# @destack/directory
-
-The universe's cell router: which cell serves each zone, which cells have work in it, where each cell answers, and which object owns each unique name.
+Route each zone of the universe to the cell serving it, publish where each cell answers, assign cells work in zones, and reserve unique names for the objects owning them.
 
 ## Zones and cells
 
@@ -12,8 +10,8 @@ import { DirectoryStore } from "@destack/directory";
 const directory = new DirectoryStore(globalDatabase);
 await directory.publish("region-eu", "universe", "https://eu.destack.app");
 await directory.place({ id: spaceId, scope: accountId, cell: "region-eu", epoch: 1 });
-const zone = await directory.locate(spaceId); // { id, scope, cell: "region-eu", epoch: 1 }
-await directory.move(zone!, "host-01a0…"); // the target cell copies the zones moving to it
+const zone = present(await directory.locate(spaceId), "zone"); // { id, scope, cell: "region-eu", epoch: 1 }
+await directory.move(zone, "host-01a0…"); // the target cell copies the zones moving to it
 ```
 
 ## Assignments
@@ -21,9 +19,9 @@ await directory.move(zone!, "host-01a0…"); // the target cell copies the zones
 The cell serving a zone assigns other cells the work it has for them, such as a build of a host's checkout, and each cell lists the zones to follow.
 
 ```ts
-await directory.assign(zone!, laptopHostId); // the zone's cell, at its epoch
+await directory.assign(zone, laptopHostId); // the zone's cell, at its epoch
 await directory.assignments(laptopHostId); // ["space-01a0…"]
-await directory.unassign(zone!, laptopHostId); // once the work ended
+await directory.unassign(zone, laptopHostId); // once the work ended
 ```
 
 ## Clients
@@ -31,7 +29,7 @@ await directory.unassign(zone!, laptopHostId); // once the work ended
 A directory client reaches a service where a cell mounts it, and follows a 421 `Moved` answer once to the scope's new cell.
 
 ```ts
-const client = directory.client(notesService, zone!.cell, fetch);
+const client = directory.client(notesService, zone.cell, fetch);
 throw Moved.error({ scope: spaceId, cell: "host-01a0…" }); // how a cell answers for a scope that moved
 ```
 
