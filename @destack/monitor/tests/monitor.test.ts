@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testCallKey } from "@destack/service/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -9,10 +9,10 @@ import { copyRole, copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
 import { LocalBucket } from "@destack/bucket/local";
 import { TestDatabase } from "@destack/db/test";
-import { broadcastChannel } from "@destack/db/channel";
+import { broadcastChannel } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
@@ -37,10 +37,12 @@ import { monitorService } from "../src/service/index.ts";
 
 /** The identities the scenario names. */
 const ids = {
-    account: identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
-    space: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+    account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
+    space: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
     package: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
-    notes: identifier("installation").parse("installation-01996ab0-0000-7000-8000-000000000005"),
+    notes: schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-000000000005"),
 };
 
 /** The notes package, as its workload names itself. */
@@ -109,7 +111,11 @@ async function serveMonitor() {
         resources: new ResourceContext(),
         authorizeHost: async () => {},
         authenticate: async (request) => {
-            const name = request.headers.get("authorization")!.slice("Bearer ".length);
+            const header = request.headers.get("authorization");
+            if (header === null) {
+                throw new TypeError("a test request carries no authorization");
+            }
+            const name = header.slice("Bearer ".length);
             const subject =
                 name === "notes"
                     ? principal.installation.reference(ids.space, ids.notes)
@@ -149,8 +155,8 @@ test("search, follow and trace an installation's exported entries before and aft
     const tail = await alice.tail({ ...filter, severity: 13 });
     const followed = (async () => {
         const received: Entry[] = [];
-        for await (const entry of tail) {
-            received.push(entry);
+        for await (const tailed of tail) {
+            received.push(tailed);
             break;
         }
 
@@ -164,8 +170,11 @@ test("search, follow and trace an installation's exported entries before and aft
         (error) => failures.push(error),
     );
     const fetch = globalThis.fetch;
-    globalThis.fetch = ((input: RequestInfo | URL, request?: RequestInit) =>
-        server.fetch(new Request(input, request))) as typeof fetch;
+    globalThis.fetch = Object.assign(
+        (input: RequestInfo | URL, request?: RequestInit) =>
+            server.fetch(new Request(input, request)),
+        { preconnect: fetch.preconnect },
+    );
     onTestFinished(() => {
         globalThis.fetch = fetch;
     });
@@ -186,7 +195,11 @@ test("search, follow and trace an installation's exported entries before and aft
     // search the open records, newest first, then read the trace
     const window = { ...filter, from: 0, before: Date.now() * 1000 + 1, limit: 10 };
     const open = await alice.search(window);
-    const trace = open.entries.find((entry) => entry.name === "note.saved")!.trace!;
+    const savedRecord = open.entries.find((found) => found.name === "note.saved");
+    if (savedRecord?.trace === undefined) {
+        throw new TypeError("the open records have no traced note.saved");
+    }
+    const { trace } = savedRecord;
     const traced = await alice.trace({ ...filter, trace });
 
     // chart the counter and the histogram over the window
@@ -200,26 +213,23 @@ test("search, follow and trace an installation's exported entries before and aft
     const catalog = await database.select({ rows: monitorSegment.rows }).from(monitorSegment);
 
     // refuse a reader without the space's grant
-    const denied = await client(server, "bob")
-        .search(window)
-        .then(
-            () => undefined,
-            (error: { code: string }) => error.code,
-        );
+    const denied = await refusal(client(server, "bob").search(window));
 
     // find both records, the trace's span and record, the followed warning, the same page sealed
+    const anyTime: unknown = expect.any(Number);
+    const anySpan: unknown = expect.stringMatching(/^[0-9a-f]{16}$/u);
     const base = {
         installation: ids.notes,
         instance: "instance-1",
         source: { name: "@example/notes", version: "2026.9.0" },
-        time: expect.any(Number),
+        time: anyTime,
     };
     const saved = {
         ...base,
         kind: "log",
         name: "note.saved",
         trace,
-        span: expect.stringMatching(/^[0-9a-f]{16}$/),
+        span: anySpan,
         status: "unset",
         severity: 9,
         attributes: { length: 5 },
@@ -250,17 +260,17 @@ test("search, follow and trace an installation's exported entries before and aft
         ],
         followed: [conflict],
         sealed: [conflict, saved],
-        saves: { series: [{ attributes: {}, steps: [{ time: expect.any(Number), value: 2 }] }] },
+        saves: { series: [{ attributes: {}, steps: [{ time: anyTime, value: 2 }] }] },
         renders: {
             series: [
                 {
                     attributes: {},
-                    steps: [{ time: expect.any(Number), count: 1, sum: 5, p50: 5, p90: 5, p99: 5 }],
+                    steps: [{ time: anyTime, count: 1, sum: 5, p50: 5, p90: 5, p99: 5 }],
                 },
             ],
         },
         catalog: [{ rows: 5 }],
-        denied: "FORBIDDEN",
+        denied: ["FORBIDDEN", "permission denied: read-logs"],
         failures: [],
     });
 });
@@ -270,15 +280,15 @@ test("resolve an installation's trace sampling from its space's values, the inst
     const now = Date.now();
 
     // place a value for the space, then one naming the notes installation
-    const place = (id: string, value: number, installation?: string) =>
+    const place = (id: string, value: number, placed?: string) =>
         database.insert(setting.table).values({
-            id: identifier("setting").parse(id),
+            id: schema.identifier("setting").parse(id),
             scope: ids.space,
             packageId: traceSampling.package.id,
             name: traceSampling.name,
-            ...(installation === undefined
+            ...(placed === undefined
                 ? {}
-                : { installation: identifier("installation").parse(installation) }),
+                : { installation: schema.identifier("installation").parse(placed) }),
             mode: "set",
             value,
             release: traceSampling.package.version,
@@ -327,11 +337,11 @@ test("compact an hour's minute segments into one, prune them past retention, and
         before: now * 1000,
         limit: 10,
     };
-    const found = (await monitor.search(ids.space, search)).entries.map((entry) => entry.name);
+    const found = (await monitor.search(ids.space, search)).entries.map((each) => each.name);
 
     // keep a day, drop the segment, and sweep every file once the grace passed
     await database.insert(setting.table).values({
-        id: identifier("setting").parse("setting-01996ab0-0000-7000-8000-000000000013"),
+        id: schema.identifier("setting").parse("setting-01996ab0-0000-7000-8000-000000000013"),
         scope: ids.space,
         packageId: telemetryRetention.package.id,
         name: telemetryRetention.name,
@@ -399,12 +409,12 @@ test("mask sensitive values for readers who may not unmask them, and audit an un
     expect({
         masked: masked.entries.map((found) => found.attributes),
         unmasked: unmasked.entries.map((found) => found.attributes),
-        audits: (await new Journal(database, testCallKey).read()).map((call) => ({
-            scope: call.execution!.context.scope,
-            method: call.method,
-            category: call.execution!.category,
-            targets: call.execution!.targets,
-            details: call.execution!.details,
+        audits: (await new Journal(database, testCallKey).read()).map(({ method, execution }) => ({
+            scope: execution.context.scope,
+            method,
+            category: execution.category,
+            targets: execution.targets,
+            details: execution.details,
         })),
     }).toEqual({
         masked: [{ "sensitive.email": "****", role: "editor" }],
@@ -462,12 +472,10 @@ test("follow and search the entries another instance ingests, through the channe
     });
     await expect.poll(async () => (await second.search(ids.space, window())).entries).toEqual([]);
     const tailing = new AbortController();
-    const tail = second.tail(
-        ids.space,
-        { scope: ids.space, installation: ids.notes },
-        tailing.signal,
-    );
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    const tail = second.tail({ scope: ids.space, installation: ids.notes }, tailing.signal);
+    await new Promise((resolve) => {
+        setTimeout(resolve, 50);
+    });
 
     // ingest on the first instance, and see it on the second before any seal
     first.ingest(ids.space, [record("note.saved")]);

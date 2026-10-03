@@ -12,19 +12,21 @@ import {
     sql,
     type DatabaseConnection,
     type SQL,
+    type Channel,
+    Snapshot,
+    typedChannel,
 } from "@destack/db";
 import { Scope } from "@destack/sync";
 import type { Bucket } from "@destack/bucket";
-import type { Channel } from "@destack/db/channel";
-import { identifier, type Identifier, type schema } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import type { AsyncBuffer } from "hyparquet";
 import type { OtlpSignal } from "@destack/telemetry/otlp";
 import {
-    type Entry,
-    type EntryFilter,
+    Entry,
+    EntryFilter,
     type EntryPage,
-    type EntrySearch,
+    EntrySearch,
     Otlp,
     OtlpLogsRequest,
     OtlpMetricsRequest,
@@ -33,9 +35,7 @@ import {
     type Series,
 } from "../entry/index.ts";
 import { aggregate } from "./series.ts";
-import { Snapshot } from "@destack/db/log";
-import { Condition } from "@destack/db/query";
-import { setting, type SettingValue } from "@destack/setting/object";
+import { setting } from "@destack/setting/object";
 import { POINT_BIT, Segment, UNSPECIFIED_BIT } from "../segment/segment.ts";
 import { telemetryRetention, traceSampling } from "../setting/setting.ts";
 import type { Setting } from "@destack/setting";
@@ -75,70 +75,75 @@ const ANSWER_MILLISECONDS = 1_000;
 /** How long entries for another instance's tail gather before they are sent together: a tenth of a second. */
 const FORWARD_MILLISECONDS = 100;
 
-/** The recent entries a query asks every instance for: a search's log records, a trace's entries or a metric's points. */
-export type RecentQuery =
-    | { readonly kind: "search"; readonly search: EntrySearch }
-    | { readonly kind: "trace"; readonly trace: string }
-    | { readonly kind: "series"; readonly name: string };
+/** A query every instance answers from its open segments: a search, a trace or a series. */
+const EntryQuery = schema.discriminatedUnion("kind", [
+    schema.object({ kind: schema.literal("search"), search: EntrySearch }),
+    schema.object({ kind: schema.literal("trace"), trace: schema.string() }),
+    schema.object({ kind: schema.literal("series"), name: schema.string() }),
+]);
+/** A query over entries every instance answers from its open segments. */
+type EntryQuery = schema.Infer<typeof EntryQuery>;
 
-/** A tail an instance announces, so the others forward the entries it follows. */
-interface AnnouncedTail {
+/** A live tail of entries, which an instance announces so the others forward the entries it follows. */
+const Tail = schema.object({
     /** The tail's identifier. */
-    readonly id: string;
-    /** The scope followed. */
-    readonly scope: string;
-    /** The entries followed. */
-    readonly filter: Omit<EntryFilter, "scope">;
-}
+    id: schema.string(),
+    /** The entries followed, in one scope. */
+    filter: EntryFilter,
+});
+/** A live tail of entries. */
+type Tail = schema.Infer<typeof Tail>;
 
 /** A message between the monitors of one database's instances. */
-export type MonitorMessage =
-    | {
-          /** An instance announcing itself and the tails it serves, on start and every heartbeat. */
-          readonly kind: "alive";
-          readonly instance: string;
-          readonly tails: readonly AnnouncedTail[];
-      }
-    | {
-          /** An instance stopping. */
-          readonly kind: "gone";
-          readonly instance: string;
-      }
-    | {
-          /** Entries for a tail another instance serves. */
-          readonly kind: "entries";
-          readonly tail: string;
-          readonly entries: readonly Entry[];
-      }
-    | {
-          /** A query for every instance's open entries. */
-          readonly kind: "ask";
-          readonly request: string;
-          readonly instance: string;
-          readonly scope: string;
-          readonly installation?: Identifier<"installation">;
-          readonly window: { readonly from: number; readonly to: number };
-          readonly query: RecentQuery;
-      }
-    | {
-          /** One instance's open entries for a query. */
-          readonly kind: "answer";
-          readonly request: string;
-          readonly instance: string;
-          readonly entries: readonly Entry[];
-      };
+const MonitorMessage = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** An instance announcing itself and the tails it serves, on start and every heartbeat. */
+        kind: schema.literal("alive"),
+        instance: schema.string(),
+        tails: schema.array(Tail),
+    }),
+    schema.object({
+        /** An instance stopping. */
+        kind: schema.literal("gone"),
+        instance: schema.string(),
+    }),
+    schema.object({
+        /** Entries for a tail another instance serves. */
+        kind: schema.literal("entries"),
+        tail: schema.string(),
+        entries: schema.array(Entry),
+    }),
+    schema.object({
+        /** A query for every instance's open entries. */
+        kind: schema.literal("ask"),
+        request: schema.string(),
+        instance: schema.string(),
+        scope: schema.string(),
+        installation: schema.identifier("installation").exactOptional(),
+        window: schema.object({ from: schema.number(), to: schema.number() }),
+        query: EntryQuery,
+    }),
+    schema.object({
+        /** One instance's open entries for a query. */
+        kind: schema.literal("answer"),
+        request: schema.string(),
+        instance: schema.string(),
+        entries: schema.array(Entry),
+    }),
+]);
+/** A message between the monitors of one database's instances. */
+type MonitorMessage = schema.Infer<typeof MonitorMessage>;
 
-/** A live tail's subscription. */
-interface Subscriber {
-    /** The tail's identifier. */
-    readonly id: string;
-    /** The scope followed. */
-    readonly scope: string;
-    /** The entries followed. */
-    readonly filter: Omit<EntryFilter, "scope">;
+/** A tail this instance serves, with where its entries go. */
+interface Subscriber extends Tail {
     /** Receive a matching entry. */
     readonly push: (entry: Entry) => void;
 }
+
+/** A stream of entries its reader can end at once. */
+export type EntryStream = AsyncIteratorObject<Entry, undefined, void> & {
+    return(): Promise<IteratorResult<Entry, undefined>>;
+};
 
 /** One open segment and the time it opened. */
 interface Open {
@@ -169,7 +174,7 @@ export class Monitor {
     /** The channel to the monitors of the database's other instances, absent for a sole instance. */
     readonly #channel: Channel<MonitorMessage> | undefined;
     /** The other instances alive, with the tails they serve. */
-    readonly #peers = new Map<string, { seenAt: number; tails: readonly AnnouncedTail[] }>();
+    readonly #peers = new Map<string, { seenAt: number; tails: readonly Tail[] }>();
     /** The entries gathered for other instances' tails, by tail. */
     readonly #forwarding = new Map<string, Entry[]>();
     /** The queries waiting for other instances' answers, by request. */
@@ -183,13 +188,13 @@ export class Monitor {
         database: DatabaseConnection,
         bucket: Bucket,
         report: (error: unknown) => void,
-        channel?: Channel<MonitorMessage>,
+        channel?: Channel<unknown>,
     ) {
         // keep the catalog, the bucket, the report and the channel
         this.database = database;
         this.bucket = bucket;
         this.#report = report;
-        this.#channel = channel;
+        this.#channel = channel === undefined ? undefined : typedChannel(channel, MonitorMessage);
     }
 
     /** Take a scope's entries: append them to their open segments and pass them to matching tails. */
@@ -209,13 +214,13 @@ export class Monitor {
 
             // pass it to the tails following it here and on other instances
             for (const subscriber of this.#subscribers) {
-                if (subscriber.scope === scope && matches(entry, subscriber.filter)) {
+                if (subscriber.filter.scope === scope && matches(entry, subscriber.filter)) {
                     subscriber.push(entry);
                 }
             }
             for (const peer of this.#peers.values()) {
                 for (const tail of peer.tails) {
-                    if (tail.scope === scope && matches(entry, tail.filter)) {
+                    if (tail.filter.scope === scope && matches(entry, tail.filter)) {
                         this.#forward(tail.id, entry);
                     }
                 }
@@ -250,12 +255,18 @@ export class Monitor {
         readonly scope: string;
         readonly installation: Identifier<"installation"> | undefined;
     } {
-        const [scope, installation] = key.split("\0") as [string, string];
+        // split the key into its scope and installation
+        const [scope, installation, ...rest] = key.split("\0");
+        if (scope === undefined || installation === undefined || rest.length > 0) {
+            throw new TypeError(`emitter key ${JSON.stringify(key)} is no scope and installation`);
+        }
 
         return {
             scope,
             installation:
-                installation === "" ? undefined : (installation as Identifier<"installation">),
+                installation === ""
+                    ? undefined
+                    : schema.identifier("installation").parse(installation),
         };
     }
 
@@ -293,46 +304,43 @@ export class Monitor {
             .orderBy(desc(monitorSegment.to));
 
         // collect matching records from the open segment, then from each sealed one, newest first
-        const query: RecentQuery = { kind: "search", search };
+        const query: EntryQuery = { kind: "search", search };
         const isWanted = Monitor.#wanted(query, search.installation);
         const collected = await this.#recent(scope, search.installation, window, query);
         for (let start = 0; start < segments.length; start += READ_CONCURRENCY) {
             // stop once more than a page is newer than every remaining segment
-            const next = segments[start]!;
-            if (collected.filter((entry) => entry.time > next.to).length > search.limit) {
+            const batch = segments.slice(start, start + READ_CONCURRENCY);
+            const newest = Math.max(...batch.map((segment) => segment.to));
+            if (collected.filter((entry) => entry.time > newest).length > search.limit) {
                 break;
             }
 
             // read the next batch of segments at once
-            const batch = segments.slice(start, start + READ_CONCURRENCY);
             const read = await this.#read(batch, search.installation, window, isWanted);
             collected.push(...read.flat());
         }
 
         // page newest first and keep entries of one time on one page
         const found = newestFirst(collected);
-        let end = Math.min(search.limit, found.length);
-        while (end < found.length && found[end]!.time === found[end - 1]!.time) {
-            end++;
+        const last = found.at(search.limit - 1);
+        if (last === undefined || found.length === search.limit) {
+            return { entries: found };
         }
-        const entries = found.slice(0, end);
+        const entries = found.filter(
+            (entry, index) => index < search.limit || entry.time === last.time,
+        );
 
-        return end < found.length ? { entries, before: entries.at(-1)!.time } : { entries };
+        return entries.length < found.length ? { entries, before: last.time } : { entries };
     }
 
     /** Follow a scope's entries matching a filter from now on, until the signal aborts or the reader stops. */
-    tail(
-        scope: string,
-        filter: EntryFilter,
-        signal: AbortSignal,
-    ): AsyncIteratorObject<Entry, undefined, void> {
+    tail(filter: EntryFilter, signal: AbortSignal): EntryStream {
         // queue entries between reads, or hand one to the waiting read
         const queue: Entry[] = [];
         let waiting: ((result: IteratorResult<Entry>) => void) | undefined;
         let isClosed = false;
         const subscriber: Subscriber = {
             id: crypto.randomUUID(),
-            scope,
             filter,
             push: (entry) => {
                 const read = waiting;
@@ -373,7 +381,9 @@ export class Monitor {
                 } else if (isClosed) {
                     return Promise.resolve({ done: true, value: undefined });
                 } else {
-                    return new Promise((resolve) => (waiting = resolve));
+                    return new Promise((resolve) => {
+                        waiting = resolve;
+                    });
                 }
             },
             return: () => {
@@ -415,12 +425,12 @@ export class Monitor {
             .orderBy(asc(monitorSegment.from));
 
         // collect the trace's entries from the sealed segments and the open one
-        const query: RecentQuery = { kind: "trace", trace };
+        const query: EntryQuery = { kind: "trace", trace };
         const isWanted = Monitor.#wanted(query, installation);
         const found = (await this.#read(segments, installation, window, isWanted, trace)).flat();
         found.push(...(await this.#recent(scope, installation, window, query)));
 
-        return found.sort((first, second) => first.time - second.time);
+        return found.toSorted((first, second) => first.time - second.time);
     }
 
     /** Resolve the share of traces an installation keeps. */
@@ -464,15 +474,18 @@ export class Monitor {
                 }
 
                 // read the group's entries, a bounded number of files at once, oldest first
-                const window = { from: rows[0]!.from, to: Math.max(...rows.map((row) => row.to)) };
+                const window = {
+                    from: Math.min(...rows.map((row) => row.from)),
+                    to: Math.max(...rows.map((row) => row.to)),
+                };
                 const entries = (await this.#read(rows, installation, window, () => true)).flat();
                 const merged = new Segment(installation);
-                for (const entry of entries.sort((first, second) => first.time - second.time)) {
+                for (const entry of entries.toSorted((first, second) => first.time - second.time)) {
                     merged.append(entry);
                 }
 
                 // store the merged file, then replace the minute rows with its row
-                const id = identifier("segment").parse(`segment-${v7()}`);
+                const id = schema.identifier("segment").parse(`segment-${v7()}`);
                 const key = `${scope}/${installation ?? "host"}/${merged.from}-${id}.parquet`;
                 const body = await merged.encode();
                 await this.bucket.put(key, body);
@@ -571,20 +584,16 @@ export class Monitor {
         const selection = { scope, installation };
         const snapshot = Snapshot.live(this.database);
         const chain = await Scope.chain(snapshot, scope);
-        const values = await snapshot.rows(
-            setting.table,
-            Condition.all(
+        const values = await snapshot.rows(setting.table, {
+            AND: [
                 declared.condition(selection),
-                Condition.oneOf(
-                    "scope",
-                    chain.map((link) => link.object.id),
-                ),
-            ),
-        );
+                { scope: { in: chain.map((link) => link.object.id) } },
+            ],
+        });
 
         return declared.resolve(
             selection,
-            values as SettingValue[],
+            values,
             chain.map((link) => link.object.id),
         ).value;
     }
@@ -607,7 +616,7 @@ export class Monitor {
             );
 
         // collect the metric's points from each sealed segment and the open one
-        const query: RecentQuery = { kind: "series", name: request.name };
+        const query: EntryQuery = { kind: "series", name: request.name };
         const isWanted = Monitor.#wanted(query, request.installation);
         const points = await this.#recent(scope, request.installation, window, query);
         points.push(...(await this.#read(segments, request.installation, window, isWanted)).flat());
@@ -632,8 +641,9 @@ export class Monitor {
     async run(signal: AbortSignal): Promise<void> {
         // seal on an interval, and hear and greet the other instances
         const interval = setInterval(() => void this.seal(), SEAL_MILLISECONDS / 12);
-        const stop = this.#channel?.listen(
-            (message) => this.#receive(message),
+        const channel = this.#channel;
+        const stop = channel?.listen(
+            (message) => this.#receive(message, channel),
             () => this.#announce(),
             this.#report,
         );
@@ -658,7 +668,7 @@ export class Monitor {
         const { segment, scope } = open;
 
         // write the file, then name it in the catalog
-        const id = identifier("segment").parse(`segment-${v7()}`);
+        const id = schema.identifier("segment").parse(`segment-${v7()}`);
         const file = `${scope}/${segment.installation ?? "host"}/${segment.from}-${id}.parquet`;
         const sealing = (async () => {
             const body = await segment.encode();
@@ -704,7 +714,7 @@ export class Monitor {
         scope: string,
         installation: Identifier<"installation"> | undefined,
         window: { readonly from: number; readonly to: number },
-        query: RecentQuery,
+        query: EntryQuery,
     ): Promise<Entry[]> {
         // read this instance's own open entries
         const own = this.#openEntries(
@@ -721,7 +731,8 @@ export class Monitor {
         // ask the other instances, taking the answers that arrive in time
         const request = crypto.randomUUID();
         const answered = Promise.withResolvers<void>();
-        const asking = { waiting: new Set(peers), entries: [] as Entry[], done: answered.resolve };
+        const entries: Entry[] = [];
+        const asking = { waiting: new Set(peers), entries, done: answered.resolve };
         this.#asking.set(request, asking);
         this.#channel.notify({
             kind: "ask",
@@ -737,11 +748,11 @@ export class Monitor {
         clearTimeout(timeout);
         this.#asking.delete(request);
 
-        return [...own, ...asking.entries];
+        return [...own, ...entries];
     }
 
     /** Take a message from another instance's monitor. */
-    #receive(message: MonitorMessage): void {
+    #receive(message: MonitorMessage, channel: Channel<MonitorMessage>): void {
         // keep an alive instance's tails, and forget a stopped one
         if (message.kind === "alive") {
             this.#peers.set(message.instance, { seenAt: Date.now(), tails: message.tails });
@@ -763,7 +774,7 @@ export class Monitor {
                 message.window,
                 Monitor.#wanted(message.query, message.installation),
             );
-            this.#channel!.notify({
+            channel.notify({
                 kind: "answer",
                 request: message.request,
                 instance: this.#instance,
@@ -785,11 +796,7 @@ export class Monitor {
 
     /** Announce this instance and the tails it serves to the others. */
     #announce(): void {
-        const tails = [...this.#subscribers].map(({ id, scope, filter }) => ({
-            id,
-            scope,
-            filter,
-        }));
+        const tails = [...this.#subscribers].map(({ id, filter }) => ({ id, filter }));
         this.#channel?.notify({ kind: "alive", instance: this.#instance, tails });
     }
 
@@ -808,21 +815,24 @@ export class Monitor {
     /** Gather an entry for another instance's tail, sending the gathered ones together shortly. */
     #forward(tail: string, entry: Entry): void {
         // start gathering for the tail, and send what gathered after a short wait
-        let gathered = this.#forwarding.get(tail);
-        if (gathered === undefined) {
-            gathered = [];
+        const gathering = this.#forwarding.get(tail);
+        if (gathering === undefined) {
+            const gathered = [entry];
             this.#forwarding.set(tail, gathered);
             setTimeout(() => {
                 this.#forwarding.delete(tail);
-                this.#channel?.notify({ kind: "entries", tail, entries: gathered! });
+                this.#channel?.notify({ kind: "entries", tail, entries: gathered });
             }, FORWARD_MILLISECONDS);
         }
-        gathered.push(entry);
+        // add to the entries gathering for the tail
+        else {
+            gathering.push(entry);
+        }
     }
 
     /** Decide which entries a query wants, of an installation or of the scope's host. */
     static #wanted(
-        query: RecentQuery,
+        query: EntryQuery,
         installation: Identifier<"installation"> | undefined,
     ): (entry: Entry) => boolean {
         // want a search's log records, a trace's entries, or a metric's points
@@ -853,10 +863,9 @@ export class Monitor {
     ): Promise<Entry[][]> {
         // start the next segment when a read finishes, up to the concurrency limit
         const read: Entry[][] = [];
-        let next = 0;
+        const pending = segments.entries();
         const worker = async () => {
-            for (let index = next++; index < segments.length; index = next++) {
-                const segment = segments[index]!;
+            for (const [index, segment] of pending) {
                 const file = this.#file(segment.key, segment.bytes);
                 const entries = await Segment.decode(file, installation, window, trace);
                 read[index] = entries.filter(isWanted);
@@ -889,15 +898,22 @@ export class Monitor {
 function fitting<Row extends { readonly rows: number }>(segments: readonly Row[]): Row[][] {
     // fill each group up to the rows one segment keeps
     const groups: Row[][] = [];
+    let group: Row[] = [];
     let rows = 0;
     for (const segment of segments) {
-        // start a new group once the segment would not fit
-        if (groups.length === 0 || rows + segment.rows > SEGMENT_ROWS) {
-            groups.push([]);
+        // close the group once the segment would not fit
+        if (group.length > 0 && rows + segment.rows > SEGMENT_ROWS) {
+            groups.push(group);
+            group = [];
             rows = 0;
         }
-        groups.at(-1)!.push(segment);
+        group.push(segment);
         rows += segment.rows;
+    }
+
+    // close the last group
+    if (group.length > 0) {
+        groups.push(group);
     }
 
     return groups;
@@ -922,7 +938,7 @@ function emittedBy(installation: Identifier<"installation"> | undefined): SQL {
 
 /** Order entries collected oldest first as newest first, the later arrival first among equal times. */
 function newestFirst(entries: Entry[]): Entry[] {
-    return entries.sort((first, second) => first.time - second.time).reverse();
+    return entries.toSorted((first, second) => first.time - second.time).toReversed();
 }
 
 /** Decide whether an entry matches a filter. */

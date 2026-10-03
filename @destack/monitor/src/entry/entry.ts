@@ -1,4 +1,4 @@
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { defineSchema, schema } from "@destack/schema";
 
 /** The most entries one search page returns. */
 const PAGE_LIMIT = 1000;
@@ -27,9 +27,9 @@ export const Histogram = defineSchema(
         /** Their sum. */
         sum: schema.number(),
         /** The smallest value, when recorded. */
-        min: schema.number().optional(),
+        min: schema.number().exactOptional(),
         /** The largest value, when recorded. */
-        max: schema.number().optional(),
+        max: schema.number().exactOptional(),
         /** The resolution: each bucket spans a factor of 2^(2^-scale). */
         scale: schema.number().int().min(-10).max(20),
         /** The values equal to zero. */
@@ -53,11 +53,11 @@ export const Entry = defineSchema(
         /** The start or emission time, in Unix microseconds. */
         time: schema.number().int(),
         /** The span's duration or the point's interval, in microseconds. */
-        duration: schema.number().int().nonnegative().optional(),
+        duration: schema.number().int().nonnegative().exactOptional(),
         /** The installation that emitted it, absent for the host of a host's scope. */
-        installation: identifier("installation").optional(),
+        installation: schema.identifier("installation").exactOptional(),
         /** The workload instance that emitted it. */
-        instance: schema.string().min(1).optional(),
+        instance: schema.string().min(1).exactOptional(),
         /** The instrumenting package or library. */
         source: schema.object({
             /** The package or library name. */
@@ -68,32 +68,32 @@ export const Entry = defineSchema(
         /** The trace, as 32 hexadecimal digits. */
         trace: schema
             .string()
-            .regex(/^[0-9a-f]{32}$/)
-            .optional(),
+            .regex(/^[0-9a-f]{32}$/u)
+            .exactOptional(),
         /** The span, or the span a log record was emitted in, as 16 hexadecimal digits. */
         span: schema
             .string()
-            .regex(/^[0-9a-f]{16}$/)
-            .optional(),
+            .regex(/^[0-9a-f]{16}$/u)
+            .exactOptional(),
         /** The parent span, as 16 hexadecimal digits. */
         parent: schema
             .string()
-            .regex(/^[0-9a-f]{16}$/)
-            .optional(),
+            .regex(/^[0-9a-f]{16}$/u)
+            .exactOptional(),
         /** The span's outcome. */
         status: schema.enum(["unset", "ok", "error"]),
         /** The log record's severity, 1 to 24 as OpenTelemetry numbers it. */
-        severity: schema.number().int().min(1).max(24).optional(),
+        severity: schema.number().int().min(1).max(24).exactOptional(),
         /** The log record's body as text. */
-        body: schema.string().optional(),
+        body: schema.string().exactOptional(),
         /** The point's instrument: a sum of increments, a gauge's last value, or a histogram. */
-        metric: schema.enum(["sum", "gauge", "histogram"]).optional(),
+        metric: schema.enum(["sum", "gauge", "histogram"]).exactOptional(),
         /** The point's unit, such as ms or {block}. */
-        unit: schema.string().optional(),
+        unit: schema.string().exactOptional(),
         /** The sum's or the gauge's value. */
-        value: schema.number().optional(),
+        value: schema.number().exactOptional(),
         /** The histogram's distribution. */
-        histogram: Histogram.optional(),
+        histogram: Histogram.exactOptional(),
         /** The attributes. */
         attributes: schema.record(schema.string(), AttributeValue),
     }),
@@ -107,20 +107,20 @@ export const EntryFilter = defineSchema(
         /** The space of the installation, or the host whose own entries to select. */
         scope: schema.string().min(1),
         /** The installation whose entries to select, or the scope's host when absent. */
-        installation: identifier("installation").optional(),
+        installation: schema.identifier("installation").exactOptional(),
         /** The lowest severity, such as 13 for warnings. */
-        severity: schema.number().int().min(1).max(24).optional(),
+        severity: schema.number().int().min(1).max(24).exactOptional(),
         /** Text the record's name or body contains, ignoring case. */
-        text: schema.string().min(1).optional(),
+        text: schema.string().min(1).exactOptional(),
         /** The attribute values to select, each equal. */
-        attributes: schema.record(schema.string(), AttributeValue).optional(),
+        attributes: schema.record(schema.string(), AttributeValue).exactOptional(),
         /** The names to select, every name when absent. */
-        names: schema.array(schema.string().min(1)).optional(),
+        names: schema.array(schema.string().min(1)).exactOptional(),
         /** The trace to select. */
         trace: schema
             .string()
-            .regex(/^[0-9a-f]{32}$/)
-            .optional(),
+            .regex(/^[0-9a-f]{32}$/u)
+            .exactOptional(),
     }),
 );
 /** The entries a search or tail selects. */
@@ -146,7 +146,7 @@ export const EntryPage = defineSchema(
         /** The entries, newest first. */
         entries: schema.array(Entry),
         /** The time to search before for the next page, absent after the last page. */
-        before: schema.number().int().optional(),
+        before: schema.number().int().exactOptional(),
     }),
 );
 /** One page of a search. */
@@ -158,7 +158,7 @@ export const PointSeries = defineSchema(
         /** The space of the installation, or the host whose own metric to read. */
         scope: schema.string().min(1),
         /** The installation whose metric to read, or the scope's host when absent. */
-        installation: identifier("installation").optional(),
+        installation: schema.identifier("installation").exactOptional(),
         /** The metric's name. */
         name: schema.string().min(1),
         /** The earliest time, in Unix microseconds. */
@@ -180,17 +180,17 @@ export const SeriesStep = defineSchema(
         /** The step's start, in Unix microseconds. */
         time: schema.number().int(),
         /** The summed increments of a sum, or the last value of a gauge. */
-        value: schema.number().optional(),
+        value: schema.number().exactOptional(),
         /** The recorded values of a histogram. */
-        count: schema.number().int().nonnegative().optional(),
+        count: schema.number().int().nonnegative().exactOptional(),
         /** Their sum. */
-        sum: schema.number().optional(),
+        sum: schema.number().exactOptional(),
         /** The median. */
-        p50: schema.number().optional(),
+        p50: schema.number().exactOptional(),
         /** The 90th percentile. */
-        p90: schema.number().optional(),
+        p90: schema.number().exactOptional(),
         /** The 99th percentile. */
-        p99: schema.number().optional(),
+        p99: schema.number().exactOptional(),
     }),
 );
 /** One step of a series. */

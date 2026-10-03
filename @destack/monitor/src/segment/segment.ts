@@ -56,12 +56,22 @@ export class Segment {
 
     /** The earliest entry time, in Unix microseconds. */
     get from(): number {
-        return this.#entries[0]!.time;
+        const first = this.#entries.at(0);
+        if (first === undefined) {
+            throw new TypeError("an empty segment has no time range");
+        }
+
+        return first.time;
     }
 
     /** The latest entry time, in Unix microseconds. */
     get to(): number {
-        return this.#entries.at(-1)!.time;
+        const last = this.#entries.at(-1);
+        if (last === undefined) {
+            throw new TypeError("an empty segment has no time range");
+        }
+
+        return last.time;
     }
 
     /** The kinds present: bit 0 for spans, bits 1 to 24 for log severities, bit 25 for points, bit 26 for logs without a severity. */
@@ -83,10 +93,7 @@ export class Segment {
     /** Append an entry in time order. */
     append(entry: Entry): void {
         // insert behind the last entry not later than it, usually at the end
-        let position = this.#entries.length;
-        while (position > 0 && this.#entries[position - 1]!.time > entry.time) {
-            position--;
-        }
+        const position = this.#entries.findLastIndex((existing) => existing.time <= entry.time) + 1;
         this.#entries.splice(position, 0, entry);
     }
 
@@ -144,7 +151,7 @@ export class Segment {
     ): Promise<Entry[]> {
         // read the rows in the window, skipping row groups outside it or without the trace
         const time = { time: { $gte: BigInt(window.from), $lte: BigInt(window.to) } };
-        const rows = await parquetReadObjects({
+        const rows = await read({
             file,
             filter:
                 trace === undefined
@@ -154,43 +161,95 @@ export class Segment {
             utf8: true,
         });
 
-        // rebuild each entry without absent fields
-        return rows.map((row): Entry => {
-            // read the identifiers back as hexadecimal digits
-            const trace = hex(row.trace);
-            const span = hex(row.span);
-            const parent = hex(row.parent);
-
-            return {
-                kind: row.kind,
-                name: row.name,
-                time: Number(row.time),
-                ...(row.duration === null ? {} : { duration: Number(row.duration) }),
-                ...(installation === undefined ? {} : { installation }),
-                ...(row.instance === null ? {} : { instance: row.instance }),
-                source: { name: row.source, version: row.version },
-                ...(trace === undefined ? {} : { trace }),
-                ...(span === undefined ? {} : { span }),
-                ...(parent === undefined ? {} : { parent }),
-                status: row.status,
-                ...(row.severity === null ? {} : { severity: row.severity }),
-                ...(row.body === null ? {} : { body: row.body }),
-                attributes: JSON.parse(row.attributes),
-                ...(row.metric === null ? {} : { metric: row.metric }),
-                ...(row.unit === null ? {} : { unit: row.unit }),
-                ...(row.value === null ? {} : { value: row.value }),
-                ...(row.histogram === null ? {} : { histogram: JSON.parse(row.histogram) }),
-            };
-        });
+        return rows.map((row) => entryOf(row, installation));
     }
+}
+
+/** The column values of one segment row as the reader decodes them, absent values as null. */
+interface Row {
+    /** The entry's time. */
+    readonly time: bigint;
+    /** The entry's kind. */
+    readonly kind: Entry["kind"];
+    /** The entry's name. */
+    readonly name: string;
+    /** The entry's duration. */
+    readonly duration: bigint | null;
+    /** The entry's instance. */
+    readonly instance: string | null;
+    /** The source's name. */
+    readonly source: string;
+    /** The source's version. */
+    readonly version: string;
+    /** The trace's bytes. */
+    readonly trace: Uint8Array | null;
+    /** The span's bytes. */
+    readonly span: Uint8Array | null;
+    /** The parent span's bytes. */
+    readonly parent: Uint8Array | null;
+    /** The entry's status. */
+    readonly status: Entry["status"];
+    /** The entry's severity. */
+    readonly severity: number | null;
+    /** The entry's body. */
+    readonly body: string | null;
+    /** The entry's attributes. */
+    readonly attributes: Entry["attributes"];
+    /** The point's instrument. */
+    readonly metric: NonNullable<Entry["metric"]> | null;
+    /** The point's unit. */
+    readonly unit: string | null;
+    /** The point's value. */
+    readonly value: number | null;
+    /** The point's histogram. */
+    readonly histogram: NonNullable<Entry["histogram"]> | null;
+}
+
+/** Read the rows of a segment file. */
+async function read(options: Parameters<typeof parquetReadObjects>[0]): Promise<Row[]>;
+/**
+ * Read the rows as the Parquet reader decodes them, parsing their JSON columns.
+ *
+ * @construct segments hold only rows `Segment.encode` wrote from entries under `SCHEMA`.
+ */
+async function read(options: Parameters<typeof parquetReadObjects>[0]): Promise<unknown[]> {
+    const rows = await parquetReadObjects(options);
+
+    return rows.map((row) => {
+        // parse the JSON columns, an absent histogram as null
+        const attributes: unknown = JSON.parse(String(row["attributes"]));
+        const histogram: unknown =
+            row["histogram"] === null ? null : JSON.parse(String(row["histogram"]));
+
+        return { ...row, attributes, histogram };
+    });
+}
+
+/** Rebuild the entry a segment row holds. */
+function entryOf(row: Row, installation: Identifier<"installation"> | undefined): Entry {
+    return {
+        kind: row.kind,
+        name: row.name,
+        time: Number(row.time),
+        ...(row.duration === null ? {} : { duration: Number(row.duration) }),
+        ...(installation === undefined ? {} : { installation }),
+        ...(row.instance === null ? {} : { instance: row.instance }),
+        source: { name: row.source, version: row.version },
+        ...(row.trace === null ? {} : { trace: row.trace.toHex() }),
+        ...(row.span === null ? {} : { span: row.span.toHex() }),
+        ...(row.parent === null ? {} : { parent: row.parent.toHex() }),
+        status: row.status,
+        ...(row.severity === null ? {} : { severity: row.severity }),
+        ...(row.body === null ? {} : { body: row.body }),
+        ...(row.metric === null ? {} : { metric: row.metric }),
+        ...(row.unit === null ? {} : { unit: row.unit }),
+        ...(row.value === null ? {} : { value: row.value }),
+        ...(row.histogram === null ? {} : { histogram: row.histogram }),
+        attributes: row.attributes,
+    };
 }
 
 /** Convert hexadecimal digits to bytes, absent as null. */
 function bytes(digits: string | undefined): Uint8Array | null {
     return digits === undefined ? null : Uint8Array.fromHex(digits);
-}
-
-/** Convert bytes to hexadecimal digits, null as absent. */
-function hex(value: Uint8Array | null): string | undefined {
-    return value === null ? undefined : value.toHex();
 }

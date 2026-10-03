@@ -35,6 +35,7 @@
         "@destack/object": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/resource": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/node": "26.6.1"
     }
 }

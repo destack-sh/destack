@@ -1,7 +1,8 @@
 import { principal } from "@destack/access";
 import { Scope, type ObjectReference } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
-import type { Identifier } from "@destack/schema";
+import { Snapshot } from "@destack/db";
+import { schema } from "@destack/schema";
+import type { OtlpSignal } from "@destack/telemetry/otlp";
 import { ServiceError } from "@destack/service";
 import {
     implement,
@@ -13,18 +14,18 @@ import { installation } from "@destack/space/object";
 import { AuditRecorder } from "@destack/audit";
 import { entry, monitorUnmask, SENSITIVE_PREFIX } from "../access/index.ts";
 import type { Entry } from "../entry/index.ts";
-import { type Monitor, SegmentController } from "../monitor/index.ts";
+import { type EntryStream, type Monitor, SegmentController } from "../monitor/index.ts";
 import { monitorService } from "../service/index.ts";
 
 /** The value readers see in place of a sensitive attribute value, as CloudWatch masks it. */
 const MASK = "****";
 
 /** The OTLP/HTTP paths below the monitor's mount, by signal. */
-const OTLP_PATHS = {
-    "/v1/logs": "logs",
-    "/v1/traces": "traces",
-    "/v1/metrics": "metrics",
-} as const;
+const OTLP_PATHS: ReadonlyMap<string, OtlpSignal> = new Map([
+    ["/v1/logs", "logs"],
+    ["/v1/traces", "traces"],
+    ["/v1/metrics", "metrics"],
+]);
 
 /** The access and audit a host supplies to the monitor service. */
 export interface MonitorServerOptions {
@@ -53,14 +54,18 @@ export function implementService(
             series: implementation.series.handler(async ({ input, context }) => {
                 // aggregate as the caller may read metrics
                 const emitter = await governing(options.access, input);
-                await context.authorization!.require(entry.permission("read-metrics"), emitter);
+                await context
+                    .requireAuthorization()
+                    .require(entry.permission("read-metrics"), emitter);
 
                 return monitor.series(input.scope, input);
             }),
             search: implementation.search.handler(async ({ input, context }) => {
                 // search as the caller may read, revealing sensitive values only to those who may unmask them
                 const emitter = await governing(options.access, input);
-                await context.authorization!.require(entry.permission("read-logs"), emitter);
+                await context
+                    .requireAuthorization()
+                    .require(entry.permission("read-logs"), emitter);
                 const reveal = await unmasking(context, options, input, emitter, "search");
                 const page = await monitor.search(input.scope, input);
 
@@ -69,15 +74,19 @@ export function implementService(
             tail: implementation.tail.handler(async ({ input, context }) => {
                 // follow as the caller may tail, revealing sensitive values only to those who may unmask them
                 const emitter = await governing(options.access, input);
-                await context.authorization!.require(entry.permission("tail-logs"), emitter);
+                await context
+                    .requireAuthorization()
+                    .require(entry.permission("tail-logs"), emitter);
                 const reveal = await unmasking(context, options, input, emitter, "tail");
 
-                return mapped(monitor.tail(input.scope, input, context.signal), reveal);
+                return mapped(monitor.tail(input, context.signal), reveal);
             }),
             trace: implementation.trace.handler(async ({ input, context }) => {
                 // read the trace as the caller may read it, revealing sensitive values only to those who may unmask them
                 const emitter = await governing(options.access, input);
-                await context.authorization!.require(entry.permission("read-traces"), emitter);
+                await context
+                    .requireAuthorization()
+                    .require(entry.permission("read-traces"), emitter);
                 const reveal = await unmasking(context, options, input, emitter, "trace");
                 const entries = await monitor.trace(input.scope, input.installation, input.trace);
 
@@ -95,9 +104,7 @@ async function receive(
 ): Promise<Response | undefined> {
     // serve only the OTLP paths, by POST
     const path = new URL(request.url).pathname;
-    const signal = Object.hasOwn(OTLP_PATHS, path)
-        ? OTLP_PATHS[path as keyof typeof OTLP_PATHS]
-        : undefined;
+    const signal = OTLP_PATHS.get(path);
     if (signal === undefined) {
         return undefined;
     } else if (request.method !== "POST") {
@@ -111,7 +118,7 @@ async function receive(
     }
     monitor.receive(
         subject.scope,
-        subject.id as Identifier<"installation">,
+        schema.identifier("installation").parse(subject.id),
         signal,
         await request.json(),
     );
@@ -128,7 +135,9 @@ async function unmasking(
     operation: "search" | "tail" | "trace",
 ): Promise<(found: Entry) => Entry> {
     // mask the values of a caller who may not unmask them
-    const decision = await context.authorization!.check(entry.permission("unmask"), emitter);
+    const decision = await context
+        .requireAuthorization()
+        .check(entry.permission("unmask"), emitter);
     if (!decision.isAllowed) {
         return mask;
     }
@@ -160,17 +169,14 @@ function mask(found: Entry): Entry {
 }
 
 /** Transform each entry of a stream, ending it when the reader stops. */
-function mapped(
-    stream: AsyncIteratorObject<Entry, undefined, void>,
-    transform: (found: Entry) => Entry,
-): AsyncIteratorObject<Entry, undefined, void> {
+function mapped(stream: EntryStream, transform: (found: Entry) => Entry): EntryStream {
     return {
         next: async () => {
             const result = await stream.next();
 
             return result.done === true ? result : { done: false, value: transform(result.value) };
         },
-        return: () => stream.return!(),
+        return: () => stream.return(),
         [Symbol.asyncIterator]() {
             return this;
         },

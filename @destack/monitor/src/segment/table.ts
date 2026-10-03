@@ -5,7 +5,7 @@ export const monitorSegment = defineTable(
     "segment",
     {
         /** The segment identity. */
-        id: identifier("id", "segment").primaryKey().notNull(),
+        id: identifier("id", "segment").primaryKey(),
         /** The scope whose entries the segment keeps. */
         scope: text("scope").notNull(),
         /** The installation whose entries the segment keeps, absent for the scope's host. */

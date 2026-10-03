@@ -26,6 +26,24 @@ const fine: Histogram = {
     negative: { offset: 0, counts: [] },
 };
 
+/** Stamp a point of the request metric at a time with a route. */
+function point(
+    time: number,
+    route: string,
+    values: Pick<Entry, "metric" | "value" | "histogram">,
+): Entry {
+    return {
+        kind: "point",
+        name: "request",
+        time,
+        duration: 60_000_000,
+        source: { name: "@example/notes", version: "2026.9.0" },
+        status: "unset",
+        attributes: { route, method: "GET" },
+        ...values,
+    };
+}
+
 test("merge histograms at the coarser scale and read quantiles from the bucket with each rank", () => {
     const merged = merge(coarse, fine);
 
@@ -50,21 +68,7 @@ test("merge histograms at the coarser scale and read quantiles from the bucket w
 });
 
 test("aggregate points into steps per attribute group: summed increments, last gauges and merged histograms", () => {
-    // stamp points of one metric at a time with an attribute
-    const point = (
-        time: number,
-        route: string,
-        values: Pick<Entry, "metric" | "value" | "histogram">,
-    ): Entry => ({
-        kind: "point",
-        name: "request",
-        time,
-        duration: 60_000_000,
-        source: { name: "@example/notes", version: "2026.9.0" },
-        status: "unset",
-        attributes: { route, method: "GET" },
-        ...values,
-    });
+    // aggregate one metric by route in minute steps
     const request = {
         scope: "space-1",
         name: "request",

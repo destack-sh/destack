@@ -1,4 +1,4 @@
-import { identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { defineProcedure, defineService, eventIterator } from "@destack/service";
 import { Entry, EntryFilter, EntryPage, EntrySearch, PointSeries, Series } from "../entry/index.ts";
 import type {} from "@destack/package/import-meta";
@@ -27,9 +27,9 @@ export const monitorService = defineService("monitor", {
                 /** The space of the installation, or the host whose own trace to read. */
                 scope: schema.string().min(1),
                 /** The installation whose trace to read, or the scope's host when absent. */
-                installation: identifier("installation").optional(),
+                installation: schema.identifier("installation").exactOptional(),
                 /** The trace, as 32 hexadecimal digits. */
-                trace: schema.string().regex(/^[0-9a-f]{32}$/),
+                trace: schema.string().regex(/^[0-9a-f]{32}$/u),
             }),
         )
         .output(schema.object({ entries: schema.array(Entry) })),

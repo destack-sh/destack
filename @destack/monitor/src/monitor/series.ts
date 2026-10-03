@@ -26,10 +26,11 @@ interface Step {
 /** Aggregate a metric's points into steps per attribute group, steps oldest first. */
 export function aggregate(points: readonly Entry[], request: PointSeries): Series {
     // refuse a metric its emitters report as different instruments
-    const instruments = new Set(points.map((point) => point.metric));
-    if (instruments.size > 1) {
+    const instruments = [...new Set(points.map((point) => point.metric))];
+    const [metric] = instruments;
+    if (instruments.length > 1) {
         throw new ServiceError("CONFLICT", {
-            message: `metric ${request.name} is reported as ${[...instruments].join(" and ")}`,
+            message: `metric ${request.name} is reported as ${instruments.join(" and ")}`,
         });
     }
 
@@ -40,9 +41,11 @@ export function aggregate(points: readonly Entry[], request: PointSeries): Serie
     >();
     for (const point of points) {
         const attributes = Object.fromEntries(
-            request.group.flatMap((key) =>
-                point.attributes[key] === undefined ? [] : [[key, point.attributes[key]!]],
-            ),
+            request.group.flatMap((key) => {
+                const value = point.attributes[key];
+
+                return value === undefined ? [] : [[key, value]];
+            }),
         );
         const key = JSON.stringify(attributes);
         let group = groups.get(key);
@@ -64,8 +67,8 @@ export function aggregate(points: readonly Entry[], request: PointSeries): Serie
         series: [...groups.values()].map((group) => ({
             attributes: group.attributes,
             steps: [...group.steps.values()]
-                .sort((first, second) => first.time - second.time)
-                .map((step) => close(step, points[0]!.metric!)),
+                .toSorted((first, second) => first.time - second.time)
+                .map((step) => close(step, metric)),
         })),
     };
 }
@@ -73,39 +76,47 @@ export function aggregate(points: readonly Entry[], request: PointSeries): Serie
 /** Fold a point into its step by its instrument. */
 function fold(step: Step, point: Entry): void {
     // add increments, keep the latest gauge value, and merge histograms
-    if (point.metric === "sum") {
-        step.total += point.value!;
-    } else if (point.metric === "gauge") {
+    const { metric, value, histogram } = point;
+    if (metric === "sum" && value !== undefined) {
+        step.total += value;
+    } else if (metric === "gauge" && value !== undefined) {
         if (step.last === undefined || point.time >= step.last.time) {
-            step.last = { time: point.time, value: point.value! };
+            step.last = { time: point.time, value };
         }
-    } else {
+    } else if (metric === "histogram" && histogram !== undefined) {
         step.histogram =
-            step.histogram === undefined
-                ? point.histogram!
-                : merge(step.histogram, point.histogram!);
+            step.histogram === undefined ? histogram : merge(step.histogram, histogram);
+    }
+    // refuse a point missing its instrument's value
+    else {
+        throw new TypeError(`point ${point.name} carries no value for its instrument`);
     }
 }
 
 /** Close a step into its aggregate by instrument. */
-function close(step: Step, metric: NonNullable<Entry["metric"]>): SeriesStep {
+function close(step: Step, metric: Entry["metric"]): SeriesStep {
     // report a sum's total and a gauge's last value
+    const { last, histogram } = step;
     if (metric === "sum") {
         return { time: step.time, value: step.total };
-    } else if (metric === "gauge") {
-        return { time: step.time, value: step.last!.value };
+    } else if (metric === "gauge" && last !== undefined) {
+        return { time: step.time, value: last.value };
+    } else if (metric !== "histogram" || histogram === undefined) {
+        throw new TypeError(`step at ${step.time} folded no ${metric ?? "metric"} point`);
     }
 
-    // report a histogram's count, sum and percentiles
-    const histogram = step.histogram!;
+    // estimate a histogram's percentiles, absent while it is empty
+    const p50 = quantile(histogram, 0.5);
+    const p90 = quantile(histogram, 0.9);
+    const p99 = quantile(histogram, 0.99);
 
     return {
         time: step.time,
         count: histogram.count,
         sum: histogram.sum,
-        p50: quantile(histogram, 0.5),
-        p90: quantile(histogram, 0.9),
-        p99: quantile(histogram, 0.99),
+        ...(p50 === undefined ? {} : { p50 }),
+        ...(p90 === undefined ? {} : { p90 }),
+        ...(p99 === undefined ? {} : { p99 }),
     };
 }
 
@@ -143,33 +154,34 @@ export function quantile(histogram: Histogram, fraction: number): number | undef
     const rank = fraction * (histogram.count - 1);
     const base = 2 ** (2 ** -histogram.scale);
 
-    // walk the negative buckets from the largest magnitude, then zero, then the positive ones
-    let seen = 0;
-    let estimate: number | undefined;
-    const negative = histogram.negative;
-    for (let index = negative.counts.length - 1; index >= 0 && estimate === undefined; index--) {
-        seen += negative.counts[index]!;
-        if (seen > rank) {
-            estimate = -(base ** (negative.offset + index + 0.5));
-        }
-    }
-    seen += histogram.zeroCount;
-    if (estimate === undefined && seen > rank) {
-        estimate = 0;
-    }
-    const positive = histogram.positive;
-    for (let index = 0; index < positive.counts.length && estimate === undefined; index++) {
-        seen += positive.counts[index]!;
-        if (seen > rank) {
-            estimate = base ** (positive.offset + index + 0.5);
-        }
-    }
+    // order the negative buckets from the largest magnitude, then zero, then the positive ones
+    const { negative, positive } = histogram;
+    const buckets = [
+        ...negative.counts
+            .map((count, index) => ({
+                count,
+                middle: -(base ** (negative.offset + index + 0.5)),
+            }))
+            .toReversed(),
+        { count: histogram.zeroCount, middle: 0 },
+        ...positive.counts.map((count, index) => ({
+            count,
+            middle: base ** (positive.offset + index + 0.5),
+        })),
+    ];
 
-    // keep the estimate within the recorded range
+    // keep the middle of the bucket with the rank within the recorded range
     const low = histogram.min ?? -Infinity;
     const high = histogram.max ?? Infinity;
+    let seen = 0;
+    for (const bucket of buckets) {
+        seen += bucket.count;
+        if (seen > rank) {
+            return Math.min(high, Math.max(low, bucket.middle));
+        }
+    }
 
-    return estimate === undefined ? undefined : Math.min(high, Math.max(low, estimate));
+    return undefined;
 }
 
 /** Coarsen buckets by a number of scale steps: each step halves the bucket count. */
@@ -206,7 +218,8 @@ function add(first: Buckets, second: Buckets): Buckets {
     const counts = Array.from({ length: end - offset }, () => 0);
     for (const side of [first, second]) {
         for (const [position, count] of side.counts.entries()) {
-            counts[side.offset + position - offset]! += count;
+            const index = side.offset + position - offset;
+            counts[index] = (counts[index] ?? 0) + count;
         }
     }
 

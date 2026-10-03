@@ -6,7 +6,7 @@ import type { AttributeValue, Entry } from "./entry.ts";
 const INSTANCE_ATTRIBUTE = "service.instance.id";
 
 /** A 64-bit integer as OTLP/JSON writes it: a decimal string, or a number when small. */
-const Integer = schema.union([schema.string().regex(/^-?\d+$/), schema.number().int()]);
+const Integer = schema.union([schema.string().regex(/^-?\d+$/u), schema.number().int()]);
 
 /** An OTLP attribute value. */
 type OtlpValue = {
@@ -25,21 +25,23 @@ type OtlpKeyValue = { readonly key: string; readonly value?: OtlpValue };
 /** An OTLP attribute value, recursive through arrays and key-value lists. */
 const OtlpValue: schema.Schema<OtlpValue> = schema.lazy(() =>
     schema.looseObject({
-        stringValue: schema.string().optional(),
-        boolValue: schema.boolean().optional(),
-        intValue: Integer.optional(),
-        doubleValue: schema.number().optional(),
-        bytesValue: schema.string().optional(),
-        arrayValue: schema.looseObject({ values: schema.array(OtlpValue).optional() }).optional(),
+        stringValue: schema.string().exactOptional(),
+        boolValue: schema.boolean().exactOptional(),
+        intValue: Integer.exactOptional(),
+        doubleValue: schema.number().exactOptional(),
+        bytesValue: schema.string().exactOptional(),
+        arrayValue: schema
+            .looseObject({ values: schema.array(OtlpValue).exactOptional() })
+            .exactOptional(),
         kvlistValue: schema
-            .looseObject({ values: schema.array(OtlpKeyValue).optional() })
-            .optional(),
+            .looseObject({ values: schema.array(OtlpKeyValue).exactOptional() })
+            .exactOptional(),
     }),
 );
 
 /** An OTLP attribute. */
 const OtlpKeyValue: schema.Schema<OtlpKeyValue> = schema.lazy(() =>
-    schema.looseObject({ key: schema.string(), value: OtlpValue.optional() }),
+    schema.looseObject({ key: schema.string(), value: OtlpValue.exactOptional() }),
 );
 
 /** The attributes of a resource or an item. */
@@ -63,20 +65,20 @@ export const OtlpLogsRequest = schema.looseObject({
                     scope: Scope,
                     logRecords: schema.array(
                         schema.looseObject({
-                            timeUnixNano: Integer.optional(),
-                            observedTimeUnixNano: Integer.optional(),
-                            severityNumber: schema.number().int().min(0).max(24).optional(),
-                            eventName: schema.string().optional(),
-                            body: OtlpValue.optional(),
+                            timeUnixNano: Integer.exactOptional(),
+                            observedTimeUnixNano: Integer.exactOptional(),
+                            severityNumber: schema.number().int().min(0).max(24).exactOptional(),
+                            eventName: schema.string().exactOptional(),
+                            body: OtlpValue.exactOptional(),
                             attributes: Attributes,
                             traceId: schema
                                 .string()
-                                .regex(/^(?:[0-9a-f]{32})?$/)
-                                .optional(),
+                                .regex(/^(?:[0-9a-f]{32})?$/u)
+                                .exactOptional(),
                             spanId: schema
                                 .string()
-                                .regex(/^(?:[0-9a-f]{16})?$/)
-                                .optional(),
+                                .regex(/^(?:[0-9a-f]{16})?$/u)
+                                .exactOptional(),
                         }),
                     ),
                 }),
@@ -97,19 +99,19 @@ export const OtlpTracesRequest = schema.looseObject({
                     scope: Scope,
                     spans: schema.array(
                         schema.looseObject({
-                            traceId: schema.string().regex(/^[0-9a-f]{32}$/),
-                            spanId: schema.string().regex(/^[0-9a-f]{16}$/),
+                            traceId: schema.string().regex(/^[0-9a-f]{32}$/u),
+                            spanId: schema.string().regex(/^[0-9a-f]{16}$/u),
                             parentSpanId: schema
                                 .string()
-                                .regex(/^(?:[0-9a-f]{16})?$/)
-                                .optional(),
+                                .regex(/^(?:[0-9a-f]{16})?$/u)
+                                .exactOptional(),
                             name: schema.string().min(1),
                             startTimeUnixNano: Integer,
                             endTimeUnixNano: Integer,
                             attributes: Attributes,
                             status: schema
                                 .looseObject({
-                                    code: schema.number().int().min(0).max(2).default(0),
+                                    code: schema.literal([0, 1, 2]).default(0),
                                 })
                                 .default({ code: 0 }),
                         }),
@@ -125,10 +127,10 @@ export type OtlpTracesRequest = schema.Infer<typeof OtlpTracesRequest>;
 /** A number data point of a sum or a gauge. */
 const NumberPoint = schema.looseObject({
     attributes: Attributes,
-    startTimeUnixNano: Integer.optional(),
+    startTimeUnixNano: Integer.exactOptional(),
     timeUnixNano: Integer,
-    asInt: Integer.optional(),
-    asDouble: schema.number().optional(),
+    asInt: Integer.exactOptional(),
+    asDouble: schema.number().exactOptional(),
 });
 
 /** The buckets of an exponential histogram data point on one side of zero. */
@@ -156,23 +158,23 @@ export const OtlpMetricsRequest = schema.looseObject({
                                     dataPoints: schema.array(NumberPoint),
                                     aggregationTemporality: schema.number().int(),
                                 })
-                                .optional(),
+                                .exactOptional(),
                             gauge: schema
                                 .looseObject({ dataPoints: schema.array(NumberPoint) })
-                                .optional(),
-                            histogram: schema.looseObject({}).optional(),
+                                .exactOptional(),
+                            histogram: schema.looseObject({}).exactOptional(),
                             exponentialHistogram: schema
                                 .looseObject({
                                     aggregationTemporality: schema.number().int(),
                                     dataPoints: schema.array(
                                         schema.looseObject({
                                             attributes: Attributes,
-                                            startTimeUnixNano: Integer.optional(),
+                                            startTimeUnixNano: Integer.exactOptional(),
                                             timeUnixNano: Integer,
                                             count: Integer,
                                             sum: schema.number().default(0),
-                                            min: schema.number().optional(),
-                                            max: schema.number().optional(),
+                                            min: schema.number().exactOptional(),
+                                            max: schema.number().exactOptional(),
                                             scale: schema.number().int(),
                                             zeroCount: Integer.default(0),
                                             positive: OtlpBuckets,
@@ -180,7 +182,7 @@ export const OtlpMetricsRequest = schema.looseObject({
                                         }),
                                     ),
                                 })
-                                .optional(),
+                                .exactOptional(),
                         }),
                     ),
                 }),
@@ -215,8 +217,11 @@ export const Otlp = {
                             : typeof body === "string"
                               ? body
                               : JSON.stringify(body);
-                    const name = record.eventName || record.body?.stringValue;
-                    if (!name) {
+                    const name =
+                        record.eventName === undefined || record.eventName === ""
+                            ? record.body?.stringValue
+                            : record.eventName;
+                    if (name === undefined || name === "") {
                         throw new ServiceError("BAD_REQUEST", {
                             message: "a log record names no event",
                         });
@@ -235,10 +240,16 @@ export const Otlp = {
                         ...(installation === undefined ? {} : { installation }),
                         ...(instance === undefined ? {} : { instance }),
                         source: scope,
-                        ...(record.traceId ? { trace: record.traceId } : {}),
-                        ...(record.spanId ? { span: record.spanId } : {}),
+                        ...(record.traceId === undefined || record.traceId === ""
+                            ? {}
+                            : { trace: record.traceId }),
+                        ...(record.spanId === undefined || record.spanId === ""
+                            ? {}
+                            : { span: record.spanId }),
                         status: "unset",
-                        ...(record.severityNumber ? { severity: record.severityNumber } : {}),
+                        ...(record.severityNumber === undefined || record.severityNumber === 0
+                            ? {}
+                            : { severity: record.severityNumber }),
                         ...(text === undefined ? {} : { body: text }),
                         attributes: attributes(record.attributes),
                     };
@@ -267,8 +278,10 @@ export const Otlp = {
                         source: scope,
                         trace: span.traceId,
                         span: span.spanId,
-                        ...(span.parentSpanId ? { parent: span.parentSpanId } : {}),
-                        status: STATUSES[span.status.code]!,
+                        ...(span.parentSpanId === undefined || span.parentSpanId === ""
+                            ? {}
+                            : { parent: span.parentSpanId }),
+                        status: STATUSES[span.status.code],
                         attributes: attributes(span.attributes),
                     };
                 }),
@@ -304,7 +317,8 @@ export const Otlp = {
                     };
 
                     // read sums of deltas and gauges
-                    if (metric.sum !== undefined || metric.gauge !== undefined) {
+                    const series = metric.sum ?? metric.gauge;
+                    if (series !== undefined) {
                         if (
                             metric.sum !== undefined &&
                             metric.sum.aggregationTemporality !== DELTA
@@ -313,9 +327,7 @@ export const Otlp = {
                                 message: `metric ${metric.name} is cumulative: export deltas`,
                             });
                         }
-                        const points = (metric.sum ?? metric.gauge)!.dataPoints;
-
-                        return points.map((point) => {
+                        return series.dataPoints.map((point) => {
                             // refuse a point without its value
                             const value = point.asInt ?? point.asDouble;
                             if (value === undefined) {
