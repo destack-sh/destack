@@ -163,8 +163,8 @@ const LogBounds = schema.looseObject({
 /** The latest sequence of some entries, null over none. */
 const Latest = schema.looseObject({ sequence: LogInteger.nullable() });
 
-/** The hexadecimal digits of a shape digest: 128 bits, whose collisions are negligible among any database's tables. */
-const SHAPE_LENGTH = 32;
+/** The hexadecimal digits of a layout digest: 128 bits, whose collisions are negligible among any database's tables. */
+const LAYOUT_LENGTH = 32;
 
 /** The logged columns of each table, described once. */
 const COLUMNS = new WeakMap<Table, unknown[]>();
@@ -186,8 +186,8 @@ export class Log {
         );
     }
 
-    /** Digest the shape tables' changes carry: each one's logged columns with their kinds and values. */
-    static async shape(tables: readonly Table[]): Promise<string> {
+    /** Digest the layout tables' changes hold: each one's logged columns with their kinds and values. */
+    static async layout(tables: readonly Table[]): Promise<string> {
         // describe each table's logged columns once
         const described = tables.map((table) => {
             let columns = COLUMNS.get(table);
@@ -196,7 +196,7 @@ export class Log {
                     definition.name,
                     definition.kind,
                     definition.nullable,
-                    toJsonSchema(definition.json ?? definition.schema),
+                    toJsonSchema(definition.json),
                 ]);
                 COLUMNS.set(table, columns);
             }
@@ -204,7 +204,7 @@ export class Log {
             return [table[TABLE].sqlName, columns];
         });
 
-        return (await Digest.json(described)).slice(0, SHAPE_LENGTH);
+        return (await Digest.json(described)).slice(0, LAYOUT_LENGTH);
     }
 
     /** Read the images a table's rows had before their first change between two sequences, by key. */
@@ -736,7 +736,11 @@ function decodeLogged<Definition extends Table>(
     row: Readonly<Record<string, JsonValue>>,
     dialect: Dialect,
 ): Logged<Definition>;
-/** Decode a logged row's values by column name through its logged columns. */
+/**
+ * Decode a logged row's values by column name through its logged columns.
+ *
+ * @construct each logged column decodes its value into the column's type, which is how Logged maps the table.
+ */
 function decodeLogged(
     table: Table,
     row: Readonly<Record<string, JsonValue>>,
@@ -763,7 +767,11 @@ function decodeKey<Definition extends Table>(
     key: readonly JsonValue[],
     dialect: Dialect,
 ): Key<Definition>;
-/** Decode a logged key's values in key order through the key columns. */
+/**
+ * Decode a logged key's values in key order through the key columns.
+ *
+ * @construct the key columns decode the values in key order into their types, which is how Key maps the table.
+ */
 function decodeKey(
     table: Table,
     key: readonly JsonValue[],
