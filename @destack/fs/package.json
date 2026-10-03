@@ -13,6 +13,7 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     }
 }

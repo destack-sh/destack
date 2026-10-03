@@ -69,7 +69,16 @@ export class NativeLock {
 
     /** Close the file description and release its lock. */
     close(): Promise<void> {
-        return (this.closing ??= this.file.close());
+        // close once across repeated calls, reporting a failure as the file system's
+        this.closing ??= this.file.close().catch((cause: unknown) => {
+            if (!(cause instanceof Error) || !("code" in cause) || typeof cause.code !== "string") {
+                throw cause;
+            }
+
+            throw new FileSystemError("close", this.path, cause.code, { cause });
+        });
+
+        return this.closing;
     }
 }
 
