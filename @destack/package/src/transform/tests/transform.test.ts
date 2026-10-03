@@ -6,6 +6,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { PackageLocator, type ModulePackage } from "../locator.ts";
 import { transformModule } from "../transform.ts";
 import { ModuleMetadata } from "../../definition/metadata.ts";
+import { PackageError } from "../../error/error.ts";
 
 /** The package whose metadata the transform injects. */
 const owner: ModulePackage = {
@@ -85,4 +86,26 @@ test("read a package's constructors once per locator, and its changed ones in th
         ["defineNote"],
         ["defineNote", "defineTag"],
     ]);
+});
+
+test("refuse a destack.json without a package.json beside it", async () => {
+    // define a package without its manifest in a temporary directory
+    const directory = await mkdtemp(join(tmpdir(), "destack-unnamed-"));
+    onTestFinished(() => rm(directory, { recursive: true }));
+    await writeFile(
+        join(directory, "destack.json"),
+        JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: owner.metadata.package.id,
+            language: "typescript",
+        }),
+    );
+
+    // refuse the package rather than attribute its modules to an enclosing one
+    await expect(new PackageLocator().find(join(directory, "src", "note.ts"))).rejects.toThrow(
+        new PackageError(
+            "INVALID_DEFINITION",
+            `${join(directory, "destack.json")} has no package.json beside it`,
+        ),
+    );
 });

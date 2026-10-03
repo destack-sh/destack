@@ -1,4 +1,4 @@
-import { defineSchema, Digest, identifier, schema, Version } from "@destack/schema";
+import { defineSchema, Digest, schema, Version } from "@destack/schema";
 
 /** The pattern of a package-local name: lowercase words joined by single hyphens, such as role-permission. */
 export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u;
@@ -7,7 +7,7 @@ export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u;
 export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/u));
 
 /** The immutable identity retained across package renames and releases. */
-export const PackageId = identifier("package");
+export const PackageId = schema.identifier("package");
 /** The immutable identity retained across package renames and releases. */
 export type PackageId = schema.Infer<typeof PackageId>;
 

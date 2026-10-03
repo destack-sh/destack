@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, type JsonValue, schema } from "@destack/schema";
 import { ModuleGraph } from "../code/graph.ts";
 import { ModuleDescription } from "../code/module.ts";
 
@@ -15,7 +15,7 @@ const packageInspectionSchema = defineSchema(
 );
 
 /** A validated package inspection. */
-export type PackageInspection<Description = unknown> = Omit<
+export type PackageInspection<Description = JsonValue> = Omit<
     schema.Infer<typeof packageInspectionSchema>,
     "descriptions"
 > & {

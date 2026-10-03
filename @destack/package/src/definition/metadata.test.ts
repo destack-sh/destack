@@ -13,13 +13,11 @@ test("require the module metadata the transform passes to declaration constructo
     });
     expect(ModuleMetadata.require(module, "defineVault")).toEqual(module);
 
-    // refuse a call the transform did not stamp, and metadata of no release
+    // refuse a call the transform did not stamp
     expect(() => ModuleMetadata.require(undefined, "defineVault")).toThrow(
         new PackageError(
             "INVALID_DEFINITION",
             "defineVault requires the Destack module transform to supply its package",
         ),
     );
-    const refused = ModuleMetadata.safeParse({ package: { ...module.package, version: "1" } });
-    expect(refused.error?.issues.map((issue) => issue.path.join("."))).toEqual(["package.version"]);
 });

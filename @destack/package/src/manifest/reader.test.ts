@@ -1,6 +1,7 @@
 import { expect, test } from "@destack/test";
 import { found, schema } from "@destack/schema";
 import { PackageFile } from "../file/file.ts";
+import { PackageError } from "../error/error.ts";
 import { Package } from "../definition/package.ts";
 import { BuildReader } from "./reader.ts";
 import type { PackageManifest } from "./manifest.ts";
@@ -108,49 +109,6 @@ test("read the descriptions of one kind across every version of a package's decl
     ]);
 });
 
-test("read declarations of every collection owner beside test declarations of the same package", async () => {
-    // hold the owner's declarations and test declarations under one package
-    const files = new Map<string, Uint8Array<ArrayBuffer>>();
-    const store = async (path: string, value: unknown) => {
-        const bytes = new TextEncoder().encode(JSON.stringify(value));
-        files.set(path, bytes);
-
-        return {
-            package: owner,
-            file: await PackageFile.describe(path, "application/json", bytes),
-        };
-    };
-    const tests = [
-        { kind: "test", name: "reads", file: "src/index.test.ts", start: 0, end: 9, modifiers: [] },
-    ];
-    const tested = await store("manifest/tests.json", tests);
-    const manifest: PackageManifest = {
-        formatVersion: 1,
-        package: owner,
-        language: "typescript",
-        dependencies: EMPTY,
-        descriptions: {
-            setting: await store("manifest/setting.json", [
-                declaration(owner, owner, "setting", "language", { name: "language" }),
-            ]),
-        },
-        tests: tested,
-        outputs: {},
-        files: EMPTY,
-        sourceMaps: EMPTY,
-    };
-    const reader = new BuildReader(manifest, async (path) => found(files, path));
-
-    // read every collection owner's settings, then the untouched test declarations
-    const item = schema.object({ name: schema.string() }).strict();
-    const owners = Object.values(manifest.descriptions).map((collection) => collection.package.id);
-    const declared = await Promise.all(owners.map((id) => reader.declared(id, "setting", item)));
-    expect([
-        declared.flat().map((entry) => entry.description),
-        await reader.read(tested.file, schema.array(schema.json())),
-    ]).toEqual([[{ name: "language" }], tests]);
-});
-
 test("read a build's own declarations across its domains, and reference its upgrade", async () => {
     // hold the build's declaration beside a dependency's in two domains, and its upgrade
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -198,4 +156,54 @@ test("read a build's own declarations across its domains, and reference its upgr
             "manifest/upgrade.json",
         ],
     ]);
+});
+
+test("open a remote build by its manifest digest, and refuse other bytes and unsafe addresses", async () => {
+    // serve a build's manifest and one file over a fake endpoint
+    const content = new TextEncoder().encode("export {};");
+    const manifest: PackageManifest = {
+        formatVersion: 1,
+        package: owner,
+        language: "typescript",
+        dependencies: EMPTY,
+        descriptions: {},
+        outputs: {},
+        files: EMPTY,
+        sourceMaps: EMPTY,
+    };
+    const bytes = new TextEncoder().encode(JSON.stringify(manifest));
+    const served = new Map([
+        ["https://registry.example/build/manifest.json", bytes],
+        ["https://registry.example/build/files/src/index.js", content],
+    ]);
+    const fetch = async (input: URL) => {
+        const body = served.get(input.href);
+
+        return body === undefined ? new Response(null, { status: 404 }) : new Response(body);
+    };
+    const digest = (await PackageFile.describe("manifest.json", "application/json", bytes)).digest;
+
+    // read the manifest and a file below the base, which gains its trailing slash
+    const reader = await BuildReader.open(
+        { manifest: digest, url: "https://registry.example/build" },
+        fetch,
+    );
+    expect(reader.manifest).toEqual(manifest);
+    expect(await reader.load("src/index.js")).toEqual(content);
+
+    // refuse a manifest of other bytes, an address with credentials and a failed read
+    const forged = (await PackageFile.describe("manifest.json", "application/json", content))
+        .digest;
+    await expect(
+        BuildReader.open({ manifest: forged, url: "https://registry.example/build/" }, fetch),
+    ).rejects.toThrow(new PackageError("INVALID_FILE", "file digest mismatch: manifest.json"));
+    await expect(
+        BuildReader.open(
+            { manifest: digest, url: "https://user:secret@registry.example/build/" },
+            fetch,
+        ),
+    ).rejects.toThrow(new PackageError("INVALID_FILE", "invalid package URL"));
+    await expect(
+        BuildReader.open({ manifest: digest, url: "https://registry.example/missing/" }, fetch),
+    ).rejects.toThrow(new PackageError("INVALID_FILE", "package read failed: HTTP 404"));
 });

@@ -1,6 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "../definition/package.ts";
 import { PackagePath } from "../file/file.ts";
+import { Capabilities } from "../definition/capability.ts";
 
 /** A view a browser output compiles, as manifests describe it. */
 export const ViewDescription = defineSchema(
@@ -21,9 +22,48 @@ export const ViewDescription = defineSchema(
                     })
                     .strict(),
             ),
+            /** The browser features the view may use, as its package declares them. */
+            capabilities: Capabilities,
         })
         .strict(),
 );
 
 /** A view a browser output compiles, as manifests describe it. */
 export type ViewDescription = schema.Infer<typeof ViewDescription>;
+
+/** How strongly a view presents an object type: the one it opens by default, or one offered beside it, as VS Code's custom editors rank theirs. */
+export const PresentationRank = defineSchema(schema.enum(["default", "option"]));
+/** How strongly a view presents an object type. */
+export type PresentationRank = schema.Infer<typeof PresentationRank>;
+
+/** An object type a view presents, as its declaration describes it. */
+export const ViewPresentation = defineSchema(
+    schema.object({
+        /** The package declaring the object type. */
+        packageId: PackageId,
+        /** The object type. */
+        type: schema.string().min(1),
+        /** How strongly the view presents it. */
+        rank: PresentationRank,
+    }),
+);
+/** An object type a view presents, as its declaration describes it. */
+export type ViewPresentation = schema.Infer<typeof ViewPresentation>;
+
+/** A named call of an object type's method the shell offers in its command menu, menus, shortcuts, the terminal and agents, as its declaration describes it. */
+export const CommandDescription = defineSchema(
+    schema.object({
+        /** The command's title, shown in the command menu. */
+        title: schema.string().min(1),
+        /** The package declaring the object type. */
+        packageId: PackageId,
+        /** The object type the command calls. */
+        type: schema.string().min(1),
+        /** The method the command calls. */
+        method: schema.string().min(1),
+        /** The key combination running it, in VS Code's keybinding syntax. */
+        keybinding: schema.string().min(1).exactOptional(),
+    }),
+);
+/** A named call of an object type's method the shell offers, as its declaration describes it. */
+export type CommandDescription = schema.Infer<typeof CommandDescription>;

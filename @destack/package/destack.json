@@ -7,5 +7,14 @@
         "definePackage": {
             "module": 1
         }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/declare/package.test.ts"],
+                "rules": ["destack/valid-package-handle"],
+                "reason": "the test exercises definePackage itself"
+            }
+        ]
     }
 }

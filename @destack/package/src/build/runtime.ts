@@ -28,3 +28,30 @@ export function isRuntimeModule(specifier: string, runtime: Runtime): boolean {
         (runtime === "workerd" && specifier === "node:async_hooks")
     );
 }
+
+/** The type checks every package compiles under, the same as Destack's own sources and templates. */
+export const TYPE_CHECKS = {
+    strict: true,
+    noUncheckedIndexedAccess: true,
+    exactOptionalPropertyTypes: true,
+    noImplicitOverride: true,
+    noPropertyAccessFromIndexSignature: true,
+    noImplicitReturns: true,
+    noFallthroughCasesInSwitch: true,
+    allowUnreachableCode: false,
+    allowUnusedLabels: false,
+    noUncheckedSideEffectImports: true,
+    erasableSyntaxOnly: true,
+    verbatimModuleSyntax: true,
+} as const;
+
+/** The compiler options every package compiles under, its type checks included. */
+export const TYPESCRIPT_OPTIONS = {
+    target: "ESNext",
+    module: "Preserve",
+    moduleResolution: "Bundler",
+    allowImportingTsExtensions: true,
+    noEmit: true,
+    skipLibCheck: true,
+    ...TYPE_CHECKS,
+} as const;

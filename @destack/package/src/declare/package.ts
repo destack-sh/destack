@@ -1,12 +1,12 @@
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
-import type { ResourceDeclaration, Declaration } from "./declaration.ts";
+import type { Declaration, ResourceRequirement } from "./declaration.ts";
 
 /** Declarations a package lets its installations bind, keyed by declaration name. */
 export interface PackageDeclarationMap {
     /** Databases, buckets, vaults and other resources the package uses. */
-    readonly resources?: Readonly<Record<string, ResourceDeclaration>>;
+    readonly resources?: Readonly<Record<string, ResourceRequirement>>;
     /** Secrets the package reads. */
     readonly secrets?: Readonly<Record<string, Declaration>>;
 }

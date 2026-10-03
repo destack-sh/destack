@@ -2,9 +2,10 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { DeclarationConstructorMap } from "../definition/constructor.ts";
-import { PackageDefinition } from "../definition/definition.ts";
+import { Definition } from "../definition/definition.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DependencyName } from "../definition/package.ts";
+import { PackageError } from "../error/error.ts";
 import { schema } from "@destack/schema";
 
 /** The name and version fields of a package.json. */
@@ -81,7 +82,7 @@ export class PackageLocator {
         if (!declared) {
             const path = join(root, "destack.json");
             const definition = existsSync(path)
-                ? PackageDefinition.read(readFileSync(path, "utf8"))
+                ? Definition.package(Definition.read(readFileSync(path, "utf8")))
                 : undefined;
             declared = definition?.declarations ?? {};
             this.#constructors.set(root, declared);
@@ -136,29 +137,28 @@ export class PackageLocator {
             return undefined;
         }
 
-        // read both manifests where the Destack definition exists
-        try {
-            const definition = PackageDefinition.read(
-                await readFile(join(directory, "destack.json"), "utf8"),
-            );
-            const manifest = Manifest.parse(
-                JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
-            );
-            const metadata = ModuleMetadata.parse({
-                package: { id: definition.id, name: manifest.name, version: manifest.version },
-            });
-
-            return { directory, metadata };
-        }
         // continue with the parent directory when this one defines no package
-        catch (error) {
-            const isMissing = error instanceof Error && "code" in error && error.code === "ENOENT";
-            if (!isMissing) {
-                throw error;
-            }
-
+        const text = await readOptional(join(directory, "destack.json"));
+        const definition =
+            text === undefined ? undefined : Definition.package(Definition.read(text));
+        if (definition === undefined) {
             return this.#owner(dirname(directory));
         }
+
+        // refuse a definition without the manifest naming its package
+        const manifestText = await readOptional(join(directory, "package.json"));
+        if (manifestText === undefined) {
+            throw new PackageError(
+                "INVALID_DEFINITION",
+                `${join(directory, "destack.json")} has no package.json beside it`,
+            );
+        }
+        const manifest = Manifest.parse(JSON.parse(manifestText));
+        const metadata = ModuleMetadata.parse({
+            package: { id: definition.id, name: manifest.name, version: manifest.version },
+        });
+
+        return { directory, metadata };
     }
 
     /** Read the name in a directory's package.json once, or nothing without one. */
@@ -175,5 +175,18 @@ export class PackageLocator {
         }
 
         return this.#names.get(directory);
+    }
+}
+
+/** Read a file's text, or nothing when it does not exist. */
+async function readOptional(path: string): Promise<string | undefined> {
+    try {
+        return await readFile(path, "utf8");
+    } catch (error) {
+        // treat only a missing file as absent
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+            return undefined;
+        }
+        throw error;
     }
 }
