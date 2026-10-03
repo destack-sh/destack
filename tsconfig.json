@@ -3,14 +3,31 @@
         "target": "ESNext",
         "module": "Preserve",
         "moduleResolution": "Bundler",
-        "lib": ["ESNext"],
-        "types": [],
-        "strict": true,
-        "skipLibCheck": true,
-        "noEmit": true,
         "allowImportingTsExtensions": true,
-        "resolveJsonModule": true,
-        "verbatimModuleSyntax": true
+        "noEmit": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noUncheckedSideEffectImports": true,
+        "erasableSyntaxOnly": true,
+        "verbatimModuleSyntax": true,
+        "lib": [
+            "ESNext"
+        ],
+        "types": [
+            "bun"
+        ]
     },
-    "files": []
+    "include": [
+        "src",
+        "tests",
+        "*.config.ts"
+    ]
 }

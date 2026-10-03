@@ -26,6 +26,7 @@ generate:
 # format
 format:
     just @destack/format
+    just @template/format
     just @platform/format
     just @platform/release/format
 
@@ -34,14 +35,16 @@ alias fmt := format
 # check formatting
 format-check:
     just @destack/format-check
+    just @template/format-check
     just @platform/format-check
     just @platform/release/format-check
 
 # lint
 lint:
     just check-hygiene
-    bun run destack-check check @destack/*/src @platform/*/src
-    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog @destack/*/README.md
+    bun run destack-check check @destack/*/src @template/*/src @platform/*/src
+    bun run destack-check check $(ls -d @destack/*/tests | grep -v '^@destack/build/')
+    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog @destack/*/README.md @template/*/README.md
     just @platform/lint
     just @platform/release/check
 
@@ -65,6 +68,7 @@ postgres action:
 check:
     just check-hygiene
     just @destack/check
+    just @template/check
     just @platform/site/typecheck
     just @platform/stack/check
     just @platform/release/check
@@ -75,6 +79,10 @@ alias check-full := check
 # check hygiene
 check-hygiene:
     actionlint
+
+# serve the dev universe on local PostgreSQL
+universe:
+    just @platform/stack/universe
 
 # version
 version:

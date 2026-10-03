@@ -110,6 +110,7 @@
         "destack/no-index-logic": "error",
         "destack/no-inline-config": "error",
         "destack/no-manifest-import": "error",
+        "destack/no-overload-cast": "error",
         "destack/no-partial-assertions": "error",
         "destack/padding-before-return": "error",
         "destack/prevent-abbreviations": "error",
@@ -119,15 +120,6 @@
         "destack/valid-package-handle": "error"
     },
     "overrides": [
-        {
-            "files": [
-                "**/@destack/telemetry/src/browser/devtools.ts",
-                "**/@destack/build/src/build/worker.ts"
-            ],
-            "rules": {
-                "eslint/no-console": "off"
-            }
-        },
         {
             "files": [
                 "**/src/service/**",
@@ -147,6 +139,39 @@
                         ]
                     }
                 ]
+            }
+        },
+        {
+            "files": [
+                "@destack/account/src/authentication/database.ts"
+            ],
+            "rules": {
+                "typescript/no-unnecessary-type-parameters": "off"
+            }
+        },
+        {
+            "files": [
+                "@destack/package/src/declare/package.test.ts"
+            ],
+            "rules": {
+                "destack/valid-package-handle": "off"
+            }
+        },
+        {
+            "files": [
+                "@destack/registry/tests/fixture/consumer/run.js"
+            ],
+            "rules": {
+                "eslint/no-console": "off",
+                "typescript/no-unsafe-call": "off"
+            }
+        },
+        {
+            "files": [
+                "@destack/telemetry/src/browser/devtools.ts"
+            ],
+            "rules": {
+                "eslint/no-console": "off"
             }
         }
     ],
