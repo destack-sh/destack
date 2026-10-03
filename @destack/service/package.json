@@ -1,7 +1,6 @@
 {
     "name": "@destack/service",
     "version": "2026.9.0",
-    "private": true,
     "license": "MIT",
     "type": "module",
     "description": "Define Destack HTTP services.",
@@ -34,7 +33,8 @@
         "./bun": "./src/server/bun.ts"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/node": "26.6.1"
     },
     "dependencies": {
         "jose": "6.2.12",

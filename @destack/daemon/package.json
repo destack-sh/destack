@@ -1,41 +1,55 @@
 {
     "name": "@destack/daemon",
     "version": "2026.9.2",
-    "private": true,
     "license": "MIT",
     "type": "module",
-    "description": "Run and supervise Destack spaces headless, and optionally provide device tunneling.",
+    "description": "Run a device host that serves spaces and keeps its logins, checkouts and previews.",
     "exports": {
         "./error": "./src/error/index.ts",
         ".": "./src/service/index.ts",
         "./client": "./src/client/index.ts",
         "./service/credential": "./src/service/credential.ts",
         "./client/local": "./src/client/local.ts",
-        "./endpoint": "./src/endpoint/index.ts",
         "./process": "./src/process/index.ts",
         "./run": "./src/daemon/daemon.ts",
         "./destack.json": "./destack.json",
         "./server": "./src/server/index.ts",
-        "./inspect": "./src/inspect/index.ts"
+        "./inspect": "./src/inspect/index.ts",
+        "./package": "./src/package.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run"
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/sync": "workspace:*",
+        "@destack/host": "workspace:*",
         "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
         "@destack/resource": "workspace:*",
+        "@destack/monitor": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/fs": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/model": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "uuid": "14.0.2"
+        "uuid": "14.0.2",
+        "@destack/space": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*",
+        "@destack/view": "workspace:*",
+        "@destack/relay": "workspace:*",
+        "@destack/registry": "workspace:*"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/directory": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@template/stack": "workspace:*",
+        "@types/bun": "1.4.2"
     }
 }

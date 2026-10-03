@@ -2,7 +2,6 @@
     "name": "@destack/sandbox",
     "version": "2026.9.2",
     "license": "MIT",
-    "private": true,
     "type": "module",
     "description": "Launch processes with operating system filesystem and network restrictions.",
     "exports": {

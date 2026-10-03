@@ -1,7 +1,6 @@
 {
     "name": "@destack/db",
     "version": "2026.9.0",
-    "private": true,
     "license": "MIT",
     "type": "module",
     "description": "Interact with SQL databases in Destack.",
@@ -43,6 +42,7 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "esbuild": "~0.28.1",
-        "miniflare": "4.20260730.0"
+        "miniflare": "4.20260730.0",
+        "@types/node": "26.6.1"
     }
 }

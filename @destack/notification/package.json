@@ -1,7 +1,6 @@
 {
     "name": "@destack/notification",
     "version": "2026.9.0",
-    "private": true,
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
@@ -11,7 +10,11 @@
         "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./server": "./src/server/index.ts"
+        "./server": "./src/server/index.ts",
+        "./service": "./src/service/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./package": "./src/package.ts",
+        "./setting": "./src/setting/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
@@ -20,18 +23,21 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/space": "workspace:*",
+        "@destack/sync": "workspace:*",
         "jose": "6.2.12"
     },
     "devDependencies": {
-        "@destack/audit": "workspace:*",
-        "@destack/sync": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/directory": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     }
 }

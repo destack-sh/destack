@@ -1,7 +1,6 @@
 {
     "name": "@destack/host",
     "version": "2026.9.0",
-    "private": true,
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
@@ -10,13 +9,9 @@
         ".": "./src/index.ts",
         "./identity": "./src/identity/index.ts",
         "./keychain": "./src/keychain/index.ts",
-        "./service": "./src/service/index.ts",
-        "./client": "./src/client/index.ts",
-        "./server": "./src/server/index.ts",
-        "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts",
         "./runtime": "./src/runtime/index.ts",
-        "./bun": "./src/runtime/bun.ts",
+        "./bun": "./src/bun/index.ts",
         "./router": "./src/router/index.ts"
     },
     "dependencies": {
@@ -27,6 +22,7 @@
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
+        "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/sync": "workspace:*",
@@ -39,6 +35,7 @@
     },
     "devDependencies": {
         "@destack/directory": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/node": "26.6.1"
     }
 }

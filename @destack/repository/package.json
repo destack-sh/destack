@@ -1,7 +1,6 @@
 {
     "name": "@destack/repository",
     "version": "2026.9.0",
-    "private": true,
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
@@ -14,7 +13,7 @@
         "./object": "./src/object/index.ts",
         "./storage": "./src/storage/index.ts",
         "./local": "./src/local/index.ts",
-        "./codestorage": "./src/codestorage/index.ts",
+        "./artifacts": "./src/artifacts/index.ts",
         "./github": "./src/github/index.ts",
         "./package": "./src/package.ts"
     },
@@ -37,6 +36,7 @@
     "devDependencies": {
         "@destack/directory": "workspace:*",
         "@destack/resource": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     }
 }

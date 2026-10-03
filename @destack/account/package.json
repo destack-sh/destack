@@ -1,7 +1,6 @@
 {
     "name": "@destack/account",
     "version": "2026.9.0",
-    "private": true,
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
@@ -38,7 +37,8 @@
     },
     "devDependencies": {
         "@destack/resource": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/node": "26.6.1"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
