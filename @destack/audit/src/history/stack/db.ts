@@ -54,7 +54,7 @@ export const auditTarget = defineTable(
         /** The target identity. */
         id: identifier("id", "audit-target").primaryKey(),
         /** The call naming the target. */
-        call: identifier("call_id", "call")
+        callId: identifier("call_id", "call")
             .notNull()
             .references(() => auditCall.id, { onDelete: "cascade" }),
         /** The scope of the call's history. */
@@ -69,8 +69,8 @@ export const auditTarget = defineTable(
     {
         log: { retention: "window" },
         constraints: (target) => [
-            uniqueIndex("target_role").on(target.call, target.role),
-            index("target_object").on(target.type, target.objectId, target.call),
+            uniqueIndex("target_role").on(target.callId, target.role),
+            index("target_object").on(target.type, target.objectId, target.callId),
         ],
     },
 );

@@ -3,14 +3,16 @@ import { AuditError } from "../src/error/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
 import { AuditCall, defineAuditAction } from "../src/index.ts";
 import { document } from "./stack/index.ts";
-import { identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { AuditRecorder } from "../src/record/recorder.ts";
 
 test("keep each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();
     try {
         // record a running call of a space
-        const scope = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
+        const scope = schema
+            .identifier("space")
+            .parse("space-01996ab0-0000-7000-8000-000000000001");
         const recorder = new AuditRecorder(
             {
                 caller: { type: "system" as const, name: "integration" },

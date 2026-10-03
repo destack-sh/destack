@@ -1,4 +1,4 @@
-import { defineSchema, Instant, schema, identifier } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
 import { Outcome } from "@destack/sync";
 import { AuditContext } from "./context.ts";
 
@@ -25,7 +25,7 @@ export type AuditTarget = schema.Infer<typeof AuditTarget>;
 export const AuditExecution = defineSchema(
     schema.object({
         /** The call's identity. */
-        id: identifier("call"),
+        id: schema.identifier("call"),
         /** The request the call belongs to, which retries repeat. */
         requestId: schema.string().min(1).exactOptional(),
         /** A write, a read of data, or a refused call. */

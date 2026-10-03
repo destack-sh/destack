@@ -15,7 +15,7 @@ import {
     type SQL,
 } from "@destack/db";
 import { Subject } from "@destack/sync";
-import { canonicalize, identifier } from "@destack/schema";
+import { canonicalize, schema } from "@destack/schema";
 import { AuditError } from "../error/index.ts";
 import { AuditBatch, AuditPrune, AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
 import { auditCall, auditTarget } from "./stack/index.ts";
@@ -72,8 +72,8 @@ export class AuditHistory {
         // index the named targets of a new call
         if (inserted.length > 0) {
             const targets = Object.entries(execution.targets).map(([role, target]) => ({
-                id: identifier("audit-target").parse(`audit-target-${v7()}`),
-                call: execution.id,
+                id: schema.identifier("audit-target").parse(`audit-target-${v7()}`),
+                callId: execution.id,
                 scope,
                 role,
                 type: target.type,
@@ -145,7 +145,12 @@ export class AuditHistory {
         const row = await this.database
             .select({ call: auditCall.call, recordedAt: auditCall.recordedAt })
             .from(auditCall)
-            .where(and(eq(auditCall.scope, scope), eq(auditCall.id, identifier("call").parse(id))))
+            .where(
+                and(
+                    eq(auditCall.scope, scope),
+                    eq(auditCall.id, schema.identifier("call").parse(id)),
+                ),
+            )
             .get();
         if (!row) {
             throw new AuditError("NOT_FOUND", "audited call not found");
@@ -212,7 +217,7 @@ export class AuditHistory {
         // filter by target
         if (query.target) {
             const targets = this.database
-                .select({ id: auditTarget.call })
+                .select({ id: auditTarget.callId })
                 .from(auditTarget)
                 .where(
                     and(

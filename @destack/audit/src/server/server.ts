@@ -48,13 +48,9 @@ export function implementService(
                                 message: `permission denied: ${permission}`,
                             });
                         }
-                        if (context.authorization === undefined) {
-                            throw new TypeError("the audit service runs without authorization");
-                        }
-                        await context.authorization.require(
-                            call.permission(permission),
-                            link.object,
-                        );
+                        await context
+                            .requireAuthorization()
+                            .require(call.permission(permission), link.object);
                     },
                 },
             }),

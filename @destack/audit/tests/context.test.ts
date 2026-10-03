@@ -3,7 +3,7 @@ import { Authentication } from "@destack/service/authentication";
 import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { AuditCaller, AuditRecorder } from "../src/record/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
 import { principal } from "@destack/access";
@@ -16,9 +16,9 @@ test("persist verified caller identities and tell apart identities of different 
         const now = Date.now();
         const represented = principal.user.reference("universe", "person");
         const actor = principal.installation.reference("space-example", "agent");
-        const deploymentId = identifier("deployment").parse(
-            "deployment-01996ab0-0000-7000-8000-000000000001",
-        );
+        const deploymentId = schema
+            .identifier("deployment")
+            .parse("deployment-01996ab0-0000-7000-8000-000000000001");
         const requests = [
             { subject: represented },
             { subject: { ...represented, scope: "host-example" } },
@@ -27,9 +27,9 @@ test("persist verified caller identities and tell apart identities of different 
                 deployments: [
                     {
                         subject: { ...actor, scope: "another-space" },
-                        id: identifier("deployment").parse(
-                            "deployment-01996ab0-0000-7000-8000-000000000002",
-                        ),
+                        id: schema
+                            .identifier("deployment")
+                            .parse("deployment-01996ab0-0000-7000-8000-000000000002"),
                     },
                     { subject: actor, id: deploymentId },
                 ],

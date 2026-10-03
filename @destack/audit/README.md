@@ -1,5 +1,3 @@
-# @destack/audit
-
 Declare audit actions, record every executed call once in a journal, and query a scope's history.
 
 ## Actions
@@ -17,16 +15,6 @@ export const renameNote = defineAuditAction({
     details: schema.object({ title: schema.string() }),
 });
 ```
-
-## Calls
-
-Every executed call is one `Call` from `@destack/sync`: the method, its input and release, and its `Execution`.
-
-| Field | Holds |
-|---|---|
-| `execution.context` | The actor, subject, delegation, scope, package, service, session or token, and trace. |
-| `execution.category` | `activity` for a write or an external effect, `access` for an audited read, `denial` for a refusal. |
-| `execution.outcome` | `{ kind: "success", value? }`, or a failure, denial or cancellation with its error. |
 
 ## Journal
 
@@ -57,7 +45,7 @@ const audit = AuditRecorder.service(calls, { package: notes.package, service: "n
 const recorder = audit(spaceId, context);
 ```
 
-A recorder records a write in its transaction, an external effect as a running call and its outcome, and a read as one access.
+A recorder records each call as one `Call` of `@destack/sync`: a write in its transaction and an external effect as a running call and its outcome, both as `activity`, and a read as one `access`.
 
 ```ts
 await database.transaction(async (transaction) => {
@@ -75,7 +63,7 @@ const secret = await recorder.read(openSecret, { targets, details: {} }, () => s
 
 ## Procedures
 
-`AuditRecorder.procedure` records each procedure call of a server as one call when it ends, by the category the procedure declares, and every denial.
+`AuditRecorder.procedure` records each procedure call of a server as one call when it ends, by the category the procedure declares, and every refusal as a `denial`.
 
 ```ts
 Server.start({

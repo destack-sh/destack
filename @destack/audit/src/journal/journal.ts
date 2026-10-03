@@ -225,14 +225,14 @@ export class Journal {
     }
 
     /** Execute a request once in one transaction, replaying the calls a previous copy recorded. */
-    async execute(
+    async execute<Authorized>(
         request: RequestIdentity,
         fingerprint: string,
         steps: {
-            /** Authorize the request. */
-            authorize?(transaction: DatabaseConnection): Promise<void>;
-            /** Run the request, recording its calls, and return their results. */
-            run(transaction: DatabaseConnection): Promise<unknown[]>;
+            /** Authorize the request, returning what running it needs. */
+            authorize(transaction: DatabaseConnection): Promise<Authorized>;
+            /** Run the authorized request, recording its calls, and return their results. */
+            run(transaction: DatabaseConnection, authorized: Authorized): Promise<unknown[]>;
         },
         options: TransactionOptions = {},
     ): Promise<unknown[]> {
@@ -242,13 +242,13 @@ export class Journal {
         try {
             return await this.database.transaction(async (transaction) => {
                 // authorize, then replay a recorded request
-                await steps.authorize?.(transaction);
+                const authorized = await steps.authorize(transaction);
                 const previous = await this.#recorded(transaction, request);
                 if (previous.length > 0) {
                     return Journal.#replay(previous, fingerprint);
                 }
 
-                return steps.run(transaction);
+                return steps.run(transaction, authorized);
             }, options);
         } catch (error) {
             // answer the outcome a concurrent copy committed, which made this copy fail

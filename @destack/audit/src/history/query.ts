@@ -1,6 +1,6 @@
 import { AuditActor } from "../record/actor.ts";
 import { AuditCall } from "../record/call.ts";
-import { defineSchema, Instant, schema, identifier } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
 import { AuditActionName } from "../action/index.ts";
 import { PackageId } from "@destack/package";
 
@@ -18,7 +18,7 @@ export const AuditCursor = defineSchema(
         /** The acceptance time of the last returned call, in UTC milliseconds. */
         recordedAt: Instant,
         /** The last returned call. */
-        id: identifier("call"),
+        id: schema.identifier("call"),
     }),
 );
 /** A history query. */

@@ -3,7 +3,7 @@ import { AuditCall } from "./call.ts";
 import { AuditContext } from "./context.ts";
 import { AuditExecution } from "./execution.ts";
 import { v7 } from "uuid";
-import { identifier, schema, canonicalize, JsonValue } from "@destack/schema";
+import { schema, canonicalize, JsonValue } from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
 import { denialOf, isServiceError, ServiceError } from "@destack/service";
 import type { Authentication } from "@destack/service/authentication";
@@ -103,8 +103,8 @@ export class AuditRecorder<Transaction = never> {
             ? claims?.deployments?.find((entry) => Subject.same(entry.subject, acting))?.id
             : undefined;
         const presented = caller?.credential.id;
-        const session = identifier("session").safeParse(presented);
-        const token = identifier("token").safeParse(presented);
+        const session = schema.identifier("session").safeParse(presented);
+        const token = schema.identifier("token").safeParse(presented);
         const span = trace.getSpanContext(context.active());
 
         // read the request's session, token and trace
