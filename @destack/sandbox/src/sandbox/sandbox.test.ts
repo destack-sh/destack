@@ -359,3 +359,43 @@ test("pass input to a workload and let it serve its host on a loopback port when
         await rm(directory, { recursive: true });
     }
 });
+
+test("let a workload serve and reach a Unix socket in its temporary folder", async () => {
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-socket-")));
+    try {
+        // serve a socket below the temporary folder, and connect to it
+        await using sandbox = await Sandbox.start({
+            executable: process.execPath,
+            arguments: [
+                "--no-env-file",
+                "-e",
+                `
+                const { createServer, connect } = await import("node:net");
+                const path = process.env.TMPDIR + "/channel.sock";
+                const server = createServer((peer) => peer.end("joined"));
+                await new Promise((resolve) => server.listen(path, resolve));
+                const answer = await new Promise((resolve, reject) => {
+                    const socket = connect(path);
+                    let text = "";
+                    socket.on("data", (chunk) => (text += chunk));
+                    socket.once("end", () => resolve(text));
+                    socket.once("error", reject);
+                });
+                server.close();
+                console.log(answer);
+            `,
+            ],
+            directory,
+            environment: {},
+            read: [],
+            write: [],
+            network: [],
+        });
+        const output = text(sandbox.stdout);
+        const errors = text(sandbox.stderr);
+        expect(await sandbox.exited, await errors).toEqual({ code: 0, signal: null });
+        expect(await output).toBe("joined\n");
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});

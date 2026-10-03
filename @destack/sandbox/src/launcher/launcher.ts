@@ -88,7 +88,7 @@ export async function runLauncher(): Promise<void> {
                 network: {
                     allowedDomains: options.network,
                     deniedDomains: [],
-                    allowUnixSockets: options.sockets ?? [],
+                    allowUnixSockets: [...(options.sockets ?? []), temporary],
                     allowLocalBinding: options.allowsListening === true,
                 },
             },
