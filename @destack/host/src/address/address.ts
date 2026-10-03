@@ -1,6 +1,6 @@
 import { AccountHandle } from "@destack/account/object";
 import { schema } from "@destack/schema";
-import { HostName } from "../object/index.ts";
+import { HostName } from "@destack/account/object";
 
 /** The parent domains of view origins and host addresses. */
 export interface Domains {
@@ -30,9 +30,11 @@ export const HostAddress = {
         const labels = serverName.endsWith(suffix)
             ? serverName.slice(0, -suffix.length).split(".")
             : [];
-        const [host, handle] = labels as [string, string];
+        const [host, handle, ...rest] = labels;
         const isValid =
-            labels.length === 2 &&
+            host !== undefined &&
+            handle !== undefined &&
+            rest.length === 0 &&
             HostName.safeParse(host).success &&
             AccountHandle.safeParse(handle).success;
 
@@ -46,8 +48,8 @@ const BRANCH_SEPARATOR = "--";
 /** The path at which an installation's origin serves its package's service. */
 export const SERVICE_PATH = "/.destack/service";
 
-/** A space's address within its account: lowercase letters, digits and single inner hyphens, at most 63 characters. */
-export const SpaceName = schema.string().regex(/^(?!-)(?!.*--)[a-z0-9-]{1,63}(?<!-)$/);
+/** A space's address within its account: lowercase letters, digits and single hyphens between them, at most 63 characters. */
+export const SpaceName = schema.string().regex(/^(?!-)(?!.*--)[a-z0-9-]{1,63}(?<!-)$/u);
 
 /** A space's address: its name, then its account's handle, as in `notes.florian`. */
 export const SpaceAddress = schema.templateLiteral([SpaceName, ".", AccountHandle]);
@@ -75,10 +77,10 @@ export const InstallationOrigin = {
         const labels = hostname.endsWith(suffix)
             ? hostname.slice(0, hostname.length - suffix.length).split(".")
             : [];
-        if (labels.length !== 3) {
+        const [alias, label, handle, ...rest] = labels;
+        if (alias === undefined || label === undefined || handle === undefined || rest.length > 0) {
             return undefined;
         }
-        const [alias, label, handle] = labels as [string, string, string];
 
         // split a branch from its space and refuse other labels
         const separator = label.indexOf(BRANCH_SEPARATOR);

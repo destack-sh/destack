@@ -1,15 +1,24 @@
-import type { webcrypto } from "node:crypto";
-import { SignJWT } from "jose";
 import type { PackageId } from "@destack/package";
 import { copyRequest, RequestId } from "@destack/service/request";
-import { identifier } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { DeviceProof, DevicePublicKey, type ProofRequest } from "@destack/account/object";
-import { connect } from "../client/index.ts";
-import type { Host } from "../object/index.ts";
+import { connect } from "@destack/account/client";
+import type { Host } from "@destack/account/object";
 import type { Keychain } from "../keychain/index.ts";
 
-/** A private key as Web Crypto exports it, a JSON Web Key. */
-type PrivateJwk = webcrypto.JsonWebKey;
+/** A private P-256 key as Web Crypto exports it, a JSON Web Key keeping its private scalar beside the coordinates. */
+const PrivateJwk = schema.looseObject({
+    /** The key type. */
+    kty: schema.literal("EC"),
+    /** The curve. */
+    crv: schema.literal("P-256"),
+    /** The x coordinate, base64url encoded. */
+    x: schema.string(),
+    /** The y coordinate, base64url encoded. */
+    y: schema.string(),
+});
+/** A private P-256 key as a JSON Web Key. */
+type PrivateJwk = schema.Infer<typeof PrivateJwk>;
 
 /** How long before its expiry a host re-grants an access token, in milliseconds: the verifiers' clock tolerance and a grant's round trip. */
 const TOKEN_REFRESH_MILLISECONDS = 10_000;
@@ -34,7 +43,7 @@ interface KeyPair {
 /** The identity a host proves. */
 export class HostIdentity {
     /** The host's identifier. */
-    readonly hostId: string;
+    readonly hostId: Identifier<"host">;
     /** The keychain keeping the private key. */
     readonly #keys: Keychain;
     /** The key pair once loaded or generated. */
@@ -43,7 +52,7 @@ export class HostIdentity {
     readonly #tokens = new Map<string, Promise<{ accessToken: string; expiresAt: number }>>();
 
     /** Prove a host's identity with the key its store keeps. */
-    constructor(hostId: string, keys: Keychain) {
+    constructor(hostId: Identifier<"host">, keys: Keychain) {
         this.hostId = hostId;
         this.#keys = keys;
     }
@@ -71,7 +80,7 @@ export class HostIdentity {
             id: this.hostId,
             publicKey,
             proof,
-        }) as Promise<Host>;
+        });
     }
 
     /** Register a new key through a client signed with the current one, then keep it. */
@@ -80,12 +89,12 @@ export class HostIdentity {
         accountId: string,
         now = Date.now(),
     ): Promise<void> {
-        // register a new pair with a proof by its own private half, then keep it
+        // register a new pair with a proof by its private half, then keep it
         const { pair, privateJwk } = await HostIdentity.#generate();
         await client.hostKey.create({
-            accountId: identifier("account").parse(accountId),
+            accountId: schema.identifier("account").parse(accountId),
             requestId: RequestId.create(),
-            parentId: identifier("host").parse(this.hostId),
+            parentId: this.hostId,
             publicKey: pair.publicKey,
             proof: await DeviceProof.sign(pair.privateKey, pair.publicKey, this.hostId, now),
         });
@@ -101,36 +110,26 @@ export class HostIdentity {
         return DeviceProof.sign(pair.privateKey, pair.publicKey, this.hostId, now, request);
     }
 
-    /** Sign a JSON Web Token's claims with this host's key, as the authority of the spaces it serves. */
-    async signToken(claims: Readonly<Record<string, unknown>>): Promise<string> {
-        const pair = await this.#load();
-        const kid = await DeviceProof.thumbprint(pair.publicKey);
-
-        return new SignJWT({ ...claims })
-            .setProtectedHeader({ alg: "ES256", typ: "JWT", kid })
-            .sign(pair.privateKey);
-    }
-
-    /** Wrap a fetch to call a service as this host, with access tokens its issuer's host service grants. */
+    /** Wrap a fetch to call a service as this host, with access tokens its issuer's account service grants. */
     fetch(
-        inner: (request: Request) => Promise<Response>,
+        send: (request: Request) => Promise<Response>,
         audience: PackageId,
-        hosts: string,
+        accounts: string,
     ): (request: Request) => Promise<Response> {
         return async (request) => {
             // replace the request's credential with the host's token for the audience
-            const { accessToken } = await this.token(audience, hosts, inner);
+            const { accessToken } = await this.token(audience, accounts, send);
             const headers = new Headers(request.headers);
             headers.set("authorization", `Bearer ${accessToken}`);
 
-            return inner(copyRequest(request, { headers }));
+            return send(copyRequest(request, { headers }));
         };
     }
 
     /** Read this host's access token for a service, granting a new one shortly before the last expires. */
     async token(
         audience: PackageId,
-        hosts: string,
+        accounts: string,
         fetch: (request: Request) => Promise<Response>,
         now = Date.now(),
     ): Promise<{ accessToken: string; expiresAt: number }> {
@@ -143,9 +142,12 @@ export class HostIdentity {
 
         // grant a new one with an assertion bound to the grant request, dropping it when refused
         const granting = (async () => {
-            const assertion = await this.prove(now, { method: "POST", url: `${hosts}/token` });
+            const assertion = await this.prove(now, {
+                method: "POST",
+                url: `${accounts}/hosts/token`,
+            });
 
-            return connect({ url: hosts, fetch }).token.grant({ assertion, audience });
+            return connect({ url: accounts, fetch }).hostToken.grant({ assertion, audience });
         })();
         this.#tokens.set(audience, granting);
         granting.catch(() => this.#tokens.delete(audience));
@@ -172,15 +174,18 @@ export class HostIdentity {
         if (kept === undefined) {
             throw new TypeError(`host ${this.hostId} has no key`);
         }
-        this.#pair = await HostIdentity.#import(JSON.parse(kept) as PrivateJwk);
+        const stored: unknown = JSON.parse(kept);
+        this.#pair = await HostIdentity.#import(PrivateJwk.parse(stored));
 
         return this.#pair;
     }
 
     /** Generate a key pair, returning it with its private half as a JSON Web Key. */
     static async #generate(): Promise<{ pair: KeyPair; privateJwk: PrivateJwk }> {
+        // generate an extractable pair and export its private half
         const generated = await crypto.subtle.generateKey(KEY_ALGORITHM, true, ["sign", "verify"]);
-        const privateJwk = await crypto.subtle.exportKey("jwk", generated.privateKey);
+        const exported = await crypto.subtle.exportKey("jwk", generated.privateKey);
+        const privateJwk = PrivateJwk.parse(exported);
 
         return { pair: await HostIdentity.#import(privateJwk), privateJwk };
     }

@@ -1,36 +1,35 @@
 import { exportJWK, generateKeyPair, SignJWT, type JSONWebKeySet } from "jose";
-import { v7 } from "uuid";
 import { directoryTables } from "@destack/directory";
-import { Scope, type ObjectReference } from "@destack/sync";
+import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import { RequestId } from "@destack/service/request";
-import { accessRelationship, principal, Relationship, type Subject } from "@destack/access";
+import { accessRelationship, principal, Relationship } from "@destack/access";
 import { copyOwner, copyRole, copyScope } from "@destack/access/test";
-import { createAuthentication } from "@destack/account/authentication";
+import { createAuthenticator } from "@destack/account/authentication";
 import { accountTables } from "@destack/account/stack";
 import { accountService } from "@destack/account";
 import { ServiceMount } from "@destack/service";
-import { hostService } from "../service/index.ts";
 import { account, region, session, user } from "@destack/account/object";
-import { AccountCaller } from "@destack/account/authentication";
+import { AccountAuthentication } from "@destack/account/authentication";
 import * as accountServer from "@destack/account/server";
-import type { AuditDestination } from "@destack/audit/outbox";
+import type { AuditDestination } from "@destack/audit";
 import type { ObjectType } from "@destack/object";
-import { and, eq, gt, type DatabaseConnection } from "@destack/db";
+import { and, eq, gt, type DatabaseConnection, defineDatabase, type Database } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
-import { defineDatabase, type Database } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
-import { Caller, TokenVerifier, type TokenIssuerOptions } from "@destack/service/authentication";
+import { found, schema, Identifier } from "@destack/schema";
+import {
+    Authentication,
+    TokenVerifier,
+    type TokenIssuerOptions,
+} from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Server, type ServiceImplementation } from "@destack/service/server";
-import { connect } from "../client/index.ts";
+import { connect } from "@destack/account/client";
 import { HostIdentity } from "../identity/index.ts";
 import { MemoryKeychain } from "../keychain/index.ts";
-import { implementService } from "../server/index.ts";
-import { HostKey } from "../object/index.ts";
-import { hostTables } from "../stack/index.ts";
-import { testJournalKey } from "@destack/service/test";
+import { HostKey } from "@destack/account/object";
+import { testCallKey } from "@destack/service/test";
 
 /** The global tier's origin, the issuer of enrolled hosts. */
 export const ISSUER = "https://global.destack.test";
@@ -39,34 +38,32 @@ export const ISSUER = "https://global.destack.test";
 export const globalDatabase = defineDatabase({
     name: "global",
     tier: "global",
-    tables: [...accountTables, ...directoryTables, ...hostTables],
+    tables: [...accountTables, ...directoryTables],
 });
 
-/** The URL the fixture's host service answers at. */
-export const HOSTS_URL = "https://hosts.test";
+/** The URL the fixture's account service answers at. */
+export const ACCOUNTS_URL = "https://accounts.test";
 
 /** How long a fixture session lasts, a day in milliseconds. */
 const SESSION_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 /** The identities the global tier keeps. */
 export const ids = {
-    owner: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000a"),
-    stranger: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000b"),
-    operator: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000c"),
-    account: identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
-    other: identifier("account").parse("account-01996ab0-0000-7000-8000-000000000002"),
-    platform: identifier("account").parse("account-01996ab0-0000-7000-8000-000000000003"),
-    region: identifier("region").parse("region-01996ab0-0000-7000-8000-000000000004"),
+    owner: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000a"),
+    stranger: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000b"),
+    operator: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000c"),
+    account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
+    other: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000002"),
+    platform: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000003"),
+    region: schema.identifier("region").parse("region-01996ab0-0000-7000-8000-000000000004"),
 };
 
-/** The global tier in one database, serving hosts and accounts. */
+/** The global tier in one database, serving accounts with their hosts. */
 export class GlobalFixture implements AsyncDisposable {
     /** The global test database. */
     readonly storage: TestDatabase;
     /** The global database. */
     readonly database: DatabaseConnection;
-    /** The host service. */
-    readonly hosts: Server;
     /** The account service. */
     readonly accounts: Server;
     /** The public keys of the universe's token authority. */
@@ -76,16 +73,10 @@ export class GlobalFixture implements AsyncDisposable {
     static readonly history: AuditDestination = { ingest: async () => 0 };
 
     /** Hold a served global tier. */
-    private constructor(
-        storage: TestDatabase,
-        hosts: Server,
-        accounts: Server,
-        keys: JSONWebKeySet,
-    ) {
-        // keep the database, both services and the token authority's keys
+    private constructor(storage: TestDatabase, accounts: Server, keys: JSONWebKeySet) {
+        // keep the database, the account service and the token authority's keys
         this.storage = storage;
         this.database = storage.database;
-        this.hosts = hosts;
         this.accounts = accounts;
         this.keys = keys;
     }
@@ -95,8 +86,12 @@ export class GlobalFixture implements AsyncDisposable {
         definition: Database = globalDatabase,
         inherited: readonly ObjectType[] = [],
     ): Promise<GlobalFixture> {
-        // keep the global database
-        const storage = await TestDatabase.create(TEST_DIALECTS.at(-1)!, definition, {
+        // keep the global database in the last test dialect
+        const dialect = TEST_DIALECTS.at(-1);
+        if (dialect === undefined) {
+            throw new TypeError("the global fixture needs a test dialect");
+        }
+        const storage = await TestDatabase.create(dialect, definition, {
             isMigrated: true,
         });
         const database = storage.database;
@@ -107,21 +102,21 @@ export class GlobalFixture implements AsyncDisposable {
             principal.user.reference(Scope.universe.id, ids.owner),
             principal.user.reference(Scope.universe.id, ids.operator),
         ];
-        for (const [person, name] of [
-            [owner, "Owner"],
-            [operator, "Operator"],
+        for (const [userId, person, name] of [
+            [ids.owner, owner, "Owner"],
+            [ids.operator, operator, "Operator"],
         ] as const) {
             await database.insert(user.table).values({
                 ...record,
-                id: person.id as never,
+                id: userId,
                 name,
-                email: `${person.id}@example.test`,
+                email: `${userId}@example.test`,
             });
             await copyScope(database, person);
             await copyOwner(database, person, person);
         }
 
-        // let the owner own every account and its hosts read it
+        // make the owner the owner of every account, and let its hosts read it
         const ownerRoles = new Map<string, string>();
         for (const [id, handle] of [
             [ids.account, "acme"],
@@ -149,7 +144,7 @@ export class GlobalFixture implements AsyncDisposable {
             );
         }
 
-        // keep the platform's region, and let the operator own the platform and serve the region
+        // keep the platform's region, and make the operator the owner of the platform and the server of the region
         await database.insert(region.table).values({
             ...record,
             id: ids.region,
@@ -171,11 +166,11 @@ export class GlobalFixture implements AsyncDisposable {
             database,
             ids.platform,
             account.reference(ids.owner, ids.platform),
-            { role: ownerRoles.get(ids.platform)! },
+            { role: found(ownerRoles, ids.platform) },
             operator,
         );
 
-        // sign the universe's tokens with a key of the fixture's own
+        // sign the universe's tokens with a fixture key
         const pair = await generateKeyPair("ES256");
         const keys = {
             keys: [{ ...(await exportJWK(pair.publicKey)), kid: "universe", alg: "ES256" }],
@@ -188,15 +183,9 @@ export class GlobalFixture implements AsyncDisposable {
                     .sign(pair.privateKey),
         };
 
-        // serve hosts to users and to hosts by their tokens
-        const hosts = GlobalFixture.serve(
-            implementService({ journalKey: testJournalKey, database, tokens }),
-            database,
-            keys,
-        );
-
         // serve the account service to hosts by their tokens
-        const authentication = createAuthentication({
+        const authenticator = createAuthenticator({
+            callKey: testCallKey,
             database,
             origin: ISSUER,
             trustedOrigins: [ISSUER],
@@ -226,15 +215,17 @@ export class GlobalFixture implements AsyncDisposable {
                 },
             },
         });
-        const accountImplementation = accountServer.implementService(authentication, {
-            journalKey: testJournalKey,
+        const accountImplementation = accountServer.implementService(authenticator, {
+            callKey: testCallKey,
             connections,
             history: GlobalFixture.history,
             inherited,
+            resolver: { txt: async () => [] },
+            tokens,
         });
         const accounts = GlobalFixture.serve(accountImplementation, database, keys);
 
-        return new GlobalFixture(storage, hosts, accounts, keys);
+        return new GlobalFixture(storage, accounts, keys);
     }
 
     /** Route a request of the global tier's origin as the universe does: by mount, else to the account service's issuer paths. */
@@ -246,10 +237,8 @@ export class GlobalFixture implements AsyncDisposable {
         if (routed === undefined) {
             return this.accounts.fetch(request);
         }
-        // hand the request over below the host or account mount
-        else if (routed.packageId === hostService.package.id) {
-            return this.hosts.fetch(routed.request);
-        } else if (routed.packageId === accountService.package.id) {
+        // hand the request over below the account mount
+        else if (routed.packageId === accountService.package.id) {
             return this.accounts.fetch(routed.request);
         }
         // refuse a mount of no served package
@@ -259,14 +248,14 @@ export class GlobalFixture implements AsyncDisposable {
     }
 
     /** Sign a user in, returning the bearer token of the session both services accept. */
-    async signIn(userId: string): Promise<string> {
+    async signIn(userId: Identifier<"user">): Promise<string> {
         // record an active session of the user
-        const id = identifier("session").parse(`session-${v7()}`);
+        const id = Identifier.create("session");
         const now = Date.now();
         await this.database.insert(session.table).values({
             id,
-            scope: userId as never,
-            userId: userId as never,
+            scope: userId,
+            userId,
             token: crypto.randomUUID(),
             expiresAt: now + SESSION_MILLISECONDS,
             createdAt: now,
@@ -276,23 +265,23 @@ export class GlobalFixture implements AsyncDisposable {
         return id;
     }
 
-    /** Connect to the host service as a user. */
+    /** Connect to the account service as a user. */
     user(userId: string) {
         return connect({
-            url: HOSTS_URL,
+            url: ACCOUNTS_URL,
             headers: { "x-user": userId },
-            fetch: (request) => this.hosts.fetch(request),
+            fetch: (request) => this.accounts.fetch(request),
         });
     }
 
-    /** Connect to the host service as a host. */
+    /** Connect to the account service as a host. */
     host(identity: HostIdentity) {
         return connect({
-            url: HOSTS_URL,
+            url: ACCOUNTS_URL,
             fetch: identity.fetch(
-                (request) => this.hosts.fetch(request),
-                hostService.package.id,
-                HOSTS_URL,
+                (request) => this.accounts.fetch(request),
+                accountService.package.id,
+                ACCOUNTS_URL,
             ),
         });
     }
@@ -308,7 +297,7 @@ export class GlobalFixture implements AsyncDisposable {
         await database.insert(accessRelationship).values(
             Relationship.encode(
                 {
-                    id: identifier("relationship").parse(`relationship-${v7()}`),
+                    id: Identifier.create("relationship"),
                     object,
                     ...(typeof binding === "string" ? { relation: binding } : binding),
                     subject,
@@ -323,14 +312,14 @@ export class GlobalFixture implements AsyncDisposable {
     /** Enroll a new host under an account, the platform's for its region as the operator, returning its identity. */
     async enroll(accountId: string, kind: "device" | "cloud" = "cloud"): Promise<HostIdentity> {
         // enroll a platform host for its region as the operator, any other as the owner
-        const identity = new HostIdentity(`host-${v7()}`, new MemoryKeychain());
+        const identity = new HostIdentity(Identifier.create("host"), new MemoryKeychain());
         const enroller = accountId === ids.platform ? ids.operator : ids.owner;
         await identity.enroll(this.user(enroller), {
-            accountId: identifier("account").parse(accountId),
+            accountId: schema.identifier("account").parse(accountId),
             requestId: RequestId.create(),
             name: `machine-${identity.hostId.slice(-12)}`,
             kind,
-            ...(accountId === ids.platform ? { region: ids.region } : {}),
+            ...(accountId === ids.platform ? { regionId: ids.region } : {}),
         });
 
         return identity;
@@ -360,39 +349,42 @@ export class GlobalFixture implements AsyncDisposable {
             authenticate: async (request) => {
                 // verify a token the universe signed
                 const authorization = request.headers.get("authorization") ?? "";
-                if (/^Bearer \S+\.\S+\.\S+$/.test(authorization)) {
-                    const caller = await verifier.authenticate(request);
-                    await HostKey.requireAuthenticating(database, caller, Date.now());
+                if (/^Bearer \S+\.\S+\.\S+$/u.test(authorization)) {
+                    const authentication = await verifier.authenticate(request);
+                    await HostKey.requireAuthenticating(database, authentication, Date.now());
 
-                    return caller;
+                    return authentication;
                 }
 
                 // take the user of an unexpired signed-in session, refusing any other bearer
-                const bearer = /^Bearer (session-\S+)$/.exec(
+                const bearer = /^Bearer (session-\S+)$/u.exec(
                     request.headers.get("authorization") ?? "",
                 );
                 if (bearer !== null) {
+                    const sessionId = schema.identifier("session").safeParse(bearer[1]);
                     const now = Date.now();
-                    const [signedIn] = await database
-                        .select({ userId: session.table.userId })
-                        .from(session.table)
-                        .where(
-                            and(
-                                eq(session.table.id, bearer[1] as never),
-                                gt(session.table.expiresAt, now),
-                            ),
-                        );
-                    if (signedIn === undefined) {
+                    const [signedIn] = sessionId.success
+                        ? await database
+                              .select({ userId: session.table.userId })
+                              .from(session.table)
+                              .where(
+                                  and(
+                                      eq(session.table.id, sessionId.data),
+                                      gt(session.table.expiresAt, now),
+                                  ),
+                              )
+                        : [];
+                    if (!sessionId.success || signedIn === undefined) {
                         throw new ServiceError("UNAUTHORIZED", {
                             message: "session is unknown or expired",
                         });
                     }
                     const subject = principal.user.reference(Scope.universe.id, signedIn.userId);
 
-                    return new AccountCaller({
+                    return new AccountAuthentication({
                         credential: {
                             kind: "session",
-                            id: bearer[1] as never,
+                            id: sessionId.data,
                             userId: signedIn.userId,
                         },
                         audience,
@@ -411,7 +403,7 @@ export class GlobalFixture implements AsyncDisposable {
                 const subject = principal.user.reference(Scope.universe.id, named);
                 const now = Date.now();
 
-                return new Caller({
+                return new Authentication({
                     credential: { kind: "fixture", id: named },
                     audience,
                     subject,
@@ -423,9 +415,8 @@ export class GlobalFixture implements AsyncDisposable {
         });
     }
 
-    /** Stop both services, then close the database. */
+    /** Stop the account service, then close the database. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.hosts.close();
         await this.accounts.close();
         await this.storage.close();
     }

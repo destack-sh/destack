@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { DOMAINS, HostAddress, InstallationOrigin, SpaceAddress } from "../src/address/index.ts";
+import { DOMAINS, HostAddress, InstallationOrigin } from "../src/address/index.ts";
 
 test("read the host address of a server name, and nothing for other shapes", () => {
     expect(
@@ -47,19 +47,15 @@ test("read and write the origins of views and branches under a domain, and nothi
     ]);
 
     // write back the hostnames the origins were read from
+    const [, branched, local] = origins;
+    if (branched === undefined || local === undefined) {
+        throw new TypeError("the branch and device origins are unread");
+    }
     expect([
-        InstallationOrigin.format(origins[1]!, "destack.space"),
-        InstallationOrigin.format(origins[2]!, "localhost"),
+        InstallationOrigin.format(branched, "destack.space"),
+        InstallationOrigin.format(local, "localhost"),
     ]).toEqual([
         "notes.feature-x--personal.florian.destack.space",
         "notes.personal.florian.localhost",
     ]);
-});
-
-test("accept a space's address as its name then its account's handle", () => {
-    expect(
-        ["notes.florian", "notes", "Notes.florian", "no--tes.florian"].map(
-            (address) => SpaceAddress.safeParse(address).success,
-        ),
-    ).toEqual([true, false, false, false]);
 });

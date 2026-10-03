@@ -1,23 +1,23 @@
-import { v7 } from "uuid";
 import { Scope } from "@destack/sync";
 import { principal } from "@destack/access";
-import { DirectoryDatabase } from "@destack/directory";
+import { DirectoryStore } from "@destack/directory";
 import { eq } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/service/request";
 import {
-    Caller,
-    CALLER_LIFETIME_MILLISECONDS,
+    Authentication,
+    AUTHENTICATION_LIFETIME_MILLISECONDS,
     TokenVerifier,
 } from "@destack/service/authentication";
-import type { ProcedureCall, ServiceContext } from "@destack/service/server";
-import { afterAll, beforeAll, expect, test } from "@destack/test";
-import { identifier } from "@destack/schema";
-import { connect } from "../src/client/index.ts";
+import { ServiceContext } from "@destack/service/server";
+import { ResourceContext } from "@destack/resource/context";
+import { afterAll, beforeAll, expect, refusal, test } from "@destack/test";
+import { found, Identifier } from "@destack/schema";
+import { connect } from "@destack/account/client";
 import { HostIdentity } from "../src/identity/index.ts";
-import { Host, hostKey } from "../src/object/index.ts";
+import { Host, hostKey } from "@destack/account/object";
 import { MemoryKeychain } from "../src/keychain/index.ts";
-import { GlobalFixture, HOSTS_URL, ids, ISSUER } from "../src/test/index.ts";
+import { GlobalFixture, ACCOUNTS_URL, ids, ISSUER } from "../src/test/index.ts";
 
 /** The refusal of an assertion without an active key behind it. */
 const NO_ACTIVE_KEY = "UNAUTHORIZED: host assertion refers to no active key";
@@ -25,7 +25,7 @@ const NO_ACTIVE_KEY = "UNAUTHORIZED: host assertion refers to no active key";
 /** The package receiving the hosts' requests. */
 const AUDIENCE = PackageId.parse("package-019f7480-0000-7000-8000-00000000e002");
 
-/** The global tier every scenario enrolls its own hosts in. */
+/** The global tier every scenario enrolls its hosts in. */
 let global: GlobalFixture;
 
 beforeAll(async () => {
@@ -36,12 +36,16 @@ afterAll(async () => {
     await global[Symbol.asyncDispose]();
 });
 
+/** Prove a host's key for a token grant at the account service. */
+function proveGrant(signer: HostIdentity): Promise<string> {
+    return signer.prove(Date.now(), { method: "POST", url: `${ACCOUNTS_URL}/hosts/token` });
+}
+
 /** Report a call's outcome as its failure code and message, or as accepted. */
-function outcome(call: Promise<unknown>): Promise<string> {
-    return call.then(
-        () => "accepted",
-        (error: { code: string; message: string }) => `${error.code}: ${error.message}`,
-    );
+async function outcome(call: Promise<unknown>): Promise<string> {
+    const refused = await refusal(call);
+
+    return refused === "done" ? "accepted" : refused.join(": ");
 }
 
 test("enroll a host as its account's owner, authenticate it across a key rotation, and refuse it once revoked", async () => {
@@ -50,25 +54,25 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
     // enroll a host under the owner's account and read itself by its token
     const identity = await global.enroll(accountId);
     const itself = () =>
-        outcome(global.host(identity).host.get({ accountId, id: identity.hostId as never }));
+        outcome(global.host(identity).host.get({ accountId, id: identity.hostId }));
     expect(await itself()).toBe("accepted");
 
     // refuse a stranger enrolling a host into the account, and a proof for another host
-    const stranger = new HostIdentity(`host-${v7()}`, new MemoryKeychain());
+    const stranger = new HostIdentity(Identifier.create("host"), new MemoryKeychain());
     const enrolling = {
         accountId,
         requestId: RequestId.create(),
         name: "stray",
         kind: "cloud" as const,
     };
-    const other = new HostIdentity(`host-${v7()}`, new MemoryKeychain());
+    const other = new HostIdentity(Identifier.create("host"), new MemoryKeychain());
     const { publicKey } = await other.generate();
     expect([
         await outcome(stranger.enroll(global.user(ids.stranger), enrolling)),
         await outcome(
             global.user(ids.owner).host.enroll({
                 ...enrolling,
-                id: identifier("host").parse(`host-${v7()}`),
+                id: Identifier.create("host"),
                 publicKey,
                 proof: await other.prove(),
             }),
@@ -79,15 +83,13 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
     ]);
 
     // number a taken name at enrollment, refuse renaming to a taken one, and refuse a branch separator
-    const namesake = new HostIdentity(`host-${v7()}`, new MemoryKeychain());
-    const taken = (
-        await global.host(identity).host.get({ accountId, id: identity.hostId as never })
-    ).name;
+    const namesake = new HostIdentity(Identifier.create("host"), new MemoryKeychain());
+    const taken = (await global.host(identity).host.get({ accountId, id: identity.hostId })).name;
     const rename = (name: string) =>
         outcome(
             global.host(identity).host.rename({
                 accountId,
-                id: identity.hostId as never,
+                id: identity.hostId,
                 requestId: RequestId.create(),
                 name,
             }),
@@ -106,7 +108,7 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
         await outcome(
             global.user(ids.owner).host.rename({
                 accountId,
-                id: identity.hostId as never,
+                id: identity.hostId,
                 requestId: RequestId.create(),
                 name: "atelier",
             }),
@@ -116,13 +118,13 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
         "accepted",
         "CONFLICT: a record with the same unique key exists",
         "accepted",
-        "BAD_REQUEST: invalid input: name: invalid string: must match pattern /^(?!-)(?!.*--)[a-z0-9-]{1,63}(?<!-)$/",
+        "BAD_REQUEST: invalid input: name: invalid string: must match pattern /^(?!-)(?!.*--)[a-z0-9-]{1,63}(?<!-)$/u",
         "accepted",
         "accepted",
     ]);
-    expect(
-        (await global.host(identity).host.get({ accountId, id: identity.hostId as never })).name,
-    ).toBe("studio");
+    expect((await global.host(identity).host.get({ accountId, id: identity.hostId })).name).toBe(
+        "studio",
+    );
 
     // rotate the host's key as the host, and refuse the owner registering a key for it
     await identity.rotate(global.host(identity), accountId);
@@ -134,7 +136,7 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
             global.user(ids.owner).hostKey.create({
                 accountId,
                 requestId: RequestId.create(),
-                parentId: identity.hostId as never,
+                parentId: identity.hostId,
                 publicKey: foreign,
                 proof,
             }),
@@ -144,7 +146,7 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
     // revoke the host as the owner, ending its token at the global tier at once
     await global.user(ids.owner).host.revoke({
         accountId,
-        id: identity.hostId as never,
+        id: identity.hostId,
         requestId: RequestId.create(),
     });
     expect(await itself()).toBe("UNAUTHORIZED: host token's key no longer authenticates");
@@ -154,32 +156,33 @@ test("grant a host tokens as the host and its region, spending each assertion on
     // enroll a region's host, and keep its first key apart
     const accountId = ids.platform;
     const keys = new MemoryKeychain();
-    const identity = new HostIdentity(`host-${v7()}`, keys);
+    const identity = new HostIdentity(Identifier.create("host"), keys);
     await identity.enroll(global.user(ids.operator), {
         accountId,
         requestId: RequestId.create(),
         name: "edge",
         kind: "cloud",
-        region: ids.region,
+        regionId: ids.region,
     });
     const kept = new MemoryKeychain();
-    kept.secrets.set(identity.hostId, keys.secrets.get(identity.hostId)!);
+    kept.secrets.set(identity.hostId, found(keys.secrets, identity.hostId));
     const first = new HostIdentity(identity.hostId, kept);
     const [key] = await global.database
         .select()
         .from(hostKey.table)
-        .where(eq(hostKey.table.parentId, identifier("host").parse(identity.hostId)));
+        .where(eq(hostKey.table.parentId, identity.hostId));
+    if (key === undefined) {
+        throw new TypeError("the enrolled host has no key");
+    }
 
     // grant tokens through the host service with assertions bound to the grant request
-    const fetch = (request: Request) => global.hosts.fetch(request);
-    const hosts = connect({ url: HOSTS_URL, fetch });
-    const assert = (signer: HostIdentity) =>
-        signer.prove(Date.now(), { method: "POST", url: `${HOSTS_URL}/token` });
+    const fetch = (request: Request) => global.accounts.fetch(request);
+    const hosts = connect({ url: ACCOUNTS_URL, fetch });
     const grant = async (signer: HostIdentity) =>
-        outcome(hosts.token.grant({ assertion: await assert(signer), audience: AUDIENCE }));
+        outcome(hosts.hostToken.grant({ assertion: await proveGrant(signer), audience: AUDIENCE }));
 
     // act as the host and for its region, as the universe's token verifies it
-    const { accessToken } = await identity.token(AUDIENCE, HOSTS_URL, fetch);
+    const { accessToken } = await identity.token(AUDIENCE, ACCOUNTS_URL, fetch);
     const verifier = new TokenVerifier({
         authority: { kind: "universe" },
         issuer: ISSUER,
@@ -192,26 +195,22 @@ test("grant a host tokens as the host and its region, spending each assertion on
         }),
     );
     const subject = principal.host.reference(accountId, identity.hostId);
-    expect([
-        verified.credential,
-        verified.authentication.subject,
-        verified.authentication.subjects,
-    ]).toEqual([
-        { kind: "host-key", id: key!.id },
+    expect([verified.credential, verified.claims.subject, verified.claims.subjects]).toEqual([
+        { kind: "host-key", id: key.id },
         subject,
         [subject, principal.region.reference(Scope.universe.id, ids.region)],
     ]);
 
     // refuse a replayed assertion, and one bound to another request
-    const assertion = await assert(identity);
+    const assertion = await proveGrant(identity);
     const other = await identity.prove(Date.now(), {
         method: "POST",
         url: "https://edge.test/token",
     });
     expect([
-        await outcome(hosts.token.grant({ assertion, audience: AUDIENCE })),
-        await outcome(hosts.token.grant({ assertion, audience: AUDIENCE })),
-        await outcome(hosts.token.grant({ assertion: other, audience: AUDIENCE })),
+        await outcome(hosts.hostToken.grant({ assertion, audience: AUDIENCE })),
+        await outcome(hosts.hostToken.grant({ assertion, audience: AUDIENCE })),
+        await outcome(hosts.hostToken.grant({ assertion: other, audience: AUDIENCE })),
     ]).toEqual([
         "accepted",
         "UNAUTHORIZED: device proof was used before",
@@ -224,7 +223,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
         await outcome(
             global
                 .host(identity)
-                .hostKey.revoke({ accountId, id: key!.id, requestId: RequestId.create() }),
+                .hostKey.revoke({ accountId, id: key.id, requestId: RequestId.create() }),
         ),
     ).toBe("CONFLICT: host key is revoked");
 
@@ -235,7 +234,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
     const status = (method: "disable" | "enable") =>
         global.user(ids.operator).host[method]({
             accountId,
-            id: identity.hostId as never,
+            id: identity.hostId,
             requestId: RequestId.create(),
         });
     await status("disable");
@@ -249,7 +248,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
     // refuse every grant once the operator revokes the host
     await global.user(ids.operator).host.revoke({
         accountId,
-        id: identity.hostId as never,
+        id: identity.hostId,
         requestId: RequestId.create(),
     });
     expect(await grant(identity)).toBe(NO_ACTIVE_KEY);
@@ -259,24 +258,27 @@ test("grant a host tokens for the spaces its cell or region serves, and refuse o
     // enroll an account's host and a region's host, and place a space in each
     const device = await global.enroll(ids.account);
     const regional = await global.enroll(ids.platform);
-    const directory = new DirectoryDatabase(global.database);
-    const [own, served, elsewhere] = [v7(), v7(), v7()].map((id) =>
-        identifier("space").parse(`space-${id}`),
-    );
+    const directory = new DirectoryStore(global.database);
+    const own = Identifier.create("space");
+    const served = Identifier.create("space");
+    const elsewhere = Identifier.create("space");
     await directory.place({ id: own, scope: ids.account, cell: device.hostId, epoch: 1 });
     await directory.place({ id: served, scope: ids.account, cell: ids.region, epoch: 1 });
 
     // grant tokens in the spaces each host's cell serves
-    const hosts = connect({ url: HOSTS_URL, fetch: (request) => global.hosts.fetch(request) });
-    const grant = async (signer: HostIdentity, spaceId: string) =>
+    const hosts = connect({
+        url: ACCOUNTS_URL,
+        fetch: (request) => global.accounts.fetch(request),
+    });
+    const grant = async (signer: HostIdentity, spaceId: Identifier<"space">) =>
         outcome(
-            hosts.token.grant({
+            hosts.hostToken.grant({
                 assertion: await signer.prove(Date.now(), {
                     method: "POST",
-                    url: `${HOSTS_URL}/token`,
+                    url: `${ACCOUNTS_URL}/hosts/token`,
                 }),
                 audience: AUDIENCE,
-                spaceId: spaceId as never,
+                spaceId,
             }),
         );
     expect([
@@ -294,15 +296,18 @@ test("grant a host tokens for the spaces its cell or region serves, and refuse o
 
 test("enroll a region's host only for callers who serve the region", async () => {
     // enroll hosts claiming the region as the owner, who lacks the right to serve it
-    const enroll = (userId: string, accountId: string) =>
+    const enroll = (userId: string, accountId: Identifier<"account">) =>
         outcome(
-            new HostIdentity(`host-${v7()}`, new MemoryKeychain()).enroll(global.user(userId), {
-                accountId: identifier("account").parse(accountId),
-                requestId: RequestId.create(),
-                name: "edge",
-                kind: "cloud",
-                region: ids.region,
-            }),
+            new HostIdentity(Identifier.create("host"), new MemoryKeychain()).enroll(
+                global.user(userId),
+                {
+                    accountId,
+                    requestId: RequestId.create(),
+                    name: "edge",
+                    kind: "cloud",
+                    regionId: ids.region,
+                },
+            ),
         );
 
     // refuse the owner in a rival account and in the platform, and accept the region's operator
@@ -323,17 +328,20 @@ test("disable, drain and enable a host, refusing its token grants while disabled
         outcome(
             global.user(userId).host[name]({
                 accountId: ids.account,
-                id: identity.hostId as never,
+                id: identity.hostId,
                 requestId: RequestId.create(),
             }),
         );
-    const hosts = connect({ url: HOSTS_URL, fetch: (request) => global.hosts.fetch(request) });
+    const hosts = connect({
+        url: ACCOUNTS_URL,
+        fetch: (request) => global.accounts.fetch(request),
+    });
     const verify = async () =>
         outcome(
-            hosts.token.grant({
+            hosts.hostToken.grant({
                 assertion: await identity.prove(Date.now(), {
                     method: "POST",
-                    url: `${HOSTS_URL}/token`,
+                    url: `${ACCOUNTS_URL}/hosts/token`,
                 }),
                 audience: AUDIENCE,
             }),
@@ -357,7 +365,7 @@ test("disable, drain and enable a host, refusing its token grants while disabled
     const stranger = await change(ids.stranger, "disable");
     await global.user(ids.owner).host.revoke({
         accountId: ids.account,
-        id: identity.hostId as never,
+        id: identity.hostId,
         requestId: RequestId.create(),
     });
     expect([stranger, await change(ids.owner, "enable")]).toEqual([
@@ -376,15 +384,15 @@ test("refuse host procedures to callers acting as no host, and pass the rest", a
     const lifetime = {
         audience: AUDIENCE,
         verifiedAt: 1,
-        expiresAt: 1 + CALLER_LIFETIME_MILLISECONDS,
+        expiresAt: 1 + AUTHENTICATION_LIFETIME_MILLISECONDS,
     };
-    const hostCaller = new Caller({
+    const hostCaller = new Authentication({
         ...lifetime,
         credential: { kind: "host-key", id: "key" },
         subject: hostSubject,
         subjects: [hostSubject],
     });
-    const userCaller = new Caller({
+    const userCaller = new Authentication({
         ...lifetime,
         credential: { kind: "session", id: "session" },
         subject: userSubject,
@@ -392,12 +400,18 @@ test("refuse host procedures to callers acting as no host, and pass the rest", a
     });
 
     // decide each caller on a host procedure and on an identity procedure
-    const decide = (caller: Caller, authentication: "host" | "identity") =>
+    const decide = (caller: Authentication, authentication: "host" | "identity") =>
         outcome(
             Host.authorize({
-                context: { caller },
+                context: new ServiceContext(new Request("https://hosts.test"), {
+                    audience: AUDIENCE,
+                    authentication: caller,
+                    resources: new ResourceContext(),
+                }),
                 access: { authentication, permission: null, audit: false },
-            } as unknown as ProcedureCall<ServiceContext>),
+                path: [],
+                input: undefined,
+            }),
         );
     expect([
         await decide(hostCaller, "host"),
