@@ -24,7 +24,8 @@ import { ObjectServer } from "@destack/object/server";
 import * as spaceObject from "@destack/space/object";
 import { space } from "@destack/space/object";
 import { v7 } from "uuid";
-import { type Keyring, LocalKeyring, VaultKey } from "../../encryption/index.ts";
+import { type Keyring, LocalKeyring } from "@destack/host/keychain";
+import { VaultKey } from "../../encryption/index.ts";
 import { secret, secretVersion, vault } from "../../object/index.ts";
 import { SecretClient } from "../../object/index.ts";
 import { spaceService } from "@destack/space/service";
@@ -34,7 +35,7 @@ import { spaceTables } from "@destack/space/stack";
 
 import { testCallKey } from "@destack/service/test";
 
-/** The tables of a test cell's regional database: the vaults, the spaces and every object server's own. */
+/** The tables of a test cell's regional database: the vaults, the spaces and the tables of every object server. */
 export const cellTables: readonly Table[] = [...vaultTables, ...spaceTables];
 
 /** The vault package, declaring the vaults and their permissions. */

@@ -4,7 +4,8 @@ import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { secret, secretVersion } from "../object/index.ts";
 import { vault } from "../server/secret.ts";
-import { type Keyring, VaultKey } from "../encryption/index.ts";
+import type { Keyring } from "@destack/host/keychain";
+import { VaultKey } from "../encryption/index.ts";
 import { VaultKind } from "../declare/vault.ts";
 import { vaultKey } from "../stack/db.ts";
 

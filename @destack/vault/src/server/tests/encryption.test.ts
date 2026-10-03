@@ -8,7 +8,7 @@ import { MemoryKeychain } from "@destack/host/keychain";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { expect, single, test } from "@destack/test";
-import { LocalKeyring } from "../../encryption/index.ts";
+import { LocalKeyring } from "@destack/host/keychain";
 import { vaultKey } from "../../stack/index.ts";
 import { VaultKey } from "../../encryption/index.ts";
 import { LOCATION, VaultFixture } from "./fixture.ts";

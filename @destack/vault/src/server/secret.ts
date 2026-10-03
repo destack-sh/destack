@@ -7,7 +7,8 @@ import type { Bindable } from "@destack/space/server";
 import * as base from "../object/index.ts";
 import { SecretVersion, secretVersion } from "../object/index.ts";
 import { SecretPromotion, SecretSelection, VersionWrite } from "../secret/index.ts";
-import { type Keyring, VaultKey } from "../encryption/index.ts";
+import type { Keyring } from "@destack/host/keychain";
+import { VaultKey } from "../encryption/index.ts";
 
 /** How long deleted secrets stay restorable by default: the 30 days of AWS Secrets Manager's recovery window. */
 const RECOVERY: Duration = { days: 30 };
@@ -57,12 +58,12 @@ export const secret = base.secret.declare({
     values: (_name, resolved) => resolved,
 });
 
-/** Secrets that deployments capture at their current version or at a binding's pinned one. */
+/** Secrets that deployments capture at their current version or at a binding's fixed one. */
 export const secretBindable: Bindable<typeof secret> = {
     object: secret,
     used: [secret, secretVersion],
     version: (target, pin) => {
-        // require a version to run with: the pinned one, else the current one
+        // require a version to run with: the fixed one, else the current one
         const version = pin ?? target.currentVersion;
         if (version === null) {
             throw new ServiceError("CONFLICT", {
@@ -173,7 +174,7 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
         },
         purge: async (call, next) => {
             // purge only an unbound secret, at any time while it is in the trash
-            const target = call.requireTarget();
+            const { target } = call;
             await Binding.requireUnbound(call.database, target);
 
             // destroy the value of every kept version
