@@ -5,8 +5,8 @@ import { basename, join } from "node:path";
 import process from "node:process";
 import { CheckError } from "../error/index.ts";
 
-/** Maximum time for one checking tool invocation. */
-const toolTimeout = 30_000;
+/** The longest a checking tool runs, in milliseconds, well above a package lint's few seconds. */
+const TOOL_TIMEOUT = 30_000;
 
 /** Captured output from a pinned checking tool. */
 export interface ToolResult {
@@ -44,7 +44,7 @@ export async function runTool(
                         env: environment,
                         stdio: ["ignore", output.fd, "pipe"],
                         signal: AbortSignal.any([
-                            AbortSignal.timeout(toolTimeout),
+                            AbortSignal.timeout(TOOL_TIMEOUT),
                             ...(signal ? [signal] : []),
                         ]),
                     },

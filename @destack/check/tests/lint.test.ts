@@ -1,6 +1,7 @@
-import { describe, it } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { RuleTester } from "oxlint/plugins-dev";
 import { rules } from "../src/lint/plugin.ts";
+import { directiveLine } from "../src/lint/no-inline-config.ts";
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -245,6 +246,65 @@ tester.run("no-import-alias", rules["no-import-alias"], {
     ],
 });
 
+tester.run("no-overload-cast", rules["no-overload-cast"], {
+    valid: [
+        { code: "function read(id: string): Note { return notes.get(id); }", filename: SOURCE },
+        {
+            code: "function read(id: string): Note;\nfunction read(ids: string[]): Note[];\n/**\n * Read one note or several.\n *\n * @construct an identifier reads its note and a list reads each note in order\n */\nfunction read(input: string | string[]): unknown { return lookup(input); }",
+            filename: SOURCE,
+        },
+        {
+            code: "class Store {\n    read(id: string): Note { return this.notes.get(id); }\n}",
+            filename: SOURCE,
+        },
+        {
+            code: "function match<Value>(value: Typed<Value>, list: Value[]): SQL;\nfunction match(value: SQLWrapper, list: unknown[]): SQL;\nfunction match(value: SQLWrapper, list: unknown[]): SQL { return membership(value, list); }",
+            filename: SOURCE,
+        },
+        {
+            code: "function methods<Object>(object: Object): Methods<Object>;\n/**\n * Build each method's caller.\n *\n * @construct each key is a method of the object, whose caller the mapped type above describes\n */\nfunction methods(object: unknown): unknown { return build(object); }",
+            filename: SOURCE,
+        },
+    ],
+    invalid: [
+        {
+            code: "function read<Value>(): Value;\nfunction read(): unknown { return value; }",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
+        {
+            code: "function read<Value>(): Value;\n/** Read the value. @construct */\nfunction read(): unknown { return value; }",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
+        {
+            code: "export function read(id: string): Note;\nexport function read(id: string): unknown { return notes.get(id); }",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
+        {
+            code: "class Store {\n    read(): Note;\n    read(): unknown { return this.note; }\n}",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
+        {
+            code: "function read(id: string): Note;\nfunction read(ids: string[]): Note[];\nfunction read(input: string | string[]): unknown { return lookup(input); }",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
+        {
+            code: "namespace Notes {\n    export function read<Value>(): Value;\n    export function read(): unknown { return value; }\n}",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
+        {
+            code: "function outer() {\n    function read<Value>(): Value;\n    function read(): unknown { return value; }\n    return read;\n}",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
+    ],
+});
+
 tester.run("no-partial-assertions", rules["no-partial-assertions"], {
     valid: [
         { code: "expect(title).toBe('note');", filename: "/package/tests/note.test.ts" },
@@ -331,4 +391,19 @@ tester.run("no-index-logic", rules["no-index-logic"], {
             errors: [{ messageId: "logic" }],
         },
     ],
+});
+
+/** A comment with its text and starting line. */
+function at(line: number, value: string) {
+    return { value, loc: { start: { line } } };
+}
+
+test("find the first comment that configures rules, ignoring ordinary comments", () => {
+    // read directives in either tool's spelling, and nothing else
+    expect([
+        directiveLine([at(1, " a note about eslint"), at(2, " eslint-disable-next-line")]),
+        directiveLine([at(3, " oxlint-disable no-console")]),
+        directiveLine([at(4, "eslint curly: off")]),
+        directiveLine([at(5, " plain comment")]),
+    ]).toEqual([2, 3, 4, undefined]);
 });

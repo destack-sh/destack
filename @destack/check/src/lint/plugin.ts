@@ -9,6 +9,7 @@ import { noImportAlias } from "./no-import-alias.ts";
 import { noIndexLogic } from "./no-index-logic.ts";
 import { noInlineConfiguration } from "./no-inline-config.ts";
 import { noManifestImport } from "./no-manifest-import.ts";
+import { noOverloadCast } from "./no-overload-cast.ts";
 import { noPartialAssertions } from "./no-partial-assertions.ts";
 import { paddingBeforeReturn } from "./padding-before-return.ts";
 import { preventAbbreviations } from "./prevent-abbreviations.ts";
@@ -28,7 +29,7 @@ export interface Plugin {
 }
 
 /** Mandatory Destack source rules. */
-export const rules: Record<string, Rule> = {
+export const rules = {
     "boolean-prefix": booleanPrefix,
     "branch-comment-position": branchCommentPosition,
     "comment-style": commentStyle,
@@ -39,6 +40,7 @@ export const rules: Record<string, Rule> = {
     "no-index-logic": noIndexLogic,
     "no-inline-config": noInlineConfiguration,
     "no-manifest-import": noManifestImport,
+    "no-overload-cast": noOverloadCast,
     "no-partial-assertions": noPartialAssertions,
     "padding-before-return": paddingBeforeReturn,
     "prevent-abbreviations": preventAbbreviations,
@@ -46,7 +48,7 @@ export const rules: Record<string, Rule> = {
     "require-jsdoc": requireJsdoc,
     "valid-declaration": validDeclaration,
     "valid-package-handle": validPackageHandle,
-};
+} satisfies Record<string, Rule>;
 
 /** Mandatory Destack source rules. */
 const plugin = {

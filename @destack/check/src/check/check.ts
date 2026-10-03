@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
-import { checkConfiguration, lintConfiguration } from "./configuration.ts";
+import { readExpectations, applyExpectations } from "./expectation.ts";
+import { checkConfiguration, lintConfiguration, settingsRoot } from "./configuration.ts";
 import { runTool } from "./tool.ts";
 import { CheckResult, type Diagnostic } from "../inspect/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
@@ -64,7 +65,15 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     }
     const result = await lintSources({ ...options, directory, files: sources }, fix);
 
-    return CheckResult.parse({ diagnostics: [...markdown, ...result.diagnostics] });
+    // accept the findings the covering workspace's packages expect, refusing expectations nothing met
+    const expectations = await readExpectations(await settingsRoot(directory));
+
+    return CheckResult.parse({
+        diagnostics: [
+            ...markdown,
+            ...applyExpectations(result.diagnostics, expectations, directory, sources),
+        ],
+    });
 }
 
 /** Check selected Markdown files and those below selected directories, fixing them when requested. */

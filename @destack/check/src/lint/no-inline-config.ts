@@ -12,18 +12,23 @@ export const noInlineConfiguration: Rule = {
         return {
             Program() {
                 // reject configuration before Oxlint filters suppressed diagnostics
-                for (const comment of context.sourceCode.getAllComments()) {
-                    const isDirective = /^\s*(?:oxlint|eslint)(?:\s|-(?:disable|enable)\b)/u.test(
-                        comment.value,
+                const line = directiveLine(context.sourceCode.getAllComments());
+                if (line !== undefined) {
+                    throw new CheckError(
+                        "configuration",
+                        `${context.filename}:${line}: fix the code the rule reports, since source cannot change the rules`,
                     );
-                    if (isDirective) {
-                        throw new CheckError(
-                            "configuration",
-                            `${context.filename}:${comment.loc.start.line}: fix the code the rule reports, since source cannot change the rules`,
-                        );
-                    }
                 }
             },
         };
     },
 };
+
+/** Find the line of the first comment that configures oxlint or ESLint rules, absent without one. */
+export function directiveLine(
+    comments: readonly { readonly value: string; readonly loc: { readonly start: { readonly line: number } } }[],
+): number | undefined {
+    return comments.find((comment) =>
+        /^\s*(?:oxlint|eslint)(?:\s|-(?:disable|enable)\b)/u.test(comment.value),
+    )?.loc.start.line;
+}

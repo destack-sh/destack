@@ -34,6 +34,9 @@ export const jsdocSentence: Rule = {
                         text.pop();
                     }
                     const prose = text.filter((line) => !line.startsWith("@"));
+                    while (prose.at(-1)?.trim() === "") {
+                        prose.pop();
+                    }
                     const [header, second] = prose;
                     const last = prose.at(-1);
                     if (header === undefined || last === undefined) {

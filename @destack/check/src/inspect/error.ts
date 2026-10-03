@@ -15,7 +15,7 @@ import type { SourceRange } from "@destack/package/source";
 import { CheckError } from "../error/index.ts";
 
 /** Callable declarations with independently executed bodies. */
-const functionKinds = new Set([
+const FUNCTION_KINDS = new Set([
     SyntaxKind.FunctionDeclaration,
     SyntaxKind.FunctionExpression,
     SyntaxKind.ArrowFunction,
@@ -52,7 +52,7 @@ export async function inspectErrors(
     for (let root = pending.pop(); root !== undefined; root = pending.pop()) {
         const nodes: Node[] = [];
         const visit = (node: Node): void => {
-            if (node !== root && functionKinds.has(node.kind)) {
+            if (node !== root && FUNCTION_KINDS.has(node.kind)) {
                 pending.push(node);
             } else {
                 nodes.push(node);
