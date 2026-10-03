@@ -5,7 +5,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SandboxError } from "../error/index.ts";
-import type { SandboxExit, SandboxOptions } from "../sandbox/index.ts";
+import { LauncherRequest, type SandboxExit, type SandboxOptions } from "../sandbox/message.ts";
 
 /** The system files every process reads, by platform: libraries, the dynamic linker, the shell and random devices. */
 export const RUNTIME_PATHS: Partial<Record<NodeJS.Platform, readonly string[]>> = {
@@ -46,7 +46,8 @@ export async function runLauncher(): Promise<void> {
     });
     process.on("SIGTERM", () => stopped.abort());
     process.on("SIGINT", () => stopped.abort());
-    process.on("message", (message: LauncherRequest) => {
+    process.on("message", (received: unknown) => {
+        const message = LauncherRequest.parse(received);
         if (message.type === "start") {
             request.resolve(message.options);
         } else if (message.type === "stop") {
@@ -88,7 +89,7 @@ export async function runLauncher(): Promise<void> {
                     allowedDomains: options.network,
                     deniedDomains: [],
                     allowUnixSockets: options.sockets ?? [],
-                    allowLocalBinding: false,
+                    allowLocalBinding: options.allowsListening === true,
                 },
             },
             undefined,
@@ -112,7 +113,7 @@ export async function runLauncher(): Promise<void> {
             cwd: options.directory,
             env: environment,
             detached: true,
-            stdio: ["ignore", "inherit", "inherit"],
+            stdio: ["inherit", "inherit", "inherit"],
         });
         child = workload;
         const completed = new Promise<SandboxExit>((resolve) => {
@@ -164,21 +165,6 @@ export async function runLauncher(): Promise<void> {
         }
     }
 }
-
-/** Parent commands accepted by one launcher. */
-type LauncherRequest =
-    | {
-          /** Start with fixed permissions. */
-          type: "start";
-          /** Authorized launch inputs. */
-          options: SandboxOptions;
-      }
-    | {
-          /** Stop this workload. */
-          type: "stop";
-          /** Graceful shutdown duration in milliseconds. */
-          gracePeriodMs: number;
-      };
 
 /** Preserve one literal shell argument. */
 function quote(value: string): string {

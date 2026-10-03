@@ -2,10 +2,11 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
-import type { Readable } from "node:stream";
+import type { Readable, Writable } from "node:stream";
 import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
 import { SandboxError } from "../error/index.ts";
 import { RUNTIME_PATHS } from "../launcher/launcher.ts";
+import { LauncherMessage, SandboxExit, SandboxOptions } from "./message.ts";
 
 /** Maximum time to prepare OS restrictions and launch a process, in milliseconds. */
 const START_TIMEOUT_MILLISECONDS = 10000;
@@ -18,6 +19,8 @@ const MAX_STOP_TIMEOUT_MILLISECONDS = 300000;
 
 /** A process running under independent filesystem and network restrictions. */
 export class Sandbox implements AsyncDisposable {
+    /** Workload standard input. */
+    readonly stdin: Writable;
     /** Workload standard output. */
     readonly stdout: Readable;
     /** Workload standard error. */
@@ -29,14 +32,15 @@ export class Sandbox implements AsyncDisposable {
     /** Shared completion of the first shutdown request. */
     #stopping: Promise<SandboxExit> | undefined;
 
-    /** Retain one launcher until its process and proxies close. */
+    /** Retain one launcher and the workload's standard streams it passes through. */
     private constructor(launcher: ChildProcess, exited: Promise<SandboxExit>) {
         // retain the launcher and its output streams
-        const { stdout, stderr } = launcher;
-        if (stdout === null || stderr === null) {
-            throw new TypeError("sandbox launcher has no piped output");
+        const { stdin, stdout, stderr } = launcher;
+        if (stdin === null || stdout === null || stderr === null) {
+            throw new TypeError("sandbox launcher has no piped input and output");
         }
         this.#launcher = launcher;
+        this.stdin = stdin;
         this.stdout = stdout;
         this.stderr = stderr;
         this.exited = exited;
@@ -87,7 +91,7 @@ export class Sandbox implements AsyncDisposable {
                 HOME: options.directory,
                 TMPDIR: tmpdir(),
             },
-            stdio: ["ignore", "pipe", "pipe", "ipc"],
+            stdio: ["pipe", "pipe", "pipe", "ipc"],
         });
         const ready = Promise.withResolvers<void>();
         const closed = Promise.withResolvers<void>();
@@ -96,7 +100,8 @@ export class Sandbox implements AsyncDisposable {
         let isStarted = false;
 
         // retain the workload result separately from launcher failures
-        launcher.on("message", (message: LauncherMessage) => {
+        launcher.on("message", (received: unknown) => {
+            const message = LauncherMessage.parse(received);
             if (message.type === "ready") {
                 isStarted = true;
                 ready.resolve();
@@ -221,50 +226,3 @@ export class Sandbox implements AsyncDisposable {
         await this.stop();
     }
 }
-
-/** Explicit process inputs and host-approved access. */
-export interface SandboxOptions {
-    /** Absolute executable path. */
-    executable: string;
-    /** Arguments passed unchanged to the executable. */
-    arguments: string[];
-    /** Absolute working directory. */
-    directory: string;
-    /** Environment supplied to the workload, excluding inherited host variables. */
-    environment: Record<string, string>;
-    /** Absolute readable paths, in addition to the executable and required OS runtime files. */
-    read: string[];
-    /** Absolute writable files and directories, also readable. */
-    write: string[];
-    /** Allowed outgoing domains through the supplied proxies, optionally qualified by port. */
-    network: string[];
-    /** Unix sockets available for host-mediated service connections. */
-    sockets?: string[];
-}
-
-/** Process termination reported after sandbox cleanup. */
-export interface SandboxExit {
-    /** Exit code, absent when a signal terminates the process. */
-    code: number | null;
-    /** Terminating signal, absent after a normal exit. */
-    signal: NodeJS.Signals | null;
-}
-
-/** Launcher lifecycle messages over its private parent connection. */
-type LauncherMessage =
-    | {
-          /** The command that applies OS restrictions has spawned. */
-          type: "ready";
-      }
-    | {
-          /** The workload has terminated. */
-          type: "exit";
-          /** Process termination. */
-          exit: SandboxExit;
-      }
-    | {
-          /** Startup or cleanup failed. */
-          type: "error";
-          /** Failure description. */
-          message: string;
-      };

@@ -21,3 +21,12 @@ sandbox.stderr.pipe(process.stderr);
 const exit = await sandbox.exited;
 console.log(exit);
 ```
+
+A workload reads its standard input through `sandbox.stdin`, and listens on loopback ports only when `allowsListening` is set, as a runner serving its host does.
+
+```ts
+await using runner = await Sandbox.start({ ...options, allowsListening: true });
+runner.stdin.end(`${JSON.stringify(start)}\n`);
+```
+
+Messages between the sandbox and its launcher are parsed by schema on both sides, so `SandboxOptions` and `SandboxExit` are schemas as well as types.

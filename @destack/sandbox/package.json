@@ -14,9 +14,11 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
-        "@anthropic-ai/sandbox-runtime": "0.0.77"
+        "@anthropic-ai/sandbox-runtime": "0.0.77",
+        "@destack/schema": "workspace:*"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     }
 }

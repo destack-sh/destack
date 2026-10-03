@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { text } from "node:stream/consumers";
 import { Sandbox } from "./sandbox.ts";
 import { once } from "node:events";
+import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -318,6 +319,43 @@ test("stop the workload when its supervising client disconnects", async () => {
             launcher.disconnect();
         }
         await closed;
+        await rm(directory, { recursive: true });
+    }
+});
+
+test("pass input to a workload and let it serve its host on a loopback port when allowed", async () => {
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
+    try {
+        // start a workload that reads its greeting and serves it on a loopback port it reports
+        await using sandbox = await Sandbox.start({
+            executable: process.execPath,
+            arguments: [
+                "--no-env-file",
+                "-e",
+                `
+                const greeting = (await new Response(Bun.stdin.stream()).text()).trim();
+                const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(greeting) });
+                console.log(server.port);
+            `,
+            ],
+            directory,
+            environment: {},
+            read: [],
+            write: [],
+            network: [],
+            allowsListening: true,
+        });
+        sandbox.stdin.end("hello\n");
+
+        // read the port from the first line and fetch the greeting from it
+        let port = "";
+        for await (const line of createInterface({ input: sandbox.stdout })) {
+            port = line;
+            break;
+        }
+        const answer = await fetch(`http://127.0.0.1:${port}/`);
+        expect(await answer.text()).toBe("hello");
+    } finally {
         await rm(directory, { recursive: true });
     }
 });
