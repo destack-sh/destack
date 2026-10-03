@@ -1,4 +1,4 @@
-import { announcement, notification, Subscription, subscription } from "@destack/notification";
+import { activity, announcement, Subscription, subscription } from "@destack/notification";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
@@ -23,7 +23,7 @@ export const article = defineObject({
     attachments: [
         comment.attach({ by: "comment" }),
         reaction.attach({ by: "comment" }),
-        notification.attach({ by: "read" }),
+        activity.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
         receipt.attach({ by: "read" }),

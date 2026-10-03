@@ -37,8 +37,8 @@ test.for(TEST_DIALECTS)(
 
         // show each reader only its own, and refuse the owner's receipt to the viewer
         const owned = async () => [
-            (await list(receipt)).map((row) => row["owner"]),
-            (await list(favourite)).map((row) => row["owner"]),
+            (await list(receipt)).map((row) => row.owner),
+            (await list(favourite)).map((row) => row.owner),
         ];
         expect(await owned()).toEqual([[Subject.key(actors.bob)], [Subject.key(actors.bob)]]);
         expect(await refusal(call(receipt, "update", { id: mine.id }))).toEqual([

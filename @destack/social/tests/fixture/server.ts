@@ -21,7 +21,7 @@ import {
 import { channelHub, TestDatabase } from "@destack/db/test";
 import type { CallableName, ObjectType } from "@destack/object";
 import { subscription } from "@destack/notification";
-import { NotificationServer } from "@destack/notification/server";
+import { ActivityServer } from "@destack/notification/server";
 import { EphemeralStorage, ObjectServer, SystemCall } from "@destack/object/server";
 import { aligned, type Identifier, schema } from "@destack/schema";
 
@@ -30,8 +30,8 @@ import { subjectContext, testCallKey } from "@destack/service/test";
 import { space } from "@destack/space/object";
 import { afterAll, onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
-import { favourite, mention, presence, reaction, reply, thread } from "../../src/index.ts";
-import { comment, receipt } from "../../src/server/index.ts";
+import { favourite, mention, presence, reaction, receipt, reply, thread } from "../../src/index.ts";
+import { comment } from "../../src/server/index.ts";
 import { article } from "./article.ts";
 
 /** The principals the scenarios act as: people, and an agent installation. */
@@ -62,26 +62,10 @@ afterAll(async () => {
     }
 });
 
-/** Refuse delivering. */
-function refuseDelivery(): never {
-    throw new TypeError("the scenarios expand announcements and deliver nothing");
-}
+/** The activity objects answering actions and expanding the comments' announcements into activities. */
+const notifications = new ActivityServer({ notifications: [mention, thread, reply] }).objects();
 
-/** The notification objects expanding the comments' announcements into notifications. */
-const notifications = new NotificationServer({
-    notifications: [mention, thread, reply],
-    recipients: {
-        settings: refuseDelivery,
-        contact: refuseDelivery,
-        devices: refuseDelivery,
-        timeZone: refuseDelivery,
-        forget: refuseDelivery,
-    },
-    push: { send: refuseDelivery },
-    mail: { send: refuseDelivery },
-}).objects();
-
-/** Every social type, served beside the articles taking them and the notification types comments write. */
+/** Every social type, served beside the articles taking them and the activity types comments write. */
 const objects = {
     article,
     comment,
@@ -146,17 +130,18 @@ export async function serveArticles(dialect: Dialect) {
                 context(spaceId, current).context,
             ),
         /** List the objects of a type the current actor may list, oldest first. */
-        list: async (object: ObjectType, input: object = {}) => {
+        list: async <Type extends ObjectType>(object: Type, input: object = {}) => {
+            const listed: ObjectType = object;
             const page = await server.call(
-                object,
+                listed,
                 "list",
                 { spaceId, ...input },
                 context(spaceId, current).context,
             );
 
-            return ListPage.parse(page).items.toSorted(
-                (left, right) => left.createdAt - right.createdAt,
-            );
+            return ListPage.parse(page)
+                .items.toSorted((left, right) => left.createdAt - right.createdAt)
+                .map((row) => object.rowSchema().parse(row));
         },
         /** Refer to a host as its attachments' parent. */
         host: (object: ObjectType, id: string) => ({
@@ -260,10 +245,18 @@ export type Follower = ReturnType<typeof follow>;
 function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Actor) {
     // read the pages in the background into the rows kept, waking whoever waits for the next
     const { context: followed, controller } = context(spaceId, actor);
-    const pages = server.source.sync(spaceId, followed, {
-        client: `client-${actor}`,
-        queries: { presences: { object: "presence" } },
-    });
+    const pages = server.source.relayed(
+        server.source.ephemeralShape.subscription({
+            name: "ephemeral",
+            scope: spaceId,
+            below: spaceId,
+            parameters: {
+                client: `client-${actor}`,
+                queries: { presences: { object: "presence" } },
+            },
+        }),
+        followed,
+    );
     const kept = new Map<string, Record<string, unknown>>();
     const arrivals: PromiseWithResolvers<void>[] = [];
     let arrived = 0;

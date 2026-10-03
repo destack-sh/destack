@@ -62,7 +62,7 @@ test.for(TEST_DIALECTS)(
         as("bob");
         await call(reaction, "delete", { id: thumbs.id });
         expect(
-            (await list(reaction)).map((row) => [row["author"], row["parentType"], row["emoji"]]),
+            (await list(reaction)).map((row) => [row.author, row.parentType, row.emoji]),
         ).toEqual([
             [Subject.key(actors.bob), "article", "👨🏻‍❤️‍💋‍👨🏼"],
             [Subject.key(actors.agent), "article", "👍"],

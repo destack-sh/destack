@@ -8,7 +8,7 @@ import {
 } from "@destack/access";
 import { Subject } from "@destack/sync";
 import { index, type Select } from "@destack/db";
-import { type Action, announcement, notification, subscription } from "@destack/notification";
+import { type Action, activity, announcement, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
 import { defineObject, field, type ObjectType, Selection } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -87,9 +87,9 @@ export const comment = defineObject({
     aggregates: { commentCount: { function: "count" } },
     attachments: [
         reaction.attach({ by: "comment" }),
-        // keep a thread's subscriptions and notifications
+        // keep a thread's subscriptions and activities
         subscription.attach({ by: "read" }),
-        notification.attach({ by: "read" }),
+        activity.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
     ],
     methods: (method) => ({

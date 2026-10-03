@@ -13,7 +13,7 @@ test.for(TEST_DIALECTS)(
         const subscriptions = async (actor: Actor) => {
             as(actor);
 
-            return (await list(subscription)).map((row) => [row["parentType"], row["reason"]]);
+            return (await list(subscription)).map((row) => [row.parentType, row.reason]);
         };
 
         // subscribe the article's creator, and let a commenter subscribe before anyone mentions them

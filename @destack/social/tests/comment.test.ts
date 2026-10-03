@@ -42,12 +42,7 @@ test.for(TEST_DIALECTS)(
         // show the viewer the thread, and refuse the viewer a comment
         as("carol");
         expect(
-            (await list(comment)).map((row) => [
-                row["author"],
-                row["threadId"],
-                row["body"],
-                row["selection"],
-            ]),
+            (await list(comment)).map((row) => [row.author, row.threadId, row.body, row.selection]),
         ).toEqual([
             [
                 Subject.key(actors.alice),

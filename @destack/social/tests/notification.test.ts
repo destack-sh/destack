@@ -1,25 +1,20 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { aligned } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { notification, subscription } from "@destack/notification";
+import { activity, subscription } from "@destack/notification";
 import { expect, test } from "@destack/test";
-import { Body, comment, receipt } from "../src/index.ts";
+import { Body, comment } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
 import { type Actor, actors, serveArticles } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
-    "notify mentioned principals and announce threads and replies to their subscribers, reading them with a receipt, on %s",
+    "record activities for mentioned principals, announce threads and replies to their subscribers, and answer a mention with a reply, on %s",
     async (dialect) => {
         const { call, list, host, as, expand } = await serveArticles(dialect);
-        const inbox = async (actor: Actor) => {
+        const activities = async (actor: Actor) => {
             as(actor);
 
-            return (await list(notification)).map((row) => [
-                row["name"],
-                row["parentType"],
-                row["reason"],
-                row["readAt"] === null ? "unread" : "read",
-            ]);
+            return (await list(activity)).map((row) => [row.name, row.parentType, row.reason]);
         };
 
         // share an article with two commenters and a viewer subscribing to it
@@ -45,21 +40,21 @@ test.for(TEST_DIALECTS)(
         });
         await expand();
         expect([
-            await inbox("alice"),
-            await inbox("bob"),
-            await inbox("carol"),
-            await inbox("dave"),
+            await activities("alice"),
+            await activities("bob"),
+            await activities("carol"),
+            await activities("dave"),
         ]).toEqual([
-            [["thread", "article", "author", "unread"]],
+            [["thread", "article", "author"]],
             [],
-            [["mention", "article", "mention", "unread"]],
-            [["thread", "article", "subscribed", "unread"]],
+            [["mention", "article", "mention"]],
+            [["thread", "article", "subscribed"]],
         ]);
 
         // carry an excerpt of the mentioning comment and its thread
         as("carol");
-        const mentioned = aligned(await list(notification), 0);
-        expect([mentioned["payload"], mentioned["thread"]]).toEqual([
+        const mentioned = aligned(await list(activity), 0);
+        expect([mentioned.payload, mentioned.thread]).toEqual([
             {
                 author: actors.bob,
                 comment: first.id,
@@ -87,58 +82,37 @@ test.for(TEST_DIALECTS)(
         });
         await expand();
         expect([
-            await inbox("alice"),
-            await inbox("bob"),
-            await inbox("carol"),
-            await inbox("dave"),
+            await activities("alice"),
+            await activities("bob"),
+            await activities("carol"),
+            await activities("dave"),
         ]).toEqual([
-            [["thread", "article", "author", "unread"]],
+            [["thread", "article", "author"]],
             [
-                ["reply", "comment", "author", "unread"],
-                ["mention", "comment", "mention", "unread"],
+                ["reply", "comment", "author"],
+                ["mention", "comment", "mention"],
             ],
             [
-                ["mention", "article", "mention", "unread"],
-                ["reply", "comment", "participating", "unread"],
+                ["mention", "article", "mention"],
+                ["reply", "comment", "participating"],
             ],
-            [["thread", "article", "subscribed", "unread"]],
+            [["thread", "article", "subscribed"]],
         ]);
 
-        // read every notification on the article with its receipt and leave others' unread
-        as("carol");
-        const read = await call(receipt, "create", host(article, draft.id));
-        await call(receipt, "update", { id: read.id });
-        expect([await inbox("carol"), await inbox("bob")]).toEqual([
-            [
-                ["mention", "article", "mention", "read"],
-                ["reply", "comment", "participating", "read"],
-            ],
-            [
-                ["reply", "comment", "author", "unread"],
-                ["mention", "comment", "mention", "unread"],
-            ],
-        ]);
-
-        // answer bob's mention from the notification, replying in its thread and reading it
+        // answer bob's mention from its activity, replying in its thread
         as("bob");
-        const bobMentioned = (await list(notification)).find((row) => row["name"] === "mention");
+        const bobMentioned = (await list(activity)).find((row) => row.name === "mention");
         if (bobMentioned === undefined) {
             throw new TypeError("bob has no mention");
         }
-        await call(notification, "act", {
+        await call(activity, "act", {
             id: bobMentioned.id,
             action: "reply",
             text: "Shipping",
         });
         const replies = (await list(comment))
-            .filter((row) => row["threadId"] === first.id)
-            .map((row) => [row["author"], Body.parse(row["body"]).text]);
-        expect([replies.at(-1), await inbox("bob")]).toEqual([
-            [Subject.key(actors.bob), "Shipping"],
-            [
-                ["reply", "comment", "author", "unread"],
-                ["mention", "comment", "mention", "read"],
-            ],
-        ]);
+            .filter((row) => row.threadId === first.id)
+            .map((row) => [row.author, Body.parse(row.body).text]);
+        expect(replies.at(-1)).toEqual([Subject.key(actors.bob), "Shipping"]);
     },
 );
