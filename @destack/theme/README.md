@@ -1,6 +1,8 @@
-Use Radix palettes and shared CSS tokens in Destack.
+Theme Destack interfaces with Radix palettes and shared CSS tokens.
 
-## Usage
+## Themes
+
+`createTheme` returns the attributes and CSS variables a theme root spreads onto its element, and styles read them through the tokens.
 
 ```tsx
 import { createTheme } from "@destack/theme";
@@ -35,7 +37,7 @@ export function Page() {
 
 ## Overrides
 
-Set application fonts or override semantic CSS variables:
+A theme takes its own font stacks, and an element may override any semantic variable.
 
 ```ts
 import { createTheme } from "@destack/theme";
@@ -44,9 +46,9 @@ const publication = createTheme({ fontFamily: '"IBM Plex Sans Variable", sans-se
 publication.style["--destack-color-background"] = "light-dark(#f8f7f4, #1b1a19)";
 ```
 
-## Palette Mapping
+## Palette mapping
 
-Destack maps shadcn roles to Radix scales as follows:
+A theme maps the shadcn roles to these steps of its gray and accent palettes.
 
 | Roles                                 | Radix steps                 |
 | ------------------------------------- | --------------------------- |
@@ -61,9 +63,19 @@ Destack maps shadcn roles to Radix scales as follows:
 | Ring, sidebar ring                    | Accent 8                    |
 | Destructive                           | Red 9                       |
 
+## Appearance
+
+The `appearance` setting selects the system, light or dark appearance personally, per package, space, installation or device.
+
+```ts
+import { appearance } from "@destack/theme/settings";
+
+const theme = createTheme({ appearance: appearance.resolve(selection, rows, chain).value });
+```
+
 ## License
 
-Includes palettes from Radix Colors 3.0.0, tokens from Radix Themes, and chart colors from shadcn/ui, under the MIT License.
+The package includes palettes from Radix Colors 3.0.0, tokens from Radix Themes, and chart colors from shadcn/ui, under the MIT License.
 
 ```text
 Copyright (c) 2021 Radix
