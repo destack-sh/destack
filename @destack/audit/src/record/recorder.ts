@@ -3,7 +3,7 @@ import { AuditCall } from "./call.ts";
 import { AuditContext } from "./context.ts";
 import { AuditExecution } from "./execution.ts";
 import { v7 } from "uuid";
-import { schema, canonicalize, JsonValue } from "@destack/schema";
+import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
 import { denialOf, isServiceError, ServiceError } from "@destack/service";
 import type { Authentication } from "@destack/service/authentication";
@@ -46,7 +46,7 @@ export interface CallRequest {
     /** The digest of the request's input. */
     readonly digest: string;
     /** The call's input, sensitive values redacted. */
-    readonly input?: Readonly<Record<string, unknown>>;
+    readonly input?: JsonObject;
     /** The release of the method's package the caller made the call against. */
     readonly release?: string;
     /** The transaction identity of the call's logged changes. */
@@ -54,7 +54,7 @@ export interface CallRequest {
 }
 
 /** The ended call values a recorder takes. */
-type Ended<Targets extends schema.Schema, Details extends schema.Schema> = {
+type Ended<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>> = {
     /** The named affected objects. */
     readonly targets: schema.Input<Targets>;
     /** The details the action schema accepts. */
@@ -230,7 +230,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Record an ended call, a committed write unless named otherwise. */
-    async record<Targets extends schema.Schema, Details extends schema.Schema>(
+    async record<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
         transaction: Transaction | undefined,
         action: AuditAction<Targets, Details>,
         values: Ended<Targets, Details>,
@@ -241,7 +241,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Record an executed call only retries read, such as an ephemeral write no history receives. */
-    async keep<Targets extends schema.Schema, Details extends schema.Schema>(
+    async keep<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
         transaction: Transaction | undefined,
         action: AuditAction<Targets, Details>,
         values: Ended<Targets, Details>,
@@ -251,7 +251,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Prepare a running call, recorded before its external effect runs. */
-    begin<Targets extends schema.Schema, Details extends schema.Schema>(
+    begin<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
         action: AuditAction<Targets, Details>,
         values: Omit<Ended<Targets, Details>, "outcome">,
     ): AuditCall {
@@ -259,11 +259,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Prepare the end of a running call, merging any result details. */
-    finish(
-        running: AuditCall,
-        outcome: Outcome,
-        details?: Readonly<Record<string, unknown>>,
-    ): AuditCall {
+    finish(running: AuditCall, outcome: Outcome, details?: JsonObject): AuditCall {
         // require a running call of this context
         const call = AuditCall.parse(running);
         const execution = call.execution;
@@ -302,7 +298,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Record a running call, run an external effect, and record how it ended. */
-    async attempt<Targets extends schema.Schema, Details extends schema.Schema, Value>(
+    async attempt<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>, Value>(
         action: AuditAction<Targets, Details>,
         values: Omit<Ended<Targets, Details>, "outcome">,
         execute: () => Promise<Value>,
@@ -327,7 +323,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Run a read and record it as one access call, with the details its result holds. */
-    async read<Targets extends schema.Schema, Details extends schema.Schema, Value>(
+    async read<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>, Value>(
         action: AuditAction<Targets, Details>,
         values: Omit<Ended<Targets, Details>, "outcome">,
         execute: () => Promise<Value>,
@@ -360,7 +356,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Pass on a stream's values and record it as one access call when it ends. */
-    async *stream<Targets extends schema.Schema, Details extends schema.Schema, Value>(
+    async *stream<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>, Value>(
         action: AuditAction<Targets, Details>,
         values: Omit<Ended<Targets, Details>, "outcome">,
         source: () => AsyncIterable<Value>,
@@ -388,7 +384,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Build and write an ended call. */
-    async #ended<Targets extends schema.Schema, Details extends schema.Schema>(
+    async #ended<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
         transaction: Transaction | undefined,
         action: AuditAction<Targets, Details>,
         values: Ended<Targets, Details>,
@@ -442,7 +438,7 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Build a call of this context, redacting sensitive details. */
-    #call<Targets extends schema.Schema, Details extends schema.Schema>(
+    #call<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
         action: AuditAction<Targets, Details>,
         values: Omit<Ended<Targets, Details>, "outcome">,
         category: AuditExecution["category"],
@@ -475,10 +471,7 @@ export class AuditRecorder<Transaction = never> {
 type ProcedureRecorder = Pick<AuditRecorder<unknown>, "record">;
 
 /** Merge result details into a call's recorded object details. */
-function mergeDetails(
-    recorded: JsonValue,
-    details: Readonly<Record<string, unknown>>,
-): Record<string, unknown> {
+function mergeDetails(recorded: JsonValue, details: JsonObject): JsonObject {
     if (!JsonValue.isObject(recorded)) {
         throw new AuditError("INVALID_EVENT", "result details merge only into object details");
     }

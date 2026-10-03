@@ -1,5 +1,5 @@
 import { AuditTarget } from "../record/execution.ts";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { ModuleMetadata, Package } from "@destack/package";
 
 /** A package-local action name in the form noun.verb. */
@@ -10,7 +10,7 @@ export const AuditActionName = defineSchema(
 /** A typed action declared by a package. */
 export interface AuditAction<
     Targets extends schema.Schema = schema.Schema,
-    Details extends schema.Schema = schema.Schema,
+    Details extends schema.Schema<JsonValue> = schema.Schema<JsonValue>,
 > {
     /** The declaring package. */
     readonly package: Package;
@@ -27,7 +27,7 @@ export interface AuditAction<
 /** Declare an action. */
 export function defineAuditAction<
     Targets extends schema.Schema<Record<string, AuditTarget>>,
-    Details extends schema.Schema,
+    Details extends schema.Schema<JsonValue>,
 >(
     definition: Omit<AuditAction<Targets, Details>, "package">,
     module?: ModuleMetadata,
