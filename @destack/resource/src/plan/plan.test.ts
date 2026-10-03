@@ -49,7 +49,7 @@ test("plan schema changes by the readers each must serve", () => {
         [
             {
                 action: "convert",
-                risk: "data-dependent",
+                risk: "fallible",
                 target: "value",
                 detail: "convert values to 2026.10.0",
             },
@@ -57,7 +57,7 @@ test("plan schema changes by the readers each must serve", () => {
         [
             {
                 action: "convert",
-                risk: "data-dependent",
+                risk: "fallible",
                 target: "value",
                 detail: "convert values to 2026.10.0",
             },
