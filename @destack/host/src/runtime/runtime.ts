@@ -1,9 +1,9 @@
-import type { PackageId } from "@destack/package";
+import type { Capabilities, DirectoryGrant, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import type { ServerRuntime } from "@destack/package/runtime";
 import type { ResourceRecord } from "@destack/resource";
-import type { Identifier } from "@destack/schema";
-import type { Caller } from "@destack/service/authentication";
+import type { Digest, Identifier } from "@destack/schema";
+import type { Authentication } from "@destack/service/authentication";
 
 /** The instances a host runs on one server runtime: it starts, stops and serves them as their spaces' cells assign them. */
 export interface Runtime {
@@ -22,7 +22,7 @@ export interface Runtime {
         instanceId: Identifier<"instance">,
         path: string,
         request: Request,
-        caller: Caller,
+        authentication: Authentication,
     ): Promise<Response>;
     /** Forward a webhook request below an instance's webhooks to it, verified by the workload itself. */
     receive(instanceId: Identifier<"instance">, path: string, request: Request): Promise<Response>;
@@ -40,10 +40,16 @@ export interface InstanceSpec {
     readonly deploymentId: Identifier<"deployment">;
     /** The build the deployment runs. */
     readonly build: BuildReader;
+    /** The digest of the build's manifest, absent for a release no host resolved. */
+    readonly manifest?: Digest;
     /** The build output with the workload. */
     readonly output: string;
     /** The package-local workload. */
     readonly workload: string;
+    /** What the workload may use beyond its sandbox: its required capabilities and the optional ones its installation allows. */
+    readonly capabilities: Capabilities;
+    /** The directories its installation grants the `fs` capability. */
+    readonly directories: readonly DirectoryGrant[];
     /** The resources the workload's declarations are bound to. */
     readonly resources: readonly WorkloadResource[];
 }
@@ -54,6 +60,8 @@ export interface WorkloadResource extends ResourceRecord {
     readonly packageId: PackageId;
     /** The declaration's name within its package. */
     readonly name: string;
+    /** The resource kind, such as database. */
+    readonly kind: string;
     /** The provider of the resource. */
-    readonly providerCode: string;
+    readonly provider: string;
 }
