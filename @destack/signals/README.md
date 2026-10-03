@@ -1,8 +1,10 @@
-Reactive state using Solid 2 signals.
+# @destack/signals
 
-## Usage
+Define reactive state with Solid 2 signals.
 
-Create reactive state.
+## Signals
+
+`createRoot` runs a function and disposes the signals, memos and effects it creates together.
 
 ```ts
 import { createMemo, createRoot, createSignal } from "@destack/signals";
@@ -17,7 +19,7 @@ createRoot(() => {
 
 ## Store
 
-Import structured reactive state separately or from the package root.
+`createStore` holds nested reactive state, and `@destack/signals/store` exports it without the rest of the package.
 
 ```ts
 import { createStore, reconcile } from "@destack/signals/store";

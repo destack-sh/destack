@@ -1,8 +1,10 @@
+# @destack/test
+
 Write, run and inspect Destack tests with [Vitest](https://vitest.dev/).
 
 ## Tests
 
-A test imports its declarations and assertions from `@destack/test`.
+`@destack/test` exports `test`, `expect` and the other Vitest functions a test file imports.
 
 ```ts
 import { expect, test } from "@destack/test";
@@ -17,7 +19,7 @@ test("roundtrip a message", () => {
 
 ## Refusals
 
-`refusal` reads a pending call's refusal as its code and message, or `"done"` when the call succeeds.
+`refusal` awaits a call and returns its error code and message, or `"done"` when the call succeeds.
 
 ```ts
 import { expect, refusal, test } from "@destack/test";
@@ -29,7 +31,7 @@ test("refuse a stranger", async () => {
 
 ## Single items
 
-`single` reads the only item of a list and throws for none or several.
+`single` returns the only item of a list and throws when the list has none or several.
 
 ```ts
 import { single } from "@destack/test";
@@ -39,7 +41,7 @@ const row = single(await database.select().from(note));
 
 ## Configuration
 
-`defineConfiguration` and `defineProject` from `@destack/test/config` add Destack module metadata to package sources and poll `expect.poll` every 5 ms.
+`defineConfiguration` and `defineProject` add Destack module metadata to package sources and set the `expect.poll` interval to 5 ms.
 
 ```ts
 import { defineConfiguration } from "@destack/test/config";
@@ -49,7 +51,7 @@ export default defineConfiguration({ test: { include: ["src/**/*.test.ts"] } });
 
 ## Inspection
 
-`TestDeclaration` from `@destack/test/inspect` describes a test or suite a package declares by its title, file, source range and modifiers.
+`TestDeclaration` parses a test or suite declaration with its title, file, source offsets and modifiers.
 
 ```ts
 import { TestDeclaration } from "@destack/test/inspect";

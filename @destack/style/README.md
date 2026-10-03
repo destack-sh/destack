@@ -1,6 +1,10 @@
+# @destack/style
+
 Define styles with StyleX.
 
-## Usage
+## Styles
+
+`create` declares named styles, and the build compiles each property and value to one CSS class.
 
 ```ts
 import * as style from "@destack/style";

@@ -1,8 +1,10 @@
+# @destack/mail
+
 Compose mail and submit it over SMTP or through Amazon SES.
 
 ## Messages
 
-`MimeMessage` composes an RFC 5322 message whose Message-ID digests the From address and the key.
+`MimeMessage.compose` builds an RFC 5322 message and derives its Message-ID from a digest of the From address and the `key`.
 
 ```ts
 import { MimeMessage } from "@destack/mail/mime";
@@ -20,7 +22,7 @@ const message = await MimeMessage.compose({
 
 ## SMTP
 
-`SmtpClient` submits the message to the envelope's recipients and returns the server's replies.
+`SmtpClient.submit` sends a message to the envelope's recipients and returns the server's reply to each recipient and to the data.
 
 ```ts
 import { SmtpClient } from "@destack/mail/smtp";
@@ -39,17 +41,19 @@ const submission = await client.submit(
 // { recipients: [{ address: "ada@example.com", reply: { code: 250, enhancedCode: "2.1.5", text: "ok" } }, ...], data: { code: 250, ... } }
 ```
 
-`security` sets how the session protects its bytes.
+## Security
 
-| Security   | Port | Session                                  |
-| ---------- | ---- | ---------------------------------------- |
-| `tls`      | 465  | TLS from the first byte                  |
-| `starttls` | 587  | a STARTTLS upgrade before authentication |
-| `none`     | any  | plain text, to loopback hosts only       |
+`security` sets how the session protects its bytes, and `none` accepts only loopback hosts.
+
+```ts
+new SmtpClient({ host, port: 465, security: "tls", authentication, helo }); // TLS from the first byte
+new SmtpClient({ host, port: 587, security: "starttls", authentication, helo }); // STARTTLS before authentication
+new SmtpClient({ host: "127.0.0.1", port, security: "none", authentication, helo }); // plain text
+```
 
 ## Authentication
 
-`authentication` signs in with `plain` credentials or `xoauth2`, which asks its token supplier once per session.
+`authentication` signs in with `plain` credentials or with `xoauth2`, which calls its `token` function once per session.
 
 ```ts
 const authentication = {
@@ -61,7 +65,7 @@ const authentication = {
 
 ## SES
 
-`SesClient` sends a composed message through the SESv2 HTTP API and returns SES's MessageId, signing with Signature Version 4 over WebCrypto in Bun, workerd and browsers.
+`SesClient.send` sends a composed message through the SESv2 HTTP API with Signature Version 4, calls `credentials` once per send and returns the SES MessageId.
 
 ```ts
 import { SesClient } from "@destack/mail/ses";
@@ -77,15 +81,23 @@ const messageId = await client.send(
 );
 ```
 
-The client asks its credential supplier once per send.
-
 ## SES errors
 
-A refused send throws a `SesError` with its code, SES's AWS code in `awsCode`, its HTTP status in `status`, and `isRetryable` when the same message may pass later.
+A refused send throws a `SesError` with its `code`, the SES `awsCode`, the HTTP `status` and `isRetryable`, which is true when the same message may pass later.
+
+```ts
+try {
+    await client.send(envelope, message);
+} catch (error) {
+    if (error instanceof SesError && error.isRetryable) {
+        await retryLater(message);
+    }
+}
+```
 
 ## Signing
 
-`signRequest` signs any AWS request and returns its headers, canonical request and string to sign.
+`signRequest` signs an AWS request with Signature Version 4 and returns its headers, canonical request and string to sign.
 
 ```ts
 import { signRequest } from "@destack/mail/ses";
@@ -99,7 +111,7 @@ await fetch(url, { method: "POST", headers: signed.headers, body });
 
 ## Test server
 
-`SmtpTestServer` answers on 127.0.0.1 as scripted and records each session's transcript and content.
+`SmtpTestServer.listen` starts an SMTP server on 127.0.0.1 that gives the scripted `answers` and records each session's transcript and content.
 
 ```ts
 import { SmtpTestServer, TestCertificate } from "@destack/mail/test";

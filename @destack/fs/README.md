@@ -1,8 +1,10 @@
+# @destack/fs
+
 Lock and read host files through operating-system APIs.
 
 ## Locks
 
-A `FileLock` holds an exclusive operating-system lock on a file until it is disposed.
+`FileLock.acquire` waits for an exclusive operating-system lock on a file, and disposing the `FileLock` releases it.
 
 ```ts
 import { FileLock } from "@destack/fs";
@@ -11,11 +13,17 @@ await using lock = await FileLock.acquire("/path/to/app.lock", { signal });
 await using other = await FileLock.tryAcquire("/path/to/other.lock"); // undefined while another process holds it
 ```
 
-A lock file belongs in a trusted directory, and its path stays intact while locks may exist.
+## Lock files
+
+`FileLock` locks the file at a path, so the lock file belongs in a trusted directory that no other process renames or deletes.
+
+```ts
+await using lock = await FileLock.acquire(join(stateDirectory, "daemon.lock"), { signal });
+```
 
 ## Files
 
-`readOptional` reads a text file, or nothing when it does not exist, and fails on any other error.
+`readOptional` reads a text file, returns `undefined` when it does not exist, and throws on any other error.
 
 ```ts
 import { readOptional } from "@destack/fs";
@@ -25,7 +33,7 @@ const text = await readOptional("/path/to/installation.json"); // undefined befo
 
 ## Errors
 
-A failed operation throws `FileSystemError` with its operation, path and operating-system code.
+A failed operation throws a `FileSystemError` with the operation, the path and the operating-system error code.
 
 ```ts
 import { FileSystemError } from "@destack/fs/error";

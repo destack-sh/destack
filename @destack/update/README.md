@@ -1,8 +1,10 @@
+# @destack/update
+
 Update installed Destack distributions with TUF verification.
 
 ## Updates
 
-An `Updater` locks an installation, checks the TUF repository for a newer release of its target, and downloads and stages it.
+`Updater.open` locks an installation, `check` looks up a newer release of its target in the TUF repository, and `stage` extracts and checks a downloaded release.
 
 ```ts
 import { Release, Updater } from "@destack/update";
@@ -23,11 +25,21 @@ if (update !== undefined) {
 }
 ```
 
-`Release.target()` names the running target, one of `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-pc-windows-msvc`, `aarch64-unknown-linux-gnu` and `x86_64-unknown-linux-gnu`.
+## Targets
+
+`Release.target()` returns the running target, one of these five.
+
+```text
+aarch64-apple-darwin
+x86_64-apple-darwin
+x86_64-pc-windows-msvc
+aarch64-unknown-linux-gnu
+x86_64-unknown-linux-gnu
+```
 
 ## Restart
 
-A staged update stays staged across sessions and activates online once its processes have stopped.
+`staged` returns a release staged in an earlier session, and `activate` verifies it against fresh metadata and installs it after the caller stops the running processes.
 
 ```ts
 await using updater = await Updater.open(options);
@@ -40,7 +52,7 @@ if (staged !== undefined) {
 
 ## Publishing
 
-`@destack/update/publish` writes the signed TUF repository clients read: a two-of-three root, and one online key each for targets, snapshot and timestamp.
+`SignedRepository.create` writes a signed TUF repository whose root needs two of three root keys and whose targets, snapshot and timestamp roles each have one online key.
 
 ```ts
 import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
