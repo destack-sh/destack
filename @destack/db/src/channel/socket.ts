@@ -27,6 +27,20 @@ export function socketChannel(path: string): Channel<unknown> {
     return new SocketChannel(path);
 }
 
+/** Name the socket and lock files a path's channel meets at, in the person's runtime directory or else the temporary one. */
+export function channelFiles(
+    path: string,
+    environment: Readonly<Record<string, string | undefined>> = process.env,
+): { readonly socket: string; readonly lock: string } {
+    const directory = environment["XDG_RUNTIME_DIR"] ?? tmpdir();
+    const name = createHash("sha256").update(path).digest("hex").slice(0, NAME_DIGITS);
+
+    return {
+        socket: join(directory, `destack-${name}.sock`),
+        lock: join(directory, `destack-${name}.lock`),
+    };
+}
+
 /** A party of a socket channel: the one with its lock serves the socket, the others connect to it. */
 class SocketChannel implements Channel<unknown> {
     /** The socket path. */
@@ -48,9 +62,9 @@ class SocketChannel implements Channel<unknown> {
 
     /** Derive the socket and lock paths of a path. */
     constructor(path: string) {
-        const name = createHash("sha256").update(path).digest("hex").slice(0, NAME_DIGITS);
-        this.#socket = join(tmpdir(), `destack-${name}.sock`);
-        this.#lock = join(tmpdir(), `destack-${name}.lock`);
+        const files = channelFiles(path);
+        this.#socket = files.socket;
+        this.#lock = files.lock;
     }
 
     /** Whether this party serves the socket or is connected to the party serving it. */
