@@ -1,3 +1,5 @@
+# @destack/audit
+
 Declare audit actions, record every executed call once in a journal, and query a scope's history.
 
 ## Actions
@@ -18,7 +20,7 @@ export const renameNote = defineAuditAction({
 
 ## Journal
 
-A `Journal` keeps the calls of one database, runs each request once in one transaction, and replays its outcome to retries.
+`Journal` runs each request of one database once in one transaction and replays its outcome to retries.
 
 ```ts
 import { Journal, journal } from "@destack/audit";
@@ -28,15 +30,19 @@ const results = await calls.execute(request, fingerprint, {
     authorize: (transaction) => authorization.within(transaction).require(permission, target),
     run: (transaction) => updateAccount(transaction, input),
 });
+```
 
+## Tables
+
+`journal` is the table a database with journaled calls includes.
+
+```ts
 export const main = defineDatabase({ name: "main", tables: [journal, ...note.tables] });
 ```
 
-An `ObjectServer` builds its own journal from its database and call key, so most services never construct one.
-
 ## Recorders
 
-An `AuditRecorder` attributes calls to the verified caller and writes them to a journal.
+`AuditRecorder` attributes calls to the verified caller and writes them to a journal.
 
 ```ts
 import { AuditRecorder } from "@destack/audit";
@@ -45,7 +51,9 @@ const audit = AuditRecorder.service(calls, { package: notes.package, service: "n
 const recorder = audit(spaceId, context);
 ```
 
-A recorder records each call as one `Call` of `@destack/sync`: a write in its transaction and an external effect as a running call and its outcome, both as `activity`, and a read as one `access`.
+## Writes
+
+`record` writes a write's call in its transaction as one `activity` call.
 
 ```ts
 await database.transaction(async (transaction) => {
@@ -56,7 +64,13 @@ await database.transaction(async (transaction) => {
         outcome: { kind: "success" },
     });
 });
+```
 
+## Effects and reads
+
+`attempt` records an external effect as a running `activity` call and its outcome, and `read` records a read as one `access` call.
+
+```ts
 await recorder.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
 const secret = await recorder.read(openSecret, { targets, details: {} }, () => secrets.get(id));
 ```
@@ -74,7 +88,7 @@ Server.start({
 
 ## Delivery
 
-A journal delivers its audited calls to a history in batches, without their input and result values.
+`Journal.controller` delivers audited calls to a history in batches, without their input and result values.
 
 ```ts
 import { createAuditClient } from "@destack/audit/client";
@@ -87,7 +101,7 @@ await new ControlLoop(database, [calls.controller(createAuditClient({ url, heade
 
 ## History
 
-An `AuditHistory` stores each call once and lists, exports and prunes a scope's calls.
+`AuditHistory` stores each call once and lists, exports and prunes a scope's calls.
 
 ```ts
 import { AuditHistory, auditTables } from "@destack/audit/history";
@@ -98,6 +112,12 @@ Server.start({ ...implementService(history, { access, record }), ...hosting });
 
 const page = await history.list({ scope: spaceId, limit: 100 });
 await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
+```
 
+## History tables
+
+`auditTables` lists the tables of the history's database.
+
+```ts
 export const histories = defineDatabase({ name: "history", tables: auditTables });
 ```

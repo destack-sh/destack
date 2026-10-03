@@ -1,20 +1,10 @@
-Register Destack hosts and their keys.
+# @destack/host
 
-A host belongs to one account, and members of other accounts place workloads on it as tenants.
-
-```ts
-import { host } from "@destack/host";
-
-await authorization.grant({
-    object: host.reference(accountId, hostId),
-    relation: "tenant",
-    subject: { ...tenantAccount, relation: "member" },
-});
-```
+Run a Destack host: its identity and keys, its runtimes and sandbox, and its router.
 
 ## Identity
 
-A host enrolls under an account through a signed-in user, with a key pair whose private half stays in its `Keychain`.
+`HostIdentity.enroll` registers the host under an account through a signed-in user and keeps the private key in its `Keychain`.
 
 ```ts
 import { HostIdentity } from "@destack/host/identity";
@@ -29,41 +19,39 @@ await identity.enroll(connect({ url: issuer, headers: { authorization: `Bearer $
 });
 ```
 
-A host calls services with 60-second universe tokens its issuer's host service grants for a key-signed assertion, spending each assertion once.
+## Keys
+
+`rotate` registers a new host key with a proof of possession and revokes the host's other keys.
 
 ```ts
-const hosts = ServiceMount.url(issuer, hostService.package.id);
-const accounts = accountClient.connect({
-    url,
-    fetch: identity.fetch(fetch, accountService.package.id, hosts),
-});
-const { accessToken } = await identity.token(relayService.package.id, hosts, fetch); // cached until shortly before expiry
+await identity.rotate(accounts, accountId);
 ```
 
-The global tier verifies these tokens against the universe's keys and rechecks the host's key, so revoking or disabling a host ends its tokens there at once.
+## Keyring
+
+`LocalKeyring.open` keeps a host's root keys in its keychain, and `wrap` and `unwrap` protect data keys under them bound to a context.
 
 ```ts
-const caller = await verifier.authenticate(request);
-await HostKey.requireAuthenticating(database, caller, Date.now());
+import { LocalKeyring } from "@destack/host/keychain";
+
+const keyring = await LocalKeyring.open(keychain, hostId);
+const wrapped = await keyring.wrap(dataKey, context);
+const unwrapped = await keyring.unwrap(wrapped, context);
 ```
 
-Hosts and their keys are objects with these methods.
+## Host tokens
 
-| Method | Caller | Effect |
-|---|---|---|
-| `host.enroll` | a member of the account with `enroll`, and `serve` on the region a cloud host acts for | creates the host with its first key |
-| `host.rename` | the host, or the account's administrators | renames it within its account |
-| `host.disable`, `host.drain`, `host.enable` | the host, or the account's administrators | refuses, drains or accepts work, and a disabled host's grants and tokens fail |
-| `host.see` | the host alone | records its contact with the version and runtimes it runs |
-| `host.revoke` | the host, or the account's administrators | ends the host and every key |
-| `hostKey.create` | the host alone | registers another key for a year and revokes the others |
-| `hostKey.revoke` | the host, or the account's administrators | ends one key |
-| `hostKey.list` | the host, its tenants and every other host | reads the keys that sign assertions and space tokens |
-| `token.grant` | anyone with a host key's assertion | grants the host a token for a service, in a space its cell serves or in the universe |
+`token` exchanges a single-use assertion signed by the host key for a 60-second universe token, and `fetch` adds such a token to each call.
+
+```ts
+const accounts = ServiceMount.url(issuer, accountService.package.id);
+const relay = identity.fetch(fetch, relayService.package.id, accounts);
+const { accessToken } = await identity.token(relayService.package.id, accounts, fetch); // cached until shortly before expiry
+```
 
 ## Addresses
 
-An installation answers at its origin under Destack's domains, serving its views and, at `SERVICE_PATH`, its service.
+`InstallationOrigin.parse` reads the alias, space and handle from an installation's origin, which serves its views and serves its service at `SERVICE_PATH`.
 
 ```ts
 import { DOMAINS, InstallationOrigin, SERVICE_PATH } from "@destack/host";
@@ -74,48 +62,70 @@ const url = `https://notes.personal.florian.${DOMAINS.space}${SERVICE_PATH}`;
 
 ## Runtimes
 
-A `Runtime` starts, stops and serves the instances a space's cell assigns this host on one server runtime, and reports exits the cell did not ask for.
+A `Runtime` starts, stops and serves the instances the cell assigns this host on one server runtime, and `start` reports each exit the cell did not request.
 
 ```ts
 import { BunRuntime } from "@destack/host/bun";
 
-const runtime = new BunRuntime({ directory, egress: `${origin}${Egress.path}`, sampling, output });
+const runtime = new BunRuntime({
+    directory,
+    egress: `${origin}${Egress.path}`,
+    sampling,
+    output,
+    callKey,
+});
 await runtime.start(spec, exited); // exited(code) reports an exit nobody asked for
-const response = await runtime.fetch(instanceId, "/notes/list", request, caller);
+const response = await runtime.fetch(instanceId, "/notes/list", request, authentication);
+```
+
+## Workload sandbox
+
+`WorkloadSandbox.options` adds sandbox rules for each capability of an instance to the output, data, cache and resource files, the egress and the loopback that every runner has.
+
+```text
+process           nothing, since every Bun workload runs as a process
+network.connect   the declared hosts, wildcards and ports on the proxy, and refuses * with UNENFORCEABLE
+listen            loopback, which every runner has
+fs                a read rule per granted directory, or a write rule when granted for writing
+env               the named host variables, in addition to PATH
+run               read access to the path of each named command on the host
+browser-gated     nothing, since the browser enforces them on the installation's origin
+```
+
+## Refused capabilities
+
+`start` throws a `CapabilityError` for a capability the host cannot grant, such as connecting to any host, and the cell records it on the instance.
+
+```ts
+try {
+    await runtime.start(spec, exited);
+} catch (error) {
+    if (error instanceof CapabilityError) {
+        report(`${error.code}: ${error.capability}`); // "UNENFORCEABLE: network"
+    }
+}
 ```
 
 ## Router
 
-The `Router` sends a call to an installation to the newest running deployment serving the caller's `Destack-Version`, and a workload's call to an address through its host as the workload's installation.
+`Router.ingress` sends a call to the newest running deployment that serves the caller's `Destack-Version`, and `Router.egress` sends a workload's call to an address as its installation.
 
 ```ts
 import { Router } from "@destack/host/router";
 
 const router = new Router({ runtimes: [runtime], routes, sign, fetch });
-await router.ingress(installationId, "/notes/list", request, caller);
+await router.ingress(installationId, "/notes/list", request, authentication);
 await router.egress(request); // <egress>/<address>/<path> with the instance's secret
 ```
 
 ## Space tokens
 
-A cell signs its installations' calls leaving the host with its host key, scoped to the space each call targets.
-
-```ts
-import { TokenIssuer } from "@destack/service/authentication";
-
-const issuer = new TokenIssuer({
-    authority: { kind: "space", spaceId },
-    issuer: hostId,
-    sign: (claims) => identity.signToken(claims),
-});
-const { accessToken } = await issuer.issue(caller);
-```
-
-A receiving host verifies a token against the keys of the host the directory places the caller's space in.
+`SpaceToken.verify` checks a space token against the signing space's identity in the directory.
 
 ```ts
 import { SpaceToken } from "@destack/host/identity";
 
-const keys = (accountId, hostId, now) => HostKey.authenticating(database, accountId, hostId, now);
-const caller = await SpaceToken.verify(request, { directory, keys, audience }); // the universe: the caller's own space
+if (SpaceToken.accepts(request)) {
+    const authentication = await SpaceToken.verify(request, { directory, audience, spaceId });
+}
 ```

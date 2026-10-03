@@ -1,8 +1,10 @@
+# @destack/vault
+
 Declare, store and read versioned secrets.
 
 ## Declarations
 
-A package declares a vault and the secrets it reads.
+`defineVault` declares a vault, `defineSecret` declares a secret the package reads, and `read` returns the secret's value and version.
 
 ```ts
 import { defineSecret, defineVault } from "@destack/vault";
@@ -15,7 +17,7 @@ const { value, version } = await githubToken.get(context).read();
 
 ## Bindings
 
-A stack binds each secret declaration to one of its secrets, optionally pinned to a version.
+`secrets` names a stack's secrets by vault and name, and an installation binds each secret declaration to one of them, optionally at a fixed `version`.
 
 ```ts
 export const personal = defineSpace({
@@ -27,16 +29,18 @@ export const personal = defineSpace({
 });
 ```
 
-A live deployment captures the version each of its secrets reads.
+## Captured versions
 
-| Binding  | Captured version                                    |
-| -------- | --------------------------------------------------- |
-| pinned   | that version                                        |
-| unpinned | the current version when the deployment was created |
+A deployment captures the version a secret binding names, or the current version when the binding names none.
+
+```ts
+install(notes, { "github-token": { secret: "github", version: 2 } }); // version 2
+install(notes, { "github-token": { secret: "github" } }); // the current version at deployment
+```
 
 ## Runtime
 
-The runtime binds a captured secret through a vault client authenticated as the installation.
+`Secret` reads a captured version through a `SecretClient` authenticated as the installation, and `context.bind` gives it to the secret declaration.
 
 ```ts
 import { spaceService } from "@destack/space/service";
@@ -49,9 +53,7 @@ context.bind(githubToken, new Secret(client, capture));
 
 ## Objects
 
-A space's vault service serves vaults, their secrets and each secret's versions.
-
-An administrator creates a secret, then writes its first version.
+`secret.create` creates a secret in a vault, and `version.create` writes a new version of it.
 
 ```ts
 const secret = await client.secret.create({
@@ -70,7 +72,7 @@ await client.version.create({
 
 ## Account connections
 
-`RemoteVault` keeps connections' OAuth credentials as secrets in space vaults.
+`RemoteVault` stores the OAuth credentials of account connections as secrets in space vaults.
 
 ```ts
 import { RemoteVault } from "@destack/vault/account";
@@ -89,10 +91,10 @@ const connections = new Connections({
 
 ## Hosting
 
-A host keeps its root keys in a keychain and shares one keyring between the served objects and the provider.
+`LocalKeyring.open` reads the host's root keys from its keychain, and `servedObjects` and `vaultProvider` take the same keyring.
 
 ```ts
-import { LocalKeyring } from "@destack/vault/encryption";
+import { LocalKeyring } from "@destack/host/keychain";
 import { vaultProvider } from "@destack/vault/provider";
 import { servedObjects } from "@destack/vault/server";
 
@@ -101,7 +103,9 @@ const objects = servedObjects(keyring, location, { days: 30 });
 const provider = vaultProvider(database, keyring, location);
 ```
 
-A stopped host rotates its root key by adding an active key, rewrapping the old key's vault keys under it, then retiring the old key.
+## Root key rotation
+
+On a stopped host, `LocalKeyring.rotate` adds a new active root key, `VaultKey.rewrapAll` wraps the old key's vault keys under it, and `VaultKey.retire` removes the old key.
 
 ```ts
 const rotated = await LocalKeyring.rotate(keychain, hostId);

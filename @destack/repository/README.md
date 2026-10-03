@@ -1,15 +1,10 @@
-Keep the Git repositories of accounts and observe their branches and tags.
+# @destack/repository
 
-## Objects
+Keep the Git repositories of accounts and record their branches and tags.
 
-Callers write repositories; refreshes and host reports write references.
+## Repositories
 
-| Object | Methods |
-|---|---|
-| `repository` | `get`, `list`, `create`, `update`, `refresh`, `report`, `open`, `delete`, `restore`, `purge` |
-| `reference` | `get`, `list` |
-
-A client creates a repository, refreshes it, reads its references and opens a lease for a checkout.
+`repository.refresh` reads a repository's references from its origin, and `repository.open` leases a checkout URL and headers until `expiresAt`.
 
 ```ts
 const client = connect({ url, fetch });
@@ -22,60 +17,68 @@ const site = await client.repository.create({
 await client.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() });
 const references = await client.reference.list({
     accountId,
-    where: Condition.eq("parentId", site.id),
+    where: { parentId: site.id },
 });
 const lease = await client.repository.open({ accountId, id: site.id, mode: "write" }); // { url, headers, expiresAt }
 ```
 
 ## Permissions
 
-Account roles grant each permission; a repository's host also has `read`, and alone has `report`.
+Account roles grant repository permissions, a read lease needs `pull`, a write lease also needs `push`, and only the repository's host has `report`.
 
-| Permission | Methods |
-|---|---|
-| `read` | `get`, `list`, and reading references |
-| `create` | `create` |
-| `update` | `update` |
-| `refresh` | `refresh` |
-| `report` | `report` |
-| `pull` | `open` in either mode |
-| `push` | `open` in `write` mode |
-| `delete` | `delete`, `restore`, `purge` |
+```ts
+import { repository } from "@destack/repository/object";
+
+await authorization.createRole(account, {
+    name: "deployer",
+    description: "Read and push repositories",
+    permissions: [
+        repository.permission("read"),
+        repository.permission("pull"),
+        repository.permission("push"),
+    ],
+});
+```
+
+## Trash
+
+`repository.delete` moves a repository to the trash for 30 days, and a caller with `delete` restores or purges it.
+
+```ts
+await client.repository.delete({ accountId, id: site.id, requestId });
+await client.repository.restore({ accountId, id: site.id, requestId });
+```
 
 ## Hosting
 
-Hosting decides where references come from and how checkouts reach a repository.
+`hosting` sets where a repository's references come from and how checkouts access it, and each value takes different fields.
 
-| Hosting | Fields | References from | Checkouts through |
-|---|---|---|---|
-| `platform` | none | the region's `GitStorage` | `GitStorage.open` |
-| `github` | `remote`, `connectedAccountId` | Git's advertisement, with an app token | an app token limited to the repository |
-| `git` | `remote`, `authentication: "anonymous"` | Git's advertisement | the remote alone, for pulls |
-| `git` | `remote`, `authentication: "secret"`, `secretSpaceId`, `secretId` | the vault of the secret's space | the vault of the secret's space |
-| `host` | `host` | the host's `report` calls | the host |
+```ts
+const origins: RepositoryOrigin[] = [
+    { hosting: "platform" }, // the region's GitStorage
+    { hosting: "github", remote, connectedAccountId }, // a GitHub App token limited to the repository
+    { hosting: "git", remote, authentication: "anonymous" }, // the remote alone, for pulls
+    { hosting: "git", remote, authentication: "secret", secretSpaceId, secretId }, // the secret in the space's vault
+    { hosting: "host", host }, // the host's report calls
+];
+```
 
 ## Storage
 
-A host supplies the storage of platform repositories.
+`LocalGitStorage` keeps platform repositories in a local directory, and `ArtifactsStorage` keeps them in Cloudflare Artifacts.
 
 ```ts
-const storage = new LocalGitStorage("/var/lib/destack/repositories");
-const storage = new CodeStorage({
-    organization,
-    key,
-    api: new URL("https://api.acme.code.storage/api"),
-    git: new URL("https://acme.code.storage"),
-});
+const local = new LocalGitStorage("/var/lib/destack/repositories");
+const artifacts = new ArtifactsStorage({ account, namespace: "repositories", token });
 ```
 
 ## Serving
 
-A region serves the objects, and receives the GitHub App's deliveries with its webhook secret.
+`RepositoryServer.service` serves the repository objects, and `receive` verifies a GitHub App webhook delivery with its secret and refreshes the repositories it changes.
 
 ```ts
 const server = new RepositoryServer({
     database,
-    global,
     directory,
     storage,
     github: new GitHubApp({ id, key, api }),
@@ -85,7 +88,9 @@ const workload = { services: [server.service()] };
 await server.receive(request, secret);
 ```
 
-A host reports the references of the repositories it keeps.
+## Reports
+
+`repository.report` records the references a host observed in a repository it keeps.
 
 ```ts
 await client.repository.report({
