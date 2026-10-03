@@ -1,7 +1,10 @@
 import {
     SyntaxKind,
+    type CallExpression,
+    type NewExpression,
     type Node,
     type SourceFile,
+    type ThrowStatement,
     isThrowStatement,
     isCallExpression,
     isNewExpression,
@@ -12,6 +15,7 @@ import {
 import { SymbolFlags, type Project, type Type, type Symbol } from "typescript/unstable/async";
 import type { ErrorDescription, TypeDescription, SymbolReference } from "@destack/package/code";
 import type { SourceRange } from "@destack/package/source";
+import { found } from "@destack/schema";
 import { CheckError } from "../error/index.ts";
 
 /** Callable declarations with independently executed bodies. */
@@ -37,6 +41,20 @@ export interface ErrorInspector {
     range(node: Node): SourceRange;
 }
 
+/** A callable body's root and the nodes it runs, without nested callable bodies. */
+interface Body {
+    /** The source file or callable declaration. */
+    readonly root: Node;
+    /** The nodes the body runs, the root first. */
+    readonly nodes: readonly Node[];
+}
+
+/** A call's resolved target, absent for an unresolved or declaration-less callee. */
+interface Call {
+    /** The target declaration. */
+    readonly target: SymbolReference | undefined;
+}
+
 /** Collect error relationships without executing source or treating unknown calls as safe. */
 export async function inspectErrors(
     source: SourceFile,
@@ -46,10 +64,28 @@ export async function inspectErrors(
         return [];
     }
 
-    // separate nested callable bodies from the enclosing function
-    const groups: { root: Node; nodes: Node[] }[] = [];
+    // resolve every throw's type and every call's target in one compiler request each
+    const bodies = bodiesOf(source);
+    const nodes = bodies.flatMap((body) => body.nodes);
+    const calls = nodes.filter((node) => isCallExpression(node) || isNewExpression(node));
+    const [thrown, called] = await Promise.all([
+        throwTypes(nodes.filter(isThrowStatement), inspector),
+        callTargets(calls, inspector),
+    ]);
+
+    // describe each body's throws, calls and catches
+    const descriptions = bodies.map((body) => describeBody(body, thrown, called, inspector));
+
+    return descriptions.toSorted((left, right) => left.source.start - right.source.start);
+}
+
+/** Separate a source file's callable bodies, each without the bodies nested in it. */
+function bodiesOf(source: SourceFile): Body[] {
+    // take each pending root, the source file first
+    const bodies: Body[] = [];
     const pending: Node[] = [source];
     for (let root = pending.pop(); root !== undefined; root = pending.pop()) {
+        // collect the root's nodes, deferring nested callable bodies
         const nodes: Node[] = [];
         const visit = (node: Node): void => {
             if (node !== root && FUNCTION_KINDS.has(node.kind)) {
@@ -60,88 +96,145 @@ export async function inspectErrors(
             }
         };
         visit(root);
-        groups.push({ root, nodes });
+        bodies.push({ root, nodes });
     }
 
-    // describe each group's throws, calls and catches
-    const descriptions: ErrorDescription[] = [];
-    for (const { root, nodes } of groups) {
-        const description: ErrorDescription = {
-            source: inspector.range(root),
-            throws: [],
-            calls: [],
-            catches: [],
-            finally: [],
-            unknowns: [],
-        };
-        for (const node of nodes) {
-            // retain the actual type and handlers for each explicit throw
-            if (isThrowStatement(node)) {
-                const type = await inspector.project.checker.getTypeAtLocation(node.expression);
-                if (!type) {
-                    throw new CheckError(
-                        "language",
-                        "compiler returned no type for a throw expression",
-                    );
-                }
-                description.throws.push({
-                    source: inspector.range(node),
-                    type: await inspector.type(type, node.expression),
-                    catches: enclosingCatches(node, root, inspector),
-                });
+    return bodies;
+}
+
+/** Describe the type each throw's expression has, in one compiler request. */
+async function throwTypes(
+    throws: readonly ThrowStatement[],
+    inspector: ErrorInspector,
+): Promise<Map<Node, TypeDescription>> {
+    // resolve the types, failing for an expression without one
+    const expressions = throws.map((node) => node.expression);
+    const types =
+        expressions.length === 0
+            ? []
+            : await inspector.project.checker.getTypeAtLocation(expressions);
+    const described = await Promise.all(
+        throws.map(async (node, index) => {
+            const type = types[index];
+            if (!type) {
+                throw new CheckError(
+                    "language",
+                    "compiler returned no type for a throw expression",
+                );
             }
-            // retain call targets while marking callee behavior as unresolved
-            else if (isCallExpression(node) || isNewExpression(node)) {
-                let symbol = await inspector.project.checker.getSymbolAtLocation(node.expression);
-                if (symbol && symbol.flags & SymbolFlags.Alias) {
-                    symbol = await inspector.project.checker.getAliasedSymbol(symbol);
-                }
-                const target =
-                    symbol !== undefined && symbol.declarations.length > 0
-                        ? await inspector.reference(symbol)
-                        : undefined;
-                description.calls.push({
-                    source: inspector.range(node),
-                    ...(target === undefined ? {} : { target }),
-                    isAwaited: node.parent?.kind === SyntaxKind.AwaitExpression,
-                    catches: enclosingCatches(node, root, inspector),
-                });
-                description.unknowns.push({ source: inspector.range(node), reason: "call" });
+
+            return [node, await inspector.type(type, node.expression)] as const;
+        }),
+    );
+
+    return new Map(described);
+}
+
+/** Locate each call's target declaration, in one compiler request. */
+async function callTargets(
+    calls: readonly (CallExpression | NewExpression)[],
+    inspector: ErrorInspector,
+): Promise<Map<Node, Call>> {
+    // resolve the callee symbols, then each one's declaration
+    const expressions = calls.map((node) => node.expression);
+    const symbols =
+        expressions.length === 0
+            ? []
+            : await inspector.project.checker.getSymbolAtLocation(expressions);
+    const located = await Promise.all(
+        calls.map(
+            async (node, index) =>
+                [node, { target: await callTarget(symbols[index], inspector) }] as const,
+        ),
+    );
+
+    return new Map(located);
+}
+
+/** Locate a call's target declaration through aliases, absent for an unresolved or declaration-less callee. */
+async function callTarget(
+    symbol: Symbol | undefined,
+    inspector: ErrorInspector,
+): Promise<SymbolReference | undefined> {
+    // follow an alias to the symbol it names
+    const isAlias = symbol !== undefined && (symbol.flags & SymbolFlags.Alias) !== 0;
+    const target = isAlias ? await inspector.project.checker.getAliasedSymbol(symbol) : symbol;
+    if (target === undefined || target.declarations.length === 0) {
+        return undefined;
+    }
+
+    return inspector.reference(target);
+}
+
+/** Describe one callable body's throws, calls, catches and the nodes that may run user code. */
+function describeBody(
+    body: Body,
+    thrown: ReadonlyMap<Node, TypeDescription>,
+    called: ReadonlyMap<Node, Call>,
+    inspector: ErrorInspector,
+): ErrorDescription {
+    // describe each node the body runs
+    const { root, nodes } = body;
+    const description: ErrorDescription = {
+        source: inspector.range(root),
+        throws: [],
+        calls: [],
+        catches: [],
+        finally: [],
+        unknowns: [],
+    };
+    for (const node of nodes) {
+        // retain the actual type and handlers for each explicit throw
+        if (isThrowStatement(node)) {
+            description.throws.push({
+                source: inspector.range(node),
+                type: found(thrown, node),
+                catches: enclosingCatches(node, root, inspector),
+            });
+        }
+        // retain call targets while marking callee behavior as unresolved
+        else if (isCallExpression(node) || isNewExpression(node)) {
+            const { target } = found(called, node);
+            description.calls.push({
+                source: inspector.range(node),
+                ...(target === undefined ? {} : { target }),
+                isAwaited: node.parent?.kind === SyntaxKind.AwaitExpression,
+                catches: enclosingCatches(node, root, inspector),
+            });
+            description.unknowns.push({ source: inspector.range(node), reason: "call" });
+        }
+        // preserve handler and finally locations for source navigation
+        else if (isTryStatement(node)) {
+            if (node.catchClause) {
+                description.catches.push(inspector.range(node.catchClause));
             }
-            // preserve handler and finally locations for source navigation
-            else if (isTryStatement(node)) {
-                if (node.catchClause) {
-                    description.catches.push(inspector.range(node.catchClause));
-                }
-                if (node.finallyBlock) {
-                    description.finally.push(inspector.range(node.finallyBlock));
-                }
-            }
-            // getters, proxies, awaiting, and iteration can execute user code
-            else if (isPropertyAccessExpression(node) || isElementAccessExpression(node)) {
-                description.unknowns.push({ source: inspector.range(node), reason: "property" });
-            } else if (node.kind === SyntaxKind.AwaitExpression) {
-                description.unknowns.push({ source: inspector.range(node), reason: "await" });
-            } else if (
-                node.kind === SyntaxKind.ForOfStatement ||
-                node.kind === SyntaxKind.SpreadElement
-            ) {
-                description.unknowns.push({ source: inspector.range(node), reason: "iteration" });
-            }
-            // implicit conversions can invoke user-defined methods
-            else if (
-                node.kind === SyntaxKind.BinaryExpression ||
-                node.kind === SyntaxKind.PrefixUnaryExpression ||
-                node.kind === SyntaxKind.PostfixUnaryExpression ||
-                node.kind === SyntaxKind.TemplateExpression
-            ) {
-                description.unknowns.push({ source: inspector.range(node), reason: "implicit" });
+            if (node.finallyBlock) {
+                description.finally.push(inspector.range(node.finallyBlock));
             }
         }
-        descriptions.push(description);
+        // getters, proxies, awaiting, and iteration can execute user code
+        else if (isPropertyAccessExpression(node) || isElementAccessExpression(node)) {
+            description.unknowns.push({ source: inspector.range(node), reason: "property" });
+        } else if (node.kind === SyntaxKind.AwaitExpression) {
+            description.unknowns.push({ source: inspector.range(node), reason: "await" });
+        } else if (
+            node.kind === SyntaxKind.ForOfStatement ||
+            node.kind === SyntaxKind.SpreadElement
+        ) {
+            description.unknowns.push({ source: inspector.range(node), reason: "iteration" });
+        }
+        // implicit conversions can invoke user-defined methods
+        else if (
+            node.kind === SyntaxKind.BinaryExpression ||
+            node.kind === SyntaxKind.PrefixUnaryExpression ||
+            node.kind === SyntaxKind.PostfixUnaryExpression ||
+            node.kind === SyntaxKind.TemplateExpression
+        ) {
+            description.unknowns.push({ source: inspector.range(node), reason: "implicit" });
+        }
     }
 
-    return descriptions.toSorted((left, right) => left.source.start - right.source.start);
+    return description;
 }
 
 /** Find catches covering this expression, excluding catches attached to catch/finally bodies. */

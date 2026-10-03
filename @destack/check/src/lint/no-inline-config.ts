@@ -26,7 +26,10 @@ export const noInlineConfiguration: Rule = {
 
 /** Find the line of the first comment that configures oxlint or ESLint rules, absent without one. */
 export function directiveLine(
-    comments: readonly { readonly value: string; readonly loc: { readonly start: { readonly line: number } } }[],
+    comments: readonly {
+        readonly value: string;
+        readonly loc: { readonly start: { readonly line: number } };
+    }[],
 ): number | undefined {
     return comments.find((comment) =>
         /^\s*(?:oxlint|eslint)(?:\s|-(?:disable|enable)\b)/u.test(comment.value),
