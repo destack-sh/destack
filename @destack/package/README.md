@@ -1,8 +1,10 @@
+# @destack/package
+
 Define Destack packages, transform their modules, and read their built manifests.
 
 ## Definitions
 
-A package's `destack.json` holds its identity, runtimes and declaration constructors.
+`destack.json` sets a package's id, language, runtimes and declaration constructors, and `describes` lists the functions that describe each kind a constructor declares.
 
 ```json
 {
@@ -29,17 +31,56 @@ A package's `destack.json` holds its identity, runtimes and declaration construc
 }
 ```
 
-A kind's own entry in `describes` declares up to three functions over its descriptions.
+## Description functions
 
-| Function     | Answers                                                              | Used by                            |
-| ------------ | -------------------------------------------------------------------- | ---------------------------------- |
-| `function`   | what a declaration is                                                | the build, into the manifest       |
-| `compare`    | what changed between two releases                                    | the build's upgrade                |
-| `vocabulary` | which terms stored data holds, such as `object/note/relation/editor` | the build, the registry and spaces |
+An entry in `describes` names up to four functions for one kind: `function`, `compare`, `vocabulary` and `symbols`.
+
+```jsonc
+{
+    "kind": "note",
+    // what a declaration is, read by the build into the graph
+    "function": "./inspect#describeNote",
+    // what changed between two releases, read by the build's upgrade
+    "compare": "./inspect#compareNote",
+    // which terms stored values hold, such as object/note/relation/editor, read by the build, the registry and spaces
+    "vocabulary": "./inspect#noteVocabulary",
+    // which symbols a declaration derives and which declarations they name, read by the build into the graph
+    "symbols": "./inspect#noteSymbols"
+}
+```
+
+## Symbols
+
+A `symbols` function returns a `graph.MemberSymbol` for the declaration and for each member it derives, and the build resolves each relationship target by kind and name in the declaring package unless the target names another package.
+
+```ts
+export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
+    const service = ServiceDescription.parse(input);
+    const procedures = service.api.procedures.map((procedure) => ({
+        kind: "procedure",
+        name: procedure.name.join("."),
+        description: procedure,
+    }));
+
+    return schema.array(graph.MemberSymbol).parse([
+        {
+            relationships: procedures.map((procedure) => ({
+                kind: "serves",
+                symbol: {
+                    kind: "procedure",
+                    name: procedure.name,
+                    parent: { kind: "service", name: service.name },
+                },
+            })),
+        },
+        ...procedures.map((member) => ({ member, relationships: [] })),
+    ]);
+}
+```
 
 ## Workspaces
 
-A workspace root's `destack.json` holds the settings its members share under `workspace`, and needs no identity unless the root is itself a package.
+`workspace` in the root `destack.json` holds the settings the members share, such as `check.expect` with files relative to the root, and `package.json` lists the members.
 
 ```json
 {
@@ -58,11 +99,9 @@ A workspace root's `destack.json` holds the settings its members share under `wo
 }
 ```
 
-The root's `check.expect` names files relative to the root, as `@destack/check` reads it, and `package.json` keeps listing the members.
-
 ## Capabilities
 
-`capabilities` in `destack.json` declares what the package reaches beyond its sandbox, each with the `reason` a person reads when consenting.
+`capabilities` in `destack.json` declares what the package uses beyond its sandbox, each with a `reason` that a person reads before consenting.
 
 ```json
 {
@@ -83,17 +122,29 @@ The root's `check.expect` names files relative to the root, as `@destack/check` 
 }
 ```
 
-The host's sandbox enforces `process`, `network`, `listen`, `fs`, `env` and `run` on workloads.
+## Enforcement
 
-Every capability except `process` may be `optional`, and installing declines it until the installation allows it by name.
-The person chooses the directories `fs` reaches when installing or later, and the installation keeps them.
-A package's own data, cache and temporary folders need no capability.
-The browser enforces the other capabilities, `BROWSER_CAPABILITIES`, on the installation's origin: the Permissions Policy features `camera`, `microphone`, `geolocation`, `display-capture`, `clipboard-read`, `clipboard-write`, `fullscreen`, `midi`, `usb`, `hid`, `serial`, `bluetooth`, `screen-wake-lock`, `idle-detection`, `local-fonts`, `window-management` and `xr-spatial-tracking`.
-WebGPU, Web Audio, gamepads and notifications need no capability.
+The host's sandbox enforces the host capabilities on workloads, and the browser enforces the others as Permissions Policy features on the installation's origin.
+
+```text
+the host's sandbox  process, network, listen, fs, env, run
+the browser         camera, microphone, geolocation, display-capture, clipboard-read, clipboard-write,
+                     fullscreen, midi, usb, hid, serial, bluetooth, screen-wake-lock, idle-detection,
+                     local-fonts, window-management, xr-spatial-tracking
+no capability       the package's file, cache and temporary folders, WebGPU, Web Audio, gamepads, notifications
+```
+
+## Optional capabilities
+
+`optional` marks a capability, other than `process`, that an installation declines until it allows the capability by name, and the person chooses the directories for `fs` during or after installation.
+
+```json
+{ "fs": { "access": "read", "reason": "indexes the folders you choose", "optional": true } }
+```
 
 ## Workload capabilities
 
-A workload uses the host capabilities its package declares unless its definition names a subset, and the browser capabilities belong to the views.
+`capabilities` in `defineWorkload` limits a workload to a subset of its package's host capabilities, and `Capabilities.grant` keeps the required ones and the optional ones an installation allows.
 
 ```ts
 import { Capabilities } from "@destack/package";
@@ -104,9 +155,14 @@ export const indexer = defineWorkload({ name: "indexer", capabilities: ["network
 const running = Capabilities.grant(description.capabilities, ["fs", "camera"]);
 ```
 
-The build writes each workload's selection into its `WorkloadDescription` and the package's browser capabilities into each `ViewDescription`.
-`Capabilities.grant` narrows them to the required ones and the optional ones an installation allows.
-A host that cannot grant a capability refuses the workload's start with a `CapabilityError` naming it.
+## Described capabilities
+
+The build writes each workload's capabilities into its `WorkloadDescription` and the package's browser capabilities into each `ViewDescription`.
+
+```ts
+const { capabilities } = build.manifest.outputs.bun.workloads.indexer; // { network: …, run: … }
+const { capabilities: browser } = build.manifest.outputs.browser.views.notes; // { camera: … }
+```
 
 ## Packages
 
@@ -123,7 +179,7 @@ export default definePackage({
 
 ## Modules
 
-The module transform gives each module its package metadata and stamps declaration constructor calls with it.
+The module transform sets `import.meta.destack.package` in each module and passes it to each declaration constructor call.
 
 ```ts
 const { id, name, version } = import.meta.destack.package;
@@ -131,11 +187,16 @@ const { id, name, version } = import.meta.destack.package;
 
 ## Transforms
 
-The `transform/vite`, `transform/bun` and `transform/preload` entry points install the module transform in Vite and Vitest, in `Bun.build`, and in every module a Bun process loads.
+`transform/vite` installs the module transform in Vite and Vitest, `transform/bun` in `Bun.build`, and `transform/preload` in every module a Bun process loads.
+
+```toml
+# bunfig.toml
+preload = ["@destack/package/transform/preload"]
+```
 
 ## Variants
 
-A module named after a target replaces its base module in that target's builds.
+A module with a `.server` or `.browser` suffix replaces its base module in builds for that target.
 
 ```text
 src/page/page.ts           shared by every target
@@ -145,7 +206,7 @@ src/page/page.browser.ts   replaces page.ts in browser builds
 
 ## Builds
 
-A dependency's `BuildExtension` compiles and describes the outputs of the packages that use it, and `@destack/package/build` holds the runtime facts every build shares, such as `TYPE_CHECKS`, the compiler checks every package compiles under.
+A dependency's `BuildExtension` compiles and describes the outputs of the packages that use it, and `@destack/package/build` exports values every build shares, such as the `TYPE_CHECKS` compiler checks.
 
 ```ts
 import type { BuildExtension } from "@destack/package/build";
@@ -158,7 +219,7 @@ export const spaceBuild: BuildExtension = {
 
 ## Manifests
 
-A `BuildReader` reads a built package's files and the descriptions its declarations produced.
+`BuildReader.open` opens a built package, and `declarations` and `declared` list its declarations without their derived members.
 
 ```ts
 import { BuildReader } from "@destack/package/manifest";
@@ -170,4 +231,78 @@ const settings = await reader.declared(
     "setting",
     SettingDescription,
 );
+```
+
+## Graph
+
+`graph.Moniker.of` names a symbol, member or declaration in a build with a moniker that stays the same across builds.
+
+```ts
+import { graph } from "@destack/package";
+
+const note = graph.Moniker.of({ packageId, module: "src/note.ts", name: "Note" });
+// "package-…/src/note.ts#Note"
+const title = graph.Moniker.of({ packageId, module: "src/note.ts", name: "Note", member: "title" });
+// "package-…/src/note.ts#Note.title"
+const object = graph.Moniker.of({ packageId, module: "src/note.ts", name: "Note", kind: "object" });
+// "package-…/src/note.ts#Note:object"
+```
+
+## Graph modules
+
+A `graph.Module` holds a module's symbols, declarations and outgoing edges, and a `graph.Root` names the file of each module by digest.
+
+```json
+{
+    "path": "src/server.ts",
+    "digest": "bfc1f6ca…",
+    "imports": ["@destack/service"],
+    "exports": [
+        { "name": "service", "symbol": "package-…/src/server.ts#service", "isTypeOnly": false }
+    ],
+    "symbols": [
+        {
+            "moniker": "package-…/src/server.ts#service",
+            "kind": "variable",
+            "source": { "file": "src/server.ts", "start": 1686, "end": 1726 },
+            "signature": "service: import(\"@destack/service\").Service<…>",
+            "comment": "The public HTTP service.",
+            "isExported": true
+        }
+    ],
+    "declarations": [
+        {
+            "moniker": "package-…/src/server.ts#service:service",
+            "symbol": "package-…/src/server.ts#service",
+            "kind": "service",
+            "package": "package-…",
+            "name": "notes",
+            "description": { "name": "notes" }
+        },
+        {
+            "moniker": "package-…/src/server.ts#service.list:procedure",
+            "symbol": "package-…/src/server.ts#service",
+            "kind": "procedure",
+            "package": "package-…",
+            "name": "list",
+            "description": { "method": "GET", "path": "/notes" }
+        }
+    ],
+    "edges": [
+        {
+            "from": "package-…/src/server.ts#service:service",
+            "to": "package-…/src/server.ts#service.list:procedure",
+            "kind": "serves"
+        }
+    ]
+}
+```
+
+## Graph reads
+
+`graph` reads a build's root, and `module` reads one module's file by its digest and verifies the digest.
+
+```ts
+const root = await reader.graph();
+const module = await reader.module(root.modules["src/server.ts"]);
 ```
