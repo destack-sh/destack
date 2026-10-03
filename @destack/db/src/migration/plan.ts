@@ -170,7 +170,7 @@ export function planTables(input: PlanInput): TablePlan {
                     step(
                         "convert",
                         Address.join("table", name, "column", bridge.to),
-                        "data-dependent",
+                        "fallible",
                         `copy ${bridge.from} into ${bridge.to}`,
                         [`UPDATE ${quote(name)} SET ${quote(bridge.to)} = ${quote(bridge.from)}`],
                     ),
@@ -462,7 +462,7 @@ function changeSQLiteTable(
             step(
                 "replace",
                 Address.join("table", next.name),
-                isLossy ? "destructive" : isChecked ? "data-dependent" : "safe",
+                isLossy ? "destructive" : isChecked ? "fallible" : "safe",
                 `rebuild table: ${detail || "constraints"}`,
                 statement.rebuildTable(next, copied),
             ),
@@ -537,7 +537,7 @@ function changePostgresTable(
                     old.type !== column.type
                         ? "destructive"
                         : old.nullable && !column.nullable
-                          ? "data-dependent"
+                          ? "fallible"
                           : "safe",
                     `change column ${column.name}`,
                     statement.alterColumn(next.name, old, column),
@@ -568,7 +568,7 @@ function changeConstraints(previous: TableDescription, next: TableDescription): 
             step(
                 "create",
                 Address.join("table", next.name, "constraint", constraint.name),
-                "data-dependent",
+                "fallible",
                 `add constraint ${constraint.name}`,
                 [statement.addConstraint(next.name, constraint)],
             ),
@@ -594,7 +594,7 @@ function changeIndexes(previous: TableDescription, next: TableDescription): Tabl
             step(
                 "create",
                 Address.join("table", next.name, "index", index.name),
-                index.unique ? "data-dependent" : "safe",
+                index.unique ? "fallible" : "safe",
                 `create index ${index.name}`,
                 [statement.createIndex(next.name, index)],
             ),
@@ -643,13 +643,9 @@ function convertRows(
         .map(([column, expression]) => `${quote(column)} = ${expression}`)
         .join(", ");
 
-    return step(
-        "convert",
-        Address.join("table", name),
-        "data-dependent",
-        `convert rows to ${release}`,
-        [`UPDATE ${quote(name)} SET ${set}`],
-    );
+    return step("convert", Address.join("table", name), "fallible", `convert rows to ${release}`, [
+        `UPDATE ${quote(name)} SET ${set}`,
+    ]);
 }
 
 /** Check each kept column's values: widened values are safe, narrowed ones need a conversion. */

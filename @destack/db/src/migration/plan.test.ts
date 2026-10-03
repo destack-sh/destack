@@ -203,7 +203,7 @@ test.for(TEST_DIALECTS)(
         const plan = await database.migrate([taskThree]);
         expect(review(plan)).toEqual([
             `safe create table/${table(taskThree)}/column/priority: add column priority`,
-            `data-dependent convert table/${table(taskThree)}: convert rows to 2026.10.0`,
+            `fallible convert table/${table(taskThree)}: convert rows to 2026.10.0`,
         ]);
         expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
             { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
@@ -319,7 +319,7 @@ test.for(TEST_DIALECTS)(
         });
         const converted = await database.migrate([preferenceConverted]);
         expect(review(converted)).toEqual([
-            `data-dependent convert table/${table(preferenceConverted)}: convert rows to 2026.10.0`,
+            `fallible convert table/${table(preferenceConverted)}: convert rows to 2026.10.0`,
         ]);
         expect(
             await database.select().from(preferenceConverted).orderBy(preferenceConverted.id),
@@ -485,9 +485,9 @@ test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dial
     const plan = await database.plan({ declared: declareState([labelUnique], dialect) });
     expect(review(plan)).toEqual(
         dialect === "sqlite"
-            ? [`data-dependent replace table/${table(labelUnique)}: rebuild table: constraints`]
+            ? [`fallible replace table/${table(labelUnique)}: rebuild table: constraints`]
             : [
-                  `data-dependent create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
+                  `fallible create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
               ],
     );
     await applyPlan(database, plan);
@@ -546,14 +546,14 @@ test.for(TEST_DIALECTS)(
             dialect === "sqlite"
                 ? [
                       `safe replace table/${table(taskTwo)}: rebuild table: add title, add due_at, change name`,
-                      `data-dependent convert table/${table(taskTwo)}/column/title: copy name into title`,
+                      `fallible convert table/${table(taskTwo)}/column/title: copy name into title`,
                   ]
                 : [
                       `safe create table/${table(taskTwo)}/column/title: add column title`,
                       `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
                       `safe update table/${table(taskTwo)}/column/name: change column name`,
                       `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
-                      `data-dependent convert table/${table(taskTwo)}/column/title: copy name into title`,
+                      `fallible convert table/${table(taskTwo)}/column/title: copy name into title`,
                   ],
         );
         expect(
@@ -592,7 +592,7 @@ test.for(TEST_DIALECTS)(
                 : [
                       `destructive delete table/${table(taskTwo)}/column/name: drop column name`,
                       `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
-                      `data-dependent update table/${table(taskTwo)}/column/title: change column title`,
+                      `fallible update table/${table(taskTwo)}/column/title: change column title`,
                   ],
         );
         await applyPlan(database, contract);
