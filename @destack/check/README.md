@@ -1,8 +1,10 @@
+# @destack/check
+
 Check and format Destack TypeScript packages and their Markdown with Oxlint and Oxfmt.
 
 ## Commands
 
-`destack-check` runs each command over the given files or directories of the current package.
+`destack-check` runs a command over files or directories of the current package, and `check`, `fix` and `format` refuse configuration files that differ from what `configure` writes.
 
 ```sh
 bun run destack-check check src
@@ -12,24 +14,31 @@ bun run destack-check format-check src
 bun run destack-check configure
 ```
 
-`check`, `fix` and `format` refuse a directory whose copies of the lint and format settings differ from the shared ones.
-
 ## Configuration
 
-`configure` writes `.oxlintrc.json` and `.oxfmtrc.json` once per workspace at its root, in a template, or in a package outside any workspace, and `tsconfig.json` in each package.
+`configure` writes `.oxlintrc.json` and `.oxfmtrc.json` at the workspace root, in a template or in a package outside any workspace, and writes `tsconfig.json` in each package.
 
-| `tsconfig.json` sets                        | When the package                                                                                      |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| the shared compiler options and checks      | always, including `src`, `tests` and `*.config.ts` without nested packages                            |
-| the `DOM` libraries                         | runs in a browser, has TSX views, uses `@destack/style` or `@opentui/solid`, or declares no Bun types |
-| `bun` or `node` types                       | declares `@types/bun` or `@types/node`                                                                |
-| `@destack/build/browser` types              | runs in a browser and declares `@destack/build`                                                       |
-| `vite/client` types                         | declares `vite`                                                                                       |
-| JSX for `@opentui/solid` or `@destack/view` | declares `@opentui/solid`, or has TSX modules using `@destack/view`                                   |
+```jsonc
+{
+    "compilerOptions": {
+        // the shared compiler options and checks, in every package
+        "strict": true,
+        // the DOM libraries for a package that runs in a browser, has TSX views, uses @destack/style or @opentui/solid, or declares no Bun types
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        // bun or node by the declared type package, @destack/build/browser in a browser with @destack/build, and vite/client with vite
+        "types": ["bun", "@destack/build/browser", "vite/client"],
+        // JSX for @opentui/solid when declared, else for @destack/view in a package with TSX modules using it
+        "jsx": "preserve",
+        "jsxImportSource": "@destack/view"
+    },
+    // the sources and configuration files, without nested packages
+    "include": ["src", "tests", "*.config.ts"]
+}
+```
 
 ## Expectations
 
-`check` accepts the findings that the `check.expect` entries of the covering workspace's `destack.json` files name, from whichever directory it runs in, and reports an entry over checked files that nothing matched.
+`check.expect` in a `destack.json` accepts the findings of the named rules in the named files, and `check` reports an entry that matched nothing in the checked files.
 
 ```json
 {
@@ -47,11 +56,22 @@ bun run destack-check configure
 
 ## Markdown
 
-`check` holds Markdown files to the Destack prose rules, such as one sentence per line and a single title.
+`check` requires one sentence per line, one title, consecutive heading levels and a language on each code block in Markdown files.
+
+```md
+# @example/notes
+
+Keep notes in notebooks.
+Share each notebook with the people who need it.
+
+## Sharing
+
+A notebook's owner shares it with a person or a group.
+```
 
 ## API
 
-`checkPackage`, `fixPackage`, `formatPackage` and `formatSource` run the same checks from code.
+`checkPackage`, `fixPackage`, `formatPackage` and `formatSource` run the commands from code.
 
 ```ts
 import { checkPackage, formatPackage, formatSource } from "@destack/check";
@@ -63,7 +83,7 @@ const source = await formatSource("generated.ts", generatedSource);
 
 ## Plugins
 
-A host adds trusted lint plugins, with every rule enabled.
+`plugins` adds trusted lint plugins to `checkPackage` and enables every rule they define.
 
 ```ts
 import { checkPackage } from "@destack/check";
