@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { JsonValue, type JsonObject } from "../json/json.ts";
 
 /** The schemas whose values are sensitive, which nothing derived from a request or record keeps, as zod metadata. */
 const SENSITIVE = z.registry<{ readonly sensitive: true }>();
@@ -18,9 +19,9 @@ export function isSensitive(value: z.core.$ZodType): boolean {
 /** Leave out what a schema marks sensitive, handing each dropped value to `found`. */
 export function redact(
     definition: z.core.$ZodType,
-    value: unknown,
+    value: JsonValue | undefined,
     found?: (sensitive: unknown) => void,
-): unknown {
+): JsonValue | undefined {
     // drop a sensitive value, and keep an absent one
     if (isSensitive(definition)) {
         if (value !== undefined) {
@@ -33,12 +34,12 @@ export function redact(
     }
 
     // redact each field of an object
-    if (definition instanceof z.ZodObject && typeof value === "object" && !Array.isArray(value)) {
+    if (definition instanceof z.ZodObject && JsonValue.isObject(value)) {
         return redactFields(definition, value, found);
     }
     // redact each element of an array
-    else if (definition instanceof z.ZodArray && Array.isArray(value)) {
-        return value.map((entry: unknown) => redact(definition.element, entry, found) ?? null);
+    else if (definition instanceof z.ZodArray && value !== undefined && JsonValue.isArray(value)) {
+        return value.map((entry) => redact(definition.element, entry, found) ?? null);
     }
     // look through optional, nullable, defaulted and read-only wrappers to the schema they wrap
     else if (
@@ -62,14 +63,13 @@ export function redact(
 /** Leave out the fields of an object that its schema marks sensitive, handing each dropped value to `found`. */
 export function redactFields(
     definition: z.ZodObject,
-    value: object,
+    value: JsonObject,
     found?: (sensitive: unknown) => void,
-): Record<string, unknown> {
+): JsonObject {
     const shape: Readonly<Record<string, z.core.$ZodType | undefined>> = definition.shape;
-    const fields: [string, unknown][] = Object.entries(value);
 
     return Object.fromEntries(
-        fields.flatMap(([name, field]) => {
+        Object.entries(value).flatMap(([name, field]) => {
             const property = shape[name];
             const kept = property === undefined ? field : redact(property, field, found);
 

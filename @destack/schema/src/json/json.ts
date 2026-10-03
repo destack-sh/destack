@@ -15,6 +15,11 @@ export const JsonValue = {
         return typeof value === "object" && value !== null && !Array.isArray(value);
     },
 
+    /** Report whether a JSON value is an array. */
+    isArray(value: JsonValue): value is readonly JsonValue[] {
+        return Array.isArray(value);
+    },
+
     /** Read a value in its JSON form, as `JSON.stringify` writes it. */
     of(value: unknown): JsonValue {
         const text = JSON.stringify(value);
