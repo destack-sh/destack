@@ -2,7 +2,7 @@ import net from "node:net";
 import { Mailbox, type Envelope, type MimeMessage } from "../mime/index.ts";
 import { SmtpConnection } from "./connection.ts";
 import { SmtpError } from "./error.ts";
-import { Extensions } from "./extensions.ts";
+import { Extensions } from "./extension.ts";
 import type { Reply } from "./reply.ts";
 
 /** How long a session waits on a silent server: a minute, far past a submission round trip. */
