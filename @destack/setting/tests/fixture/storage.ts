@@ -6,6 +6,7 @@ import { RequestId } from "@destack/service/request";
 import { accessTables, principal } from "@destack/access";
 import { device, type Device } from "@destack/account/object";
 import type { Dialect } from "@destack/db";
+import type { JsonObject } from "@destack/schema";
 import type { CallableName, CallOutput, ObjectType } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
 
@@ -60,7 +61,7 @@ export class Storage {
         object: Type,
         name: Name,
         scope: string,
-        input: Readonly<Record<string, unknown>>,
+        input: JsonObject,
     ): Promise<CallOutput<Type, Name>> {
         // place the call in the scope through the object's route field
         const field = object.route.field;

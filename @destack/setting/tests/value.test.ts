@@ -1,10 +1,11 @@
 import { asc } from "@destack/db";
+import type { JsonObject } from "@destack/schema";
 import { principal } from "@destack/access";
 import { Subject, Scope } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { setting, SettingValue } from "../src/object/index.ts";
-import { alice, named, selection } from "./fixture/value.ts";
+import { alice, device, installation, named, selection, space } from "./fixture/value.ts";
 import { editor, lineNumbers } from "./fixture/setting/index.ts";
 import { Storage } from "./fixture/storage.ts";
 
@@ -14,9 +15,9 @@ test.each(TEST_DIALECTS)(
         const storage = await Storage.open(dialect);
         onTestFinished(() => storage.close());
         const laptop = await storage.register("laptop");
-        const call = async (name: "create" | "update", input: Readonly<Record<string, unknown>>) =>
+        const call = async (name: "create" | "update", input: JsonObject) =>
             await storage.call(setting, name, alice, input);
-        const create = (input: Readonly<Record<string, unknown>>) =>
+        const create = (input: JsonObject) =>
             call("create", {
                 ...named(editor),
                 mode: "set",
@@ -28,7 +29,7 @@ test.each(TEST_DIALECTS)(
         // write a personal value, an override on the laptop in Bob's installation, then change it
         const base = await create({});
         const override = await create({
-            installation: selection.installation,
+            installation,
             deviceId: laptop.id,
             value: "standard",
         });
@@ -86,7 +87,7 @@ test.each(TEST_DIALECTS)(
             await refusal(create({ release: "2026.10.0" })),
             await refusal(create({ name: "editor.theme" })),
             await refusal(create({ mode: "recommend" })),
-            await refusal(create({ ...named(lineNumbers), space: selection.space, value: false })),
+            await refusal(create({ ...named(lineNumbers), space, value: false })),
         ]).toEqual([
             ["DUPLICATE", "a record with the same unique key exists"],
             mismatch,
@@ -109,7 +110,7 @@ test.each(TEST_DIALECTS)("refuse values for devices no one registered on %s", as
         mode: "set",
         value: "vim",
         release: editor.package.version,
-        deviceId: selection.deviceId,
+        deviceId: device,
     });
     expect(await refusal(unknown)).toEqual([
         "BROKEN_REFERENCE",

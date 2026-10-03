@@ -4,7 +4,7 @@ import { copyScope } from "@destack/access/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
 import { Stack } from "@destack/object/server";
-import { schema } from "@destack/schema";
+import { schema, type JsonObject } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
@@ -37,7 +37,7 @@ test.each(TEST_DIALECTS)(
         await copyScope(storage.database, space.reference(Scope.universe.id, spaceId));
         const { release } = storage;
         const objects = [servedObjects(release).setting];
-        const apply = (settings: Readonly<Record<string, unknown>>) =>
+        const apply = (settings: JsonObject) =>
             Stack.apply({
                 database: storage.database,
                 objects,
