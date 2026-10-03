@@ -1,5 +1,5 @@
 import { principal, relation, through, union } from "@destack/access";
-import { announcement, notification, subscription } from "@destack/notification";
+import { activity, announcement, subscription } from "@destack/notification";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { comment } from "@destack/social";
@@ -48,7 +48,7 @@ export const task = defineObject({
     },
     attachments: [
         comment.attach({ by: "read" }),
-        notification.attach({ by: "read" }),
+        activity.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
     ],
