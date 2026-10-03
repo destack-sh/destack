@@ -1,5 +1,5 @@
 import { principal, relation } from "@destack/access";
-import { defineObject, field, method } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 
@@ -21,15 +21,15 @@ export const postcard = defineObject({
         read: relation("sender"),
         send: relation("sender"),
     },
-    methods: {
+    methods: (method) => ({
         list: method.list("read"),
-        create: method.create("send", { fields: ["to"], isPredicted: false }).handle({
-            prepare: async (call) => call.input.to,
-            settle: async (_call, prepared, isCommitted) => {
-                if (isCommitted) {
-                    sent.push(String(prepared));
-                }
-            },
-        }),
-    },
+        create: method
+            .create("send", { fields: ["to"], prepared: schema.string(), isPredicted: false })
+            .handle({
+                prepare: async (call) => call.input.to,
+                commit: async (_call, prepared) => {
+                    sent.push(prepared);
+                },
+            }),
+    }),
 });

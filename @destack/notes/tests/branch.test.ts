@@ -1,30 +1,26 @@
 import { anyone, principal } from "@destack/access";
 import { copyRole, copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
-import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
-import type { DatabaseConnection } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Condition } from "@destack/db/query";
-import { Call, type ObjectType } from "@destack/object";
+import { Call, type CallableName, type ObjectType } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
 import { ObjectServer } from "@destack/object/server";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
-import { identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
+import { schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { subjectContext, testJournalKey } from "@destack/service/test";
+import { subjectContext, testCallKey } from "@destack/service/test";
 import { branch, branchCall, branchRow, branchType, space } from "@destack/space/object";
-import { Scope } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { Scope, Subject } from "@destack/sync";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { v7 } from "uuid";
 import { note, notebook } from "../src/object/index.ts";
 import { notesService } from "../src/service/index.ts";
-import { notesDatabase, notesJournal, notesTables } from "../src/stack/index.ts";
+import { notesDatabase, notesTables } from "../src/stack/index.ts";
 import { postcard, sent } from "./fixture/postcard.ts";
 
 /** The people the scenario acts as. */
@@ -37,6 +33,9 @@ const people = {
 /** A person the scenario acts as. */
 type Person = keyof typeof people;
 
+/** A person a request's bearer token gives. */
+const PERSON = schema.enum(["alice", "bob", "carol"]);
+
 test.for(TEST_DIALECTS)(
     "merge a branch of notes in one transaction with the merger's permission, each note as its author, keeping a refused merge open, on %s",
     async (dialect) => {
@@ -48,28 +47,23 @@ test.for(TEST_DIALECTS)(
             objects: { notebook, note, branch, branchCall, branchRow },
             branch: branchType,
             database: storage.database,
-            context: (context) => ({
-                subjects: [context.requireCaller().authentication.subject],
-                now: Date.now(),
-                attributes: {},
-            }),
-            journal: new Journal(notesJournal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: note.package,
                 service: "notes",
-            }),
+            },
         });
-        const call = async (person: Person, object: ObjectType, name: string, input: object) =>
-            (await server.call(
+        const call = async <Object extends ObjectType, Name extends CallableName<Object>>(
+            person: Person,
+            object: Object,
+            name: Name,
+            input: object,
+        ) =>
+            server.call(
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
-                context(spaceId, person),
-            )) as Record<string, unknown> & { readonly id: string };
-        const refused = (pending: Promise<unknown>) =>
-            pending.then(
-                () => "done",
-                (error: { code: string; message: string }) => [error.code, error.message],
+                contextOf(spaceId, person),
             );
 
         // let bob edit alice's notebook, and keep carol out of it
@@ -98,7 +92,7 @@ test.for(TEST_DIALECTS)(
         }
 
         // refuse a call no served type has, and carol's merge as a whole
-        const invalid = await refused(
+        const invalid = await refusal(
             call("alice", branch, "push", {
                 id: packing.id,
                 calls: [Call.record(notebook, "create", { name: "Elsewhere" })].map((entry) => ({
@@ -107,19 +101,19 @@ test.for(TEST_DIALECTS)(
                 })),
             }),
         );
-        const denied = await refused(call("carol", branch, "merge", { id: packing.id }));
+        const denied = await refusal(call("carol", branch, "merge", { id: packing.id }));
         const open = await call("alice", branch, "get", { id: packing.id });
 
-        // merge as bob, keeping alice as the notes' author, then refuse pushing to the merged branch
-        await call("bob", branch, "merge", { id: packing.id });
-        const notes = (await server.call(
+        // merge as bob, answering the merged branch and keeping alice as the notes' author, then refuse pushing to it
+        const answered = await call("bob", branch, "merge", { id: packing.id });
+        const notes = await server.call(
             note,
             "list",
-            { spaceId, where: { kind: "all", conditions: [] } },
-            context(spaceId, "bob"),
-        )) as { readonly items: readonly { readonly title: string; readonly owner: string }[] };
+            { spaceId, where: {} },
+            contextOf(spaceId, "bob"),
+        );
         const merged = await call("alice", branch, "get", { id: packing.id });
-        const closed = await refused(
+        const closed = await refusal(
             call("alice", branch, "push", {
                 id: packing.id,
                 calls: [Call.record(note, "create", { parentId: book.id, title: "Hat" })],
@@ -130,9 +124,10 @@ test.for(TEST_DIALECTS)(
             denied,
             open: open.state,
             notes: notes.items
-                .map((item) => [item.title, item.owner])
-                .sort(([left], [right]) => left!.localeCompare(right!)),
+                .toSorted((left, right) => left.title.localeCompare(right.title))
+                .map((item) => [item.title, Subject.read(item.owner).id]),
             merged: merged.state,
+            answered: [answered.id, answered.state],
             closed,
         }).toEqual({
             invalid: ["BAD_REQUEST", "no mutating method note.explode"],
@@ -143,6 +138,7 @@ test.for(TEST_DIALECTS)(
                 ["Socks", people.alice.id],
             ],
             merged: "merged",
+            answered: [packing.id, "merged"],
             closed: ["CONFLICT", "branch is merged"],
         });
     },
@@ -151,8 +147,8 @@ test.for(TEST_DIALECTS)(
 /** Open a new space below a new account, readable by anyone through a member role, returning its identifier. */
 async function openSpace(database: DatabaseConnection) {
     // record the account and the space as copies of their home's access keep them
-    const accountId = identifier("account").parse(`account-${v7()}`);
-    const spaceId = identifier("space").parse(`space-${v7()}`);
+    const accountId = schema.identifier("account").parse(`account-${v7()}`);
+    const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     const reference = space.reference(accountId, spaceId);
     await copyScope(database, account.reference(Scope.universe.id, accountId));
     await copyScope(database, reference);
@@ -169,18 +165,18 @@ async function openSpace(database: DatabaseConnection) {
 }
 
 /** Build a person's request context in a space. */
-function context(spaceId: string, person: Person) {
+function contextOf(spaceId: string, person: Person) {
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
 
-    return subjectContext(people[person], spaceId, controller.signal);
+    return subjectContext(people[person], spaceId, { signal: controller.signal });
 }
 
 test("edit a branch on two devices live, read it on the server, and merge it with each note as its author", async () => {
     // serve a space's notes and their branches to two people's devices
     const { server, spaceId } = await serveSpace();
-    const alice = await device("alice", server, spaceId);
-    const bob = await device("bob", server, spaceId);
+    const alice = await openDevice("alice", server, spaceId);
+    const bob = await openDevice("bob", server, spaceId);
 
     // let bob edit alice's notebook
     const book = alice.client.mutate(notebook).create({ name: "Travel" });
@@ -204,7 +200,7 @@ test("edit a branch on two devices live, read it on the server, and merge it wit
     // read the branch on the server as bob, with alice's note as hers
     const read = (await bob.client.read(note).list({ branch: id })).items.map((item) => [
         item.title,
-        item.owner,
+        Subject.read(item.owner).id,
     ]);
     const [opened] = (await bob.client.read(branch).list({})).items;
 
@@ -216,7 +212,7 @@ test("edit a branch on two devices live, read it on the server, and merge it wit
     const drafts = (await diff.read()).map((entry) => [
         entry.object.name,
         entry.change,
-        entry.after?.title,
+        entry.after?.["title"],
         entry.fields,
     ]);
     await bob.client.mutate(note).create({ parentId, title: "Charger" }).confirmed;
@@ -231,12 +227,12 @@ test("edit a branch on two devices live, read it on the server, and merge it wit
         main,
         read,
         drafts,
-        base: typeof opened!.base.sequence,
+        base: typeof opened?.base.sequence,
         preview,
         server: (await bob.client.read(note).list({})).items
-            .map((item) => [item.title, item.owner])
-            .sort(([left], [right]) => left!.localeCompare(right!)),
-        state: merged!.state,
+            .toSorted((left, right) => left.title.localeCompare(right.title))
+            .map((item) => [item.title, Subject.read(item.owner).id]),
+        state: merged?.state,
         errors: [...alice.errors, ...bob.errors],
     }).toEqual({
         drafted: ["Socks"],
@@ -261,14 +257,9 @@ async function serveSpace() {
     onTestFinished(() => storage.close());
     const spaceId = await openSpace(storage.database);
     const served = ObjectServer.serve(notesService, {
-        journal: notesJournal,
-        journalKey: testJournalKey,
+        callKey: testCallKey,
         branch: branchType,
         database: storage.database,
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
-            package: notesService.package,
-            service: "notes",
-        }),
     });
     const server = Server.start({
         ...served,
@@ -279,10 +270,10 @@ async function serveSpace() {
         drainTimeout: 1000,
         authorizeHost: async () => {},
         authenticate: async (request) => {
-            const id = request.headers.get("authorization")!.slice("Bearer ".length) as Person;
+            const id = PERSON.parse(request.headers.get("authorization")?.slice("Bearer ".length));
             const now = Date.now();
 
-            return new Caller({
+            return new Authentication({
                 subject: people[id],
                 subjects: [people[id]],
                 credential: { kind: "user", id },
@@ -302,9 +293,9 @@ async function serveSpace() {
 const AUDIENCE = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e238");
 
 /** Open a person's device on its own database, following and pushing until the test ends. */
-async function device(person: Person, server: Server, spaceId: string) {
+async function openDevice(person: Person, server: Server, spaceId: string) {
     // keep the space's notes and branches in a local database
-    const objects = [notebook, note, branch, branchCall, branchRow];
+    const objects = { notebook, note, branch, branchCall, branchRow };
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables(objects));
     onTestFinished(() => storage.close());
     const endpoint = {
@@ -323,7 +314,7 @@ async function device(person: Person, server: Server, spaceId: string) {
         reconnect: () => endpoint,
     });
     for (const object of [note, branch]) {
-        client.subscribe(object);
+        client.queryOf(object).findMany().subscribe();
     }
 
     // follow and push until the test ends, collecting failures
@@ -340,19 +331,19 @@ async function device(person: Person, server: Server, spaceId: string) {
 }
 
 /** Read the note titles a device shows, outside the trash. */
-async function titles(device: { readonly client: ObjectClient }): Promise<string[]> {
-    const rows = await device.client.database.select({ title: note.table.title }).from(note.table);
+async function titles(opened: { readonly client: ObjectClient }): Promise<string[]> {
+    const rows = await opened.client.database.select({ title: note.table.title }).from(note.table);
 
-    return rows.map((row) => row.title).sort((left, right) => left.localeCompare(right));
+    return rows.map((row) => row.title).toSorted((left, right) => left.localeCompare(right));
 }
 
 /** Wait until a device's copy has a row of an object type. */
 async function arrival(
-    device: { readonly client: ObjectClient },
+    opened: { readonly client: ObjectClient },
     object: ObjectType,
 ): Promise<void> {
     // follow the type's rows until one arrives
-    const live = device.client.subscribe(object);
+    const live = opened.client.queryOf(object).findMany().subscribe();
     const controller = new AbortController();
     try {
         for await (const rows of live.watch(controller.signal)) {
@@ -369,8 +360,8 @@ async function arrival(
 test("rebuild a branch's rows once the main line removes what its calls need", async () => {
     // draft a note on a branch under a notebook alice's device follows
     const { server, spaceId } = await serveSpace();
-    const alice = await device("alice", server, spaceId);
-    alice.client.subscribe(notebook);
+    const alice = await openDevice("alice", server, spaceId);
+    alice.client.query.notebook.findMany().subscribe();
     const book = alice.client.mutate(notebook).create({ name: "Travel" });
     const { id: parentId } = await book.predicted;
     await book.confirmed;
@@ -402,24 +393,23 @@ test.for(TEST_DIALECTS)(
             objects: { notebook, note, postcard, branch, branchCall, branchRow },
             branch: branchType,
             database: storage.database,
-            context: (context) => ({
-                subjects: [context.requireCaller().authentication.subject],
-                now: Date.now(),
-                attributes: {},
-            }),
-            journal: new Journal(notesJournal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: note.package,
                 service: "notes",
-            }),
+            },
         });
-        const call = async (object: ObjectType, name: string, input: object) =>
-            (await server.call(
+        const call = async <Object extends ObjectType, Name extends CallableName<Object>>(
+            object: Object,
+            name: Name,
+            input: object,
+        ) =>
+            server.call(
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
-                context(spaceId, "alice"),
-            )) as Record<string, unknown> & { readonly id: string };
+                contextOf(spaceId, "alice"),
+            );
         sent.length = 0;
 
         // push a postcard to a branch, sending nothing and changing no rows
@@ -428,21 +418,19 @@ test.for(TEST_DIALECTS)(
             id: trip.id,
             calls: [Call.record(postcard, "create", { to: "grandma" })],
         });
-        const rows = (await call(branchRow, "list", { where: Condition.eq("parentId", trip.id) }))
-            .items as unknown[];
+        const { items: rows } = await call(branchRow, "list", {
+            where: { parentId: trip.id },
+        });
         const pushed = [...sent];
 
         // merge, sending the postcard once as alice
         await call(branch, "merge", { id: trip.id });
-        const postcards = (await call(postcard, "list", {})).items as {
-            readonly to: string;
-            readonly sender: string;
-        }[];
+        const { items: postcards } = await call(postcard, "list", {});
         expect({
             rows,
             pushed,
             sent,
-            postcards: postcards.map((item) => [item.to, item.sender]),
+            postcards: postcards.map((item) => [item.to, item.senderId]),
         }).toEqual({
             rows: [],
             pushed: [],

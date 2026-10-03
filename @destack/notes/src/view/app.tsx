@@ -2,8 +2,6 @@ import * as style from "@destack/style";
 import { createTheme } from "@destack/theme";
 import { color } from "@destack/theme/tokens.stylex";
 import "@destack/theme/theme.css";
-import { Condition } from "@destack/db/query";
-import type { ObjectClient } from "@destack/object/client";
 import {
     createMemo,
     createSignal,
@@ -11,9 +9,10 @@ import {
     Loading,
     Show,
     useQuery,
+    useSpace,
     useText,
-    useView,
 } from "@destack/view";
+import type { Identifier } from "@destack/schema";
 import { note, notebook } from "../object/index.ts";
 
 /** The notes layout: notebooks, their notes, and the open note. */
@@ -33,61 +32,55 @@ const styles = style.create({
 
 /** Show the space's notebooks and notes, editing the open note together. */
 export default function Notes() {
-    // open the space's notebooks and notes
-    const view = useView();
-    const objects = createMemo(() => view.client(view.space, [notebook, note]));
-
     return (
         <main
             {...style.attrs(styles.page)}
             {...createTheme({ gray: "sand", accent: "orange", appearance: "system" })}
         >
             <Loading>
-                <Show when={objects()}>{(client) => <Workspace objects={client()} />}</Show>
+                <Workspace />
             </Loading>
         </main>
     );
 }
 
 /** List notebooks and notes, and edit the open note. */
-function Workspace(properties: {
-    /** The space's objects. */
-    objects: ObjectClient;
-}) {
+function Workspace() {
     // follow the notebooks, remounting the notes whenever another notebook is chosen
-    const [open, setOpen] = createSignal<string>();
-    const [chosen, setChosen] = createSignal<string>();
-    const notebooks = useQuery(properties.objects, notebook, {
-        order: [{ column: "name", direction: "asc" }],
-    });
+    const [open, setOpen] = createSignal<Identifier<"note">>();
+    const [chosen, setChosen] = createSignal<Identifier<"notebook">>();
+    const space = useSpace({ notebook, note });
+    const notebooks = useQuery(space.query.notebook.findMany({ orderBy: { name: "asc" } }));
     const selection = createMemo(() => ({ notebook: chosen() }));
 
     /** Undo and redo with the platform's shortcuts. */
     function shortcut(event: KeyboardEvent) {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
             event.preventDefault();
-            void (event.shiftKey ? properties.objects.redo() : properties.objects.undo());
+            void (event.shiftKey ? space.redo() : space.undo());
         }
     }
 
     /** Create a notebook named by the form. */
-    async function createNotebook(event: SubmitEvent) {
+    async function createNotebook(
+        event: SubmitEvent & { readonly currentTarget: HTMLFormElement },
+    ) {
         // read the entered name
         event.preventDefault();
-        const form = event.currentTarget as HTMLFormElement;
+        const form = event.currentTarget;
         const name = new FormData(form).get("name");
 
         // create the notebook and choose it
         if (typeof name === "string" && name.trim() !== "") {
             form.reset();
-            const created = await properties.objects.mutate(notebook).create({ name }).predicted;
+            const created = await space.mutate.notebook.create({ name }).predicted;
             setChosen(created.id);
         }
     }
 
     /** Create an empty note in the chosen notebook and open it. */
     async function createNote() {
-        const created = await properties.objects.mutate(note).create({
+        const created = await space.mutate.note.create({
             title: "Untitled",
             ...(chosen() === undefined ? {} : { parentId: chosen() }),
         }).predicted;
@@ -102,7 +95,7 @@ function Workspace(properties: {
                 <For each={notebooks()}>
                     {(row) => <button onClick={() => setChosen(row.id)}>{row.name}</button>}
                 </For>
-                <form onSubmit={createNotebook}>
+                <form onSubmit={(event) => void createNotebook(event)}>
                     <input name="name" aria-label="Notebook name" placeholder="New notebook" />
                 </form>
             </nav>
@@ -111,39 +104,34 @@ function Workspace(properties: {
             <section {...style.attrs(styles.column)} aria-label="Notes">
                 <button onClick={() => void createNote()}>New note</button>
                 <Show when={selection()} keyed>
-                    {(selected) => (
-                        <Notebook
-                            objects={properties.objects}
-                            notebook={selected.notebook}
-                            open={setOpen}
-                        />
-                    )}
+                    {(selected) => <Notebook notebook={selected.notebook} open={setOpen} />}
                 </Show>
             </section>
 
             {/* The open note */}
-            <Show when={open()}>{(id) => <Editor objects={properties.objects} id={id()} />}</Show>
+            <Show when={open()}>{(id) => <Editor id={id()} />}</Show>
         </div>
     );
 }
 
 /** List the notes of a notebook, or the loose notes, opening the one clicked. */
 function Notebook(properties: {
-    /** The space's objects. */
-    objects: ObjectClient;
     /** The notebook, absent for the loose notes. */
-    notebook: string | undefined;
+    notebook: Identifier<"notebook"> | undefined;
     /** Open a note. */
-    open: (id: string) => void;
+    open: (id: Identifier<"note">) => void;
 }) {
     // follow the notebook's notes
-    const notes = useQuery(properties.objects, note, {
-        where:
-            properties.notebook === undefined
-                ? Condition.missing("parentId")
-                : Condition.eq("parentId", properties.notebook),
-        order: [{ column: "title", direction: "asc" }],
-    });
+    const space = useSpace({ note });
+    const notes = useQuery(() =>
+        space.query.note.findMany({
+            where:
+                properties.notebook === undefined
+                    ? { parentId: { isNull: true } }
+                    : { parentId: properties.notebook },
+            orderBy: { title: "asc" },
+        }),
+    );
 
     return (
         <For each={notes()}>
@@ -154,26 +142,24 @@ function Notebook(properties: {
 
 /** Edit one note's title and text, sharing every keystroke live. */
 function Editor(properties: {
-    /** The space's objects. */
-    objects: ObjectClient;
     /** The open note. */
-    id: string;
+    id: Identifier<"note">;
 }) {
     // follow the note's row and its text
-    const rows = useQuery(properties.objects, note, {
-        where: Condition.eq("id", properties.id),
-    });
-    const body = useText(properties.objects, note, properties.id, "body");
+    const space = useSpace({ note });
+    const current = useQuery(() => space.query.note.findFirst({ where: { id: properties.id } }));
+    const body = useText(note, properties.id, "body");
 
     return (
         <article {...style.attrs(styles.column)} aria-label="Note">
             <input
                 aria-label="Title"
-                value={rows()[0]?.title ?? ""}
+                value={current()?.title ?? ""}
                 onChange={(event) =>
-                    void properties.objects
-                        .mutate(note)
-                        .update({ id: properties.id, title: event.currentTarget.value })
+                    void space.mutate.note.update({
+                        id: properties.id,
+                        title: event.currentTarget.value,
+                    })
                 }
             />
             <textarea

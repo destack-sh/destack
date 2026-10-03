@@ -4,6 +4,7 @@ import { note, notebook } from "../object/index.ts";
 /** Notebooks and their notes, edited together live. */
 export const notes = defineView({
     name: "notes",
+    objects: [notebook, note],
     permissions: [
         notebook.permission("read"),
         notebook.permission("manage"),
