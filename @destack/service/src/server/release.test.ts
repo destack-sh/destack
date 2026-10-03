@@ -1,12 +1,12 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { Expression } from "@destack/schema/expression";
+import { Expression } from "@destack/db";
 import { defineService } from "../declare/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure } from "../service/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
-import { hosting } from "./tests/fixture.ts";
+import { hosting } from "../test/fixture.ts";
 import { VERSION_HEADER } from "../request/index.ts";
 
 /** A search procedure whose input renamed text to query and gained a limit in 2026.9.0. */
@@ -24,6 +24,9 @@ const search = defineProcedure({
     .route({ method: "POST", path: "/search" })
     .input(schema.object({ query: schema.string(), limit: schema.number().int() }))
     .output(schema.object({ query: schema.string(), limit: schema.number().int() }));
+
+/** The body of a refused call. */
+const Failure = schema.object({ code: schema.string(), message: schema.string() }).loose();
 
 /** The search service, serving callers of 2026.8.0 and later. */
 const service = defineService("search", { search, since: "2026.8.0" });
@@ -53,9 +56,10 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
             },
             body: JSON.stringify(input),
         });
-        const body = await (await server.fetch(request)).json();
+        const body: unknown = await (await server.fetch(request)).json();
+        const failure = Failure.safeParse(body);
 
-        return body.code === undefined ? body : `${body.code}: ${body.message}`;
+        return failure.success ? `${failure.data.code}: ${failure.data.message}` : body;
     };
 
     // convert an earlier input, pass a current one, and refuse the rest

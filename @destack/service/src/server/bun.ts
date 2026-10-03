@@ -1,4 +1,5 @@
 import { serve, type Server } from "bun";
+import { aligned } from "@destack/schema";
 import { startTelemetry } from "@destack/telemetry/host";
 import { ServiceError } from "../error/index.ts";
 import {
@@ -99,6 +100,6 @@ export async function runWorkload(
         signal: workload.signal,
         shutdown: () => workload.shutdown(),
         close: () => workload.close(),
-        ready: (addresses) => ready({ port: Number(addresses[0]!.port) }),
+        ready: (addresses) => ready({ port: Number(aligned(addresses, 0).port) }),
     });
 }

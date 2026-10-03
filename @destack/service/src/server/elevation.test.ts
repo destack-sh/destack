@@ -12,7 +12,7 @@ import { defineService } from "../declare/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
-import { hosting } from "./tests/fixture.ts";
+import { hosting } from "../test/fixture.ts";
 
 /** The authentication renaming a vault requires. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
@@ -48,7 +48,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         ],
     );
 
-    // hold alice's vault
+    // open a database for alice's vault
     const storage = await TestDatabase.create("sqlite", [vaults, ...accessTables], {
         isMigrated: true,
     });
@@ -96,7 +96,14 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
             });
         },
         router: implementation.router({
-            rename: implementation.rename.handler(({ context }) => context.target!.id),
+            rename: implementation.rename.handler(({ context }) => {
+                // read the target the decision ran on
+                if (context.target === undefined) {
+                    throw new TypeError("a call requiring a permission has a target");
+                }
+
+                return context.target.id;
+            }),
         }),
         access: {
             authorizer,

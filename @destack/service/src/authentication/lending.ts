@@ -1,8 +1,8 @@
-import { identifier, Instant, schema } from "@destack/schema";
+import { Instant, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 import { type Authentication, AuthenticationClaims } from "./authentication.ts";
 
-/** How long a lending holds, in milliseconds: an hour, far above the milliseconds an outbox takes to deliver a sent call. */
+/** How long a lending lasts, in milliseconds: an hour, far above the milliseconds an outbox takes to deliver a sent call. */
 const LENDING_MILLISECONDS = 60 * 60_000;
 
 /** The authority a caller lends: its subject, the subject sets it belongs to, the principals acting for it and the permissions it narrowed to. */
@@ -20,7 +20,7 @@ export const LendingClaim = LentAuthority.extend({
     /** The installation called. */
     installation: AuthenticationClaims.shape.subject,
     /** The space the installation serves. */
-    scope: identifier("space"),
+    scope: schema.identifier("space"),
     /** When the lending lapses, in UTC epoch milliseconds. */
     expiresAt: Instant,
 });
@@ -93,7 +93,7 @@ export class Lending {
         return `${body.toBase64({ alphabet: "base64url" })}.${mac.toBase64({ alphabet: "base64url" })}`;
     }
 
-    /** Read a lending this holder signed and that holds now, refusing any other. */
+    /** Read a lending this holder signed and that is valid now, refusing any other. */
     async verify(token: string, now = Date.now()): Promise<LendingClaim> {
         // require a body with this holder's signature
         const [encoded, signature, ...rest] = token.split(".");
@@ -107,7 +107,7 @@ export class Lending {
             throw refusal;
         }
 
-        // require a lending that holds
+        // require a valid lending
         const claim = LendingClaim.parse(JSON.parse(new TextDecoder().decode(body)));
         if (claim.expiresAt <= now) {
             throw new ServiceError("UNAUTHORIZED", { message: "the lending lapsed" });

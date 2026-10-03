@@ -8,7 +8,7 @@ import {
     accessTables,
     Authorizer,
     Policy,
-    condition,
+    resource,
     relation,
     union,
     type AccessContext,
@@ -16,7 +16,6 @@ import {
     principal,
 } from "@destack/access";
 import { boolean, defineTable, eq, text } from "@destack/db";
-import { Condition } from "@destack/db/query";
 import { TestDatabase } from "@destack/db/test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { Authentication, TokenIssuer, TokenVerifier } from "../authentication/index.ts";
@@ -28,7 +27,7 @@ import { defineService } from "../declare/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
-import { createAuthentication, hosting } from "./tests/fixture.ts";
+import { createAuthentication, hosting } from "../test/fixture.ts";
 
 test.each(["universe", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
@@ -52,7 +51,14 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
                     scope: credentialScope,
                 }),
             router: implementation.router({
-                read: implementation.read.handler(({ context }) => context.scope!),
+                read: implementation.read.handler(({ context }) => {
+                    // read the scope the call runs in
+                    if (context.scope === undefined) {
+                        throw new TypeError("a scoped service call has a scope");
+                    }
+
+                    return context.scope;
+                }),
             }),
         });
         const client = createClient(defineService("fixture", definition), {
@@ -84,11 +90,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             reader: { subjects: [principal.user], grantedBy: "share" },
         },
         permissions: {
-            read: union(
-                relation("owner"),
-                relation("reader"),
-                condition(Condition.eq("public", true)),
-            ),
+            read: union(relation("owner"), relation("reader"), resource({ public: true })),
             share: relation("owner"),
         },
     });
@@ -171,11 +173,11 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             },
         ],
     );
-    const test = await TestDatabase.create("sqlite", [noteTable, ...accessTables], {
+    const storage = await TestDatabase.create("sqlite", [noteTable, ...accessTables], {
         isMigrated: true,
     });
-    onTestFinished(() => test.close());
-    const database = test.database;
+    onTestFinished(() => storage.close());
+    const database = storage.database;
     await copyScope(database, { packageId, type: "space", scope: "universe", id: spaceId });
     await database
         .insert(noteTable)
@@ -239,7 +241,8 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     let bearer: string | undefined = credentials.get(owner.id);
     const client = createClient(defineService("fixture", service), {
         url: "https://notes.example",
-        headers: () => (bearer ? { authorization: `Bearer ${bearer}` } : {}),
+        headers: () =>
+            bearer !== undefined && bearer !== "" ? { authorization: `Bearer ${bearer}` } : {},
         fetch: (request) =>
             server.fetch(
                 transport === "direct"

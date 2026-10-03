@@ -2,13 +2,16 @@ import { principal } from "@destack/access";
 import type { Subject } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Authentication } from "../../authentication/index.ts";
-import { ServiceError } from "../../error/index.ts";
-import { defineService } from "../../declare/index.ts";
+import { Authentication } from "../authentication/index.ts";
+import { ServiceError } from "../error/index.ts";
+import { defineService } from "../declare/index.ts";
+
+/** The service the server scenarios host. */
+export const fixtureService = defineService("fixture", {});
 
 /** The hosting configuration of the server scenarios. */
 export const hosting = {
-    service: defineService("fixture", {}),
+    service: fixtureService,
     audience: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     scope: "test-space",
     resources: new ResourceContext(),

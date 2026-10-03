@@ -62,8 +62,8 @@ export async function invokeProcedure<State extends Context>(
     }
 
     // record a stream when it closes
-    if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
-        return streamProcedure(result as AsyncIterable<unknown>, call, options);
+    if (isAsyncIterable(result)) {
+        return streamProcedure(result, call, options);
     }
     if (audit) {
         await recordAudit({ call, outcome: "success" }, audit);
@@ -92,10 +92,10 @@ function streamProcedure<State extends Context>(
                     await options.authorize(call);
                 }
                 const result = await iterator.next();
-                if (options.authorize && !result.done) {
+                if (options.authorize && result.done !== true) {
                     await options.authorize(call);
                 }
-                if (result.done) {
+                if (result.done === true) {
                     outcome = "success";
                 }
 
@@ -147,4 +147,9 @@ async function recordAudit<State extends Context>(
 /** Classify a failure as a denial, concealed or not, or a failure. */
 function outcomeOf(failure: ServiceError<string, unknown>): "denied" | "failure" {
     return denialOf(failure) === undefined ? "failure" : "denied";
+}
+
+/** Report whether a procedure's result is a stream. */
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+    return value !== null && typeof value === "object" && Symbol.asyncIterator in value;
 }

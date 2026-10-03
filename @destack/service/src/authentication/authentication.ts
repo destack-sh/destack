@@ -1,7 +1,7 @@
 import { PackageId } from "@destack/package";
 import { Subject } from "@destack/sync";
 import { type AccessContext, Attribute, Caller, isPrincipal, principal } from "@destack/access";
-import { type Identifier, identifier, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 import type { TokenIssuerAuthority } from "./token.ts";
 
@@ -15,7 +15,7 @@ export const DeploymentClaim = schema.object({
     /** The workload identity. */
     subject: Subject,
     /** The deployment. */
-    id: identifier("deployment"),
+    id: schema.identifier("deployment"),
 });
 /** A workload identity authenticated within one deployment. */
 export type DeploymentClaim = schema.Infer<typeof DeploymentClaim>;
@@ -25,7 +25,7 @@ export const AuthenticationClaims = Caller.schema.extend({
     /** The represented identity. */
     subject: Subject,
     /** The authority scope of a scoped credential. */
-    scope: schema.string().min(1).optional(),
+    scope: schema.string().min(1).exactOptional(),
     /** The credential reference. */
     credential: schema.object({
         /** The credential kind. */
@@ -40,14 +40,14 @@ export const AuthenticationClaims = Caller.schema.extend({
     /** The exclusive expiry, in Unix milliseconds. */
     expiresAt: schema.number(),
     /** The verified deployments of workload identities. */
-    deployments: schema.array(DeploymentClaim).optional(),
+    deployments: schema.array(DeploymentClaim).exactOptional(),
     /** The trusted attributes access policies read. */
-    attributes: schema.record(schema.string(), Attribute).optional(),
+    attributes: schema.record(schema.string(), Attribute).exactOptional(),
     /** A lending of the caller's authority to the installation it called, which its holder signed, for the calls that installation sends. */
-    delegation: schema.string().min(1).optional(),
+    delegation: schema.string().min(1).exactOptional(),
 });
 
-/** The header carrying the authentication a host forwards to a runner. */
+/** The header with the authentication a host forwards to a runner. */
 export const AUTHENTICATION_HEADER = "x-destack-authentication";
 
 /** A host-verified authentication of a caller, with its credential and lifetime. */
@@ -144,11 +144,11 @@ export class Authentication<Credential extends CredentialReference = CredentialR
             subject: claims.subject,
             subjects: claims.subjects,
             ...(claims.assurance === undefined ? {} : { assurance: claims.assurance }),
-            ...(claims.identifiers === undefined ? {} : { identifiers: claims.identifiers }),
+            ...(claims.contacts === undefined ? {} : { contacts: claims.contacts }),
             session: SessionKey.of(claims.credential),
-            delegates: claims.delegates,
+            ...(claims.delegates === undefined ? {} : { delegates: claims.delegates }),
             attributes: claims.attributes ?? {},
-            permissions: claims.permissions,
+            ...(claims.permissions === undefined ? {} : { permissions: claims.permissions }),
             now,
         };
     }
@@ -162,8 +162,8 @@ export class Authentication<Credential extends CredentialReference = CredentialR
         // allow a space key to assert only installations of its space, calling any space
         if (
             authority.kind === "space" &&
-            (claims.identifiers?.length ||
-                claims.delegates?.length ||
+            ((claims.contacts ?? []).length > 0 ||
+                (claims.delegates ?? []).length > 0 ||
                 subjects.some(
                     (subject) =>
                         !principal.installation.is(subject) || subject.scope !== authority.spaceId,

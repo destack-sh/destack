@@ -8,8 +8,8 @@ import { ServiceError } from "../error/index.ts";
 import type { ProcedureCall } from "./access.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
 
-/** The header carrying a request's capabilities. */
-export const CAPABILITY_HEADER = "destack-capability";
+/** The header with the link secrets a request presents. */
+export const LINK_SECRET_HEADER = "destack-link-secret";
 
 /** The verified context of a service call. */
 export class ServiceContext {
@@ -23,14 +23,14 @@ export class ServiceContext {
     readonly authentication: Authentication | null;
     /** The installation's resource clients. */
     readonly resources: ResourceContext;
-    /** The credential failure. */
-    readonly authenticationError?: unknown;
+    /** The credential failure, absent after a successful or anonymous authentication. */
+    readonly authenticationError: Error | undefined;
     /** The server-generated request identifier. */
     readonly requestId = crypto.randomUUID();
     /** Abort when the request closes or its caller lapses, ending handlers at their next consistent point. */
     readonly signal: AbortSignal;
-    /** The digests of the presented capabilities. */
-    readonly capabilities: readonly string[];
+    /** The digests of the presented link secrets. */
+    readonly linkSecrets: readonly string[];
     /** The watermarks the caller requires. */
     readonly bookmark: Bookmark;
     /** Read the current time calls run at. */
@@ -46,7 +46,7 @@ export class ServiceContext {
     constructor(request: Request, options: ServiceContextOptions) {
         // read the host state
         const { audience, scope, authentication, resources, access, authenticationError } = options;
-        const capabilities = options.capabilities ?? [];
+        const linkSecrets = options.linkSecrets ?? [];
 
         // require no caller after a failed authentication
         if (authentication !== null && authenticationError !== undefined) {
@@ -60,15 +60,15 @@ export class ServiceContext {
         this.authentication = authentication;
         this.resources = resources;
         this.authenticationError = authenticationError;
-        this.capabilities = capabilities;
+        this.linkSecrets = linkSecrets;
         this.clock = options.clock ?? Date.now;
         this.bookmark = Bookmark.parse(request.headers.get(BOOKMARK_HEADER));
 
         // authorize the caller under the service's policies
         this.authorization =
             access &&
-            new Authorization(access.authorizer, access.database, (scope) => {
-                const context = this.access(scope);
+            new Authorization(access.authorizer, access.database, (authorizedScope) => {
+                const context = this.access(authorizedScope);
                 Caller.delegation(context);
 
                 return context;
@@ -76,6 +76,7 @@ export class ServiceContext {
 
         // bind methods for middleware context copies
         this.requireAuthentication = this.requireAuthentication.bind(this);
+        this.requireAuthorization = this.requireAuthorization.bind(this);
         this.access = this.access.bind(this);
 
         // keep the signal as an own property
@@ -85,7 +86,7 @@ export class ServiceContext {
                 : AbortSignal.any([
                       this.request.signal,
                       AbortSignal.timeout(
-                          Math.max(0, Math.ceil(authentication.lapsesAt - Date.now())),
+                          Math.max(0, Math.ceil(authentication.lapsesAt - this.clock())),
                       ),
                   ]);
     }
@@ -103,21 +104,30 @@ export class ServiceContext {
         }
         this.authentication.requireCurrent(
             this.audience,
-            this.authentication.within(Date.now()),
+            this.authentication.within(this.clock()),
             this.scope,
         );
 
         return this.authentication;
     }
 
-    /** Read the access context at the current time, held at the caller's lapse once passed. */
+    /** Read the caller's authorization, which a service declared with access always has. */
+    requireAuthorization(): Authorization {
+        if (this.authorization === undefined) {
+            throw new TypeError(`service ${this.audience} runs without authorization`);
+        }
+
+        return this.authorization;
+    }
+
+    /** Read the access context at the current time, fixed at the caller's lapse once passed. */
     access(scope: string | undefined = this.scope): AccessContext {
         // report a credential failure
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }
 
-        // read the caller's or an anonymous context with capabilities
+        // read the caller's or an anonymous context with link secrets
         const context = this.authentication
             ? this.authentication.context(
                   this.audience,
@@ -126,9 +136,9 @@ export class ServiceContext {
               )
             : { subjects: [], attributes: {}, now: this.clock() };
 
-        return this.capabilities.length === 0
+        return this.linkSecrets.length === 0
             ? context
-            : { ...context, capabilities: this.capabilities };
+            : { ...context, linkSecrets: this.linkSecrets };
     }
 }
 
@@ -145,9 +155,9 @@ export interface ServiceContextOptions {
     /** The service's policies. */
     readonly access?: ServiceAccess;
     /** The credential failure. */
-    readonly authenticationError?: unknown;
-    /** The digests of the presented capabilities. */
-    readonly capabilities?: readonly string[];
+    readonly authenticationError?: Error;
+    /** The digests of the presented link secrets. */
+    readonly linkSecrets?: readonly string[];
     /** Read the current time calls run at, the system clock by default. */
     readonly clock?: () => number;
 }
@@ -156,7 +166,7 @@ export interface ServiceContextOptions {
 export interface ServiceAccess {
     /** The policies. */
     readonly authorizer: Authorizer;
-    /** The database holding relationships and roles. */
+    /** The database with relationships and roles. */
     readonly database: DatabaseConnection;
     /** Name the object or scope a call acts on. */
     target?(call: ProcedureCall<ServiceContext>): Promise<ObjectReference>;

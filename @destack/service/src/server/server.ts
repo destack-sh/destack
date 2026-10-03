@@ -3,13 +3,13 @@ import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { Capability, Caller } from "@destack/access";
+import { LinkSecret, Caller } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { Authentication } from "../authentication/index.ts";
 import type { ServiceRouter } from "../service/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
-import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
+import { LINK_SECRET_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
 import { reportError, reportReconciliation } from "./error.ts";
 import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
@@ -77,10 +77,11 @@ export class Server implements AsyncDisposable {
 
         // run the controllers
         const controllers = options.controllers ?? [];
-        if (controllers.length > 0 && options.access === undefined) {
+        const access = options.access;
+        if (controllers.length > 0 && access === undefined) {
             throw new TypeError("a service running controllers needs the database of its access");
-        } else if (controllers.length > 0) {
-            const loop = new ControlLoop(options.access!.database, controllers, {
+        } else if (controllers.length > 0 && access !== undefined) {
+            const loop = new ControlLoop(access.database, controllers, {
                 report: reportReconciliation,
                 ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
@@ -192,7 +193,7 @@ export class Server implements AsyncDisposable {
     static async #authenticate(request: Request, options: ServerOptions): Promise<ServiceContext> {
         // authenticate the request
         let authentication: Authentication | null = null;
-        let authenticationError: unknown;
+        let authenticationError: Error | undefined;
         try {
             const authenticated = await options.authenticate(request);
             authenticated?.requireCurrent(
@@ -203,28 +204,39 @@ export class Server implements AsyncDisposable {
             authentication = authenticated;
         } catch (error) {
             authenticationError =
-                error ?? new ServiceError("UNAUTHORIZED", { message: "authentication failed" });
+                error instanceof Error
+                    ? error
+                    : new ServiceError("UNAUTHORIZED", {
+                          message: "authentication failed",
+                          cause: error,
+                      });
         }
 
-        // digest the presented capabilities
-        const presented = (request.headers.get(CAPABILITY_HEADER) ?? "")
+        // digest the presented link secrets
+        const presented = (request.headers.get(LINK_SECRET_HEADER) ?? "")
             .split(",")
             .map((secret) => secret.trim())
             .filter((secret) => secret.length > 0);
-        const capabilities = await Promise.all(
-            presented.map((secret) => Capability.digest(secret)),
+        const linkSecrets = await Promise.all(
+            presented.map((secret) => LinkSecret.digest(secret)),
         ).catch((error: unknown) => {
-            throw new ServiceError("UNAUTHORIZED", { message: "invalid capability", cause: error });
+            throw new ServiceError("UNAUTHORIZED", {
+                message: "invalid link secret",
+                cause: error,
+            });
         });
+
+        // scope the call to the service's scope or the caller's
+        const scope = options.scope ?? authentication?.claims.scope;
 
         return new ServiceContext(request, {
             audience: options.audience,
-            scope: options.scope ?? authentication?.claims.scope,
+            ...(scope === undefined ? {} : { scope }),
             authentication,
             resources: options.resources,
-            access: options.access,
-            authenticationError,
-            capabilities,
+            ...(options.access === undefined ? {} : { access: options.access }),
+            ...(authenticationError === undefined ? {} : { authenticationError }),
+            linkSecrets,
             ...(options.clock === undefined ? {} : { clock: options.clock }),
         });
     }
@@ -245,9 +257,16 @@ export class Server implements AsyncDisposable {
         // decide the permission on the call's target, which audits of a denial also read
         const permission = call.access.permission;
         if (permission !== null) {
-            const target = await options.access!.target!(call);
+            const access = options.access;
+            const authorization = call.context.authorization;
+            if (access?.target === undefined || authorization === undefined) {
+                throw new TypeError(
+                    `procedures requiring ${permission.name} need service access with targets`,
+                );
+            }
+            const target = await access.target(call);
             call.context.target = target;
-            await call.context.authorization!.require(permission, target);
+            await authorization.require(permission, target);
         }
         // check the caller in the service's scope
         else {
@@ -258,7 +277,7 @@ export class Server implements AsyncDisposable {
         await options.authorizeHost(call);
     }
 
-    /** Hold a request until its response body settles. */
+    /** Keep a request open until its response body settles. */
     #respond(response: Response, controller: AbortController, signal: AbortSignal): Response {
         // finish a response without a body
         if (!response.body) {
@@ -296,11 +315,18 @@ export class Server implements AsyncDisposable {
         const body = new ReadableStream<Uint8Array>({
             async pull(stream) {
                 try {
-                    // stop on cancellation
+                    // read the next chunk
                     const next = await reader.read();
+
+                    // fail with the error a cancellation raised
                     if (responseError !== undefined) {
-                        throw responseError;
+                        finish();
+                        stream.error(responseError);
+
+                        return;
                     }
+
+                    // stop on cancellation
                     signal.throwIfAborted();
 
                     // close or forward the next chunk

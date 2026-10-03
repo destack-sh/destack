@@ -6,7 +6,7 @@ import { createClient } from "../client/index.ts";
 import { defineService } from "../declare/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
-import { createAuthentication, hosting } from "./tests/fixture.ts";
+import { createAuthentication, hosting } from "../test/fixture.ts";
 import { Observable } from "../observable/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ServiceContext } from "./context.ts";
@@ -15,6 +15,15 @@ import { Authentication } from "../authentication/index.ts";
 
 /** The authentication lifetime of the lapsing callers, short enough for a fast test. */
 const LAPSE_MILLISECONDS = 200;
+
+/** Settle a call to "accepted" or its failure's code and message. */
+function settle(call: Promise<unknown>): Promise<string> {
+    return call.then(
+        () => "accepted",
+        (error: { readonly code: string; readonly message: string }) =>
+            `${error.code}: ${error.message}`,
+    );
+}
 
 test("reauthenticate completed snapshot subscriptions and report revoked access", async () => {
     // serve a finite snapshot subscription
@@ -113,9 +122,9 @@ test.for([
             router: implementation.router({
                 watch: implementation.watch.handler(async function* ({ context }) {
                     yield 1;
-                    await new Promise((resolve) =>
-                        context.signal.addEventListener("abort", resolve, { once: true }),
-                    );
+                    await new Promise((resolve) => {
+                        context.signal.addEventListener("abort", resolve, { once: true });
+                    });
                     isRevoked = revoked;
                     yield 2;
                 }),
@@ -148,7 +157,7 @@ test.for([
 );
 
 test("drain complete HTTP response streams before reporting the server stopped", async () => {
-    // declare health and a held stream
+    // declare health and an open stream
     const release = Promise.withResolvers<void>();
     const readiness = new Health("reader");
     const service = {
@@ -158,7 +167,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
             .output(eventIterator(schema.string())),
     };
 
-    // hold the response until released
+    // block the response until released
     const implementation = implement(service);
     const router = implementation.router({
         health: implementHealth(readiness),
@@ -170,15 +179,16 @@ test("drain complete HTTP response streams before reporting the server stopped",
     });
 
     for (const callback of ["authenticate", "authorizeHost"] as const) {
-        expect(() =>
-            Server.start({
-                ...hosting,
-                router,
-                health: readiness,
-                drainTimeout: 1000,
-                [callback]: undefined,
-            } as unknown as ServerOptions),
-        ).toThrow(`${callback} must be configured before starting a server`);
+        const missing: ServerOptions = {
+            ...hosting,
+            router,
+            health: readiness,
+            drainTimeout: 1000,
+        };
+        Reflect.deleteProperty(missing, callback);
+        expect(() => Server.start(missing)).toThrow(
+            `${callback} must be configured before starting a server`,
+        );
     }
     const server = Server.start({
         ...hosting,
@@ -214,7 +224,9 @@ test("drain complete HTTP response streams before reporting the server stopped",
             new Request("https://test.local/auth/caller", { headers }),
         );
 
-        return [response.status, (await response.json()) as unknown];
+        const body: unknown = await response.json();
+
+        return [response.status, body];
     };
     expect([await caller({ authorization: "alice" }), (await caller({}))[0]]).toEqual([
         [200, { subject: "alice" }],
@@ -270,7 +282,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
 });
 
 test("serialize authentication failures and preserve drain timeout causes", async () => {
-    // hold a request past the drain deadline
+    // keep a request open past the drain deadline
     const waiting = Promise.withResolvers<void>();
     const entered = Promise.withResolvers<void>();
     const service = {
@@ -279,7 +291,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
             .output(schema.string()),
     };
 
-    // hold the handler until cancellation
+    // block the handler until cancellation
     const implementation = implement(service);
     const router = implementation.router({
         get: implementation.get.handler(async ({ signal }) => {
@@ -461,11 +473,20 @@ test.for(["before the call", "during the call", "between events"] as const)(
     },
 );
 
-/** Collect garbage until weakly held objects are gone. */
+/** Collect garbage until weakly referenced objects are gone. */
 async function collectGarbage(): Promise<void> {
+    // require the runtime's collector
+    const collect = globalThis.gc;
+    if (collect === undefined) {
+        throw new TypeError("collecting garbage needs the runtime's gc");
+    }
+
+    // collect a few rounds, letting finalizers run in between
     for (let round = 0; round < 3; round++) {
-        (globalThis as unknown as { gc: () => void }).gc();
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        collect();
+        await new Promise((resolve) => {
+            setTimeout(resolve, 10);
+        });
     }
 }
 
@@ -492,12 +513,12 @@ test("refuse starting a server whose procedures carry payloads the HTTP layer ca
 });
 
 test("report a handler's invalid output as an internal failure and a caller's invalid input as its own", async () => {
-    // serve a procedure whose handler breaks its output contract
+    // serve a procedure whose handler breaks its output schema
     const routes = {
         echo: defineProcedure({ authentication: "public", permission: null, audit: false })
             .route({ method: "POST", path: "/echo" })
-            .input(schema.object({ text: schema.string() }))
-            .output(schema.object({ text: schema.string() })),
+            .input(schema.object({ text: schema.string().min(3) }))
+            .output(schema.object({ text: schema.string().min(3) })),
     };
     const implementation = implement(routes);
     await using server = Server.start({
@@ -505,7 +526,7 @@ test("report a handler's invalid output as an internal failure and a caller's in
         health: new Health("echo"),
         drainTimeout: 1000,
         router: implementation.router({
-            echo: implementation.echo.handler(() => ({ text: 1 }) as never),
+            echo: implementation.echo.handler(() => ({ text: "no" })),
         }),
     });
     const client = createClient(defineService("fixture", routes), {
@@ -513,18 +534,12 @@ test("report a handler's invalid output as an internal failure and a caller's in
         headers: { authorization: "alice" },
         fetch: (request) => server.fetch(request),
     });
-    const outcome = (call: Promise<unknown>) =>
-        call.then(
-            () => "accepted",
-            (error: { readonly code: string; readonly message: string }) =>
-                `${error.code}: ${error.message}`,
-        );
 
     expect([
-        await outcome(client.echo({ text: "hello" })),
-        await outcome(client.echo({ text: 1 } as never)),
+        await settle(client.echo({ text: "hello" })),
+        await settle(client.echo({ text: "hi" })),
     ]).toEqual([
         "INTERNAL_SERVER_ERROR: internal server error",
-        "BAD_REQUEST: invalid input: text: invalid input: expected string, received number",
+        "BAD_REQUEST: invalid input: text: too small: expected string to have >=3 characters",
     ]);
 });

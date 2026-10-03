@@ -1,10 +1,10 @@
 import { telemetry, trace } from "@destack/telemetry";
 import type { Controller } from "../control/index.ts";
 import { ValidationError } from "@orpc/contract";
-import { ServiceError } from "../error/index.ts";
-import { AccessError } from "@destack/access";
+import { isServiceError, ServiceError } from "../error/index.ts";
+import { AccessError, type StepUp } from "@destack/access";
 import { SyncError } from "@destack/sync";
-import { DatabaseError } from "@destack/db/error";
+import { DatabaseError } from "@destack/db";
 import type {} from "@destack/package/import-meta";
 
 /** The failure log records. */
@@ -19,7 +19,7 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
 
     // describe invalid input by its issues, leaving invalid output an internal failure
     if (
-        error instanceof ServiceError &&
+        isServiceError(error) &&
         error.code === "BAD_REQUEST" &&
         error.cause instanceof ValidationError
     ) {
@@ -39,7 +39,7 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
         });
     }
     // pass client failures on
-    else if (error instanceof ServiceError && error.status < 500) {
+    else if (isServiceError(error) && error.status < 500) {
         return error;
     }
 
@@ -54,7 +54,7 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
     log.error("service.request.failed", telemetry.exceptionAttributes(error));
 
     // pass deliberate unavailability on, and hide the details of anything unexpected
-    if (error instanceof ServiceError && error.code !== "INTERNAL_SERVER_ERROR") {
+    if (isServiceError(error) && error.code !== "INTERNAL_SERVER_ERROR") {
         return error;
     }
 
@@ -75,7 +75,7 @@ export function refusal(error: unknown): Response {
 export function domainFailure(error: unknown): ServiceError<string, unknown> | undefined {
     // challenge for stronger authentication
     if (error instanceof AccessError && error.code === "INSUFFICIENT_AUTHENTICATION") {
-        return new ServiceError(error.code, {
+        return new ServiceError<string, StepUp | undefined>(error.code, {
             status: 401,
             message: error.message,
             data: error.stepUp,
@@ -83,14 +83,12 @@ export function domainFailure(error: unknown): ServiceError<string, unknown> | u
     }
     // report other access decisions
     else if (error instanceof AccessError && error.code !== "INVALID_DECLARATION") {
-        const code =
-            error.code === "INVALID_CONTEXT"
-                ? "FORBIDDEN"
-                : error.code === "STALE"
-                  ? "SERVICE_UNAVAILABLE"
-                  : error.code;
+        const codes: Readonly<Record<string, string>> = {
+            INVALID_CONTEXT: "FORBIDDEN",
+            STALE: "SERVICE_UNAVAILABLE",
+        };
 
-        return new ServiceError(code, { message: error.message });
+        return new ServiceError(codes[error.code] ?? error.code, { message: error.message });
     }
     // report an unknown scope
     else if (error instanceof SyncError && error.code === "NOT_FOUND") {

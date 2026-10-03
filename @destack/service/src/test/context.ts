@@ -1,7 +1,7 @@
 import { PackageId } from "@destack/package";
 import type { Subject } from "@destack/sync";
 import { ResourceContext } from "@destack/resource/context";
-import { Authentication } from "../authentication/index.ts";
+import { Authentication, type AuthenticationClaims } from "../authentication/index.ts";
 import type { Reconciliation } from "../control/index.ts";
 import { type CallKey } from "../request/index.ts";
 import { ServiceContext } from "../server/index.ts";
@@ -18,15 +18,28 @@ const TEST_KEY = crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, fa
 /** Read the deployment key tests fingerprint sensitive inputs under. */
 export const testCallKey: CallKey = () => TEST_KEY;
 
-/** Build the request context of a subject calling in a scope, ending with a signal. */
+/** How a hand-built test caller signs in, and the signal and clock of its requests. */
+export interface SubjectContextOptions extends Pick<
+    AuthenticationClaims,
+    "delegates" | "assurance" | "permissions" | "attributes"
+> {
+    /** The signal ending the request. */
+    readonly signal?: AbortSignal;
+    /** Read the current time calls run at, the system clock by default. */
+    readonly clock?: () => number;
+}
+
+/** Build the request context of a subject calling in a scope or in none, ending with a signal and timed by a clock. */
 export function subjectContext(
     subject: Subject,
-    scope: string,
-    signal?: AbortSignal,
+    scope: string | undefined,
+    options: SubjectContextOptions = {},
 ): ServiceContext {
-    // sign the subject in for a minute
-    const now = Date.now();
+    // sign the subject in for a minute with its delegates, assurance and restrictions
+    const { signal, clock, ...caller } = options;
+    const now = (clock ?? Date.now)();
     const authentication = new Authentication({
+        ...caller,
         credential: { kind: "session", id: subject.id },
         audience: AUDIENCE,
         subject,
@@ -38,9 +51,10 @@ export function subjectContext(
 
     return new ServiceContext(request, {
         audience: AUDIENCE,
-        scope,
+        ...(scope === undefined ? {} : { scope }),
         authentication,
         resources: new ResourceContext(),
+        ...(clock === undefined ? {} : { clock }),
     });
 }
 

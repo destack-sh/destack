@@ -1,12 +1,20 @@
 import { expect, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { PackageId } from "@destack/package";
-import { identifier } from "@destack/schema";
+import { aligned, schema } from "@destack/schema";
 import { Authentication } from "./authentication.ts";
 import { Lending } from "./lending.ts";
 
+/** Settle a verification to "verified" or the message of its failure. */
+function refused(verifying: Promise<unknown>): Promise<string> {
+    return verifying.then(
+        () => "verified",
+        (error: { message: string }) => error.message,
+    );
+}
+
 /** The space the lent-to installation serves. */
-const scope = identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000b1");
+const scope = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000b1");
 
 /** The installation the caller calls. */
 const installation = principal.installation.reference(
@@ -51,13 +59,8 @@ test("lend a caller's whole authority until it lapses, readable by the holder's 
     const token = await lending.sign(caller, installation, scope, now);
 
     // read it within the hour through the kept key, and refuse it once lapsed, altered, or at another holder
-    const refused = (verifying: Promise<unknown>) =>
-        verifying.then(
-            () => "verified",
-            (error: { message: string }) => error.message,
-        );
-    const [body, mac] = token.split(".");
-    const altered = `${body!.slice(0, -2)}AA.${mac!}`;
+    const parts = token.split(".");
+    const altered = `${aligned(parts, 0).slice(0, -2)}AA.${aligned(parts, 1)}`;
     const { subject, subjects, delegates, permissions } = caller.claims;
     expect([
         await kept.verify(token, now + 60_000),

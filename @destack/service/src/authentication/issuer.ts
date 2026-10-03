@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import type { JWTPayload } from "jose";
 import { Authentication } from "./authentication.ts";
 import { TokenAuthentication, type TokenIssuerAuthority } from "./token.ts";
@@ -27,18 +28,20 @@ export class TokenIssuer {
         }
 
         // encode the verified identity fields
-        const claims = TokenAuthentication.parse({
-            spaceId: current.scope,
-            credential: current.credential,
-            subject: current.subject,
-            subjects: current.subjects,
-            assurance: current.assurance,
-            identifiers: current.identifiers,
-            delegates: current.delegates,
-            deployments: current.deployments,
-            permissions: current.permissions,
-            attributes: current.attributes,
-        });
+        const claims = TokenAuthentication.parse(
+            schema.defined({
+                spaceId: current.scope,
+                credential: current.credential,
+                subject: current.subject,
+                subjects: current.subjects,
+                assurance: current.assurance,
+                contacts: current.contacts,
+                delegates: current.delegates,
+                deployments: current.deployments,
+                permissions: current.permissions,
+                attributes: current.attributes,
+            }),
+        );
         caller.requireAuthority(this.options.authority);
 
         // sign the registered claims with the caller
