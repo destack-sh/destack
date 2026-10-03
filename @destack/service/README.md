@@ -23,7 +23,7 @@ export const notesService = defineService("notes", {
 
 ## Releases
 
-A server serves the releases from `since` up to its own, converting earlier inputs through each later release's `convert`.
+`since` names the earliest release a service serves, and each later release's `convert` upgrades earlier inputs.
 
 ```ts
 const search = defineProcedure({
@@ -44,7 +44,7 @@ export const searchService = defineService("search", { search, since: "2026.8.0"
 
 ## Servers
 
-A `Server` authenticates each request, checks the procedure's permission on the call's target and runs its handler.
+`Server` authenticates each request, checks the procedure's permission on the call's target and runs its handler.
 
 ```ts
 import { implement, Server, type ServiceContext } from "@destack/service/server";
@@ -70,7 +70,7 @@ await using server = Server.start({
 
 ## Errors
 
-A handler hides a refused object as a missing one with `conceal`, and the audit records the denial `denialOf` reads from its cause.
+`conceal` hides a refused object as a missing one, and `denialOf` reads the denial the audit records from its cause.
 
 ```ts
 import { conceal, denialOf, ServiceError } from "@destack/service/error";
@@ -82,7 +82,7 @@ denialOf(failure)?.code; // "FORBIDDEN" for both
 
 ## Workloads
 
-A workload starts once per instance and returns the services it serves and its package's triggers.
+`defineWorkload` declares a `start` that runs once per instance and returns the served services and the package's triggers.
 
 ```ts
 import { defineWorkload, WorkloadInstance } from "@destack/service/workload";
@@ -108,12 +108,12 @@ const response = await instance.fetch(notesService, request);
 
 ## Runners
 
-A `WorkloadRunner` serves one workload as a host's start message asks, opening each resource binding through its declaration's connectors.
+`WorkloadRunner` serves one workload as a host's start message asks, opening each resource binding through its declaration's connectors.
 
 ```ts
 import { WorkloadRunner } from "@destack/service/workload";
 
-// the runner holds no tokens: it calls services through the host's egress with the host's secret
+// the runner has no tokens: it calls services through the host's egress with the host's secret
 const workload = await WorkloadRunner.start(
     { workload, resources, history, access },
     start,
@@ -124,7 +124,9 @@ const response = await workload.fetch(request);
 await workload.close();
 ```
 
-On Bun, `runWorkload` reads the host's lines from standard input and serves the runner on a loopback port.
+## Bun runners
+
+`runWorkload` reads the host's lines from standard input on Bun and serves the runner on a loopback port.
 
 ```ts
 import { runWorkload } from "@destack/service/bun";
@@ -134,16 +136,27 @@ await runWorkload(runner, lines(process.stdin), async (ready) =>
 );
 ```
 
-The host and the runner exchange one JSON line per message.
+## Runner messages
 
-| Line | Direction | Carries |
-|---|---|---|
-| `WorkloadStart` | host to runner, first | instance, scope, installation, resource bindings, the secret both sides prove requests with, the host's egress, trace sampling ratio |
-| `WorkloadReady` | runner to host, first | the loopback port it serves on |
+`WorkloadStart` is the host's first line to a runner, and `WorkloadReady` the runner's answer once it serves.
+
+```ts
+const start: WorkloadStart = {
+    instance, // the holder name of its leases
+    scope: spaceId,
+    installation,
+    bindings, // the resources the installation binds, by resource name
+    secret, // the secret both sides prove requests with
+    egress: "http://127.0.0.1:8080/.destack/egress",
+    sampling: 0.1, // the share of traces kept beside failed and slow ones
+    callKey, // the installation's journal key as hexadecimal
+};
+const ready: WorkloadReady = { port: 41_234 }; // the loopback port serving the package's service
+```
 
 ## Clients
 
-A service binding declares a dependency on a service; a stack binds it to an address, and its client calls the service through the host's egress as the workload's installation.
+`defineServiceBinding` declares a dependency on a service, which a stack binds to an address and its client calls through the host's egress.
 
 ```ts
 import { defineServiceBinding } from "@destack/service";
@@ -153,6 +166,8 @@ export const notes = defineServiceBinding("notes", notesService);
 
 const result = await safe(notes.get(context.resources).update(input));
 ```
+
+## Egress
 
 `Egress` writes and reads the egress paths: `<egress>/<address>/<path>`, the address an installation (`notes`, `notes.work.acme`) or a package's service (`@destack/audit`).
 
@@ -165,7 +180,7 @@ const routed = Egress.route(request); // { address, request below it }
 
 ## Authentication
 
-A `TokenIssuer` signs a verified caller, and a `TokenVerifier` checks the token at the receiving service.
+`TokenIssuer` signs a verified caller, and `TokenVerifier` checks the token at the receiving service.
 
 ```ts
 import { TokenIssuer, TokenVerifier } from "@destack/service/authentication";
@@ -184,7 +199,7 @@ const verified = await verifier.authenticate(request, spaceId); // any space whe
 
 ## Pages
 
-A `Page` reads a cursor request and cuts the rows into a page with the next cursor.
+`Page` reads a cursor request and cuts the rows into a page with the next cursor.
 
 ```ts
 import { Page } from "@destack/service/page";
@@ -196,7 +211,7 @@ const result = request.result(rows, (row) => row.id);
 
 ## Bookmarks
 
-A `Bookmark` carries the log watermarks a client has seen, so later reads include its own writes.
+`Bookmark` holds the log watermarks a client has seen, and a request waits for them before it reads.
 
 ```ts
 import { Bookmark } from "@destack/service/bookmark";
@@ -207,13 +222,7 @@ const client = createClient(notesService, { url, bookmark });
 
 ## Triggers
 
-A trigger fires runs, and every run is one object method call the space's cell makes later as the installation.
-
-| `on` | Fires on | Call | Followed by |
-|---|---|---|---|
-| `schedule` | a timing | a static call | the cell |
-| `change` | an admitted change of the installation's own objects | built from the change | the workload's object server |
-| `webhook` | a signed webhook delivery, verified with the installation's secret | built from the delivery | the workload |
+`defineTrigger` declares what fires runs, each one object method call the space's cell makes later as the installation.
 
 ```ts
 import { defineTrigger } from "@destack/service/trigger";
@@ -225,9 +234,9 @@ export const reminders = defineTrigger({
             timing: { timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich" },
             concurrency: "forbid",
             deadline: 60_000,
+            call: reminder.calls().send({}),
         },
     },
-    call: reminder.calls().send({}),
 });
 export const pushes = defineTrigger({
     name: "github",
@@ -247,7 +256,7 @@ export const published = defineTrigger({
     on: {
         change: {
             object: note,
-            where: Condition.eq("status", "published"),
+            where: { status: "published" },
             operations: ["create", "update"],
             from: "snapshot",
         },
@@ -256,15 +265,37 @@ export const published = defineTrigger({
 });
 ```
 
-Each event records its run once: an occurrence by its time, a delivery by its path and sender identifier, and a change by its log position, which also orders a change trigger's runs.
+## Trigger kinds
 
-A method sends a call to run once its transaction commits; it runs on the authority the calling person lent the installation.
+`Trigger.kind` reads a trigger's kind from its `on` key.
+
+```ts
+Trigger.kind({ schedule }); // a timing, running the schedule's call, followed by the cell
+Trigger.kind({ change }); // an admitted change of the installation's own objects, followed by its object server
+Trigger.kind({ webhook }); // a signed delivery verified with the installation's secret, followed by the workload
+```
+
+## Run records
+
+`RunEvent.requestId` derives the request an event records its run once under.
+
+```ts
+RunEvent.requestId({ at: 1_767_225_600_000 }); // "0001767225600000"
+RunEvent.requestId({ delivery: { id: "72d3162e", path: "/acme" } }); // "/acme 72d3162e"
+RunEvent.requestId({ change: { position, key: "note-1" } }); // "<epoch>/<sequence>/note-1", in log order
+```
+
+## Sent calls
+
+`call.send` sends a call to run once its transaction commits, on the authority the caller lent the installation.
 
 ```ts
 await call.send({ call: mail.calls().welcome({ userId }) });
 ```
 
-Outside a method, a workload sends through the cell recording its runs, with a request identifier when it may retry.
+## Workload runs
+
+`runs.send` sends a call from a workload outside a method, with a request identifier when it may retry.
 
 ```ts
 await context.runs.send({ call: digest.calls().send({}), at: Date.now() + 60_000 }, { requestId });
@@ -272,7 +303,7 @@ await context.runs.send({ call: digest.calls().send({}), at: Date.now() + 60_000
 
 ## Controllers
 
-A `ControlLoop` runs `Controller`s, which keep the state of each listed key matching a database's rows: `reconcile` mode converges a key and returns, `follow` mode keeps its process running until its list drops it.
+`ControlLoop` runs `Controller`s over each listed key: `reconcile` mode converges a key and returns, and `follow` mode runs until the list drops the key.
 
 ```ts
 import { ControlLoop, type Controller } from "@destack/service/control";
@@ -298,7 +329,7 @@ await new ControlLoop(database, [expiry, stream], { report, lease: { holder: ins
 
 ## Outbox
 
-An `Outbox` commits messages with their transaction and delivers them in order to a `Destination`.
+`Outbox` commits messages with their transaction and delivers them in order to a `Destination`.
 
 ```ts
 import { Outbox, type Destination } from "@destack/service/outbox";
@@ -316,7 +347,7 @@ await new ControlLoop(database, [outbox.controller(inbox)], { report }).run(sign
 
 ## Observables
 
-An `Observable` holds a current value and yields it again after each change.
+`Observable` keeps a current value and yields it again after each change.
 
 ```ts
 import { Observable } from "@destack/service/observable";
