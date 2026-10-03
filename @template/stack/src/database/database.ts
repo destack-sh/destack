@@ -1,4 +1,4 @@
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase } from "@destack/db";
 
 /** The space's shared application database. */
 export const database = defineDatabase({
