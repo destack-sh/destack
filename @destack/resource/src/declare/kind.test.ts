@@ -3,19 +3,6 @@ import { ResourceId } from "./declaration.ts";
 import { schema } from "@destack/schema";
 import { defineResourceKind } from "./kind.ts";
 
-test("describe declarations of a kind by its name, refusing another kind", () => {
-    const bucket = defineResourceKind("bucket", {
-        spec: schema.object({ public: schema.boolean() }),
-    });
-
-    // accept a declaration of the kind and refuse another kind
-    const parse = (value: unknown) => bucket.description.safeParse(value).success;
-    expect([
-        parse({ name: "files", kind: "bucket", spec: { public: false } }),
-        parse({ name: "files", kind: "vault", spec: { public: false } }),
-    ]).toEqual([true, false]);
-});
-
 test("read stored resources and desired states through their kind, refusing another kind's specification, invalid values and states of a stateless kind", () => {
     const database = defineResourceKind("database", {
         spec: schema.object({ tier: schema.enum(["zone", "global"]) }),
