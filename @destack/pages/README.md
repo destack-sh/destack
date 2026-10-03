@@ -1,14 +1,8 @@
-Write pages in nested trees, shared and linked across spaces.
+Write pages in nested trees, shared with people or published by link.
 
-A page shares with its subpages: whoever reads, edits or manages a page does the same on every page below it.
+## Pages
 
-| Relation | `read` | `edit` | `manage` |
-|---|---|---|---|
-| `owner` | yes | yes | yes |
-| `editor` | yes | yes | |
-| `viewer` | yes | | |
-
-A `viewer` may be anyone presenting a link's secret, which publishes the page and its subpages, and a deleted page stays in the trash for 30 days.
+Pages use the default shareable roles, and every page below a page inherits its sharing.
 
 ```ts
 const root = await client.page.create({ spaceId, requestId, title: "Handbook" });
@@ -18,16 +12,29 @@ const child = await client.page.create({
     parentId: root.id,
     title: "Onboarding",
 });
-const link = await Capability.create();
+```
+
+A page keeps its place among its siblings in `position`, and a deleted page stays in the trash for 30 days.
+
+## Links
+
+A `viewer` grant to anyone presenting a link's secret publishes the page and its subpages.
+
+```ts
+import { anyone, LinkSecret } from "@destack/access";
+
+const link = await LinkSecret.create();
 await client.page.grant({
     spaceId,
     id: root.id,
     requestId,
     relation: "viewer",
     subject: anyone.reference("*", "*"),
-    conditions: { capability: link.digest },
+    conditions: { linkSecret: link.digest },
 });
 ```
+
+## Installation
 
 A stack installs the package with the database its pages live in, and another package embeds `pagesTables` in a database of its own.
 
