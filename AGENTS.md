@@ -203,20 +203,21 @@ Write code and prose that read plain and boring.
 - **WN07** Names SHOULD follow modern prior art terminology where it exists.
 - **WN08** Names MUST NOT invent vocabulary where the codebase already has a concept / word.
 - **WN09** Terminology MUST be established and kept consistent across nouns, verbs and their families for types, methods, enums, variants and fields.
+- **WN10** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc.
 
-- **WN10** Names of related logic SHOULD be symmetric.
-- **WN11** Names SHOULD NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet.
-- **WN12** Generalisations MUST NOT introduce arbitrary interfaces only to avoid `x_for_y`.
-- **WN13** Names MAY keep `x_for_y` in data transcription.
+- **WN11** Names of related logic SHOULD be symmetric.
+- **WN12** Names MUST NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet.
+- **WN13** Generalisations MUST NOT introduce arbitrary interfaces only to avoid `x_for_y`.
+- **WN14** Names MAY keep `x_for_y` in data transcription.
 
-- **WN14** Names MUST write words out, including variables: `extension`, not `ext`; `directory`, not `dir`. (`destack/prevent-abbreviations`)
-- **WN15** Variables MUST NOT use single letters unless obvious, such as `i`, `x` or `Vector.x`. (`eslint/id-length`)
-- **WN16** Booleans SHOULD start with `is` unless already clear or required by context. (`destack/boolean-prefix`)
-- **WN17** Booleans SHOULD give way to enums where an enum fits.
+- **WN15** Names MUST write words out, including variables: `extension`, not `ext`; `directory`, not `dir`. (`destack/prevent-abbreviations`)
+- **WN16** Variables MUST NOT use single letters unless obvious, such as `i`, `x` or `Vector.x`. (`eslint/id-length`)
+- **WN17** Booleans SHOULD start with `is` unless already clear or required by context. (`destack/boolean-prefix`)
+- **WN18** Booleans SHOULD give way to enums where an enum fits.
 
-- **WN18** File and module names SHOULD be single words. (`unicorn/filename-case`)
-- **WN19** File and module names MUST describe their domain or purpose.
-- **WN20** Accessors SHOULD NOT nest projections such as `revision_files`; a general `files` with a filter, or `files_at_revision`, reads better.
+- **WN19** File and module names SHOULD be single words. (`unicorn/filename-case`)
+- **WN20** File and module names MUST describe their domain or purpose.
+- **WN21** Accessors SHOULD NOT nest projections such as `revision_files`; a general `files` with a filter, or `files_at_revision`, reads better.
 
 ### Logic (WL)
 
@@ -325,7 +326,7 @@ Write code and prose that read plain and boring.
 - **WC14** Block comments SHOULD start with a verb when longer than two words.
   - `// build drop plan for each function`, not `// each function gets an independent drop plan`
 
-- **WC15** Comments MUST NOT contain LLM slop, statements about what things are not, or negative parallelisms.
+- **WC15** Comments MUST NOT contain sludge words (WN21), LLM slop, statements about what things are not, or negative parallelisms.
 - **WC16** Comments MUST avoid indirect speech and sentences that are hard to parse:
   - `// borrow the object from a root local when reached by a target`, NOT `// borrow the object a reference in a root local names when the target reaches through it`
   - "Traits add columns and methods to every object.", NOT "A trait adds columns and methods to every object whose definition names it."
