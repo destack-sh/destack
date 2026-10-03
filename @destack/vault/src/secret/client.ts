@@ -1,5 +1,5 @@
 import type { Capture } from "@destack/space/object";
-import { identifier, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import type { SecretClient } from "../object/index.ts";
 
 /** A secret version a deployment captured, read through the vault. */
@@ -18,7 +18,7 @@ export class Secret {
         // keep the client and the captured secret version
         this.client = client;
         this.spaceId = captured.scope;
-        this.secretId = identifier("secret").parse(captured.target);
+        this.secretId = schema.identifier("secret").parse(captured.target);
         this.version = captured.version;
     }
 

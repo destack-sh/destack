@@ -7,7 +7,7 @@ import { eq, isNotNull } from "@destack/db";
 import { MemoryKeychain } from "@destack/host/keychain";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import { expect, test } from "@destack/test";
+import { expect, single, test } from "@destack/test";
 import { LocalKeyring } from "../../encryption/index.ts";
 import { vaultKey } from "../../stack/index.ts";
 import { VaultKey } from "../../encryption/index.ts";
@@ -34,7 +34,7 @@ test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async
         })
         .from(secretVersion.table)
         .where(isNotNull(secretVersion.table.envelope));
-    const original = rows.find((row) => row.secretId === first.id)!;
+    const original = single(rows.filter((row) => row.secretId === first.id));
     await database
         .update(secretVersion.table)
         .set({ envelope: original.envelope })
@@ -106,7 +106,12 @@ test("read persisted values after reopening the database, and refuse without the
         // commit a value, then close the database
         const file = join(directory, "vault.db");
         const original = await VaultFixture.openFile(file);
-        const saved = await original.createSecret().finally(() => original.close());
+        let saved;
+        try {
+            saved = await original.createSecret();
+        } finally {
+            await original.close();
+        }
 
         // reopen the database and read the value under the retained root key
         await using reopened = await VaultFixture.openFile(file, original);

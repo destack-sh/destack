@@ -1,10 +1,10 @@
 import { accessRelationship, principal, Relationship } from "@destack/access";
 import { and, eq, isNotNull } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import * as spaceObject from "@destack/space/object";
-import { expect, test } from "@destack/test";
+import { expect, single, test } from "@destack/test";
 import { v7 } from "uuid";
 import { secret, secretVersion } from "../object/index.ts";
 import { VaultFixture } from "../server/tests/fixture.ts";
@@ -19,7 +19,7 @@ test.each(TEST_DIALECTS)(
         const member = fixture.caller.claims;
         const service = principal.installation.reference(
             fixture.accountId,
-            identifier("installation").parse(`installation-${v7()}`),
+            schema.identifier("installation").parse(`installation-${v7()}`),
         );
         const lent = Relationship.encode(
             {
@@ -48,7 +48,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // keep one secret with one version however often the credential is written
-        const id = identifier("secret").parse(`secret-${v7()}`);
+        const id = schema.identifier("secret").parse(`secret-${v7()}`);
         const written = {
             id,
             spaceId,
@@ -81,10 +81,13 @@ test.each(TEST_DIALECTS)(
         await database.delete(accessRelationship).where(eq(accessRelationship.id, lent.id));
         await secrets.destroy({ spaceId, secretId: id });
         await secrets.destroy({ spaceId, secretId: id });
-        await secrets.destroy({ spaceId, secretId: identifier("secret").parse(`secret-${v7()}`) });
-        const [purged] = await database.select().from(secret.table);
+        await secrets.destroy({
+            spaceId,
+            secretId: schema.identifier("secret").parse(`secret-${v7()}`),
+        });
+        const purged = single(await database.select().from(secret.table));
         expect([
-            purged!.purgedAt,
+            purged.purgedAt,
             await database
                 .select({
                     secretId: secretVersion.table.parentId,

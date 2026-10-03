@@ -5,7 +5,7 @@ import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { Recipient } from "@destack/resource";
 import { space } from "@destack/space/object";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, single, test } from "@destack/test";
 import { LocalKeyring, VaultKey } from "../encryption/index.ts";
 import { secret, secretVersion, vault, SecretVersion } from "../object/index.ts";
 import { LOCATION, VaultFixture } from "../server/tests/fixture.ts";
@@ -16,15 +16,12 @@ import { vaultProvider } from "./provider.ts";
 /** Copy the rows of the zone tables a target lacks, as a transfer's zone copy does. */
 async function copyZone(from: DatabaseConnection, to: DatabaseConnection): Promise<void> {
     for (const table of [space.table, vault.table, secret.table, secretVersion.table]) {
-        const rows = await from.select().from(table as Table);
+        const rows = await from.select().from(table);
         const written = rows.map((row) =>
             table === secret.table ? { ...row, currentVersion: null } : row,
         );
         if (written.length > 0) {
-            await to
-                .insert(table as Table)
-                .values(written as never)
-                .onConflictDoNothing();
+            await to.insert(table).values(written).onConflictDoNothing();
         }
     }
 }
@@ -49,18 +46,21 @@ test.each(TEST_DIALECTS)(
 
         // wrap the key for the target's recipient, then under the target's root key
         const recipient = await Recipient.generate();
-        const [kept] = await fixture.database.select().from(vaultKey);
-        const wrapped = await source.wrap(kept!, recipient);
-        const received = await destination.unwrap(wrapped, recipient);
+        const kept = single(await fixture.database.select().from(vaultKey));
+        const wrapped = await source.rewrap.wrap(kept, recipient);
+        const received = await destination.rewrap.unwrap(wrapped, recipient);
         await target.database.insert(vaultKey).values(received);
 
         // open the secret's value on the target with the key it now keeps
         const key = await VaultKey.load(target.database, targetKeyring, "us", fixture.vaultId);
-        const [owner] = await target.database.select().from(secret.table);
+        const owner = single(await target.database.select().from(secret.table));
         const version = await SecretVersion.find(target.database, first.id, 1);
+        if (version === undefined) {
+            throw new TypeError("the target lacks the secret's first version");
+        }
         expect([
-            await SecretVersion.open(key, owner!, version!),
-            [wrapped.rootKeyId === kept!.rootKeyId, received.rootKeyId],
+            await SecretVersion.open(key, owner, version),
+            [wrapped.rootKeyId === kept.rootKeyId, received.rootKeyId],
         ]).toEqual([{ encoding: "text", value: "credential" }, [false, "two"]]);
     },
 );
@@ -82,7 +82,7 @@ test.each(TEST_DIALECTS)(
         };
 
         // refuse destroying the vault while the secret has a value
-        await expect(provider.destroy(record)).rejects.toEqual(
+        await expect(provider.provision.destroy(record)).rejects.toEqual(
             new ServiceError("CONFLICT", {
                 message: `vault has values of secret ${key.id}: purge its secrets first`,
             }),
@@ -97,14 +97,14 @@ test.each(TEST_DIALECTS)(
         });
         await client.secret.purge({ ...key, requestId: RequestId.create() });
         const cell = await fixture.cell(keyring);
-        const [stored] = await database.select().from(vault.table);
-        await cell.executeAsSystem(vault, "delete", [SystemCall.of(stored!)], Date.now());
-        await provider.destroy(record);
-        const [requested] = await database.select().from(vault.table);
-        await cell.executeAsSystem(vault, "finalize", [SystemCall.of(requested!)], Date.now());
+        const stored = single(await database.select().from(vault.table));
+        await cell.executeAsSystem(vault, "delete", [SystemCall.of(stored)], Date.now());
+        await provider.provision.destroy(record);
+        const requested = single(await database.select().from(vault.table));
+        await cell.executeAsSystem(vault, "finalize", [SystemCall.of(requested)], Date.now());
         const remaining = await Promise.all(
-            [vault.table, secret.table, secretVersion.table, vaultKey].map((table) =>
-                database.select().from(table as Table),
+            [vault.table, secret.table, secretVersion.table, vaultKey].map((table: Table) =>
+                database.select().from(table),
             ),
         );
         expect(remaining).toEqual([[], [], [], []]);

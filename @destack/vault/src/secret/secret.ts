@@ -38,7 +38,7 @@ export const VersionWrite = schema.object({
     /** The value to encrypt. */
     value: schema.sensitive(SecretValue),
     /** Whether the version becomes current, true when absent. */
-    promote: schema.boolean().optional(),
+    promote: schema.boolean().exactOptional(),
 });
 /** The value of a new version, and whether it becomes its secret's current version. */
 export type VersionWrite = schema.Infer<typeof VersionWrite>;
@@ -54,7 +54,7 @@ export type SecretPromotion = schema.Infer<typeof SecretPromotion>;
 /** The version a read selects: an exact number, or the secret's current version when absent. */
 export const SecretSelection = schema.object({
     /** The version's number within its secret. */
-    version: schema.number().int().positive().optional(),
+    version: schema.number().int().positive().exactOptional(),
 });
 /** The version a read selects: an exact number, or the secret's current version when absent. */
 export type SecretSelection = schema.Infer<typeof SecretSelection>;

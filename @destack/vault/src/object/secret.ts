@@ -1,7 +1,6 @@
 import { type EncryptionContext, Envelope } from "../encryption/envelope.ts";
 import type { VaultKey } from "../encryption/vault.ts";
 import { MAX_VALUE_BYTES, SecretValue } from "../secret/index.ts";
-import type { InstanceOf } from "@destack/object";
 import {
     none,
     permission,
@@ -23,11 +22,11 @@ import {
     uniqueIndex,
     type TableConstraint,
 } from "@destack/db";
-import { defineObject, field, method, type Call } from "@destack/object";
+import { defineObject, field, type Call } from "@destack/object";
 import type { Service } from "@destack/service";
 import type { ClientOptions } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
-import { installation, Resource, space } from "@destack/space/object";
+import { installation, space } from "@destack/space/object";
 import { SpaceResource } from "@destack/space/declare";
 import { VaultKind } from "../declare/vault.ts";
 import { SpaceSecret } from "../declare/space.ts";
@@ -44,15 +43,11 @@ export const vault = defineObject({
     name: "vault",
     plural: "vaults",
     scope: space,
-    controlled: true,
     declarable: { schema: SpaceResource },
-    fields: Resource.fields(VaultKind),
-    indexes: Resource.indexes,
-    constraints: Resource.constraints("vault"),
-    relations: Resource.relations,
-    permissions: { ...Resource.permissions, write: none() },
+    provisioned: { kind: VaultKind },
+    fields: {},
+    permissions: { write: none() },
     administration: ["read"],
-    methods: Resource.methods,
 });
 
 /** A secret in a space's vault with its versions as values. */
@@ -91,9 +86,8 @@ export const secret = defineObject({
         }).onDelete("restrict"),
         check("secret_name", sql`length(${entry.name}) > 0`),
     ],
+    bindable: true,
     relations: {
-        /** Installations whose live deployments captured a version of the secret, and so use it. */
-        user: { subjects: [principal.installation], grantedBy: null },
         /** The installation that wrote the secret, which gets, deletes and purges it. */
         custodian: { subjects: [principal.installation], grantedBy: null },
     },
@@ -106,28 +100,27 @@ export const secret = defineObject({
         enable: none(),
         promote: none(),
         read: none(),
-        open: union(permission("read"), relation("user")),
+        open: union(permission("read"), relation("consumer")),
         delete: relation("custodian"),
         purge: relation("custodian"),
     },
     administration: ["create", "get", "list", "update", "disable", "enable", "delete", "purge"],
-    methods: {
+    methods: (method) => ({
         get: method.get("get"),
         list: method.list("list"),
         create: method.create("create", { fields: ["name"], creation: custody }),
         update: method.update("update", { fields: ["name"] }),
-        disable: method({ permission: "disable" }),
-        enable: method({ permission: "enable" }),
-        promote: method({ permission: "promote", input: SecretPromotion }),
-        select: method({ permission: null, isSystem: true, input: SecretPromotion }),
-        read: method({
+        disable: method.mutation({ permission: "disable" }),
+        enable: method.mutation({ permission: "enable" }),
+        promote: method.mutation({ permission: "promote", input: SecretPromotion }),
+        select: method.mutation({ permission: null, isSystem: true, input: SecretPromotion }),
+        read: method.query({
             permission: "open",
-            mutates: false,
             input: SecretSelection,
             output: SecretReading,
             audit: { details: SecretDisclosure },
         }),
-    },
+    }),
 });
 
 /** One numbered, immutable value of a secret, sealed under its vault's key. */
@@ -156,30 +149,27 @@ export const secretVersion = defineObject({
             sql`${entry.expiresAt} IS NULL OR ${entry.expiresAt} > ${entry.createdAt}`,
         ),
     ],
-    relations: {
-        /** Installations whose live deployments captured the version, and so use it. */
-        user: { subjects: [principal.installation], grantedBy: null },
-    },
+    bindable: true,
     permissions: {
         get: none(),
         list: none(),
         write: none(),
-        read: relation("user"),
+        read: relation("consumer"),
         disable: none(),
         enable: none(),
         destroy: none(),
     },
     administration: ["get", "list", "disable", "enable", "destroy"],
-    methods: {
+    methods: (method) => ({
         get: method.get("get"),
         list: method.list("list"),
         create: method.create("write", { fields: ["expiresAt"], input: VersionWrite }),
-        disable: method({ permission: "disable" }),
-        enable: method({ permission: "enable" }),
-        destroy: method({ permission: "destroy" }),
-        purge: method({ permission: null, isSystem: true }),
+        disable: method.mutation({ permission: "disable" }),
+        enable: method.mutation({ permission: "enable" }),
+        destroy: method.mutation({ permission: "destroy" }),
+        purge: method.mutation({ permission: null, isSystem: true }),
         delete: method.delete(null, { isSystem: true }),
-    },
+    }),
 });
 
 /** A persisted secret version. */
@@ -190,7 +180,7 @@ export const SecretVersion = {
     /** Find one numbered version of a secret, absent when it has none. */
     async find(
         database: DatabaseConnection,
-        secretId: InstanceOf<typeof secret>["id"],
+        secretId: Select<typeof secret.table>["id"],
         version: number,
     ): Promise<SecretVersion | undefined> {
         const [row] = await database
@@ -228,7 +218,7 @@ export const SecretVersion = {
     async seal(
         database: DatabaseConnection,
         key: VaultKey,
-        owner: InstanceOf<typeof secret>,
+        owner: Select<typeof secret.table>,
         version: number,
         value: SecretValue,
     ): Promise<void> {
@@ -269,7 +259,7 @@ export const SecretVersion = {
     /** Open a version's value, authenticating its storage identity. */
     async open(
         key: VaultKey,
-        owner: InstanceOf<typeof secret>,
+        owner: Select<typeof secret.table>,
         version: SecretVersion,
     ): Promise<SecretValue> {
         // require the envelope
@@ -293,7 +283,7 @@ export const SecretVersion = {
     },
 
     /** Build the storage identity a version's ciphertext authenticates. */
-    context(owner: InstanceOf<typeof secret>, version: number): EncryptionContext {
+    context(owner: Select<typeof secret.table>, version: number): EncryptionContext {
         return {
             spaceId: owner.scope,
             vaultId: owner.parentId,
@@ -305,7 +295,7 @@ export const SecretVersion = {
 
 /** Relate the installation writing a secret as its custodian, acting itself or as a delegate. */
 function custody(call: Call): Creation {
-    const writer = Caller.principal(call.served().context(call.scope));
+    const writer = Caller.principal(call.requireAuthorization().context(call.scope));
 
     return {
         relationships:

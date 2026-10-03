@@ -61,8 +61,9 @@ test.each(TEST_DIALECTS)(
             (request) => verifier.authenticate(request),
             audience,
         );
-        const clients = [];
-        for (const tenant of [first, second]) {
+
+        // connect a client to each tenant under its own token
+        const connect = async (tenant: VaultFixture) => {
             const issued = await issuer.issue(
                 new Authentication({
                     ...tenant.caller.claims,
@@ -71,43 +72,35 @@ test.each(TEST_DIALECTS)(
                     credential: { kind: "personal", id: tenant.userId },
                 }),
             );
-            clients.push(
-                new SecretClient(spaceService, {
-                    url: "https://vault.test",
-                    headers: { authorization: `Bearer ${issued.accessToken}` },
-                    fetch: (request) => server.fetch(request),
-                }),
-            );
-        }
+
+            return new SecretClient(spaceService, {
+                url: "https://vault.test",
+                headers: { authorization: `Bearer ${issued.accessToken}` },
+                fetch: (request) => server.fetch(request),
+            });
+        };
+        const firstClient = await connect(first);
+        const secondClient = await connect(second);
 
         // create a secret in each tenant's vault through the same server
-        const created = [];
-        for (const [index, tenant] of [first, second].entries()) {
-            created.push(
-                await clients[index]!.secret.create({
-                    spaceId: tenant.spaceId,
-                    parentId: tenant.vaultId,
-                    name: "credential",
-                    requestId: RequestId.create(),
-                }),
-            );
-        }
+        const firstSecret = await createCredential(firstClient, first);
+        const secondSecret = await createCredential(secondClient, second);
 
         // hide another tenant's secret, named in its own space or in the token's
         for (const [client, spaceId, id, message] of [
             [
-                clients[0]!,
+                firstClient,
                 second.spaceId,
-                created[1]!.id,
+                secondSecret.id,
                 `scope ${second.spaceId} is outside the pinned scope`,
             ],
             [
-                clients[1]!,
+                secondClient,
                 first.spaceId,
-                created[0]!.id,
+                firstSecret.id,
                 `scope ${first.spaceId} is outside the pinned scope`,
             ],
-            [clients[1]!, second.spaceId, created[0]!.id, `no secret ${created[0]!.id}`],
+            [secondClient, second.spaceId, firstSecret.id, `no secret ${firstSecret.id}`],
         ] as const) {
             await expect(client.secret.get({ spaceId, id })).rejects.toEqual(
                 new ServiceError("NOT_FOUND", { defined: true, message }),
@@ -116,7 +109,7 @@ test.each(TEST_DIALECTS)(
 
         // refuse changes in a space other than the token's
         await expect(
-            clients[0]!.secret.create({
+            firstClient.secret.create({
                 spaceId: second.spaceId,
                 parentId: second.vaultId,
                 name: "substituted",
@@ -134,9 +127,9 @@ test.each(TEST_DIALECTS)(
         const changes = calls.filter((call) => call.method === "secret.create");
         expect(
             changes.map((call) => ({
-                package: call.execution!.context.package,
-                scope: call.execution!.context.scope,
-                actor: AuditCaller.actor(call.execution!.context.caller),
+                package: call.execution.context.package,
+                scope: call.execution.context.scope,
+                actor: AuditCaller.actor(call.execution.context.caller),
             })),
         ).toEqual(
             [first, second].map((tenant) => ({
@@ -150,3 +143,13 @@ test.each(TEST_DIALECTS)(
         );
     },
 );
+
+/** Create a secret named credential in a tenant's vault. */
+function createCredential(client: SecretClient, tenant: VaultFixture) {
+    return client.secret.create({
+        spaceId: tenant.spaceId,
+        parentId: tenant.vaultId,
+        name: "credential",
+        requestId: RequestId.create(),
+    });
+}

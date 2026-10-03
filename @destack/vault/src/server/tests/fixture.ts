@@ -5,16 +5,15 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import type { Table } from "@destack/db";
+import { type Table, and, eq, inArray, type DatabaseConnection, type Dialect } from "@destack/db";
 import { Scope } from "@destack/sync";
 import * as accountObject from "@destack/account/object";
-import { and, eq, inArray, type DatabaseConnection, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { DirectoryStore, directoryTables } from "@destack/directory";
 import * as sqlite from "@destack/db/bun";
 import type { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
@@ -87,11 +86,12 @@ export class VaultFixture implements AsyncDisposable {
     ) {
         this.database = database;
         this.#close = close;
-        this.spaceId = previous?.spaceId ?? identifier("space").parse(`space-${v7()}`);
-        this.vaultId = previous?.vaultId ?? identifier("vault").parse(`vault-${v7()}`);
-        this.userId = previous?.userId ?? identifier("user").parse(`user-${v7()}`);
-        this.accountId = previous?.accountId ?? identifier("account").parse(`account-${v7()}`);
-        this.roleId = previous?.roleId ?? identifier("role").parse(`role-${v7()}`);
+        this.spaceId = previous?.spaceId ?? schema.identifier("space").parse(`space-${v7()}`);
+        this.vaultId = previous?.vaultId ?? schema.identifier("vault").parse(`vault-${v7()}`);
+        this.userId = previous?.userId ?? schema.identifier("user").parse(`user-${v7()}`);
+        this.accountId =
+            previous?.accountId ?? schema.identifier("account").parse(`account-${v7()}`);
+        this.roleId = previous?.roleId ?? schema.identifier("role").parse(`role-${v7()}`);
         this.root = previous?.root ?? crypto.getRandomValues(new Uint8Array(32));
     }
 
@@ -365,7 +365,7 @@ export class VaultFixture implements AsyncDisposable {
     ): Promise<void> {
         await this.database.insert(accessRolePermission).values(
             permissions.map(({ type, name, packageId }) => ({
-                id: identifier("role-permission").parse(`role-permission-${v7()}`),
+                id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
                 roleId: this.roleId,
                 scope: this.spaceId,
                 packageId: packageId ?? VAULT.id,

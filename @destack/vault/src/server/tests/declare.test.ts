@@ -4,13 +4,13 @@ import { accessRelationship, principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, single, test } from "@destack/test";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { DirectoryStore, directoryTables } from "@destack/directory";
 import { ObjectServer, SystemCall } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 
 import { ServiceError } from "@destack/service/error";
@@ -34,7 +34,8 @@ import {
     serveRevisions,
 } from "@destack/space/server";
 import { spaceObjects } from "@destack/space/service";
-import { type PackageManifest, BuildReader } from "@destack/package/manifest";
+import { PackageFile } from "@destack/package/file";
+import { PackageManifest, BuildReader } from "@destack/package/manifest";
 import { v7 } from "uuid";
 import { defineVault } from "../../declare/index.ts";
 import { LocalKeyring } from "../../encryption/index.ts";
@@ -50,12 +51,14 @@ export const credentials = defineVault({ name: "credentials", spec: {} });
 
 /** Identifiers of the fixture space and its stack. */
 const ids = {
-    account: identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
-    space: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
-    stack: identifier("installation").parse("installation-01996ab0-0000-7000-8000-000000000003"),
-    region: identifier("region").parse("region-01996ab0-0000-7000-8000-000000000004"),
-    package: identifier("package").parse("package-01996ab0-0000-7000-8000-000000000005"),
-    notes: identifier("package").parse("package-01996ab0-0000-7000-8000-000000000006"),
+    account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
+    space: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+    stack: schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-000000000003"),
+    region: schema.identifier("region").parse("region-01996ab0-0000-7000-8000-000000000004"),
+    package: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000005"),
+    notes: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000006"),
 };
 
 /** The notes installation with a mail token secret. */
@@ -76,7 +79,7 @@ function stack(pin?: number, isSecretDeclared = true) {
     };
 
     return defineSpace({
-        resources: { credentials: { declaration: credentials, retention: "retain", tags: {} } },
+        resources: { credentials: { declaration: credentials, retention: "forever", tags: {} } },
         ...(isSecretDeclared
             ? { secrets: { mail: { vault: "credentials", name: "mail-token" } } }
             : {}),
@@ -92,10 +95,26 @@ function stack(pin?: number, isSecretDeclared = true) {
 /** The release build the revisions evaluated. */
 const build = { kind: "release" as const, version: "2026.9.0", manifest: "b".repeat(64) };
 
+/** The empty file every fixture build lists as its dependencies, files and source maps. */
+const emptyFile = await PackageFile.describe(
+    "manifest/empty.json",
+    "application/json",
+    new Uint8Array(),
+);
+
 /** Open every build as an empty build of its package. */
 const openBuild: OpenBuild = async (packageId) =>
     new BuildReader(
-        { package: { id: packageId }, descriptions: {}, outputs: {} } as unknown as PackageManifest,
+        PackageManifest.parse({
+            formatVersion: 1,
+            package: { id: packageId, name: "@example/fixture", version: "2026.9.0" },
+            language: "typescript",
+            dependencies: emptyFile,
+            descriptions: {},
+            outputs: {},
+            files: emptyFile,
+            sourceMaps: emptyFile,
+        }),
         async (path) => {
             throw new TypeError(`the fixture build of ${packageId} has no ${path}`);
         },
@@ -148,7 +167,7 @@ test.each(TEST_DIALECTS)(
         ]);
         const resources = serveResources(providers);
         const secrets = servedObjects(keyring, "eu", { days: 1 });
-        const binder = new Binder([Bindable.resource(VaultKind, vault), secretBindable]);
+        const binder = new Binder([Bindable.resource(VaultKind, vault)], [secretBindable]);
         const server = new ObjectServer({
             objects: {
                 ...Object.fromEntries(
@@ -160,7 +179,6 @@ test.each(TEST_DIALECTS)(
             },
             directory,
             database,
-            context: (context, scope) => context.access(scope),
             callKey: testCallKey,
             origin: {
                 package: spaceService.package,
@@ -175,19 +193,18 @@ test.each(TEST_DIALECTS)(
 
         // submit and apply a stack revision as the stack controller does
         const read = async (): Promise<Installation> =>
-            (
+            single(
                 await database
                     .select()
                     .from(installation.table)
-                    .where(eq(installation.table.id, ids.stack))
-            )[0]!;
+                    .where(eq(installation.table.id, ids.stack)),
+            );
         const apply = async (definition: ReturnType<typeof stack>) => {
             const current = await read();
             const revision = await database.transaction(async (transaction) =>
                 recordSubmission(
                     transaction,
-                    (object, name, input) =>
-                        server.invoke(transaction, ids.space, object, name, input, Date.now()),
+                    server.invoker({ database: transaction, scope: ids.space, now: Date.now() }),
                     current,
                     {
                         selection: { kind: "release", version: "2026.9.0" },
@@ -227,7 +244,7 @@ test.each(TEST_DIALECTS)(
         expect(waiting.deferred).toBe("vault credentials is not provisioned");
 
         // provision the vault, then apply the secret and its selection
-        const controller = server.controllers().find((each) => each.name === "vault")!;
+        const controller = single(server.controllers().filter((each) => each.name === "vault"));
         await controller.reconcile(
             JSON.stringify({ scope: ids.space }),
             reconciliation(new AbortController().signal),
@@ -237,38 +254,44 @@ test.each(TEST_DIALECTS)(
             ["create", "secret/mail"],
             ["create", `binding/installations/notes/${ids.notes}/token`],
         ]);
-        const [mail] = await database.select().from(secret.table);
-        const [bound] = await database.select().from(binder.binding.table);
-        const [notesInstallation] = await database
-            .select()
-            .from(installation.table)
-            .where(eq(installation.table.alias, "notes"));
-        expect([bound!.name, bound!.target]).toEqual(["token", mail!.id]);
+        const mail = single(await database.select().from(secret.table));
+        const bound = single(await database.select().from(binder.binding.table));
+        const notesInstallation = single(
+            await database
+                .select()
+                .from(installation.table)
+                .where(eq(installation.table.alias, "notes")),
+        );
+        const { revisionId } = notesInstallation;
+        if (revisionId === null) {
+            throw new TypeError("the notes installation has no revision");
+        }
+        expect([bound.name, bound.target]).toEqual(["token", mail.id]);
 
         // write two versions of the secret, the second current
         for (const number of [1, 2]) {
             await system(secretVersion, "create", {
                 scope: ids.space,
                 input: {
-                    parentId: mail!.id,
+                    parentId: mail.id,
                     value: { encoding: "text", value: `token ${number}` },
                 },
             });
         }
         const version = async (number: number) =>
-            (
+            single(
                 await database
                     .select()
                     .from(secretVersion.table)
-                    .where(eq(secretVersion.table.number, number))
-            )[0]!;
-        const promote = async (version: number) => {
-            const [row] = await database.select().from(secret.table);
-            await system(secret, "promote", SystemCall.of(row!, { version }));
+                    .where(eq(secretVersion.table.number, number)),
+            );
+        const promote = async (number: number) => {
+            const row = single(await database.select().from(secret.table));
+            await system(secret, "promote", SystemCall.of(row, { version: number }));
         };
 
         // serve the space's secrets to the notes installation
-        const workload = principal.installation.reference(ids.space, notesInstallation!.id);
+        const workload = principal.installation.reference(ids.space, notesInstallation.id);
         const hosted = Server.start({
             ...server.implement(spaceService),
             controllers: [],
@@ -292,54 +315,56 @@ test.each(TEST_DIALECTS)(
             url: "https://vault.test",
             fetch: (request) => hosted.fetch(request),
         });
-        const reading = { spaceId: ids.space, id: mail!.id };
+        const reading = { spaceId: ids.space, id: mail.id };
         const relate = () =>
             database.transaction((transaction) =>
-                binder.relate(transaction, ids.space, notesInstallation!.id, Date.now()),
+                binder.relate(transaction, ids.space, notesInstallation.id, Date.now()),
             );
         const deploy = async () => {
             const now = Date.now();
-            const [deployed] = await database
-                .insert(deployment.table)
-                .values({
-                    id: identifier("deployment").parse(`deployment-${v7()}`),
-                    scope: ids.space,
-                    installationId: notesInstallation!.id,
-                    packageId: ids.notes,
-                    revisionId: notesInstallation!.revisionId!,
-                    output: "main",
-                    workload: "main",
-                    runtime: "bun",
-                    release: "2026.9.0",
-                    description: {
-                        entrypoint: ".",
-                        services: [],
-                        triggers: [],
-                        resources: [],
-                        secrets: [{ packageId: ids.notes, name: "token" }],
-                        connections: [],
-                        compute: {},
-                    },
-                    policies: { packages: [], network: [] },
-                    status: "active",
-                    activatedAt: now,
-                    createdAt: now,
-                    updatedAt: now,
-                })
-                .returning();
+            const deployed = single(
+                await database
+                    .insert(deployment.table)
+                    .values({
+                        id: schema.identifier("deployment").parse(`deployment-${v7()}`),
+                        scope: ids.space,
+                        installationId: notesInstallation.id,
+                        packageId: ids.notes,
+                        revisionId: revisionId,
+                        output: "main",
+                        workload: "main",
+                        runtime: "bun",
+                        release: "2026.9.0",
+                        description: {
+                            entrypoint: ".",
+                            services: [],
+                            triggers: [],
+                            resources: [],
+                            secrets: [{ packageId: ids.notes, name: "token" }],
+                            connections: [],
+                            compute: {},
+                            capabilities: {},
+                        },
+                        policies: { packages: [], network: [] },
+                        status: "active",
+                        activatedAt: now,
+                        createdAt: now,
+                        updatedAt: now,
+                    })
+                    .returning(),
+            );
             await database.transaction((transaction) =>
                 binder.capture(
                     {
                         database: transaction,
-                        invoke: (object, name, input) =>
-                            server.invoke(transaction, ids.space, object, name, input, now),
+                        invoke: server.invoker({ database: transaction, scope: ids.space, now }),
                     },
-                    deployed!,
+                    deployed,
                 ),
             );
             await relate();
 
-            return deployed!;
+            return deployed;
         };
         const retire = async (retired: typeof deployment.table.$inferSelect) => {
             await database
@@ -389,7 +414,7 @@ test.each(TEST_DIALECTS)(
         // read nothing once no deployment is live
         await retire(second);
         await expect(client.secret.read({ ...reading, version: 1 })).rejects.toEqual(
-            new ServiceError("NOT_FOUND", { defined: true, message: `no secret ${mail!.id}` }),
+            new ServiceError("NOT_FOUND", { defined: true, message: `no secret ${mail.id}` }),
         );
         expect(await database.select().from(accessRelationship)).toEqual([]);
 
@@ -403,7 +428,7 @@ test.each(TEST_DIALECTS)(
             ["delete", `binding/installations/notes/${ids.notes}/token`],
             ["delete", "secret/mail"],
         ]);
-        const [trashed] = await database.select().from(secret.table);
-        expect(trashed!.deletionRequestedAt).toEqual(expect.any(Number));
+        const trashed = single(await database.select().from(secret.table));
+        expect(trashed.deletionRequestedAt).toEqual(expect.any(Number));
     },
 );

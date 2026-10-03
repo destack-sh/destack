@@ -4,8 +4,8 @@ import { Journal } from "@destack/audit";
 import { eq, isNotNull } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import { expect, test } from "@destack/test";
-import { identifier } from "@destack/schema";
+import { expect, refusal, single, test } from "@destack/test";
+import { schema } from "@destack/schema";
 import { binding, installation } from "@destack/space/object";
 import { v7 } from "uuid";
 import { secret, secretVersion } from "../../object/index.ts";
@@ -60,14 +60,14 @@ test.each(TEST_DIALECTS)(
             );
         }
         expect(
-            await client.version
-                .create({
+            await refusal(
+                client.version.create({
                     spaceId,
                     parentId: created.id,
                     requestId: RequestId.create(),
                     value: { encoding: "base64", value: "!" },
-                })
-                .catch((error: { code: string; message: string }) => [error.code, error.message]),
+                }),
+            ),
         ).toEqual(["BAD_REQUEST", "invalid input: value.value: invalid base64-encoded string"]);
         const versions = await client.version.list({ spaceId });
         expect(versions.items).toEqual([written]);
@@ -174,11 +174,12 @@ test.each(TEST_DIALECTS)(
             id: written.id,
             requestId: RequestId.create(),
         });
+        const time: unknown = expect.any(Number);
         expect(destroyed).toEqual({
             ...written,
-            destroyedAt: expect.any(Number),
+            destroyedAt: time,
             revision: 2,
-            updatedAt: expect.any(Number),
+            updatedAt: time,
         });
         await expect(client.secret.read({ ...key, version: 1 })).rejects.toEqual(
             new ServiceError("FORBIDDEN", {
@@ -205,8 +206,8 @@ test.each(TEST_DIALECTS)(
         const calls = await new Journal(database, testCallKey).read({ limit: 1000 });
         const actions = calls.filter(
             (call) =>
-                call.execution!.context.package.id === SPACE.id &&
-                call.execution!.category !== "denial",
+                call.execution.context.package.id === SPACE.id &&
+                call.execution.category !== "denial",
         );
         expect(actions.map((call) => call.method)).toEqual([
             "secret.create",
@@ -232,7 +233,7 @@ test.each(TEST_DIALECTS)(
 
         // record the version each read disclosed, and none for the read of a trashed secret
         const reads = actions.filter((call) => call.method === "secret.read");
-        expect(reads.map((call) => call.execution!.details)).toEqual([
+        expect(reads.map((call) => call.execution.details)).toEqual([
             { version: 1 },
             { version: 1 },
             { version: 2 },
@@ -241,8 +242,8 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // record each refused read once, as its procedure's denial
-        const denials = calls.filter((call) => call.execution!.category === "denial");
-        expect(denials.map((call) => [call.execution!.targets, call.execution!.outcome])).toEqual(
+        const denials = calls.filter((call) => call.execution.category === "denial");
+        expect(denials.map((call) => [call.execution.targets, call.execution.outcome])).toEqual(
             ["secret is unavailable", "secret is unavailable", "secret version is unavailable"].map(
                 (message) => [
                     { procedure: { type: "procedure", id: "secret.read" } },
@@ -343,12 +344,14 @@ test.each(TEST_DIALECTS)(
             .set({ deletionRequestedAt: Date.now() - RECOVERY_MILLISECONDS })
             .where(eq(secret.table.id, first.id));
         const isPurged = await database.log.until(async () => {
-            const [row] = await database
-                .select({ purgedAt: secret.table.purgedAt })
-                .from(secret.table)
-                .where(eq(secret.table.id, first.id));
+            const { purgedAt } = single(
+                await database
+                    .select({ purgedAt: secret.table.purgedAt })
+                    .from(secret.table)
+                    .where(eq(secret.table.id, first.id)),
+            );
 
-            return row!.purgedAt !== null;
+            return purgedAt !== null;
         }, AbortSignal.timeout(PURGE_WAIT_MILLISECONDS));
         expect(isPurged).toBe(true);
         expect(
@@ -361,16 +364,17 @@ test.each(TEST_DIALECTS)(
                 .from(secretVersion.table)
                 .where(isNotNull(secretVersion.table.envelope)),
         ).toEqual([]);
-        const [version] = await database
-            .select()
-            .from(secretVersion.table)
-            .where(eq(secretVersion.table.id, written.id));
-        expect(version!.destroyedAt).toEqual(expect.any(Number));
-        const [purged] = await database
-            .select()
-            .from(secret.table)
-            .where(eq(secret.table.id, first.id));
-        expect(purged!.purgedAt).toEqual(expect.any(Number));
+        const version = single(
+            await database
+                .select()
+                .from(secretVersion.table)
+                .where(eq(secretVersion.table.id, written.id)),
+        );
+        expect(version.destroyedAt).toEqual(expect.any(Number));
+        const purged = single(
+            await database.select().from(secret.table).where(eq(secret.table.id, first.id)),
+        );
+        expect(purged.purgedAt).toEqual(expect.any(Number));
 
         // refuse purging, restoring and reading a purged secret
         await expect(
@@ -402,7 +406,7 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
         });
         const now = Date.now();
-        const installationId = identifier("installation").parse(`installation-${v7()}`);
+        const installationId = schema.identifier("installation").parse(`installation-${v7()}`);
         await database.insert(installation.table).values({
             id: installationId,
             scope: spaceId,
@@ -412,8 +416,8 @@ test.each(TEST_DIALECTS)(
             selection: { kind: "release", version: "2026.9.0" },
             createdAt: now,
             updatedAt: now,
-        } as never);
-        const bindingId = identifier("binding").parse(`binding-${v7()}`);
+        });
+        const bindingId = schema.identifier("binding").parse(`binding-${v7()}`);
         await database.insert(binding.table).values({
             id: bindingId,
             scope: spaceId,
