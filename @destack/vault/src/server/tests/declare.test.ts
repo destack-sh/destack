@@ -38,7 +38,7 @@ import { PackageFile } from "@destack/package/file";
 import { PackageManifest, BuildReader } from "@destack/package/manifest";
 import { v7 } from "uuid";
 import { defineVault } from "../../declare/index.ts";
-import { LocalKeyring } from "../../encryption/index.ts";
+import { LocalKeyring } from "@destack/host/keychain";
 import { secretVersion, vault } from "../../object/index.ts";
 import { SecretClient } from "../../object/index.ts";
 import { spaceService } from "@destack/space/service";
@@ -70,7 +70,7 @@ const notes = {
     tags: {},
 };
 
-/** A stack declaring a vault, a secret, and an application reading it, pinned to a version or not. */
+/** A stack declaring a vault, a secret, and an application reading it, fixed at a version or not. */
 function stack(pin?: number, isSecretDeclared = true) {
     const selection = {
         target: { type: "secret", name: "mail" },
@@ -102,6 +102,16 @@ const emptyFile = await PackageFile.describe(
     new Uint8Array(),
 );
 
+/** The graph root of a build without modules. */
+const emptyGraph = new TextEncoder().encode(JSON.stringify({ modules: {} }));
+
+/** The file holding the empty graph root. */
+const emptyGraphFile = await PackageFile.describe(
+    "manifest/graph.json",
+    "application/json",
+    emptyGraph,
+);
+
 /** Open every build as an empty build of its package. */
 const openBuild: OpenBuild = async (packageId) =>
     new BuildReader(
@@ -109,13 +119,18 @@ const openBuild: OpenBuild = async (packageId) =>
             formatVersion: 1,
             package: { id: packageId, name: "@example/fixture", version: "2026.9.0" },
             language: "typescript",
-            dependencies: emptyFile,
-            descriptions: {},
+            lists: {
+                dependencies: emptyFile,
+                files: emptyFile,
+                sourceMaps: emptyFile,
+                graph: emptyGraphFile,
+            },
             outputs: {},
-            files: emptyFile,
-            sourceMaps: emptyFile,
         }),
         async (path) => {
+            if (path === emptyGraphFile.path) {
+                return emptyGraph;
+            }
             throw new TypeError(`the fixture build of ${packageId} has no ${path}`);
         },
     );
@@ -400,7 +415,7 @@ test.each(TEST_DIALECTS)(
         await promote(1);
         expect((await client.secret.read({ ...reading, version: 2 })).version).toBe(2);
 
-        // read the pinned version once the old deployment retires and a new one captures the pin
+        // read the fixed version once the old deployment retires and a new one captures it
         await apply(stack(1));
         await promote(2);
         await retire(first);
@@ -418,7 +433,7 @@ test.each(TEST_DIALECTS)(
         );
         expect(await database.select().from(accessRelationship)).toEqual([]);
 
-        // destroy the pinned version once no live deployment captured it
+        // destroy the fixed version once no live deployment captured it
         await system(secretVersion, "destroy", SystemCall.of(await version(1)));
         expect((await version(1)).destroyedAt).toEqual(expect.any(Number));
 
