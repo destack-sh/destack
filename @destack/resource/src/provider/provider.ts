@@ -42,10 +42,7 @@ export interface Connector<
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
     /** Open a client the caller disposes for a bound resource with the declaration's desired state, refusing otherwise. */
-    connect(
-        binding: ResourceBinding,
-        declaration: Declaration,
-    ): Promise<Client & AsyncDisposable>;
+    connect(binding: ResourceBinding, declaration: Declaration): Promise<Client & AsyncDisposable>;
 }
 
 /** Where a provider placed a resource. */
@@ -111,7 +108,7 @@ export interface Open<Kind extends ResourceKind = ResourceKind, Handle = unknown
 }
 
 /** Rewrap the rows a provider binds to its host, such as keys wrapped under the host's root key, for another host. */
-export interface Rewrap<Table = unknown, Row extends object = Record<string, unknown>> {
+export interface Rewrap<Table, Row extends object> {
     /** The table of the host-bound rows. */
     readonly table: Table;
     /** Wrap a row's host-bound values for the target's recipient. */
