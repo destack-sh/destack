@@ -2,7 +2,6 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Definition, type PackageDefinition } from "@destack/package";
 import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import * as lint from "../lint/plugin.ts";
@@ -10,6 +9,7 @@ import type { Plugin } from "../lint/plugin.ts";
 import { CheckError } from "../error/index.ts";
 import { expectationOverrides, readExpectations } from "./expectation.ts";
 import { readManifest } from "./manifest.ts";
+import { Toolchain } from "./toolchain.ts";
 
 /** Fixed source formatting shared by editors and managed commands. */
 export const formatConfiguration = {
@@ -32,9 +32,7 @@ export function lintConfiguration(
     overrides: readonly { files: string[]; rules: Record<string, "off"> }[] = [],
 ) {
     // load the built-in rules by path for managed checks and by export for editors
-    const builtin = absolute
-        ? fileURLToPath(new URL("../lint/index.ts", import.meta.url))
-        : "@destack/check/lint";
+    const builtin = absolute ? Toolchain.lint() : "@destack/check/lint";
 
     // reserve each namespace before enabling the provider's complete rule set
     const names = new Set(["destack", "typescript", "oxc", "unicorn", "eslint"]);
@@ -161,7 +159,7 @@ const SOURCES = ["src", "tests"] as const;
 
 /** Produce a package's compiler configuration from its manifests and sources. */
 export async function typescriptConfiguration(directory: string) {
-    // read the package's own and declared dependency names
+    // read the package's name and declared dependency names
     const manifest = (await readManifest(directory)) ?? {};
     const names = new Set([
         ...Object.keys(manifest.dependencies ?? {}),
@@ -176,14 +174,14 @@ export async function typescriptConfiguration(directory: string) {
         ...Object.values(definition?.exports ?? {}).flatMap((entry) => entry.runtimes),
     ]);
 
-    // separate nested packages and find the views among the package's own sources
+    // separate nested packages and find the views among the package's sources
     const sources = await readSources(directory);
     const hasViews = uses("@destack/view") && sources.hasViews;
 
     // select ambient types from the declared type packages and the build's browser modules
     const isBun = names.has("@types/bun") || names.has("bun-types");
     const types = [
-        ...(isBun ? ["bun"] : names.has("@types/node") ? ["node"] : []),
+        ...runtimeTypes(names),
         ...(runtimes.has("browser") && names.has("@destack/build")
             ? ["@destack/build/browser"]
             : []),
@@ -191,11 +189,7 @@ export async function typescriptConfiguration(directory: string) {
     ];
 
     // compile JSX for the view library or the terminal renderer
-    const jsx = names.has("@opentui/solid")
-        ? { jsx: "preserve", jsxImportSource: "@opentui/solid" }
-        : hasViews
-          ? { jsx: "preserve", jsxImportSource: "@destack/view" }
-          : {};
+    const jsx = jsxOptions(names, hasViews);
 
     // declare web globals through DOM unless Bun's types declare them for server-only code
     const isDom =
@@ -215,6 +209,41 @@ export async function typescriptConfiguration(directory: string) {
         include: [...SOURCES, "*.config.ts"],
         ...(sources.packages.length > 0 ? { exclude: sources.packages } : {}),
     };
+}
+
+/** Select the runtime's ambient types: Bun's, else Node's, else none. */
+function runtimeTypes(names: ReadonlySet<string>): string[] {
+    // declare Bun's types
+    if (names.has("@types/bun") || names.has("bun-types")) {
+        return ["bun"];
+    }
+    // declare Node's types
+    else if (names.has("@types/node")) {
+        return ["node"];
+    }
+    // declare no runtime types
+    else {
+        return [];
+    }
+}
+
+/** Select the JSX compiler options: the terminal renderer's, else the view library's for a package with views. */
+function jsxOptions(
+    names: ReadonlySet<string>,
+    hasViews: boolean,
+): { readonly jsx?: string; readonly jsxImportSource?: string } {
+    // compile JSX for the terminal renderer
+    if (names.has("@opentui/solid")) {
+        return { jsx: "preserve", jsxImportSource: "@opentui/solid" };
+    }
+    // compile JSX for the view library
+    else if (hasViews) {
+        return { jsx: "preserve", jsxImportSource: "@destack/view" };
+    }
+    // compile no JSX
+    else {
+        return {};
+    }
 }
 
 /** Find the nested packages and TSX modules in a package's included directories. */

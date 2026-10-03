@@ -1,11 +1,15 @@
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { checkConfiguration, formatConfiguration } from "./configuration.ts";
 import type { CheckOptions } from "./index.ts";
 import { runTool, type ToolResult } from "./tool.ts";
+import { Toolchain } from "./toolchain.ts";
 import { CheckError } from "../error/index.ts";
+
+/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Format generated source with the same fixed settings as package files. */
 export async function formatSource(filename: string, source: string): Promise<string> {
@@ -24,9 +28,8 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
     // verify editor settings before preparing the managed invocation
     await checkConfiguration(options.directory, options.plugins);
 
-    // resolve the formatter from this package's installed dependencies
-    const require = createRequire(import.meta.url);
-    const executable = resolve(dirname(require.resolve("oxfmt/package.json")), "bin", "oxfmt");
+    // find the formatter among the tools
+    const executable = join(Toolchain.locate(["oxfmt"], PACKAGE), "bin", "oxfmt");
 
     // isolate the generated format configuration
     const temporary = await mkdtemp(join(tmpdir(), "destack-format-"));

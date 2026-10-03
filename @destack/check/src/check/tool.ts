@@ -41,7 +41,7 @@ export async function runTool(
                     ["run", "--no-env-file", executable, ...toolArguments],
                     {
                         cwd: directory,
-                        env: environment,
+                        env: { ...(environment ?? process.env), BUN_BE_BUN: "1" },
                         stdio: ["ignore", output.fd, "pipe"],
                         signal: AbortSignal.any([
                             AbortSignal.timeout(TOOL_TIMEOUT),

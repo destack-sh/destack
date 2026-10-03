@@ -1,17 +1,21 @@
 import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { createRequire } from "node:module";
-import { dirname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { readExpectations, applyExpectations } from "./expectation.ts";
 import { checkConfiguration, lintConfiguration, settingsRoot } from "./configuration.ts";
 import { runTool } from "./tool.ts";
+import { Toolchain } from "./toolchain.ts";
 import { CheckResult, type Diagnostic } from "../inspect/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { CheckError } from "../error/index.ts";
 import type { Plugin } from "../lint/plugin.ts";
 import { schema } from "@destack/schema";
+
+/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** The diagnostics of an oxlint JSON report. */
 const Report = schema.looseObject({ diagnostics: schema.unknown() });
@@ -142,14 +146,11 @@ async function listFiles(directory: string): Promise<string[]> {
 
 /** Lint TypeScript and JavaScript sources with Oxc and the Destack rules. */
 async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckResult> {
-    // resolve the linter and type checker from this package's installed dependencies
-    const require = createRequire(import.meta.url);
-    const executable = resolve(dirname(require.resolve("oxlint/package.json")), "bin", "oxlint");
-    const resolveTypeChecker = createRequire(require.resolve("oxlint-tsgolint/package.json"));
-    const extension = process.platform === "win32" ? ".exe" : "";
-    const typeChecker = resolveTypeChecker.resolve(
-        `@oxlint-tsgolint/${process.platform}-${process.arch}/tsgolint${extension}`,
-    );
+    // find the linter and the type checker of this platform among the tools
+    const executable = join(Toolchain.locate(["oxlint"], PACKAGE), "bin", "oxlint");
+    const platform = `@oxlint-tsgolint/${process.platform}-${process.arch}`;
+    const binary = process.platform === "win32" ? "tsgolint.exe" : "tsgolint";
+    const typeChecker = join(Toolchain.locate(["oxlint-tsgolint", platform], PACKAGE), binary);
 
     // isolate the generated lint configuration
     const temporary = await mkdtemp(join(tmpdir(), "destack-check-"));
