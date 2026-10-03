@@ -19,7 +19,7 @@ import {
 import { check, ForeignKey, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { ModuleMetadata, PACKAGE, type Package } from "@destack/package";
-import { schema, Version, type JsonValue } from "@destack/schema";
+import { schema, Version, type JsonObject, type JsonValue } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import type { Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
@@ -29,7 +29,7 @@ import { Tree } from "../tree/tree.ts";
 import type { ColumnDescription } from "../inspect/table.ts";
 import type { TableState } from "../migration/state.ts";
 import type { Row } from "./row.ts";
-import { recordSchema, type Shape } from "./schema.ts";
+import { recordSchema, type JsonShape, type Shape } from "./schema.ts";
 
 /** The key of a table's declaration, shared by every copy of this module. */
 export const TABLE = Symbol.for("destack.table");
@@ -154,7 +154,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** The row conversions by the release introducing them. */
     readonly convert: Readonly<Record<Version, RowConversion>>;
     /** The aggregates this table's rows feed or keep. */
-    readonly aggregates: readonly Aggregate[];
+    readonly aggregates: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
     /** The source table of a query alias. */
@@ -278,35 +278,51 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return constraints;
     }
 
-    /** Write a row's own columns in JSON form, leaving out concealed ones. */
+    /** Write the columns a row has in JSON form, leaving out concealed ones. */
     encode(row: Row, concealed: readonly string[] = []): Record<string, JsonValue> {
         return encodeRow(this.entries, row, concealed);
     }
 
-    /** Write a row's own logged columns in JSON form, leaving out concealed ones, as readers of the log see it. */
+    /** Write the logged columns a row has in JSON form, leaving out concealed ones, as readers of the log see it. */
     encodeLogged(row: Row, concealed: readonly string[]): Record<string, JsonValue> {
         return encodeRow(Object.entries(this.logged), row, concealed);
     }
 
-    /** Take a row of this table's own column values, as code choosing columns at runtime builds it, failing for other properties. */
+    /** Take a row of this table's column values, as code choosing columns at runtime builds it, failing for other properties. */
     values(row: Row): Partial<Select<Table<Name, Columns>>> & Row;
-    /** Return the row once each of its properties is one of the table's columns. */
+    /**
+     * Return the row once each of its properties is one of the table's columns, holding a value of the column's type.
+     *
+     * @construct every property names a column and its value parses by that column's schema, or is null in a nullable column.
+     */
     values(row: Row): Row {
-        // require every property to be one of the table's columns
-        for (const property of Object.keys(row)) {
-            this.column(property);
+        // require every property to be a column holding a value of its type
+        for (const [property, value] of Object.entries(row)) {
+            // refuse null in a column without nulls
+            const { definition } = this.column(property);
+            if (value === null && !definition.nullable) {
+                throw new TypeError(`column ${property} of ${this.name} is not nullable`);
+            }
+            // parse a present value by the column's schema
+            else if (value !== null) {
+                definition.schema.parse(value);
+            }
         }
 
         return row;
     }
 
-    /** Read a row's own columns from JSON form, the columns it has. */
-    decode(row: Readonly<Record<string, unknown>>): Partial<Select<Table<Name, Columns>>> & Row;
-    /** Decode each of the row's own columns by its column definition. */
-    decode(row: Readonly<Record<string, unknown>>): Row {
+    /** Read the columns a row has from JSON form. */
+    decode(row: JsonObject): Partial<Select<Table<Name, Columns>>> & Row;
+    /**
+     * Decode each column the row has by its column definition.
+     *
+     * @construct each property the row has is a column, decoded by that column's definition into its type.
+     */
+    decode(row: JsonObject): Row {
         const decoded: Record<string, ColumnValue> = {};
         for (const [property, column] of this.entries) {
-            // read the row's own columns, an undefined value being absent as in JSON
+            // read the columns the row has, an undefined value being absent as in JSON
             const value = Object.hasOwn(row, property) ? row[property] : undefined;
             if (value !== undefined) {
                 decoded[property] = value === null ? null : column.definition.fromJson(value);
@@ -316,18 +332,30 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return decoded;
     }
 
-    /** Validate a selected record, in application or JSON form. */
-    selectSchema(form?: "application" | "json"): schema.Object<Shape<Select<Table<Name, Columns>>>>;
-    /** Validate a selected record, whose signature above types it by the table. */
+    /** Validate a selected record in JSON form. */
+    selectSchema(form: "json"): schema.Object<JsonShape<Select<Table<Name, Columns>>>>;
+    /** Validate a selected record in application form. */
+    selectSchema(form?: "application"): schema.Object<Shape<Select<Table<Name, Columns>>>>;
+    /**
+     * Validate a selected record, whose signatures above type it by the table.
+     *
+     * @construct the record schema has one entry per column, each the column's schema in the form, and a JSON schema reads JsonOf the column value.
+     */
     selectSchema(
         form: "application" | "json" = "application",
     ): schema.Object<Record<string, schema.Schema>> {
         return recordSchema(this, "select", form);
     }
 
-    /** Validate an inserted record, in application or JSON form. */
-    insertSchema(form?: "application" | "json"): schema.Object<Shape<Insert<Table<Name, Columns>>>>;
-    /** Validate an inserted record, whose signature above types it by the table. */
+    /** Validate an inserted record in JSON form. */
+    insertSchema(form: "json"): schema.Object<JsonShape<Insert<Table<Name, Columns>>>>;
+    /** Validate an inserted record in application form. */
+    insertSchema(form?: "application"): schema.Object<Shape<Insert<Table<Name, Columns>>>>;
+    /**
+     * Validate an inserted record, whose signatures above type it by the table.
+     *
+     * @construct the record schema has one entry per column, each the column's insert schema in the form, and a JSON schema reads JsonOf the column value.
+     */
     insertSchema(
         form: "application" | "json" = "application",
     ): schema.Object<Record<string, schema.Schema>> {
@@ -336,7 +364,11 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
 
     /** Validate a partial update. */
     updateSchema(): schema.Object<Shape<Partial<Insert<Table<Name, Columns>>>>>;
-    /** Validate a partial update, whose signature above types it by the table. */
+    /**
+     * Validate a partial update, whose signature above types it by the table.
+     *
+     * @construct the record schema has one optional entry per column, each the column's schema.
+     */
     updateSchema(): schema.Object<Record<string, schema.Schema>> {
         return recordSchema(this, "update");
     }
@@ -391,13 +423,13 @@ interface TableDeclaration {
     /** The row conversions by the release introducing them. */
     readonly convert: Readonly<Record<Version, RowConversion>>;
     /** The aggregates this table's rows feed or keep. */
-    readonly aggregates: readonly Aggregate[];
+    readonly aggregates: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
 }
 
-/** An aggregate of one table's rows kept on the rows they reference. */
-export type Aggregate = AggregateOptions &
+/** A count, sum or extreme of one table's rows kept on the rows they reference. */
+export type Summary = SummaryOptions &
     (
         | {
               /** The target table. */
@@ -409,8 +441,8 @@ export type Aggregate = AggregateOptions &
           }
     );
 
-/** The options of an aggregate: a count, or a sum or extreme of a property. */
-type AggregateOptions = {
+/** The options of a summary: a count, or a sum or extreme of a property. */
+type SummaryOptions = {
     /** The target property. */
     readonly column: string;
     /** The aggregated table's property referencing the target rows. */
@@ -465,7 +497,7 @@ export interface TableOptions<Columns> {
     /** The row conversions by the release introducing them, converting rows of earlier releases. */
     readonly convert?: Readonly<Record<Version, RowConversion<Columns>>>;
     /** The aggregates this table's rows feed or keep. */
-    readonly aggregates?: readonly Aggregate[];
+    readonly aggregates?: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents?: readonly Dependent[];
 }
@@ -627,7 +659,11 @@ function attachColumns<Builders extends ColumnBuilderMap, Name extends string>(
     sqlName: string,
     builders: Builders,
 ): TableColumnMap<Builders, Name>;
-/** Attach builders' columns to a table's SQL name, in property order. */
+/**
+ * Attach builders' columns to a table's SQL name, in property order.
+ *
+ * @construct each builder becomes the column of its property, as the mapped type above describes.
+ */
 function attachColumns(sqlName: string, builders: ColumnBuilderMap): ColumnMap {
     return Object.fromEntries(
         Object.entries(builders).map(([property, builder]) => [
@@ -642,7 +678,11 @@ function aliasColumns<Definition extends Table, Name extends string>(
     source: Definition,
     name: Name,
 ): AliasedColumnMap<Definition, Name>;
-/** Qualify a table's columns by an alias, in property order. */
+/**
+ * Qualify a table's columns by an alias, in property order.
+ *
+ * @construct each column keeps its definition under the alias, as the mapped type above describes.
+ */
 function aliasColumns(source: Table, name: string): ColumnMap {
     return Object.fromEntries(
         Object.entries(source[TABLE].columns).map(([property, column]) => [
@@ -652,7 +692,7 @@ function aliasColumns(source: Table, name: string): ColumnMap {
     );
 }
 
-/** Write a row's own values of some columns in JSON form, leaving out the concealed ones. */
+/** Write the values a row has of some columns in JSON form, leaving out the concealed ones. */
 function encodeRow(
     columns: readonly (readonly [string, Column])[],
     row: Row,
@@ -660,7 +700,7 @@ function encodeRow(
 ): Record<string, JsonValue> {
     const encoded: Record<string, JsonValue> = {};
     for (const [property, column] of columns) {
-        // write the row's own unconcealed columns
+        // write the unconcealed columns the row has
         const value = row[property];
         if (value !== undefined && !concealed.includes(property)) {
             encoded[property] = value === null ? null : column.definition.toJson(value);

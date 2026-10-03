@@ -51,7 +51,7 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
             kind: column.definition.kind,
             value: schema
                 .record(schema.string(), schema.json())
-                .parse(toJsonSchema(column.definition.json ?? column.definition.schema)),
+                .parse(toJsonSchema(column.definition.json)),
             type: column.definition.types[dialect],
             nullable: column.definition.nullable,
             ...(column.definition.default === undefined

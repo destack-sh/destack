@@ -1,8 +1,14 @@
 import { schema } from "@destack/schema";
 import type { TableDefinition } from "./table.ts";
+import type { JsonOf } from "./column.ts";
 
 /** The field validators of a record. */
 export type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };
+
+/** The field validators of a record in JSON form. */
+export type JsonShape<Value> = {
+    [Property in keyof Value]-?: schema.Schema<JsonOf<Exclude<Value[Property], undefined>>>;
+};
 
 /** Build a validator of a table's records for an operation, in application or JSON form. */
 export function recordSchema(
@@ -18,8 +24,7 @@ export function recordSchema(
         if (operation !== "select" && definition.generated !== undefined) {
             continue;
         }
-        let validator =
-            form === "json" && definition.json !== undefined ? definition.json : definition.schema;
+        let validator: schema.Schema = form === "json" ? definition.json : definition.schema;
         if (definition.nullable) {
             validator = validator.nullable();
         }
