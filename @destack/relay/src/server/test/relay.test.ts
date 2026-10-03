@@ -5,6 +5,7 @@ import { eq, defineDatabase } from "@destack/db";
 import { GlobalFixture, ids } from "@destack/host/test";
 import { RequestId } from "@destack/service/request";
 import { accountTables } from "@destack/account/stack";
+import { TUNNEL_PROTOCOL, TunnelProtocol } from "../../session/index.ts";
 import { freePort, RelayFixture, until } from "./fixture.ts";
 
 /** The global database of the hosts and accounts relays route to. */
@@ -73,14 +74,39 @@ test("refuse names that lead nowhere, and a named host that keeps no tunnel", as
     ]);
 });
 
-test("refuse a tunnel without a valid host token", async () => {
+test("refuse a tunnel without a valid host token among its subprotocols", async () => {
     await using fixture = await RelayFixture.open(global);
     const relay = fixture.relay(await freePort());
 
-    const response = await fetch(relay.url, {
-        headers: { upgrade: "websocket", connection: "upgrade", authorization: "Bearer forged" },
+    // offer a forged token, a valid one only in the authorization header, and one without the tunnel protocol
+    const upgrade = (headers: Record<string, string>) =>
+        fetch(relay.url, {
+            headers: { upgrade: "websocket", connection: "upgrade", ...headers },
+        }).then((response) => response.status);
+    const token = await fixture.token();
+    const [, bearer = ""] = TunnelProtocol.offer(token);
+    expect([
+        await upgrade({ "sec-websocket-protocol": TunnelProtocol.offer("forged").join(", ") }),
+        await upgrade({ authorization: `Bearer ${token}` }),
+        await upgrade({ "sec-websocket-protocol": bearer }),
+    ]).toEqual([401, 401, 401]);
+});
+
+test("open a tunnel with the token offered as a subprotocol, answering the tunnel protocol only", async () => {
+    await using fixture = await RelayFixture.open(global);
+    const relay = fixture.relay(await freePort());
+
+    // open a WebSocket as the host, and read the protocol the relay chose
+    const socket = new WebSocket(
+        relay.url.replace("http:", "ws:"),
+        TunnelProtocol.offer(await fixture.token()),
+    );
+    const protocol = await new Promise<string>((resolve, reject) => {
+        socket.addEventListener("open", () => resolve(socket.protocol));
+        socket.addEventListener("close", () => reject(new Error("the relay refused the tunnel")));
     });
-    expect(response.status).toBe(401);
+    socket.close();
+    expect(protocol).toBe(TUNNEL_PROTOCOL);
 });
 
 test("keep the route while the host renews its tunnel's token", async () => {

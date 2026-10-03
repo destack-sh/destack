@@ -1,9 +1,10 @@
 import { serve, type Server, type ServerWebSocket, type TLSOptions } from "bun";
 import type { Identifier } from "@destack/schema";
+import { Bearer } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { TimerAlarm } from "@destack/service/control";
 import { reportError } from "@destack/service/server";
-import { MAX_FRAME_BYTES, type Session } from "../session/index.ts";
+import { MAX_FRAME_BYTES, type Session, TUNNEL_PROTOCOL } from "../session/index.ts";
 import { type Admission, Relay, type RelayOptions, TUNNEL_PATH, Tunnel } from "../server/index.ts";
 
 /** A tunnel connection's WebSocket: its host's admission, and its session once open. */
@@ -113,11 +114,12 @@ export class RelayServer {
             return this.relay.fetch(request);
         }
 
-        // admit the host and upgrade to its tunnel
+        // admit the host by its offered token and answer with the tunnel protocol
         try {
-            const admission = await this.relay.admit(request);
+            const admission = await this.relay.open(request);
+            const headers = { "sec-websocket-protocol": TUNNEL_PROTOCOL };
 
-            return server.upgrade(request, { data: { admission } })
+            return server.upgrade(request, { data: { admission }, headers })
                 ? undefined
                 : new Response(null, { status: 426 });
         } catch (error) {
@@ -175,7 +177,8 @@ export class RelayServer {
 
     /** Admit a renewal of a connection of a host's own tunnel, answering when its new token lapses. */
     async #renew(hostId: Identifier<"host">, request: Request): Promise<number> {
-        const admission = await this.relay.admit(request);
+        // admit only the host's own token, renewed in the bearer header
+        const admission = await this.relay.admit(Bearer.require(request.headers));
         if (admission.hostId !== hostId) {
             throw new ServiceError("FORBIDDEN", { message: "hosts only renew their own tunnels" });
         }

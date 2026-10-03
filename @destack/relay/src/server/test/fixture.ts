@@ -7,7 +7,7 @@ import { type GlobalFixture, ACCOUNTS_URL, ids, ISSUER } from "@destack/host/tes
 import { TokenVerifier } from "@destack/service/authentication";
 import { Resolver } from "@destack/account/directory";
 import { DirectoryStore } from "@destack/directory";
-import { identifier, schema, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { v7 } from "uuid";
 import { TunnelClient, type TunnelClientOptions } from "../../tunnel/index.ts";
@@ -57,7 +57,7 @@ export class RelayFixture implements AsyncDisposable {
         this.global = global;
         this.directory = new DirectoryStore(global.database);
         this.identity = identity;
-        this.hostId = identifier("host").parse(identity.hostId);
+        this.hostId = schema.identifier("host").parse(identity.hostId);
         this.space = name;
         this.spaceId = spaceId;
     }
@@ -67,7 +67,7 @@ export class RelayFixture implements AsyncDisposable {
         // enroll the host and place its space in it
         const identity = await global.enroll(ids.account);
         const name = `space-${v7().slice(-12)}`;
-        const cell = identifier("host").parse(identity.hostId);
+        const cell = schema.identifier("host").parse(identity.hostId);
         const spaceId = await RelayFixture.place(global, name, cell);
 
         return new RelayFixture(global, identity, name, spaceId);
@@ -104,7 +104,7 @@ export class RelayFixture implements AsyncDisposable {
     ): Promise<Identifier<"space">> {
         // claim the name and place the zone
         const directory = new DirectoryStore(global.database);
-        const id = identifier("space").parse(`space-${v7()}`);
+        const id = schema.identifier("space").parse(`space-${v7()}`);
         const row = { id, scope: ids.account, name };
         await directory.replace(
             await space.owned(id, row, Snapshot.live(global.database)),
@@ -142,6 +142,15 @@ export class RelayFixture implements AsyncDisposable {
         await relay.close();
     }
 
+    /** Read a token of the host for its relays. */
+    async token(): Promise<string> {
+        const granted = await this.identity.token(RELAY_PACKAGE.id, ACCOUNTS_URL, (request) =>
+            this.global.accounts.fetch(request),
+        );
+
+        return granted.accessToken;
+    }
+
     /** Keep a tunnel from the host to a relay, greeting each request with its method, path and body. */
     async tunnel(
         relay: RelayServer,
@@ -150,15 +159,7 @@ export class RelayFixture implements AsyncDisposable {
         // dial with the host's relay tokens, recording and greeting each request
         const client = TunnelClient.open({
             url: relay.url,
-            token: async () => {
-                const granted = await this.identity.token(
-                    RELAY_PACKAGE.id,
-                    ACCOUNTS_URL,
-                    (request) => this.global.accounts.fetch(request),
-                );
-
-                return granted.accessToken;
-            },
+            token: () => this.token(),
             fetch: async (request) => {
                 // record the request, and greet it with its method, path and body
                 const url = new URL(request.url);

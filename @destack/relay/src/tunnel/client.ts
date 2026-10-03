@@ -1,5 +1,5 @@
 import { RetryPolicy } from "@destack/service/timer";
-import { Session, type Stream } from "../session/index.ts";
+import { Session, type Stream, TunnelProtocol } from "../session/index.ts";
 
 /** How often a host renews its tunnel's token: four times a 60 s token, so a missed renewal still leaves time. */
 const HEARTBEAT_MILLISECONDS = 15_000;
@@ -106,13 +106,13 @@ export class TunnelClient {
 
     /** Dial the relay once and resolve whether the tunnel opened after it ends. */
     async #dial(): Promise<boolean> {
-        // open the tunnel with the host's token, counting a token the issuer did not grant as a failed dial
+        // offer the host's token as a subprotocol
         const url = new URL(this.#options.url);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
         let socket: WebSocket;
         try {
             const token = await this.#options.token();
-            socket = new WebSocket(url, { headers: { authorization: `Bearer ${token}` } });
+            socket = new WebSocket(url, TunnelProtocol.offer(token));
         } catch (error) {
             this.#options.report(error);
 
@@ -120,17 +120,41 @@ export class TunnelClient {
         }
         socket.binaryType = "arraybuffer";
 
-        // close the socket once the client closes
-        const stop = () => socket.close();
-        this.#stopping.signal.addEventListener("abort", stop, { once: true });
-        if (this.#stopping.signal.aborted) {
-            stop();
-        }
-
-        // open the tunnel once the relay answers the first ping
+        // end the session once when the socket closes or the client drops it
         const ended = Promise.withResolvers<boolean>();
         let current: Session | undefined;
         let heartbeat: ReturnType<typeof setInterval> | undefined;
+        const following = new AbortController();
+        const end = () => {
+            if (following.signal.aborted) {
+                return;
+            }
+
+            // forget the session, noting whether the tunnel opened
+            const isOpened = this.#session === current && current !== undefined;
+            this.#session = undefined;
+
+            // stop pinging and following the client's close, then end the session's streams
+            following.abort();
+            clearInterval(heartbeat);
+            current?.terminate();
+            ended.resolve(isOpened);
+        };
+
+        // close the socket and end without waiting for the peer to answer the close
+        const drop = () => {
+            socket.close();
+            end();
+        };
+        this.#stopping.signal.addEventListener("abort", drop, {
+            once: true,
+            signal: following.signal,
+        });
+        if (this.#stopping.signal.aborted) {
+            drop();
+        }
+
+        // open the tunnel once the relay answers the first ping
         socket.addEventListener("open", () => {
             // carry the session, renewing the token each heartbeat
             const session = new Session(
@@ -139,7 +163,7 @@ export class TunnelClient {
                 { accept: (stream) => void this.#answer(stream) },
             );
             current = session;
-            heartbeat = this.#beat(session, socket);
+            heartbeat = this.#beat(session, drop);
 
             // release the waiting callers once the relay answers
             session.ping().then(
@@ -163,30 +187,20 @@ export class TunnelClient {
         });
 
         // end the session with the socket
-        socket.addEventListener("close", () => {
-            // forget the session, noting whether the tunnel opened
-            const isOpened = this.#session === current && current !== undefined;
-            this.#session = undefined;
-
-            // stop pinging and following the client's close, then end the session's streams
-            this.#stopping.signal.removeEventListener("abort", stop);
-            clearInterval(heartbeat);
-            current?.terminate();
-            ended.resolve(isOpened);
-        });
+        socket.addEventListener("close", end);
 
         return ended.promise;
     }
 
     /** Renew the tunnel's token each heartbeat, and drop the socket when the relay stops answering. */
-    #beat(session: Session, socket: WebSocket): ReturnType<typeof setInterval> {
+    #beat(session: Session, drop: () => void): ReturnType<typeof setInterval> {
         const interval = this.#options.heartbeat ?? HEARTBEAT_MILLISECONDS;
         let isAnswered = true;
 
         return setInterval(() => {
             // drop a socket with an unanswered last renewal
             if (!isAnswered) {
-                socket.terminate();
+                drop();
 
                 return;
             }

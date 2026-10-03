@@ -199,7 +199,7 @@ test("reset a stream answered with no response head, keeping the session", async
     );
     const failed = await relay.fetch(new Request(head.url)).then(
         () => "answered",
-        (error: Error) => error.message,
+        (error: unknown) => (error instanceof Error ? error.message : error),
     );
     await answering;
 

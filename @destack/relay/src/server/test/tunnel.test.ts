@@ -1,12 +1,12 @@
 import { expect, test } from "@destack/test";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import type { Alarm } from "@destack/service/control";
 import { MAX_STREAMS, Session } from "../../session/index.ts";
 import { Tunnel } from "../tunnel.ts";
 
 /** The host whose tunnel the scenarios keep. */
-const hostId = identifier("host").parse("host-01996ab0-0000-7000-8000-0000000000d1");
+const hostId = schema.identifier("host").parse("host-01996ab0-0000-7000-8000-0000000000d1");
 
 /** A host's end of a tunnel joined to the relay in memory, answering with its label. */
 async function connect(tunnel: Tunnel, label: string, lapsesAt: number) {

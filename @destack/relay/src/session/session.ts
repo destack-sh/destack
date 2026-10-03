@@ -8,7 +8,7 @@ export const MAX_STREAMS = 100;
 /** The WebSocket, or any other message channel, a session sends its frames over. */
 export interface Transport {
     /** Send one frame as one binary message. */
-    send(message: Uint8Array): void;
+    send(message: Uint8Array<ArrayBuffer>): void;
     /** Close the channel. */
     close(): void;
 }

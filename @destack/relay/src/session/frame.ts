@@ -100,7 +100,7 @@ export class Frame {
     }
 
     /** Write the frame as one message. */
-    encode(): Uint8Array {
+    encode(): Uint8Array<ArrayBuffer> {
         // write the header's fields, then the payload
         const message = new Uint8Array(HEADER_BYTES + this.payload.length);
         const view = new DataView(message.buffer);

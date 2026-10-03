@@ -3,12 +3,13 @@ import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { DOMAINS, type Domains, HostAddress, InstallationOrigin } from "@destack/host";
 import { Host, HostKey } from "@destack/account/object";
-import { identifier, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import type { TokenVerifier } from "@destack/service/authentication";
 import type {} from "@destack/package/import-meta";
 import { ServiceError } from "@destack/service/error";
 import { refusal } from "@destack/service/server";
 import { space, SpaceCell } from "@destack/space/object";
+import { TunnelProtocol } from "../session/index.ts";
 import type { Tunnel } from "./tunnel.ts";
 
 /** The relay's package, the audience of the tokens hosts open their tunnels with. */
@@ -65,9 +66,9 @@ export class Relay {
     }
 
     /** Verify the token of a host opening or renewing its tunnel, with a standing key. */
-    async admit(request: Request, now = Date.now()): Promise<Admission> {
+    async admit(token: string, now = Date.now()): Promise<Admission> {
         // require a host's token
-        const caller = await this.#tokens.authenticate(request, undefined, now);
+        const caller = await this.#tokens.verify(token, undefined, now);
         const subject = caller.claims.subject;
         if (!principal.host.is(subject)) {
             throw new ServiceError("FORBIDDEN", { message: "only hosts open tunnels" });
@@ -76,7 +77,17 @@ export class Relay {
         // require its key to stand
         await HostKey.requireAuthenticating(this.#database, caller, now);
 
-        return { hostId: identifier("host").parse(subject.id), lapsesAt: caller.lapsesAt };
+        return { hostId: schema.identifier("host").parse(subject.id), lapsesAt: caller.lapsesAt };
+    }
+
+    /** Verify the token a host opening its tunnel offers as a WebSocket subprotocol. */
+    async open(request: Request, now = Date.now()): Promise<Admission> {
+        const token = TunnelProtocol.token(request.headers.get("sec-websocket-protocol"));
+        if (token === undefined) {
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer subprotocol" });
+        }
+
+        return this.admit(token, now);
     }
 
     /** Forward a request for a name to its cell, answering a failure with its status and message. */
@@ -154,20 +165,12 @@ export class Relay {
             });
         }
 
-        // keep the path and query under the endpoint's origin
+        // keep the path, query and streamed body under the endpoint's origin
         const url = new URL(request.url);
         const target = new URL(`${url.pathname}${url.search}`, published.endpoint);
-        const headers = new Headers(request.headers);
-        headers.set("forwarded", `host="${url.host}";proto=${url.protocol.slice(0, -1)}`);
+        const forwarded = new Request(target.href, request);
+        forwarded.headers.set("forwarded", `host="${url.host}";proto=${url.protocol.slice(0, -1)}`);
 
-        // stream the body on
-        const initialize: RequestInit = {
-            method: request.method,
-            headers,
-            body: request.body,
-            duplex: "half",
-        };
-
-        return new Request(target.href, initialize);
+        return forwarded;
     }
 }
