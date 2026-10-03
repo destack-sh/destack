@@ -1,8 +1,9 @@
 import { expect, test } from "@destack/test";
-import { found, schema } from "@destack/schema";
+import { Digest, found, schema } from "@destack/schema";
 import { PackageFile } from "../file/file.ts";
 import { PackageError } from "../error/error.ts";
 import { Package } from "../definition/package.ts";
+import * as graph from "../graph/index.ts";
 import { BuildReader } from "./reader.ts";
 import type { PackageManifest } from "./manifest.ts";
 
@@ -13,149 +14,160 @@ const owner = Package.parse({
     version: "2026.9.0",
 });
 
-/** The declaring package's next release, held beside the first. */
-const upgraded = Package.parse({ ...owner, version: "2026.9.1" });
-
-/** A package declaring nothing. */
-const other = Package.parse({
+/** The package whose build the reader opens. */
+const app = Package.parse({
     id: "package-019f5530-8000-7000-8000-000000000002",
-    name: "@destack/audit",
+    name: "@example/app",
     version: "2026.9.0",
 });
 
-/** A package whose constructor also describes the declaring package's kind. */
-const notification = Package.parse({
+/** A package declaring the procedure kind. */
+const service = Package.parse({
     id: "package-019f5530-8000-7000-8000-000000000003",
-    name: "@destack/notification",
+    name: "@destack/service",
     version: "2026.9.0",
 });
 
-/** An empty inventory file of a build. */
+/** An empty list file of a build. */
 const EMPTY = await PackageFile.describe(
     "manifest/empty.json",
     "application/json",
     new Uint8Array(),
 );
 
-/** Record a declaration of a package's constructor as a build records it. */
+/** Declare a kind of a package at an export of the app's module. */
 function declaration(
     declaring: Package,
-    constructor: Package,
     kind: string,
+    module: string,
     name: string,
-    description: object,
-) {
+    member?: string,
+): graph.Declaration {
+    const symbol = graph.Moniker.of({ packageId: app.id, module, name });
+    const derived = member === undefined ? {} : { member };
+
     return {
-        name,
+        moniker: graph.Moniker.of({ packageId: app.id, module, name, ...derived, kind }),
+        symbol,
         kind,
-        package: declaring,
-        constructor: { package: constructor, symbol: { module: "src/setting.ts", name: "define" } },
-        symbol: { package: other, symbol: { module: "src/index.ts", name } },
-        source: { file: "src/index.ts", line: 0, column: 0 },
-        description,
+        package: declaring.id,
+        name: member ?? name,
+        description: { name: member ?? name },
     };
 }
 
-test("read the descriptions of one kind across every version of a package's declarations", async () => {
-    // hold one collection per version of the declaring package, the first mixing in other kinds
+/** Store a graph file of each module's declarations and the root naming them, beside an upgrade. */
+async function store(modules: Readonly<Record<string, graph.Declaration[]>>) {
+    // write each module's graph file by its digest
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
-    const descriptions: PackageManifest["descriptions"] = {};
-    for (const [domain, constructor, declarations] of [
-        [
-            "setting",
-            owner,
-            [
-                declaration(owner, owner, "setting", "language", { name: "language" }),
-                declaration(owner, owner, "schedule", "nightly", { cron: "0 0 * * *" }),
-                declaration(owner, notification, "setting", "notification.mention", {
-                    name: "notification.mention",
-                }),
-            ],
-        ],
-        [
-            "setting-upgraded",
-            upgraded,
-            [declaration(upgraded, upgraded, "setting", "theme", { name: "theme" })],
-        ],
-    ] as const) {
-        const bytes = new TextEncoder().encode(JSON.stringify(declarations));
-        const file = await PackageFile.describe(
-            `manifest/${domain}.json`,
-            "application/json",
-            bytes,
-        );
-        files.set(file.path, bytes);
-        descriptions[domain] = { package: constructor, file };
+    const root: graph.Root = { modules: {} };
+    for (const [path, declarations] of Object.entries(modules)) {
+        const encoded = await graph.Module.file({
+            path,
+            digest: await Digest.of(new TextEncoder().encode(path)),
+            imports: [],
+            exports: [],
+            symbols: [],
+            declarations,
+            edges: [],
+        });
+        files.set(`graph/${encoded.digest}.json`, encoded.bytes);
+        root.modules[path] = encoded.digest;
     }
-    const manifest: PackageManifest = {
-        formatVersion: 1,
-        package: owner,
-        language: "typescript",
-        dependencies: EMPTY,
-        descriptions,
-        outputs: {},
-        files: EMPTY,
-        sourceMaps: EMPTY,
-    };
-    const reader = new BuildReader(manifest, async (path) => found(files, path));
 
-    // read both versions' settings with the notification's, and nothing for another package
-    const item = schema.object({ name: schema.string() }).strict();
-    const read = async (id: typeof owner.id) =>
-        (await reader.declared(id, "setting", item)).map((declared) => declared.description);
-    expect([await read(owner.id), await read(other.id)]).toEqual([
-        [{ name: "language" }, { name: "notification.mention" }, { name: "theme" }],
-        [],
-    ]);
-});
-
-test("read a build's own declarations across its domains, and reference its upgrade", async () => {
-    // hold the build's declaration beside a dependency's in two domains, and its upgrade
-    const files = new Map<string, Uint8Array<ArrayBuffer>>();
-    const store = async (path: string, value: unknown) => {
+    // describe the root and the upgrade
+    const file = async (path: string, value: unknown) => {
         const bytes = new TextEncoder().encode(JSON.stringify(value));
         files.set(path, bytes);
 
-        return {
-            package: owner,
-            file: await PackageFile.describe(path, "application/json", bytes),
-        };
+        return PackageFile.describe(path, "application/json", bytes);
     };
-    const own = declaration(owner, owner, "setting", "language", { name: "language" });
-    const dependency = {
-        ...declaration(owner, owner, "setting", "theme", { name: "theme" }),
-        symbol: { package: owner, symbol: { module: "src/index.ts", name: "theme" } },
-    };
-    const inventory = async (name: string) =>
-        (await store(`manifest/${name}.json`, name === "dependencies" ? {} : [])).file;
     const manifest: PackageManifest = {
         formatVersion: 1,
-        package: other,
+        package: app,
         language: "typescript",
-        outputs: {},
-        dependencies: await inventory("dependencies"),
-        files: await inventory("files"),
-        sourceMaps: await inventory("sourceMaps"),
-        descriptions: {
-            setting: await store("manifest/setting.json", [own]),
-            theme: await store("manifest/theme.json", [dependency]),
+        lists: {
+            dependencies: EMPTY,
+            files: EMPTY,
+            sourceMaps: EMPTY,
+            graph: await file("manifest/graph.json", root),
         },
-        upgrade: await store("manifest/upgrade.json", { from: "2026.8.0", steps: [] }),
+        outputs: {},
+        upgrade: {
+            package: owner,
+            file: await file("manifest/upgrade.json", { from: "2026.8.0", steps: [] }),
+        },
     };
-    const reader = new BuildReader(manifest, async (path) => found(files, path));
 
-    // keep the build's own declaration, and reference the upgrade after the collections
+    return new BuildReader(manifest, async (path) => found(files, path));
+}
+
+test("read the declarations of one kind a package declares across the graph's modules", async () => {
+    // declare settings in two modules beside a schedule, a service and the procedure it derives
+    const reader = await store({
+        "src/index.ts": [
+            declaration(owner, "setting", "src/index.ts", "language"),
+            declaration(owner, "schedule", "src/index.ts", "nightly"),
+        ],
+        "src/notes.ts": [
+            declaration(owner, "setting", "src/notes.ts", "theme"),
+            declaration(service, "service", "src/notes.ts", "notes"),
+            declaration(service, "procedure", "src/notes.ts", "notes", "list"),
+        ],
+    });
+
+    // read the settings of both modules, the service without its procedure, and nothing of another package
+    const item = schema.object({ name: schema.string() }).strict();
+    const read = async (id: typeof owner.id, kind: string) =>
+        (await reader.declared(id, kind, item)).map((declared) => declared.description);
+    expect([
+        await read(owner.id, "setting"),
+        await read(service.id, "service"),
+        await read(service.id, "procedure"),
+        await read(app.id, "setting"),
+    ]).toEqual([[{ name: "language" }, { name: "theme" }], [{ name: "notes" }], [], []]);
+});
+
+test("list a build's declarations without derived members, and reference its graph root and upgrade", async () => {
+    // declare a service and its procedure
+    const notes = declaration(service, "service", "src/notes.ts", "notes");
+    const reader = await store({
+        "src/notes.ts": [notes, declaration(service, "procedure", "src/notes.ts", "notes", "list")],
+    });
+
+    // keep the service alone, and reference the root before the upgrade
     expect([await reader.declarations(), reader.references().map((file) => file.path)]).toEqual([
-        [own],
+        [notes],
         [
-            "manifest/dependencies.json",
-            "manifest/files.json",
-            "manifest/sourceMaps.json",
-            "manifest/setting.json",
-            "manifest/theme.json",
+            "manifest/empty.json",
+            "manifest/empty.json",
+            "manifest/empty.json",
+            "manifest/graph.json",
             "manifest/upgrade.json",
         ],
     ]);
+});
+
+test("refuse a module's graph file whose bytes differ from its digest", async () => {
+    // serve another module's bytes under each graph file's digest
+    const reader = await store({ "src/notes.ts": [] });
+    const other = await graph.Module.file({
+        path: "src/other.ts",
+        digest: await Digest.of(new TextEncoder().encode("src/other.ts")),
+        imports: [],
+        exports: [],
+        symbols: [],
+        declarations: [],
+        edges: [],
+    });
+    const tampered = new BuildReader(reader.manifest, (path) =>
+        path.startsWith("graph/") ? Promise.resolve(other.bytes) : reader.load(path),
+    );
+
+    const [digest] = Object.values((await reader.graph()).modules);
+    await expect(tampered.modules()).rejects.toThrow(
+        new PackageError("INVALID_FILE", `file digest mismatch: graph/${digest}.json`),
+    );
 });
 
 test("open a remote build by its manifest digest, and refuse other bytes and unsafe addresses", async () => {
@@ -165,11 +177,8 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
         formatVersion: 1,
         package: owner,
         language: "typescript",
-        dependencies: EMPTY,
-        descriptions: {},
+        lists: { dependencies: EMPTY, files: EMPTY, sourceMaps: EMPTY, graph: EMPTY },
         outputs: {},
-        files: EMPTY,
-        sourceMaps: EMPTY,
     };
     const bytes = new TextEncoder().encode(JSON.stringify(manifest));
     const served = new Map([

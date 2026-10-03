@@ -15,27 +15,28 @@ export const DescriptionReference = defineSchema(
 /** A description file qualified by its defining package. */
 export type DescriptionReference = schema.Infer<typeof DescriptionReference>;
 
-/** An inspected file description selected by output and defining package. */
-export const FileDescription = defineSchema(
-    DescriptionReference.extend({
-        /** The description kind defined by the package. */
-        kind: schema.string().min(1),
-        /** Outputs using this description. */
-        outputs: schema.array(schema.string().min(1)),
-    }),
+/** A committed Git object identifier: a SHA-1 or SHA-256 digest in hexadecimal. */
+export const Commit = defineSchema(
+    schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$(?![\s\S])/u),
 );
-/** An inspected file description. */
-export type FileDescription = schema.Infer<typeof FileDescription>;
+/** A committed Git object identifier. */
+export type Commit = schema.Infer<typeof Commit>;
 
-/** A distributed file and its optional inspection descriptions. */
-export const ManifestFile = defineSchema(
-    PackageFile.extend({
-        /** Independently readable descriptions of this file. */
-        descriptions: schema.array(FileDescription).exactOptional(),
+/** The list files of a build, each read on demand and verified by its digest. */
+export const ManifestLists = defineSchema(
+    schema.object({
+        /** The exact dependencies the compiler used. */
+        dependencies: PackageFile,
+        /** The source, executable and asset files. */
+        files: PackageFile,
+        /** The source maps of generated files. */
+        sourceMaps: PackageFile,
+        /** The index root of the build's graph: the graph file of each module. */
+        graph: PackageFile,
     }),
 );
-/** A distributed file and its inspection references. */
-export type ManifestFile = schema.Infer<typeof ManifestFile>;
+/** The list files of a build. */
+export type ManifestLists = schema.Infer<typeof ManifestLists>;
 
 /** The portable structure of a package build manifest. */
 export const PackageManifest = defineSchema(
@@ -46,20 +47,16 @@ export const PackageManifest = defineSchema(
         package: Package,
         /** The package's source language. */
         language: Language,
-        /** Exact dependencies used by the compiler. */
-        dependencies: PackageFile,
-        /** Declaration collections keyed by domain, each qualified by its declaring package. */
-        descriptions: schema.record(schema.string(), DescriptionReference),
+        /** The commit the build compiled, absent for a working tree with uncommitted changes. */
+        commit: Commit.exactOptional(),
         /** Static test declarations qualified by the package defining their format. */
         tests: DescriptionReference.exactOptional(),
         /** The upgrade from the package's previous release, qualified by the package defining its format. */
         upgrade: DescriptionReference.exactOptional(),
+        /** The list files listing the build's dependencies, files, source maps and graph modules. */
+        lists: ManifestLists,
         /** Named outputs compiled from the package. */
         outputs: schema.record(DeclarationName, PackageOutput),
-        /** The inventory of source, executable and asset files. */
-        files: PackageFile,
-        /** Source maps associated with exact generated files. */
-        sourceMaps: PackageFile,
     }),
 );
 

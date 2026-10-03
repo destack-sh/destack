@@ -1,12 +1,12 @@
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
 import { SourceMapReference } from "../source/map.ts";
-import { ModuleDescription } from "../code/module.ts";
+import { Module, Root } from "../graph/module.ts";
+import { Declaration } from "../graph/declaration.ts";
 import { PackageError } from "../error/index.ts";
 import type { DeclarationName, PackageId } from "../definition/package.ts";
-import { DeclarationDescription } from "../inspect/declaration.ts";
-import { ManifestFile, PackageLocation, PackageManifest } from "./manifest.ts";
+import { PackageLocation, PackageManifest } from "./manifest.ts";
 
 /** A readable package distribution supplied by local or remote storage. */
 export interface PackageDistribution {
@@ -24,6 +24,8 @@ export class BuildReader {
     readonly manifest: PackageManifest;
     /** Read one package file by its relative path. */
     readonly load: (path: string) => Promise<Uint8Array<ArrayBuffer>>;
+    /** The graph file of each module, read once. */
+    #modules: Promise<Module[]> | undefined;
 
     /** Bind a manifest to local, registry or browser file access. */
     constructor(
@@ -37,79 +39,69 @@ export class BuildReader {
     /** Read exact compiler dependency resolutions. */
     dependencies() {
         return this.read(
-            this.manifest.dependencies,
+            this.manifest.lists.dependencies,
             schema.record(schema.string(), DependencyResolution),
         );
     }
 
-    /** Read the source, executable and asset inventory. */
+    /** Read the source, executable and asset list. */
     files() {
-        return this.read(this.manifest.files, schema.array(ManifestFile));
+        return this.read(this.manifest.lists.files, schema.array(PackageFile));
     }
 
     /** Read generated-file and source-map associations. */
     sourceMaps() {
-        return this.read(this.manifest.sourceMaps, schema.array(SourceMapReference));
+        return this.read(this.manifest.lists.sourceMaps, schema.array(SourceMapReference));
     }
 
     /** List the files the manifest names directly. */
     references(): PackageFile[] {
-        // collect inventories, declaration collections, the test file and the upgrade
+        // collect lists, the graph root, the test file and the upgrade
         const manifest = this.manifest;
-        const collections = Object.values(manifest.descriptions).map(
-            (collection) => collection.file,
-        );
         const tests = manifest.tests ? [manifest.tests.file] : [];
         const upgrade = manifest.upgrade ? [manifest.upgrade.file] : [];
 
-        return [
-            manifest.dependencies,
-            manifest.files,
-            manifest.sourceMaps,
-            ...collections,
-            ...tests,
-            ...upgrade,
-        ];
+        return [...Object.values(manifest.lists), ...tests, ...upgrade];
     }
 
     /** Collect all distributed file records for complete downloads and verification. */
-    async inventory(): Promise<PackageFile[]> {
-        // follow authenticated indexes without loading individual descriptions
-        const files = await this.files();
-
-        return [
-            ...this.references(),
-            ...files.flatMap((file) =>
-                (file.descriptions ?? []).map((description) => description.file),
-            ),
-            ...files,
-        ];
+    async distributed(): Promise<PackageFile[]> {
+        return [...this.references(), ...(await this.files())];
     }
 
-    /** Read one module description selected from the file inventory. */
-    module(file: PackageFile) {
-        return this.read(file, ModuleDescription);
+    /** Read the index root of the build's graph. */
+    graph(): Promise<Root> {
+        return this.read(this.manifest.lists.graph, Root);
     }
 
-    /** Read one declaration collection by its domain. */
-    domain(name: string): Promise<DeclarationDescription[]> {
-        const collection = this.manifest.descriptions[name];
-        if (!collection) {
-            throw new PackageError("INVALID_FILE", `unknown description collection: ${name}`);
+    /** Read one module's graph file by its digest. */
+    async module(digest: Digest): Promise<Module> {
+        // verify the content address before parsing the file
+        const path = `graph/${digest}.json`;
+        const bytes = await this.load(path);
+        if ((await Digest.of(bytes)) !== digest) {
+            throw new PackageError("INVALID_FILE", `file digest mismatch: ${path}`);
         }
 
-        return this.read(collection.file, schema.array(DeclarationDescription));
+        return Module.parse(decode(bytes));
     }
 
-    /** Read the package's own declarations across its domains. */
-    async declarations(): Promise<DeclarationDescription[]> {
-        const domains = await Promise.all(
-            Object.keys(this.manifest.descriptions).map((domain) => this.domain(domain)),
+    /** Read every module's graph file once. */
+    modules(): Promise<Module[]> {
+        this.#modules ??= this.graph().then((root) =>
+            Promise.all(Object.values(root.modules).map((digest) => this.module(digest))),
         );
 
-        return domains
-            .flat()
-            .filter((declaration) => declaration.symbol.package.id === this.manifest.package.id);
+        return this.#modules;
+    }
+
+    /** Read the package's declarations from its graph, without the members they derive. */
+    async declarations(): Promise<Declaration[]> {
+        const modules = await this.modules();
+
+        return modules
+            .flatMap((module) => module.declarations)
+            .filter((declaration) => !Declaration.isMember(declaration));
     }
 
     /** Read the declarations of one kind a package's constructors make, parsing each description. */
@@ -118,19 +110,10 @@ export class BuildReader {
         kind: DeclarationName,
         item: Item,
     ): Promise<Declared<schema.Output<Item>>[]> {
-        // read the owner's collection of each version the build holds
-        const collections = Object.values(this.manifest.descriptions).filter(
-            (collection) => collection.package.id === owner,
-        );
-        const declarations = await Promise.all(
-            collections.map((collection) =>
-                this.read(collection.file, schema.array(DeclarationDescription)),
-            ),
-        );
+        const declarations = await this.declarations();
 
         return declarations
-            .flat()
-            .filter((declaration) => declaration.kind === kind)
+            .filter((declaration) => declaration.package === owner && declaration.kind === kind)
             .map((declaration) => ({
                 ...declaration,
                 description: item.parse(declaration.description),
@@ -145,11 +128,8 @@ export class BuildReader {
         // verify the exact bytes before parsing external JSON
         const bytes = await this.load(file.path);
         await PackageFile.verify(file, bytes);
-        const document: unknown = JSON.parse(
-            new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-        );
 
-        return definition.parse(document);
+        return definition.parse(decode(bytes));
     }
 
     /** Open an immutable remote package and verify its root manifest. */
@@ -215,8 +195,13 @@ export class BuildReader {
     }
 }
 
+/** Decode a JSON file's verified bytes. */
+function decode(bytes: Uint8Array<ArrayBuffer>): unknown {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+}
+
 /** A declaration a build holds, with its description parsed. */
-export type Declared<Description> = Omit<DeclarationDescription, "description"> & {
+export type Declared<Description> = Omit<Declaration, "description"> & {
     /** The description, parsed by its reader. */
     readonly description: Description;
 };
