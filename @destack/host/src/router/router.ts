@@ -1,13 +1,15 @@
-import { principal, sameSubject } from "@destack/access";
+import { principal } from "@destack/access";
+import { Subject } from "@destack/sync";
 import type { PackageId } from "@destack/package";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { type Identifier, Version } from "@destack/schema";
 import { Egress } from "@destack/service";
 import {
-    Caller,
-    CALLER_HEADER,
-    CALLER_LIFETIME_MILLISECONDS,
+    Authentication,
+    AUTHENTICATION_HEADER,
+    AUTHENTICATION_LIFETIME_MILLISECONDS,
     type Lending,
+    Bearer,
 } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { copyRequest, VERSION_HEADER } from "@destack/service/request";
@@ -47,10 +49,10 @@ export type Destination =
           /** The service's package, receiving the call. */
           readonly audience: PackageId;
           /** Serve the call as a verified caller. */
-          fetch(request: Request, caller: Caller): Promise<Response>;
+          fetch(request: Request, authentication: Authentication): Promise<Response>;
       }
     | {
-          /** A service another origin serves, reached with a signed token. */
+          /** A service another origin serves, called with a signed token. */
           readonly kind: "remote";
           /** The space the call targets. */
           readonly scope: Identifier<"space">;
@@ -68,15 +70,15 @@ export interface Routes {
     resolve(spec: InstanceSpec, address: string): Promise<Destination>;
 }
 
-/** A host's ingress and egress: calls to its installations reach the deployment serving the caller's release, and its workloads' calls reach their addresses as their installations. */
+/** A host's ingress and egress: it sends calls to its installations to the deployment serving the caller's release, and its workloads' calls to their addresses as their installations. */
 export class Router {
     /** The runtimes running the host's instances, by server runtime. */
     readonly #runtimes: ReadonlyMap<string, Runtime>;
     /** The routes of the spaces the host serves. */
     readonly #routes: Routes;
     /** Sign an installation's token for a call leaving the host. */
-    readonly #sign: (caller: Caller) => Promise<string>;
-    /** The fetch reaching other origins. */
+    readonly #sign: (authentication: Authentication) => Promise<string>;
+    /** The fetch calling other origins. */
     readonly #fetch: (request: Request) => Promise<Response>;
     /** The lendings of callers' authority to the installations they call, which the called cells verify. */
     readonly #lending?: Pick<Lending, "sign">;
@@ -88,8 +90,8 @@ export class Router {
         /** The routes of the spaces the host serves. */
         readonly routes: Routes;
         /** Sign an installation's token for a call leaving the host, as its space's authority. */
-        readonly sign: (caller: Caller) => Promise<string>;
-        /** The fetch reaching other origins. */
+        readonly sign: (authentication: Authentication) => Promise<string>;
+        /** The fetch calling other origins. */
         readonly fetch: (request: Request) => Promise<Response>;
         /** Lend each caller's authority to the installation it calls, for the calls it sends, as the called cells verify. */
         readonly lending?: Pick<Lending, "sign">;
@@ -109,7 +111,7 @@ export class Router {
         installationId: Identifier<"installation">,
         path: string,
         request: Request,
-        caller: Caller,
+        authentication: Authentication,
     ): Promise<Response> {
         // require the release the caller speaks
         const header = request.headers.get(VERSION_HEADER);
@@ -130,7 +132,7 @@ export class Router {
                     Version.compare(version, endpoint.release) <= 0 &&
                     (endpoint.since === undefined || Version.compare(endpoint.since, version) <= 0),
             )
-            .sort((left, right) => Version.compare(right.release, left.release));
+            .toSorted((left, right) => Version.compare(right.release, left.release));
         if (serving === undefined) {
             throw new ServiceError("SERVICE_UNAVAILABLE", {
                 message: `no running deployment of ${installationId} serves release ${version}`,
@@ -138,28 +140,28 @@ export class Router {
         }
 
         // lend the caller's authority to the installation for the calls it sends, and forward the call
-        const delegated = await this.#delegate(caller, installationId, serving.scope);
+        const delegated = await this.#delegate(authentication, installationId, serving.scope);
 
         return this.#runtime(serving.runtime).fetch(serving.instanceId, path, request, delegated);
     }
 
     /** Lend a caller's authority to the installation it calls, as a lending the called cell verifies. */
     async #delegate(
-        caller: Caller,
+        authentication: Authentication,
         installationId: Identifier<"installation">,
         spaceId: Identifier<"space">,
-    ): Promise<Caller> {
+    ): Promise<Authentication> {
         // lend nothing where the host lends no authority, nor an installation to itself
         const installation = principal.installation.reference(spaceId, installationId);
         const lending = this.#lending;
-        if (lending === undefined || sameSubject(caller.authentication.subject, installation)) {
-            return caller;
+        if (lending === undefined || Subject.same(authentication.claims.subject, installation)) {
+            return authentication;
         }
 
         // sign the caller's authority lent to the installation in its space
-        const delegation = await lending.sign(caller, installation, spaceId);
+        const delegation = await lending.sign(authentication, installation, spaceId);
 
-        return new Caller({ ...caller.authentication, delegation });
+        return new Authentication({ ...authentication.claims, delegation });
     }
 
     /** Forward a webhook request to the newest running deployment of an installation, whose workload verifies it. */
@@ -170,7 +172,7 @@ export class Router {
     ): Promise<Response> {
         // pick the newest running deployment
         const endpoints = await this.#routes.endpoints(installationId);
-        const [newest] = [...endpoints].sort((left, right) =>
+        const [newest] = endpoints.toSorted((left, right) =>
             Version.compare(right.release, left.release),
         );
         if (newest === undefined) {
@@ -189,34 +191,34 @@ export class Router {
         if (routed === undefined) {
             throw new ServiceError("NOT_FOUND", { message: "no address below the egress" });
         }
-        const secret = request.headers.get("authorization")?.replace(/^Bearer /, "");
+        const secret = Bearer.token(request.headers.get("authorization"));
         const spec = secret === undefined ? undefined : this.#identify(secret);
         if (spec === undefined) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid instance secret" });
         }
 
-        // resolve the address, and call as the installation without the instance's secret or its own identity claims
+        // resolve the address, and call as the installation without the instance's secret or its identity claims
         const destination = await this.#routes.resolve(spec, routed.address);
-        const caller = Router.#caller(spec, destination);
+        const authentication = Router.#authentication(spec, destination);
         const headers = new Headers(routed.request.headers);
         headers.delete("authorization");
-        headers.delete(CALLER_HEADER);
+        headers.delete(AUTHENTICATION_HEADER);
         headers.delete("cookie");
         const call = copyRequest(routed.request, { headers });
         const url = new URL(call.url);
 
         // serve an installation on this host
         if (destination.kind === "installation") {
-            return this.ingress(destination.installationId, url.pathname, call, caller);
+            return this.ingress(destination.installationId, url.pathname, call, authentication);
         }
         // serve a service this host mounts
         else if (destination.kind === "service") {
-            return destination.fetch(call, caller);
+            return destination.fetch(call, authentication);
         }
         // call another origin with the installation's signed token
         else {
-            headers.set("authorization", `Bearer ${await this.#sign(caller)}`);
-            const target = `${destination.url.replace(/\/$/, "")}${url.pathname}${url.search}`;
+            headers.set("authorization", `Bearer ${await this.#sign(authentication)}`);
+            const target = `${destination.url.replace(/\/$/u, "")}${url.pathname}${url.search}`;
 
             return this.#fetch(copyRequest(call, { headers }, target));
         }
@@ -246,12 +248,12 @@ export class Router {
         return runtime;
     }
 
-    /** Build the caller an instance's installation calls a destination as, within its deployment. */
-    static #caller(spec: InstanceSpec, destination: Destination): Caller {
+    /** Build the authentication an instance's installation calls a destination with, within its deployment. */
+    static #authentication(spec: InstanceSpec, destination: Destination): Authentication {
         const subject = principal.installation.reference(spec.scope, spec.installationId);
         const now = Date.now();
 
-        return new Caller({
+        return new Authentication({
             credential: { kind: "installation", id: spec.instanceId },
             audience: destination.audience,
             scope: destination.kind === "service" ? spec.scope : destination.scope,
@@ -259,7 +261,7 @@ export class Router {
             subjects: [subject],
             deployments: [{ subject, id: spec.deploymentId }],
             verifiedAt: now,
-            expiresAt: now + CALLER_LIFETIME_MILLISECONDS,
+            expiresAt: now + AUTHENTICATION_LIFETIME_MILLISECONDS,
         });
     }
 }
