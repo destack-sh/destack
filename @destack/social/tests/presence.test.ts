@@ -1,9 +1,9 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Subject } from "@destack/sync";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { presence } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
-import { actors, serveArticles, refused } from "./fixture/server.ts";
+import { actors, type Follower, serveArticles } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
     "show an article's readers who is on it once per client, what they do and where, until they leave, on %s",
@@ -11,13 +11,6 @@ test.for(TEST_DIALECTS)(
         const { call, host, as, follow } = await serveArticles(dialect);
         const draft = await call(article, "create", { title: "Launch plan" });
         await call(article, "grant", { id: draft.id, relation: "viewer", subject: actors.bob });
-        const rows = async (client: ReturnType<typeof follow>) =>
-            (await client.rows()).map((row) => [
-                row.principal,
-                row.status,
-                row.selection,
-                row.isTyping,
-            ]);
 
         // let the owner edit the article while the viewer follows who is on it
         const alice = follow();
@@ -26,11 +19,6 @@ test.for(TEST_DIALECTS)(
         const bob = follow();
         expect(await rows(bob)).toEqual([]);
         as("alice");
-        const cursor = (offset: number) => {
-            const at = { element: { run: "alice.1", offset }, side: "after" };
-
-            return { field: "body", anchor: at, head: at };
-        };
         const editing = await call(presence, "create", {
             ...host(article, draft.id),
             status: "editing",
@@ -55,7 +43,7 @@ test.for(TEST_DIALECTS)(
         // refuse presence to a stranger, and show the stranger nobody
         as("carol");
         expect(
-            await refused(
+            await refusal(
                 call(presence, "create", { ...host(article, draft.id), status: "viewing" }),
             ),
         ).toEqual(["NOT_FOUND", `no article ${draft.id}`]);
@@ -74,7 +62,7 @@ test.for(TEST_DIALECTS)(
         ];
         expect([await rows(alice), await rows(bob)]).toEqual([joined, joined]);
         as("alice");
-        expect(await refused(call(presence, "update", { id: viewing.id, status: "idle" }))).toEqual(
+        expect(await refusal(call(presence, "update", { id: viewing.id, status: "idle" }))).toEqual(
             ["FORBIDDEN", "permission denied: write"],
         );
 
@@ -85,7 +73,7 @@ test.for(TEST_DIALECTS)(
         // refuse a second presence of one principal's client, and let another principal copy the client only for its own row
         as("bob");
         expect(
-            await refused(call(presence, "create", { ...host(article, draft.id), status: "idle" })),
+            await refusal(call(presence, "create", { ...host(article, draft.id), status: "idle" })),
         ).toEqual(["DUPLICATE", "a record with the same unique key exists"]);
         const copied = await call(presence, "create", {
             ...host(article, draft.id),
@@ -98,7 +86,24 @@ test.for(TEST_DIALECTS)(
         ]);
         as("alice");
         expect(
-            await refused(call(presence, "update", { id: copied.id, status: "editing" })),
+            await refusal(call(presence, "update", { id: copied.id, status: "editing" })),
         ).toEqual(["FORBIDDEN", "permission denied: write"]);
     },
 );
+
+/** Read a follower's next rows as principal, status, selection and typing. */
+async function rows(client: Follower) {
+    return (await client.rows()).map((row) => [
+        row["principal"],
+        row["status"],
+        row["selection"],
+        row["isTyping"],
+    ]);
+}
+
+/** Select a collapsed point of the body after an offset in alice's first run. */
+function cursor(offset: number) {
+    const at = { element: { run: "alice.1", offset }, side: "after" };
+
+    return { field: "body", anchor: at, head: at };
+}

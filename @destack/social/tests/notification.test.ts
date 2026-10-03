@@ -1,8 +1,9 @@
 import { TEST_DIALECTS } from "@destack/db/test";
+import { aligned } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { notification, subscription } from "@destack/notification";
 import { expect, test } from "@destack/test";
-import { comment, receipt } from "../src/index.ts";
+import { Body, comment, receipt } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
 import { type Actor, actors, serveArticles } from "./fixture/server.ts";
 
@@ -14,10 +15,10 @@ test.for(TEST_DIALECTS)(
             as(actor);
 
             return (await list(notification)).map((row) => [
-                row.name,
-                row.parentType,
-                row.reason,
-                row.readAt === null ? "unread" : "read",
+                row["name"],
+                row["parentType"],
+                row["reason"],
+                row["readAt"] === null ? "unread" : "read",
             ]);
         };
 
@@ -57,8 +58,8 @@ test.for(TEST_DIALECTS)(
 
         // carry an excerpt of the mentioning comment and its thread
         as("carol");
-        const [mentioned] = await list(notification);
-        expect([mentioned!.payload, mentioned!.thread]).toEqual([
+        const mentioned = aligned(await list(notification), 0);
+        expect([mentioned["payload"], mentioned["thread"]]).toEqual([
             {
                 author: actors.bob,
                 comment: first.id,
@@ -72,7 +73,7 @@ test.for(TEST_DIALECTS)(
         await call(comment, "create", {
             ...host(article, draft.id),
             body: { text: "Agreed", mentions: [] },
-            thread: first.id,
+            threadId: first.id,
         });
         await expand();
         as("alice");
@@ -82,7 +83,7 @@ test.for(TEST_DIALECTS)(
                 text: "@bob, ship it",
                 mentions: [{ offset: 0, length: 4, principal: actors.bob }],
             },
-            thread: first.id,
+            threadId: first.id,
         });
         await expand();
         expect([
@@ -120,15 +121,18 @@ test.for(TEST_DIALECTS)(
 
         // answer bob's mention from the notification, replying in its thread and reading it
         as("bob");
-        const [bobMentioned] = (await list(notification)).filter((row) => row.name === "mention");
+        const bobMentioned = (await list(notification)).find((row) => row["name"] === "mention");
+        if (bobMentioned === undefined) {
+            throw new TypeError("bob has no mention");
+        }
         await call(notification, "act", {
-            id: bobMentioned!.id,
+            id: bobMentioned.id,
             action: "reply",
             text: "Shipping",
         });
         const replies = (await list(comment))
-            .filter((row) => row.thread === first.id)
-            .map((row) => [row.author, (row.body as { text: string }).text]);
+            .filter((row) => row["threadId"] === first.id)
+            .map((row) => [row["author"], Body.parse(row["body"]).text]);
         expect([replies.at(-1), await inbox("bob")]).toEqual([
             [Subject.key(actors.bob), "Shipping"],
             [

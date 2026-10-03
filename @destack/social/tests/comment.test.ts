@@ -1,9 +1,9 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Subject } from "@destack/sync";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { comment } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
-import { actors, serveArticles, refused } from "./fixture/server.ts";
+import { actors, serveArticles } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
     "thread comments on an article, which commenters reply to, authors and editors resolve, and owners moderate, on %s",
@@ -36,13 +36,18 @@ test.for(TEST_DIALECTS)(
         const reply = await call(comment, "create", {
             ...host(article, draft.id),
             body: { text: "Done", mentions: [] },
-            thread: first.id,
+            threadId: first.id,
         });
 
         // show the viewer the thread, and refuse the viewer a comment
         as("carol");
         expect(
-            (await list(comment)).map((row) => [row.author, row.thread, row.body, row.selection]),
+            (await list(comment)).map((row) => [
+                row["author"],
+                row["threadId"],
+                row["body"],
+                row["selection"],
+            ]),
         ).toEqual([
             [
                 Subject.key(actors.alice),
@@ -53,7 +58,7 @@ test.for(TEST_DIALECTS)(
             [Subject.key(actors.bob), first.id, { text: "Done", mentions: [] }, null],
         ]);
         expect(
-            await refused(
+            await refusal(
                 call(comment, "create", {
                     ...host(article, draft.id),
                     body: { text: "Nope", mentions: [] },
@@ -67,37 +72,37 @@ test.for(TEST_DIALECTS)(
         await call(article, "grant", { id: other.id, relation: "commenter", subject: actors.bob });
         as("bob");
         expect(
-            await refused(
+            await refusal(
                 call(comment, "create", {
                     ...host(article, other.id),
                     body: { text: "Nope", mentions: [] },
-                    thread: first.id,
+                    threadId: first.id,
                 }),
             ),
         ).toEqual(["NOT_FOUND", "thread not found on the host"]);
         expect(
-            await refused(
+            await refusal(
                 call(comment, "create", {
                     ...host(article, draft.id),
                     body: { text: "Nope", mentions: [] },
-                    thread: reply.id,
+                    threadId: reply.id,
                 }),
             ),
         ).toEqual(["BAD_REQUEST", "a reply answers the first comment of its thread"]);
         expect(
-            await refused(
+            await refusal(
                 call(comment, "create", {
                     ...host(article, draft.id),
                     body: { text: "Nope", mentions: [] },
                     selection,
-                    thread: first.id,
+                    threadId: first.id,
                 }),
             ),
         ).toEqual(["BAD_REQUEST", "a reply takes its thread's selection"]);
 
         // refuse a selection of elements the text never had
         expect(
-            await refused(
+            await refusal(
                 call(comment, "create", {
                     ...host(article, draft.id),
                     body: { text: "Nope", mentions: [] },
@@ -121,14 +126,14 @@ test.for(TEST_DIALECTS)(
         ]);
         as("alice");
         expect(
-            await refused(
+            await refusal(
                 call(comment, "update", { id: reply.id, body: { text: "Mine now", mentions: [] } }),
             ),
         ).toEqual(["FORBIDDEN", "permission denied: edit"]);
 
         // refuse resolving to a commenter who wrote no part of the thread's first comment
         as("bob");
-        expect(await refused(call(comment, "resolve", { id: first.id }))).toEqual([
+        expect(await refusal(call(comment, "resolve", { id: first.id }))).toEqual([
             "FORBIDDEN",
             "permission denied: resolve",
         ]);
@@ -140,11 +145,11 @@ test.for(TEST_DIALECTS)(
             "number",
             Subject.key(actors.dave),
         ]);
-        expect(await refused(call(comment, "resolve", { id: first.id }))).toEqual([
+        expect(await refusal(call(comment, "resolve", { id: first.id }))).toEqual([
             "CONFLICT",
             "thread is already resolved",
         ]);
-        expect(await refused(call(comment, "resolve", { id: reply.id }))).toEqual([
+        expect(await refusal(call(comment, "resolve", { id: reply.id }))).toEqual([
             "BAD_REQUEST",
             "a thread resolves through its first comment",
         ]);
@@ -158,10 +163,10 @@ test.for(TEST_DIALECTS)(
         await call(comment, "create", {
             ...host(article, draft.id),
             body: { text: "Reworded", mentions: [] },
-            thread: first.id,
+            threadId: first.id,
         });
         as("bob");
-        expect(await refused(call(comment, "delete", { id: first.id }))).toEqual([
+        expect(await refusal(call(comment, "delete", { id: first.id }))).toEqual([
             "FORBIDDEN",
             "permission denied: delete",
         ]);
@@ -211,7 +216,7 @@ test.for(TEST_DIALECTS)(
                     { offset: 9, length: 6, principal: actors.agent },
                     { offset: 0, length: 4, principal: actors.bob },
                 ],
-            ].map((mentions) => refused(mention(mentions))),
+            ].map((mentions) => refusal(mention(mentions))),
         );
         const misplaced = [
             "BAD_REQUEST",
@@ -221,7 +226,7 @@ test.for(TEST_DIALECTS)(
 
         // refuse a mention of an object other than a principal
         expect(
-            await refused(
+            await refusal(
                 mention([
                     { offset: 0, length: 4, principal: article.reference(spaceId, draft.id) },
                 ]),

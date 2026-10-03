@@ -9,27 +9,23 @@ import * as base from "../object/comment.ts";
 export const comment = base.comment.handle({
     create: async (call, next) => {
         // validate mentions, the selection and the thread
-        const input = call.input as {
-            readonly body: base.Body;
-            readonly selection?: Selection;
-            readonly thread?: string;
-        };
+        const input = call.input;
         requireSpans(input.body);
-        if (input.selection !== undefined) {
+        if (input.selection !== null && input.selection !== undefined) {
             await requireText(call, input.selection);
         }
-        if (input.thread !== undefined) {
-            await requireThreadOf(call, input.thread);
+        if (input.threadId !== null && input.threadId !== undefined) {
+            await requireThreadOf(call, input.threadId);
         }
 
         // subscribe the author and notify the mentioned
-        const row = (await next()) as base.Comment;
-        const isReply = row.thread !== null;
+        const row = await next();
+        const isReply = row.threadId !== null;
         const mentioned = row.body.mentions.map((mention) => mention.principal);
         await Subscription.add(
             call,
             rootOf(row),
-            call.caller!,
+            call.requireCaller(),
             isReply ? "participating" : "author",
         );
         await notifyMentioned(call, row, mentioned);
@@ -48,15 +44,15 @@ export const comment = base.comment.handle({
     },
     update: async (call, next) => {
         // validate a changed body and stamp the edit
-        const { body } = call.input as { readonly body?: base.Body };
+        const { body } = call.input;
         if (body !== undefined) {
             requireSpans(body);
         }
         const edited = call.with({ input: { ...call.input, editedAt: call.now } });
 
         // notify principals mentioned for the first time
-        const before = call.target!.body.mentions.map((mention) => mention.principal);
-        const row = (await next(body === undefined ? call : edited)) as base.Comment;
+        const before = call.target.body.mentions.map((mention) => mention.principal);
+        const row = await next(body === undefined ? call : edited);
         const mentioned = row.body.mentions
             .map((mention) => mention.principal)
             .filter((principal) => !before.some((known) => Subject.same(known, principal)));
@@ -66,16 +62,16 @@ export const comment = base.comment.handle({
     },
     resolve: async (call) => {
         // resolve an open thread as the calling principal
-        const target = requireFirst(call.target!);
+        const target = requireFirst(call.target);
         if (target.resolvedAt !== null) {
             throw new ServiceError("CONFLICT", { message: "thread is already resolved" });
         }
 
-        return call.update({ resolvedAt: call.now, resolvedBy: Subject.key(call.caller!) });
+        return call.update({ resolvedAt: call.now, resolvedBy: Subject.key(call.requireCaller()) });
     },
     reopen: async (call) => {
         // reopen a resolved thread
-        const target = requireFirst(call.target!);
+        const target = requireFirst(call.target);
         if (target.resolvedAt === null) {
             throw new ServiceError("CONFLICT", { message: "thread is open" });
         }
@@ -100,16 +96,16 @@ function requireSpans(body: base.Body): void {
 /** Require a selection within a text field of the comment's host. */
 async function requireText(call: Call, selection: Selection): Promise<void> {
     // find the host's type and the selected elements
-    const host = call.parent()!;
+    const host = call.requireParent();
     const type = call.objects.find((object) => object.policy.is(host));
     const elements = [selection.anchor.element, selection.head.element];
 
     // refuse unknown fields and elements
-    if (!type?.text.includes(selection.field)) {
+    if (type === undefined || !type.text.includes(selection.field)) {
         throw new ServiceError("BAD_REQUEST", {
             message: `${host.type} has no text field ${selection.field}`,
         });
-    } else if (!(await Chunk.holds(call.database, host, selection.field, elements))) {
+    } else if (!(await Chunk.contains(call.database, host, selection.field, elements))) {
         throw new ServiceError("BAD_REQUEST", {
             message: `${selection.field} has no such selection`,
         });
@@ -119,17 +115,17 @@ async function requireText(call: Call, selection: Selection): Promise<void> {
 /** Require a reply to answer a thread's first comment on the same host. */
 async function requireThreadOf(
     call: Call<typeof base.comment.table>,
-    thread: string,
+    thread: base.Comment["id"],
 ): Promise<void> {
     // read the thread's first comment on the same host
     const table = base.comment.table;
-    const host = call.parent()!;
+    const host = call.requireParent();
     const [first] = await call.database
-        .select({ thread: table.thread })
+        .select({ thread: table.threadId })
         .from(table)
         .where(
             and(
-                eq(table.id, thread as base.Comment["id"]),
+                eq(table.id, thread),
                 eq(table.parentPackageId, host.packageId),
                 eq(table.parentType, host.type),
                 eq(table.parentId, host.id),
@@ -143,14 +139,14 @@ async function requireThreadOf(
         throw new ServiceError("BAD_REQUEST", {
             message: "a reply answers the first comment of its thread",
         });
-    } else if (call.input.selection !== undefined) {
+    } else if (call.input["selection"] !== undefined) {
         throw new ServiceError("BAD_REQUEST", { message: "a reply takes its thread's selection" });
     }
 }
 
 /** Require a comment to be the first of its thread, returning it. */
 function requireFirst(target: base.Comment): base.Comment {
-    if (target.thread !== null) {
+    if (target.threadId !== null) {
         throw new ServiceError("BAD_REQUEST", {
             message: "a thread resolves through its first comment",
         });
@@ -171,23 +167,23 @@ function hostOf(row: base.Comment): ObjectReference {
 
 /** Reference a comment's thread. */
 function rootOf(row: base.Comment): ObjectReference {
-    return base.comment.reference(row.scope, row.thread ?? row.id);
+    return base.comment.reference(row.scope, row.threadId ?? row.id);
 }
 
 /** Reference where a comment's notifications go: its thread for a reply, else its host. */
 function placeOf(row: base.Comment): ObjectReference {
-    return row.thread === null ? hostOf(row) : rootOf(row);
+    return row.threadId === null ? hostOf(row) : rootOf(row);
 }
 
 /** Build a comment's excerpt without splitting a surrogate pair. */
 function excerptOf(row: base.Comment): base.Excerpt {
     const text = row.body.text.slice(0, base.EXCERPT_LENGTH);
-    const isSplit = /[\uD800-\uDBFF]$/.test(text);
+    const isSplit = /[\uD800-\uDBFF]$/u.test(text);
 
     return {
         author: Subject.read(row.author),
         comment: row.id,
-        thread: row.thread ?? row.id,
+        thread: row.threadId ?? row.id,
         text: isSplit ? text.slice(0, -1) : text,
     };
 }

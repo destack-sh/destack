@@ -1,9 +1,9 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Subject } from "@destack/sync";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { favourite, receipt } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
-import { actors, serveArticles, refused } from "./fixture/server.ts";
+import { actors, serveArticles } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
     "keep each reader's receipt and favourite of an article single and private to them, on %s",
@@ -22,28 +22,26 @@ test.for(TEST_DIALECTS)(
         as("bob");
         const theirs = await call(receipt, "create", host(article, draft.id));
         await call(favourite, "create", host(article, draft.id));
-        expect(await refused(call(receipt, "create", host(article, draft.id)))).toEqual([
+        expect(await refusal(call(receipt, "create", host(article, draft.id)))).toEqual([
             "DUPLICATE",
             "a record with the same unique key exists",
         ]);
-        expect(await refused(call(favourite, "create", host(article, draft.id)))).toEqual([
+        expect(await refusal(call(favourite, "create", host(article, draft.id)))).toEqual([
             "DUPLICATE",
             "a record with the same unique key exists",
         ]);
 
         // move the viewer's receipt and its time on the next read
         const read = await call(receipt, "update", { id: theirs.id });
-        expect([read.revision, (read.updatedAt as number) >= (theirs.updatedAt as number)]).toEqual(
-            [2, true],
-        );
+        expect([read.revision, read.updatedAt >= theirs.updatedAt]).toEqual([2, true]);
 
         // show each reader only its own, and refuse the owner's receipt to the viewer
         const owned = async () => [
-            (await list(receipt)).map((row) => row.owner),
-            (await list(favourite)).map((row) => row.owner),
+            (await list(receipt)).map((row) => row["owner"]),
+            (await list(favourite)).map((row) => row["owner"]),
         ];
         expect(await owned()).toEqual([[Subject.key(actors.bob)], [Subject.key(actors.bob)]]);
-        expect(await refused(call(receipt, "update", { id: mine.id }))).toEqual([
+        expect(await refusal(call(receipt, "update", { id: mine.id }))).toEqual([
             "NOT_FOUND",
             `no receipt ${mine.id}`,
         ]);

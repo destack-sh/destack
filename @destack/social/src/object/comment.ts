@@ -10,8 +10,8 @@ import { Subject } from "@destack/sync";
 import { index, type Select } from "@destack/db";
 import { type Action, announcement, notification, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
-import { defineObject, field, method, type ObjectType, Selection } from "@destack/object";
-import { identifier, schema } from "@destack/schema";
+import { defineObject, field, type ObjectType, Selection } from "@destack/object";
+import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { reaction } from "./reaction.ts";
 
@@ -64,7 +64,7 @@ export const comment = defineObject({
         selection: field.json(Selection).optional(),
         /** The thread's first comment, absent on the first comment itself. */
         thread: field
-            .reference<"comment">((): ObjectType => comment, { delete: "cascade" })
+            .reference("comment", (): ObjectType => comment, { delete: "cascade" })
             .optional(),
         /** When the author last edited the body. */
         editedAt: field.time().optional(),
@@ -76,7 +76,7 @@ export const comment = defineObject({
         reactionCount: field.count(),
     },
     // find a thread's replies
-    constraints: (comment) => [index("comment_thread").on(comment.thread)],
+    constraints: (entry) => [index("comment_thread").on(entry.threadId)],
     permissions: {
         read: through("parent", "read"),
         comment: through("parent", "comment"),
@@ -92,15 +92,15 @@ export const comment = defineObject({
         notification.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
     ],
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
-        create: method.create("comment", { fields: ["body", "selection", "thread"] }),
+        create: method.create("comment", { fields: ["body", "selection", "threadId"] }),
         update: method.update("edit", { fields: ["body"] }),
         delete: method.delete("delete"),
-        resolve: method({ permission: "resolve" }),
-        reopen: method({ permission: "resolve" }),
-    },
+        resolve: method.mutation({ permission: "resolve" }),
+        reopen: method.mutation({ permission: "resolve" }),
+    }),
 });
 
 /** A comment as its table stores it. */
@@ -111,9 +111,9 @@ export const Excerpt = schema.object({
     /** The author. */
     author: Subject,
     /** The comment. */
-    comment: identifier("comment"),
+    comment: schema.identifier("comment"),
     /** The thread's first comment. */
-    thread: identifier("comment"),
+    thread: schema.identifier("comment"),
     /** The start of the text. */
     text: schema.string().max(EXCERPT_LENGTH),
 });
@@ -125,22 +125,25 @@ const answer: Action<Excerpt> = {
     title: "Reply",
     text: { placeholder: "Reply", button: "Send" },
     effect: async ({ source, payload }, call, text) => {
+        // require the reply's text
+        if (text === undefined) {
+            throw new TypeError("reply action needs its text");
+        }
+
         // find the object the thread comments on, through its first comment when notified there
-        const scope = { [comment.route.field!]: source.scope };
         const first =
             source.type === comment.name
-                ? ((await call.invoke(comment, "get", { ...scope, id: source.id })) as Comment)
+                ? await call.invoke(comment).get({ id: comment.identifier(source.id) })
                 : undefined;
         const parent =
             first === undefined
                 ? { packageId: source.packageId, type: source.type, id: source.id }
                 : { packageId: first.parentPackageId, type: first.parentType, id: first.parentId };
 
-        return call.invoke(comment, "create", {
-            ...scope,
+        return call.invoke(comment).create({
             parent,
-            body: { text: text!, mentions: [] },
-            thread: payload.thread,
+            body: { text, mentions: [] },
+            threadId: payload.thread,
         });
     },
 };

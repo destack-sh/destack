@@ -1,84 +1,72 @@
-# @destack/social
-
-Attach comments, reactions, receipts, favourites and presence to any object.
+Attach comments, reactions, read receipts, favourites and presence to any object.
 
 ## Hosts
 
-A host spreads `hostRoles` into its definition and attaches the social types.
+A host attaches each social type with the host permission it requires, such as `comment` to comment and react.
 
 ```ts
-const roles = hostRoles([user, group.members("member")]);
+import { announcement, notification, subscription } from "@destack/notification";
+import { defineObject, field } from "@destack/object";
+import { schema } from "@destack/schema";
+import { comment, favourite, presence, reaction, receipt } from "@destack/social";
 
-export const doc = defineObject({
-    ...,
-    fields: { ...roles.fields, commentCount: field.count(), reactionCount: field.count() },
-    relations: roles.relations,
-    permissions: roles.permissions,
-    shareable: { by: roles.grantedBy },
+export const article = defineObject({
+    name: "article",
+    plural: "articles",
+    scope: space,
+    fields: {
+        title: field.string(schema.string().min(1)),
+        commentCount: field.count(),
+        reactionCount: field.count(),
+    },
+    shareable: {},
     attachments: [
         comment.attach({ by: "comment" }),
         reaction.attach({ by: "comment" }),
-        ...[receipt, favourite, presence, notification, announcement, subscription].map((type) => type.attach({ by: "read" })),
+        notification.attach({ by: "read" }),
+        announcement.attach({ by: "read" }),
+        subscription.attach({ by: "read" }),
+        receipt.attach({ by: "read" }),
+        favourite.attach({ by: "read" }),
+        presence.attach({ by: "read" }),
     ],
+    methods: (method) => ({ get: method.get("read"), list: method.list("read") }),
 });
 ```
 
-## Roles
-
-`hostRoles` defines the permissions the attachments read.
-
-| Relation | `read` | `comment` | `edit` | `manage` |
-|---|---|---|---|---|
-| `owner` | yes | yes | yes | yes |
-| `editor` | yes | yes | yes | |
-| `commenter` | yes | yes | | |
-| `viewer` | yes | | | |
-
 ## Object types
 
-Each type nests in any host that attaches it.
-
-| Type | What it is | Methods |
-|---|---|---|
-| `comment` | A thread's first comment or a reply, with a `Body` and an optional `Selection` of the host's text | `get`, `list`, `create`, `update`, `delete`, `resolve`, `reopen` |
-| `reaction` | One author's emoji on a host or a comment | `list`, `create`, `delete` |
-| `receipt` | When its owner last read the host | `list`, `create`, `update`, `delete` |
-| `favourite` | Its owner's favourite mark on the host | `list`, `create`, `delete` |
-| `presence` | A client's ephemeral `status`, text `selection` and other `location` | `list`, `create`, `update`, `delete` |
+Comments, reactions, read receipts, favourites and presences each nest in any host that attaches them.
 
 ## Comments
 
-A reply's `thread` is the thread's first comment.
+A reply names its thread's first comment as `threadId`.
 
 ```ts
+const parent = { packageId: article.package.id, type: "article", id: articleId };
 const first = await client.mutate(comment).create({
     parent,
     body: { text: "@bob, tighten this", mentions: [{ offset: 0, length: 4, principal: bob }] },
     selection: { field: "body", anchor, head },
 }).predicted;
-client.mutate(comment).create({ parent, body: { text: "Done", mentions: [] }, thread: first.id });
+client.mutate(comment).create({ parent, body: { text: "Done", mentions: [] }, threadId: first.id });
 client.mutate(comment).resolve({ id: first.id });
 ```
 
 ## Notifications
 
-The server `comment` subscribes and notifies through three notifications.
-
-| Notification | Reaches |
-|---|---|
-| `mention` | The principals a comment mentions |
-| `thread` | The host's subscribers, for a thread's first comment |
-| `reply` | The thread's subscribers, for a reply |
-
-## Delivery
-
-A host's dispatcher delivers them.
+The server's `comment` from `@destack/social/server` subscribes the author and sends the `mention`, `thread` and `reply` notifications.
 
 ```ts
-const dispatcher = new Dispatcher({
+import { NotificationServer } from "@destack/notification/server";
+import { mention, reply, thread } from "@destack/social";
+import { comment } from "@destack/social/server";
+
+const notifications = new NotificationServer({
     notifications: [mention, thread, reply],
     recipients,
     push,
     mail,
 });
+const objects = { ...notifications.objects(), comment, reaction, subscription };
 ```

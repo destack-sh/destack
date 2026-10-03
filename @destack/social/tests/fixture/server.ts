@@ -10,14 +10,20 @@ import { Scope, type TrackerMessage } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
 import { journal } from "@destack/audit";
-import { and, type DatabaseConnection, type Dialect, eq, isNull } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import {
+    and,
+    type DatabaseConnection,
+    type Dialect,
+    eq,
+    isNull,
+    defineDatabase,
+} from "@destack/db";
 import { channelHub, TestDatabase } from "@destack/db/test";
-import type { ObjectType } from "@destack/object";
+import type { CallableName, ObjectType } from "@destack/object";
 import { subscription } from "@destack/notification";
 import { NotificationServer } from "@destack/notification/server";
 import { EphemeralStorage, ObjectServer, SystemCall } from "@destack/object/server";
-import { type Identifier, identifier } from "@destack/schema";
+import { aligned, type Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { subjectContext, testCallKey } from "@destack/service/test";
@@ -39,6 +45,14 @@ export const actors = {
 
 /** A principal the scenarios act as. */
 export type Actor = keyof typeof actors;
+
+/** A row a change carries, read for its identifier. */
+const RowIdentity = schema.looseObject({ id: schema.string() });
+
+/** A page of a list call, its rows read for their identifier and creation time. */
+const ListPage = schema.looseObject({
+    items: schema.array(schema.looseObject({ id: schema.string(), createdAt: schema.number() })),
+});
 
 /** The durable database of each dialect, shared by the scenarios of one test file. */
 const databases = new Map<Dialect, Promise<TestDatabase>>();
@@ -106,11 +120,6 @@ export async function serveArticles(dialect: Dialect) {
         objects,
         database: storage.database,
         ephemeral: store,
-        context: (context) => ({
-            subjects: [context.requireAuthentication().claims.subject],
-            now: Date.now(),
-            attributes: {},
-        }),
         callKey: testCallKey,
         origin: { package: space.package, service: "social" },
     });
@@ -119,8 +128,12 @@ export async function serveArticles(dialect: Dialect) {
         server,
         spaceId,
         /** Call a method as the current actor, replayable by request for durable objects and by client for presence. */
-        call: async (object: ObjectType, name: string, input: object) =>
-            (await server.call(
+        call: async <Type extends ObjectType, Name extends CallableName<Type>>(
+            object: Type,
+            name: Name,
+            input: object,
+        ) =>
+            server.call(
                 object,
                 name,
                 {
@@ -131,19 +144,20 @@ export async function serveArticles(dialect: Dialect) {
                     ...input,
                 },
                 context(spaceId, current).context,
-            )) as Record<string, unknown> & { readonly id: string },
-        /** List the objects of a type the current actor may list, oldest first. */
-        list: async (object: ObjectType, input: object = {}) =>
-            (
-                (await server.call(
-                    object,
-                    "list",
-                    { spaceId, ...input },
-                    context(spaceId, current).context,
-                )) as { readonly items: readonly (Record<string, unknown> & { id: string })[] }
-            ).items.toSorted(
-                (left, right) => (left.createdAt as number) - (right.createdAt as number),
             ),
+        /** List the objects of a type the current actor may list, oldest first. */
+        list: async (object: ObjectType, input: object = {}) => {
+            const page = await server.call(
+                object,
+                "list",
+                { spaceId, ...input },
+                context(spaceId, current).context,
+            );
+
+            return ListPage.parse(page).items.toSorted(
+                (left, right) => left.createdAt - right.createdAt,
+            );
+        },
         /** Refer to a host as its attachments' parent. */
         host: (object: ObjectType, id: string) => ({
             parent: { packageId: object.policy.definition.packageId, type: object.name, id },
@@ -177,15 +191,15 @@ export async function serveArticles(dialect: Dialect) {
 /** Open a new space below a new account, readable by anyone through a member role, returning its identifier. */
 async function openSpace(database: DatabaseConnection): Promise<Identifier<"space">> {
     // record the account and the space as copies of their home's access has them
-    const accountId = identifier("account").parse(`account-${v7()}`);
-    const spaceId = identifier("space").parse(`space-${v7()}`);
+    const accountId = schema.identifier("account").parse(`account-${v7()}`);
+    const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     const reference = space.reference(accountId, spaceId);
     await copyScope(database, account.reference(Scope.universe.id, accountId));
     await copyScope(database, reference);
 
     // define a role reading the space and bind it to anyone
     const now = Date.now();
-    const role = identifier("role").parse(`role-${v7()}`);
+    const role = schema.identifier("role").parse(`role-${v7()}`);
     await database.insert(accessRole).values({
         id: role,
         createdAt: now,
@@ -201,7 +215,7 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
     await database.insert(accessRelationship).values(
         Relationship.encode(
             {
-                id: identifier("relationship").parse(`relationship-${v7()}`),
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
                 object: reference,
                 role,
                 subject: anyone.reference("*", "*"),
@@ -213,14 +227,6 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
     );
 
     return spaceId;
-}
-
-/** Answer a call's refusal as its code and message, or "done" when it succeeds. */
-export function refused(pending: Promise<unknown>): Promise<"done" | [string, string]> {
-    return pending.then(
-        () => "done" as const,
-        (error: { code: string; message: string }) => [error.code, error.message],
-    );
 }
 
 /** Keep the durable tables once per dialect for the scenarios of a file. */
@@ -247,6 +253,9 @@ function durable(dialect: Dialect): Promise<TestDatabase> {
     return storage;
 }
 
+/** A client following the space's presence. */
+export type Follower = ReturnType<typeof follow>;
+
 /** Follow the space's presence as an actor's client, returning the rows kept after each page. */
 function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Actor) {
     // read the pages in the background into the rows kept, waking whoever waits for the next
@@ -256,8 +265,8 @@ function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Ac
         queries: { presences: { object: "presence" } },
     });
     const kept = new Map<string, Record<string, unknown>>();
+    const arrivals: PromiseWithResolvers<void>[] = [];
     let arrived = 0;
-    let wake = () => {};
     const reading = (async () => {
         for await (const page of pages) {
             // start over from a snapshot that resets, then apply the page's changes
@@ -265,14 +274,15 @@ function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Ac
                 kept.clear();
             }
             for (const change of page.changes) {
+                const { id } = RowIdentity.parse(change.row);
                 if (change.operation === "delete") {
-                    kept.delete(change.row.id as string);
+                    kept.delete(id);
                 } else {
-                    kept.set(change.row.id as string, change.row);
+                    kept.set(id, change.row);
                 }
             }
+            arrival(arrivals, arrived).resolve();
             arrived += 1;
-            wake();
         }
     })();
     onTestFinished(async () => {
@@ -285,14 +295,25 @@ function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Ac
     return {
         /** Read the rows once the next page arrives. */
         rows: async () => {
+            await arrival(arrivals, read).promise;
             read += 1;
-            while (arrived < read) {
-                await new Promise<void>((resolve) => (wake = resolve));
-            }
 
             return [...kept.values()];
         },
     };
+}
+
+/** Read the arrival of a page by its position, waiting on it before it arrives. */
+function arrival(
+    arrivals: PromiseWithResolvers<void>[],
+    position: number,
+): PromiseWithResolvers<void> {
+    // open every arrival up to the position
+    while (arrivals.length <= position) {
+        arrivals.push(Promise.withResolvers<void>());
+    }
+
+    return aligned(arrivals, position);
 }
 
 /** Build an actor's request context in a space with its own cancellation. */
@@ -302,6 +323,6 @@ function context(spaceId: string, actor: Actor) {
 
     return {
         controller,
-        context: subjectContext(actors[actor], spaceId, controller.signal),
+        context: subjectContext(actors[actor], spaceId, { signal: controller.signal }),
     };
 }

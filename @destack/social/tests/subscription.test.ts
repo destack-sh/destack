@@ -1,9 +1,10 @@
 import { TEST_DIALECTS } from "@destack/db/test";
+import { aligned } from "@destack/schema";
 import { subscription } from "@destack/notification";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { comment } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
-import { type Actor, actors, serveArticles, refused } from "./fixture/server.ts";
+import { type Actor, actors, serveArticles } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
     "subscribe thread authors, repliers and mentioned principals to the thread, keeping each principal's own subscription private, on %s",
@@ -12,7 +13,7 @@ test.for(TEST_DIALECTS)(
         const subscriptions = async (actor: Actor) => {
             as(actor);
 
-            return (await list(subscription)).map((row) => [row.parentType, row.reason]);
+            return (await list(subscription)).map((row) => [row["parentType"], row["reason"]]);
         };
 
         // subscribe the article's creator, and let a commenter subscribe before anyone mentions them
@@ -23,7 +24,7 @@ test.for(TEST_DIALECTS)(
         as("bob");
         await call(subscription, "create", host(article, draft.id));
         expect(
-            await refused(
+            await refusal(
                 call(subscription, "create", { ...host(article, draft.id), reason: "author" }),
             ),
         ).toEqual(["BAD_REQUEST", "invalid input to subscription.create"]);
@@ -65,7 +66,7 @@ test.for(TEST_DIALECTS)(
                 text: "@carol, agreed",
                 mentions: [{ offset: 0, length: 6, principal: actors.carol }],
             },
-            thread: first.id,
+            threadId: first.id,
         });
         expect([await subscriptions("bob"), await subscriptions("carol")]).toEqual([
             [
@@ -80,8 +81,8 @@ test.for(TEST_DIALECTS)(
 
         // unsubscribe by deleting, and subscribe only principals an edit mentions for the first time
         as("carol");
-        const [, kept] = await list(subscription);
-        await call(subscription, "delete", { id: kept!.id });
+        const kept = aligned(await list(subscription), 1);
+        await call(subscription, "delete", { id: kept.id });
         as("bob");
         await call(comment, "update", {
             id: answer.id,
@@ -106,7 +107,7 @@ test.for(TEST_DIALECTS)(
                 text: "@carol, one more",
                 mentions: [{ offset: 0, length: 6, principal: actors.carol }],
             },
-            thread: first.id,
+            threadId: first.id,
         });
         expect(await subscriptions("carol")).toEqual([
             ["article", "mention"],
