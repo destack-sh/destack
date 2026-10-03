@@ -7,7 +7,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { announcement, delivery, notification, subscription } from "@destack/notification";
 import type { CallableName, ObjectType } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { subjectContext, testCallKey } from "@destack/service/test";
@@ -50,11 +50,6 @@ test.for(TEST_DIALECTS)(
                 delivery,
             },
             database: storage.database,
-            context: (context) => ({
-                subjects: [context.requireAuthentication().claims.subject],
-                now: Date.now(),
-                attributes: {},
-            }),
             callKey: testCallKey,
             origin: {
                 package: task.package,
@@ -89,7 +84,7 @@ test.for(TEST_DIALECTS)(
         const draft = await call("bob", task, "create", {
             parentId: launch.id,
             title: "Draft the announcement",
-            assignee: people.dave.id,
+            assigneeId: people.dave.id,
         });
         const host = { parent: { packageId: task.package.id, type: "task", id: draft.id } };
 
@@ -101,7 +96,7 @@ test.for(TEST_DIALECTS)(
         await call("dave", comment, "create", {
             ...host,
             body: { text: "Friday", mentions: [] },
-            thread: first.id,
+            threadId: first.id,
         });
         expect((await call("bob", task, "get", { id: draft.id }))["commentCount"]).toBe(2);
 
@@ -115,8 +110,8 @@ test.for(TEST_DIALECTS)(
 /** Open a new space below a new account, readable by anyone through a member role, returning its identifier. */
 async function openSpace(database: DatabaseConnection) {
     // record the account and the space as copies of their home's access hold them
-    const accountId = identifier("account").parse(`account-${v7()}`);
-    const spaceId = identifier("space").parse(`space-${v7()}`);
+    const accountId = schema.identifier("account").parse(`account-${v7()}`);
+    const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     const reference = space.reference(accountId, spaceId);
     await copyScope(database, account.reference(Scope.universe.id, accountId));
     await copyScope(database, reference);

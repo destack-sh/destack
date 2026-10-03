@@ -30,7 +30,8 @@
     "devDependencies": {
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
-        "uuid": "14.0.2"
+        "uuid": "14.0.2",
+        "@types/bun": "1.4.2"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",

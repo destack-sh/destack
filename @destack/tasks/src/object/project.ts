@@ -2,7 +2,7 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 
-/** A body of work in a space, planned by its members and followed by its viewers. */
+/** A body of work in a space, planned by its editors and followed by its commenters and viewers. */
 export const project = defineObject({
     name: "project",
     plural: "projects",
