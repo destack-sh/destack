@@ -203,7 +203,7 @@ Write code and prose that read plain and boring.
 - **WN07** Names SHOULD follow modern prior art terminology where it exists.
 - **WN08** Names MUST NOT invent vocabulary where the codebase already has a concept / word.
 - **WN09** Terminology MUST be established and kept consistent across nouns, verbs and their families for types, methods, enums, variants and fields.
-- **WN10** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc.
+- **WN10** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb).
 
 - **WN11** Names of related logic SHOULD be symmetric.
 - **WN12** Names MUST NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet.
