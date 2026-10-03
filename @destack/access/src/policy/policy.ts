@@ -1,26 +1,35 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, JsonValue, schema } from "@destack/schema";
 import { PackageId, type Package } from "@destack/package";
 import { ObjectReference, AccessName, type Subject } from "@destack/sync";
-import { type AccessExpression } from "./expression.ts";
+import { Condition, type Predicate } from "@destack/db";
+import {
+    type AccessExpression,
+    type AttributeType,
+    type ConditionExpression,
+} from "./expression.ts";
 import { type RelationDefinition, SubjectType } from "./subject.ts";
 import { AccessError } from "../error/index.ts";
 import { PolicyDescription } from "../inspect/policy.ts";
 import type { Elevation } from "../context/elevation.ts";
 
-/** The relations and permissions of one type of object, as data access evaluates. */
+/** The relations and permissions of one type of object, as access evaluates them. */
 export interface PolicyDefinition {
     /** The stable declaring package identity. */
     readonly packageId: PackageId;
     /** The declaration-local object type name. */
     readonly name: string;
     /** Required object attributes used by permission expressions. */
-    readonly attributes: Readonly<Record<string, "string" | "number" | "boolean">>;
+    readonly attributes: Readonly<Record<string, AttributeType>>;
+    /** Required request attributes used by permission expressions. */
+    readonly context: Readonly<Record<string, AttributeType>>;
     /** Relations to subjects and to other objects. */
     readonly relations: Readonly<Record<string, RelationDefinition>>;
-    /** Named permission expressions; roles bound on the object grant every permission as well. */
+    /** Named permission expressions, each also granted by the roles bound on the object. */
     readonly permissions: Readonly<Record<string, AccessExpression>>;
     /** The permission whose holders bind roles on an object. */
     readonly grantedBy?: string;
+    /** The permission whose holders see the objects' relationships, `read` by default. */
+    readonly relationships?: { readonly read: string };
     /** Permissions only their expressions grant, never roles, not even owners'. */
     readonly reserved?: readonly string[];
     /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
@@ -49,6 +58,17 @@ export class Policy<Name extends string = string> {
     readonly definition: PolicyDefinition;
     /** The other policies the relations name as subjects. */
     readonly references: readonly Policy[];
+    /** The names of the object attributes conditions read. */
+    readonly #attributes: ReadonlySet<string>;
+    /** The names of the request attributes conditions read. */
+    readonly #context: ReadonlySet<string>;
+
+    /** The permission whose holders see the objects' relationships: the declared one, else `read` where the type has it. */
+    get visibility(): string | undefined {
+        const { relationships, permissions } = this.definition;
+
+        return relationships?.read ?? (Object.hasOwn(permissions, "read") ? "read" : undefined);
+    }
 
     /** Qualify the declared subject types by package and freeze a copy of the rules. */
     constructor(owner: Package, input: PolicyInput<Name>) {
@@ -67,6 +87,7 @@ export class Policy<Name extends string = string> {
                         ...(grantedBy === undefined || grantedBy === null ? {} : { grantedBy }),
                         ...(relation.open === true ? { open: true } : {}),
                         ...(relation.isScope === true ? { isScope: true } : {}),
+                        ...(relation.concealed === true ? { concealed: true } : {}),
                     },
                 ];
             }),
@@ -87,13 +108,7 @@ export class Policy<Name extends string = string> {
             ...new Set([
                 ...Object.values(input.relations ?? {})
                     .flatMap((relation) => relation.subjects)
-                    .flatMap((subject) =>
-                        subject instanceof Policy
-                            ? [subject]
-                            : subject instanceof PolicySubject
-                              ? [subject.policy]
-                              : [],
-                    ),
+                    .flatMap((subject) => referencedPolicies(subject)),
                 ...(input.contributes ?? []).map((entry) => entry.policy),
             ]),
         ];
@@ -102,31 +117,48 @@ export class Policy<Name extends string = string> {
         this.package = owner;
         this.name = input.name;
         this.definition = freeze(
-            PolicyDescription.parse({
-                packageId: owner.id,
-                name: input.name,
-                attributes: input.attributes ?? {},
-                relations,
-                permissions: input.permissions,
-                ...(input.grantedBy === undefined ? {} : { grantedBy: input.grantedBy }),
-                ...(input.reserved === undefined ? {} : { reserved: [...input.reserved] }),
-                ...(input.elevated === undefined ? {} : { elevated: { ...input.elevated } }),
-                ...(input.administration === undefined
-                    ? {}
-                    : { administration: [...input.administration] }),
-                ...(input.scope === true ? { scope: true } : {}),
-                ...(input.isGlobal === true ? { isGlobal: true } : {}),
-                ...(input.contributes === undefined || input.contributes.length === 0
-                    ? {}
-                    : {
-                          contributes: input.contributes.map((entry) => ({
-                              packageId: entry.policy.definition.packageId,
-                              type: entry.policy.definition.name,
-                              relation: entry.relation,
-                          })),
-                      }),
-            }),
+            PolicyDescription.parse(
+                JsonValue.of({
+                    packageId: owner.id,
+                    name: input.name,
+                    attributes: input.attributes ?? {},
+                    context: input.context ?? {},
+                    relations,
+                    permissions: input.permissions,
+                    ...(input.grantedBy === undefined ? {} : { grantedBy: input.grantedBy }),
+                    ...(input.relationships === undefined
+                        ? {}
+                        : { relationships: { read: input.relationships.read } }),
+                    ...(input.reserved === undefined ? {} : { reserved: [...input.reserved] }),
+                    ...(input.elevated === undefined ? {} : { elevated: { ...input.elevated } }),
+                    ...(input.administration === undefined
+                        ? {}
+                        : { administration: [...input.administration] }),
+                    ...(input.scope === true ? { scope: true } : {}),
+                    ...(input.isGlobal === true ? { isGlobal: true } : {}),
+                    ...(input.contributes === undefined || input.contributes.length === 0
+                        ? {}
+                        : {
+                              contributes: input.contributes.map((entry) => ({
+                                  packageId: entry.policy.definition.packageId,
+                                  type: entry.policy.definition.name,
+                                  relation: entry.relation,
+                              })),
+                          }),
+                }),
+            ),
         );
+
+        // keep the names of the attributes conditions read
+        this.#attributes = new Set(Object.keys(this.definition.attributes));
+        this.#context = new Set(Object.keys(this.definition.context));
+    }
+
+    /** Resolve a condition expression over the attributes it reads: the object's, or the request's. */
+    resolve(expression: ConditionExpression): Predicate {
+        const fields = expression.kind === "resource" ? this.#attributes : this.#context;
+
+        return Condition.resolve(expression.condition, fields);
     }
 
     /** Identify an object of this type in the scope containing it. */
@@ -141,7 +173,11 @@ export class Policy<Name extends string = string> {
 
     /** Reference one of this type's declared permissions, a Permission since the policy declares it. */
     permission(name: Name): Permission;
-    /** Reference one of this type's declared permissions after checking the declaration. */
+    /**
+     * Reference one of this type's declared permissions after checking the declaration.
+     *
+     * @construct the policy declares the permission, and Policy.permission is the one place a Permission brand is created.
+     */
     permission(name: Name): PermissionReference {
         // require a declared permission
         if (!Object.hasOwn(this.definition.permissions, name)) {
@@ -276,6 +312,8 @@ export interface RelationInput {
     readonly open?: true;
     /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row. */
     readonly isScope?: true;
+    /** Whether the relation's relationships show only to holders of the permission granting it. */
+    readonly concealed?: true;
 }
 
 /** A policy as declared. */
@@ -283,13 +321,17 @@ export interface PolicyInput<Name extends string> {
     /** The declaration-local object type name. */
     readonly name: string;
     /** Required object attributes used by permission expressions. */
-    readonly attributes?: Readonly<Record<string, "string" | "number" | "boolean">>;
+    readonly attributes?: Readonly<Record<string, AttributeType>>;
+    /** Required request attributes used by permission expressions. */
+    readonly context?: Readonly<Record<string, AttributeType>>;
     /** Relations to subjects and to other objects. */
     readonly relations?: Readonly<Record<string, RelationInput>>;
     /** Named permission expressions. */
     readonly permissions: Readonly<Record<Name, AccessExpression>>;
     /** The permission to bind roles on an object and grant relations without their own. */
     readonly grantedBy?: NoInfer<Name>;
+    /** The permission whose holders see the objects' relationships, `read` by default. */
+    readonly relationships?: { readonly read: NoInfer<Name> };
     /** Permissions only their expressions grant, never roles, not even owners'. */
     readonly reserved?: readonly NoInfer<Name>[];
     /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
@@ -331,8 +373,26 @@ export function relationsOf(expression: AccessExpression): string[] {
             return [...relationsOf(expression.include), ...relationsOf(expression.exclude)];
         case "none":
         case "permission":
-        case "condition":
-        case "grants":
+        case "resource":
+        case "context":
+        case "granters":
+        case "readers":
             return [];
+    }
+}
+
+/** List the policy a relation's subject type names, none for a plain subject type. */
+function referencedPolicies(subject: SubjectTypeInput): Policy[] {
+    // name a policy itself
+    if (subject instanceof Policy) {
+        return [subject];
+    }
+    // name the policy of a subject set
+    else if (subject instanceof PolicySubject) {
+        return [subject.policy];
+    }
+    // name nothing else
+    else {
+        return [];
     }
 }

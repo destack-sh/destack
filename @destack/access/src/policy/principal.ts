@@ -1,6 +1,6 @@
 import type {} from "@destack/package/import-meta";
 import { SYNC_PACKAGE, type Subject } from "@destack/sync";
-import { grants, none, relation, union } from "./expression.ts";
+import { grantersOf, none, relation, readersOf, union } from "./expression.ts";
 import { Policy } from "./policy.ts";
 
 /** The package declaring access's own types. */
@@ -42,7 +42,7 @@ export const universe = new Policy(SYNC_PACKAGE, {
     scope: true,
 });
 
-/** Every caller, signed in or anonymous, related through its wildcard; links condition such grants on a capability. */
+/** Every caller related through its wildcard, signed in or anonymous, which links condition on a link secret. */
 export const anyone = new Policy(OWNER, { name: "anyone", permissions: {} });
 
 /** A named set of permissions, including the permissions of the roles it includes. */
@@ -56,7 +56,7 @@ export const role = new Policy(OWNER, {
 export const relationship = new Policy(OWNER, {
     name: "relationship",
     relations: { subject: { subjects: [principal.user, principal.host, principal.installation] } },
-    permissions: { read: union(relation("subject"), grants("object")) },
+    permissions: { read: union(relation("subject"), readersOf("object", "relation")) },
 });
 
 /** A proposed relationship awaiting acceptance. */
@@ -74,7 +74,7 @@ export const proposal = new Policy(OWNER, {
             relation("proposer"),
             relation("addressee"),
             relation("lender"),
-            grants("object"),
+            grantersOf("object"),
         ),
     },
 });

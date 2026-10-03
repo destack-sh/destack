@@ -1,4 +1,4 @@
-import { aligned, identifier, schema } from "@destack/schema";
+import { aligned, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
 import { Snapshot, and, asc, eq, sql } from "@destack/db";
@@ -28,6 +28,7 @@ import {
 } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 import { GrantTree } from "./grant.ts";
+import { relationship } from "../policy/principal.ts";
 
 /** The number of random access models each dialect checks. */
 const MODELS = 6;
@@ -62,7 +63,7 @@ function lifetime(createdAt: number, expiresAt: number | null) {
 }
 
 test.for(TEST_DIALECTS)(
-    "decide in memory exactly as the permission queries do, every expression kind, for random access models on %s",
+    "decide in memory exactly as the permission queries do, for objects and the relationships they share, for random access models on %s",
     async (dialect) => {
         const fixture = await openFixture(dialect);
         onTestFinished(() => fixture.close());
@@ -81,7 +82,7 @@ test.for(TEST_DIALECTS)(
         ];
 
         // define a role that reads and edits nodes and reads cells across types
-        const roleId = identifier("role").parse("role-01996ab0-0000-7000-8000-000000000101");
+        const roleId = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-000000000101");
         await database.insert(accessRole).values({
             id: roleId,
             createdAt: 1,
@@ -93,9 +94,9 @@ test.for(TEST_DIALECTS)(
         const granted = [node.permission("read"), node.permission("edit"), cell.permission("read")];
         for (const [position, permission] of granted.entries()) {
             await database.insert(accessRolePermission).values({
-                id: identifier("role-permission").parse(
-                    `role-permission-01996ab0-0000-7000-8000-00000000020${position}`,
-                ),
+                id: schema
+                    .identifier("role-permission")
+                    .parse(`role-permission-01996ab0-0000-7000-8000-00000000020${position}`),
                 roleId,
                 scope: "personal",
                 ...permission,
@@ -115,7 +116,7 @@ test.for(TEST_DIALECTS)(
         const conditions: RelationshipCondition[] = [
             {},
             {},
-            { capability: "c".repeat(64) },
+            { linkSecret: "c".repeat(64) },
             { assurance: 2 },
             { maxAge: 100 },
             { request: "request-1" },
@@ -133,14 +134,14 @@ test.for(TEST_DIALECTS)(
             phase: "edit",
         };
 
-        // call as users, members, anonymous callers, presenters of capabilities and delegates
+        // call as users, members, anonymous callers, presenters of link secrets and delegates
         const agent = principal.installation.reference("personal", "agent");
         const contexts: AccessContext[] = [
             { subjects: [user("alice")], now: NOW, attributes },
             { subjects: [user("bob")], now: NOW, attributes },
             { subjects: [user("carol")], now: NOW, attributes },
             { subjects: [], now: NOW, attributes },
-            { subjects: [], now: NOW, attributes, capabilities: ["c".repeat(64)] },
+            { subjects: [], now: NOW, attributes, linkSecrets: ["c".repeat(64)] },
             {
                 subjects: [user("bob")],
                 now: NOW,
@@ -174,6 +175,7 @@ test.for(TEST_DIALECTS)(
 
         // compare each random model's grants with the permission queries, counting the admissions
         let admissions = 0;
+        let shared = 0;
         for (let model = 0; model < MODELS; model++) {
             const draw = random(model + 1);
             const pick = <Value>(values: readonly Value[]) =>
@@ -345,15 +347,44 @@ test.for(TEST_DIALECTS)(
                             }
                         }
 
-                        return count;
+                        // decide reading the relationships in memory as their query does, through what each shares
+                        const read = relationship.permission("read");
+                        const related = await database
+                            .select()
+                            .from(accessRelationship)
+                            .orderBy(asc(accessRelationship.id));
+                        const queriedRelationships = (
+                            await database
+                                .select({ id: accessRelationship.id })
+                                .from(accessRelationship)
+                                .where(authorizer.where(read, access, accessRelationship))
+                                .orderBy(asc(accessRelationship.id))
+                        ).map((row) => row.id);
+                        const readable = await authorizer.checkRows(
+                            snapshot,
+                            read,
+                            access,
+                            related,
+                            reader,
+                        );
+                        expect({
+                            model,
+                            context,
+                            relationships: related
+                                .filter((_row, position) => readable.permitted.has(position))
+                                .map((row) => row.id),
+                        }).toEqual({ model, context, relationships: queriedRelationships });
+
+                        return { count, shared: readable.permitted.size };
                     }),
                 );
-                admissions += counts.reduce((total, count) => total + count, 0);
+                admissions += counts.reduce((total, counted) => total + counted.count, 0);
+                shared += counts.reduce((total, counted) => total + counted.shared, 0);
             }
         }
 
         // admit enough rows that the models exercise the grants
-        expect(admissions).toBeGreaterThan(100);
+        expect([admissions > 100, shared > 0]).toEqual([true, true]);
     },
 );
 
@@ -380,8 +411,8 @@ test("explain which grants admit a caller and why the others fail", async () => 
     onTestFinished(() => fixture.close());
     const { database, authorizer } = fixture;
 
-    // share a node with a link only its capability opens
-    const capability = "d".repeat(64);
+    // share a node with a link only its secret opens
+    const linkSecret = "d".repeat(64);
     await database.insert(accessRelationship).values(
         Relationship.encode(
             {
@@ -391,13 +422,13 @@ test("explain which grants admit a caller and why the others fail", async () => 
                 subject: anyone.reference("*", "*"),
                 createdAt: 1,
                 expiresAt: null,
-                conditions: { capability },
+                conditions: { linkSecret },
             },
             "personal",
         ),
     );
 
-    // explain reading the node for a visitor without and with the capability
+    // explain reading the node for a visitor without and with the link secret
     const explain = async (context: AccessContext) => {
         const access = await authorizer.resolve(Snapshot.live(database), "personal", context);
         const explanation = await authorizer.explain(
@@ -431,9 +462,9 @@ test("explain which grants admit a caller and why the others fail", async () => 
                     "node read / node edit / through parent to node a / node edit-descendant / field owner holding relation owner",
                     "subject",
                 ],
-                ["node read / relation viewer", "capability"],
+                ["node read / relation viewer", "linkSecret"],
             ],
         ],
     ]);
-    expect((await explain({ ...visitor, capabilities: [capability] }))[0]).toBe(true);
+    expect((await explain({ ...visitor, linkSecrets: [linkSecret] }))[0]).toBe(true);
 });

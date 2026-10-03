@@ -1,6 +1,6 @@
 import { AccessContext } from "../context/context.ts";
 import { ObjectReference, Subject } from "@destack/sync";
-import { type Snapshot, Condition, type Match } from "@destack/db";
+import { type Match, Predicate, type Row, type Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -8,7 +8,7 @@ import type { AccessExpression } from "../policy/expression.ts";
 import { type PermissionReference } from "../policy/policy.ts";
 import { accepts } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { RelationshipRow } from "../relationship/table.ts";
+import type { EncodedRelationship } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
@@ -24,7 +24,7 @@ export interface Grant {
     readonly subject: Subject;
     /** The relationship's conditions, absent for a subject in a row field. */
     readonly condition?: GrantCondition;
-    /** The bound role and the permission it must grant; absent for a role that must grant everything. */
+    /** The bound role and the permission it must grant, absent for a role that must grant everything. */
     readonly role?: { readonly id: string; readonly permission?: PermissionReference };
     /** The conditions of the arrows to the grant, which must pass without delegation. */
     readonly arrows: readonly GrantCondition[];
@@ -64,11 +64,17 @@ export type GrantTree =
       }
     | {
           /** Admit every caller whose request meets a condition over the row's attributes. */
-          readonly kind: "condition";
+          readonly kind: "resource";
           /** The condition over the row's columns. */
           readonly match: Match;
           /** The row the condition reads. */
-          readonly row: Readonly<Record<string, unknown>>;
+          readonly row: Row;
+      }
+    | {
+          /** Admit every caller whose request attributes meet a condition. */
+          readonly kind: "context";
+          /** The condition over the request's attributes. */
+          readonly match: Match;
       };
 
 /** How a row reaches a decision: listed in its scope, or read as one object by its key. */
@@ -83,7 +89,7 @@ interface Trail {
 }
 
 /** A relationship binding a role. */
-type RoleBinding = RelationshipRow & { readonly roleId: string };
+type RoleBinding = EncodedRelationship & { readonly roleId: string };
 
 /** Collect, once for every caller, the grant trees a permission reaches on rows of one mapped type. */
 export class GrantReader {
@@ -96,11 +102,11 @@ export class GrantReader {
     /** The chains of the scopes below that scope whose rows the reader also decides, by scope. */
     readonly #chains = new Map<string, readonly ObjectReference[]>();
     /** The relationships of each object read so far, by object key. */
-    readonly #read = new Map<string, Promise<RelationshipRow[]>>();
+    readonly #read = new Map<string, Promise<EncodedRelationship[]>>();
     /** The proper ancestors of each node read so far, by tree, scope and node. */
     readonly #ancestry = new Map<string, Promise<string[]>>();
     /** The rows read so far, absent where none exists, by type, scope and identifier. */
-    readonly #loaded = new Map<string, Promise<Record<string, unknown> | undefined>>();
+    readonly #loaded = new Map<string, Promise<Row | undefined>>();
 
     /** Read grants from a snapshot of a database for rows within a scope chain. */
     constructor(authorizer: Authorizer, snapshot: Snapshot, scopes: readonly ObjectReference[]) {
@@ -118,25 +124,19 @@ export class GrantReader {
     }
 
     /** Note an object a call creates and the relationships its creation writes. */
-    creating(object: ObjectReference, relationships: readonly RelationshipRow[]): void {
+    creating(object: ObjectReference, relationships: readonly EncodedRelationship[]): void {
         this.#read.set(ObjectReference.key(object), Promise.resolve([...relationships]));
     }
 
     /** Read one object as a row of its type, absent where none exists. */
-    async row(
-        mapping: TableMapping,
-        target: ObjectReference,
-    ): Promise<Record<string, unknown> | undefined> {
+    async row(mapping: TableMapping, target: ObjectReference): Promise<Row | undefined> {
         const [row] = await this.#rows(mapping, target.scope, [target.id]);
 
         return row;
     }
 
     /** Collect the tree of the owner role bindings on or above a row. */
-    async ownership(
-        row: Readonly<Record<string, unknown>>,
-        mapping: TableMapping,
-    ): Promise<GrantTree> {
+    async ownership(row: Row, mapping: TableMapping): Promise<GrantTree> {
         await this.#prefetch(mapping, [row]);
 
         return any(await this.#bound(undefined, mapping, row, { arrows: [], path: ["ownership"] }));
@@ -145,7 +145,7 @@ export class GrantReader {
     /** Collect the grant tree of a permission on one row, by default of the permission's own type. */
     async tree(
         permission: PermissionReference,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         mapping = this.#authorizer.mapping(permission),
     ): Promise<GrantTree> {
         const [tree] = await this.trees(permission, [row], mapping);
@@ -163,19 +163,19 @@ export class GrantReader {
      */
     async trees(
         permission: PermissionReference,
-        rows: readonly Readonly<Record<string, unknown>>[],
+        rows: readonly Row[],
         mapping = this.#authorizer.mapping(permission),
     ): Promise<GrantTree[]> {
         // read the rows' relationships and ancestry in bulk
         await this.#prefetch(mapping, rows);
 
         // collect each row's tree, through the permission's expression on rows of its own type
-        const isOwn = mapping.policy === this.#authorizer.policy(permission);
+        const isSameType = mapping.policy === this.#authorizer.policy(permission);
         const trail = { arrows: [], path: [] };
 
         return Promise.all(
             rows.map(async (row) =>
-                isOwn
+                isSameType
                     ? this.#permission(permission, mapping, row, trail)
                     : any(await this.#bound(permission, mapping, row, trail)),
             ),
@@ -183,10 +183,7 @@ export class GrantReader {
     }
 
     /** Read the relationships of some rows, of their tree ancestors and of their scope chains with one query per chunk. */
-    async #prefetch(
-        mapping: TableMapping,
-        rows: readonly Readonly<Record<string, unknown>>[],
-    ): Promise<void> {
+    async #prefetch(mapping: TableMapping, rows: readonly Row[]): Promise<void> {
         // read the ancestry of each scope's rows in every tree of their type
         const definition = mapping.policy.definition;
         const typed = (id: string, within: string): ObjectReference => ({
@@ -199,7 +196,7 @@ export class GrantReader {
         for (const [scope, within] of Map.groupBy(rows, (row) =>
             TableMapping.scope(mapping, row),
         )) {
-            const ids = within.map((row) => String(row[mapping.id]));
+            const ids = within.map((row) => TableMapping.text(row, mapping.id));
             const ancestors = new Set<string>();
             for (const [relation, tree] of Object.entries(mapping.trees ?? {})) {
                 const byDescendant = new Map<string, string[]>(ids.map((id) => [id, []]));
@@ -223,7 +220,7 @@ export class GrantReader {
         const objects = [
             ...new Map(reached.map((object) => [ObjectReference.key(object), object])).values(),
         ].filter((object) => !this.#read.has(ObjectReference.key(object)));
-        const byObject = new Map<string, RelationshipRow[]>(
+        const byObject = new Map<string, EncodedRelationship[]>(
             objects.map((object) => [ObjectReference.key(object), []]),
         );
         for (const chunk of chunks(objects)) {
@@ -240,7 +237,7 @@ export class GrantReader {
     async #permission(
         permission: PermissionReference,
         mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         trail: Trail,
     ): Promise<GrantTree> {
         const expression = this.#authorizer.expression(permission);
@@ -259,27 +256,30 @@ export class GrantReader {
     async #expression(
         expression: AccessExpression,
         mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         trail: Trail,
     ): Promise<GrantTree> {
         switch (expression.kind) {
             case "none":
                 return some([]);
-            case "condition":
+            case "resource": {
                 // grant nothing by attributes a database with only the object's scope row cannot read
-                if (!TableMapping.decides(mapping, expression.condition)) {
+                const predicate = mapping.policy.resolve(expression);
+                if (!TableMapping.decides(mapping, predicate)) {
                     return some([]);
                 }
 
+                // read the attributes from their columns
+                const columns = Predicate.rename(predicate, (name) =>
+                    TableMapping.attribute(mapping, name),
+                );
+
+                return { kind: "resource", match: Predicate.compile(columns, mapping.table), row };
+            }
+            case "context":
                 return {
-                    kind: "condition",
-                    match: Condition.compile(
-                        Condition.rename(expression.condition, (name) =>
-                            TableMapping.attribute(mapping, name),
-                        ),
-                        mapping.table,
-                    ),
-                    row,
+                    kind: "context",
+                    match: Predicate.compile(mapping.policy.resolve(expression)),
                 };
             case "union":
             case "intersection": {
@@ -310,16 +310,18 @@ export class GrantReader {
                 return any(await this.#relation(expression.name, mapping, row, trail));
             case "through":
                 return this.#through(expression, mapping, row, trail);
-            case "grants":
-                return this.#grants(expression.reference, mapping, row, trail);
+            case "granters":
+                return this.#granters(expression.reference, mapping, row, trail);
+            case "readers":
+                return this.#readers(expression, mapping, row, trail);
         }
     }
 
     /** Collect the tree of the grant permission of the object a row references, where this database keeps it. */
-    async #grants(
+    async #granters(
         reference: string,
         mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         trail: Trail,
     ): Promise<GrantTree> {
         // read the referenced object where its type grants and lives in this database
@@ -341,17 +343,71 @@ export class GrantReader {
             ? some([])
             : this.#permission(target.policy.permission(grantedBy), target, related, {
                   ...trail,
-                  path: [...trail.path, `grants on ${referenced.type} ${String(row[columns.id])}`],
+                  path: [
+                      ...trail.path,
+                      `grants on ${referenced.type} ${TableMapping.text(row, columns.id)}`,
+                  ],
               });
     }
 
-    /** Collect the subject in a field, or the subjects of the relation's relationships. */
-    async #relation(
-        name: string,
+    /** Collect the tree of whoever sees the relationships of the object a row references, a concealed relation's only through its grant permission. */
+    async #readers(
+        expression: Extract<AccessExpression, { kind: "readers" }>,
         mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         trail: Trail,
-    ): Promise<Grant[]> {
+    ): Promise<GrantTree> {
+        // read the referenced object where this database keeps its type, other than the row's own type
+        const columns = TableMapping.reference(mapping, expression.reference);
+        const referenced = {
+            packageId: PackageId.parse(row[columns.packageId]),
+            type: schema.string().parse(row[columns.type]),
+        };
+        const mapped = this.#authorizer.mappingOf(referenced);
+        const target = mapped?.policy === mapping.policy ? undefined : mapped;
+        const [related] =
+            target === undefined
+                ? []
+                : await this.#rows(target, schema.string().parse(row[columns.scope]), [
+                      schema.string().parse(row[columns.id]),
+                  ]);
+        if (target === undefined || related === undefined) {
+            return some([]);
+        }
+
+        // see a concealed relation through its grant permission, any other through the relationship read or grant permission
+        const relation = row[expression.relation];
+        const definition = target.policy.definition;
+        const declared =
+            typeof relation === "string" && Object.hasOwn(definition.relations, relation)
+                ? definition.relations[relation]
+                : undefined;
+        const concealed = declared?.concealed === true ? declared : undefined;
+        const names =
+            concealed === undefined
+                ? [target.policy.visibility, definition.grantedBy]
+                : [concealed.grantedBy];
+        const step = {
+            ...trail,
+            path: [
+                ...trail.path,
+                `shares of ${referenced.type} ${TableMapping.text(row, columns.id)}`,
+            ],
+        };
+
+        return some(
+            await Promise.all(
+                names
+                    .filter((name): name is string => name !== undefined)
+                    .map((name) =>
+                        this.#permission(target.policy.permission(name), target, related, step),
+                    ),
+            ),
+        );
+    }
+
+    /** Collect the subject in a field, or the subjects of the relation's relationships. */
+    async #relation(name: string, mapping: TableMapping, row: Row, trail: Trail): Promise<Grant[]> {
         // grant to the subject in a field
         const relation = this.#authorizer.relation(mapping.policy, name);
         const field = mapping.relations[name];
@@ -391,7 +447,7 @@ export class GrantReader {
         name: string,
         mapping: TableMapping,
         field: TableMapping["relations"][string],
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
     ): Subject {
         const columns = field.subject;
 
@@ -431,7 +487,7 @@ export class GrantReader {
     async #through(
         expression: Extract<AccessExpression, { kind: "through" }>,
         mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         trail: Trail,
     ): Promise<GrantTree> {
         // decide a permission of the enclosing scope by the relationships on the scope chain's objects
@@ -497,11 +553,11 @@ export class GrantReader {
             return some([]);
         }
         const target = this.#authorizer.mapping(subject);
+        const isUnset = row[field.column] === null || row[field.column] === undefined;
+        const direct = isUnset ? [] : [TableMapping.text(row, field.column)];
         const ids = expression.transitive
             ? await this.#ancestors(mapping, expression.relation, row)
-            : row[field.column] === null || row[field.column] === undefined
-              ? []
-              : [String(row[field.column])];
+            : direct;
         const trees: GrantTree[] = [];
         for (const related of await this.#rows(target, field.scope ?? scope, ids)) {
             trees.push(
@@ -579,7 +635,7 @@ export class GrantReader {
     async #bound(
         permission: PermissionReference | undefined,
         mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
+        row: Row,
         trail: Trail,
     ): Promise<Grant[]> {
         const bindings = [
@@ -598,13 +654,10 @@ export class GrantReader {
     }
 
     /** Read the role bindings on the row itself, its tree ancestors, or its owning parent's chain. */
-    async #covering(
-        mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
-    ): Promise<RoleBinding[]> {
+    async #covering(mapping: TableMapping, row: Row): Promise<RoleBinding[]> {
         // read the bindings on the row
         const definition = mapping.policy.definition;
-        const own = (await this.#relationshipsOf(mapping, row)).filter(isRoleBinding);
+        const direct = (await this.#relationshipsOf(mapping, row)).filter(isRoleBinding);
         const parent = mapping.parent;
         const tree = parent === undefined ? undefined : mapping.trees?.[parent];
 
@@ -623,7 +676,7 @@ export class GrantReader {
                 ),
             );
 
-            return [...own, ...above.flat().filter(isRoleBinding)];
+            return [...direct, ...above.flat().filter(isRoleBinding)];
         }
         // read the bindings covering the owning parent
         else if (parent !== undefined) {
@@ -640,11 +693,11 @@ export class GrantReader {
                 parents.map((owner) => this.#covering(target, owner)),
             );
 
-            return [...own, ...covered.flat()];
+            return [...direct, ...covered.flat()];
         }
         // read the bindings on the row alone
         else {
-            return own;
+            return direct;
         }
     }
 
@@ -663,15 +716,12 @@ export class GrantReader {
     }
 
     /** Read the relationships on the object a mapped row is. */
-    #relationshipsOf(
-        mapping: TableMapping,
-        row: Readonly<Record<string, unknown>>,
-    ): Promise<RelationshipRow[]> {
+    #relationshipsOf(mapping: TableMapping, row: Row): Promise<EncodedRelationship[]> {
         return this.#relationships(objectOf(mapping, row));
     }
 
     /** Read every relationship on one object once. */
-    #relationships(object: ObjectReference): Promise<RelationshipRow[]> {
+    #relationships(object: ObjectReference): Promise<EncodedRelationship[]> {
         // reuse the relationships read before
         const key = ObjectReference.key(object);
         const known = this.#read.get(key);
@@ -687,11 +737,7 @@ export class GrantReader {
     }
 
     /** Read rows of a mapped type in a scope by identifier, in the order of the identifiers. */
-    async #rows(
-        mapping: TableMapping,
-        scope: string,
-        ids: readonly string[],
-    ): Promise<Record<string, unknown>[]> {
+    async #rows(mapping: TableMapping, scope: string, ids: readonly string[]): Promise<Row[]> {
         // read nothing for no identifiers
         if (ids.length === 0) {
             return [];
@@ -703,7 +749,7 @@ export class GrantReader {
         const missing = ids.filter((id) => !this.#loaded.has(key(id)));
         if (missing.length > 0) {
             const read = TableMapping.read(this.#snapshot, mapping, scope, missing).then(
-                (rows) => new Map(rows.map((row) => [String(row[mapping.id]), row])),
+                (rows) => new Map(rows.map((row) => [TableMapping.text(row, mapping.id), row])),
             );
             for (const id of missing) {
                 this.#loaded.set(
@@ -720,17 +766,13 @@ export class GrantReader {
     }
 
     /** Read the identifiers of a row's proper ancestors through a tree. */
-    async #ancestors(
-        mapping: TableMapping,
-        relation: string,
-        row: Readonly<Record<string, unknown>>,
-    ): Promise<string[]> {
+    async #ancestors(mapping: TableMapping, relation: string, row: Row): Promise<string[]> {
         // reuse the ancestry read before
         const tree = TableMapping.tree(mapping, relation);
         const key = ancestryKey(
             relation,
             TableMapping.scope(mapping, row),
-            String(row[mapping.id]),
+            TableMapping.text(row, mapping.id),
         );
         const known = this.#ancestry.get(key);
         if (known) {
@@ -741,7 +783,7 @@ export class GrantReader {
         const read = (async () =>
             (
                 await tree.ancestry(this.#snapshot, TableMapping.scope(mapping, row), [
-                    String(row[mapping.id]),
+                    TableMapping.text(row, mapping.id),
                 ])
             ).map((entry) => entry.ancestor))();
         this.#ancestry.set(key, read);
@@ -751,12 +793,12 @@ export class GrantReader {
 }
 
 /** Determine whether a relationship binds a role. */
-function isRoleBinding(entry: RelationshipRow): entry is RoleBinding {
+function isRoleBinding(entry: EncodedRelationship): entry is RoleBinding {
     return entry.roleId !== null;
 }
 
 /** Reference the object a mapped row is. */
-function objectOf(mapping: TableMapping, row: Readonly<Record<string, unknown>>): ObjectReference {
+function objectOf(mapping: TableMapping, row: Row): ObjectReference {
     const definition = mapping.policy.definition;
 
     return {
@@ -768,7 +810,7 @@ function objectOf(mapping: TableMapping, row: Readonly<Record<string, unknown>>)
 }
 
 /** Reference the object a relationship relates. */
-function relatedObject(entry: RelationshipRow): ObjectReference {
+function relatedObject(entry: EncodedRelationship): ObjectReference {
     return {
         packageId: entry.packageId,
         type: entry.type,
@@ -778,7 +820,7 @@ function relatedObject(entry: RelationshipRow): ObjectReference {
 }
 
 /** Read a relationship's subject. */
-function subjectOf(entry: RelationshipRow): Subject {
+function subjectOf(entry: EncodedRelationship): Subject {
     return {
         packageId: entry.subjectPackageId,
         type: entry.subjectType,
@@ -825,7 +867,8 @@ export const GrantTree = {
                 return tree.trees.flatMap((branch) => GrantTree.flatten(branch));
             case "except":
                 return [...GrantTree.flatten(tree.include), ...GrantTree.flatten(tree.exclude)];
-            case "condition":
+            case "resource":
+            case "context":
                 return [];
         }
     },
@@ -844,11 +887,16 @@ export const GrantTree = {
                     GrantTree.permits(tree.include, authority, access) &&
                     !GrantTree.permits(tree.exclude, authority, access)
                 );
-            case "condition":
+            case "resource":
+            case "context": {
+                // read the row's attributes, or the request's
+                const row = tree.kind === "resource" ? tree.row : undefined;
+                const request = (name: string) => AccessContext.attribute(access.context, name);
+
                 return (
                     tree.match({
-                        column: (name) => tree.row[name],
-                        parameter: (name) => AccessContext.attribute(access.context, name),
+                        field: (name) => (row === undefined ? request(name) : row[name]),
+                        placeholder: request,
                         exists: (via) => {
                             throw new AccessError(
                                 "INVALID_DECLARATION",
@@ -857,6 +905,7 @@ export const GrantTree = {
                         },
                     }) === true
                 );
+            }
         }
     },
 };

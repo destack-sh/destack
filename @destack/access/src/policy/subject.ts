@@ -28,6 +28,8 @@ export interface RelationDefinition {
     readonly open?: true;
     /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row. */
     readonly isScope?: true;
+    /** Whether the relation's relationships show only to holders of the permission granting it. */
+    readonly concealed?: true;
 }
 
 /** Report whether a relation accepts a subject's type, subject set and wildcard form. */

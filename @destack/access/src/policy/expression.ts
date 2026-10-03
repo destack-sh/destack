@@ -7,6 +7,11 @@ export const Attribute = schema.union([schema.string(), schema.number(), schema.
 /** A scalar request attribute that permission conditions compare. */
 export type Attribute = schema.Infer<typeof Attribute>;
 
+/** The scalar type of an attribute that permission conditions compare. */
+export const AttributeType = schema.enum(["string", "number", "boolean"]);
+/** The scalar type of an attribute that permission conditions compare. */
+export type AttributeType = schema.Infer<typeof AttributeType>;
+
 /** Constrain a column with access names to their lowercase kebab case. */
 export function nameCheck(name: string, column: Column) {
     return check(
@@ -17,6 +22,12 @@ export function nameCheck(name: string, column: Column) {
         }),
     );
 }
+
+/** A permission rule deciding by a condition over the object's attributes, or the request's. */
+export type ConditionExpression = Extract<
+    AccessExpression,
+    { readonly kind: "resource" | "context" }
+>;
 
 /** A serializable permission rule. */
 export type AccessExpression =
@@ -32,14 +43,15 @@ export type AccessExpression =
           readonly include: AccessExpression;
           readonly exclude: AccessExpression;
       }
-    | { readonly kind: "condition"; readonly condition: Condition }
+    | { readonly kind: "resource" | "context"; readonly condition: Condition }
     | {
           readonly kind: "through";
           readonly relation: string;
           readonly permission: string;
           readonly transitive: boolean;
       }
-    | { readonly kind: "grants"; readonly reference: string };
+    | { readonly kind: "granters"; readonly reference: string }
+    | { readonly kind: "readers"; readonly reference: string; readonly relation: string };
 
 /** Match no relation, so only roles grant the permission. */
 export function none(): AccessExpression {
@@ -86,11 +98,29 @@ export function through(
 }
 
 /** Permit whoever may grant on the object a row references, through the grant permission of that object's own type. */
-export function grants(reference: string): AccessExpression {
-    return { kind: "grants", reference: AccessName.parse(reference) };
+export function grantersOf(reference: string): AccessExpression {
+    return { kind: "granters", reference: AccessName.parse(reference) };
 }
 
-/** Permit rows with attributes that meet a condition over request attributes. */
-export function condition(where: Condition): AccessExpression {
-    return { kind: "condition", condition: where };
+/**
+ * Permit whoever sees the relationships of the object a row references: holders of its type's relationship read permission or its grant permission.
+ *
+ * A row of a concealed relation, named by the row's relation field, is permitted only to holders of the permission granting that relation.
+ */
+export function readersOf(reference: string, field: string): AccessExpression {
+    return {
+        kind: "readers",
+        reference: AccessName.parse(reference),
+        relation: AccessName.parse(field),
+    };
+}
+
+/** Permit objects whose attributes meet a condition, reading request attributes through placeholders. */
+export function resource(where: Condition): AccessExpression {
+    return { kind: "resource", condition: where };
+}
+
+/** Permit requests whose attributes meet a condition. */
+export function context(where: Condition): AccessExpression {
+    return { kind: "context", condition: where };
 }

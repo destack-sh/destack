@@ -26,21 +26,48 @@ export const note = new Policy(import.meta.destack.package, {
 
 ## Expressions
 
-Expressions define who has a permission.
+`relation`, `permission`, `through` and the other expressions define who holds a permission.
 
-| Expression | Grants |
-|---|---|
-| `relation(name)` | The subjects related to the object |
-| `permission(name)` | The holders of another permission on the object |
-| `through(relation, permission)` | The holders of a permission on the related object |
-| `grants(reference)` | Whoever may grant on the object a row references |
-| `condition(condition)` | Everyone, where a db `Condition` over the object's attributes is true |
-| `union`, `intersection`, `exclusion` | Compositions of the above |
-| `none()` | Nobody |
+```ts
+relation("owner"); // the subjects related to the object
+permission("read"); // the holders of another permission on the object
+through("parent", "read"); // the holders of a permission on the related object
+grantersOf("object"); // whoever may grant on the object a row references
+readersOf("object", "relation"); // whoever sees the relationships of the object a row references
+resource({ team: 1 }); // everyone, where a condition over the object's attributes holds
+context({ team: 1 }); // everyone, where a condition over the request's attributes holds
+union(relation("owner"), relation("editor")); // also intersection and exclusion
+none(); // nobody
+```
+
+## Request attributes
+
+`attributes` types the object attributes `condition` reads, and `context` types the request attributes `context` expressions and placeholders read.
+
+```ts
+export const sheet = new Policy(import.meta.destack.package, {
+    name: "sheet",
+    attributes: { team: "number" },
+    context: { team: "number" },
+    relations: { editor: { subjects: [principal.user] } },
+    permissions: {
+        edit: intersection(relation("editor"), resource({ team: sql.placeholder("team") })),
+    },
+});
+```
+
+## Relationship visibility
+
+`relationships.read` names the permission whose holders see an object's relationships, `read` by default, and `concealed` shows a relation's relationships only to holders of the permission granting it.
+
+```ts
+relations: { reviewer: { subjects: [principal.user], concealed: true, grantedBy: "share" } },
+relationships: { read: "share" },
+```
 
 ## Inheritance
 
-A relation marked `isScope` is the scope containing each object, read from the scope chain, so a folder's editors edit every document in it.
+`isScope` marks the relation naming the scope containing each object, which `through` reads the scope's permissions over.
 
 ```ts
 export const document = new Policy(import.meta.destack.package, {
@@ -50,11 +77,17 @@ export const document = new Policy(import.meta.destack.package, {
 });
 ```
 
-A subject set names a relation or a permission, such as `folder.members("read")`, which the folder's relations and its enclosing scopes' same set decide.
+## Subject sets
+
+`members` names a relation or permission of another object as a subject set.
+
+```ts
+relations: { reader: { subjects: [principal.user, folder.members("read")] } },
+```
 
 ## Authorizer
 
-An `Authorizer` decides permissions on the objects in one database.
+An `Authorizer` resolves a caller's `Access` in a scope and decides permissions on the objects in one database.
 
 ```ts
 const authorizer = new Authorizer(
@@ -63,37 +96,73 @@ const authorizer = new Authorizer(
 );
 const snapshot = Snapshot.live(database);
 const access = await authorizer.resolve(snapshot, spaceId, context);
+```
+
+## Lists
+
+`where` restricts a query to the rows a caller has a permission on, in SQL.
+
+```ts
 await database
     .select()
     .from(notes)
     .where(authorizer.where(note.permission("read"), access));
-const decision = await authorizer.check(
+```
+
+## Objects
+
+`check` decides one object with the time its decision next changes, and `require` throws an `AccessError` naming the first permission the caller lacks.
+
+```ts
+const target = note.reference(spaceId, id);
+const { isAllowed, until } = await authorizer.check(
     snapshot,
     note.permission("share"),
-    note.reference(spaceId, id),
+    target,
+    access,
+);
+await authorizer.require(
+    snapshot,
+    [note.permission("read"), note.permission("share")],
+    target,
     access,
 );
 ```
 
-## Decisions
+## Explanations
 
-`where` decides lists in SQL, and `check` decides single objects.
+`explain` names the gate or the failing grants per authority, and `challenge` finds the `StepUp` that admits a caller refused for weak authentication.
 
-| Method | Decides |
-|---|---|
-| `resolve` | A caller's `Access` in a scope: its authorities, the scope chain and the roles along it |
-| `resolveAssured` | A principal's `Access` as if it just authenticated at the highest assurance |
-| `where`, `permits` | The rows a caller has a permission on, as SQL |
-| `check` | One object, as a `Decision` with the time it next changes |
-| `require` | Every permission on one object, or an `AccessError` |
-| `checkRows` | Many rows through one `GrantReader` |
-| `subjects` | A page of the principals of a type with a permission on one object |
-| `explain` | Why a caller has a permission or not, per authority |
-| `challenge` | The `StepUp` that would admit a caller refused for weak authentication |
+```ts
+const explanation = await authorizer.explain(snapshot, note.permission("delete"), target, access);
+const stepUp = await authorizer.challenge(
+    snapshot,
+    note.permission("delete"),
+    access,
+    async (stepped) =>
+        (await authorizer.check(snapshot, note.permission("delete"), target, stepped)).isAllowed,
+);
+```
+
+## Subjects
+
+`subjects` lists a page of the principals of one type that have a permission on an object.
+
+```ts
+const { packageId, name } = principal.user.definition;
+const readers = await authorizer.subjects(
+    snapshot,
+    note.permission("read"),
+    target,
+    { packageId, type: name },
+    Date.now(),
+    { limit: 50 },
+);
+```
 
 ## Authorization
 
-An `Authorization` decides and changes access as one caller.
+`Authorization` decides and changes access as one caller, requiring the caller's permission for each change.
 
 ```ts
 const authorization = new Authorization(authorizer, database, (scope) => caller.context(scope));
@@ -101,55 +170,79 @@ await authorization.create(page, {
     relationships: [{ relation: "owner", subject: caller.subject }],
 });
 await authorization.grant({ object: page, relation: "editor", subject });
-const link = await authorization.link({ object: page, relation: "viewer" });
+await authorization.revoke(page, relationshipId);
+```
+
+## Links
+
+`link` relates whoever holds a new secret to an object and returns the secret once.
+
+```ts
+const { id, secret } = await authorization.link({ object: page, relation: "viewer" });
+```
+
+## Proposals
+
+`propose` offers a relationship, and `accept` applies it.
+
+```ts
 const offer = await authorization.propose({
-    relationship: { object: page, relation: "editor" },
-    recipient,
+    relationship: { object: page, relation: "editor", subject: contact },
+});
+await authorization.accept(page, offer.id);
+const pending = await authorization.proposals({ object: page }, { limit: 20 });
+```
+
+## Roles
+
+`createRole` creates a role granting named permissions, refusing permissions the caller lacks.
+
+```ts
+const role = await authorization.createRole(space, {
+    name: "reviewer",
+    description: "Read and share every note",
+    permissions: [note.permission("read"), note.permission("share")],
 });
 ```
 
-## Changes
-
-Each change requires the caller to have its permission.
-
-| Method | Effect |
-|---|---|
-| `create` | A new object's first relationships, and a new scope's ancestry and owner role |
-| `suspend`, `resume` | A scope withholding every permission but administration |
-| `grant`, `revoke`, `link` | Relationships and capability links |
-| `propose`, `accept`, `decline`, `proposals`, `addressed` | Relationships that apply once the recipient accepts |
-| `createRole`, `updateRole`, `deleteRole` | Roles granting only permissions the caller has |
-
-## Scopes
-
-`Scope` reads a scope's ancestors and fences it while its database moves.
-
-| Function | Effect |
-|---|---|
-| `Scope.chain` | The scope and the scopes enclosing it, nearest first |
-| `Scope.object` | The scope's own object |
-| `Scope.fence`, `Scope.unfence` | Send the scope's writes to another holder, and stop |
-| `Scope.guard` | Keep a write's scopes unfenced until it commits |
-
 ## Storage
 
-Every database with protected objects includes `accessTables`.
+`accessTables` lists the tables every database with protected objects includes.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
 ```
 
-A database below a scope copies the chain above it: each scope's access rows and inherited rows, and the scope's own row where the database keeps its type's table.
+## Copies
+
+`chain` lists the `chain` shape subscriptions a database below a scope follows for each scope above it.
 
 ```ts
-const requests = await authorizer.chain(database, spaceId, { isHome: true });
-const replica = authorizer.replicaOf(requests[0]!);
+for (const request of await authorizer.chain(database, spaceId, { isHome: true })) {
+    await authorizer
+        .replicaOf(request)
+        .follow(
+            database,
+            (from, stream) => source.stream({ ...request, ...from }, stream),
+            signal,
+            { subscription: request },
+        );
+}
 ```
 
-`Access.descend` resolves a caller in the scopes below one in shared reads, and `checkRows` decides each row by the caller's access in the row's own scope.
+## Enclosed scopes
+
+`Access.descend` resolves a caller in the scopes below one, and `checkRows` decides each row by the caller's access in the row's own scope.
 
 ```ts
 const above = await authorizer.resolve(snapshot, accountId, context);
 const below = await above.descend(snapshot, spaceIds);
-const { permitted } = await authorizer.checkRows(snapshot, permission, above, rows, undefined, below);
+const { permitted } = await authorizer.checkRows(
+    snapshot,
+    permission,
+    above,
+    rows,
+    undefined,
+    below,
+);
 ```

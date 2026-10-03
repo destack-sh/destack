@@ -1,18 +1,19 @@
 import { expect, test } from "@destack/test";
-import { Snapshot, eq, type DatabaseConnection, Condition } from "@destack/db";
-import { aligned, identifier } from "@destack/schema";
+import { Snapshot, eq, sql, type DatabaseConnection } from "@destack/db";
+import { aligned, schema } from "@destack/schema";
 import {
     AccessError,
     accessRelationship,
     Authorization,
     Contact,
     Authorizer,
-    Capability,
-    condition,
+    LinkSecret,
+    resource,
     Policy,
     principal,
     relation,
     type AccessContext,
+    type AccessExpression,
     type RelationshipCondition,
 } from "../index.ts";
 import { cell, entity, item, mappings, module4, node, policies, rows } from "../test/fixture.ts";
@@ -97,7 +98,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
         { type: entity, context: elevated, editable: ["a"] },
     ];
     for (const { type, context, editable } of examples) {
-        const sql = await database
+        const selected = await database
             .select({ id: item.id })
             .from(item)
             .where(
@@ -107,7 +108,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                 ),
             )
             .orderBy(item.id);
-        expect(sql.map((row) => row.id)).toEqual(editable);
+        expect(selected.map((row) => row.id)).toEqual(editable);
     }
 
     // apply the elevated edit permission only after recent strong authentication
@@ -193,13 +194,13 @@ databaseTest(
         // let anyone presenting the link edit the subtree until it expires
         const visitor = {
             ...anonymous,
-            capabilities: [await Capability.digest(shared.secret)],
+            linkSecrets: [await LinkSecret.digest(shared.secret)],
         };
         await expectEditable(database, authorizer, node, visitor, ["b", "c"]);
         await expectEditable(database, authorizer, node, { ...visitor, now: 2000 }, []);
         const stranger = {
             ...anonymous,
-            capabilities: [(await Capability.create()).digest],
+            linkSecrets: [(await LinkSecret.create()).digest],
         };
         await expectEditable(database, authorizer, node, stranger, []);
 
@@ -455,7 +456,7 @@ databaseTest(
             await database
                 .select()
                 .from(accessRelationship)
-                .where(eq(accessRelationship.id, identifier("relationship").parse(once.id))),
+                .where(eq(accessRelationship.id, schema.identifier("relationship").parse(once.id))),
         ).toEqual([]);
     },
 );
@@ -695,11 +696,60 @@ test("refuse policy conditions that follow relations when registering them", () 
     const fenced = new Policy(module4.package, {
         name: "fenced",
         relations: { owner: { subjects: [principal.user] } },
-        permissions: { read: relation("owner"), edit: condition(Condition.exists("owner")) },
+        permissions: { read: relation("owner"), edit: resource({ owner: {} }) },
     });
 
     // refuse it before any decision reads it
     expect(() => new Authorizer([fenced], [])).toThrow(
         new AccessError("INVALID_DECLARATION", "policy conditions follow no relations: owner"),
+    );
+});
+
+test.each<[string, AccessExpression, string]>([
+    [
+        "undeclared object attribute",
+        resource({ size: { eq: 1 } }),
+        "undeclared object attribute: size",
+    ],
+    [
+        "undeclared request attribute",
+        { kind: "context", condition: { size: { eq: 1 } } },
+        "undeclared request attribute: size",
+    ],
+    [
+        "undeclared placeholder",
+        resource({ team: { eq: sql.placeholder("size") } }),
+        "undeclared request attribute: size",
+    ],
+    [
+        "request placeholder",
+        { kind: "context", condition: { phase: { eq: sql.placeholder("phase") } } },
+        "request conditions read no placeholders: phase",
+    ],
+    [
+        "ordered text",
+        resource({ title: { gt: "a" } }),
+        "ordered comparisons require a number attribute: title",
+    ],
+    ["mistyped value", resource({ team: "one" }), "comparisons require a number value: team"],
+    [
+        "mistyped list",
+        { kind: "context", condition: { phase: { in: ["edit", 1] } } },
+        "listed values require string values: phase",
+    ],
+    ["numeric pattern", resource({ team: { like: "1%" } }), "patterns match text attributes"],
+])("refuse a policy condition with an %s when registering it", (_case, edit, message) => {
+    // decide one permission by the condition
+    const checked = new Policy(module4.package, {
+        name: "checked",
+        attributes: { team: "number", title: "string" },
+        context: { phase: "string" },
+        relations: { owner: { subjects: [principal.user] } },
+        permissions: { read: relation("owner"), edit },
+    });
+
+    // refuse it before any decision reads it
+    expect(() => new Authorizer([checked], [])).toThrow(
+        new AccessError("INVALID_DECLARATION", message),
     );
 });

@@ -7,13 +7,13 @@ import {
     type SQL,
     type SQLWrapper,
     type Table,
-    Condition,
+    Predicate,
     type Binding,
 } from "@destack/db";
 import { aligned } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { type PermissionReference } from "../policy/policy.ts";
-import type { AccessExpression } from "../policy/expression.ts";
+import type { AccessExpression, ConditionExpression } from "../policy/expression.ts";
 import { accepts, type RelationDefinition } from "../policy/subject.ts";
 import { AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
@@ -77,12 +77,12 @@ export class Compiler {
         }
 
         // select the rows of the scope, and the scope's own row in the scope containing it
-        const own = access.own(mapping);
+        const object = access.scopeObject(mapping);
         const scope = TableMapping.scopeColumn(table, mapping);
         const located =
-            own === undefined
+            object === undefined
                 ? sql`${scope} = ${access.scope}`
-                : sql`(${scope} = ${access.scope} OR (${scope} = ${own.scope} AND ${column(table, mapping.id)} = ${own.id}))`;
+                : sql`(${scope} = ${access.scope} OR (${scope} = ${object.scope} AND ${column(table, mapping.id)} = ${object.id}))`;
 
         return sql`(${located} AND (${sql.join(predicates, sql` AND `)}))`;
     }
@@ -90,17 +90,18 @@ export class Compiler {
     /** Match one object in its scope, or the scope's own object, if the caller has a permission on it. */
     permits(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
         // deny a request that its elevation, suspension or credential refuses
-        const isOwn = permission.packageId === target.packageId && permission.type === target.type;
+        const isSameType =
+            permission.packageId === target.packageId && permission.type === target.type;
         if (
             access.blocked(permission) !== undefined ||
-            (!isOwn && !access.admits(permission, target.id))
+            (!isSameType && !access.admits(permission, target.id))
         ) {
             return sql`false`;
         }
 
         // evaluate another type's permission through roles
         return this.#target(target, access, (mapping, row, compilation) => {
-            if (!isOwn) {
+            if (!isSameType) {
                 return this.#bound(permission, mapping, row, compilation);
             }
 
@@ -122,9 +123,9 @@ export class Compiler {
         evaluate: (mapping: TableMapping, row: Table, compilation: Compilation) => SQL,
     ): SQL {
         // require the target in the resolved scope or to be the scope, and evaluate each authority on its row
-        const own = access.scopes[0];
+        const object = access.scopes[0];
         const isScope =
-            own !== undefined && ObjectReference.key(own) === ObjectReference.key(target);
+            object !== undefined && ObjectReference.key(object) === ObjectReference.key(target);
         if (target.scope !== access.scope && !isScope) {
             throw new AccessError("INVALID_CONTEXT", "target lies outside the resolved scope");
         }
@@ -317,21 +318,30 @@ export class Compiler {
                     source,
                     compilation,
                 );
-            case "condition": {
+            case "resource":
+            case "context": {
                 // grant nothing by attributes a database with only the object's scope row cannot read
-                if (!TableMapping.decides(mapping, expression.condition)) {
+                const predicate = mapping.policy.resolve(expression);
+                if (expression.kind === "resource" && !TableMapping.decides(mapping, predicate)) {
                     return sql`false`;
                 }
-                const binding = bindAttributes(mapping, source, compilation.access.context);
+                const binding = bindAttributes(
+                    expression,
+                    mapping,
+                    source,
+                    compilation.access.context,
+                );
 
-                return sql`coalesce(${Condition.render(expression.condition, binding)}, false)`;
+                return sql`coalesce(${Predicate.render(predicate, binding)}, false)`;
             }
             case "relation":
                 return this.#relation(expression.name, mapping, source, compilation);
             case "through":
                 return this.#through(expression, mapping, source, compilation);
-            case "grants":
-                return this.#grants(expression.reference, mapping, source, compilation);
+            case "granters":
+                return this.#granters(expression.reference, mapping, source, compilation);
+            case "readers":
+                return this.#readers(expression, mapping, source, compilation);
         }
     }
 
@@ -382,7 +392,7 @@ export class Compiler {
     }
 
     /** Match rows with a referenced object the caller has the grant permission on. */
-    #grants(
+    #granters(
         reference: string,
         mapping: TableMapping,
         source: Table,
@@ -410,6 +420,64 @@ export class Compiler {
                         WHERE ${column(row, target.id)} = ${column(source, columns.id)}
                             AND ${TableMapping.scopeColumn(row, target)} = ${column(source, columns.scope)}
                             AND ${this.#permission(grant, target, row, compilation)}
+                    )
+                )`,
+            ];
+        });
+
+        return branches.length === 0 ? sql`false` : sql`(${sql.join(branches, sql` OR `)})`;
+    }
+
+    /** Match whoever sees the relationships of the object a row references, a concealed relation's only through its grant permission. */
+    #readers(
+        expression: Extract<AccessExpression, { kind: "readers" }>,
+        mapping: TableMapping,
+        source: Table,
+        compilation: Compilation,
+    ): SQL {
+        // compile each type's visibility against its own alias of the referenced row
+        const columns = TableMapping.reference(mapping, expression.reference);
+        const related = column(source, expression.relation);
+        const branches = this.#authorizer.mappings().flatMap((target) => {
+            // skip the row's own type, whose rows relate other objects
+            if (target.policy === mapping.policy) {
+                return [];
+            }
+
+            // see a type's open relations through its relationship read or grant permission
+            const row = alias(target.table, `access_referenced_${compilation.aliases.next++}`);
+            const permitted = (name: string | undefined) =>
+                name === undefined
+                    ? sql`false`
+                    : this.#permission(target.policy.permission(name), target, row, compilation);
+            const visibility = target.policy.visibility;
+            const concealed = Object.entries(target.policy.definition.relations).filter(
+                ([, relation]) => relation.concealed === true,
+            );
+            const open =
+                concealed.length === 0
+                    ? sql`true`
+                    : sql`(${related} IS NULL OR ${related} NOT IN (${sql.join(
+                          concealed.map(([name]) => sql`${name}`),
+                          sql`, `,
+                      )}))`;
+            const seen = sql`(${open} AND (${permitted(visibility)} OR ${permitted(target.policy.definition.grantedBy)}))`;
+
+            // see a concealed relation's relationships only through its grant permission
+            const hidden = concealed.map(
+                ([name, relation]) =>
+                    sql`(${related} = ${name} AND ${permitted(relation.grantedBy)})`,
+            );
+
+            return [
+                sql`(
+                    ${column(source, columns.packageId)} = ${target.policy.definition.packageId}
+                    AND ${column(source, columns.type)} = ${target.policy.definition.name}
+                    AND EXISTS (
+                        SELECT 1 FROM ${from(row)}
+                        WHERE ${column(row, target.id)} = ${column(source, columns.id)}
+                            AND ${TableMapping.scopeColumn(row, target)} = ${column(source, columns.scope)}
+                            AND (${sql.join([seen, ...hidden], sql` OR `)})
                     )
                 )`,
             ];
@@ -650,20 +718,24 @@ function accepted(relationship: RelationshipColumnMap, relation: RelationDefinit
     return sql`(${sql.join(types, sql` OR `)})`;
 }
 
-/** Bind a condition's columns to a mapping's attributes, and its parameters to trusted request attributes. */
+/** Bind a condition's fields to a mapping's columns or the request's attributes, and its placeholders to request attributes. */
 function bindAttributes(
+    expression: ConditionExpression,
     mapping: TableMapping,
     source: Table,
     context: AccessContext,
 ): Binding<SQLWrapper> {
     return {
+        field: (name) =>
+            expression.kind === "resource"
+                ? column(source, TableMapping.attribute(mapping, name))
+                : sql`${AccessContext.attribute(context, name)}`,
+        placeholder: (name) => AccessContext.attribute(context, name),
         exists: (via) => {
             throw new AccessError(
                 "INVALID_DECLARATION",
                 `policy conditions follow no relations: ${via}`,
             );
         },
-        column: (name) => column(source, TableMapping.attribute(mapping, name)),
-        parameter: (name) => AccessContext.attribute(context, name),
     };
 }
