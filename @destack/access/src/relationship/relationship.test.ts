@@ -18,7 +18,7 @@ import { mappings, node, policies } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 
 test.for(TEST_DIALECTS)(
-    "show a relationship to its subject and to whoever may grant on its object on %s",
+    "show an object's relationships to its readers, a concealed relation's only to its subject and whoever may grant it, on %s",
     async (dialect) => {
         // open the fixture, where alice owns node b and granted bob editing it
         const fixture = await openFixture(dialect);
@@ -54,6 +54,30 @@ test.for(TEST_DIALECTS)(
         expect(await visible(fixture.alice)).toEqual(["b:bob"]);
         expect(await visible(fixture.bob)).toEqual(["b:bob"]);
         expect(await visible(carol)).toEqual([]);
+
+        // let carol read node b, and alice add dave as its concealed auditor
+        const sharing = new Authorization(authorizer, fixture.database, () => fixture.alice);
+        const object = node.reference("personal", "b");
+        await sharing.grant({
+            object,
+            relation: "viewer",
+            subject: principal.user.reference("universe", "carol"),
+        });
+        await sharing.grant({
+            object,
+            relation: "auditor",
+            subject: principal.user.reference("universe", "dave"),
+        });
+        const dave: AccessContext = {
+            ...fixture.alice,
+            subjects: [principal.user.reference("universe", "dave")],
+        };
+
+        // show every relationship to the reader, the auditor to its granter and itself only
+        expect(await visible(carol)).toEqual(["b:bob", "b:carol"]);
+        expect(await visible(fixture.bob)).toEqual(["b:bob", "b:carol"]);
+        expect(await visible(fixture.alice)).toEqual(["b:bob", "b:carol", "b:dave"]);
+        expect(await visible(dave)).toEqual(["b:bob", "b:carol", "b:dave"]);
     },
 );
 

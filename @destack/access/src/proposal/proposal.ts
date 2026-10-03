@@ -1,6 +1,6 @@
 import { type ObjectReference, Subject } from "@destack/sync";
 import { and, eq, gt, type DatabaseConnection, type Select } from "@destack/db";
-import { defineSchema, identifier, Instant, schema } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, AccessContext, Caller } from "../context/context.ts";
 import { Relationship, type RelationshipCondition } from "../relationship/relationship.ts";
@@ -101,7 +101,7 @@ function on(object: ObjectReference) {
 
 /** Parse a proposal identifier. */
 function proposalId(id: string) {
-    return identifier("proposal").parse(id);
+    return schema.identifier("proposal").parse(id);
 }
 
 /** Read a pending proposal on an object. */

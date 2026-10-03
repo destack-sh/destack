@@ -2,16 +2,16 @@ import { jsonElements, sql, type SQL, type SQLWrapper } from "@destack/db";
 import { Subject } from "@destack/sync";
 import { ACCESS_PACKAGE_ID, anyone } from "../policy/principal.ts";
 import type { AccessContext } from "../context/context.ts";
-import type { RelationshipColumnMap, RelationshipRow } from "../relationship/table.ts";
+import type { RelationshipColumnMap, EncodedRelationship } from "../relationship/table.ts";
 import type { GrantFailure } from "./decision.ts";
 
-/** The request facts a relationship's conditions compare against. */
+/** The request values a relationship's conditions compare against. */
 export type ConditionContext = Pick<
     AccessContext,
-    "now" | "request" | "session" | "capabilities" | "assurance"
+    "now" | "request" | "session" | "linkSecrets" | "assurance"
 >;
 
-/** The request facts a relationship's conditions compare against, as SQL values, null where the request has none. */
+/** The request values a relationship's conditions compare against, as SQL values, null where the request has none. */
 export interface ConditionValues {
     /** The request time. */
     readonly now: SQLWrapper;
@@ -19,8 +19,8 @@ export interface ConditionValues {
     readonly request: SQLWrapper;
     /** The request's session. */
     readonly session: SQLWrapper;
-    /** The digests of the capabilities the request presented, as a JSON list of one-element lists. */
-    readonly capabilities: SQLWrapper;
+    /** The digests of the link secrets the request presented, as a JSON list of one-element lists. */
+    readonly linkSecrets: SQLWrapper;
     /** The request's authentication assurance level. */
     readonly level: SQLWrapper;
     /** When the request's caller authenticated. */
@@ -43,8 +43,8 @@ export class GrantCondition {
     readonly requestId: string | null;
     /** The session the relationship applies within. */
     readonly sessionId: string | null;
-    /** The digest of the capability a request must present. */
-    readonly capability: string | null;
+    /** The digest of the link secret a request must present. */
+    readonly linkSecret: string | null;
     /** The minimum authentication assurance level. */
     readonly assurance: number | null;
     /** The longest time since authentication, in milliseconds. */
@@ -53,13 +53,13 @@ export class GrantCondition {
     readonly onBehalfOf: string | null;
 
     /** Read a relationship's conditions from its row. */
-    constructor(row: RelationshipRow) {
+    constructor(row: EncodedRelationship) {
         // take the times and conditions
         this.createdAt = row.createdAt;
         this.expiresAt = row.expiresAt;
         this.requestId = row.requestId;
         this.sessionId = row.sessionId;
-        this.capability = row.capability;
+        this.linkSecret = row.linkSecret;
         this.assurance = row.assurance;
         this.maxAge = row.maxAge;
         this.onBehalfOf = row.onBehalfOf;
@@ -71,7 +71,7 @@ export class GrantCondition {
         delegator: Subject | undefined,
         subject: Subject | undefined,
     ): GrantFailure | undefined {
-        // require the relationship to have started and not expired
+        // require a started, unexpired relationship
         const now = context.now;
         if (this.createdAt > now) {
             return "pending";
@@ -79,16 +79,16 @@ export class GrantCondition {
             return "expired";
         }
 
-        // require its request, session and capability to match
+        // require its request, session and link secret to match
         if (!isBound(this.requestId, context.request)) {
             return "request";
         } else if (!isBound(this.sessionId, context.session)) {
             return "session";
         } else if (
-            this.capability !== null &&
-            !(context.capabilities ?? []).includes(this.capability)
+            this.linkSecret !== null &&
+            !(context.linkSecrets ?? []).includes(this.linkSecret)
         ) {
-            return "capability";
+            return "linkSecret";
         }
 
         // require the authentication it asks for
@@ -116,12 +116,12 @@ export class GrantCondition {
     }
 
     /** Read the next moment time alone changes whether the conditions pass, absent when it never does. */
-    boundary(context: ConditionContext): number | undefined {
-        return GrantCondition.boundary(this, context);
+    until(context: ConditionContext): number | undefined {
+        return GrantCondition.until(this, context);
     }
 
     /** Read the next moment a relationship's times start or stop applying. */
-    static boundary(
+    static until(
         times: {
             readonly createdAt: number;
             readonly expiresAt: number | null;
@@ -147,15 +147,15 @@ export class GrantCondition {
         // type the request time for engines that type parameters
         const now = castInteger(values.now);
 
-        // require the relationship to have started and not expired, and its request, session and capability to match
+        // require a started, unexpired relationship with a matching request, session and link secret
         const conditions = [
             sql`${relationship.createdAt} <= ${now}`,
             sql`(${relationship.expiresAt} IS NULL OR ${relationship.expiresAt} > ${now})`,
             sql`(${relationship.requestId} IS NULL OR ${relationship.requestId} = ${castText(values.request)})`,
             sql`(${relationship.sessionId} IS NULL OR ${relationship.sessionId} = ${castText(values.session)})`,
-            sql`(${relationship.capability} IS NULL OR EXISTS (
-                SELECT 1 FROM ${jsonElements(values.capabilities, "capability")}
-                WHERE capability.value ->> 0 = ${relationship.capability}
+            sql`(${relationship.linkSecret} IS NULL OR EXISTS (
+                SELECT 1 FROM ${jsonElements(values.linkSecrets, "link_secret")}
+                WHERE link_secret.value ->> 0 = ${relationship.linkSecret}
             ))`,
         ];
 
@@ -185,7 +185,7 @@ export class GrantCondition {
         return sql`(${sql.join(conditions, sql` AND `)})`;
     }
 
-    /** Bind a request's facts as the values its conditions compare against. */
+    /** Bind a request's values as its conditions compare against them. */
     static bindings(
         context: ConditionContext,
         delegator?: Subject,
@@ -194,27 +194,27 @@ export class GrantCondition {
             now: context.now,
             request: context.request ?? null,
             session: context.session ?? null,
-            capabilities: JSON.stringify((context.capabilities ?? []).map((digest) => [digest])),
+            linkSecrets: JSON.stringify((context.linkSecrets ?? []).map((digest) => [digest])),
             level: context.assurance?.level ?? null,
             authenticatedAt: context.assurance?.authenticatedAt ?? null,
             delegator: delegator === undefined ? null : Subject.key(delegator),
         };
     }
 
-    /** Embed a request's facts in a statement. */
+    /** Embed a request's values in a statement. */
     static values(context: ConditionContext, delegator?: Subject): ConditionValues {
         const bindings = GrantCondition.bindings(context, delegator);
 
         return GrantCondition.parameters((name) => sql`${bindings[name]}`);
     }
 
-    /** List a request's facts as the values `bindings` supplies to a prepared statement on each run. */
+    /** List a request's values as `bindings` supplies them to a prepared statement on each run. */
     static parameters(value: (name: keyof ConditionValues) => SQLWrapper): ConditionValues {
         return {
             now: value("now"),
             request: value("request"),
             session: value("session"),
-            capabilities: value("capabilities"),
+            linkSecrets: value("linkSecrets"),
             level: value("level"),
             authenticatedAt: value("authenticatedAt"),
             delegator: value("delegator"),

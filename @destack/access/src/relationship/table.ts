@@ -65,8 +65,8 @@ export const accessRelationship = defineTable(
         requestId: text("request_id"),
         /** The session or agent instance the relationship applies within. */
         sessionId: text("session_id"),
-        /** The digest of the capability a request must present. */
-        capability: text("capability"),
+        /** The digest of the link secret a request must present. */
+        linkSecret: text("link_secret"),
         /** The minimum authentication assurance level. */
         assurance: integer("assurance"),
         /** The longest time since authentication, in milliseconds. */
@@ -105,7 +105,7 @@ export const accessRelationship = defineTable(
                 sql`coalesce(${relationship.onBehalfOf}, '')`,
                 sql`coalesce(${relationship.requestId}, '')`,
                 sql`coalesce(${relationship.sessionId}, '')`,
-                sql`coalesce(${relationship.capability}, '')`,
+                sql`coalesce(${relationship.linkSecret}, '')`,
                 sql`coalesce(${relationship.assurance}, 0)`,
                 sql`coalesce(${relationship.maxAge}, 0)`,
             ),
@@ -139,8 +139,8 @@ export const accessRelationship = defineTable(
     },
 );
 
-/** A relationship row as the relationship table stores it. */
-export type RelationshipRow = Select<typeof accessRelationship>;
+/** A relationship as `Relationship.encode` stores it, its subject and conditions in columns of their own. */
+export type EncodedRelationship = Select<typeof accessRelationship>;
 
 /** The relationship columns of the table or one of its aliases. */
 export type RelationshipColumnMap = Readonly<
@@ -161,7 +161,7 @@ export type RelationshipColumnMap = Readonly<
         | "expiresAt"
         | "requestId"
         | "sessionId"
-        | "capability"
+        | "linkSecret"
         | "assurance"
         | "maxAge"
         | "onBehalfOf",

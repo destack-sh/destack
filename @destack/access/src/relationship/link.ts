@@ -1,7 +1,7 @@
 import { Digest } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 
-/** The form of a capability secret: 32 bytes as lowercase hexadecimal. */
+/** The form of a link secret: 32 bytes as lowercase hexadecimal. */
 const SECRET = /^[0-9a-f]{64}$(?![\s\S])/u;
 
 /** A link: a relationship to anyone who presents its secret, revoked by deleting the relationship. */
@@ -13,7 +13,7 @@ export interface Link {
 }
 
 /** An unguessable secret that admits its holder through a relationship, stored as a digest. */
-export class Capability {
+export class LinkSecret {
     /** The secret a request presents. */
     readonly secret: string;
     /** The digest relationships keep. */
@@ -26,17 +26,17 @@ export class Capability {
     }
 
     /** Create a new secret with its digest. */
-    static async create(): Promise<Capability> {
+    static async create(): Promise<LinkSecret> {
         const secret = crypto.getRandomValues(new Uint8Array(32)).toHex();
 
-        return new Capability(secret, await Capability.digest(secret));
+        return new LinkSecret(secret, await LinkSecret.digest(secret));
     }
 
-    /** Hash a presented secret into the digest requests carry and refuse unknown secrets. */
+    /** Hash a presented secret into the digest requests send and refuse unknown secrets. */
     static async digest(secret: string): Promise<string> {
         // reject secrets access never created
         if (!SECRET.test(secret)) {
-            throw new AccessError("FORBIDDEN", "invalid capability");
+            throw new AccessError("FORBIDDEN", "invalid link secret");
         }
 
         // hash the secret

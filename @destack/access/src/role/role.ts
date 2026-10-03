@@ -1,6 +1,6 @@
 import type { ObjectReference, Subject } from "@destack/sync";
 import { and, asc, eq, type DatabaseConnection, type Select } from "@destack/db";
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { defineSchema, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../policy/policy.ts";
@@ -19,7 +19,7 @@ const OWNER_ROLE = {
 const roleSchema = defineSchema(
     schema.object({
         /** The role identifier. */
-        id: identifier("role"),
+        id: schema.identifier("role"),
         /** The scope defining the role. */
         scope: schema.string().min(1),
         /** The name, unique within the scope. */
@@ -69,7 +69,12 @@ async function read(
     const [record] = await database
         .select()
         .from(accessRole)
-        .where(and(eq(accessRole.scope, scope), eq(accessRole.id, identifier("role").parse(id))));
+        .where(
+            and(
+                eq(accessRole.scope, scope),
+                eq(accessRole.id, schema.identifier("role").parse(id)),
+            ),
+        );
     if (!record) {
         throw new AccessError("NOT_FOUND", "role not found");
     }
@@ -105,7 +110,7 @@ async function permit(
     if (granted.length > 0) {
         await database.insert(accessRolePermission).values(
             granted.map((permission) => ({
-                id: identifier("role-permission").parse(`role-permission-${v7()}`),
+                id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
                 roleId,
                 scope,
                 packageId: permission.packageId,
@@ -151,7 +156,7 @@ async function own(
     now: number,
 ): Promise<string> {
     // define the owner role in the scope
-    const role = identifier("role").parse(`role-${v7()}`);
+    const role = schema.identifier("role").parse(`role-${v7()}`);
     await database.insert(accessRole).values({
         id: role,
         createdAt: now,
@@ -165,7 +170,7 @@ async function own(
     await database.insert(accessRelationship).values(
         Relationship.encode(
             {
-                id: identifier("relationship").parse(`relationship-${v7()}`),
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
                 object: scope,
                 role,
                 subject: owner,

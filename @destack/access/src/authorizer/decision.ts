@@ -29,7 +29,7 @@ export const GrantFailure = defineSchema(
         "expired",
         "request",
         "session",
-        "capability",
+        "linkSecret",
         "assurance",
         "age",
         "delegation",

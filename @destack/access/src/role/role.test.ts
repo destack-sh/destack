@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { Scope } from "@destack/sync";
 import { Snapshot, and, asc, eq, ne } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { aligned, identifier } from "@destack/schema";
+import { aligned, schema } from "@destack/schema";
 import {
     accessRelationship,
     accessRole,
@@ -80,7 +80,9 @@ async function openRoleFixture() {
         permissions: { packageId: PackageId; type: string; name: string }[],
         scope = "personal",
     ) => {
-        const id = identifier("role").parse(`role-01996ab0-0000-7000-8000-00000000010${number}`);
+        const id = schema
+            .identifier("role")
+            .parse(`role-01996ab0-0000-7000-8000-00000000010${number}`);
         await database.insert(accessRole).values({
             id,
             createdAt: 1,
@@ -91,9 +93,11 @@ async function openRoleFixture() {
         });
         for (const [position, permission] of permissions.entries()) {
             await database.insert(accessRolePermission).values({
-                id: identifier("role-permission").parse(
-                    `role-permission-01996ab0-0000-7000-8000-0000000002${number}${position}`,
-                ),
+                id: schema
+                    .identifier("role-permission")
+                    .parse(
+                        `role-permission-01996ab0-0000-7000-8000-0000000002${number}${position}`,
+                    ),
                 roleId: id,
                 scope,
                 ...permission,
@@ -354,7 +358,7 @@ test("let owners have everything in their scope, make owners, and never remove t
         .where(
             and(
                 eq(accessRelationship.roleId, owner.id),
-                ne(accessRelationship.id, identifier("relationship").parse(second.id)),
+                ne(accessRelationship.id, schema.identifier("relationship").parse(second.id)),
             ),
         );
     if (first === undefined) {
@@ -489,7 +493,7 @@ test("refuse an offer whose proposer lost the authority to grant it", async () =
     // refuse acceptance once bob no longer has the role
     await database
         .delete(accessRelationship)
-        .where(eq(accessRelationship.id, identifier("relationship").parse(binding)));
+        .where(eq(accessRelationship.id, schema.identifier("relationship").parse(binding)));
     await expect(
         new Authorization(query, database, () => dave).accept(offer.relationship.object, offer.id),
     ).rejects.toMatchObject({
@@ -502,7 +506,7 @@ test("replace the permissions a role grants with a declared set", async () => {
     const { database, defineRole } = await openRoleFixture();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
-    const id = identifier("role").parse(await defineRole(1, [read]));
+    const id = schema.identifier("role").parse(await defineRole(1, [read]));
 
     // replace read with update, then with nothing
     await Role.replace(database, id, "personal", [update]);

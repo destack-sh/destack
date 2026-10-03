@@ -7,13 +7,18 @@ import {
     or,
     sql,
     type DatabaseConnection,
+    type OpenCondition,
     type Select,
     type SQL,
     type Snapshot,
 } from "@destack/db";
-import { defineSchema, identifier, Instant, schema } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
 import { v7 } from "uuid";
-import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
+import {
+    accessRelationship,
+    type RelationshipColumnMap,
+    type EncodedRelationship,
+} from "./table.ts";
 
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
 export const RelationshipCondition = defineSchema(
@@ -22,8 +27,8 @@ export const RelationshipCondition = defineSchema(
         request: schema.string().min(1).exactOptional(),
         /** Apply only within this session or agent instance. */
         session: schema.string().min(1).exactOptional(),
-        /** Apply only when the request presents the capability with this digest. */
-        capability: schema
+        /** Apply only when the request presents the link secret with this digest. */
+        linkSecret: schema
             .string()
             .regex(/^[0-9a-f]{64}$(?![\s\S])/u)
             .exactOptional(),
@@ -91,6 +96,7 @@ export const Relationship = {
     on,
     readByObject,
     readBySubject,
+    heldBy,
     subjectColumns,
     via,
     viaColumns,
@@ -112,7 +118,7 @@ export interface RelationshipSelection {
 /** Write a relationship as a row in the scope it decides access for. */
 function encode(relationship: Relationship, scope: string) {
     return {
-        id: identifier("relationship").parse(relationship.id),
+        id: schema.identifier("relationship").parse(relationship.id),
         createdAt: relationship.createdAt,
         updatedAt: relationship.createdAt,
         scope,
@@ -125,7 +131,7 @@ function encode(relationship: Relationship, scope: string) {
         expiresAt: relationship.expiresAt,
         requestId: relationship.conditions?.request ?? null,
         sessionId: relationship.conditions?.session ?? null,
-        capability: relationship.conditions?.capability ?? null,
+        linkSecret: relationship.conditions?.linkSecret ?? null,
         assurance: relationship.conditions?.assurance ?? null,
         maxAge: relationship.conditions?.maxAge ?? null,
         onBehalfOf:
@@ -151,7 +157,7 @@ function decode(row: Select<typeof accessRelationship>): Relationship {
     const conditions = {
         ...(row.requestId === null ? {} : { request: row.requestId }),
         ...(row.sessionId === null ? {} : { session: row.sessionId }),
-        ...(row.capability === null ? {} : { capability: row.capability }),
+        ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
         ...(row.assurance === null ? {} : { assurance: row.assurance }),
         ...(row.maxAge === null ? {} : { maxAge: row.maxAge }),
         ...(row.onBehalfOf === null ? {} : { onBehalfOf: Subject.read(row.onBehalfOf) }),
@@ -183,7 +189,7 @@ function decode(row: Select<typeof accessRelationship>): Relationship {
 async function readByObject(
     snapshot: Snapshot,
     objects: readonly ObjectReference[],
-): Promise<RelationshipRow[]> {
+): Promise<EncodedRelationship[]> {
     return snapshot.select(
         accessRelationship,
         ["objectScope", "packageId", "type", "objectId"],
@@ -195,7 +201,7 @@ async function readByObject(
 async function readBySubject(
     snapshot: Snapshot,
     subjects: readonly Subject[],
-): Promise<RelationshipRow[]> {
+): Promise<EncodedRelationship[]> {
     // list each subject a relationship may have for them, with the wildcards plain subjects match
     const wanted = new Map<string, readonly (string | null)[]>();
     for (const subject of subjects) {
@@ -235,6 +241,23 @@ async function readBySubject(
             ]),
         ),
     );
+}
+
+/** Match the relationships some subjects hold, with the wildcards plain subjects match, as a condition on relationship rows. */
+function heldBy(subjects: readonly Subject[]): OpenCondition {
+    return {
+        OR: subjects.map((subject) => {
+            const isPlain = subject.relation === undefined;
+
+            return {
+                subjectPackageId: subject.packageId,
+                subjectType: subject.type,
+                subjectScope: isPlain ? { in: [subject.scope, "*"] } : subject.scope,
+                subjectId: isPlain ? { in: [subject.id, "*"] } : subject.id,
+                subjectRelation: subject.relation ?? { isNull: true },
+            };
+        }),
+    };
 }
 
 /** Match the relationships on one object, in the relationship table or one of its aliases. */
@@ -360,5 +383,5 @@ function via(
 function viaColumns(relationship: { readonly relation: string } | { readonly role: string }) {
     return "relation" in relationship
         ? { relation: relationship.relation, roleId: null }
-        : { relation: null, roleId: identifier("role").parse(relationship.role) };
+        : { relation: null, roleId: schema.identifier("role").parse(relationship.role) };
 }

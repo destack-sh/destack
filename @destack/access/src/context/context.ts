@@ -67,9 +67,9 @@ export type AuthenticationAssurance = schema.Infer<typeof AuthenticationAssuranc
 export interface Caller {
     /** The represented subject, required for delegated calls. */
     readonly subject?: Subject;
-    /** The principals acting for the subject in order; the last sends the call. */
+    /** The principals acting for the subject in order, the last sending the call. */
     readonly delegates?: readonly Delegate[];
-    /** The verified principals and subject sets; empty means anonymous. */
+    /** The verified principals and subject sets, empty for an anonymous caller. */
     readonly subjects: readonly Subject[];
     /** How strongly and how recently the caller authenticated. */
     readonly assurance?: AuthenticationAssurance;
@@ -85,9 +85,9 @@ export const Caller = {
     schema: schema.object({
         /** The represented subject, required for delegated calls. */
         subject: Subject.exactOptional(),
-        /** The principals acting for the subject in order; the last sends the call. */
+        /** The principals acting for the subject in order, the last sending the call. */
         delegates: schema.array(Delegate).exactOptional(),
-        /** The verified principals and subject sets; empty means anonymous. */
+        /** The verified principals and subject sets, empty for an anonymous caller. */
         subjects: schema.array(Subject),
         /** How strongly and how recently the caller authenticated. */
         assurance: AuthenticationAssurance.exactOptional(),
@@ -159,14 +159,14 @@ export const Caller = {
     },
 };
 
-/** What the authorizer decides on: a verified caller and the facts of its request. */
+/** What the authorizer decides on: a verified caller and its request's attributes. */
 export interface AccessContext extends Caller {
     /** The request's identifier, matched by grants bound to one request. */
     readonly request?: string;
     /** The session or agent instance the request belongs to, matched by grants bound to one session. */
     readonly session?: string;
-    /** Digests of the capabilities, such as link secrets, the request presented. */
-    readonly capabilities?: readonly string[];
+    /** Digests of the link secrets the request presented. */
+    readonly linkSecrets?: readonly string[];
     /** Trusted request time in UTC epoch milliseconds. */
     readonly now: number;
     /** Trusted request attributes referenced by declarations. */
