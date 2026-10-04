@@ -1,7 +1,7 @@
 import { defineSetting } from "@destack/setting/declare";
 import { schema } from "@destack/schema";
 
-/** Shared appearance selected personally, per app or per device. */
+/** The appearance a person selects, overridden per package, space, installation or device. */
 export const appearance = defineSetting({
     name: "appearance",
     title: "Appearance",

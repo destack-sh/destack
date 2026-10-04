@@ -8,7 +8,7 @@
     ],
     "exports": {
         ".": "./src/index.ts",
-        "./settings": "./src/settings/index.ts",
+        "./setting": "./src/setting/index.ts",
         "./theme.css": "./src/theme/theme.css",
         "./tokens.stylex": "./src/token/tokens.stylex.ts"
     },

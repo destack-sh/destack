@@ -1,8 +1,10 @@
+# @destack/theme
+
 Theme Destack interfaces with Radix palettes and shared CSS tokens.
 
 ## Themes
 
-`createTheme` returns the attributes and CSS variables a theme root spreads onto its element, and styles read them through the tokens.
+`createTheme` returns the attributes and CSS variables to spread onto a theme root, and styles read them through the tokens of `tokens.stylex`.
 
 ```tsx
 import { createTheme } from "@destack/theme";
@@ -37,7 +39,7 @@ export function Page() {
 
 ## Overrides
 
-A theme takes its own font stacks, and an element may override any semantic variable.
+`fontFamily` and `monospaceFontFamily` set a theme's font stacks, and any `--destack-` variable in `style` overrides one semantic color.
 
 ```ts
 import { createTheme } from "@destack/theme";
@@ -48,34 +50,40 @@ publication.style["--destack-color-background"] = "light-dark(#f8f7f4, #1b1a19)"
 
 ## Palette mapping
 
-A theme maps the shadcn roles to these steps of its gray and accent palettes.
+`createTheme` maps the shadcn color roles to steps of the gray (`neutral`) and accent (`primary`) Radix palettes, and the sidebar roles repeat the card, primary, accent, border and ring steps.
 
-| Roles                                 | Radix steps                 |
-| ------------------------------------- | --------------------------- |
-| Background / foreground               | Gray 1 / 12                 |
-| Card, popover, sidebar / foreground   | Gray 2 / 12                 |
-| Secondary / foreground                | Gray 3 / 12                 |
-| Muted / foreground                    | Gray 3 / 11                 |
-| Primary, sidebar primary / foreground | Accent 9 / contrasting text |
-| Accent, sidebar accent / foreground   | Accent 3 / 12               |
-| Border, sidebar border                | Gray 6                      |
-| Input                                 | Gray 7                      |
-| Ring, sidebar ring                    | Accent 8                    |
-| Destructive                           | Red 9                       |
+```ts
+background: neutral(1),
+foreground: neutral(12),
+card: neutral(2),
+popover: neutral(2),
+primary: primary(9),
+primaryForeground: paletteForeground(accent),
+secondary: neutral(3),
+muted: neutral(3),
+mutedForeground: neutral(11),
+accent: primary(3),
+accentForeground: primary(12),
+border: neutral(6),
+input: neutral(7),
+ring: primary(8),
+destructive: paletteColor("red", 9),
+```
 
 ## Appearance
 
-The `appearance` setting selects the system, light or dark appearance personally, per package, space, installation or device.
+The `appearance` setting selects the system, light or dark appearance for a person, with overrides per package, space, installation or device.
 
 ```ts
-import { appearance } from "@destack/theme/settings";
+import { createTheme } from "@destack/theme";
+import { appearance } from "@destack/theme/setting";
 
 const theme = createTheme({ appearance: appearance.resolve(selection, rows, chain).value });
 ```
 
 ## License
 
-The package includes palettes from Radix Colors 3.0.0, tokens from Radix Themes, and chart colors from shadcn/ui, under the MIT License.
+The package includes palettes from Radix Colors 3.0.0, tokens from Radix Themes and chart colors from shadcn/ui under the MIT License.
 
 ```text
 Copyright (c) 2021 Radix
