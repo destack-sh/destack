@@ -46,6 +46,7 @@ import { Template } from "../template/index.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import { PackageBuild, type BuildOptions, type ModuleOptions } from "./build.ts";
 import { BuildFiles } from "./file.ts";
+import { readCatalogs } from "./catalog.ts";
 import { comparePath, stringifyInspection } from "./serialization.ts";
 import { describeGraph } from "../graph/module.ts";
 import {
@@ -151,6 +152,11 @@ export class BuildCompiler implements AsyncDisposable {
                 identities.file(join(options.directory, path)),
             ),
         );
+        const catalogs = await Promise.all(
+            [...(await readCatalogs(options.directory, declaration.package.id)).keys()].map(
+                (path) => identities.file(join(options.directory, path)),
+            ),
+        );
 
         // key each requested output by its request, its toolchain and the modules it imports
         const { modules, outputs } = await this.#keyModules(
@@ -181,6 +187,7 @@ export class BuildCompiler implements AsyncDisposable {
             toolchain,
             extensions,
             manifests,
+            catalogs,
             outputs: keys,
             modules: modules.toSorted(),
             dependencies: options.dependencies,
@@ -829,7 +836,7 @@ async function check(
     }
 }
 
-/** Retain every inspected source, template asset and authored manifest before compiling. */
+/** Retain every inspected source, template asset, authored manifest and catalog before compiling. */
 async function retain(
     inspected: ReadonlyMap<string, InspectedOutput>,
     files: BuildFiles,
@@ -851,6 +858,12 @@ async function retain(
         // retain the authored package declarations
         for (const path of ["package.json", "destack.json"]) {
             files.retain(path, new Uint8Array(await readFile(resolve(project.directory, path))));
+        }
+
+        // retain the package's catalogs
+        const owner = project.declaration.package.id;
+        for (const [path, bytes] of await readCatalogs(project.directory, owner)) {
+            files.retain(path, bytes);
         }
     }
 }

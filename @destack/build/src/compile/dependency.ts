@@ -14,6 +14,8 @@ import { isBuiltin } from "node:module";
 import { type OutputBundle, type OutputChunk, RUNTIME_MODULE_ID } from "rolldown";
 import { type ESTree, Visitor } from "rolldown/utils";
 import { found } from "@destack/schema";
+import { Catalog } from "@destack/locale";
+import { readCatalogs } from "../build/catalog.ts";
 
 /** A parsed module's source package and path. */
 export interface ModuleSource {
@@ -95,6 +97,8 @@ class DependencyRecorder {
     readonly locations: Map<string, ModuleSource>;
     /** The assets read beside modules, by path. */
     readonly assets: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+    /** The build files the compilation writes, which keep the catalogs of unpublished dependencies. */
+    readonly files: Map<string, Uint8Array<ArrayBuffer>>;
     /** The package manifests read so far. */
     readonly resolver = new DependencyResolver();
     /** The directory of each unpublished source dependency, by release. */
@@ -257,6 +261,7 @@ class DependencyRecorder {
                 const bytes = new Uint8Array(await readFile(join(source.directory, name)));
                 addFile(created, await PackageFile.describe(name, "application/json", bytes));
             }
+            await this.#keepCatalogs(created, source.directory);
             snapshot = created;
         }
 
@@ -266,6 +271,17 @@ class DependencyRecorder {
         }
 
         return snapshot;
+    }
+
+    /** Keep an unpublished dependency's catalogs in its snapshot, and their bytes in the build below its package. */
+    async #keepCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
+        const owner = this.project.declaration.package.id;
+        for (const [path, bytes] of await readCatalogs(directory, snapshot.package.id)) {
+            // describe the catalog in the snapshot, and write it where views of the build read it
+            addFile(snapshot, await PackageFile.describe(path, "application/json", bytes));
+            const catalog = Catalog.parse(JSON.parse(new TextDecoder().decode(bytes)));
+            this.files.set(Catalog.path(catalog, owner), bytes);
+        }
     }
 
     /** Require the selected release of an installed package. */

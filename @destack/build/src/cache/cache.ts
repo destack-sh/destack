@@ -162,9 +162,10 @@ export class Identities {
                 await this.file(join(directory, path)),
             ]),
         );
-        const sources = join(directory, "src");
-        for (const path of await listFiles(sources)) {
-            files.push([`src/${path}`, await this.file(join(sources, path))]);
+        for (const root of ["src", "locale"]) {
+            for (const path of await listFiles(join(directory, root))) {
+                files.push([`${root}/${path}`, await this.file(join(directory, root, path))]);
+            }
         }
 
         return { identity: `${release} ${await Digest.json(files)}`, dependencies };

@@ -146,8 +146,8 @@ module   the module's bytes, the API digest of each import, the compiler options
 output   the keys of the modules the output imports, its request and configuration, the package's manifests,
          the extensions and the toolchain
          names the output's files, description and source maps
-build    every output key, every module key, the dependency resolutions, the published history,
-         the template and the toolchain
+build    every output key, every module key, the package's catalogs, the dependency resolutions,
+         the published history, the template and the toolchain
          names the stored build's manifest
 ```
 
@@ -243,6 +243,16 @@ const files = await reader.files();
 const declarations = await reader.declarations();
 const root = await reader.graph();
 const module = await reader.module(root.modules["src/index.ts"]);
+```
+
+## Catalogs
+
+A build ships the package's `locale/<tag>.json` catalogs beside its manifests, refusing another package's catalog or one whose locale its file name does not give.
+
+```ts
+import { Catalog } from "@destack/locale";
+
+const catalogs = await Catalog.read(reader); // [{ package, locale: "de", messages, drafts }]
 ```
 
 ## Graph files

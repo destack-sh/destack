@@ -23,6 +23,7 @@
     },
     "dependencies": {
         "@destack/check": "workspace:*",
+        "@destack/locale": "workspace:*",
         "magic-string": "1.4.1",
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/service": "workspace:*",

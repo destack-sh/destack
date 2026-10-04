@@ -24,6 +24,8 @@ import { BuildReader } from "@destack/package/manifest";
 import { WorkloadInstance } from "@destack/service/workload";
 import { ResourceContext } from "@destack/resource/context";
 import { testCallKey } from "@destack/service/test";
+import { Catalog } from "@destack/locale";
+import { PackageDefinition } from "@destack/package";
 
 /** Complete build scenarios, a web application in each rendering mode. */
 const fixtures = [
@@ -227,4 +229,32 @@ test.concurrent("refuse a server entry reading a browser global before framework
         code: "BUILD_FAILED",
         message: "unsupported bun API: document.title at server.ts:76",
     });
+});
+
+test.concurrent("ship a package's own catalogs in its build, refusing a misnamed one and another package's", async ({
+    expect,
+}) => {
+    // write a German catalog of the library's own messages
+    await using input = await Fixture.open("library");
+    const owner = PackageDefinition.read(
+        await readFile(join(input.source, "destack.json"), "utf8"),
+    ).id;
+    const german = { package: owner, locale: "de", messages: { a1: "Notiz" }, drafts: ["a1"] };
+    const write = (name: string, catalog: object) =>
+        writeFile(join(input.source, "locale", name), JSON.stringify(catalog));
+    await mkdir(join(input.source, "locale"));
+    await write("de.json", german);
+
+    // read the shipped catalog back from the build
+    await using build = await input.build(library.request);
+    const shipped = await Catalog.read(build.reader);
+
+    // refuse a catalog named for another locale, then one of another package
+    await write("de.json", { ...german, locale: "de-AT" });
+    const misnamed = input.build(library.request);
+    await expect(misnamed).rejects.toMatchObject({ message: "invalid catalog: locale/de.json" });
+    await write("de.json", { ...german, package: "package-01996ab0-0000-7000-8000-0000000000aa" });
+    const foreign = input.build(library.request);
+    await expect(foreign).rejects.toMatchObject({ message: "invalid catalog: locale/de.json" });
+    expect(shipped).toEqual([german]);
 });
