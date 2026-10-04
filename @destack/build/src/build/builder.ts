@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
-import { locateWorkspace } from "../source/dependency.ts";
+import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
 import type { PackageFile } from "@destack/package/file";
 import type { PackageManifest } from "@destack/package/manifest";

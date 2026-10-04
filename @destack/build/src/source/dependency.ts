@@ -175,18 +175,6 @@ async function readInstalledPackage(
     return undefined;
 }
 
-/** Find the workspace a directory belongs to: the nearest directory with a Bun lockfile, the directory itself without one. */
-export async function locateWorkspace(directory: string): Promise<string> {
-    // accept the nearest directory holding the lockfile
-    for (const current of ancestors(directory)) {
-        if (await exists(join(current, "bun.lock"))) {
-            return current;
-        }
-    }
-
-    return resolve(directory);
-}
-
 /** Name a file by its path below a directory, with forward slashes. */
 export function relativePath(directory: string, file: string): string {
     return relative(directory, file).split(sep).join("/");
@@ -233,21 +221,6 @@ async function readJson(path: string): Promise<unknown> {
     const text = await readText(path);
 
     return text === undefined ? undefined : JSON.parse(text);
-}
-
-/** Report whether a path exists. */
-async function exists(path: string): Promise<boolean> {
-    try {
-        await stat(path);
-
-        return true;
-    } catch (error) {
-        if (!isMissing(error)) {
-            throw error;
-        }
-
-        return false;
-    }
 }
 
 /** Report whether a path is an existing directory. */
