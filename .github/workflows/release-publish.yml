@@ -7,31 +7,44 @@ on:
         tags: ["v*"]
     workflow_dispatch:
         inputs:
-            publish:
-                description: Publish signed distributions from main
-                type: boolean
-                default: false
+            channel:
+                description: Channel to publish, stable from a version tag and nightly from main
+                type: choice
+                options: [nightly, stable]
+                default: nightly
 
-permissions:
-    contents: read
+permissions: {}
+
+env:
+    DESTACK_RELEASE_CHANNEL: ${{ inputs.channel || (github.ref_type == 'tag' && 'stable') || 'nightly' }}
 
 concurrency:
     group: release-${{ github.ref }}
     cancel-in-progress: false
 
-jobs:
-    ci:
-        name: Check workspace
-        uses: ./.github/workflows/workspace-check.yml
+defaults:
+    run:
+        working-directory: "@platform/release"
 
+jobs:
     prepare:
         name: Prepare release
         runs-on: ubuntu-24.04
         timeout-minutes: 5
+        permissions:
+            contents: read
         outputs:
             version: ${{ steps.release.outputs.version }}
-            publish: ${{ steps.release.outputs.publish }}
             channel: ${{ steps.release.outputs.channel }}
+            build: ${{ steps.release.outputs.build }}
+            publish: ${{ steps.release.outputs.publish }}
+            targets: ${{ steps.release.outputs.targets }}
+            signed: ${{ steps.release.outputs.signed }}
+            unsigned: ${{ steps.release.outputs.unsigned }}
+            installers: ${{ steps.release.outputs.installers }}
+            names: ${{ steps.release.outputs.names }}
+            renewals: ${{ steps.release.outputs.renewals }}
+            checks: ${{ steps.release.outputs.checks }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -41,33 +54,35 @@ jobs:
             - name: Install Bun
               uses: ./.github/actions/setup-bun
             - name: Install dependencies
+              working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
-            - name: Select release version and channel
+            - name: Select release version, channel and work
               id: release
-              run: bun run @platform/release/src/distribution/prepare.ts
-              env:
-                  DESTACK_PUBLISH: ${{ inputs.publish }}
+              run: bun run src/distribution/prepare.ts
+
+    check:
+        name: Check workspace
+        needs: [prepare]
+        if: needs.prepare.outputs.build == 'true'
+        permissions:
+            contents: read
+        uses: ./.github/workflows/workspace-check.yml
+        with:
+            dialects: '["sqlite", "postgres"]'
 
     build:
         name: Build distribution (${{ matrix.target }})
-        needs: [prepare, ci]
-        env:
-            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        needs: [prepare, check]
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 30
+        permissions:
+            contents: read
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - runner: macos-15
-                      target: aarch64-apple-darwin
-                    - runner: macos-15-intel
-                      target: x86_64-apple-darwin
-                    - runner: ubuntu-24.04
-                      target: x86_64-unknown-linux-gnu
-                    - runner: ubuntu-24.04-arm
-                      target: aarch64-unknown-linux-gnu
-        runs-on: ${{ matrix.runner }}
-        timeout-minutes: 30
+                include: ${{ fromJSON(needs.prepare.outputs.targets) }}
+        env:
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -84,28 +99,18 @@ jobs:
                   rustup toolchain install stable --profile minimal
                   rustup default stable
             - name: Install dependencies
+              working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
-            - name: Check out the matching Turso native source
-              if: matrix.target == 'x86_64-apple-darwin'
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-              with:
-                  repository: tursodatabase/turso
-                  ref: 046e9cbf67d22491e8ecc941ec2891b02a9f3cad
-                  path: dist/turso
-                  persist-credentials: false
-            - name: Build the Intel macOS Turso addon
-              if: matrix.target == 'x86_64-apple-darwin'
-              run: bun run @platform/release/src/distribution/turso.ts dist/turso
             - name: Build distribution
-              run: bun run @platform/release/src/distribution/build.ts ${{ matrix.target }}
+              run: bun run src/distribution/build.ts ${{ matrix.target }}
             - name: Verify distribution
-              run: bun run @platform/release/src/distribution/verify.ts ${{ matrix.target }}
+              run: bun run src/distribution/verify.ts ${{ matrix.target }}
             - name: Pack distribution
-              run: bun run @platform/release/src/distribution/pack.ts ${{ matrix.target }}
+              run: bun run src/distribution/pack.ts ${{ matrix.target }}
             - name: Verify archive staging and activation with disposable signing keys
-              run: bun run @platform/release/src/distribution/rehearse.ts "$DESTACK_RELEASE_VERSION" "dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
+              run: bun run src/distribution/rehearse.ts "$DESTACK_RELEASE_VERSION" "$GITHUB_WORKSPACE/dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
               shell: bash
-            - name: Upload unsigned distributions
+            - name: Upload unsigned distribution
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
                   name: unsigned-${{ matrix.target }}
@@ -115,23 +120,20 @@ jobs:
 
     sign:
         name: Sign distribution (${{ matrix.target }})
-        if: needs.prepare.outputs.publish == 'true'
         needs: [prepare, build]
+        if: needs.prepare.outputs.publish == 'true'
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 40
         environment: release-${{ needs.prepare.outputs.channel }}
+        permissions:
+            contents: read
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - runner: macos-15
-                      target: aarch64-apple-darwin
-                    - runner: macos-15-intel
-                      target: x86_64-apple-darwin
-        runs-on: ${{ matrix.runner }}
-        timeout-minutes: 40
+                include: ${{ fromJSON(needs.prepare.outputs.signed) }}
         env:
             DESTACK_SIGNING: release
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -140,6 +142,7 @@ jobs:
             - name: Install Bun
               uses: ./.github/actions/setup-bun
             - name: Install dependencies
+              working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Download unsigned distribution
               uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -147,8 +150,9 @@ jobs:
                   name: unsigned-${{ matrix.target }}
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Unpack distribution
-              run: bun run @platform/release/src/signing/sign.ts unpack ${{ matrix.target }}
+              run: bun run src/signing/sign.ts unpack ${{ matrix.target }}
             - name: Prepare Apple signing credentials
+              if: matrix.signer == 'apple'
               uses: ./.github/actions/setup-apple
               with:
                   certificate: ${{ secrets.APPLE_CERTIFICATE }}
@@ -157,13 +161,13 @@ jobs:
                   key: ${{ secrets.APPLE_NOTARY_KEY }}
                   key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
-            - name: Sign and notarize macOS distribution
-              run: bun run @platform/release/src/signing/sign.ts sign ${{ matrix.target }}
+            - name: Sign and notarize distribution
+              run: bun run src/signing/sign.ts sign ${{ matrix.target }}
             - name: Verify distribution
-              run: bun run @platform/release/src/distribution/verify.ts ${{ matrix.target }}
+              run: bun run src/distribution/verify.ts ${{ matrix.target }}
             - name: Pack distribution
-              run: bun run @platform/release/src/distribution/pack.ts ${{ matrix.target }}
-            - name: Upload signed distributions
+              run: bun run src/distribution/pack.ts ${{ matrix.target }}
+            - name: Upload signed distribution
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
                   name: signed-${{ matrix.target }}
@@ -171,20 +175,27 @@ jobs:
                   path: dist/*/*.tar.gz
                   if-no-files-found: error
             - name: Remove Apple signing credentials
-              if: always()
-              run: bun run @platform/release/src/signing/credential.ts remove
+              if: always() && matrix.signer == 'apple'
+              run: bun run src/signing/credential.ts remove
 
     installer:
-        name: Build macOS installer
-        if: always() && needs.build.result == 'success' && (needs.sign.result == 'success' || needs.sign.result == 'skipped')
+        name: Build installer (${{ matrix.name }})
         needs: [prepare, build, sign]
-        runs-on: macos-15
-        environment: ${{ needs.prepare.outputs.publish == 'true' && format('release-{0}', needs.prepare.outputs.channel) || 'build' }}
+        if: >-
+            !cancelled() && needs.build.result == 'success' && needs.prepare.outputs.installers != '[]' &&
+            (needs.sign.result == 'success' || (needs.prepare.outputs.publish != 'true' && needs.sign.result == 'skipped'))
+        runs-on: ${{ matrix.runner }}
         timeout-minutes: 40
+        environment: ${{ needs.prepare.outputs.publish == 'true' && format('release-{0}', needs.prepare.outputs.channel) || 'build' }}
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                include: ${{ fromJSON(needs.prepare.outputs.installers) }}
         env:
             DESTACK_SIGNING: ${{ needs.prepare.outputs.publish == 'true' && 'release' || 'development' }}
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -193,16 +204,17 @@ jobs:
             - name: Install Bun
               uses: ./.github/actions/setup-bun
             - name: Install dependencies
+              working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
-            - name: Download macOS distributions
+            - name: Download the installer's distributions
               uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
               with:
-                  pattern: ${{ needs.prepare.outputs.publish == 'true' && 'signed' || 'unsigned' }}-*-apple-darwin
+                  pattern: ${{ needs.prepare.outputs.publish == 'true' && 'signed' || 'unsigned' }}-${{ matrix.targets }}
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Prepare Apple signing credentials
+              if: needs.prepare.outputs.publish == 'true' && matrix.signer == 'apple'
               uses: ./.github/actions/setup-apple
-              if: needs.prepare.outputs.publish == 'true'
               with:
                   certificate: ${{ secrets.APPLE_CERTIFICATE }}
                   password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -210,32 +222,35 @@ jobs:
                   key: ${{ secrets.APPLE_NOTARY_KEY }}
                   key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
-            - name: Build universal macOS installer
-              run: bun run @platform/release/src/installer/build.ts
-            - name: Upload macOS installer
+            - name: Build installer
+              run: bun run src/installer/build.ts ${{ matrix.name }}
+            - name: Upload installer
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
-                  name: macos-installer
+                  name: installer-${{ matrix.name }}
                   retention-days: 14
-                  path: dist/*/*.dmg
+                  path: dist/*/destack-*-${{ matrix.name }}.${{ matrix.format }}
                   if-no-files-found: error
             - name: Remove Apple signing credentials
-              if: always() && needs.prepare.outputs.publish == 'true'
-              run: bun run @platform/release/src/signing/credential.ts remove
+              if: always() && needs.prepare.outputs.publish == 'true' && matrix.signer == 'apple'
+              run: bun run src/signing/credential.ts remove
 
     publish:
         name: Publish release
-        if: needs.prepare.outputs.publish == 'true'
         needs: [prepare, sign, installer]
+        if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
         environment: release-${{ needs.prepare.outputs.channel }}
-        env:
-            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
-            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        permissions:
+            contents: read
+            id-token: write
+            attestations: write
         concurrency:
             group: update-repository-${{ needs.prepare.outputs.channel }}
             cancel-in-progress: false
+        env:
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -244,6 +259,7 @@ jobs:
             - name: Install Bun
               uses: ./.github/actions/setup-bun
             - name: Install dependencies
+              working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Download signed distributions
               uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -251,46 +267,123 @@ jobs:
                   pattern: signed-*
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
-            - name: Download Linux distributions
+            - name: Download distributions without a platform signer
               uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
               with:
-                  pattern: unsigned-*-unknown-linux-gnu
+                  pattern: unsigned-${{ needs.prepare.outputs.unsigned }}
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
-            - name: Download macOS installer
+            - name: Download installers
               uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
               with:
-                  name: macos-installer
+                  pattern: installer-*
+                  merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
+            - name: Attest build provenance of the archives and installers
+              uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+              with:
+                  subject-path: dist/${{ needs.prepare.outputs.version }}/destack-*
             - name: Prepare update signing keys
-              run: bun run @platform/release/src/key/credential.ts release
+              run: bun run src/key/credential.ts release
               env:
                   DESTACK_TARGETS_KEY: ${{ secrets.DESTACK_TARGETS_KEY }}
                   DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
                   DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
-            - name: Sign and publish updates
-              run: |
-                  bun run @platform/release/src/repository/sign.ts aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
-                  bun run @platform/release/src/repository/upload.ts
-                  bun run @platform/release/src/repository/verify.ts
+            - name: Sign targets, snapshot and timestamp
+              run: bun run src/repository/sign.ts ${{ needs.prepare.outputs.names }}
+            - name: Upload release
+              run: bun run src/repository/upload.ts
               env:
                   CLOUDFLARE_RELEASE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_RELEASE_ACCESS_KEY_ID }}
                   CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY }}
+            - name: Verify published metadata and archives
+              run: bun run src/repository/verify.ts
             - name: Remove update signing keys
               if: always()
-              run: bun run @platform/release/src/key/credential.ts remove
+              run: bun run src/key/credential.ts remove
 
-    verify:
-        name: Verify installation and updates (${{ matrix.runner }})
-        needs: [prepare, publish]
-        runs-on: ${{ matrix.runner }}
+    renew:
+        name: Renew release metadata (${{ matrix.channel }})
+        needs: [prepare]
+        if: needs.prepare.outputs.renewals != '[]'
+        runs-on: ubuntu-24.04
         timeout-minutes: 10
+        environment: renewal-${{ matrix.channel }}
+        permissions:
+            contents: read
+        concurrency:
+            group: update-repository-${{ matrix.channel }}
+            cancel-in-progress: false
         strategy:
             fail-fast: false
             matrix:
-                runner: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm]
+                channel: ${{ fromJSON(needs.prepare.outputs.renewals) }}
         env:
-            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+            DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              working-directory: ${{ github.workspace }}
+              run: bun install --frozen-lockfile
+            - name: Prepare freshness signing keys
+              run: bun run src/key/credential.ts renew
+              env:
+                  DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
+                  DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
+            - name: Sign snapshot and timestamp
+              run: bun run src/repository/renew.ts freshness
+            - name: Submit signed freshness
+              run: bun run src/repository/submit.ts dist/refresh
+            - name: Verify published metadata
+              run: bun run src/repository/verify.ts dist/refresh
+            - name: Remove freshness signing keys
+              if: always()
+              run: bun run src/key/credential.ts remove
+
+    expiry:
+        name: Check release metadata expiry (${{ matrix.channel }})
+        needs: [prepare, publish, renew]
+        if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.checks != '[]' }}
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                channel: ${{ fromJSON(needs.prepare.outputs.checks) }}
+        env:
+            DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              working-directory: ${{ github.workspace }}
+              run: bun install --frozen-lockfile
+            - name: Check every role outlives its renewal window
+              run: bun run src/repository/expiry.ts
+
+    verify:
+        name: Verify installation and updates (${{ matrix.target }})
+        needs: [prepare, publish]
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 10
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                include: ${{ fromJSON(needs.prepare.outputs.targets) }}
+        env:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
@@ -300,9 +393,10 @@ jobs:
             - name: Install Bun
               uses: ./.github/actions/setup-bun
             - name: Install dependencies
+              working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Install Linux desktop runtime dependencies
               if: runner.os == 'Linux'
               run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0
             - name: Install the published distribution and verify restart and updates
-              run: bun run @platform/release/src/distribution/install.ts
+              run: bun run src/distribution/install.ts
