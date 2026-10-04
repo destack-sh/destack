@@ -3,11 +3,11 @@ import { Scope, AccessName } from "@destack/sync";
 import { PolicyDescription, describePolicy } from "@destack/access/inspect";
 import { AuditActionDescription, describeAuditAction } from "@destack/audit/inspect";
 import { TABLE } from "@destack/db";
-import { defineSchema, schema, toJsonSchema } from "@destack/schema";
-import type { Method } from "../method/method.ts";
+import { graph } from "@destack/package";
+import { defineSchema, present, schema, toJsonSchema, type JsonValue } from "@destack/schema";
+
 import { METHOD_KINDS } from "../method/kind.ts";
 import type { ObjectType } from "../object/object.ts";
-import type { JsonValue } from "@destack/schema/json";
 
 /** One method as the manifest describes it. */
 export const MethodDescription = defineSchema(
@@ -17,7 +17,7 @@ export const MethodDescription = defineSchema(
         /** The states a transition leaves and the state it enters. */
         transition: schema
             .object({ from: schema.array(schema.string()), to: schema.string() })
-            .optional(),
+            .exactOptional(),
         /** The permission the caller needs on the target, or null for none. */
         permission: schema.string().min(1).nullable(),
         /** Whether the method changes state. */
@@ -31,7 +31,7 @@ export const MethodDescription = defineSchema(
         /** The result, as JSON Schema. */
         output: PayloadDescription,
         /** The audit action recording each audited call. */
-        audit: AuditActionDescription.optional(),
+        audit: AuditActionDescription.exactOptional(),
     }),
 );
 /** One method as the manifest describes it. */
@@ -46,26 +46,26 @@ export const ObjectDescription = defineSchema(
         plural: schema.string().min(1),
         /** The scope levels containing the objects. */
         scope: schema.array(AccessName),
-        /** The SQL name of the table holding the records. */
+        /** The SQL name of the table with the records. */
         table: schema.string().min(1),
-        /** The permission names callers may hold. */
+        /** The permission names callers may have. */
         permissions: schema.array(schema.string().min(1)),
         /** The relations and permissions access evaluates. */
         policy: PolicyDescription,
         /** The schema of one stack declaration, as JSON Schema. */
-        declaration: schema.json().optional(),
+        declaration: schema.json().exactOptional(),
         /** The methods callers may call, by name. */
         methods: schema.record(schema.string(), MethodDescription),
         /** The audit action recording each watch of read-audited objects. */
-        watch: AuditActionDescription.optional(),
+        watch: AuditActionDescription.exactOptional(),
         /** The permissions reading or writing guarded fields requires, by field. */
         fields: schema.record(
             schema.string(),
             schema.object({
                 /** The permission a caller needs to read the value. */
-                read: schema.string().min(1).optional(),
+                read: schema.string().min(1).exactOptional(),
                 /** The permission a caller needs to write the value. */
-                write: schema.string().min(1).optional(),
+                write: schema.string().min(1).exactOptional(),
             }),
         ),
     }),
@@ -75,49 +75,13 @@ export type ObjectDescription = schema.Infer<typeof ObjectDescription>;
 
 /** Describe an object type for the manifest. */
 export function describeObject(object: ObjectType): ObjectDescription {
-    // describe each method from its contract
-    const procedures = object.procedures as Record<
-        string,
-        {
-            readonly "~orpc": {
-                readonly route: { readonly method: string; readonly path: string };
-                readonly inputSchema: schema.Schema;
-                readonly outputSchema: schema.Schema;
-            };
-        }
-    >;
+    // describe each method from its procedure
     const methods: Record<string, MethodDescription> = {};
-    for (const [name, declared] of Object.entries(object.methods) as [string, Method][]) {
-        if (declared.isSystem) {
+    for (const [name, declared] of Object.entries(object.methods)) {
+        if (declared.isSystem === true) {
             continue;
         }
-        const contract = procedures[name]!["~orpc"];
-        methods[name] = {
-            kind: declared.kind,
-            permission: declared.permission,
-            mutates: declared.mutates,
-            isPredicted: declared.isPredicted,
-            ...(declared.transition
-                ? {
-                      transition: {
-                          from: [...declared.transition.from],
-                          to: declared.transition.to,
-                      },
-                  }
-                : {}),
-            route: { method: contract.route.method, path: contract.route.path },
-            input: schema.json().parse(toJsonSchema(contract.inputSchema)),
-            output: describePayload(contract.outputSchema)!,
-            ...(declared.mutates || object.isReadAudited
-                ? {
-                      audit: describeAuditAction(
-                          declared.mutates || declared.target
-                              ? object.audit(name)
-                              : object.audit(name, "collection"),
-                      ),
-                  }
-                : {}),
-        };
+        methods[name] = describeMethod(object, name, declared);
     }
 
     return ObjectDescription.parse({
@@ -145,9 +109,54 @@ export function describeObject(object: ObjectType): ObjectDescription {
     });
 }
 
+/** Describe one method of an object type from its procedure. */
+function describeMethod(
+    object: ObjectType,
+    name: string,
+    declared: ObjectType["methods"][string],
+): MethodDescription {
+    // read the method's procedure
+    const definition = present(object.procedures[name], `the procedure of ${name}`)["~orpc"];
+
+    return {
+        kind: declared.kind,
+        permission: declared.permission,
+        mutates: declared.mutates,
+        isPredicted: declared.isPredicted,
+        ...(declared.transition
+            ? {
+                  transition: {
+                      from: [...declared.transition.from],
+                      to: declared.transition.to,
+                  },
+              }
+            : {}),
+        route: {
+            method: present(definition.route.method, `the route method of ${name}`),
+            path: present(definition.route.path, `the route path of ${name}`),
+        },
+        input: schema
+            .json()
+            .parse(toJsonSchema(present(definition.inputSchema, `the input of ${name}`))),
+        output: present(
+            describePayload(present(definition.outputSchema, `the output of ${name}`)),
+            `the output description of ${name}`,
+        ),
+        ...(declared.mutates || object.isReadAudited
+            ? {
+                  audit: describeAuditAction(
+                      declared.mutates || declared.target
+                          ? object.audit(name)
+                          : object.audit(name, "collection"),
+                  ),
+              }
+            : {}),
+    };
+}
+
 /** List an object type's terms: its name, relations, permissions and methods. */
 export function objectVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
-    // define each term by the shape stored data depends on
+    // define each term by the shape stored rows depend on
     const description = ObjectDescription.parse(input);
     const { name, policy } = description;
     const terms: Record<string, JsonValue> = { [name]: { table: description.table } };
@@ -162,4 +171,21 @@ export function objectVocabulary(input: Record<string, JsonValue>): Record<strin
     }
 
     return terms;
+}
+
+/** List an object type's methods as its member symbols, each reading or writing the type's table. */
+export function objectSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
+    const object = ObjectDescription.parse(input);
+
+    return schema.array(graph.MemberSymbol).parse(
+        Object.entries(object.methods).map(([name, method]) => ({
+            member: { kind: "method", name, description: method },
+            relationships: [
+                {
+                    kind: method.mutates ? "writes" : "reads",
+                    symbol: { kind: "table", name: object.table },
+                },
+            ],
+        })),
+    );
 }

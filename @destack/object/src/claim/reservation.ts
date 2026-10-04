@@ -4,14 +4,14 @@ import { ObjectType } from "../object/object.ts";
 
 /** The names one request's write claims, reserved in the directory until the write commits. */
 export class Reservation {
-    /** The directory holding the claims. */
+    /** The directory with the claims. */
     readonly directory: Directory;
     /** The request whose write reserved them. */
     readonly requestId: string;
     /** The names each written object claims. */
     readonly owned: readonly ObjectClaims[];
 
-    /** Hold a request's reservation. */
+    /** Keep a request's reservation. */
     private constructor(directory: Directory, requestId: string, owned: readonly ObjectClaims[]) {
         this.directory = directory;
         this.requestId = requestId;

@@ -1,10 +1,34 @@
 import { through } from "@destack/access";
-import { index, type Column } from "@destack/db";
-import { LogPosition } from "@destack/db/log";
+import { index, LogPosition } from "@destack/db";
 import { schema } from "@destack/schema";
 import { field } from "../field/field.ts";
-import { method } from "../method/method.ts";
+import type { MethodBuilder } from "../method/method.ts";
+import type { ConstraintColumns, ObjectTable } from "./table.ts";
 import type { ObjectScope } from "./object.ts";
+
+/** The fields of an activity: one caller's session of changes to an object. */
+const activityFields = {
+    /** The principal whose changes the session keeps. */
+    caller: field.subject().caller(),
+    /** When the session's first change committed, in UTC epoch milliseconds. */
+    startedAt: field.time(),
+    /** When its latest change committed, in UTC epoch milliseconds. */
+    endedAt: field.time(),
+    /** The log position before the session. */
+    from: field.json(LogPosition),
+    /** The fields the session changed. */
+    fields: field.json(schema.array(schema.string())),
+    /** How many changes the session keeps. */
+    changes: field.integer(),
+};
+
+/** The table of activities, nested under the objects whose changes they keep. */
+export type ActivityTable = ObjectTable<
+    "activity",
+    ObjectScope,
+    typeof activityFields,
+    { readonly nested: { readonly in: "any"; readonly receive: "activity" } }
+>;
 
 /** Define a scope type's activities, one per caller's session of changes. */
 export function activity<const Scope extends ObjectScope>(scope: Scope) {
@@ -13,31 +37,21 @@ export function activity<const Scope extends ObjectScope>(scope: Scope) {
         plural: "activities",
         scope,
         nested: { in: "any", receive: "activity" },
-        fields: {
-            /** The principal whose changes the session holds. */
-            caller: field.subject().caller(),
-            /** When the session's first change committed, in UTC epoch milliseconds. */
-            startedAt: field.time(),
-            /** When its latest change committed, in UTC epoch milliseconds. */
-            endedAt: field.time(),
-            /** The log position before the session. */
-            from: field.json(LogPosition),
-            /** The fields the session changed. */
-            fields: field.json(schema.array(schema.string())),
-            /** How many changes the session holds. */
-            changes: field.integer(),
-        },
-        constraints: (entry: Readonly<Record<string, Column>>) => [
+        fields: activityFields,
+        constraints: (entry: ConstraintColumns<"activity", Scope, typeof activityFields>) => [
             index("activity_session").on(
-                entry.parentPackageId!,
-                entry.parentType!,
-                entry.parentId!,
-                entry.caller!,
-                entry.endedAt!,
+                entry.parentPackageId,
+                entry.parentType,
+                entry.parentId,
+                entry.caller,
+                entry.endedAt,
             ),
         ],
         permissions: { read: through("parent", "read") },
-        methods: { get: method.get("read"), list: method.list("read") },
+        methods: (method: MethodBuilder<ActivityTable>) => ({
+            get: method.get("read"),
+            list: method.list("read"),
+        }),
     } as const;
 }
 
@@ -62,7 +76,7 @@ export function checkpoint<const Scope extends ObjectScope>(scope: Scope) {
             read: through("parent", "read"),
             checkpoint: through("parent", "checkpoint"),
         },
-        methods: {
+        methods: (method: MethodBuilder<ObjectTable>) => ({
             get: method.get("read"),
             list: method.list("read"),
             create: {
@@ -82,6 +96,6 @@ export function checkpoint<const Scope extends ObjectScope>(scope: Scope) {
             },
             update: method.update("checkpoint", { fields: ["title", "description"] }),
             delete: method.delete("checkpoint"),
-        },
+        }),
     } as const;
 }

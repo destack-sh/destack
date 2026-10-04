@@ -3,6 +3,7 @@ export * from "./field/index.ts";
 export * from "./method/index.ts";
 export * from "./trait/index.ts";
 export * from "./replica/index.ts";
+export * from "./query/index.ts";
 export * from "./error/index.ts";
 export * from "./sequence/index.ts";
 export * from "./text/index.ts";

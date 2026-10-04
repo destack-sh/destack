@@ -1,6 +1,6 @@
 import * as audit from "@destack/audit/history";
 import { field } from "../field/field.ts";
-import { method } from "../method/method.ts";
+import type { MethodBuilder } from "../method/method.ts";
 import { INTRINSIC } from "./intrinsic.ts";
 import type { ObjectScope, ObjectType } from "./object.ts";
 
@@ -14,7 +14,10 @@ export function auditCall<const Scope extends ObjectScope>(scope: Scope) {
         represents: audit.call,
         permissions: audit.call.definition.permissions,
         audited: { reads: true },
-        methods: { get: method.get("read"), list: method.list("read") },
+        methods: (method: MethodBuilder<typeof audit.auditCall>) => ({
+            get: method.get("read"),
+            list: method.list("read"),
+        }),
     } as const;
 }
 
@@ -29,6 +32,8 @@ export function auditTarget<const Scope extends ObjectScope>(scope: Scope, call:
         permissions: audit.target.definition.permissions,
         fields: { call: field.reference(call) },
         audited: { reads: true },
-        methods: { list: method.list("read") },
+        methods: (method: MethodBuilder<typeof audit.auditTarget>) => ({
+            list: method.list("read"),
+        }),
     } as const;
 }

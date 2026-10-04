@@ -1,76 +1,92 @@
-import { and, eq, isNull, lte, or, type DatabaseConnection, type Table } from "@destack/db";
-import { schema, Duration } from "@destack/schema";
+import { and, eq, isNotNull, isNull, lte, or, type DatabaseConnection } from "@destack/db";
+import { schema, Duration, type JsonValue } from "@destack/schema";
 import { ServiceError } from "@destack/service";
 import type { Controller } from "@destack/service/control";
-import { Call } from "../method/call.ts";
-import { settlement } from "../method/settlement.ts";
-import type { Method } from "../method/method.ts";
+import { v7 } from "uuid";
+import type { Call } from "../method/call.ts";
+import { settlement, SettlementCall } from "../method/settlement.ts";
+import { Method } from "../method/method.ts";
 import type { ObjectServer } from "./server.ts";
-import { SystemAuthorization } from "./authorization.ts";
 
 /** The settlement and claim grace, in milliseconds: a minute, above any live server's settling. */
 const SETTLE_GRACE_MILLISECONDS = 60_000;
 
-/** The parts of a server settling calls. */
-type SettlingServer = Pick<ObjectServer, "objects" | "database" | "authorizer">;
+/** One recorded settlement. */
+type Settlement = typeof settlement.$inferSelect;
 
-/** One settlement row. */
-type SettlementRow = typeof settlement.$inferSelect;
-
-/** Settle calls' external work once, as try, confirm and cancel. */
+/** Settle calls' prepared work once: commit it or roll it back, as the settlement records the call's outcome. */
 export const Settlement = {
-    /** Reserve the call's settlement under its key. */
-    async reserve(database: DatabaseConnection, call: Call): Promise<Call> {
-        const key = call.key!;
-        await database
-            .insert(settlement)
-            .values({
-                id: key,
-                object: call.object.name,
-                method: call.name,
-                scope: call.scope,
-                target: call.id ?? null,
-                prepared: null,
-                createdAt: call.now,
-            })
-            .onConflictDoNothing();
+    /** Reserve a settlement for a call's external work under its idempotency key, returning the settlement's identifier. */
+    async reserve(database: DatabaseConnection, call: Call, key: string): Promise<string> {
+        const id = v7();
+        await database.insert(settlement).values({
+            id,
+            key,
+            object: call.object.name,
+            method: call.name,
+            scope: call.scope,
+            target: call.id ?? null,
+            prepared: null,
+            committedAt: null,
+            createdAt: call.now,
+        });
 
-        return call;
+        return id;
     },
 
-    /** Commit the call's prepared value and refuse a claimed settlement. */
-    async commit(transaction: DatabaseConnection, call: Call, prepared: unknown): Promise<void> {
+    /** Record a settlement's prepared value, refusing one a settler claimed meanwhile. */
+    async record(
+        database: DatabaseConnection,
+        id: string,
+        call: Call,
+        prepared: JsonValue,
+    ): Promise<void> {
+        const recorded = await database
+            .update(settlement)
+            .set({ prepared: { value: prepared } })
+            .where(and(eq(settlement.id, id), isNull(settlement.claimedAt)))
+            .returning({ id: settlement.id });
+        if (recorded.length === 0) {
+            refuseOutlasted(call);
+        }
+    },
+
+    /** Mark a settlement's call committed inside its transaction, refusing one a settler claimed meanwhile. */
+    async commit(
+        transaction: DatabaseConnection,
+        id: string,
+        call: Call,
+        now: number,
+    ): Promise<void> {
         const committed = await transaction
             .update(settlement)
-            .set({ prepared: { value: schema.json().parse(prepared) } })
+            .set({ committedAt: now })
             .where(
                 and(
-                    eq(settlement.id, call.key!),
-                    isNull(settlement.prepared),
+                    eq(settlement.id, id),
+                    isNotNull(settlement.prepared),
                     isNull(settlement.claimedAt),
                 ),
             )
             .returning({ id: settlement.id });
         if (committed.length === 0) {
-            throw new ServiceError("SERVICE_UNAVAILABLE", {
-                message: `${call.object.name}.${call.name} outlasted its settlement grace`,
-            });
+            refuseOutlasted(call);
         }
     },
 
     /** Claim a settlement unless another claim is fresh. */
     async claim(
         database: DatabaseConnection,
-        key: string,
+        id: string,
         now: number,
         grace = SETTLE_GRACE_MILLISECONDS,
-    ): Promise<SettlementRow | undefined> {
+    ): Promise<Settlement | undefined> {
         const [claimed] = await database
             .update(settlement)
             .set({ claimedAt: now })
             .where(
                 and(
-                    eq(settlement.id, key),
+                    eq(settlement.id, id),
                     or(isNull(settlement.claimedAt), lte(settlement.claimedAt, now - grace)),
                 ),
             )
@@ -80,62 +96,58 @@ export const Settlement = {
     },
 
     /** Forget a settlement once its call settled. */
-    async forget(database: DatabaseConnection, key: string): Promise<void> {
-        await database.delete(settlement).where(eq(settlement.id, key));
+    async forget(database: DatabaseConnection, id: string): Promise<void> {
+        await database.delete(settlement).where(eq(settlement.id, id));
     },
 
-    /** Settle one left settlement as the system, then forget it. */
-    async settle(server: SettlingServer, row: SettlementRow, now: number): Promise<void> {
+    /** Settle one claimed settlement as its row records: commit a committed call's work, roll back any other, then forget it. */
+    async settle(
+        server: Pick<ObjectServer, "objects" | "database">,
+        row: Settlement,
+        now: number,
+    ): Promise<void> {
         // find the method
         const object = server.objects.find((served) => served.name === row.object);
         if (object === undefined) {
             throw new TypeError(`settlement ${row.id} names unserved object ${row.object}`);
         }
-        const method = (object.methods as Readonly<Record<string, Method>>)[row.method]!;
+        const method = object.method(row.method);
+        const declared = method.prepared;
+        if (declared === undefined || !Method.settles(method)) {
+            throw new TypeError(
+                `settlement ${row.id} names ${row.object}.${row.method}, which settles no prepared work`,
+            );
+        }
 
-        // rebuild the call as the system
-        const table = object.table as Table & Record<string, never>;
-        const [target] =
-            row.target === null
-                ? []
-                : await server.database.select().from(table).where(eq(table.id, row.target));
-        const authorization = await SystemAuthorization.open(
-            server.authorizer,
-            server.database,
-            row.scope,
-            now,
-        );
-        const call = new Call({
+        // rebuild the recorded call and its prepared value
+        const call = new SettlementCall({
             object,
             name: row.method,
-            method,
             scope: row.scope,
-            chain: authorization.chain,
-            input: {},
-            ...(row.target === null ? {} : { id: row.target }),
-            ...(target === undefined ? {} : { target: target as never }),
-            key: row.id,
+            id: row.target ?? undefined,
+            idempotencyKey: row.key,
             database: server.database,
             now,
-            isPredicted: false,
-            authorization,
-            objects: server.objects,
         });
+        const prepared = row.prepared === null ? undefined : declared.parse(row.prepared.value);
 
-        // confirm a committed call
-        if (row.prepared !== null) {
-            const prepared = row.prepared.value;
-            await method.settle!(call.with({ prepared }), prepared, true);
-        }
-        // cancel an uncommitted call
-        else {
-            await method.settle!(call, undefined, false);
+        // commit a committed call's work, and roll back the work of any other
+        if (row.committedAt !== null) {
+            if (prepared === undefined) {
+                throw new TypeError(`settlement ${row.id} committed without its prepared value`);
+            }
+            await method.commit?.(call, prepared);
+        } else {
+            await method.rollback?.(call, prepared);
         }
         await Settlement.forget(server.database, row.id);
     },
 
     /** Settle what servers left once the grace passes. */
-    controller(server: SettlingServer, options: { readonly grace?: Duration } = {}): Controller {
+    controller(
+        server: Pick<ObjectServer, "objects" | "database">,
+        options: { readonly grace?: Duration } = {},
+    ): Controller {
         const grace =
             options.grace === undefined
                 ? SETTLE_GRACE_MILLISECONDS
@@ -143,8 +155,8 @@ export const Settlement = {
 
         return {
             name: "settlement",
-            watches: [settlement as Table],
-            keys: (change) => [String((change.key as { id: string }).id)],
+            watches: [settlement],
+            keys: (change) => [schema.string().parse(change.key["id"])],
             list: async () =>
                 (await server.database.select({ id: settlement.id }).from(settlement)).map(
                     (row) => row.id,
@@ -174,3 +186,10 @@ export const Settlement = {
         };
     },
 };
+
+/** Refuse a call whose settlement a settler claimed after its grace passed. */
+function refuseOutlasted(call: Call): never {
+    throw new ServiceError("SERVICE_UNAVAILABLE", {
+        message: `${call.object.name}.${call.name} outlasted its settlement grace`,
+    });
+}

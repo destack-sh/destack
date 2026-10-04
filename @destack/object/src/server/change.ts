@@ -1,7 +1,17 @@
-import type { DatabaseConnection, Row, Table } from "@destack/db";
-import { DatabaseError } from "@destack/db/error";
-import { Log, type Change } from "@destack/db/log";
-import { Condition, type Match } from "@destack/db/query";
+import {
+    Change,
+    type DatabaseConnection,
+    type Row,
+    type Table,
+    DatabaseError,
+    Key,
+    Log,
+    Condition,
+    Namespace,
+    Predicate,
+    type Match,
+} from "@destack/db";
+import { found, schema } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
 import type {
     ChangeOperation,
@@ -86,13 +96,19 @@ export class ChangeController implements Controller {
     /** Record the runs of a trigger's admitted changes since its slot, advance the slot past them, and look again before the slot lapses. */
     async reconcile(key: string): Promise<number> {
         // continue after the trigger's slot, or start it
-        const trigger = this.#followed.get(key)!;
+        const trigger = found(this.#followed, key);
         const change = trigger.on.change;
         const table = ChangeController.#table(trigger);
         const log = new Log(this.#database);
         const slot = `trigger/${key}`;
         const epoch = await log.epoch();
-        const match = change.where && Condition.compile(change.where, table);
+        const match =
+            change.where === undefined
+                ? undefined
+                : Predicate.compile(
+                      Condition.resolve(change.where, Namespace.fields(table)),
+                      table,
+                  );
         let after = (await log.slot(slot)) ?? (await this.#start(trigger, slot, epoch));
 
         // record each admitted change page by page, advancing the slot after each page
@@ -141,22 +157,22 @@ export class ChangeController implements Controller {
             return sequence;
         }
 
-        // record every matching row at the snapshot's position as created, page by page in identifier order, advancing its slot
+        // record the snapshot's matching rows as created, page by page
         const snapshot = log.at({ epoch, sequence });
         const table = ChangeController.#table(trigger);
         let last: Row | undefined;
         for (;;) {
             await log.advance(snapshotSlot, sequence, this.#now() + change.maxLag);
             const rows = await snapshot.ordered(table, {
-                where: change.where ?? Condition.all(),
-                order: [{ column: "id", direction: "asc" }],
-                ...(last === undefined ? {} : { after: { id: last.id } }),
-                count: SNAPSHOT_PAGE_ROWS,
+                where: change.where ?? {},
+                orderBy: { id: "asc" },
+                ...(last === undefined ? {} : { after: last }),
+                limit: SNAPSHOT_PAGE_ROWS,
             });
             const created = rows.map((row) => ({
                 position: { epoch, sequence },
                 operation: "create" as const,
-                key: { id: row.id },
+                key: Key.of(table, row),
                 after: row,
             }));
             await this.#record(trigger, created);
@@ -173,11 +189,12 @@ export class ChangeController implements Controller {
         return sequence;
     }
 
-    /** Record the runs of some changes' calls, once per change and snapshot row, several at a time; a change whose call fails to build is reported and passed over. */
+    /** Record the runs of some changes' calls once per change and snapshot row, reporting a change whose call fails to build. */
     async #record(trigger: ChangeTrigger, changes: readonly ObjectChange[]): Promise<void> {
         // build each change's request, reporting and passing over a change the trigger builds no call of
         const requests = changes.flatMap((change) => {
-            const key = change.key === undefined ? {} : { key: String(change.key.id) };
+            const key =
+                change.key === undefined ? {} : { key: schema.string().parse(change.key["id"]) };
             try {
                 const call = trigger.call(change);
 
@@ -200,7 +217,7 @@ export class ChangeController implements Controller {
             }
         });
 
-        // send them several at a time; the cell orders a trigger's runs by the requests their events derive
+        // send them several at a time in request order
         for (let start = 0; start < requests.length; start += SEND_CONCURRENCY) {
             const chunk = requests.slice(start, start + SEND_CONCURRENCY);
             await Promise.all(chunk.map((request) => this.#runs.send(request)));
@@ -214,7 +231,13 @@ export class ChangeController implements Controller {
 
     /** Read the table of a trigger's object type. */
     static #table(trigger: ChangeTrigger): Table {
-        return (trigger.on.change.object as ObjectType).table as Table;
+        // refuse a trigger following another kind of declaration
+        const object = trigger.on.change.object;
+        if (!ObjectType.is(object)) {
+            throw new TypeError(`trigger ${trigger.name} follows no object type`);
+        }
+
+        return object.table;
     }
 
     /** See a change through a trigger's condition: entering rows created, leaving rows deleted. */
@@ -225,10 +248,12 @@ export class ChangeController implements Controller {
         match: Match | undefined,
     ): ObjectChange | undefined {
         // match each image and classify the change by the matching images
+        const image = { before: Change.before(change), after: Change.after(change) };
         const before =
-            change.before && (match === undefined || Condition.matches(match, change.before));
+            image.before !== null &&
+            (match === undefined || Predicate.matches(match, image.before));
         const after =
-            change.after && (match === undefined || Condition.matches(match, change.after));
+            image.after !== null && (match === undefined || Predicate.matches(match, image.after));
         const operation: ChangeOperation | undefined =
             before && after ? "update" : after ? "create" : before ? "delete" : undefined;
         if (operation === undefined || !trigger.on.change.operations.includes(operation)) {
@@ -238,8 +263,8 @@ export class ChangeController implements Controller {
         return {
             position: { epoch, sequence: change.sequence },
             operation,
-            ...(before ? { before: change.before } : {}),
-            ...(after ? { after: change.after } : {}),
+            ...(before && image.before !== null ? { before: image.before } : {}),
+            ...(after && image.after !== null ? { after: image.after } : {}),
         };
     }
 }

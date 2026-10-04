@@ -2,8 +2,8 @@
 export function kebabCase(name: string): string {
     // split words and acronyms
     const split = name
-        .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-        .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2");
+        .replace(/([a-z0-9])([A-Z])/gu, "$1-$2")
+        .replace(/([A-Z])([A-Z][a-z])/gu, "$1-$2");
 
     return split.toLowerCase();
 }
@@ -15,7 +15,7 @@ export function snakeCase(name: string): string {
 
 /** Write a kebab-case name in camel case. */
 export function camelCase(name: string): string {
-    return name.replace(/-([a-z0-9])/g, (_match, letter: string) => letter.toUpperCase());
+    return name.replace(/-([a-z0-9])/gu, (_match, letter: string) => letter.toUpperCase());
 }
 
 /** Write a kebab-case name in Pascal case. */

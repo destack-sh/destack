@@ -1,6 +1,6 @@
 import * as access from "@destack/access";
 import { Scope, type ObjectReference } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
+import { Snapshot, TABLE, eq, type Select, type Table } from "@destack/db";
 import {
     ACCESS_MAPPINGS,
     accessProposal,
@@ -9,10 +9,9 @@ import {
     PermissionReference,
     type TableMapping,
 } from "@destack/access";
-import { eq, type Table } from "@destack/db";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { type Call } from "../method/call.ts";
-import { method, type Method } from "../method/method.ts";
+import type { Method, MethodBuilder } from "../method/method.ts";
 import { INTRINSIC } from "./intrinsic.ts";
 import type { ObjectScope } from "./object.ts";
 
@@ -21,11 +20,6 @@ const RolePermissions = schema.object({
     /** The permissions the role grants. */
     permissions: schema.array(PermissionReference),
 });
-
-/** A role's input. */
-type RoleInput = { readonly name: string; readonly description: string } & schema.Infer<
-    typeof RolePermissions
->;
 
 /** Define a scope type's roles as objects. */
 export function role<const Scope extends ObjectScope>(scope: Scope) {
@@ -36,7 +30,7 @@ export function role<const Scope extends ObjectScope>(scope: Scope) {
         scope,
         represents: access.role,
         permissions: access.role.definition.permissions,
-        methods: {
+        methods: (method: MethodBuilder<typeof accessRole>) => ({
             get: method.get("read"),
             list: method.list("read"),
             create: unpredicted(
@@ -44,15 +38,45 @@ export function role<const Scope extends ObjectScope>(scope: Scope) {
                     fields: ["name", "description"],
                     input: RolePermissions,
                 }),
-            ).handle(createRole),
+            ).handle(async (call) => {
+                // create the role through the access role API
+                const { name, description, permissions } = call.input;
+                const created = await call
+                    .requireAuthorization()
+                    .createRole(await scopeObject(call), { name, description, permissions });
+
+                return readRow(call, created.id);
+            }),
             update: unpredicted(
                 method.update("update", {
                     fields: ["name", "description"],
-                    input: RolePermissions.partial(),
+                    input: schema.object({
+                        permissions: schema.array(PermissionReference).exactOptional(),
+                    }),
                 }),
-            ).handle(updateRole),
-            delete: unpredicted(method.delete("delete")).handle(deleteRole),
-        },
+            ).handle(async (call) => {
+                // change the given values at the loaded revision
+                const { name, description, permissions } = call.input;
+                await call
+                    .requireAuthorization()
+                    .updateRole(await scopeObject(call), call.target.id, {
+                        ...(name === undefined ? {} : { name }),
+                        ...(description === undefined ? {} : { description }),
+                        ...(permissions === undefined ? {} : { permissions }),
+                        revision: call.target.revision,
+                    });
+
+                return readRow(call, call.target.id);
+            }),
+            delete: unpredicted(method.delete("delete")).handle(async (call) => {
+                // delete the unbound role at the loaded revision
+                await call
+                    .requireAuthorization()
+                    .deleteRole(await scopeObject(call), call.target.id, call.target.revision);
+
+                return {};
+            }),
+        }),
     } as const;
 }
 
@@ -65,7 +89,10 @@ export function relationship<const Scope extends ObjectScope>(scope: Scope) {
         scope,
         represents: access.relationship,
         permissions: access.relationship.definition.permissions,
-        methods: { get: method.get("read"), list: method.list("read") },
+        methods: (method: MethodBuilder<typeof accessRelationship>) => ({
+            get: method.get("read"),
+            list: method.list("read"),
+        }),
     } as const;
 }
 
@@ -78,7 +105,10 @@ export function proposal<const Scope extends ObjectScope>(scope: Scope) {
         scope,
         represents: access.proposal,
         permissions: access.proposal.definition.permissions,
-        methods: { get: method.get("read"), list: method.list("read") },
+        methods: (method: MethodBuilder<typeof accessProposal>) => ({
+            get: method.get("read"),
+            list: method.list("read"),
+        }),
     } as const;
 }
 
@@ -87,57 +117,25 @@ function unpredicted<Declared extends Method>(declared: Declared): Declared {
     return { ...declared, isPredicted: false };
 }
 
-/** Create a role through the access role API. */
-async function createRole(call: Call): Promise<unknown> {
-    const { name, description, permissions } = call.input as RoleInput;
-    const created = await call.served().createRole(await scopeObject(call), {
-        name,
-        description,
-        permissions,
-    });
-
-    return readRow(call, created.id);
-}
-
-/** Update a role at the call's revision. */
-async function updateRole(call: Call): Promise<unknown> {
-    // change the named values at the loaded revision
-    const target = call.target as { readonly id: string; readonly revision: number };
-    const { name, description, permissions } = call.input as Partial<RoleInput>;
-    await call.served().updateRole(await scopeObject(call), target.id, {
-        ...(name === undefined ? {} : { name }),
-        ...(description === undefined ? {} : { description }),
-        ...(permissions === undefined ? {} : { permissions }),
-        revision: target.revision,
-    });
-
-    return readRow(call, target.id);
-}
-
-/** Delete an unbound role at the call's revision. */
-async function deleteRole(call: Call): Promise<unknown> {
-    const target = call.target as { readonly id: string; readonly revision: number };
-    await call.served().deleteRole(await scopeObject(call), target.id, target.revision);
-
-    return {};
-}
-
 /** Name the scope object of the call's scope. */
 function scopeObject(call: Call): Promise<ObjectReference> {
     return Scope.object(Snapshot.live(call.database), call.scope);
 }
 
 /** Read one role row as the method's result. */
-async function readRow(call: Call, id: string): Promise<Record<string, unknown>> {
-    const [row] = await call.database
-        .select()
-        .from(accessRole)
-        .where(eq(accessRole.id, id as never));
+async function readRow(
+    call: Call,
+    id: Select<typeof accessRole>["id"],
+): Promise<Select<typeof accessRole>> {
+    const [row] = await call.database.select().from(accessRole).where(eq(accessRole.id, id));
 
-    return row as Record<string, unknown>;
+    return present(row, `role ${id}`);
 }
 
 /** Read how access maps one of its own tables. */
 function mappingOf(table: Table): TableMapping {
-    return ACCESS_MAPPINGS.find((mapping) => mapping.table === table)!;
+    return present(
+        ACCESS_MAPPINGS.find((mapping) => mapping.table === table),
+        `the access mapping of ${table[TABLE].name}`,
+    );
 }

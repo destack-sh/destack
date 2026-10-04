@@ -1,44 +1,55 @@
 import { Address, type Plan, type Step } from "@destack/resource";
-import { v7 } from "uuid";
 import { Scope } from "@destack/sync";
 import { Authorizer, type Policy } from "@destack/access";
-import { Snapshot } from "@destack/db/log";
 import {
+    Snapshot,
     and,
-    type Column,
+    type ColumnValue,
     type DatabaseConnection,
     eq,
     type Insert,
+    type Row,
+    type ColumnBuilder,
+    type TableColumnMap,
     isNull,
     type Select,
+    sql,
     TABLE,
     type Table,
 } from "@destack/db";
-import type { schema } from "@destack/schema";
-import { canonicalize } from "@destack/schema/json";
+import {
+    canonicalize,
+    found,
+    Identifier,
+    schema,
+    type JsonObject,
+    type JsonValue,
+} from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
-import type { ObjectType } from "../object/object.ts";
-import { Manager, type ManagedColumnMap } from "../trait/declarable.ts";
+import type { ObjectOf, ObjectType } from "../object/object.ts";
+import { Manager, managedColumns } from "../trait/declarable.ts";
+import type { RecordBuilderMap } from "../trait/record.ts";
+import type { FieldColumn } from "../field/field.ts";
 import type { Directory } from "@destack/directory";
 import { Reservation } from "../claim/index.ts";
 import { Moved } from "@destack/directory";
 import type { ObjectServer } from "./server.ts";
+import type { Invoke, Invoker } from "../method/call.ts";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import type { Identifier } from "@destack/schema";
 
-/** A table of managed records: their identity, revision and manager. */
-type ManagedTable = Table &
-    ManagedColumnMap & {
-        /** The record identifier. */
-        readonly id: Column;
-        /** The scope the record lives in. */
-        readonly scope: Column;
-        /** The last modification time. */
-        readonly updatedAt: Column;
-        /** The revision used by conditional updates. */
-        readonly revision: Column;
-    };
+/** The columns a declared record has, whichever table keeps it: its identity, revision and manager. */
+type ManagedColumns = TableColumnMap<
+    Pick<RecordBuilderMap, "id" | "createdAt" | "updatedAt" | "revision"> & {
+        scope: ColumnBuilder<FieldColumn<string, true, false>>;
+    } & ReturnType<typeof managedColumns>
+>;
+
+/** One section of a stack document: declarations by name. */
+const DECLARED = schema.record(schema.string(), schema.unknown());
+
+/** A table of declared records, a derived object's or another package's. */
+export type ManagedTable = Table<string, ManagedColumns> & ManagedColumns;
 
 /** How a stack's declarations of one object type become its managed records. */
 export interface ObjectDeclaration<
@@ -46,21 +57,21 @@ export interface ObjectDeclaration<
     Collected = unknown,
     Resolved = unknown,
 > {
-    /** The database holding the records, the document's database when absent. */
+    /** The database with the records, the document's database when absent. */
     readonly database?: DatabaseConnection;
     /** The object types applied before and retired after this one, or "every". */
     readonly after?: readonly ObjectType[] | "every";
     /** The document keys read, the object's plural by default. */
     readonly keys?: readonly string[];
     /** Select the declarations from a document, the object's plural collection by default. */
-    collect?(document: Readonly<Record<string, unknown>>): Readonly<Record<string, Collected>>;
+    collect?(document: JsonObject): Readonly<Record<string, Collected>>;
     /** Resolve references within a declaration, returning it unchanged by default. */
     resolve?(name: string, declared: Collected, stack: Stack): Promise<Resolved>;
     /** Map a resolved declaration to the columns it determines. */
     values(name: string, resolved: Resolved, stack: Stack): Partial<Insert<Object["table"]>>;
     /** Write a changed record's revision and update time. */
     touch?(row: Select<Object["table"]>, now: number): Partial<Insert<Object["table"]>>;
-    /** Report changes held outside the record's own columns. */
+    /** Report changes kept outside the record's own columns. */
     changed?(
         database: DatabaseConnection,
         row: Select<Object["table"]>,
@@ -95,21 +106,21 @@ export interface ApplyOptions {
     /** The scope containing the declared records. */
     readonly scope: string;
     /** The stack's document, keyed by collection. */
-    readonly document: Readonly<Record<string, unknown>>;
+    readonly document: JsonObject;
     /** Report the changes to records in other databases without writing them. */
     readonly isDry?: boolean;
     /** Further policies of declared objects. */
     readonly policies?: readonly Policy[];
-    /** The directory with the claims of unique indexes, in the global database. */
+    /** The directory with the claims of unique indexes, kept by the account service. */
     readonly directory?: Directory;
     /** The object server running the declarations' system calls. */
-    readonly server?: Pick<ObjectServer, "invoke">;
+    readonly server?: Pick<ObjectServer, "invoker">;
     /** Open the build of a package's release in the scope, the installation's when given. */
     readonly release?: Stack["release"];
 }
 
 /** An object type beside how its declarations become records. */
-type Declared = ObjectDeclaration & { readonly object: ObjectType };
+type TypeDeclaration = ObjectDeclaration & { readonly object: ObjectOf<{ table: ManagedTable }> };
 
 /** A stack applied in one scope: its manager's document, and the lookups and system methods its declarations use. */
 export class Stack {
@@ -118,7 +129,7 @@ export class Stack {
     /** The installation and package applying the stack. */
     readonly manager: Omit<Manager, "name">;
     /** The stack's document, keyed by collection. */
-    readonly document: Readonly<Record<string, unknown>>;
+    readonly document: JsonObject;
     /** The time the stack is applied, in UTC milliseconds. */
     readonly now: number;
     /** The policies validating declared access. */
@@ -128,18 +139,18 @@ export class Stack {
     /** What the host applies the stack with. */
     readonly #options: ApplyOptions;
     /** The declared object types in dependency order. */
-    readonly #ordered: readonly Declared[];
+    readonly #ordered: readonly TypeDeclaration[];
     /** The object type whose records the transaction writes, absent outside one. */
-    readonly #writing: Declared | undefined;
+    readonly #writing: TypeDeclaration | undefined;
 
     /** Keep a stack's inputs, its ordered object types and the transaction of one of them. */
     private constructor(
         options: ApplyOptions,
-        ordered: readonly Declared[],
+        ordered: readonly TypeDeclaration[],
         authorizer: Authorizer,
         now: number,
         database: DatabaseConnection,
-        writing?: Declared,
+        writing?: TypeDeclaration,
     ) {
         // keep the stack
         this.scope = options.scope;
@@ -159,11 +170,14 @@ export class Stack {
     static async apply(options: ApplyOptions): Promise<Plan> {
         // pair each object type with its declaration
         const declared = options.objects.map((object) => {
-            if (object.declaration === undefined) {
+            // require a declaration on a declarable type
+            const declaration = object.declaration;
+            const managed = managedType(object);
+            if (declaration === undefined || managed === undefined) {
                 throw new TypeError(`object ${object.name} has no declaration`);
             }
 
-            return { ...object.declaration, object };
+            return { ...declaration, object: managed };
         });
 
         // require the directory for declared objects with indexes
@@ -184,7 +198,7 @@ export class Stack {
                 throw new ObjectError("UNSUPPORTED_DECLARATION", `this host cannot apply ${key}`);
             }
             const collected = readers.map((entry) => Object.keys(collect(entry, options.document)));
-            for (const name of Object.keys(value as Record<string, unknown>)) {
+            for (const name of Object.keys(DECLARED.parse(value))) {
                 const count = collected.filter((names) => names.includes(name)).length;
                 if (count === 0) {
                     throw new ObjectError(
@@ -221,8 +235,8 @@ export class Stack {
         const database = targetRoot === root ? this.database : targetRoot;
 
         // match by manager and name
-        const table = target.object.table as ManagedTable;
-        const [row] = (await database
+        const table = target.object.table;
+        const [row] = await database
             .select({ id: table.id })
             .from(table)
             .where(
@@ -232,7 +246,7 @@ export class Stack {
                     eq(table.managerPackageId, this.manager.packageId),
                     eq(table.managerName, name),
                 ),
-            )) as { id: string }[];
+            );
 
         return row?.id;
     }
@@ -250,24 +264,27 @@ export class Stack {
 
     /** Stop applying until a dependency is ready, reporting why. */
     wait(message: string): never {
-        throw new Waiting(message);
+        throw new DependencyWait(message);
     }
 
-    /** Run a system method in the transaction and scope. */
-    invoke(
-        object: ObjectType,
-        name: string,
-        input: Readonly<Record<string, unknown>>,
-    ): Promise<unknown> {
-        // require the server running system calls
+    /** Call an object type's system methods in the transaction and scope. */
+    invoke<Object extends ObjectType>(object: Object): Invoker<Object> {
+        return this.invoker()<Object>(object);
+    }
+
+    /** Call object types' system methods in the stack's transaction as one function. */
+    invoker(): Invoke {
+        // refuse every invocation without the server running system calls
         const { server } = this.#options;
         if (server === undefined) {
-            throw new TypeError(
-                `the stack invokes ${object.name}.${name}, but no object server runs it`,
-            );
+            return (object) => {
+                throw new TypeError(
+                    `the stack invokes ${object.name}, but no object server runs it`,
+                );
+            };
         }
 
-        return server.invoke(this.database, this.scope, object, name, input, this.now);
+        return server.invoker(this);
     }
 
     /** Open the build of a package's release in the scope, the installation's when given. */
@@ -287,7 +304,7 @@ export class Stack {
     async #apply(): Promise<Plan> {
         // write each type in order
         const steps: Step[] = [];
-        const resolved = new Map<Declared, ReadonlyMap<string, unknown>>();
+        const resolved = new Map<TypeDeclaration, ReadonlyMap<string, unknown>>();
         for (const declaration of this.#ordered) {
             try {
                 await this.#transact(declaration, async (stack) => {
@@ -308,7 +325,7 @@ export class Stack {
                 });
             } catch (error) {
                 // stop at a wait
-                if (error instanceof Waiting) {
+                if (error instanceof DependencyWait) {
                     return { steps, deferred: error.message };
                 }
                 throw error;
@@ -316,9 +333,9 @@ export class Stack {
         }
 
         // retire in reverse order
-        for (const declaration of [...this.#ordered].reverse()) {
+        for (const declaration of this.#ordered.toReversed()) {
             await this.#transact(declaration, async (stack) => {
-                steps.push(...(await stack.#retire(declaration, resolved.get(declaration)!)));
+                steps.push(...(await stack.#retire(declaration, found(resolved, declaration))));
             });
         }
 
@@ -326,7 +343,10 @@ export class Stack {
     }
 
     /** Run a step in a transaction on an object type's database, reserving and confirming its index keys. */
-    async #transact(declaration: Declared, step: (stack: Stack) => Promise<void>): Promise<void> {
+    async #transact(
+        declaration: TypeDeclaration,
+        step: (stack: Stack) => Promise<void>,
+    ): Promise<void> {
         // pick the database and the directory
         const options = this.#options;
         const root = declaration.database ?? options.database;
@@ -341,9 +361,10 @@ export class Stack {
                     database,
                     chain.map((link) => link.object.id),
                 );
-                const moved = chain.find((link) => link.movedTo !== undefined);
-                if (moved !== undefined) {
-                    throw Moved.error({ scope: moved.object.id, cell: moved.movedTo! });
+                for (const link of chain) {
+                    if (link.movedTo !== undefined) {
+                        throw Moved.error({ scope: link.object.id, cell: link.movedTo });
+                    }
                 }
 
                 // run the step in the transaction
@@ -375,7 +396,7 @@ export class Stack {
     }
 
     /** Select an object type's declaration by type or name. */
-    #select(object: ObjectType | string): Declared {
+    #select(object: ObjectType | string): TypeDeclaration {
         const target = this.#ordered.find((entry) =>
             typeof object === "string" ? entry.object.name === object : entry.object.same(object),
         );
@@ -388,9 +409,10 @@ export class Stack {
     }
 
     /** Read the manager's records of one object type in the scope, by declaration name. */
-    async #records(declaration: Declared): Promise<Map<string, Select<ManagedTable>>> {
-        const table = declaration.object.table as ManagedTable;
-        const rows = (await this.database
+    async #records(declaration: TypeDeclaration): Promise<Map<string, Select<ManagedTable>>> {
+        // read the records the manager declared, leaving out purged ones
+        const table = declaration.object.table;
+        const rows = await this.database
             .select()
             .from(table)
             .where(
@@ -399,114 +421,184 @@ export class Stack {
                     eq(table.managerInstallationId, this.manager.installationId),
                     eq(table.managerPackageId, this.manager.packageId),
                     "purgedAt" in table[TABLE].columns
-                        ? isNull((table as ManagedTable & Record<string, Column>).purgedAt!)
+                        ? isNull(table[TABLE].column("purgedAt"))
                         : undefined,
                 ),
-            )) as Select<ManagedTable>[];
+            );
 
-        return new Map(rows.map((row) => [row.managerName as string, row]));
+        // key each record by the name its manager declared it under
+        return new Map(
+            rows.map((row) => {
+                if (row.managerName === null) {
+                    throw new TypeError(
+                        `${declaration.object.name} ${row.id} has a manager but no name`,
+                    );
+                }
+
+                return [row.managerName, row];
+            }),
+        );
     }
 
     /** Whether to only report an object type's changes. */
-    #isDry(declaration: Declared): boolean {
+    #isDry(declaration: TypeDeclaration): boolean {
         return this.#options.isDry === true && declaration.database !== undefined;
     }
 
     /** Create missing records and update changed attached ones. */
-    async #write(declaration: Declared, desired: ReadonlyMap<string, unknown>): Promise<Step[]> {
+    async #write(
+        declaration: TypeDeclaration,
+        desired: ReadonlyMap<string, unknown>,
+    ): Promise<Step[]> {
         // read existing records
-        const isDry = this.#isDry(declaration);
-        const { database, manager, now } = this;
-        const table = declaration.object.table as ManagedTable;
         const existing = await this.#records(declaration);
-        const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
         const steps: Step[] = [];
         for (const [name, resolved] of desired) {
-            // create a missing record
-            const row = existing.get(name) as Record<string, unknown> | undefined;
-            const values = declaration.values(name, resolved, this) as Record<string, unknown>;
+            // create a missing record, or update a changed attached record
+            const row = existing.get(name);
+            const values = declaration.values(name, resolved, this);
             requireColumns(declaration.object, values);
-            const changed = row === undefined ? {} : difference(row, values);
-            if (!row) {
-                const target = Address.join(declaration.object.name, name);
-                steps.push({ action: "create", target, risk: "safe", detail: "declare" });
-                if (!isDry) {
-                    const created = {
-                        id: `${declaration.object.identity}-${v7()}`,
-                        createdAt: now,
-                        updatedAt: now,
-                        ...values,
-                        scope: this.scope,
-                        ...Manager.values({ ...manager, name }),
-                    } as Insert<Table>;
-                    await database.insert(table).values(created);
-                    const id = (created as Record<string, unknown>).id;
-                    await declaration.written?.(this, (await read(database, table, id))!, resolved);
-                }
-            }
-            // update a changed attached record
-            else if (
-                Manager.isManaging(row) &&
-                (Object.keys(changed).length > 0 ||
-                    (isDeletable && row.deletionRequestedAt !== null) ||
-                    (await declaration.changed?.(database, row as never, resolved)))
-            ) {
-                const fields = {
-                    ...changed,
-                    ...(isDeletable && row.deletionRequestedAt !== null
-                        ? { deletionRequestedAt: { before: row.deletionRequestedAt, after: null } }
-                        : {}),
-                };
-                steps.push({
-                    action: "update",
-                    target: Address.join(declaration.object.name, name),
-                    risk: "safe",
-                    detail: Object.keys(fields).length > 0 ? "change declared fields" : "refresh",
-                    fields: fields as Step["fields"],
-                });
-                if (!isDry) {
-                    await database
-                        .update(table)
-                        .set({
-                            ...values,
-                            ...("generation" in table[TABLE].columns
-                                ? { generation: (row.generation as number) + 1 }
-                                : {}),
-                            ...(isDeletable ? { deletionRequestedAt: null, deletedBy: null } : {}),
-                            ...(declaration.touch?.(row as never, now) ?? {
-                                revision: (row.revision as number) + 1,
-                                updatedAt: now,
-                            }),
-                        } as Partial<Insert<Table>>)
-                        .where(eq(table.id, row.id));
-                    await declaration.written?.(
-                        this,
-                        (await read(database, table, row.id))!,
-                        resolved,
-                    );
-                }
+            if (row === undefined) {
+                steps.push(await this.#createDeclared(declaration, name, resolved, values));
+            } else {
+                steps.push(
+                    ...(await this.#updateDeclared(declaration, name, resolved, row, values)),
+                );
             }
         }
 
         return steps;
     }
 
+    /** Create the record of a declaration missing one. */
+    async #createDeclared(
+        declaration: TypeDeclaration,
+        name: string,
+        resolved: unknown,
+        values: ReturnType<TypeDeclaration["values"]>,
+    ): Promise<Step> {
+        // plan the creation
+        const { database, manager, now } = this;
+        const target = Address.join(declaration.object.name, name);
+        const step: Step = { action: "create", target, risk: "safe", detail: "declare" };
+        if (this.#isDry(declaration)) {
+            return step;
+        }
+
+        // insert the record under the manager
+        const table = declaration.object.table;
+        const columns: Table = table;
+        const id = declaration.object.generateId();
+        await database.insert(columns).values({
+            id,
+            createdAt: now,
+            updatedAt: now,
+            ...values,
+            scope: this.scope,
+            ...Manager.values({ ...manager, name }),
+        });
+        await declaration.written?.(this, await read(database, table, id), resolved);
+
+        return step;
+    }
+
+    /** Update an attached record whose declaration changed, restoring it from a deletion request. */
+    async #updateDeclared(
+        declaration: TypeDeclaration,
+        name: string,
+        resolved: unknown,
+        row: Select<ManagedTable>,
+        values: ReturnType<TypeDeclaration["values"]>,
+    ): Promise<Step[]> {
+        // skip a detached or unchanged record
+        const { database } = this;
+        const table = declaration.object.table;
+        const changed = difference(table, row, values);
+        const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
+        const record: Row = row;
+        const deletion = isDeletable
+            ? jsonOf(table, "deletionRequestedAt", record["deletionRequestedAt"])
+            : null;
+        if (
+            !Manager.isManaging(row) ||
+            (Object.keys(changed).length === 0 &&
+                deletion === null &&
+                (await declaration.changed?.(database, row, resolved)) !== true)
+        ) {
+            return [];
+        }
+
+        // plan the update of the changed fields
+        const fields = {
+            ...changed,
+            ...(deletion === null
+                ? {}
+                : { deletionRequestedAt: { before: deletion, after: null } }),
+        };
+        const step: Step = {
+            action: "update",
+            target: Address.join(declaration.object.name, name),
+            risk: "safe",
+            detail: Object.keys(fields).length > 0 ? "change declared fields" : "refresh",
+            fields,
+        };
+        if (this.#isDry(declaration)) {
+            return [step];
+        }
+
+        // write the declared values as a new revision
+        await this.#rewrite(declaration, row, values);
+        await declaration.written?.(this, await read(database, table, row.id), resolved);
+
+        return [step];
+    }
+
+    /** Write a declaration's values over an attached record as a new revision, lifting a deletion request. */
+    async #rewrite(
+        declaration: TypeDeclaration,
+        row: Select<ManagedTable>,
+        values: ReturnType<TypeDeclaration["values"]>,
+    ): Promise<void> {
+        // write the values with the next generation and revision
+        const table = declaration.object.table;
+        const columns: Table = table;
+        const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
+        await this.database
+            .update(columns)
+            .set({
+                ...values,
+                ...("generation" in table[TABLE].columns
+                    ? { generation: sql`${table[TABLE].column("generation")} + 1` }
+                    : {}),
+                ...(isDeletable ? { deletionRequestedAt: null, deletedBy: null } : {}),
+                ...(declaration.touch?.(row, this.now) ?? {
+                    revision: row.revision + 1,
+                    updatedAt: this.now,
+                }),
+            })
+            .where(eq(table.id, row.id));
+    }
+
     /** Retire attached records the manager no longer declares. */
-    async #retire(declaration: Declared, desired: ReadonlyMap<string, unknown>): Promise<Step[]> {
+    async #retire(
+        declaration: TypeDeclaration,
+        desired: ReadonlyMap<string, unknown>,
+    ): Promise<Step[]> {
         // read existing records
         const isDry = this.#isDry(declaration);
         const { database } = this;
-        const table = declaration.object.table as ManagedTable;
+        const table = declaration.object.table;
+        const columns: Table = table;
         const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
         const steps: Step[] = [];
         for (const [name, row] of await this.#records(declaration)) {
             // skip declared, detached and already retiring records
-            const record = row as Record<string, unknown>;
+            const record: Row = row;
             if (
                 desired.has(name) ||
-                !Manager.isManaging(record) ||
-                (isDeletable && record.deletionRequestedAt !== null) ||
-                (await declaration.retire?.isRetiring(database, row as never))
+                !Manager.isManaging(row) ||
+                (isDeletable && record["deletionRequestedAt"] !== null) ||
+                (await declaration.retire?.isRetiring(database, row)) === true
             ) {
                 continue;
             }
@@ -518,13 +610,11 @@ export class Stack {
 
             // retire, request deletion, or delete
             if (declaration.retire) {
-                await declaration.retire.start(this, row as never);
+                await declaration.retire.start(this, row);
             } else if (isDeletable) {
                 await database
-                    .update(table)
-                    .set({ deletionRequestedAt: this.now, deletedBy: null } as Partial<
-                        Insert<Table>
-                    >)
+                    .update(columns)
+                    .set({ deletionRequestedAt: this.now, deletedBy: null })
                     .where(eq(table.id, row.id));
             } else {
                 await database.delete(table).where(eq(table.id, row.id));
@@ -536,32 +626,67 @@ export class Stack {
 }
 
 /** Stop applying until a dependency is ready. */
-class Waiting extends Error {}
+class DependencyWait extends Error {}
 
 /** Select an object type's declarations from a document. */
 function collect(
-    declaration: Declared,
-    document: Readonly<Record<string, unknown>>,
+    declaration: TypeDeclaration,
+    document: JsonObject,
 ): Readonly<Record<string, unknown>> {
     if (declaration.collect) {
         return declaration.collect(document);
     }
-    const declared = (document[declaration.object.plural] ?? {}) as Record<string, unknown>;
-    const schema = declaration.object.declarationSchema;
+    const declared = DECLARED.parse(document[declaration.object.plural] ?? {});
+    const declarationSchema = declaration.object.declarationSchema;
 
-    return schema
+    return declarationSchema
         ? Object.fromEntries(
-              Object.entries(declared).map(([name, value]) => [name, schema.parse(value)]),
+              Object.entries(declared).map(([name, value]) => [
+                  name,
+                  declarationSchema.parse(value),
+              ]),
           )
         : declared;
 }
 
 /** Order declarations so each follows the object types it references. */
-function order(declarations: readonly Declared[]): Declared[] {
+function order(declarations: readonly TypeDeclaration[]): TypeDeclaration[] {
     // read explicit dependencies
-    const explicit = new Map(
+    const explicit = explicitDependencies(declarations);
+
+    // expand "every" to declarations not depending on this one
+    const dependencies = new Map(
+        declarations.map((entry) => [
+            entry,
+            entry.after === "every"
+                ? declarations.filter(
+                      (other) =>
+                          other !== entry &&
+                          other.after !== "every" &&
+                          !dependsOn(explicit, other, entry, new Set()),
+                  )
+                : found(explicit, entry),
+        ]),
+    );
+
+    // visit dependencies depth first, rejecting cycles
+    const ordered: TypeDeclaration[] = [];
+    const visiting = new Set<TypeDeclaration>();
+    for (const declaration of declarations) {
+        visit(declaration, dependencies, ordered, visiting);
+    }
+
+    return ordered;
+}
+
+/** Read the declarations each declaration names to run after. */
+function explicitDependencies(
+    declarations: readonly TypeDeclaration[],
+): Map<TypeDeclaration, readonly TypeDeclaration[]> {
+    return new Map(
         declarations.map((entry) => {
-            const dependencies = Array.isArray(entry.after) ? entry.after : [];
+            const dependencies =
+                entry.after === undefined || entry.after === "every" ? [] : entry.after;
 
             return [
                 entry,
@@ -571,87 +696,107 @@ function order(declarations: readonly Declared[]): Declared[] {
             ] as const;
         }),
     );
-
-    // expand "every" to declarations not depending on this one
-    const dependsOn = (from: Declared, to: Declared, seen = new Set<Declared>()): boolean => {
-        if (seen.has(from)) {
-            return false;
-        }
-        seen.add(from);
-
-        return explicit
-            .get(from)!
-            .some((dependency) => dependency === to || dependsOn(dependency, to, seen));
-    };
-    const dependencies = new Map(
-        declarations.map((entry) => [
-            entry,
-            entry.after === "every"
-                ? declarations.filter(
-                      (other) =>
-                          other !== entry && other.after !== "every" && !dependsOn(other, entry),
-                  )
-                : explicit.get(entry)!,
-        ]),
-    );
-
-    // visit dependencies depth first, rejecting cycles
-    const ordered: Declared[] = [];
-    const visiting = new Set<Declared>();
-    const visit = (declaration: Declared) => {
-        if (ordered.includes(declaration)) {
-            return;
-        }
-        if (visiting.has(declaration)) {
-            throw new ObjectError(
-                "CYCLIC_DECLARATION",
-                `declarations of ${declaration.object.plural} depend on themselves`,
-            );
-        }
-        visiting.add(declaration);
-        for (const dependency of dependencies.get(declaration)!) {
-            visit(dependency);
-        }
-        visiting.delete(declaration);
-        ordered.push(declaration);
-    };
-    for (const declaration of declarations) {
-        visit(declaration);
-    }
-
-    return ordered;
 }
 
-/** Read one record by identifier. */
+/** Decide whether one declaration depends on another through explicit dependencies. */
+function dependsOn(
+    explicit: ReadonlyMap<TypeDeclaration, readonly TypeDeclaration[]>,
+    from: TypeDeclaration,
+    to: TypeDeclaration,
+    seen: Set<TypeDeclaration>,
+): boolean {
+    // stop at a declaration seen before
+    if (seen.has(from)) {
+        return false;
+    }
+    seen.add(from);
+
+    return found(explicit, from).some(
+        (dependency) => dependency === to || dependsOn(explicit, dependency, to, seen),
+    );
+}
+
+/** Add a declaration after its dependencies, rejecting cycles. */
+function visit(
+    declaration: TypeDeclaration,
+    dependencies: ReadonlyMap<TypeDeclaration, readonly TypeDeclaration[]>,
+    ordered: TypeDeclaration[],
+    visiting: Set<TypeDeclaration>,
+): void {
+    // skip a declaration added before
+    if (ordered.includes(declaration)) {
+        return;
+    }
+
+    // refuse a declaration depending on itself
+    if (visiting.has(declaration)) {
+        throw new ObjectError(
+            "CYCLIC_DECLARATION",
+            `declarations of ${declaration.object.plural} depend on themselves`,
+        );
+    }
+
+    // add the dependencies first
+    visiting.add(declaration);
+    for (const dependency of found(dependencies, declaration)) {
+        visit(dependency, dependencies, ordered, visiting);
+    }
+    visiting.delete(declaration);
+    ordered.push(declaration);
+}
+
+/** Read one record a declaration just wrote, by identifier. */
 async function read(
     database: DatabaseConnection,
     table: ManagedTable,
-    id: unknown,
-): Promise<Select<ManagedTable> | undefined> {
-    const [row] = (await database
-        .select()
-        .from(table)
-        .where(eq(table.id, id))) as Select<ManagedTable>[];
+    id: Identifier<string>,
+): Promise<Select<ManagedTable>> {
+    const [row] = await database.select().from(table).where(eq(table.id, id));
+    if (row === undefined) {
+        throw new TypeError(`the written ${table[TABLE].name} ${id} is missing`);
+    }
 
     return row;
 }
 
-/** Collect the declared values that differ from a row. */
+/** Read an object type as its declarable table types it, absent for a type stacks never declare. */
+export function managedType(object: ObjectType): ObjectOf<{ table: ManagedTable }> | undefined;
+/**
+ * Read an object type as its declarable table types it, by the trait's option.
+ *
+ * @construct defineObject derives the manager columns into the table of every object whose definition sets `declarable`, which gives it a declaration schema.
+ */
+export function managedType(object: ObjectType): ObjectType | undefined {
+    return object.declarationSchema === undefined ? undefined : object;
+}
+
+/** Collect the declared values that differ from a row, in their JSON form. */
 function difference(
-    row: Record<string, unknown>,
-    values: Record<string, unknown>,
-): Record<string, { before: unknown; after: unknown }> {
-    return Object.fromEntries(
-        Object.entries(values)
-            .filter(
-                ([key, value]) => canonicalize(row[key] ?? null) !== canonicalize(value ?? null),
-            )
-            .map(([key, value]) => [key, { before: row[key] ?? null, after: value ?? null }]),
-    );
+    table: Table,
+    row: Row,
+    values: Partial<Insert<Table>>,
+): Record<string, { before: JsonValue; after: JsonValue }> {
+    const changes: Record<string, { before: JsonValue; after: JsonValue }> = {};
+    for (const [key, value] of Object.entries(values)) {
+        const before = jsonOf(table, key, row[key]);
+        const after = jsonOf(table, key, value);
+        if (canonicalize(before) !== canonicalize(after)) {
+            changes[key] = { before, after };
+        }
+    }
+
+    return changes;
+}
+
+/** Write a column value in its JSON form, null for a missing one. */
+function jsonOf(table: Table, column: string, value: ColumnValue | undefined): JsonValue {
+    return value === undefined || value === null
+        ? null
+        : table[TABLE].column(column).definition.toJson(value);
 }
 
 /** Refuse values naming unknown columns. */
-function requireColumns(object: ObjectType, values: Readonly<Record<string, unknown>>): void {
+function requireColumns(object: ObjectType, values: object): void {
     const columns = object.table[TABLE].columns;
     const unknown = Object.keys(values).find((key) => !Object.hasOwn(columns, key));
     if (unknown !== undefined) {

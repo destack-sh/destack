@@ -20,9 +20,10 @@ import {
     TABLE,
     type DatabaseConnection,
     type SQL,
-    type Table,
+    Snapshot,
+    type Row,
 } from "@destack/db";
-import { Snapshot } from "@destack/db/log";
+import { aligned, schema } from "@destack/schema";
 import { conceal, ServiceError } from "@destack/service/error";
 import { Moved } from "@destack/directory";
 import type { Call } from "../method/call.ts";
@@ -50,23 +51,27 @@ export class Authorization extends access.Authorization {
         }
     }
 
+    /** Whether the system runs the call, admitted to every permission. */
+    get isSystem(): boolean {
+        return false;
+    }
+
     /** Match the rows the caller may list. */
     listable(object: ObjectType, permission: Permission): SQL | "memory" {
-        // decide ephemeral rows in memory
-        if (object.storage === "ephemeral") {
+        // decide ephemeral and external rows in memory
+        if (object.storage !== "durable") {
             return "memory";
         }
 
-        // match held rows, the copies an enclosing scope hands down, and the copies of global rows kept for the scope
-        const table = object.table as Table;
-        const held = this.authorizer.where(permission, this.access, table);
-        const columns = table[TABLE].columns;
-        const isCopy = ne(columns.scope!, this.access.scope);
+        // match permitted rows and the copies handed down or kept for the scope
+        const table = object.table;
+        const permitted = this.authorizer.where(permission, this.access, table);
+        const isCopy = ne(table[TABLE].column("scope"), this.access.scope);
         const included = Replica.includes(this.access.scope, table);
 
         return object.inherited === undefined
-            ? or(and(isCopy, included), held)!
-            : or(isCopy, held)!;
+            ? or(and(isCopy, included), permitted)
+            : or(isCopy, permitted);
     }
 
     /**
@@ -79,31 +84,35 @@ export class Authorization extends access.Authorization {
         object: ObjectType,
         permission: Permission,
         scope: string,
-        rows: readonly Readonly<Record<string, unknown>>[],
+        rows: readonly Row[],
         reader?: GrantReader,
     ): Promise<access.Admission & { readonly below: readonly string[] }> {
         // admit the inherited copies of enclosing scopes wholesale
-        const table = object.table as Table;
-        const others = [...rows.keys()].filter((position) => rows[position]!.scope !== scope);
+        const table = object.table;
+        const scoped = rows.map((row, position) => ({
+            position,
+            row,
+            scope: schema.string().parse(row["scope"]),
+        }));
+        const others = scoped.filter((entry) => entry.scope !== scope);
         let copies: ReadonlySet<number>;
         let below: ReadonlyMap<string, Access> = new Map();
         if (object.inherited !== undefined) {
-            copies = new Set(others);
+            copies = new Set(others.map((entry) => entry.position));
         }
-        // admit the durable copies of global rows kept for the scope, and resolve the scopes of the other rows
+        // admit the durable copies of universe rows kept for the scope, and resolve the scopes of the other rows
         else if (object.storage === "durable" && others.length > 0) {
             const included = await Replica.keysIncluded(
                 this.database,
                 scope,
                 table,
-                others.map((position) => rows[position]!),
+                others.map((entry) => entry.row),
             );
-            copies = new Set(
-                others.filter((position) => included.has(Key.name(table, rows[position]!))),
-            );
+            const kept = others.filter((entry) => included.has(Key.name(table, entry.row)));
+            copies = new Set(kept.map((entry) => entry.position));
             const scopes = others
-                .filter((position) => !copies.has(position))
-                .map((position) => String(rows[position]!.scope));
+                .filter((entry) => !copies.has(entry.position))
+                .map((entry) => entry.scope);
             below = await this.descend(scope, [...new Set(scopes)]);
         }
         // admit no other scope's rows
@@ -112,22 +121,24 @@ export class Authorization extends access.Authorization {
         }
 
         // check the caller's permission on the scope's own rows and on the rows of the scopes it encloses
-        const own = [...rows.keys()].filter(
-            (position) =>
-                !copies.has(position) &&
-                (rows[position]!.scope === scope || below.has(String(rows[position]!.scope))),
+        const own = scoped.filter(
+            (entry) =>
+                !copies.has(entry.position) && (entry.scope === scope || below.has(entry.scope)),
         );
         const admission = await this.checkRows(
             permission,
             scope,
-            own.map((position) => rows[position]!),
+            own.map((entry) => entry.row),
             reader,
             below,
         );
 
         return {
             ...admission,
-            held: new Set([...copies, ...[...admission.held].map((position) => own[position]!)]),
+            permitted: new Set([
+                ...copies,
+                ...[...admission.permitted].map((index) => aligned(own, index).position),
+            ]),
             below: [...below.keys()],
         };
     }
@@ -137,19 +148,19 @@ export class Authorization extends access.Authorization {
         return [...new Set([this.access.scope, ...this.access.scopes.map((entry) => entry.id)])];
     }
 
-    /** Read a call's target as a snapshot shows it, where the caller holds a permission now and, at a position, then. */
+    /** Read a call's target as a snapshot shows it, where the caller has a permission now and, at a position, then. */
     async readIn(
         call: Call,
         id: string,
         snapshot: Snapshot,
-        permission: Permission = call.object.permission(call.method.permission!),
-    ): Promise<Record<string, unknown>> {
+        permission: Permission = call.permission(),
+    ): Promise<Row> {
         // read the row the view shows, admitted with the caller's grants now
         const { object, scope } = call;
-        const row = await snapshot.row(object.table as Table, { id });
+        const row = await snapshot.row(object.table, { id });
         const isAdmitted =
-            row !== undefined &&
-            (await this.admitRows(object, permission, scope, [row])).held.has(0);
+            row !== null &&
+            (await this.admitRows(object, permission, scope, [row])).permitted.has(0);
 
         // decide the permission as of a position too
         const reference = object.reference(scope, id);
@@ -166,41 +177,29 @@ export class Authorization extends access.Authorization {
                     )
                 ).isAllowed);
 
-        // hide a row the caller may not read
-        if (!isAllowed) {
+        // hide a missing row and a row the caller may not read
+        if (row === undefined || !isAllowed) {
             throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${id}` });
         }
 
-        return row!;
+        return row;
     }
 
-    /** Read a call's target where the caller holds the method's permission. */
-    async read(call: Call, id: string): Promise<Record<string, unknown>> {
-        // read where the caller holds the permission
+    /** Read a call's target where the caller has the method's permission. */
+    async read(call: Call, id: string): Promise<Row> {
+        // read where the caller has the permission
         const { object, scope } = call;
-        const permission = object.permission(call.method.permission!);
-        const table = object.table as Table & Record<string, never>;
+        const permission = call.permission();
         const target = object.reference(scope, id);
-        const select = async (evaluated: Access) =>
-            object.storage === "ephemeral"
-                ? await this.#decide(call, id, permission, evaluated)
-                : ((await this.database
-                      .select()
-                      .from(table)
-                      .where(
-                          and(
-                              eq(table.id, id),
-                              object.inScope(scope),
-                              this.authorizer.holds(permission, target, evaluated),
-                          ),
-                      )) as Record<string, unknown>[]);
+        const select = (evaluated: Access) =>
+            this.#selectPermitted(call, id, permission, evaluated);
         const governing = await this.in(this.authorizer.governingScope(target));
         const [row] = await select(governing);
         if (row) {
             return row;
         }
 
-        // challenge for step-up authentication
+        // challenge for step-up authentication, then a lent delegate for a missing grant
         const stepUp = await this.authorizer.challenge(
             this.snapshot,
             permission,
@@ -214,55 +213,88 @@ export class Authorization extends access.Authorization {
                 { stepUp },
             );
         }
+        await this.#requireLentGrant(call, id, permission, governing, select);
 
-        // challenge a lent delegate for a missing grant
+        // refuse a reader, and hide the object from others
+        const isReadable =
+            object.reading !== undefined && (await this.#permits(call, id, object.reading));
+        const denial = new ServiceError("FORBIDDEN", {
+            message: `permission denied: ${permission.name}`,
+        });
+        throw isReadable ? denial : conceal(denial, `no ${object.name} ${id}`);
+    }
+
+    /** Select a call's target where an access has a permission on it. */
+    async #selectPermitted(
+        call: Call,
+        id: string,
+        permission: Permission,
+        evaluated: Access,
+    ): Promise<readonly Row[]> {
+        // decide ephemeral and external objects in memory
+        const { object, scope } = call;
+        if (object.storage !== "durable") {
+            return this.#decide(call, id, permission, evaluated);
+        }
+
+        // select a durable object where the permission holds
+        const table = object.table;
+        const target = object.reference(scope, id);
+
+        return this.database
+            .select()
+            .from(table)
+            .where(
+                and(
+                    eq(table[TABLE].column("id"), id),
+                    object.inScope(scope),
+                    this.authorizer.permits(permission, target, evaluated),
+                ),
+            );
+    }
+
+    /** Refuse a target a lent delegate lacks the grant for, which the delegation before it reads. */
+    async #requireLentGrant(
+        call: Call,
+        id: string,
+        permission: Permission,
+        governing: Access,
+        select: (access: Access) => Promise<readonly Row[]>,
+    ): Promise<void> {
+        // walk the delegation chain
+        const { object, scope } = call;
         const context = governing.context;
         const delegates = context.delegates ?? [];
         const chain = Caller.delegation(context);
-        for (let position = 0; position < delegates.length; position++) {
-            if (delegates[position]!.authority === "full") {
+        const governingScope = this.authorizer.governingScope(object.reference(scope, id));
+        for (const [position, delegate] of delegates.entries()) {
+            // skip a delegate acting with full authority
+            if (delegate.authority === "full") {
                 continue;
             }
-            const lending = await this.authorizer.resolve(
-                this.snapshot,
-                this.authorizer.governingScope(target),
-                {
-                    ...context,
-                    delegates: delegates.slice(0, position),
-                },
-            );
-            const lent = await this.authorizer.resolve(
-                this.snapshot,
-                this.authorizer.governingScope(target),
-                {
-                    ...context,
-                    delegates: delegates.slice(0, position + 1),
-                },
-            );
+
+            // compare the access before and after lending to the delegate
+            const lending = await this.authorizer.resolve(this.snapshot, governingScope, {
+                ...context,
+                delegates: delegates.slice(0, position),
+            });
+            const lent = await this.authorizer.resolve(this.snapshot, governingScope, {
+                ...context,
+                delegates: delegates.slice(0, position + 1),
+            });
             if ((await select(lending)).length > 0 && (await select(lent)).length === 0) {
                 throw new ServiceError("INSUFFICIENT_GRANT", {
-                    status: 403,
                     message:
                         "propose the missing delegation to the principal the delegate acts for",
                     data: {
                         permission,
                         object: object.reference(scope, id),
-                        delegate: chain[position]!.delegate,
-                        onBehalfOf: chain[position]!.delegator,
+                        delegate: aligned(chain, position).delegate,
+                        onBehalfOf: aligned(chain, position).delegator,
                     },
                 });
             }
         }
-
-        // check whether the caller reads the object
-        const isReadable =
-            object.reading !== undefined && (await this.#holds(call, id, object.reading));
-
-        // refuse a reader, and hide the object from others
-        const denial = new ServiceError("FORBIDDEN", {
-            message: `permission denied: ${permission.name}`,
-        });
-        throw isReadable ? denial : conceal(denial, `no ${object.name} ${id}`);
     }
 
     /** Require the call's scope to be visible to the caller. */
@@ -281,7 +313,7 @@ export class Authorization extends access.Authorization {
                       .flatMap((object) => object.scopes)
                       .find((candidate) => candidate.policy.is(own))
                 : undefined;
-        if (type === undefined) {
+        if (own === undefined || type === undefined) {
             throw new ServiceError("NOT_FOUND", { message: `no scope ${scope}` });
         }
 
@@ -297,9 +329,9 @@ export class Authorization extends access.Authorization {
         const lent = delegates.findIndex((delegate) => delegate.authority === "lent");
         const principal = { ...context, delegates: delegates.slice(0, lent) };
         const isVisible =
-            (await this.#sees(type, own!, objects, caller)) ||
+            (await this.#sees(type, own, objects, caller)) ||
             (lent !== -1 &&
-                (await this.#sees(type, own!, objects, (bound) =>
+                (await this.#sees(type, own, objects, (bound) =>
                     this.authorizer.resolve(this.snapshot, bound, principal),
                 )));
         if (!isVisible) {
@@ -324,21 +356,21 @@ export class Authorization extends access.Authorization {
             return true;
         }
 
-        // see a scope holding a permitted durable object
+        // see a scope with a permitted durable object
         const scope = own.id;
         const evaluated = await resolve(scope);
         const inside = objects.filter(
             (object) => object.storage === "durable" && object.scopes.includes(type),
         );
         for (const object of inside) {
-            const table = object.table as Table & Record<string, never>;
-            const held = object.permissions.map((name) =>
+            const table = object.table;
+            const permitted = object.permissions.map((name) =>
                 this.authorizer.where(object.permission(name), evaluated, table),
             );
             const [row] = await this.database
-                .select({ id: table.id })
+                .select({ id: table[TABLE].column("id") })
                 .from(table)
-                .where(and(object.inScope(scope), or(...held)))
+                .where(and(object.inScope(scope), or(...permitted)))
                 .limit(1);
             if (row !== undefined) {
                 return true;
@@ -381,99 +413,104 @@ export class Authorization extends access.Authorization {
             if (
                 permission !== undefined &&
                 Object.hasOwn(call.input, name) &&
-                !(await this.#holds(call, id, call.object.permission(permission)))
+                !(await this.#permits(call, id, call.object.permission(permission)))
             ) {
                 throw new ServiceError("FORBIDDEN", { message: `field ${name} is not writable` });
             }
         }
     }
 
-    /** Decide whether the caller holds a permission on one object of a call's type. */
-    async #holds(call: Call, id: string, permission: access.PermissionReference): Promise<boolean> {
+    /** Decide whether the caller has a permission on one object of a call's type. */
+    async #permits(
+        call: Call,
+        id: string,
+        permission: access.PermissionReference,
+    ): Promise<boolean> {
         const { object, scope } = call;
-        if (object.storage === "ephemeral") {
-            const access = await this.in(
+        if (object.storage !== "durable") {
+            const granted = await this.in(
                 this.authorizer.governingScope(object.reference(scope, id)),
             );
 
-            return (await this.#decide(call, id, permission, access)).length > 0;
+            return (await this.#decide(call, id, permission, granted)).length > 0;
         }
 
         return (await this.check(permission, object.reference(scope, id))).isAllowed;
     }
 
-    /** Read an ephemeral object the access holds a permission on, decided in memory. */
+    /** Read an ephemeral or external object the access has a permission on, decided in memory. */
     async #decide(
         call: Call,
         id: string,
         permission: access.PermissionReference,
         evaluated: Access,
-    ): Promise<Record<string, unknown>[]> {
+    ): Promise<Row[]> {
         // read the row
-        const table = call.object.table as Table & Record<string, never>;
-        const rows = (await call.database
+        const table = call.object.table;
+        const rows: readonly Row[] = await call.database
             .select()
             .from(table)
-            .where(and(eq(table.id, id), call.object.inScope(call.scope)))) as Record<
-            string,
-            unknown
-        >[];
+            .where(and(eq(table[TABLE].column("id"), id), call.object.inScope(call.scope)));
 
         return this.keep(rows, permission, evaluated);
     }
 
-    /** Keep the rows the caller also held a permission on at a snapshot's position. */
-    async keepAt<Row extends Record<string, unknown>>(
-        rows: readonly Row[],
+    /** Keep the rows the caller also had a permission on at a snapshot's position. */
+    async keepAt<Kept extends Row>(
+        rows: readonly Kept[],
         permission: access.PermissionReference,
         snapshot: Snapshot,
         scope: string,
-    ): Promise<Row[]> {
+    ): Promise<Kept[]> {
         const then = await this.authorizer.resolve(snapshot, scope, this.context(scope));
-        const { held } = await this.authorizer.checkRows(snapshot, permission, then, rows);
+        const { permitted } = await this.authorizer.checkRows(snapshot, permission, then, rows);
 
-        return rows.filter((_, position) => held.has(position));
+        return rows.filter((_, position) => permitted.has(position));
     }
 
-    /** Keep the rows an access holds a permission on, decided in memory. */
-    async keep<Row extends Record<string, unknown>>(
-        rows: readonly Row[],
+    /** Keep the rows an access has a permission on, decided in memory. */
+    async keep<Kept extends Row>(
+        rows: readonly Kept[],
         permission: access.PermissionReference,
         evaluated: Access = this.access,
-    ): Promise<Row[]> {
-        const { held } = await this.authorizer.checkRows(
+    ): Promise<Kept[]> {
+        const { permitted } = await this.authorizer.checkRows(
             this.snapshot,
             permission,
             evaluated,
             rows,
         );
 
-        return rows.filter((_, position) => held.has(position));
+        return rows.filter((_, position) => permitted.has(position));
     }
 
     /** List each row's guarded fields the caller may not read, and until when. */
     async concealed(
         object: ObjectType,
-        rows: readonly Readonly<Record<string, unknown>>[],
+        rows: readonly Row[],
         reader?: GrantReader,
     ): Promise<{ readonly hidden: string[][]; readonly until?: number }> {
         // group the guarded fields by read permission
         const hidden = rows.map((): string[] => []);
         const permissions = new Map<string, string[]>();
-        for (const name of object.guarded) {
-            const permission = object.fields[name]!.access!.read!;
-            permissions.set(permission, [...(permissions.get(permission) ?? []), name]);
+        for (const [name, field] of Object.entries(object.fields)) {
+            const permission = field.access?.read;
+            if (permission !== undefined) {
+                permissions.set(permission, [...(permissions.get(permission) ?? []), name]);
+            }
         }
 
         // decide the rows of the scopes below in their own chains
         const scope = this.access.scope;
-        const others = rows.map((row) => String(row.scope)).filter((other) => other !== scope);
+        const others = rows
+            .map((row) => schema.string().parse(row["scope"]))
+            .filter((other) => other !== scope);
         const below =
             permissions.size === 0 || others.length === 0
                 ? undefined
                 : await this.descend(scope, [...new Set(others)]);
 
-        // check each distinct read permission once over every row
+        // check each distinct read permission once over every row read by its key
         const moments: (number | undefined)[] = [];
         for (const [permission, names] of permissions) {
             const readable = await this.checkRows(
@@ -482,31 +519,35 @@ export class Authorization extends access.Authorization {
                 rows,
                 reader,
                 below,
+                "object",
             );
             moments.push(readable.until);
             for (const [position, fields] of hidden.entries()) {
-                if (!readable.held.has(position)) {
+                if (!readable.permitted.has(position)) {
                     fields.push(...names);
                 }
             }
         }
         const until = earliest(moments);
 
-        return { hidden, ...(until === undefined ? {} : { until }) };
+        // list each row's hidden fields in declaration order
+        const order = Object.keys(object.fields);
+        const ordered = hidden.map((fields) => order.filter((name) => fields.includes(name)));
+
+        return { hidden: ordered, ...(until === undefined ? {} : { until }) };
     }
 
     /** Omit from each row the guarded fields the caller may not read on it. */
-    async redact<Row extends Readonly<Record<string, unknown>>>(
-        object: ObjectType,
-        rows: readonly Row[],
-    ): Promise<Row[]> {
+    async redact(object: ObjectType, rows: readonly Row[]): Promise<Row[]> {
         // omit sensitive and unreadable fields
         const hidden =
             object.guarded.length === 0
                 ? rows.map((): string[] => [])
                 : (await this.concealed(object, rows)).hidden;
 
-        return rows.map((row, position) => omit(row, [...object.sensitive, ...hidden[position]!]));
+        return rows.map((row, position) =>
+            omit(row, [...object.sensitive, ...aligned(hidden, position)]),
+        );
     }
 }
 
@@ -535,6 +576,11 @@ export class SystemAuthorization extends Authorization {
         );
     }
 
+    /** Run the call as the system. */
+    override get isSystem(): boolean {
+        return true;
+    }
+
     /** Admit every permission on every object. */
     override async check(): Promise<access.Decision> {
         return { isAllowed: true };
@@ -550,9 +596,9 @@ export class SystemAuthorization extends Authorization {
     override async checkRows(
         _permission: access.PermissionReference,
         _scope: string,
-        rows: readonly Readonly<Record<string, unknown>>[],
+        rows: readonly Row[],
     ): Promise<access.Admission> {
-        return { held: new Set(rows.keys()) };
+        return { permitted: new Set(rows.keys()) };
     }
 
     /** Match every row of an object type. */
@@ -561,16 +607,14 @@ export class SystemAuthorization extends Authorization {
     }
 
     /** Read one object of the call's scope and refuse a missing one. */
-    override async read(call: Call, id: string): Promise<Record<string, unknown>> {
+    override async read(call: Call, id: string): Promise<Row> {
         // read the row
-        const table = call.object.table as Table & Record<string, never>;
-        const [row] = (await call.database
+        const table = call.object.table;
+        const rows: readonly Row[] = await call.database
             .select()
             .from(table)
-            .where(and(eq(table.id, id), call.object.inScope(call.scope)))) as Record<
-            string,
-            unknown
-        >[];
+            .where(and(eq(table[TABLE].column("id"), id), call.object.inScope(call.scope)));
+        const [row] = rows;
         if (row === undefined) {
             throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${id}` });
         }
@@ -587,20 +631,15 @@ export class SystemAuthorization extends Authorization {
     /** Conceal no field. */
     override async concealed(
         _object: ObjectType,
-        rows: readonly Readonly<Record<string, unknown>>[],
+        rows: readonly Row[],
     ): Promise<{ readonly hidden: string[][] }> {
         return { hidden: rows.map(() => []) };
     }
 }
 
 /** Copy a row without some of its fields. */
-function omit<Row extends Readonly<Record<string, unknown>>>(
-    row: Row,
-    names: readonly string[],
-): Row {
+function omit(row: Row, names: readonly string[]): Row {
     return names.length === 0
         ? row
-        : (Object.fromEntries(
-              Object.entries(row).filter(([name]) => !names.includes(name)),
-          ) as Row);
+        : Object.fromEntries(Object.entries(row).filter(([name]) => !names.includes(name)));
 }
