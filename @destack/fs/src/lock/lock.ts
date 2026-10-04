@@ -82,7 +82,7 @@ export interface FileLockOptions {
 }
 
 /** Platform implementations share acquisition and closure operations. */
-type NativeLock = import("./unix.ts").NativeLock | import("./windows.ts").NativeLock;
+type NativeLock = import("./unix.ts").NativeLock | import("../windows/lock.ts").NativeLock;
 
 /** Open a lock file through the current operating system. */
 async function open(path: string): Promise<NativeLock> {
@@ -96,7 +96,7 @@ async function open(path: string): Promise<NativeLock> {
 
     // load only the current platform's system libraries
     if (process.platform === "win32") {
-        return await (await import("./windows.ts")).NativeLock.open(absolute);
+        return await (await import("../windows/lock.ts")).NativeLock.open(absolute);
     } else if (process.platform === "darwin" || process.platform === "linux") {
         return await (await import("./unix.ts")).NativeLock.open(absolute);
     } else {
