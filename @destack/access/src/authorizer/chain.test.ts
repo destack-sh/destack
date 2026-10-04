@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, type DatabaseConnection } from "@destack/db";
-import { Feed, Replica, Scope } from "@destack/sync";
+import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
+import { present } from "@destack/schema";
 import {
     accessRelationship,
     accessRole,
@@ -8,6 +9,7 @@ import {
     accessTables,
     Authorization,
     Authorizer,
+    CHAIN_SHAPE,
 } from "../index.ts";
 import {
     account,
@@ -15,6 +17,7 @@ import {
     homeMappings,
     node,
     policies,
+    policy,
     policyTable,
     space,
     spaceTable,
@@ -130,6 +133,127 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     await reach("account-1");
     expect(await copied(app.database)).toEqual(await copied(home.database));
 });
+
+test("copy the chains of the accounts a follower outside them replicates in one copy at the universe, and let go of an account it stops replicating", async () => {
+    // open the home and app databases
+    const home = await openFixture();
+    const app = await openFixture();
+    onTestFinished(async () => {
+        await Promise.all([home.close(), app.close()]);
+    });
+
+    // keep two accounts owned by alice with one member each in the home database
+    const authorizer = new Authorizer(policies, homeMappings);
+    const owner = new Authorization(authorizer, home.database, () => ({
+        ...home.alice,
+        now: Date.now(),
+    }));
+    for (const [id, member] of [
+        ["account-1", "carol"],
+        ["account-2", "dave"],
+    ] as const) {
+        await home.database.insert(accountTable).values({ id, scope: "universe" });
+        const object = account.reference("universe", id);
+        await owner.create(object, { owner: userSubject("alice") });
+        await owner.grant({ object, relation: "member", subject: userSubject(member) });
+    }
+    const feed = new Feed(home.database, [...accessTables, policyTable]);
+
+    // request one copy of both chains for the follower, recorded at the universe
+    const both = present(
+        await app.authorizer.chainVia(app.database, "placement", [
+            account.reference("universe", "account-2"),
+            account.reference("universe", "account-1"),
+        ]),
+        "the chains' request",
+    );
+    expect(both).toEqual({
+        name: Authorizer.chainCopy("placement"),
+        shape: CHAIN_SHAPE,
+        scope: "universe",
+        below: "placement",
+        parameters: {
+            local: [...app.authorizer.local],
+            copied: [{ packageId: policy.definition.packageId, type: policy.definition.name }],
+            via: ["account-1", "account-2"],
+            between: [],
+        },
+    });
+
+    // copy both accounts' access rows and the universe's in one stream, kept at each scope by the one record
+    await followChain(app.database, app.authorizer, both, feed);
+    const head = await home.database.log.position();
+    const scopes = ["account-1", "account-2", "universe"];
+    const origins = await Replica.origins(app.database, CHAIN_SHAPE, scopes);
+    expect([
+        await copied(app.database),
+        [...origins.keys()].toSorted(),
+        [...origins.values()].map((origin) => origin.position),
+    ]).toEqual([await copied(home.database), scopes, [head, head, head]]);
+
+    // reshape the copy once the follower replicates the first account alone, letting go of the second's rows
+    const first = present(
+        await app.authorizer.chainVia(app.database, "placement", [
+            account.reference("universe", "account-1"),
+        ]),
+        "the chain's request",
+    );
+    await followChain(app.database, app.authorizer, first, feed);
+    const kept = await copied(home.database);
+    expect([
+        await copied(app.database),
+        [...(await Replica.origins(app.database, CHAIN_SHAPE, scopes)).keys()].toSorted(),
+    ]).toEqual([
+        {
+            scopes: kept.scopes.filter(isOutsideSecond),
+            roles: kept.roles.filter(isOutsideSecond),
+            permissions: kept.permissions,
+            relationships: kept.relationships.filter(isOutsideSecond),
+        },
+        ["account-1", "universe"],
+    ]);
+});
+
+/** Apply a chain request's pages to the follower until it reaches the home's head, reshaping from the parameters the copy reflects. */
+async function followChain(
+    database: DatabaseConnection,
+    authorizer: Authorizer,
+    request: Subscription,
+    feed: Feed,
+): Promise<void> {
+    // resume from the copy's position, reshaping from its reflected parameters
+    const replica = authorizer.chainShape.replica(request);
+    await replica.register(database, request);
+    const { after, previous } = await replica.resume(database, request);
+    const reflected =
+        previous === undefined
+            ? {}
+            : {
+                  previous: authorizer.chainShape.replica({ ...request, parameters: previous })
+                      .queries,
+              };
+
+    // read the pages up to the home's head and apply them in order
+    const head = await feed.database.log.position();
+    const pages = [];
+    for await (const page of feed.subscribe(
+        replica.queries,
+        after,
+        AbortSignal.timeout(5000),
+        reflected,
+    )) {
+        pages.push(page);
+        if (page.complete && page.position.sequence >= head.sequence) {
+            break;
+        }
+    }
+    await Array.fromAsync(replica.apply(database, pages, { subscription: request }));
+}
+
+/** Report whether a row lives outside the second account. */
+function isOutsideSecond(row: { readonly scope: string }): boolean {
+    return row.scope !== "account-2";
+}
 
 /** Read the decision rows about the account and the space, skipping the nodes' own relationships. */
 async function copied(database: DatabaseConnection) {

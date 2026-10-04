@@ -1,10 +1,10 @@
 import type { Table } from "@destack/db";
 import { replicaTables, Scope } from "@destack/sync";
 import type { TableMapping } from "../authorizer/mapping.ts";
-import { proposal, relationship, role } from "../policy/principal.ts";
+import { invitation, relationship, role } from "../policy/principal.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
-import { accessProposal } from "../proposal/table.ts";
+import { accessInvitation } from "../invitation/table.ts";
 
 /** The name of the shape copying a scope's chain. */
 export const CHAIN_SHAPE = "chain";
@@ -18,7 +18,11 @@ export const decisionTables: readonly Table[] = [
 ];
 
 /** The tables of every database with protected objects. */
-export const accessTables: readonly Table[] = [...decisionTables, accessProposal, ...replicaTables];
+export const accessTables: readonly Table[] = [
+    ...decisionTables,
+    accessInvitation,
+    ...replicaTables,
+];
 
 /** The mappings of access's own tables. */
 export const ACCESS_MAPPINGS: readonly TableMapping[] = [
@@ -45,13 +49,13 @@ export const ACCESS_MAPPINGS: readonly TableMapping[] = [
         },
     },
     {
-        policy: proposal,
-        table: accessProposal,
+        policy: invitation,
+        table: accessInvitation,
         id: "id",
         scope: "scope",
         attributes: {},
         relations: {
-            proposer: { column: "proposerKey", isKey: true },
+            inviter: { column: "inviterKey", isKey: true },
             addressee: { column: "addressee", isKey: true },
             lender: { column: "lender", isKey: true },
         },

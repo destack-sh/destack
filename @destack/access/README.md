@@ -182,16 +182,16 @@ await authorization.revoke(page, relationshipId);
 const { id, secret } = await authorization.link({ object: page, relation: "viewer" });
 ```
 
-## Proposals
+## Invitations
 
-`propose` offers a relationship, and `accept` applies it.
+`invite` keeps a pending grant to a principal or a contact, `accept` applies it, and `withdraw` revokes it, each settled invitation kept with its status.
 
 ```ts
-const offer = await authorization.propose({
+const offer = await authorization.invite({
     relationship: { object: page, relation: "editor", subject: contact },
 });
-await authorization.accept(page, offer.id);
-const pending = await authorization.proposals({ object: page }, { limit: 20 });
+await authorization.accept(page, offer.id); // as the invited principal, or whoever verified the contact
+const pending = await authorization.invitations({ object: page }, { limit: 20 });
 ```
 
 ## Roles
@@ -211,12 +211,12 @@ const role = await authorization.createRole(space, {
 `accessTables` lists the tables every database with protected objects includes.
 
 ```ts
-export const main = defineDatabase({ name: "main", tables: [...accessTables, notes]});
+export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
 ```
 
 ## Copies
 
-`chain` lists the `chain` shape subscriptions a database below a scope follows for each scope above it, each copy named by `Authorizer.chainCopy(below)`.
+`chain` lists the `chain` shape subscriptions a database below a scope follows, one copy per scope above it, each named by `Authorizer.chainCopy(below)`.
 
 ```ts
 for (const request of await authorizer.chain(database, spaceId, { isHome: true })) {
@@ -229,6 +229,9 @@ for (const request of await authorizer.chain(database, spaceId, { isHome: true }
             { subscription: request },
         );
 }
+
+// request one copy at the universe of the chains a placed workload replicates
+const request = await authorizer.chainVia(database, placementId, accountIds);
 ```
 
 ## Representation

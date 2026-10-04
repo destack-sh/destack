@@ -2,6 +2,7 @@ import { v7 } from "uuid";
 import {
     and,
     eq,
+    inArray,
     or,
     sql,
     type DatabaseConnection,
@@ -50,24 +51,22 @@ import { column, TableMapping, type FieldRelation } from "./mapping.ts";
 /** The identifier of a wildcard subject, which relates every identity of its type. */
 const WILDCARD = "*";
 
-/**
- * How long a copy of access may go without hearing from its home before decisions refuse it, by default, in milliseconds.
- *
- * Feeds repeat their position every ten seconds, and a copy three beats late has lost its source.
- */
+/** The default time a copy of access may go unheard before decisions refuse it, three ten-second feed beats, in milliseconds. */
 const LAG_MILLISECONDS = 30_000;
 
 /** The name of the shape copying the universe's rows a scope reads. */
 const UNIVERSE_SHAPE = "universe";
 
-/** The parameters of a chain copy: the object types whose access rows the follower keeps, and those whose rows it copies. */
+/** The parameters of a chain copy: the object types whose access rows the follower keeps, those whose rows it copies, and the scopes a follower outside the chain copies it via. */
 export const ChainParameters = schema.object({
     /** The object types whose access rows live in the follower's own database. */
     local: schema.array(ObjectTypeReference),
-    /** The object types the follower keeps copies of: the inherited rows of inherited types, and the scope's own row of scope types. */
+    /** The object types the follower keeps copies of: the inherited rows of inherited types, and the scopes' own rows of scope types. */
     copied: schema.array(ObjectTypeReference),
-    /** The scope a follower outside the copied scope's chain replicates, whose chain holds the copied scope. */
-    via: schema.string().min(1).exactOptional(),
+    /** The scopes a follower outside their chains replicates, copied with the copied scope above them and the scopes between. */
+    via: schema.array(schema.string().min(1)).min(1).exactOptional(),
+    /** The scopes between the replicated ones and the copied scope, as far as the follower's copies list them. */
+    between: schema.array(schema.string().min(1)).exactOptional(),
 });
 /** The parameters of a chain copy. */
 export type ChainParameters = schema.Infer<typeof ChainParameters>;
@@ -90,6 +89,9 @@ const UniverseParameters = schema.object({
 });
 /** The parameters of a copy of the universe's rows. */
 export type UniverseParameters = schema.Infer<typeof UniverseParameters>;
+
+/** A table a chain copy reads: the condition on its rows, absent for every row, and the scopes it reads them in. */
+type ChainTable = [Table, Condition | undefined, readonly string[]];
 
 /** The rows of a set a caller has a permission on, by position, and the next moment time alone may change that. */
 export interface Admission {
@@ -700,11 +702,7 @@ export class Authorizer {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
 
-    /**
-     * Decide whether this database keeps an object's access rows: those of objects of a type it maps a table of.
-     *
-     * A role, and so its inclusions, lives with the scope object defining it.
-     */
+    /** Decide whether this database keeps an object's access rows, those of the types it maps a table of. */
     async isLocal(database: DatabaseConnection, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mappingOf(object)?.table === accessRole) {
@@ -728,15 +726,11 @@ export class Authorizer {
         }
     }
 
-    /**
-     * List the requests of the copies of the scopes above one, and of the scope itself unless the database is its home.
-     *
-     * A follower outside the scope's chain, such as a placed workload, copies them via the scope it replicates.
-     */
+    /** List the requests of the copies of the scopes above one, and of the scope itself unless the database is its home, one copy per scope. */
     async chain(
         database: DatabaseConnection,
         scope: string,
-        options: { readonly isHome: boolean; readonly follower?: string },
+        options: { readonly isHome: boolean },
     ): Promise<Subscription[]> {
         // read the ancestors the scope's copy lists, the scope alone until it arrives
         const [copy] = await database
@@ -748,18 +742,55 @@ export class Authorizer {
             ...(copy === undefined ? [] : [...copy.ancestors, Scope.universe.id]),
         ];
 
-        // copy each scope's rows for the follower below
-        const below = options.follower ?? scope;
-        const via = below === scope ? {} : { via: scope };
-
+        // copy each scope's rows for the scope below
         return scopes.map((copied) =>
             this.chainShape.subscription({
-                name: Authorizer.chainCopy(below),
+                name: Authorizer.chainCopy(scope),
                 scope: copied,
-                below,
-                parameters: { local: [...this.local], copied: [...this.copied], ...via },
+                below: scope,
+                parameters: { local: [...this.local], copied: [...this.copied] },
             }),
         );
+    }
+
+    /** Request the one copy of the scope chains above the scopes a follower replicates, recorded at the universe. */
+    async chainVia(
+        database: DatabaseConnection,
+        follower: string,
+        via: readonly ObjectReference[],
+    ): Promise<Subscription | undefined> {
+        // request nothing without a replicated scope
+        if (via.length === 0) {
+            return undefined;
+        }
+
+        // read the ancestors the replicated scopes' copies list in one query, beside the scopes containing them
+        const replicated = new Set(via.map((object) => object.id));
+        const rows = await database
+            .select({ ancestors: Scope.table.ancestors })
+            .from(Scope.table)
+            .where(inArray(Scope.table.scope, [...replicated]));
+        const containing = [
+            ...via.map((object) => object.scope),
+            ...rows.flatMap((row) => row.ancestors),
+        ];
+        const between = new Set(
+            containing.filter((scope) => scope !== Scope.universe.id && !replicated.has(scope)),
+        );
+
+        // copy the chains up to the universe and the inherited rows in them
+        return this.chainShape.subscription({
+            name: Authorizer.chainCopy(follower),
+            scope: Scope.universe.id,
+            below: follower,
+            parameters: {
+                local: [...this.local],
+                // take the scopes' own rows from the follower's copy of the universe
+                copied: this.copied.filter((type) => this.mapping(type).inherited !== undefined),
+                via: [...replicated].toSorted(),
+                between: [...between].toSorted(),
+            },
+        });
     }
 
     /** Name the chain copies a database keeps for the scope below, so each follower's copy of a scope has its own record. */
@@ -798,8 +829,11 @@ export class Authorizer {
         return shape.replica(request);
     }
 
-    /** Build a chain copy: a scope's access rows, its copied types' inherited rows and its own row. */
+    /** Build a chain copy: the access rows of its scopes, its copied types' inherited rows and the scopes' own rows. */
     #chainReplica(name: string, scope: string, parameters: ChainParameters): Replica {
+        // copy the scope, and the replicated scopes and those between for a follower outside their chains
+        const scopes = [scope, ...(parameters.between ?? []), ...(parameters.via ?? [])];
+
         // leave out the access rows of the objects the follower keeps, and of objects living in the universe
         const remote: Condition = {
             NOT: {
@@ -809,20 +843,21 @@ export class Authorizer {
                 })),
             },
         };
-        const access = decisionTables.map((table): [Table, Condition | undefined] => [
+        const access = decisionTables.map((table): ChainTable => [
             table,
             table === accessRelationship ? remote : undefined,
+            scopes,
         ]);
 
-        // add each copied type's inherited rows, or the scope's own row when its identifier is of a copied scope type
-        const copied = parameters.copied.flatMap((type) => this.#copiedRows(type, scope));
+        // add each copied type's inherited rows, or the scopes' own rows of a copied scope type
+        const copied = parameters.copied.flatMap((type) => this.#copiedRows(type, scopes));
         const owned = new Set(
             parameters.copied
                 .filter((type) => this.mapping(type).inherited === undefined)
                 .map((type) => this.#copiedTable(type)),
         );
 
-        // copy them under the request's name and scope
+        // copy them under the request's name and scope, reading each table in its scopes
         const tables = [...access, ...copied];
 
         return new Replica({
@@ -834,34 +869,40 @@ export class Authorizer {
                     where === undefined ? [] : [[table, where]],
                 ),
             ),
+            scopes: new Map(
+                tables.map(([table, , living]): [Table, readonly string[]] => [table, living]),
+            ),
             everywhere: owned,
         });
     }
 
-    /** Select a copied type's rows in a chain copy: an inherited type's inherited rows, or the scope's own row of a scope type. */
-    #copiedRows(type: ObjectTypeReference, scope: string): [Table, Condition][] {
+    /** Select a copied type's rows in a chain copy: an inherited type's inherited rows, or the scopes' own rows of a scope type. */
+    #copiedRows(type: ObjectTypeReference, scopes: readonly string[]): ChainTable[] {
         const mapping = this.mapping(type);
         const table = this.#copiedTable(type);
 
         // copy an inherited type's inherited rows in the scopes its objects may live in
         if (mapping.inherited !== undefined) {
-            const isLiving =
-                mapping.scope === undefined ||
-                column(table, mapping.scope).definition.schema.safeParse(scope).success;
+            const scope = mapping.scope;
+            const living =
+                scope === undefined
+                    ? scopes
+                    : scopes.filter(
+                          (id) => column(table, scope).definition.schema.safeParse(id).success,
+                      );
 
-            return isLiving ? [[table, mapping.inherited]] : [];
+            return living.length === 0 ? [] : [[table, mapping.inherited, living]];
         }
         // refuse a type that is neither inherited nor a scope
         else if (mapping.policy.definition.scope !== true) {
             throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
         }
-        // copy the scope's own row when its identifier is of the scope type
+        // copy the scopes' own rows whose identifiers are of the scope type
         else {
             const scopeIdentifier = column(table, mapping.id).definition.schema;
+            const owned = scopes.filter((id) => scopeIdentifier.safeParse(id).success);
 
-            return scopeIdentifier.safeParse(scope).success
-                ? [[table, { [mapping.id]: scope }]]
-                : [];
+            return owned.length === 0 ? [] : [[table, { [mapping.id]: { in: owned } }, owned]];
         }
     }
 
@@ -903,11 +944,7 @@ export class Authorizer {
         return mapping.table;
     }
 
-    /**
-     * List the access rows with changes that affect what a caller of a scope chain may have.
-     *
-     * A scope object's relationships live in that scope, so the relationships of a caller's subjects are watched in every scope.
-     */
+    /** List the access rows with changes that affect what a caller of a scope chain may have. */
     watch(chain: readonly string[], subjects: readonly Subject[] = []): Watch[] {
         const ids = [...new Set(subjects.map((subject) => subject.id))];
 
@@ -1127,11 +1164,7 @@ export class Authorizer {
         return { isAllowed, ...(until === undefined ? {} : { until }) };
     }
 
-    /**
-     * Require the caller to have every permission on one object, naming the first it lacks.
-     *
-     * A live networked database decides in one statement, and an embedded database or a past snapshot decides from grant trees.
-     */
+    /** Require the caller to have every permission on one object, naming the first it lacks. */
     async require(
         snapshot: Snapshot,
         permissions: readonly PermissionReference[],
@@ -1174,11 +1207,7 @@ export class Authorizer {
         }
     }
 
-    /**
-     * Find the fresh authentication that would admit a refused caller: the lowest assurance level at which a decision passes, with the permission's elevation age.
-     *
-     * Refusals stronger authentication would not lift, such as missing grants, find none.
-     */
+    /** Find the lowest fresh assurance level that would admit a refused caller, with the permission's elevation age. */
     async challenge(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1207,12 +1236,7 @@ export class Authorizer {
         return undefined;
     }
 
-    /**
-     * List a page of the principals of a type with a permission on one object now, in subject key order, through subject sets.
-     *
-     * Each candidate is decided as a check decides it, authenticated as strongly as the permission asks.
-     * A wildcard of a whole type names no principals, so the principals it admits are not listed.
-     */
+    /** List a page of the principals of a type with a permission on one object now, in subject key order. */
     async subjects(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1291,13 +1315,7 @@ export class Authorizer {
         return access.authorities.every((authority) => GrantTree.permits(tree, authority, access));
     }
 
-    /**
-     * Check a permission on each of the given rows, as they are or were: the positions the caller has it on, and until when that stays true by time alone.
-     *
-     * Every permission decides in memory from the grant trees the reader shares among callers, as the compiled predicate decides in SQL.
-     * A row of a scope the caller's scope encloses is decided by the caller's access in that scope, given in `below`.
-     * Rows listed in the scope must live in it, and rows read by their keys may live anywhere on the chain.
-     */
+    /** Check a permission on each row, returning the positions the caller has it on and until when that holds. */
     async checkRows(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1530,11 +1548,7 @@ export class Authorizer {
         }
     }
 
-    /**
-     * Read what decides a permission along a scope chain: relations on the object, and permissions of its enclosing scopes.
-     *
-     * Subject sets and permissions read through enclosing scopes take only such permissions, since relationships on the chain decide them without the object's row.
-     */
+    /** Read what decides a permission along a scope chain: relations on the object and permissions of enclosing scopes. */
     deciding(reference: PermissionReference): {
         readonly relations: readonly string[];
         readonly enclosing: readonly PermissionReference[];
@@ -1760,41 +1774,12 @@ function validatePredicate(
     placeholders: Readonly<Record<string, AttributeType>> | undefined,
 ): void {
     switch (predicate.kind) {
-        case "compare": {
-            // read the compared value's type, a placeholder's from its declared request attribute
-            const value = predicate.value;
-            const valueType =
-                value instanceof Placeholder
-                    ? placeholderType(value.placeholder, placeholders)
-                    : typeof value;
-            const isOrdered = predicate.operator !== "eq" && predicate.operator !== "ne";
-            const attribute = attributeType(predicate.name, declared);
-
-            // order only numbers, and compare only values of the attribute's type
-            if (isOrdered && attribute !== "number") {
-                throw new AccessError(
-                    "INVALID_DECLARATION",
-                    `ordered comparisons require a number attribute: ${predicate.name}`,
-                );
-            } else if (valueType !== attribute) {
-                throw new AccessError(
-                    "INVALID_DECLARATION",
-                    `comparisons require a ${attribute} value: ${predicate.name}`,
-                );
-            }
+        case "compare":
+            validateCompare(predicate, declared, placeholders);
             break;
-        }
-        case "oneOf": {
-            // require listed values of the attribute's type
-            const attribute = attributeType(predicate.name, declared);
-            if (predicate.values.some((value) => typeof value !== attribute)) {
-                throw new AccessError(
-                    "INVALID_DECLARATION",
-                    `listed values require ${attribute} values: ${predicate.name}`,
-                );
-            }
+        case "oneOf":
+            validateOneOf(predicate, declared);
             break;
-        }
         case "missing":
             attributeType(predicate.name, declared);
             break;
@@ -1818,6 +1803,52 @@ function validatePredicate(
                 "INVALID_DECLARATION",
                 `policy conditions follow no relations: ${predicate.via}`,
             );
+    }
+}
+
+/** Require a comparison with a value of the attribute's type, ordering only numbers. */
+function validateCompare(
+    predicate: Extract<Predicate, { readonly kind: "compare" }>,
+    declared: Readonly<Record<string, AttributeType>>,
+    placeholders: Readonly<Record<string, AttributeType>> | undefined,
+): void {
+    // read the value's type from the value or its placeholder's request attribute
+    const value = predicate.value;
+    const valueType =
+        value instanceof Placeholder
+            ? placeholderType(value.placeholder, placeholders)
+            : typeof value;
+    const isOrdered = predicate.operator !== "eq" && predicate.operator !== "ne";
+    const attribute = attributeType(predicate.name, declared);
+
+    // order only numbers
+    if (isOrdered && attribute !== "number") {
+        throw new AccessError(
+            "INVALID_DECLARATION",
+            `ordered comparisons require a number attribute: ${predicate.name}`,
+        );
+    }
+    // compare only values of the attribute's type
+    else if (valueType !== attribute) {
+        throw new AccessError(
+            "INVALID_DECLARATION",
+            `comparisons require a ${attribute} value: ${predicate.name}`,
+        );
+    }
+}
+
+/** Require listed values of the attribute's type. */
+function validateOneOf(
+    predicate: Extract<Predicate, { readonly kind: "oneOf" }>,
+    declared: Readonly<Record<string, AttributeType>>,
+): void {
+    // refuse a listed value of another type
+    const attribute = attributeType(predicate.name, declared);
+    if (predicate.values.some((value) => typeof value !== attribute)) {
+        throw new AccessError(
+            "INVALID_DECLARATION",
+            `listed values require ${attribute} values: ${predicate.name}`,
+        );
     }
 }
 
