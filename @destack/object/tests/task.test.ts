@@ -117,7 +117,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // let a user ask to join, and plan once the owner accepts
-        const asked = await carol.project.propose({
+        const asked = await carol.project.invite({
             spaceId,
             id: launch.id,
             requestId: RequestId.create(),
@@ -125,15 +125,15 @@ test.each(TEST_DIALECTS)(
             purpose: "help with the launch",
         });
         expect(
-            (await alice.project.proposals({ spaceId, id: launch.id })).items.map(
-                (proposal) => proposal.purpose,
+            (await alice.project.invitations({ spaceId, id: launch.id })).items.map(
+                (invitation) => invitation.purpose,
             ),
         ).toEqual(["help with the launch"]);
         await alice.project.accept({
             spaceId,
             id: launch.id,
             requestId: RequestId.create(),
-            proposalId: asked.id,
+            invitationId: asked.id,
         });
         const listed = await carol.task.list({
             spaceId,

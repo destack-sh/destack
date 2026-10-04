@@ -1,8 +1,7 @@
 import { Address, type Plan, type Step } from "@destack/resource";
 import { Scope } from "@destack/sync";
-import { Authorizer, type Policy } from "@destack/access";
+import { Authorizer, Manager, type Policy } from "@destack/access";
 import {
-    Snapshot,
     and,
     type ColumnValue,
     type DatabaseConnection,
@@ -27,7 +26,7 @@ import {
 } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
-import { Manager, managedColumns } from "../trait/declarable.ts";
+import { isManaging, managedColumns } from "../trait/declarable.ts";
 import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
 import type { Directory } from "@destack/directory";
@@ -79,6 +78,8 @@ export interface ObjectDeclaration<
     ): Promise<boolean>;
     /** Write records a created or updated record owns. */
     written?(stack: Stack, row: Select<Object["table"]>, resolved: Resolved): Promise<void>;
+    /** Create or change a declared record through the owner of its table, in place of the stack's own write. */
+    keep?(stack: Stack, manager: Manager, resolved: Resolved): Promise<void>;
     /** Retire records through their own deletion. */
     readonly retire?: {
         /** Report whether a record is already retiring. */
@@ -90,10 +91,10 @@ export interface ObjectDeclaration<
 
 /** The declaration type an object type accepts from stacks. */
 export type DeclarationOf<Object extends ObjectType> = [
-    NonNullable<Object["declarationSchema"]>,
+    NonNullable<Object["lifecycle"]["declarationSchema"]>,
 ] extends [never]
     ? never
-    : schema.Infer<NonNullable<Object["declarationSchema"]>>;
+    : schema.Infer<NonNullable<Object["lifecycle"]["declarationSchema"]>>;
 
 /** What a host applies a stack with. */
 export interface ApplyOptions {
@@ -356,11 +357,7 @@ export class Stack {
         try {
             reservation = await root.transaction(async (database) => {
                 // guard the scope chain and refuse a moved scope
-                const chain = await Scope.chain(Snapshot.live(database), this.scope);
-                await Scope.guard(
-                    database,
-                    chain.map((link) => link.object.id),
-                );
+                const chain = await Scope.guard(database, this.scope);
                 for (const link of chain) {
                     if (link.movedTo !== undefined) {
                         throw Moved.error({ scope: link.object.id, cell: link.movedTo });
@@ -485,7 +482,12 @@ export class Stack {
             return step;
         }
 
-        // insert the record under the manager
+        // keep the record through its table's owner, or insert it under the manager
+        if (declaration.keep) {
+            await declaration.keep(this, { ...manager, name }, resolved);
+
+            return step;
+        }
         const table = declaration.object.table;
         const columns: Table = table;
         const id = declaration.object.generateId();
@@ -520,7 +522,7 @@ export class Stack {
             ? jsonOf(table, "deletionRequestedAt", record["deletionRequestedAt"])
             : null;
         if (
-            !Manager.isManaging(row) ||
+            !isManaging(row) ||
             (Object.keys(changed).length === 0 &&
                 deletion === null &&
                 (await declaration.changed?.(database, row, resolved)) !== true)
@@ -546,7 +548,12 @@ export class Stack {
             return [step];
         }
 
-        // write the declared values as a new revision
+        // keep the record through its table's owner, or write the declared values as a new revision
+        if (declaration.keep) {
+            await declaration.keep(this, { ...this.manager, name }, resolved);
+
+            return [step];
+        }
         await this.#rewrite(declaration, row, values);
         await declaration.written?.(this, await read(database, table, row.id), resolved);
 
@@ -596,7 +603,7 @@ export class Stack {
             const record: Row = row;
             if (
                 desired.has(name) ||
-                !Manager.isManaging(row) ||
+                !isManaging(row) ||
                 (isDeletable && record["deletionRequestedAt"] !== null) ||
                 (await declaration.retire?.isRetiring(database, row)) === true
             ) {
@@ -637,7 +644,7 @@ function collect(
         return declaration.collect(document);
     }
     const declared = DECLARED.parse(document[declaration.object.plural] ?? {});
-    const declarationSchema = declaration.object.declarationSchema;
+    const declarationSchema = declaration.object.lifecycle.declarationSchema;
 
     return declarationSchema
         ? Object.fromEntries(
@@ -767,7 +774,7 @@ export function managedType(object: ObjectType): ObjectOf<{ table: ManagedTable 
  * @construct defineObject derives the manager columns into the table of every object whose definition sets `declarable`, which gives it a declaration schema.
  */
 export function managedType(object: ObjectType): ObjectType | undefined {
-    return object.declarationSchema === undefined ? undefined : object;
+    return object.lifecycle.declarationSchema === undefined ? undefined : object;
 }
 
 /** Collect the declared values that differ from a row, in their JSON form. */

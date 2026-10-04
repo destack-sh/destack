@@ -1,6 +1,6 @@
 import type { TableMapping } from "@destack/access";
 import type { Table } from "@destack/db";
-import { proposal, relationship, role } from "./access.ts";
+import { invitation, relationship, role } from "./access.ts";
 import { auditCall, auditTarget } from "./audit.ts";
 import { activity, checkpoint } from "./history.ts";
 
@@ -19,7 +19,7 @@ export interface Intrinsic<Definition extends Table = Table> {
 export const Intrinsic = {
     role,
     relationship,
-    proposal,
+    invitation,
     auditCall,
     auditTarget,
     activity,

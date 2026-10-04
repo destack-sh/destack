@@ -6,7 +6,7 @@ export {
     StatusCondition,
 } from "./controlled.ts";
 export { TagMap } from "./record.ts";
-export { declarable, Manager } from "./declarable.ts";
+export { declarable } from "./declarable.ts";
 export { suspendable } from "./suspendable.ts";
 export { bindable, CONSUMER } from "./bindable.ts";
 export { Provisioned, type ProvisionedDefinition, type ProvisionedObject } from "./provisioned.ts";

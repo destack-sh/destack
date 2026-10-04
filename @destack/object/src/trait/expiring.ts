@@ -56,7 +56,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
     validate: (rules, object) => requireRules(object, rules),
     after(object, rules) {
         // require an expiring type
-        if (object.expiring === undefined) {
+        if (object.lifecycle.expiring === undefined) {
             throw new TypeError(`object ${object.name} does not expire`);
         }
 
@@ -66,13 +66,13 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
             applied.trait === expiring ? { trait: applied.trait, options: rules } : applied,
         );
 
-        return object.with({ expiring: rules, traits });
+        return object.with({ lifecycle: { ...object.lifecycle, expiring: rules }, traits });
     },
     async expire(server, now) {
         // remove each rule's rows in batches until one comes back short
         let removed = 0;
         for (const object of server.objects) {
-            for (const rule of object.expiring ?? []) {
+            for (const rule of object.lifecycle.expiring ?? []) {
                 for (let batch = EXPIRE_ROWS; batch === EXPIRE_ROWS;) {
                     const rows = await expired(server.database, object, rule, now);
                     if (rows.length > 0) {
@@ -93,7 +93,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
     },
     controller(server) {
         // watch expiring objects
-        const types = server.objects.filter((object) => object.expiring !== undefined);
+        const types = server.objects.filter((object) => object.lifecycle.expiring !== undefined);
 
         return {
             name: "expiry",
@@ -103,7 +103,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
                 const object = types.find((type) => type.table === change.table);
                 const after: Row | null = Change.after(change);
                 const before: Row | null = Change.before(change);
-                const isTimed = (object?.expiring ?? []).some(
+                const isTimed = (object?.lifecycle.expiring ?? []).some(
                     (rule) =>
                         after?.[rule.from] !== undefined &&
                         after[rule.from] !== null &&
@@ -119,7 +119,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
                 await expiring.expire(server, now);
                 const passes = await Promise.all(
                     types.flatMap((object) =>
-                        (object.expiring ?? []).map((rule) =>
+                        (object.lifecycle.expiring ?? []).map((rule) =>
                             passing(server.database, object, rule),
                         ),
                     ),

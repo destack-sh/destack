@@ -149,11 +149,7 @@ const RECORD_KINDS: ReadonlySet<string> = new Set(["create", "update", "delete",
 /** The permission on a scope's own object that shows the scope. */
 export const SCOPE_READ = "read";
 
-/**
- * The permission to act as the principal an object stands for, such as the cell serving a space's zone.
- *
- * The object's identifier is the principal's, and its `parent` column, where it has one, is the scope containing the principal.
- */
+/** The permission to act as the principal an object stands for, such as the cell serving a space's zone. */
 export const REPRESENT = "represent";
 
 /** The permission to copy the access rows of the scopes above a scope: on the caller's own object living in it, or on the scope's own object. */
@@ -343,6 +339,42 @@ export interface ObjectDefinition<
 /** Where objects live: durable in the scope's database, ephemeral in instances' memory, or external in immutable files read per scope. */
 export type ObjectStorage = "durable" | "ephemeral" | "external";
 
+/** How an object type's objects are declared, deleted, expired, versioned, tracked and converted across releases. */
+export interface ObjectLifecycle<Declared = unknown, Permissions extends string = string> {
+    /** The schema of one declaration in a stack, when stacks may declare the objects. */
+    readonly declarationSchema: schema.Schema<Declared> | undefined;
+    /** How deleted objects stay restorable, for recoverable objects. */
+    readonly recoverable: RecoverableDefinition<Permissions> | undefined;
+    /** When the system removes the objects, for expiring objects. */
+    readonly expiring: readonly ExpiryRule[] | undefined;
+    /** Whether the objects are numbered versions of their parent. */
+    readonly versioned: VersionsDefinition | undefined;
+    /** How tracked objects keep their history. */
+    readonly tracked: TrackedDefinition<Permissions> | undefined;
+    /** The previous names of renamed fields, by current field. */
+    readonly moved: Readonly<Record<string, string>>;
+    /** The fields each release computes from stored rows and earlier callers' inputs. */
+    readonly convert: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+}
+
+/** A definition as an object type retains it, with its identity, storage and field lists resolved. */
+type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDefinition<
+    Configuration["declared"],
+    Configuration["permissions"],
+    Configuration["methods"]
+> & {
+    readonly name: Configuration["name"];
+    readonly identity: Configuration["identity"];
+    readonly plural: Configuration["plural"];
+    readonly table: Configuration["table"];
+    readonly methods: Configuration["methods"];
+    readonly storage: Configuration["storage"];
+    readonly guarded: readonly string[];
+    readonly written: readonly string[];
+    readonly sensitive: readonly string[];
+    readonly text: readonly string[];
+};
+
 /** A unique index the key index keeps across databases. */
 export interface ObjectIndex {
     /** The indexed fields, in key order. */
@@ -444,20 +476,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly tables: readonly Table[];
     /** The permission names callers may have on the object. */
     readonly permissions: readonly string[];
-    /** The schema of one declaration in a stack, when stacks may declare the object. */
-    readonly declarationSchema: schema.Schema<Configuration["declared"]> | undefined;
     /** The operations callers may execute, keyed by method name. */
     readonly methods: Configuration["methods"];
-    /** How deleted objects stay restorable, for recoverable objects. */
-    readonly recoverable: RecoverableDefinition<Configuration["permissions"]> | undefined;
-    /** When the system removes the objects, for expiring objects. */
-    readonly expiring: readonly ExpiryRule[] | undefined;
     /** The system controller reconciling the objects with work waiting. */
     readonly controller?: ObjectController;
     /** The roles the objects are shared through, absent for objects shared otherwise or not at all. */
-    readonly roles?: RolesDefinition;
+    readonly roles: RolesDefinition | undefined;
     /** The kind whose resources the objects are, absent for other objects. */
-    readonly provisioned?: ProvisionedDefinition;
+    readonly provisioned: ProvisionedDefinition | undefined;
     /** How a stack's declarations of the objects become their managed records. */
     readonly declaration?: ObjectDeclaration;
     /** The type whose rows the objects project, absent for objects projecting none. */
@@ -466,10 +492,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly projecting: (() => readonly ObjectType[]) | undefined;
     /** The objects' natural key, absent for objects with generated identifiers. */
     readonly keyed: schema.Schema<string> | undefined;
-    /** Whether the objects are numbered versions of their parent. */
-    readonly versioned: VersionsDefinition | undefined;
-    /** How tracked objects keep their history. */
-    readonly tracked: TrackedDefinition<Configuration["permissions"]> | undefined;
     /** The parent of nested objects. */
     readonly parent:
         | {
@@ -497,30 +519,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly linger?: number;
     /** Where access finds objects stored in a table another package owns. */
     readonly intrinsic: Omit<TableMapping, "policy"> | undefined;
-    /** The previous names of renamed fields, by current field. */
-    readonly moved: Readonly<Record<string, string>>;
-    /** The fields each release computes from stored rows and earlier callers' inputs. */
-    readonly convert: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    /** How the objects are declared, deleted, expired, versioned, tracked and converted across releases. */
+    readonly lifecycle: ObjectLifecycle<Configuration["declared"], Configuration["permissions"]>;
 
     /** Retain a definition with its table, methods and traits, and assemble its policy. */
     constructor(
         owner: Package,
-        definition: ObjectDefinition<
-            Configuration["declared"],
-            Configuration["permissions"],
-            Configuration["methods"]
-        > & {
-            readonly name: Configuration["name"];
-            readonly identity: Configuration["identity"];
-            readonly plural: Configuration["plural"];
-            readonly table: Configuration["table"];
-            readonly methods: Configuration["methods"];
-            readonly storage: Configuration["storage"];
-            readonly guarded: readonly string[];
-            readonly written: readonly string[];
-            readonly sensitive: readonly string[];
-            readonly text: readonly string[];
-        },
+        definition: ObjectTypeDefinition<Configuration>,
         traits: readonly TraitInstance[],
         intrinsic?: Omit<TableMapping, "policy">,
     ) {
@@ -536,35 +541,29 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.plural = definition.plural;
         this.table = definition.table;
         this.scope = definition.scope;
-        const scopes: readonly ObjectScope[] = [definition.scope].flat();
-        this.scopes = scopes.filter((scope): scope is ObjectType => scope !== Scope.universe.id);
+        this.scopes = ObjectType.#scopeTypes(definition.scope);
 
-        // retain the lifecycle the definition declares
-        this.declarationSchema = definition.declarable?.schema;
-        this.recoverable = definition.recoverable;
-        this.expiring = definition.expiring;
+        // retain the lifecycle, projection and natural key the definition declares
+        this.lifecycle = ObjectType.#lifecycle(definition, owner);
         this.projected = definition.projected;
         this.projecting = definition.projections;
         this.keyed = definition.key;
-        this.versioned = definition.versioned;
-        this.tracked = definition.tracked;
-        this.moved = definition.moved?.fields ?? {};
-        this.convert = definition.convert ?? {};
-        ObjectType.#requireConversions(definition, owner);
 
         // retain auditing, sharing and provisioning
         this.isReadAudited = definition.audited?.reads === true;
-        const roles = Roles.of(definition);
-        if (roles !== undefined) {
-            this.roles = roles;
-        }
-        if (definition.provisioned !== undefined) {
-            this.provisioned = definition.provisioned;
-        }
+        this.roles = Roles.of(definition);
+        this.provisioned = definition.provisioned;
 
-        // retain methods, nesting, attachments, traits and storage
+        // retain methods and fields
         this.inherited = definition.inherited;
         this.methods = definition.methods;
+        this.fields = definition.fields ?? {};
+        this.text = definition.text;
+        this.written = definition.written;
+        this.sensitive = definition.sensitive;
+        this.guarded = definition.guarded;
+
+        // retain nesting, attachments, traits and storage
         this.parent = nestedParent(this, definition);
         this.aggregates = definition.aggregates ?? {};
         this.attachments = definition.attachments ?? [];
@@ -576,52 +575,98 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             this.linger = lingerOf(definition);
         }
 
+        // resolve the relations, add trait policies and register the policy
+        const assembly = this.#assemblePolicy(definition, owner);
+        this.permissions = assembly.permissions;
+        this.policy = assembly.policy;
+
+        // list the tables a database needs
+        this.tree = this.table[TABLE].tree;
+        this.tables = this.#databaseTables();
+
+        // require valid methods, fields, aggregates, scopes, indexes and traits
+        this.#requireValid(definition);
+    }
+
+    /** List the object types among a definition's scopes, leaving out the universe. */
+    static #scopeTypes(scope: ObjectScope | readonly ObjectScope[]): ObjectType[] {
+        const scopes: readonly ObjectScope[] = [scope].flat();
+
+        return scopes.filter((type): type is ObjectType => type !== Scope.universe.id);
+    }
+
+    /** Assemble the policy of the declared permissions and relations with the traits' policies. */
+    #assemblePolicy(
+        definition: ObjectDefinition,
+        owner: Package,
+    ): { permissions: string[]; policy: Policy } {
         // resolve the relations declared, read from fields and enclosing scopes
         const permissions = ObjectPermissions.expressions(definition.permissions ?? []);
         const relations = this.#relations(definition, owner, permissions);
-        this.fields = definition.fields ?? {};
-        this.text = definition.text;
 
-        // add trait policies and register the policy
+        // collect the traits' policies and the permissions they derive
         const names = Object.keys(permissions);
         const object = traitObject(this, (definition.represents?.package ?? owner).id);
-        const policies = traits.flatMap(({ trait, options }) =>
+        const policies = this.traits.flatMap(({ trait, options }) =>
             trait.policy === undefined ? [] : [trait.policy(options, object, names)],
         );
         const derived = Object.fromEntries(
             policies.flatMap((policy) => Object.entries(policy.permissions ?? {})),
         );
-        this.permissions = [...names, ...Object.keys(derived)];
-        this.policy = objectPolicy(owner, definition, {
+
+        // register the policy over declared and derived permissions
+        const policy = objectPolicy(owner, definition, {
             relations,
             permissions,
             derived,
             policies,
         });
 
-        // list the tables a database needs
-        this.tree = this.table[TABLE].tree;
-        this.tables =
-            this.storage === "durable"
-                ? [
-                      this.table,
-                      ...serverTables,
-                      ...(this.text.length === 0 ? [] : [chunk, chunkRun]),
-                  ]
-                : [this.table];
+        return { permissions: [...names, ...Object.keys(derived)], policy };
+    }
 
-        // require valid methods, fields, aggregates, scopes, indexes and traits
-        this.written = definition.written;
-        this.sensitive = definition.sensitive;
-        this.guarded = definition.guarded;
+    /** List the tables a database needs for the objects: the server's and text chunks beside durable rows. */
+    #databaseTables(): readonly Table[] {
+        // keep ephemeral and external rows in their table alone
+        if (this.storage !== "durable") {
+            return [this.table];
+        }
+
+        return [this.table, ...serverTables, ...(this.text.length === 0 ? [] : [chunk, chunkRun])];
+    }
+
+    /** Require valid methods, fields, aggregates, scopes, indexes and traits. */
+    #requireValid(definition: ObjectTypeDefinition<Configuration>): void {
+        // require the type's own members
         this.#requireMethods();
         this.#requireAggregates();
         this.#requireScopes();
         this.#requireIndexes();
-        this.#requireStorage(definition, traits);
-        for (const { trait, options } of traits) {
+        this.#requireStorage(definition, this.traits);
+
+        // let each trait validate its options
+        for (const { trait, options } of this.traits) {
             trait.validate?.(options, this, definition);
         }
+    }
+
+    /** Read the lifecycle a definition declares, requiring its conversions up to the package's release. */
+    static #lifecycle<Configuration extends ObjectConfiguration>(
+        definition: ObjectTypeDefinition<Configuration>,
+        owner: Package,
+    ): ObjectLifecycle<Configuration["declared"], Configuration["permissions"]> {
+        // require each conversion and moved field
+        ObjectType.#requireConversions(definition, owner);
+
+        return {
+            declarationSchema: definition.declarable?.schema,
+            recoverable: definition.recoverable,
+            expiring: definition.expiring,
+            versioned: definition.versioned,
+            tracked: definition.tracked,
+            moved: definition.moved?.fields ?? {},
+            convert: definition.convert ?? {},
+        };
     }
 
     /** Require each conversion up to the package's release, and moved fields naming no current field. */
@@ -843,7 +888,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     conversions(name: string): Readonly<Record<Version, Readonly<Record<string, Expression>>>> {
         // rename previous field names in calls of releases before this one
         const renames = Object.fromEntries(
-            Object.entries(this.moved).map(([field, previous]) => [
+            Object.entries(this.lifecycle.moved).map(([field, previous]) => [
                 field,
                 Expression.column(previous),
             ]),
@@ -855,7 +900,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         // merge the object's and the method's assignments by release
         const declared = methodsOf(this)[name];
-        for (const conversions of [this.convert, declared?.convert ?? {}]) {
+        for (const conversions of [this.lifecycle.convert, declared?.convert ?? {}]) {
             for (const [release, assignments] of Object.entries(conversions)) {
                 releases[release] = { ...releases[release], ...assignments };
             }
@@ -886,7 +931,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         return {
             package: this.package,
-            name: `${this.name}.${name}`,
+            name: `${this.key}.${name}`,
             targets: schema.object({ [target]: AuditTarget }),
             details: declared === undefined ? schema.object({}) : declared.details.partial(),
         };
@@ -1105,10 +1150,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     with<Self extends ObjectType>(
         this: Self,
         changes: Partial<
-            Pick<
-                Self,
-                "methods" | "recoverable" | "expiring" | "traits" | "controller" | "declaration"
-            >
+            Pick<Self, "methods" | "lifecycle" | "traits" | "controller" | "declaration">
         >,
     ): Self;
     /**
@@ -1118,10 +1160,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
      */
     with(
         changes: Partial<
-            Pick<
-                ObjectType,
-                "methods" | "recoverable" | "expiring" | "traits" | "controller" | "declaration"
-            >
+            Pick<ObjectType, "methods" | "lifecycle" | "traits" | "controller" | "declaration">
         >,
     ): ObjectType {
         return Object.assign(inherit(prototypeOf(this)), this, changes);

@@ -94,8 +94,8 @@ export function describeObject(object: ObjectType): ObjectDescription {
         table: object.table[TABLE].sqlName,
         permissions: [...object.permissions],
         policy: describePolicy(object.policy),
-        ...(object.declarationSchema
-            ? { declaration: toJsonSchema(object.declarationSchema) }
+        ...(object.lifecycle.declarationSchema
+            ? { declaration: toJsonSchema(object.lifecycle.declarationSchema) }
             : {}),
         methods,
         ...(object.isReadAudited

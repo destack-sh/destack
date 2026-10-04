@@ -175,7 +175,7 @@ export const recoverable: Trait<RecoverableDefinition> & {
     },
     within(object, within) {
         // require a recoverable type and a window
-        const declared = object.recoverable;
+        const declared = object.lifecycle.recoverable;
         if (declared === undefined) {
             throw new TypeError(`object ${object.name} is not recoverable`);
         }
@@ -187,7 +187,7 @@ export const recoverable: Trait<RecoverableDefinition> & {
             applied.trait === recoverable ? { trait: applied.trait, options } : applied,
         );
 
-        return object.with({ recoverable: options, traits });
+        return object.with({ lifecycle: { ...object.lifecycle, recoverable: options }, traits });
     },
     async purge(server, now) {
         // purge each type in batches until one comes back short
@@ -251,7 +251,7 @@ export function keptCall(call: Call<RecoverableTable>): Call<KeptTable> | undefi
  * @construct defineObject derives the purge column into the table of every object whose recovery keeps the record.
  */
 export function keptCall(call: Call<RecoverableTable>): Call | undefined {
-    return call.object.recoverable?.keep === "record" ? call : undefined;
+    return call.object.lifecycle.recoverable?.keep === "record" ? call : undefined;
 }
 
 /** Read an object type as its recoverable table types it, absent for a type without the trait. */
@@ -264,7 +264,7 @@ export function recoverableType(
  * @construct defineObject derives the trait's deletion columns into the table of every object whose definition sets `recoverable`.
  */
 export function recoverableType(object: ObjectType): ObjectType | undefined {
-    return object.recoverable === undefined ? undefined : object;
+    return object.lifecycle.recoverable === undefined ? undefined : object;
 }
 
 /** Read a batch of a type's expired, unpurged deleted rows. */
@@ -317,15 +317,15 @@ function recoverables(objects: readonly ObjectType[]): {
     return objects.flatMap((object) => {
         const typed = recoverableType(object);
 
-        return typed === undefined || object.recoverable === undefined
+        return typed === undefined || object.lifecycle.recoverable === undefined
             ? []
-            : [{ object: typed, options: object.recoverable }];
+            : [{ object: typed, options: object.lifecycle.recoverable }];
     });
 }
 
 /** Read the recovery a call's served object type keeps, which its host may set. */
 function recoveryOf(call: Call): RecoverableDefinition {
-    return present(call.object.recoverable, `the recovery of ${call.object.name}`);
+    return present(call.object.lifecycle.recoverable, `the recovery of ${call.object.name}`);
 }
 
 /** Name the purge method a recoverable type takes. */

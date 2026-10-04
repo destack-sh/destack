@@ -105,10 +105,10 @@ test("derive typed routes and describe each method with its permission, input an
         relationships: "GET /spaces/{spaceId}/tasks/{id}/relationships",
         grant: "POST /spaces/{spaceId}/tasks/{id}/relationships",
         revoke: "DELETE /spaces/{spaceId}/tasks/{id}/relationships/{relationshipId}",
-        proposals: "GET /spaces/{spaceId}/tasks/{id}/proposals",
-        propose: "POST /spaces/{spaceId}/tasks/{id}/proposals",
-        accept: "POST /spaces/{spaceId}/tasks/{id}/proposals/{proposalId}/accept",
-        decline: "DELETE /spaces/{spaceId}/tasks/{id}/proposals/{proposalId}",
+        invitations: "GET /spaces/{spaceId}/tasks/{id}/invitations",
+        invite: "POST /spaces/{spaceId}/tasks/{id}/invitations",
+        accept: "POST /spaces/{spaceId}/tasks/{id}/invitations/{invitationId}/accept",
+        withdraw: "DELETE /spaces/{spaceId}/tasks/{id}/invitations/{invitationId}",
         explain: "GET /spaces/{spaceId}/tasks/{id}/access",
     });
 
@@ -274,7 +274,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "share an object, challenge for stronger authentication, accept proposals and lend authority to agents on %s",
+    "share an object, challenge for stronger authentication, accept invitations and lend authority to agents on %s",
     async (dialect) => {
         const { execute, events, act, step, delegate } = await serveTasks(dialect);
         const created = await execute("create", {
@@ -351,7 +351,7 @@ test.each(TEST_DIALECTS)(
 
         // let a user without access ask for it, and apply it once the owner accepts
         act("user-4");
-        const asked = await execute("propose", {
+        const asked = await execute("invite", {
             id: created.id,
             requestId: RequestId.create(),
             relationship: { relation: "viewer", subject: { ...viewer, id: "user-4" } },
@@ -365,11 +365,11 @@ test.each(TEST_DIALECTS)(
             execute("accept", {
                 id: created.id,
                 requestId: RequestId.create(),
-                proposalId: asked.id,
+                invitationId: asked.id,
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
         act("user-1");
-        expect(await execute("proposals", { id: created.id })).toEqual({
+        expect(await execute("invitations", { id: created.id })).toEqual({
             items: [
                 {
                     id: asked.id,
@@ -384,8 +384,9 @@ test.each(TEST_DIALECTS)(
                         expiresAt: null,
                         subject: { ...viewer, id: "user-4" },
                     },
-                    proposer: { ...viewer, id: "user-4" },
+                    inviter: { ...viewer, id: "user-4" },
                     purpose: "follow the plan",
+                    status: "pending",
                     createdAt: any(Number),
                     expiresAt: any(Number),
                 },
@@ -395,7 +396,7 @@ test.each(TEST_DIALECTS)(
         await execute("accept", {
             id: created.id,
             requestId: RequestId.create(),
-            proposalId: asked.id,
+            invitationId: asked.id,
         });
         act("user-4");
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
@@ -406,11 +407,11 @@ test.each(TEST_DIALECTS)(
         delegate(agent);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
-            message: "propose the missing delegation to the principal the delegate acts for",
+            message: "invite the principal the delegate acts for to the missing delegation",
             data: { delegate: agent, onBehalfOf: principal.user.reference("universe", "user-1") },
         });
         const owner = principal.user.reference("universe", "user-1");
-        const lending = await execute("propose", {
+        const lending = await execute("invite", {
             id: created.id,
             requestId: RequestId.create(),
             relationship: {
@@ -420,12 +421,12 @@ test.each(TEST_DIALECTS)(
             },
             purpose: "summarize the plan",
         });
-        expect(lending.proposer).toEqual(agent);
+        expect(lending.inviter).toEqual(agent);
         await expect(
             execute("accept", {
                 id: created.id,
                 requestId: RequestId.create(),
-                proposalId: lending.id,
+                invitationId: lending.id,
             }),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -435,7 +436,7 @@ test.each(TEST_DIALECTS)(
         await execute("accept", {
             id: created.id,
             requestId: RequestId.create(),
-            proposalId: lending.id,
+            invitationId: lending.id,
         });
         delegate(agent);
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
@@ -448,7 +449,7 @@ test.each(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
-            message: "propose the missing delegation to the principal the delegate acts for",
+            message: "invite the principal the delegate acts for to the missing delegation",
         });
         delegate(undefined);
 
@@ -458,9 +459,9 @@ test.each(TEST_DIALECTS)(
             "task.grant",
             "task.revoke",
             "task.grant",
-            "task.propose",
+            "task.invite",
             "task.accept",
-            "task.propose",
+            "task.invite",
             "task.accept",
         ]);
     },
@@ -1025,23 +1026,10 @@ test("add suspending and detaching through their traits, and refuse them where t
 /** Serve tasks, comments, versions and folders in a space to a scenario's caller. */
 async function serveTasks(dialect: Dialect) {
     // keep the space's objects in a migrated database
-    const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await openSpace(database, spaceId);
+    const database = await openTaskDatabase(dialect);
 
     // handle archiving
-    const handled = task.handle({
-        archive: async ({ target, database: transaction }) => {
-            const [row] = await transaction
-                .update(task.table)
-                .set({ archived: true, revision: target.revision + 1 })
-                .where(eq(task.table.id, target.id))
-                .returning();
-
-            return present(row, "the archived task");
-        },
-    });
+    const handled = handleArchive();
 
     // decide as the current user at the current assurance, through the current delegate
     let current = "user-1";
@@ -1223,3 +1211,27 @@ test("settle each call's prepared work once when two calls of one mutation share
 
 /** Wait for nothing, until a test pauses a call in its place. */
 async function idle(): Promise<void> {}
+
+/** Open a migrated database holding the scenario's space until the test finishes. */
+async function openTaskDatabase(dialect: Dialect) {
+    const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+
+    return storage.database;
+}
+
+/** Handle the task's archive method by marking its row archived. */
+function handleArchive() {
+    return task.handle({
+        archive: async ({ target, database: transaction }) => {
+            const [row] = await transaction
+                .update(task.table)
+                .set({ archived: true, revision: target.revision + 1 })
+                .where(eq(task.table.id, target.id))
+                .returning();
+
+            return present(row, "the archived task");
+        },
+    });
+}

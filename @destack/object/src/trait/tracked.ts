@@ -83,7 +83,7 @@ export const tracked: Trait<TrackedDefinition> & {
     require(objects, authorizer) {
         // follow each tracked object's read permission
         const followed = new Set<string>();
-        for (const object of objects.filter((served) => served.tracked !== undefined)) {
+        for (const object of objects.filter((served) => served.lifecycle.tracked !== undefined)) {
             const reading = present(object.reading, `the read permission of ${object.name}`);
             requireKept(object, object, reading.name, { objects, authorizer, followed });
         }

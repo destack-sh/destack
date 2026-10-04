@@ -3,10 +3,10 @@ import { Scope, type ObjectReference } from "@destack/sync";
 import { Snapshot, TABLE, eq, type Select, type Table } from "@destack/db";
 import {
     ACCESS_MAPPINGS,
-    accessProposal,
+    accessInvitation,
     accessRelationship,
     accessRole,
-    PermissionReference,
+    RoleRequest,
     type TableMapping,
 } from "@destack/access";
 import { present, schema } from "@destack/schema";
@@ -14,12 +14,6 @@ import { type Call } from "../method/call.ts";
 import type { Method, MethodBuilder } from "../method/method.ts";
 import { INTRINSIC } from "./intrinsic.ts";
 import type { ObjectScope } from "./object.ts";
-
-/** The permissions a role grants. */
-const RolePermissions = schema.object({
-    /** The permissions the role grants. */
-    permissions: schema.array(PermissionReference),
-});
 
 /** Define a scope type's roles as objects. */
 export function role<const Scope extends ObjectScope>(scope: Scope) {
@@ -36,7 +30,7 @@ export function role<const Scope extends ObjectScope>(scope: Scope) {
             create: unpredicted(
                 method.create("create", {
                     fields: ["name", "description"],
-                    input: RolePermissions,
+                    input: RoleRequest.pick({ permissions: true }),
                 }),
             ).handle(async (call) => {
                 // create the role through the access role API
@@ -51,7 +45,7 @@ export function role<const Scope extends ObjectScope>(scope: Scope) {
                 method.update("update", {
                     fields: ["name", "description"],
                     input: schema.object({
-                        permissions: schema.array(PermissionReference).exactOptional(),
+                        permissions: RoleRequest.shape.permissions.exactOptional(),
                     }),
                 }),
             ).handle(async (call) => {
@@ -96,16 +90,16 @@ export function relationship<const Scope extends ObjectScope>(scope: Scope) {
     } as const;
 }
 
-/** Define a scope type's proposals as objects, answered through sharing methods. */
-export function proposal<const Scope extends ObjectScope>(scope: Scope) {
+/** Define a scope type's invitations as objects, answered through sharing methods. */
+export function invitation<const Scope extends ObjectScope>(scope: Scope) {
     return {
-        name: "proposal",
-        plural: "proposals",
-        [INTRINSIC]: { table: accessProposal, mapping: mappingOf(accessProposal) },
+        name: "invitation",
+        plural: "invitations",
+        [INTRINSIC]: { table: accessInvitation, mapping: mappingOf(accessInvitation) },
         scope,
-        represents: access.proposal,
-        permissions: access.proposal.definition.permissions,
-        methods: (method: MethodBuilder<typeof accessProposal>) => ({
+        represents: access.invitation,
+        permissions: access.invitation.definition.permissions,
+        methods: (method: MethodBuilder<typeof accessInvitation>) => ({
             get: method.get("read"),
             list: method.list("read"),
         }),

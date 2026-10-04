@@ -268,7 +268,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // let a reader ask for editing, and edit once the owner accepts
-        const request = await carol.page.propose({
+        const request = await carol.page.invite({
             spaceId,
             id: handbook.id,
             requestId: RequestId.create(),
@@ -281,7 +281,7 @@ test.each(TEST_DIALECTS)(
             spaceId,
             id: handbook.id,
             requestId: RequestId.create(),
-            proposalId: request.id,
+            invitationId: request.id,
         });
         const renamed = await carol.page.update({
             spaceId,

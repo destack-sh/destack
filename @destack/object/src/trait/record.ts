@@ -31,7 +31,7 @@ import {
 import { validated } from "../field/field.ts";
 import { aligned, canonicalize, schema, type JsonObject, type Version } from "@destack/schema";
 import { changesThroughLog, Dataflow, View, type ObjectReference, Subject } from "@destack/sync";
-import { conceal, ServiceError } from "@destack/service/error";
+import { conceal, isServiceError, ServiceError } from "@destack/service/error";
 import { Page, page } from "@destack/service/page";
 import { Call, type Bivariant } from "../method/call.ts";
 import { Step } from "../method/step.ts";
@@ -66,7 +66,7 @@ import type { ObjectType } from "../object/object.ts";
 import type { ObjectTable } from "../object/table.ts";
 import type { RecoverableTable } from "./recoverable.ts";
 import { versioned } from "./versioned.ts";
-import { Manager } from "./declarable.ts";
+import { isManaging } from "./declarable.ts";
 import type { Trait } from "./trait.ts";
 
 /** The count of objects a bulk update changed, after Prisma's batch payload. */
@@ -494,7 +494,7 @@ export function remove<
         inverse: (step) => {
             // restore from the trash
             const call =
-                step.object.recoverable === undefined
+                step.object.lifecycle.recoverable === undefined
                     ? undefined
                     : Step.call(step, "restore", Step.target(step));
 
@@ -766,9 +766,9 @@ function restoreUpdated(step: Step): readonly sync.Call[] | undefined {
 function requireUnrecorded(object: ObjectType, written: readonly string[]): void {
     // refuse objects keeping a record of each change
     if (
-        object.tracked !== undefined ||
-        object.declarationSchema !== undefined ||
-        object.versioned
+        object.lifecycle.tracked !== undefined ||
+        object.lifecycle.declarationSchema !== undefined ||
+        object.lifecycle.versioned
     ) {
         throw new TypeError(
             `object ${object.name} keeps a record of each change, which many updates at once skip`,
@@ -893,7 +893,7 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
     }
 
     // number versions within their parent
-    const version = object.versioned
+    const version = object.lifecycle.versioned
         ? await versioned.next(object, call.requireParent().id, call.database)
         : undefined;
 
@@ -944,7 +944,7 @@ async function insertCreated(
     } catch (error) {
         // report conflicts only to admitted callers and the system
         const isConflict =
-            (error instanceof ServiceError && error.code === "CONFLICT") ||
+            (isServiceError(error) && error.code === "CONFLICT") ||
             (error instanceof DatabaseError &&
                 (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE"));
         if (
@@ -1059,7 +1059,9 @@ function deletingCall(call: Call<ObjectTable>): Call<RecoverableTable> | undefin
  * @construct defineObject derives the deletion columns into the table of every object whose definition sets `recoverable` or `controlled`.
  */
 function deletingCall(call: Call<ObjectTable>): Call | undefined {
-    return call.object.recoverable === undefined && !call.object.isControlled ? undefined : call;
+    return call.object.lifecycle.recoverable === undefined && !call.object.isControlled
+        ? undefined
+        : call;
 }
 
 /** Accept a caller's unused identifier for a created object, or generate one. */
@@ -1211,7 +1213,7 @@ function splitListed(listed: readonly sync.Item[], node: sync.Node, compiled: sy
 
 /** Refuse standard changes to managed objects. */
 function requireUnmanaged(call: Call): void {
-    if (Manager.isManaging(call.target)) {
+    if (isManaging(call.target)) {
         throw new ServiceError("MANAGED", {
             message: `${call.object.name} is managed by its stack; detach it before changing it`,
         });

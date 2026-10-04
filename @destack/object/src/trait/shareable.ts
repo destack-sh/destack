@@ -4,7 +4,7 @@ import {
     Explanation,
     permission,
     principal,
-    Proposal,
+    Invitation,
     relation,
     Relationship,
     RelationshipCondition,
@@ -84,18 +84,18 @@ const GrantInput = schema.union([
     schema.object({ ...SubjectShape, role: schema.string().min(1) }),
 ]);
 
-/** The fields proposing a relationship to its subject: the caller, a principal, or a contact. */
-const ProposeShape = {
-    /** The relationship to propose. */
+/** The fields inviting a subject to a relationship: the caller, a principal, or a contact. */
+const InviteShape = {
+    /** The relationship to invite to. */
     relationship: schema.object(GrantShape),
     /** Why the caller asks for or offers the relationship. */
     purpose: schema.string().min(1).max(1000).exactOptional(),
-    /** When the proposal lapses in UTC epoch milliseconds, a week from now by default. */
+    /** When the invitation lapses in UTC epoch milliseconds, a week from now by default. */
     expiresAt: Instant.exactOptional(),
 };
 
-/** A relationship an object's sharing methods propose: through exactly one declared relation or role. */
-const ProposeInput = schema.object({ ...ProposeShape, relationship: GrantInput });
+/** A relationship an object's sharing methods invite: through exactly one declared relation or role. */
+const InviteInput = schema.object({ ...InviteShape, relationship: GrantInput });
 
 /** The field selecting one relationship. */
 const RelationshipShape = {
@@ -111,10 +111,10 @@ const ExplainShape = {
     subject: Subject.exactOptional(),
 };
 
-/** The field selecting one proposal. */
-const ProposalShape = {
-    /** The proposal's identifier. */
-    proposalId: schema.string().min(1),
+/** The field selecting one invitation. */
+const InvitationShape = {
+    /** The invitation's identifier. */
+    invitationId: schema.string().min(1),
 };
 
 /** The methods sharing derives from an object's grant permission. */
@@ -127,10 +127,10 @@ export type ShareableMethodMap<Grant> = [Grant] extends [string]
           }>;
           readonly grant: Method<{ kind: "grant"; permission: null; mutates: true }>;
           readonly revoke: Method<{ kind: "revoke"; permission: null; mutates: true }>;
-          readonly proposals: Method<{ kind: "proposals"; permission: Grant; mutates: false }>;
-          readonly propose: Method<{ kind: "propose"; permission: null; mutates: true }>;
+          readonly invitations: Method<{ kind: "invitations"; permission: Grant; mutates: false }>;
+          readonly invite: Method<{ kind: "invite"; permission: null; mutates: true }>;
           readonly accept: Method<{ kind: "accept"; permission: null; mutates: true }>;
-          readonly decline: Method<{ kind: "decline"; permission: null; mutates: true }>;
+          readonly withdraw: Method<{ kind: "withdraw"; permission: null; mutates: true }>;
           readonly explain: Method<{ kind: "explain"; permission: null; mutates: false }>;
       }
     : {};
@@ -182,11 +182,7 @@ export type RoleFieldsOf<Sharing, IsScope> = [RolePermissionsOf<Sharing>] extend
       ? {}
       : { readonly owner: ReturnType<ReturnType<typeof field.subject>["caller"]> };
 
-/**
- * The roles of objects: owners, editors, commenters and viewers, each with the permissions of the roles below it.
- *
- * An object inherits each permission from its parent, or from the scopes enclosing it shared through the roles too, as files inherit from folders.
- */
+/** The roles of objects: owners, editors, commenters and viewers, each with the permissions of the roles below it. */
 export const Roles = {
     /** Read the roles a definition shares through, absent when it shares otherwise or not at all. */
     of(definition: Pick<ObjectDefinition, "shareable">): RolesDefinition | undefined {
@@ -330,7 +326,7 @@ export const Roles = {
     },
 };
 
-/** Objects callers share through relationships and proposals. */
+/** Objects callers share through relationships and invitations. */
 export const shareable: Trait<SharingPermissions> = {
     key: "shareable",
     isDurable: true,
@@ -415,16 +411,16 @@ export const shareable: Trait<SharingPermissions> = {
                 return {};
             },
         ),
-        proposals: sharingMethod(
-            "proposals",
+        invitations: sharingMethod(
+            "invitations",
             grant,
-            { method: "GET", path: "/{id}/proposals" },
+            { method: "GET", path: "/{id}/invitations" },
             (shapes) => shapes.target.extend(PageShape),
-            page(Proposal.schema),
+            page(Invitation.schema),
             async (call) => {
-                // page the object's proposals by identifier
-                const listing = sharingPage(call, "proposals");
-                const proposals = await call.requireAuthorization().proposals(
+                // page the object's invitations by identifier
+                const listing = sharingPage(call, "invitations");
+                const invitations = await call.requireAuthorization().invitations(
                     { object: call.reference() },
                     {
                         ...(listing.after === undefined ? {} : { after: listing.after }),
@@ -432,23 +428,23 @@ export const shareable: Trait<SharingPermissions> = {
                     },
                 );
 
-                return listing.result(proposals, (proposal) => proposal.id);
+                return listing.result(invitations, (invitation) => invitation.id);
             },
         ),
-        propose: sharingMethod(
-            "propose",
+        invite: sharingMethod(
+            "invite",
             null,
-            { method: "POST", path: "/{id}/proposals" },
-            (shapes) => shapes.target.extend({ ...shapes.replay, ...ProposeShape }),
-            Proposal.schema,
+            { method: "POST", path: "/{id}/invitations" },
+            (shapes) => shapes.target.extend({ ...shapes.replay, ...InviteShape }),
+            Invitation.schema,
             async (call) => {
-                // propose the relationship on an object outside the trash
-                // TODO #Incomplete: send an invitation notification when the proposal names a contact
+                // invite to the relationship on an object outside the trash
+                // TODO #Incomplete: send an invitation notification when the invitation names a contact
                 await requirePresent(call, "live");
-                const { relationship, ...proposal } = ProposeInput.parse(call.input);
+                const { relationship, ...invitation } = InviteInput.parse(call.input);
 
-                return call.requireAuthorization().propose({
-                    ...proposal,
+                return call.requireAuthorization().invite({
+                    ...invitation,
                     relationship: { ...relationship, object: call.reference() },
                 });
             },
@@ -456,8 +452,8 @@ export const shareable: Trait<SharingPermissions> = {
         accept: sharingMethod(
             "accept",
             null,
-            { method: "POST", path: "/{id}/proposals/{proposalId}/accept" },
-            (shapes) => shapes.target.extend({ ...shapes.replay, ...ProposalShape }),
+            { method: "POST", path: "/{id}/invitations/{invitationId}/accept" },
+            (shapes) => shapes.target.extend({ ...shapes.replay, ...InvitationShape }),
             Relationship.schema,
             async (call) => {
                 // accept only on an object outside the trash
@@ -467,7 +463,7 @@ export const shareable: Trait<SharingPermissions> = {
                     .requireAuthorization()
                     .accept(
                         call.reference(),
-                        schema.object(ProposalShape).parse(call.input).proposalId,
+                        schema.object(InvitationShape).parse(call.input).invitationId,
                     );
             },
         ),
@@ -485,20 +481,20 @@ export const shareable: Trait<SharingPermissions> = {
             }),
             handler: explain,
         }),
-        decline: sharingMethod(
-            "decline",
+        withdraw: sharingMethod(
+            "withdraw",
             null,
-            { method: "DELETE", path: "/{id}/proposals/{proposalId}" },
-            (shapes) => shapes.target.extend({ ...shapes.replay, ...ProposalShape }),
+            { method: "DELETE", path: "/{id}/invitations/{invitationId}" },
+            (shapes) => shapes.target.extend({ ...shapes.replay, ...InvitationShape }),
             Empty,
             async (call) => {
-                // decline on any object that exists, in the trash too
+                // withdraw on any object that exists, in the trash too
                 await requirePresent(call, "stored");
                 await call
                     .requireAuthorization()
-                    .decline(
+                    .withdraw(
                         call.reference(),
-                        schema.object(ProposalShape).parse(call.input).proposalId,
+                        schema.object(InvitationShape).parse(call.input).invitationId,
                     );
 
                 return {};
@@ -633,20 +629,20 @@ export type ShareableProcedures<Object extends ObjectType> = {
         schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof RelationshipShape>,
         schema.Object<{}>
     >;
-    proposals: Procedure<
+    invitations: Procedure<
         schema.Object<TargetShape<Object> & typeof PageShape>,
-        ReturnType<typeof page<typeof Proposal.schema>>
+        ReturnType<typeof page<typeof Invitation.schema>>
     >;
-    propose: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof ProposeShape>,
-        typeof Proposal.schema
+    invite: Procedure<
+        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof InviteShape>,
+        typeof Invitation.schema
     >;
     accept: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof ProposalShape>,
+        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof InvitationShape>,
         typeof Relationship.schema
     >;
-    decline: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof ProposalShape>,
+    withdraw: Procedure<
+        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof InvitationShape>,
         schema.Object<{}>
     >;
 };

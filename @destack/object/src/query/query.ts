@@ -54,7 +54,9 @@ function defaultQueries(
             object.name,
             {
                 object: object.name,
-                ...(object.recoverable === undefined ? {} : { deleted: "include" as const }),
+                ...(object.lifecycle.recoverable === undefined
+                    ? {}
+                    : { deleted: "include" as const }),
             },
         ]),
     );
@@ -83,7 +85,7 @@ function optionsOf(
     // require a listed object type, and trash selection at the root only
     if (object.listing === undefined) {
         throw new ServiceError("BAD_REQUEST", { message: `object ${object.name} is not listed` });
-    } else if (options.deleted !== undefined && object.recoverable === undefined) {
+    } else if (options.deleted !== undefined && object.lifecycle.recoverable === undefined) {
         throw new ServiceError("BAD_REQUEST", { message: `object ${object.name} has no trash` });
     } else if (options.deleted !== undefined && !isRoot) {
         throw new ServiceError("BAD_REQUEST", {
@@ -131,7 +133,7 @@ function trashCondition(object: ObjectType, options: OpenQueryOptions): Conditio
     const deleted = options.deleted ?? "exclude";
 
     // keep every row of a type without trash, or when asked to
-    if (object.recoverable === undefined || deleted === "include") {
+    if (object.lifecycle.recoverable === undefined || deleted === "include") {
         return undefined;
     }
     // keep only the trashed rows
@@ -302,7 +304,9 @@ function many(target: ObjectType, on: Relation["on"], where: Condition | undefin
 function keep(target: ObjectType, relation: Relation): Relation {
     const where = joined([
         ...(relation.where === undefined ? [] : [relation.where]),
-        ...(target.recoverable === undefined ? [] : [{ deletionRequestedAt: { isNull: true } }]),
+        ...(target.lifecycle.recoverable === undefined
+            ? []
+            : [{ deletionRequestedAt: { isNull: true } }]),
     ]);
 
     return where === undefined ? relation : { ...relation, where };
