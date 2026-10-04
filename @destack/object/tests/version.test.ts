@@ -1,20 +1,19 @@
+import type { CallableName, CallOutput } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import { Bookmark } from "@destack/service/bookmark";
-import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
-import { defineObject, field, method } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { objectDatabase, task, taskVersion } from "./schema.ts";
-import { principal } from "@destack/access";
 import { openSpace, space } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
+import { userContext } from "./fixture/user.ts";
 
 /** The space containing the objects. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 test.each(TEST_DIALECTS)(
     "number versions within their parent and point the parent at its current one on %s",
@@ -23,11 +22,11 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         const database = storage.database;
         await openSpace(database, spaceId);
-        const taskId = identifier("task").parse(`task-${v7()}`);
+        const taskId = schema.identifier("task").parse(`task-${v7()}`);
         await database.insert(task.table).values({
             id: taskId,
             scope: spaceId,
-            owner: "user-1",
+            ownerId: "user-1",
             title: "Plan",
             createdAt: Date.now(),
             updatedAt: Date.now(),
@@ -37,44 +36,37 @@ test.each(TEST_DIALECTS)(
         const server = new ObjectServer({
             objects: { task, taskVersion },
             database,
-            context: () => ({
-                subjects: [principal.user.reference("universe", "user-1")],
-                now: Date.now(),
-                attributes: {},
-            }),
             callKey: testCallKey,
             origin: {
                 package: task.package,
                 service: "test",
             },
         });
-        const context = {
-            scope: spaceId,
-            requireAuthentication: () => ({ id: "user-1" }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-        } as unknown as ServiceContext;
-        const execute = (name: string, input: Record<string, unknown>) =>
+        const context = userContext("user-1", spaceId);
+        const execute = <Name extends CallableName<typeof taskVersion>>(
+            name: Name,
+            input: Record<string, unknown>,
+        ): Promise<CallOutput<typeof taskVersion, Name>> =>
             server.call(
                 taskVersion,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
                 context,
-            ) as Promise<typeof taskVersion.table.$inferSelect>;
+            );
         const first = await execute("create", { parentId: taskId, title: "Plan" });
         const second = await execute("create", { parentId: taskId, title: "Ship" });
         expect([first.number, second.number]).toEqual([1, 2]);
 
         // point the task at each version in turn through its own update
         const point = async (id: string, revision: number) =>
-            (await server.call(
+            server.call(
                 task,
                 "update",
-                { spaceId, requestId: RequestId.create(), id: taskId, revision, current: id },
+                { spaceId, requestId: RequestId.create(), id: taskId, revision, currentId: id },
                 context,
-            )) as { current: string; revision: number };
+            );
         const pointed = await point(first.id, 1);
-        expect((await point(second.id, pointed.revision)).current).toBe(second.id);
+        expect((await point(second.id, pointed.revision)).currentId).toBe(second.id);
 
         // refuse updates to immutable versions
         expect(() =>
@@ -86,9 +78,9 @@ test.each(TEST_DIALECTS)(
                 versioned: true,
                 fields: { title: field.string() },
                 permissions: ["write"],
-                methods: {
+                methods: (method) => ({
                     update: method.update("write"),
-                },
+                }),
             }),
         ).toThrow(new TypeError("versions of draft are immutable and cannot be updated"));
     },

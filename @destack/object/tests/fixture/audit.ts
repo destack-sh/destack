@@ -15,11 +15,11 @@ export async function auditedActions(
     return calls
         .filter(
             (call) =>
-                (AuditCaller.actor(call.execution!.context.caller).type === "system") ===
+                (AuditCaller.actor(call.execution.context.caller).type === "system") ===
                 (actor === "system"),
         )
         .map((call) => {
-            const outcome = call.execution!.outcome;
+            const outcome = call.execution.outcome;
 
             return outcome !== undefined && outcome.kind !== "success"
                 ? `${call.method} ${outcome.error.code}`

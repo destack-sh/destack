@@ -1,20 +1,20 @@
+import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit";
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier, schema } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
+import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
-import { defineObject, field, method } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
+import { userContext } from "./fixture/user.ts";
 
 /** The space containing the chores. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
 /** Chores on lists, finished a list at a time. */
 const chore = defineObject({
@@ -28,71 +28,64 @@ const chore = defineObject({
         assignee: field.string().optional(),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: {
+    methods: (method) => ({
         list: method.list("read"),
         create: method.create("write", { fields: ["list", "done"] }),
         finish: method.updateMany("write", { fields: ["done"], match: ["list"] }),
         claim: method.updateMany("write", { fields: ["assignee"], match: ["list", "assignee"] }),
-    },
+    }),
 });
 
-/** The database holding the chores, their access and the journal. */
+/** The database with the chores, their access and the journal. */
 const choreDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...chore.tables],
+    copies: [],
 });
 
 test.each(TEST_DIALECTS)(
-    "change the matched objects the caller holds the permission on at once, advancing their revisions, on %s",
+    "change the matched objects the caller has the permission on at once, advancing their revisions, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, choreDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        let current = "user-1";
         const server = new ObjectServer({
             objects: { chore },
             database: storage.database,
-            context: () => ({
-                subjects: [principal.user.reference("universe", current)],
-                now: Date.now(),
-                attributes: {},
-            }),
             callKey: testCallKey,
             origin: {
                 package: chore.package,
                 service: "test",
             },
         });
-        const context = {
-            scope: spaceId,
-            requireAuthentication: () => ({ id: current }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-        } as unknown as ServiceContext;
-        const call = (name: string, input: Record<string, unknown>) =>
+        let context = userContext("user-1", spaceId);
+        const call = <Name extends CallableName<typeof chore>>(
+            name: Name,
+            input: Record<string, unknown>,
+        ) =>
             server.call(chore, name, { spaceId, requestId: RequestId.create(), ...input }, context);
 
-        // hold two home chores and one work chore of user-1, and one home chore of user-2
+        // insert two home chores and one work chore of user-1, and one home chore of user-2
         await call("create", { list: "home", done: false });
         await call("create", { list: "home", done: false });
         await call("create", { list: "work", done: false });
-        current = "user-2";
+        context = userContext("user-2", spaceId);
         await call("create", { list: "home", done: false });
 
         // finish user-1's home list and leave the work chore and user-2's chore
-        current = "user-1";
+        context = userContext("user-1", spaceId);
         const finished = await call("finish", { where: { list: "home" }, done: true });
         const rows = await storage.database
             .select({
-                owner: chore.table.owner,
+                owner: chore.table.ownerId,
                 list: chore.table.list,
                 done: chore.table.done,
                 revision: chore.table.revision,
             })
             .from(chore.table);
         const summary = rows
-            .map((row) => `${String(row.owner)} ${row.list} ${String(row.done)} ${row.revision}`)
-            .sort();
+            .map((row) => `${row.owner} ${row.list} ${String(row.done)} ${row.revision}`)
+            .toSorted();
 
         // claim user-1's unassigned home chores, then none are left
         const claimed = await call("claim", {
@@ -124,10 +117,12 @@ test("refuse many updates at once of guarded fields", () => {
             scope: space,
             fields: {
                 owner: field.reference(principal.user).caller(),
-                done: field.boolean().guard({ write: "write" }),
+                done: field.boolean().guardWrite("write"),
             },
             permissions: { read: relation("owner"), write: relation("owner") },
-            methods: { finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }) },
+            methods: (method) => ({
+                finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
+            }),
         }),
     ).toThrow(
         new TypeError("object secret-chore guards field done, which many updates at once skip"),

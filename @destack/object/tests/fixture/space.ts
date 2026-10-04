@@ -2,7 +2,7 @@ import { accessRelationship, anyone, none, Relationship, relation } from "@desta
 import { Scope } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { defineObject } from "../../src/index.ts";
 
@@ -33,7 +33,7 @@ export async function openSpace(
         await database.insert(accessRelationship).values(
             Relationship.encode(
                 {
-                    id: identifier("relationship").parse(`relationship-${v7()}`),
+                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
                     object,
                     relation: "reader",
                     subject: anyone.reference("*", "*"),

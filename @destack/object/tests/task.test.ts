@@ -1,25 +1,24 @@
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
+import { schema, present } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
-import { project, tasksDatabase, tasksService } from "./fixture/tasks.ts";
+import { project, tasksDatabase, tasksService } from "./fixture/task.ts";
 import { user } from "./schema.ts";
 import { ServiceError } from "@destack/service/error";
 import { principal } from "@destack/access";
 import { openSpace } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 
-/** The space holding the projects. */
-const spaceId = identifier("space").parse(`space-${v7()}`);
+/** The space with the projects. */
+const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
 /** The package serving the projects. */
 const audience = PackageId.parse("package-01a0d5eb-fb66-76d2-93b6-5568ae045a69");
@@ -45,7 +44,10 @@ test.each(TEST_DIALECTS)(
             drainTimeout: 1000,
             authorizeHost: async () => {},
             authenticate: async (request) => {
-                const id = request.headers.get("authorization")!.slice("Bearer ".length);
+                const id = present(
+                    request.headers.get("authorization"),
+                    "the authorization header",
+                ).slice("Bearer ".length);
                 const subject = principal.user.reference("universe", id);
                 const now = Date.now();
 
@@ -61,33 +63,35 @@ test.each(TEST_DIALECTS)(
             },
         });
         onTestFinished(() => server.close());
-        const as = (user: string) =>
+        const as = (caller: string) =>
             createClient(tasksService, {
                 url: "https://tasks.test",
-                headers: { authorization: `Bearer ${user}` },
+                headers: { authorization: `Bearer ${caller}` },
                 fetch: (request: Request) => server.fetch(request),
             });
-        const [alice, bob, carol, dave] = ["alice", "bob", "carol", "dave"].map(as);
-        const person = (id: string) => principal.user.reference("universe", id);
+        const alice = as("alice");
+        const bob = as("bob");
+        const carol = as("carol");
+        const dave = as("dave");
 
         // let the owner create a project and a budgeted task assigned to another user
-        const launch = await alice!.project.create({
+        const launch = await alice.project.create({
             spaceId,
             requestId: RequestId.create(),
             name: "Launch",
         });
-        expect(launch.owner).toBe("alice");
-        const announce = await alice!.task.create({
+        expect(launch.ownerId).toBe("alice");
+        const announce = await alice.task.create({
             spaceId,
             requestId: RequestId.create(),
             parentId: launch.id,
             title: "Write the announcement",
-            assignee: "bob",
+            assigneeId: "bob",
             priority: "high",
             budget: 500,
             due: 1_790_000_000_000,
         });
-        expect([announce.author, announce.status, announce.budget, announce.due]).toEqual([
+        expect([announce.authorId, announce.status, announce.budget, announce.due]).toEqual([
             "alice",
             "open",
             500,
@@ -95,11 +99,11 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // let the assignee read and work the task without planning it or seeing its budget
-        const assigned = await bob!.task.get({ spaceId, id: announce.id });
+        const assigned = await bob.task.get({ spaceId, id: announce.id });
         expect([assigned.title, "budget" in assigned]).toEqual(["Write the announcement", false]);
-        await bob!.task.start({ spaceId, id: announce.id, requestId: RequestId.create() });
+        await bob.task.start({ spaceId, id: announce.id, requestId: RequestId.create() });
         await expect(
-            bob!.task.update({
+            bob.task.update({
                 spaceId,
                 id: announce.id,
                 requestId: RequestId.create(),
@@ -107,13 +111,13 @@ test.each(TEST_DIALECTS)(
                 title: "Rename",
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: plan" });
-        await expect(bob!.project.get({ spaceId, id: launch.id })).rejects.toMatchObject({
+        await expect(bob.project.get({ spaceId, id: launch.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: `no project ${launch.id}`,
         });
 
         // let a user ask to join, and plan once the owner accepts
-        const asked = await carol!.project.propose({
+        const asked = await carol.project.propose({
             spaceId,
             id: launch.id,
             requestId: RequestId.create(),
@@ -121,31 +125,31 @@ test.each(TEST_DIALECTS)(
             purpose: "help with the launch",
         });
         expect(
-            (await alice!.project.proposals({ spaceId, id: launch.id })).items.map(
+            (await alice.project.proposals({ spaceId, id: launch.id })).items.map(
                 (proposal) => proposal.purpose,
             ),
         ).toEqual(["help with the launch"]);
-        await alice!.project.accept({
+        await alice.project.accept({
             spaceId,
             id: launch.id,
             requestId: RequestId.create(),
             proposalId: asked.id,
         });
-        const listed = await carol!.task.list({
+        const listed = await carol.task.list({
             spaceId,
-            where: Condition.eq("parentId", launch.id),
+            where: { parentId: launch.id },
         });
         expect(listed.items.map((item) => [item.title, item.status, "budget" in item])).toEqual([
             ["Write the announcement", "active", false],
         ]);
-        await carol!.task.create({
+        await carol.task.create({
             spaceId,
             requestId: RequestId.create(),
             parentId: launch.id,
             title: "Book the venue",
         });
         await expect(
-            carol!.task.update({
+            carol.task.update({
                 spaceId,
                 id: announce.id,
                 requestId: RequestId.create(),
@@ -155,25 +159,25 @@ test.each(TEST_DIALECTS)(
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "field budget is not writable" });
 
         // let everyone reading a task comment on it
-        await bob!.comment.create({
+        await bob.comment.create({
             spaceId,
             requestId: RequestId.create(),
             parentId: announce.id,
             text: "Draft is ready",
         });
         expect(
-            (
-                await carol!.comment.list({ spaceId, where: Condition.eq("parentId", announce.id) })
-            ).items.map((item) => [item.author, item.text]),
+            (await carol.comment.list({ spaceId, where: { parentId: announce.id } })).items.map(
+                (item) => [item.authorId, item.text],
+            ),
         ).toEqual([["bob", "Draft is ready"]]);
-        await bob!.task.complete({ spaceId, id: announce.id, requestId: RequestId.create() });
+        await bob.task.complete({ spaceId, id: announce.id, requestId: RequestId.create() });
 
         // follow up a task of another space by its qualified reference
         const origin = {
-            scope: identifier("space").parse(`space-${v7()}`),
-            id: identifier("task").parse(`task-${v7()}`),
+            scope: schema.identifier("space").parse(`space-${v7()}`),
+            id: schema.identifier("task").parse(`task-${v7()}`),
         };
-        const followUp = await alice!.task.create({
+        const followUp = await alice.task.create({
             spaceId,
             requestId: RequestId.create(),
             parentId: launch.id,
@@ -183,17 +187,17 @@ test.each(TEST_DIALECTS)(
         expect(followUp.origin).toEqual(origin);
 
         // refuse requests naming another space than the caller authenticated for
-        const elsewhere = identifier("space").parse(`space-${v7()}`);
+        const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
         await expect(
-            alice!.project.get({ spaceId: elsewhere, id: launch.id }),
+            alice.project.get({ spaceId: elsewhere, id: launch.id }),
         ).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: `scope ${elsewhere} is outside the pinned scope`,
         });
 
         // hide the project from users with no relation to it
-        expect((await dave!.project.list({ spaceId })).items).toEqual([]);
-        await expect(dave!.task.get({ spaceId, id: announce.id })).rejects.toMatchObject({
+        expect((await dave.project.list({ spaceId })).items).toEqual([]);
+        await expect(dave.task.get({ spaceId, id: announce.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: `no task ${announce.id}`,
         });
@@ -258,3 +262,8 @@ test("serve a handled type in place of the service's own, and refuse one the ser
         }),
     ).toThrow(new TypeError("service tasks serves no object user"));
 });
+
+/** Reference a user principal by identifier. */
+function person(id: string) {
+    return principal.user.reference("universe", id);
+}

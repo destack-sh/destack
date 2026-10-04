@@ -1,16 +1,16 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { eq } from "@destack/db";
-import { identifier } from "@destack/schema";
+import { schema, type JsonObject } from "@destack/schema";
 import { v7 } from "uuid";
-import { defineObject, field, Manager, method } from "../src/index.ts";
+import { defineObject, field, Manager } from "../src/index.ts";
 import { principal, relation, through, union } from "@destack/access";
 import { Stack } from "../src/server/index.ts";
-import { label, note, objectDatabase, team } from "./schema.ts";
+import { label, note, objectDatabase, task } from "./schema.ts";
 import { space } from "./fixture/space.ts";
 
 /** The space the declared objects live in. */
-const spaceId = identifier("space").parse(`space-${v7()}`);
+const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
 /** The installation and package declaring the objects. */
 const manager = Manager.schema.omit({ name: true }).parse({
@@ -34,7 +34,9 @@ test.each(TEST_DIALECTS)(
                     }
 
                     return {
-                        note: identifier("note").parse(await context.require(note, declared.note)),
+                        noteId: schema
+                            .identifier("note")
+                            .parse(await context.require(note, declared.note)),
                         text: declared.text,
                     };
                 },
@@ -44,7 +46,7 @@ test.each(TEST_DIALECTS)(
                 values: (_name, declared) => ({ title: declared.title }),
             }),
         ];
-        const apply = (document: Readonly<Record<string, unknown>>) =>
+        const apply = (document: JsonObject) =>
             Stack.apply({ database, objects, manager, scope: spaceId, document });
         const titles = async () =>
             (await database.select().from(note.table).orderBy(note.table.managerName)).map(
@@ -109,7 +111,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test("refuse aggregates that measure rows some readers of their holder may not list", () => {
-    // hold a count of books on shelves everyone related reads
+    // keep a count of books on shelves everyone related reads
     const shelf = defineObject({
         name: "shelf",
         plural: "shelves",
@@ -117,7 +119,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
         fields: { bookCount: field.count() },
         relations: { reader: { subjects: [principal.user] } },
         permissions: { read: relation("reader") },
-        methods: { get: method.get("read"), list: method.list("read") },
+        methods: (method) => ({ get: method.get("read"), list: method.list("read") }),
     });
     const book = (read: ReturnType<typeof union>) =>
         defineObject({
@@ -129,7 +131,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
             aggregates: { bookCount: { function: "count" } },
             relations: { owner: { subjects: [principal.user] } },
             permissions: { read },
-            methods: { list: method.list("read") },
+            methods: (method) => ({ list: method.list("read") }),
         });
 
     // count books every shelf reader lists, and refuse books only their owners list
@@ -146,13 +148,15 @@ test("refuse declarations that depend on themselves, also next to one depending 
     const objects = [
         label.declare({ after: [note], values: () => ({}) }),
         note.declare({ after: [label], values: () => ({}) }),
-        team.declare({ after: "every", values: () => ({}) }),
+        task.declare({ after: "every", values: () => ({}) }),
     ];
 
     // report the cycle instead of overflowing the stack
+    const storage = await TestDatabase.create("sqlite", [], { isMigrated: true });
+    onTestFinished(() => storage.close());
     await expect(
         Stack.apply({
-            database: undefined as never,
+            database: storage.database,
             objects,
             manager,
             scope: spaceId,
@@ -173,7 +177,7 @@ test("refuse a declared method a trait derives", () => {
             recoverable: { within: { days: 1 }, by: "write" },
             fields: {},
             permissions: ["write"],
-            methods: { delete: method.delete("write") },
+            methods: (method) => ({ delete: method.delete("write") }),
         }),
     ).toThrow(new TypeError("object draft declares method delete, which a trait derives"));
 });

@@ -1,7 +1,7 @@
-import { defineObject, field, method, type ObjectType } from "../src/index.ts";
+import { defineObject, field, type ObjectType } from "../src/index.ts";
 import { journal } from "@destack/audit";
 import { relation, through, union, principal } from "@destack/access";
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";
 import { space } from "./fixture/space.ts";
 
@@ -59,7 +59,9 @@ export const task = defineObject({
         token: field.string().sensitive().optional(),
         estimate: field.integer().optional().guard({ read: "plan", write: "plan" }),
         origin: field.reference("self", { qualified: true }).optional(),
-        current: field.reference((): ObjectType => taskVersion, { delete: "null" }).optional(),
+        current: field
+            .reference("task-version", (): ObjectType => taskVersion, { delete: "null" })
+            .optional(),
         status: field.state({
             initial: "open",
             transitions: {
@@ -79,13 +81,14 @@ export const task = defineObject({
         plan: relation("owner"),
     },
     shareable: { by: "write" },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("write", { fields: ["title"] }),
-        update: method.update("write", { fields: ["title", "estimate", "current"] }),
-        archive: method({ permission: "write" }),
-    },
+        update: method.update("write", { fields: ["title", "estimate", "currentId"] }),
+        archive: method.mutation({ permission: "write" }),
+        export: method.mutation({ permission: "write", prepared: schema.string() }),
+    }),
 });
 
 /** Comments on a task, deleted with it. */
@@ -96,7 +99,7 @@ export const comment = defineObject({
     nested: { in: task, delete: "cascade", receive: "write" },
     fields: { text: field.string(schema.string().min(1)) },
     permissions: ["read", "write"],
-    methods: { list: method.list("read") },
+    methods: (method) => ({ list: method.list("read") }),
 });
 
 /** Immutable versions of a task's title. */
@@ -108,7 +111,22 @@ export const taskVersion = defineObject({
     versioned: true,
     fields: { title: field.string(schema.string().min(1)) },
     permissions: { read: through("parent", "read"), write: through("parent", "write") },
-    methods: { create: method.create("write") },
+    methods: (method) => ({ create: method.create("write") }),
+});
+
+/** Copies of a task's title kept in an external store, which each creation prepares. */
+export const taskCopy = defineObject({
+    name: "task-copy",
+    plural: "taskCopies",
+    scope: space,
+    nested: { in: task, delete: "cascade", receive: "write" },
+    fields: { title: field.string(schema.string().min(1)) },
+    permissions: { read: through("parent", "read"), write: through("parent", "write") },
+    methods: (method) => ({
+        create: method.create("write", {
+            prepared: schema.string(),
+        }),
+    }),
 });
 
 /** Folders nested in folders. */
@@ -121,7 +139,7 @@ export const folder = defineObject({
     permissions: ["read", "write"],
 });
 
-/** The example database holding the objects, their access and the journal journal. */
+/** The example database with the objects, their access and the journal journal. */
 export const objectDatabase = defineDatabase({
     name: "main",
     tables: [
@@ -132,6 +150,8 @@ export const objectDatabase = defineDatabase({
         ...team.tables,
         ...comment.tables,
         ...taskVersion.tables,
+        ...taskCopy.tables,
         ...folder.tables,
     ],
+    copies: [],
 });

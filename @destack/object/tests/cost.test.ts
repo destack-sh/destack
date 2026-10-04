@@ -1,16 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { principal } from "@destack/access";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Bookmark } from "@destack/service/bookmark";
 
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
 import type { ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { notebook, note, notesDatabase } from "./fixture/notes.ts";
+import { notebook, note, notesDatabase } from "./fixture/note.ts";
 import { openSpace } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
+import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/service/test";
 
 test.for(TEST_DIALECTS)(
@@ -22,29 +20,19 @@ test.for(TEST_DIALECTS)(
         const server = new ObjectServer({
             objects: { notebook, note },
             database: storage.database,
-            context: () => ({
-                subjects: [principal.user.reference("universe", "alice")],
-                now: Date.now(),
-                attributes: {},
-            }),
             callKey: testCallKey,
             origin: {
                 package: notebook.package,
                 service: "test",
             },
         });
-        const context = {
-            scope: spaceId,
-            requireAuthentication: () => ({ id: "alice" }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-        } as unknown as ServiceContext;
-        const book = (await server.call(
+        const context = userContext("alice", spaceId);
+        const book = await server.call(
             notebook,
             "create",
             { spaceId, requestId: RequestId.create(), name: "Travel" },
             context,
-        )) as { id: string };
+        );
 
         // count the statements each mutation runs, its transaction included
         const counted = async (

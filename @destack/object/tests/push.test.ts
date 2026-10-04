@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook } from "./fixture/notes.ts";
+import { note, notebook } from "./fixture/note.ts";
 
 test("push an outbox longer than one push carries, confirming every mutation across pushes", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
@@ -9,7 +9,7 @@ test("push an outbox longer than one push carries, confirming every mutation acr
         push: { mutations: 3 },
     });
 
-    // queue more mutations than a push carries while offline
+    // queue more mutations than a push sends while offline
     const book = device.client.mutate(notebook).create({ name: "Travel" });
     const { id } = await book.predicted;
     const notes = Array.from({ length: 4 }, (_, index) =>

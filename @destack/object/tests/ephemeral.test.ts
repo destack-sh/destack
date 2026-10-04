@@ -1,18 +1,16 @@
-import type { TrackerMessage } from "@destack/sync";
-import { identifier, schema } from "@destack/schema";
-import { Condition } from "@destack/db/query";
+import type { Page, TrackerMessage } from "@destack/sync";
+import { present, schema } from "@destack/schema";
+import { unique, type Dialect, defineDatabase, Expression } from "@destack/db";
 import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit";
-import { unique, type Dialect } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
 import { channelHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import * as sqlite from "@destack/db/bun";
 
 import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
-import { defineObject, field, method, type ObjectType } from "../src/index.ts";
+import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectServer } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/service/client";
@@ -21,11 +19,11 @@ import { serveObjects } from "./fixture/device.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved } from "./fixture/space.ts";
 
-/** How long a check may take to hold, in milliseconds: well within the 5 s test timeout. */
+/** How long a check may take to pass, in milliseconds: well within the 5 s test timeout. */
 const UNTIL_MILLISECONDS = 2000;
 
-/** The space holding the boards. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
+/** The space with the boards. */
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
 
 /** Who is on a board and where their cursor is. */
 const presence = defineObject({
@@ -39,20 +37,20 @@ const presence = defineObject({
         member: field.reference(principal.user).caller(),
         activity: field.string(schema.string().min(1).max(64)),
         cursor: field.integer().optional(),
-        profile: field.reference((): ObjectType => profile).optional(),
+        profile: field.reference("profile", (): ObjectType => profile).optional(),
     },
     constraints: (entry) => [unique("presence_client").on(entry.parentId, entry.client)],
     permissions: {
         read: through("parent", "present"),
         write: intersection(relation("member"), through("parent", "present")),
     },
-    methods: {
+    methods: (method) => ({
         list: method.list("read"),
         create: method.create("write"),
         update: method.update("write"),
         delete: method.delete("write"),
         idle: method.updateMany("write", { fields: ["activity"], match: ["activity"] }),
-    },
+    }),
 });
 
 /** Boards their owner shares with viewers, who are present on them. */
@@ -68,7 +66,7 @@ const board = defineObject({
     },
     shareable: { by: "manage" },
     attachments: [presence.attach({ by: "read" })],
-    methods: { list: method.list("read"), create: method.create("manage") },
+    methods: (method) => ({ list: method.list("read"), create: method.create("manage") }),
 });
 
 /** The profiles of a board's members. */
@@ -79,7 +77,7 @@ const profile = defineObject({
     nested: { in: board, receive: "manage" },
     fields: { name: field.string() },
     permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
-    methods: { list: method.list("read"), create: method.create("manage") },
+    methods: (method) => ({ list: method.list("read"), create: method.create("manage") }),
 });
 
 /** The service serving the boards, profiles and presence. */
@@ -101,8 +99,16 @@ test.for(TEST_DIALECTS)(
             subject: principal.user.reference("universe", "bob"),
         });
         // follow every durable type of the space next to the ephemeral one
-        const durable = east.server.source.sync(spaceId, context("alice").context);
-        expect((await durable.next()).value?.complete).toBe(true);
+        const durable = east.server.source.relayed(
+            east.server.source.queriesShape.subscription({
+                name: "objects",
+                scope: spaceId,
+                below: spaceId,
+                parameters: {},
+            }),
+            context("alice").context,
+        );
+        expect((await nextPage(durable)).complete).toBe(true);
         await durable.return(undefined);
 
         const alice = east.follow("alice", "client-a");
@@ -178,8 +184,8 @@ test.for(TEST_DIALECTS)(
         await vi.advanceTimersByTimeAsync(150);
         vi.useRealTimers();
         expect(
-            await west.server
-                .ephemeral!.database.select({ id: presence.table.id })
+            await present(west.server.ephemeral, "the west ephemeral storage")
+                .database.select({ id: presence.table.id })
                 .from(presence.table),
         ).toEqual([{ id: viewing.id }]);
         await east.call("alice", board, "revoke", {
@@ -224,15 +230,15 @@ test.for(TEST_DIALECTS)(
             where: { activity: "editing" },
             activity: "idle",
         });
-        const rows = await east.server
-            .ephemeral!.database.select({
+        const rows = await present(east.server.ephemeral, "the east ephemeral storage")
+            .database.select({
                 client: presence.table.client,
                 activity: presence.table.activity,
             })
             .from(presence.table);
         expect([
             idled,
-            rows.sort((left, right) => left.client.localeCompare(right.client)),
+            rows.toSorted((left, right) => left.client.localeCompare(right.client)),
         ]).toEqual([
             { count: 1 },
             [
@@ -258,15 +264,17 @@ test.for(TEST_DIALECTS)(
         // follow the owner's presence from the other instance
         const alice = await clientOf(east, "alice");
         const bob = await clientOf(west, "bob");
-        await alice.client.subscribe(presence).ready;
-        const seen = bob.client.subscribe(presence);
+        await alice.client.query.presence.findMany().subscribe().ready;
+        const seen = bob.client.query.presence.findMany().subscribe();
         await alice.client.mutate(presence).create({
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
             activity: "editing",
             cursor: 3,
         }).confirmed;
         await until(async () => (await seen.read()).length === 1);
-        expect((await seen.read()).map((row) => [row.member, row.cursor])).toEqual([["alice", 3]]);
+        expect((await seen.read()).map((row) => [row["memberId"], row["cursor"]])).toEqual([
+            ["alice", 3],
+        ]);
 
         // deliver her reaction to the board's readers on the other instance
         const listening = new AbortController();
@@ -291,12 +299,12 @@ test.for(TEST_DIALECTS)(
         // listen for the board's events as bob before he may read it
         const alice = await clientOf(east, "alice");
         const bob = await clientOf(west, "bob");
-        const boards = bob.client.subscribe(board);
+        const boards = bob.client.query.board.findMany().subscribe();
         const listening = new AbortController();
         onTestFinished(() => listening.abort());
         const received = bob.client.broadcasts(board, plans.id, listening.signal).next();
 
-        // grant him the board, then deliver her reaction once his copy holds it
+        // grant him the board, then deliver her reaction once his copy has it
         await east.call("alice", board, "grant", {
             requestId: RequestId.create(),
             id: plans.id,
@@ -332,52 +340,58 @@ test.for(TEST_DIALECTS)(
         // show the viewer each board with the presence on it and the profile each presence names
         const alice = await clientOf(east, "alice");
         const bob = await clientOf(west, "bob");
-        await alice.client.subscribe(presence).ready;
+        await alice.client.query.presence.findMany().subscribe().ready;
         await alice.client.mutate(presence).create({
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
             activity: "editing",
-            profile: card.id,
+            profileId: card.id,
         }).confirmed;
-        const boards = bob.client.subscribe(board, {
-            order: [{ column: "createdAt", direction: "asc" }],
-            include: { presences: { include: { profile: {} } } },
-        });
+        const boards = bob.client.query.board
+            .findMany({
+                orderBy: { createdAt: "asc" },
+                with: { presences: { with: { profile: true } } },
+            })
+            .subscribe();
         await boards.ready;
-        const present = async () =>
+        const shown = async () =>
             (await boards.read()).map((row) =>
-                (row.presences as Record<string, unknown>[]).map((entry) => [
-                    entry.activity,
-                    (entry.profile as Record<string, unknown> | null)?.name,
-                ]),
+                row.presences.map((entry) => [entry.activity, entry.profile?.name]),
             );
-        await until(async () => (await present()).flat().some(([, name]) => name === "Alice"));
-        expect(await present()).toEqual([[["editing", "Alice"]], []]);
+        await until(async () => (await shown()).flat().some(([, name]) => name === "Alice"));
+        expect(await shown()).toEqual([[["editing", "Alice"]], []]);
+
+        // keep only the presences the relation's own condition selects
+        const filtered = bob.client.query.board
+            .findMany({
+                orderBy: { createdAt: "asc" },
+                with: { presences: { where: { activity: "idle" } } },
+            })
+            .subscribe();
+        await filtered.ready;
+        expect((await filtered.read()).map((row) => row.presences.length)).toEqual([0, 0]);
+        await filtered.close();
 
         // count each board's live viewers locally
-        const counts = bob.client.subscribe(board, {
-            order: [{ column: "createdAt", direction: "asc" }],
-            include: {
-                viewers: {
-                    via: "presences",
-                    aggregate: { values: { count: { function: "count" } } },
-                },
-            },
-        });
+        const counts = bob.client.query.board
+            .findMany({
+                orderBy: { createdAt: "asc" },
+                extras: { viewers: Expression.rollup("count", "presences") },
+            })
+            .subscribe();
         await counts.ready;
-        const viewers = async () =>
-            (await counts.read()).map((row) => row.viewers as { count?: number });
+        const viewers = async () => (await counts.read()).map((row) => ({ count: row.viewers }));
         expect(await viewers()).toEqual([{ count: 1 }, { count: 0 }]);
 
         // count none once the viewer's presence goes, and forget her profile
         alice.stop();
         await until(async () => (await viewers())[0]?.count === 0);
-        await until(async () => (await present()).flat().length === 0);
-        expect(await present()).toEqual([[], []]);
+        await until(async () => (await shown()).flat().length === 0);
+        expect(await shown()).toEqual([[], []]);
 
         // refuse conditions relating the other storage's objects
         let refused: unknown;
         try {
-            bob.client.subscribe(board, { where: Condition.exists("presences") });
+            bob.client.query.board.findMany({ where: { presences: {} } }).subscribe();
         } catch (error) {
             refused = error;
         }
@@ -438,12 +452,13 @@ test("refuse durability on ephemeral objects and ephemeral objects outside their
 
 /** Serve boards from two instances over one durable database. */
 async function serveBoards(dialect: Dialect) {
-    // hold the boards, their access and requests in one durable database
+    // keep the boards, their access and requests in one durable database
     const storage = await TestDatabase.create(
         dialect,
         defineDatabase({
             name: "main",
             tables: [journal, ...board.tables, ...profile.tables],
+            copies: [],
         }),
         { isMigrated: true },
     );
@@ -453,17 +468,20 @@ async function serveBoards(dialect: Dialect) {
     // serve them from two instances sharing presence over their database's channel
     const instance = async () => {
         const durable = await storage.connect(storage.database.tables);
-        const store = (await EphemeralStorage.open(
-            [presence, board, profile],
-            durable,
-            (tables) => sqlite.connect(":memory:", tables),
-            {
-                heartbeat: 1000,
-                report: (error) => {
-                    throw error;
+        const store = present(
+            await EphemeralStorage.open(
+                [presence, board, profile],
+                durable,
+                (tables) => sqlite.connect(":memory:", tables),
+                {
+                    heartbeat: 1000,
+                    report: (error) => {
+                        throw error;
+                    },
                 },
-            },
-        ))!;
+            ),
+            "the ephemeral storage",
+        );
         onTestFinished(() => store[Symbol.asyncDispose]());
         const server = new ObjectServer({
             objects: { presence, board, profile },
@@ -483,39 +501,43 @@ async function serveBoards(dialect: Dialect) {
             /** Reach the instance over HTTP as a user. */
             endpoint: served.endpoint,
             /** Call a method as a user. */
-            call: async (as: string, object: ObjectType, name: string, input: object) => {
-                return (await server.call(
-                    object,
-                    name,
-                    { spaceId, ...input },
-                    context(as).context,
-                )) as {
-                    id: string;
-                    client?: string;
-                };
-            },
+            call: async <Object extends ObjectType, Name extends CallableName<Object>>(
+                as: string,
+                object: Object,
+                name: Name,
+                input: object,
+            ) => server.call(object, name, { spaceId, ...input }, context(as).context),
             /** Follow the space's presence as a user's client. */
             follow: (as: string, client: string) => {
-                // read the pages in the background into the rows held, waking whoever waits for the next
+                // read the pages in the background into the rows received, waking whoever waits for the next
                 const { context: followed, controller } = context(as);
-                const pages = server.source.sync(spaceId, followed, {
-                    client,
-                    queries: { presences: { object: "presence" } },
-                });
-                const held = new Map<string, Record<string, unknown>>();
+                const pages = server.source.relayed(
+                    server.source.ephemeralShape.subscription({
+                        name: "ephemeral",
+                        scope: spaceId,
+                        below: spaceId,
+                        parameters: {
+                            client,
+                            queries: { presences: { object: "presence" } },
+                        },
+                    }),
+                    followed,
+                );
+                const rows = new Map<string, Record<string, unknown>>();
                 let arrived = 0;
-                let wake = () => {};
+                let wake = idle;
                 const reading = (async () => {
                     for await (const page of pages) {
                         // start over from a snapshot that resets, then apply the page's changes
                         if (page.reset) {
-                            held.clear();
+                            rows.clear();
                         }
                         for (const change of page.changes) {
+                            const id = schema.string().parse(change.row["id"]);
                             if (change.operation === "delete") {
-                                held.delete(change.row.id as string);
+                                rows.delete(id);
                             } else {
-                                held.set(change.row.id as string, change.row);
+                                rows.set(id, change.row);
                             }
                         }
                         arrived += 1;
@@ -533,14 +555,16 @@ async function serveBoards(dialect: Dialect) {
                     /** Read the rows once the next page arrives. */
                     rows: async () => {
                         read += 1;
-                        while (arrived < read) {
-                            await new Promise<void>((resolve) => (wake = resolve));
+                        for (let reached = arrived; reached < read; reached = arrived) {
+                            const { promise, resolve } = Promise.withResolvers<void>();
+                            wake = resolve;
+                            await promise;
                         }
 
-                        return [...held.values()].map((row) => [
-                            row.member,
-                            row.activity,
-                            row.cursor,
+                        return [...rows.values()].map((row) => [
+                            row["memberId"],
+                            row["activity"],
+                            row["cursor"],
                         ]);
                     },
                     /** Leave, closing the stream. */
@@ -560,20 +584,18 @@ function context(as: string) {
 
     return {
         controller,
-        context: subjectContext(
-            principal.user.reference("universe", as),
-            spaceId,
-            controller.signal,
-        ),
+        context: subjectContext(principal.user.reference("universe", as), spaceId, {
+            signal: controller.signal,
+        }),
     };
 }
 
 /** Open a user's client of the boards over one instance. */
 async function clientOf(instance: { endpoint(user: string): ClientOptions }, as: string) {
-    // hold the boards and presence in a local database
+    // keep the boards and presence in a local database
     const storage = await TestDatabase.create(
         "sqlite",
-        ObjectClient.tables([board, profile, presence]),
+        ObjectClient.tables({ board, profile, presence }),
         {
             storage: "file",
         },
@@ -581,7 +603,7 @@ async function clientOf(instance: { endpoint(user: string): ClientOptions }, as:
 
     const client = await ObjectClient.open({
         database: storage.database,
-        objects: [board, profile, presence],
+        objects: { board, profile, presence },
         scope: spaceId,
         caller: principal.user.reference("universe", as),
         endpoint: instance.endpoint(as),
@@ -603,14 +625,29 @@ async function clientOf(instance: { endpoint(user: string): ClientOptions }, as:
     return { client, stop: () => controller.abort() };
 }
 
-/** Wait until a check holds, giving timers and messages a turn between checks. */
+/** Wait until a check passes, giving timers and messages a turn between checks. */
 async function until(check: () => Promise<boolean>): Promise<void> {
     const deadline = Date.now() + UNTIL_MILLISECONDS;
     while (!(await check())) {
-        // fail a check that never holds, well within the test's own timeout
+        // fail a check that never passes, well within the test's own timeout
         if (Date.now() > deadline) {
-            throw new Error(`the check did not hold within ${UNTIL_MILLISECONDS} ms`);
+            throw new Error(`the check did not pass within ${UNTIL_MILLISECONDS} ms`);
         }
-        await new Promise((resolve) => setTimeout(resolve, 2));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 2);
+        });
     }
+}
+
+/** Wait for nothing, until a reader waiting for the next page replaces it. */
+function idle(): void {}
+
+/** Read the next page of a sync stream, refusing an ended stream. */
+async function nextPage(pages: AsyncGenerator<Page>): Promise<Page> {
+    const read = await pages.next();
+    if (read.done === true) {
+        throw new TypeError("the sync stream ended");
+    }
+
+    return read.value;
 }

@@ -2,15 +2,15 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, principal } from "@destack/access";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { comment, folder, objectDatabase, task } from "./schema.ts";
 
 /** The space containing the objects. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 test.each(TEST_DIALECTS)(
-    "hold parents, delete children and every relationship with them, and nest trees under themselves on %s",
+    "keep parents, delete children and every relationship with them, and nest trees under themselves on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -19,11 +19,11 @@ test.each(TEST_DIALECTS)(
         const record = { scope: spaceId, createdAt: now, updatedAt: now };
 
         // comment on a task, relating a viewer to each
-        const taskId = identifier("task").parse(`task-${v7()}`);
-        const commentId = identifier("comment").parse(`comment-${v7()}`);
+        const taskId = schema.identifier("task").parse(`task-${v7()}`);
+        const commentId = schema.identifier("comment").parse(`comment-${v7()}`);
         await database
             .insert(task.table)
-            .values({ ...record, id: taskId, owner: "alice", title: "Plan" });
+            .values({ ...record, id: taskId, ownerId: "alice", title: "Plan" });
         await database
             .insert(comment.table)
             .values({ ...record, id: commentId, parentId: taskId, text: "Looks good" });
@@ -31,7 +31,7 @@ test.each(TEST_DIALECTS)(
             [task.reference(spaceId, taskId), comment.reference(spaceId, commentId)].map(
                 (object) => ({
                     ...record,
-                    id: identifier("relationship").parse(`relationship-${v7()}`),
+                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
                     objectScope: object.scope,
                     packageId: object.packageId,
                     type: object.type,
@@ -53,11 +53,11 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([[], []]);
 
         // nest a folder under a root folder of the same type
-        const root = identifier("folder").parse(`folder-${v7()}`);
+        const root = schema.identifier("folder").parse(`folder-${v7()}`);
         await database.insert(folder.table).values({ ...record, id: root, name: "Work" });
         await database.insert(folder.table).values({
             ...record,
-            id: identifier("folder").parse(`folder-${v7()}`),
+            id: schema.identifier("folder").parse(`folder-${v7()}`),
             parentId: root,
             name: "Projects",
         });

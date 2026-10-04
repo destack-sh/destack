@@ -2,22 +2,19 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit";
-import { eq } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
-import { Condition } from "@destack/db/query";
+import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
+import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
-import { defineObject, expiring, field, method } from "../src/index.ts";
+import { defineObject, expiring, field } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
+import { userContext } from "./fixture/user.ts";
 
 /** The space containing the alerts. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
 /** A day in milliseconds. */
 const DAY = 24 * 60 * 60 * 1000;
@@ -34,16 +31,20 @@ const alert = defineObject({
     },
     expiring: [
         { after: { days: 30 }, from: "readAt" },
-        { after: { days: 180 }, from: "createdAt", where: Condition.missing("readAt") },
+        { after: { days: 180 }, from: "createdAt", where: { readAt: { isNull: true } } },
     ],
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: { get: method.get("read"), create: method.create("write", { fields: ["title"] }) },
+    methods: (method) => ({
+        get: method.get("read"),
+        create: method.create("write", { fields: ["title"] }),
+    }),
 });
 
-/** The database holding the alerts, their access and the journal. */
+/** The database with the alerts, their access and the journal. */
 const alertDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...alert.tables],
+    copies: [],
 });
 
 test.each(TEST_DIALECTS)(
@@ -56,33 +57,23 @@ test.each(TEST_DIALECTS)(
         const server = new ObjectServer({
             objects: { alert },
             database,
-            context: () => ({
-                subjects: [principal.user.reference("universe", "user-1")],
-                now: Date.now(),
-                attributes: {},
-            }),
             callKey: testCallKey,
             origin: {
                 package: alert.package,
                 service: "test",
             },
         });
-        const context = {
-            scope: spaceId,
-            requireAuthentication: () => ({ id: "user-1" }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-        } as unknown as ServiceContext;
+        const context = userContext("user-1", spaceId);
         const create = async (
             title: string,
             times: { createdAt: number; readAt: number | null },
         ) => {
-            const created = (await server.call(
+            const created = await server.call(
                 alert,
                 "create",
                 { spaceId, requestId: RequestId.create(), title },
                 context,
-            )) as { id: (typeof alert.table.$inferSelect)["id"] };
+            );
             await database.update(alert.table).set(times).where(eq(alert.table.id, created.id));
 
             return created.id;
@@ -99,7 +90,7 @@ test.each(TEST_DIALECTS)(
 
         // remove the two expired alerts and schedule the third
         const controller = expiring.controller(server);
-        expect(Object.keys(alert.procedures).sort()).toEqual(["create", "get"]);
+        expect(Object.keys(alert.procedures).toSorted()).toEqual(["create", "get"]);
         const delay = await controller.reconcile(
             "expiry",
             reconciliation(AbortSignal.timeout(5000)),
@@ -108,7 +99,7 @@ test.each(TEST_DIALECTS)(
         expect([
             left.map((row) => row.id),
             await auditedActions(database, "system"),
-            delay! > 28 * DAY && delay! <= 29 * DAY,
+            delay !== undefined && delay > 28 * DAY && delay <= 29 * DAY,
         ]).toEqual([[kept], ["alert.expire", "alert.expire"], true]);
     },
 );
@@ -122,7 +113,11 @@ test("refuse expiry rules over a field the object lacks, or without any rule", (
             try {
                 refused();
             } catch (error) {
-                return (error as Error).message;
+                if (!(error instanceof Error)) {
+                    throw error;
+                }
+
+                return error.message;
             }
 
             return "accepted";

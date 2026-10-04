@@ -1,9 +1,11 @@
 import { expect, test } from "@destack/test";
+import { schema } from "@destack/schema";
 import { describeObject, objectVocabulary } from "../src/inspect/index.ts";
 import { task } from "./schema.ts";
 
 test("list the terms a task fixes in stored data: its type, relations, permissions and methods", () => {
-    const description = JSON.parse(JSON.stringify(describeObject(task)));
+    const json: unknown = JSON.parse(JSON.stringify(describeObject(task)));
+    const description = schema.record(schema.string(), schema.json()).parse(json);
     const access = "package-01a0c80b-614e-739e-a21a-66fd749e17ca";
     const user = { packageId: access, type: "user" };
     const methods = {
@@ -12,6 +14,7 @@ test("list the terms a task fixes in stored data: its type, relations, permissio
         complete: "transition",
         create: "create",
         decline: "decline",
+        export: "custom",
         delete: "delete",
         explain: "explain",
         get: "get",

@@ -1,24 +1,21 @@
-import { identifier, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit";
-import { asc, eq, unique, type Dialect } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import { asc, eq, unique, type Dialect, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { v7 } from "uuid";
-import type { QueryPage } from "@destack/sync";
-import { Bookmark } from "@destack/service/bookmark";
 
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
-import { defineObject, field, method, type ObjectType } from "../src/index.ts";
+import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/service/test";
 
 /** The space containing the objects. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
 /** Remarks on any object that takes them, readable by whoever reads it. */
 const remark = defineObject({
@@ -29,11 +26,11 @@ const remark = defineObject({
     fields: { text: field.string(schema.string().min(1)) },
     permissions: { read: through("parent", "read"), write: through("parent", "remark") },
     aggregates: { remarkCount: { function: "count" } },
-    methods: {
+    methods: (method) => ({
         list: method.list("read"),
         create: method.create("write"),
         delete: method.delete("write"),
-    },
+    }),
 });
 
 /** Pins that keep any hosting object from deletion. */
@@ -44,7 +41,7 @@ const pin = defineObject({
     nested: { in: "any", delete: "restrict", receive: "pin" },
     fields: {},
     permissions: { read: through("parent", "read"), write: through("parent", "pin") },
-    methods: { create: method.create("write"), delete: method.delete("write") },
+    methods: (method) => ({ create: method.create("write"), delete: method.delete("write") }),
 });
 
 /** Articles taking remarks. */
@@ -55,12 +52,12 @@ const article = defineObject({
     fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
     permissions: { read: relation("owner"), edit: relation("owner") },
     attachments: [remark.attach({ by: "edit" })],
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("edit"),
         delete: method.delete("edit"),
-    },
+    }),
 });
 
 /** Photos their owner remarks on and pins by reading them. */
@@ -71,12 +68,12 @@ const photo = defineObject({
     fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
     permissions: { read: relation("owner") },
     attachments: [remark.attach({ by: "read" }), pin.attach({ by: "read" })],
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("read"),
         delete: method.delete("read"),
-    },
+    }),
 });
 
 /** Tasks taking no remarks. */
@@ -86,7 +83,7 @@ const task = defineObject({
     scope: space,
     fields: { owner: field.reference(principal.user).caller() },
     permissions: { read: relation("owner") },
-    methods: { create: method.create("read") },
+    methods: (method) => ({ create: method.create("read") }),
 });
 
 /** A reader's private favourite mark, one per object. */
@@ -101,18 +98,18 @@ const favourite = defineObject({
             entry.parentPackageId,
             entry.parentType,
             entry.parentId,
-            entry.reader,
+            entry.readerId,
         ),
     ],
     permissions: {
         read: intersection(relation("reader"), through("parent", "favourite")),
         write: intersection(relation("reader"), through("parent", "favourite")),
     },
-    methods: {
+    methods: (method) => ({
         list: method.list("read"),
         create: method.create("write"),
         delete: method.delete("write"),
-    },
+    }),
 });
 
 /** Boards shared with viewers who may mark them as a favourite. */
@@ -128,7 +125,7 @@ const board = defineObject({
     },
     shareable: { by: "manage" },
     attachments: [favourite.attach({ by: "read" })],
-    methods: { create: method.create("manage"), delete: method.delete("manage") },
+    methods: (method) => ({ create: method.create("manage"), delete: method.delete("manage") }),
 });
 
 test.for(TEST_DIALECTS)(
@@ -170,19 +167,30 @@ test.for(TEST_DIALECTS)(
         as("alice");
 
         // include each article's remarks, and only its own, sharing identifiers with no photo
-        const pages = server.source.sync(spaceId, context, {
-            queries: {
-                articles: {
-                    object: "article",
-                    include: { remarks: {} },
+        const pages = server.source.relayed(
+            server.source.queriesShape.subscription({
+                name: "objects",
+                scope: spaceId,
+                below: spaceId,
+                parameters: {
+                    queries: {
+                        articles: {
+                            object: "article",
+                            with: { remarks: {} },
+                        },
+                    },
                 },
-            },
-        });
-        const page = (await pages.next()).value as QueryPage;
+            }),
+            context(),
+        );
+        const read = await pages.next();
+        if (read.done === true) {
+            throw new TypeError("the sync stream ended before its first page");
+        }
         expect(
-            page.changes
+            read.value.changes
                 .filter((change) => change.table === "destack__object__remark")
-                .map((change) => change.row.text as string)
+                .map((change) => schema.string().parse(change.row["text"]))
                 .toSorted((left, right) => left.localeCompare(right)),
         ).toEqual(["Cite the source", "Tighten the intro"]);
 
@@ -207,7 +215,7 @@ test.for(TEST_DIALECTS)(
             await storage.database
                 .select()
                 .from(photo.table)
-                .where(eq(photo.table.id, identifier("photo").parse(snapshot.id))),
+                .where(eq(photo.table.id, schema.identifier("photo").parse(snapshot.id))),
             await storage.database.select().from(remark.table),
         ]).toEqual([[], []]);
     },
@@ -234,10 +242,7 @@ test.for(TEST_DIALECTS)(
         const theirs = await call(favourite, "create", host(board, plans.id));
 
         // show each reader only their own mark, and refuse one to a reader of nothing
-        const listed = async () =>
-            (
-                (await call(favourite, "list", {})) as unknown as { items: { id: string }[] }
-            ).items.map((item) => item.id);
+        const listed = async () => (await call(favourite, "list", {})).items.map((item) => item.id);
         expect(await listed()).toEqual([theirs.id]);
         as("alice");
         expect(await listed()).toEqual([mine.id]);
@@ -267,10 +272,10 @@ test("receive attachments by the host's own permission of their name, or derive 
         scope: space,
         fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
         permissions: { read: own, remark: own },
-        methods: { get: method.get("read") },
+        methods: (method) => ({ get: method.get("read") }),
         attachments: [remark.attach({ by: "remark" })],
     });
-    expect(notebook.policy.definition.permissions.remark).toEqual(own);
+    expect(notebook.policy.definition.permissions["remark"]).toEqual(own);
 
     // refuse attaching by a permission other than the declared receiving one
     expect(() =>
@@ -280,7 +285,7 @@ test("receive attachments by the host's own permission of their name, or derive 
             scope: space,
             fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
             permissions: { read: own, remark: own },
-            methods: { get: method.get("read") },
+            methods: (method) => ({ get: method.get("read") }),
             attachments: [remark.attach({ by: "read" })],
         }),
     ).toThrow(
@@ -290,7 +295,7 @@ test("receive attachments by the host's own permission of their name, or derive 
     );
 });
 
-test("refuse attaching by a permission the host lacks, and aggregates the host does not hold", () => {
+test("refuse attaching by a permission the host lacks, and aggregates the host does not have", () => {
     // refuse a missing attaching permission
     expect(() =>
         defineObject({
@@ -311,7 +316,7 @@ test("refuse attaching by a permission the host lacks, and aggregates the host d
             scope: space,
             fields: { owner: field.reference(principal.user).caller() },
             permissions: { read: relation("owner") },
-            methods: { get: method.get("read") },
+            methods: (method) => ({ get: method.get("read") }),
             attachments: [remark.attach({ by: "read" })],
         }),
     ).toThrow(new TypeError("aggregate remarkCount of remark fills no count field of sheet"));
@@ -319,12 +324,13 @@ test("refuse attaching by a permission the host lacks, and aggregates the host d
 
 /** Serve object types over a new database to one user at a time. */
 async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, ObjectType>>) {
-    // hold the objects and their requests in one database
+    // keep the objects and their requests in one database
     const storage = await TestDatabase.create(
         dialect,
         defineDatabase({
             name: "main",
             tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
+            copies: [],
         }),
         { isMigrated: true },
     );
@@ -332,48 +338,41 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
     await openSpace(storage.database, spaceId);
 
     // decide every call as the current user
-    let current = "alice";
     const server = new ObjectServer({
         objects,
         database: storage.database,
-        context: () => ({
-            subjects: [principal.user.reference("universe", current)],
-            now: Date.now(),
-            attributes: {},
-        }),
         callKey: testCallKey,
         origin: {
-            package: Object.values(objects)[0]!.package,
+            package: present(Object.values(objects)[0], "a served object type").package,
             service: "test",
         },
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
-    const context = {
-        scope: spaceId,
-        requireAuthentication: () => ({ id: current }),
-        bookmark: new Bookmark(),
-        observed: new Bookmark(),
-        signal: controller.signal,
-        request: new Request("https://test.local", { signal: controller.signal }),
-    } as unknown as ServiceContext;
+    const sign = (caller: string) => userContext(caller, spaceId, { signal: controller.signal });
+    let context = sign("alice");
 
     return {
         storage,
         server,
-        context,
-        call: async (object: ObjectType, name: string, input: object) =>
-            (await server.call(
+        /** Read the current caller's request context. */
+        context: () => context,
+        call: <Object extends ObjectType, Name extends CallableName<Object>>(
+            object: Object,
+            name: Name,
+            input: object,
+        ) =>
+            server.call(
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
                 context,
-            )) as { id: string },
+            ),
         host: (object: ObjectType, id: string) => ({
             parent: { packageId: object.policy.definition.packageId, type: object.name, id },
         }),
-        as: (user: string) => {
-            current = user;
+        as: (caller: string) => {
+            context = sign(caller);
         },
     };
 }

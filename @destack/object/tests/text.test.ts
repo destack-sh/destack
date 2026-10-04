@@ -1,8 +1,7 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
 import { journal } from "@destack/audit";
-import type { DatabaseConnection, Dialect } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import { type DatabaseConnection, type Dialect, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -19,18 +18,17 @@ import {
     Chunk,
     defineObject,
     field,
-    method,
     Position,
     Sequence,
-    type Run,
-    type SequenceEdit,
+    type MethodBuilder,
 } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
+import { aligned, present } from "@destack/schema";
 
-/** The space holding the documents. */
+/** The space with the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
 
 /** The package serving the documents. */
@@ -52,12 +50,12 @@ const document = defineObject({
         manage: relation("owner"),
     },
     shareable: { by: "manage" },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("read"),
         update: method.update("read"),
-    },
+    }),
 });
 
 /** The documents service. */
@@ -67,11 +65,12 @@ const documentsService = defineService("documents", { objects: { document } });
 const documentsDatabase = defineDatabase({
     name: "main",
     tables: [...document.tables, journal],
+    copies: [],
 });
 
 /** Serve a space's documents to bearer-named users. */
 async function serveDocuments(dialect: Dialect) {
-    // hold the space's documents
+    // keep the space's documents
     const storage = await TestDatabase.create(dialect, documentsDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
@@ -90,7 +89,10 @@ async function serveDocuments(dialect: Dialect) {
         drainTimeout: 1000,
         authorizeHost: async () => {},
         authenticate: async (request) => {
-            const id = request.headers.get("authorization")!.slice("Bearer ".length);
+            const id = present(
+                request.headers.get("authorization"),
+                "the authorization header",
+            ).slice("Bearer ".length);
             const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
@@ -119,18 +121,18 @@ async function serveDocuments(dialect: Dialect) {
 /** Open a user's client of the space on a new local database, following every document. */
 async function openClient(name: string, endpoint: ClientOptions) {
     // create the local database and follow the documents
-    const tables = ObjectClient.tables([document]);
+    const tables = ObjectClient.tables({ document });
     const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
     onTestFinished(() => storage.close());
     const client = await ObjectClient.open({
         database: storage.database,
-        objects: [document],
+        objects: { document },
         scope: spaceId,
         caller: principal.user.reference("universe", name),
         endpoint,
         reconnect: unmoved,
     });
-    const live = client.subscribe(document);
+    const live = client.query.document.findMany().subscribe();
 
     // push and follow until the test finishes
     const errors: unknown[] = [];
@@ -150,11 +152,11 @@ async function chunks(database: DatabaseConnection) {
     const rows = await database.select().from(chunk);
 
     return rows
-        .sort((left, right) => (left.position < right.position ? -1 : 1))
+        .toSorted((left, right) => (left.position < right.position ? -1 : 1))
         .map((row) => ({
             id: row.id,
             runs: JSON.stringify(row.runs),
-            characters: new Sequence(row.runs as Run[]).runs
+            characters: new Sequence(row.runs).runs
                 .map((piece) => (typeof piece.text === "string" ? piece.text.length : 0))
                 .reduce((sum, count) => sum + count, 0),
         }));
@@ -165,17 +167,17 @@ function digits(length: number, offset = 0): string {
     return Array.from({ length }, (_, index) => String((index + offset) % 10)).join("");
 }
 
-test("mint positions between others in collation-independent order, either end open", () => {
-    // mint between open ends, below, above and between neighbours
+test("generate positions between others in collation-independent order, either end open", () => {
+    // generate between open ends, below, above and between neighbours
     const middle = Position.between(undefined, undefined);
-    const minted = [
+    const generated = [
         Position.between(undefined, middle),
         middle,
         Position.between(middle, undefined),
         Position.between("i", "j"),
         Position.between("i", "i1"),
     ];
-    expect(minted).toEqual(["9", "i", "r", "ii", "i0i"]);
+    expect(generated).toEqual(["9", "i", "r", "ii", "i0i"]);
 
     // keep each between its neighbours
     expect(["i", "9", "r", "ii", "j", "i0i", "i1"].toSorted()).toEqual([
@@ -198,11 +200,11 @@ test("refuse text on a type without an update method, and methods writing text",
             scope: space,
             fields: { body: field.text() },
             permissions: ["read"],
-            methods: { get: method.get("read") },
+            methods: (method) => ({ get: method.get("read") }),
         }),
     ).toThrow(new TypeError("object memo holds text but no update method to edit it"));
 
-    // refuse an update naming a text field
+    // refuse an update naming a text field through a builder no object's written fields bind
     expect(() =>
         defineObject({
             name: "memo",
@@ -210,10 +212,10 @@ test("refuse text on a type without an update method, and methods writing text",
             scope: space,
             fields: { body: field.text() },
             permissions: ["read"],
-            methods: {
+            methods: (method: MethodBuilder) => ({
                 get: method.get("read"),
                 update: method.update("read", { fields: ["body"] }),
-            },
+            }),
         }),
     ).toThrow(
         new TypeError("method update of memo writes text field body, which only edit changes"),
@@ -275,7 +277,9 @@ test.for(TEST_DIALECTS)(
         const after = await chunks(database);
         expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
         expect(
-            after.flatMap((row, index) => (row.runs === before[index]!.runs ? [] : [index])),
+            after.flatMap((row, index) =>
+                row.runs === aligned(before, index).runs ? [] : [index],
+            ),
         ).toEqual([7, 8]);
 
         // read the text assembled through get and list
@@ -292,7 +296,7 @@ test.for(TEST_DIALECTS)(
             id: created.id,
             requestId: RequestId.create(),
             field: "body",
-            edits: deleted.inverse as SequenceEdit[],
+            edits: deleted.inverse,
         });
         expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(
             digits(1000) + digits(5000, 3) + digits(2000, 1000),
@@ -304,19 +308,18 @@ test.for(TEST_DIALECTS)(
             id: created.id,
             requestId: RequestId.create(),
             field: "body",
-            edits: undone.inverse as SequenceEdit[],
+            edits: undone.inverse,
         });
         expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(text);
 
         // refuse text in a plain update, and an edit naming a missing element
-        const plain = await alice.document
-            .update({
-                spaceId,
-                id: created.id,
-                requestId: RequestId.create(),
-                body: "replaced",
-            } as never)
-            .catch((error: { code: string; message: string }) => [error.code, error.message]);
+        const replaced = {
+            spaceId,
+            id: created.id,
+            requestId: RequestId.create(),
+            body: "replaced",
+        };
+        const plain = await refusal(alice.document.update(replaced));
         expect(plain).toEqual(["BAD_REQUEST", 'invalid input: unrecognized key: "body"']);
         await expect(
             alice.document.edit({
@@ -331,7 +334,7 @@ test.for(TEST_DIALECTS)(
             message: "no chunk holds element nobody.1:0",
         });
 
-        // refuse a run the text already holds anywhere
+        // refuse a run the text already contains anywhere
         await expect(
             alice.document.edit({
                 spaceId,
@@ -342,17 +345,17 @@ test.for(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "body already holds run alice.1" });
 
-        // report which elements the text holds, deleted ones included
+        // report which elements the text contains, deleted ones included
         const owner = document.reference(spaceId, created.id);
-        const held = [
-            await Chunk.holds(database, owner, "body", [{ run: "alice.1", offset: 2999 }]),
-            await Chunk.holds(database, owner, "body", [
+        const contained = [
+            await Chunk.contains(database, owner, "body", [{ run: "alice.1", offset: 2999 }]),
+            await Chunk.contains(database, owner, "body", [
                 { run: "alice.2", offset: 0 },
                 { run: "alice.2", offset: 4999 },
             ]),
-            await Chunk.holds(database, owner, "body", [{ run: "alice.1", offset: 3000 }]),
+            await Chunk.contains(database, owner, "body", [{ run: "alice.1", offset: 3000 }]),
         ];
-        expect(held).toEqual([true, true, false]);
+        expect(contained).toEqual([true, true, false]);
 
         // hide the text from a caller without read, and show it once shared
         const listed = async () =>
@@ -388,7 +391,6 @@ test.for(TEST_DIALECTS)(
             relation: "editor",
             subject: principal.user.reference("universe", "bob"),
         }).confirmed;
-        const body = async (live: typeof alice.live) => (await live.read()).map((row) => row.body);
         await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
 
         // predict one edit on each client at once and see each locally first
@@ -413,10 +415,10 @@ test.for(TEST_DIALECTS)(
         await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
         expect(await body(alice.live)).toEqual(["hello world!"]);
 
-        // hold no chunks for a caller without read
+        // keep no chunks for a caller without read
         await carol.live.ready;
-        const held = await carol.client.database.select().from(chunk);
-        expect([await body(carol.live), held]).toEqual([[], []]);
+        const kept = await carol.client.database.select().from(chunk);
+        expect([await body(carol.live), kept]).toEqual([[], []]);
         expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
     },
 );
@@ -448,8 +450,7 @@ test.for(TEST_DIALECTS)(
 
         // converge bob's copy once both edits reach the server
         await Promise.all(edits.map((edit) => edit.confirmed));
-        const body = async () => (await bob.live.read()).map((row) => row.body);
-        await expect.poll(body).toEqual(["Hello world"]);
+        await expect.poll(() => body(bob.live)).toEqual(["Hello world"]);
         await text.close();
         expect([local, alice.errors, bob.errors]).toEqual(["Hello world", [], []]);
     },
@@ -476,22 +477,25 @@ test.for(TEST_DIALECTS)(
                 edits,
             });
 
-            return { id, sequence: edits.reduce((held, each) => held.apply(each), new Sequence()) };
+            return {
+                id,
+                sequence: edits.reduce((sequence, each) => sequence.apply(each), new Sequence()),
+            };
         };
         const small = await write(1);
         const large = await write(200_000);
 
         // count the statements and chunk changes of one keystroke in the middle
-        const keystroke = async (document: typeof small, offset: number) => {
+        const keystroke = async (written: typeof small, offset: number) => {
             const before = await chunks(database);
             const statements = database.state.statements;
-            const edits = document.sequence.change(
+            const edits = written.sequence.change(
                 { from: offset, to: offset, insert: "x" },
-                `${document.id}.2`,
+                `${written.id}.2`,
             );
             await alice.document.edit({
                 spaceId,
-                id: document.id,
+                id: written.id,
                 requestId: RequestId.create(),
                 field: "body",
                 edits,
@@ -499,7 +503,7 @@ test.for(TEST_DIALECTS)(
             const counted = database.state.statements - statements;
             const after = await chunks(database);
             const changed = after.filter(
-                (row) => before.find((held) => held.id === row.id)?.runs !== row.runs,
+                (row) => before.find((entry) => entry.id === row.id)?.runs !== row.runs,
             );
 
             return {
@@ -519,3 +523,8 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+/** Read the bodies of the documents a user's client follows. */
+async function body(live: Awaited<ReturnType<typeof openClient>>["live"]): Promise<string[]> {
+    return (await live.read()).map((row) => row["body"]);
+}

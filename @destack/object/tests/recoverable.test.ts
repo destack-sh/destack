@@ -1,25 +1,23 @@
-import type { Change } from "@destack/db/log";
+import { type Change, eq, defineDatabase } from "@destack/db";
 import { Subject } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit";
-import { eq } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
+import { schema, present } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
-import { defineObject, field, method, type ObjectType } from "../src/index.ts";
+import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { recoverable } from "../src/trait/recoverable.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
+import { userContext } from "./fixture/user.ts";
+import { any } from "./fixture/match.ts";
 
 /** The space containing the credentials. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 /** Credentials that keep their record after a purge, reserved to their custodian. */
 const credential = defineObject({
@@ -37,16 +35,17 @@ const credential = defineObject({
         write: relation("owner"),
         purge: relation("custodian"),
     },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
-        create: method.create("write", { fields: ["custodian", "value"] }),
-    },
+        create: method.create("write", { fields: ["custodianId", "value"] }),
+    }),
 });
 
-/** The database holding the credentials, their access and the journal. */
+/** The database with the credentials, their access and the journal. */
 const credentialDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...credential.tables],
+    copies: [],
 });
 
 test.each(TEST_DIALECTS)(
@@ -66,45 +65,43 @@ test.each(TEST_DIALECTS)(
                     await call.database
                         .update(credential.table)
                         .set({ value: null })
-                        .where(eq(credential.table.id, call.target!.id));
+                        .where(
+                            eq(
+                                credential.table.id,
+                                present(call.target, "the purged credential").id,
+                            ),
+                        );
 
                     return next();
                 },
             }),
             { days: 7 },
         );
-        let current = "user-1";
         const serve = (object: ObjectType) =>
             new ObjectServer({
                 objects: { credential: object },
                 database,
-                context: () => ({
-                    subjects: [principal.user.reference("universe", current)],
-                    now: Date.now(),
-                    attributes: {},
-                }),
                 callKey: testCallKey,
                 origin: {
                     package: credential.package,
                     service: "test",
                 },
             });
-        const context = {
-            scope: spaceId,
-            requireAuthentication: () => ({ id: current }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-        } as unknown as ServiceContext;
-        const execute = (object: ObjectType, name: string, input: Record<string, unknown>) =>
+        let context = userContext("user-1", spaceId);
+        const execute = <Object extends typeof credential, Name extends CallableName<Object>>(
+            object: Object,
+            name: Name,
+            input: Record<string, unknown>,
+        ) =>
             serve(object).call(
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
                 context,
-            ) as Promise<typeof credential.table.$inferSelect>;
+            );
         // restore within the host's window what the declared window no longer restores
         const created = await execute(handled, "create", {
-            custodian: "user-2",
+            custodianId: "user-2",
             value: "hunter2",
         });
         await execute(handled, "delete", { id: created.id, revision: created.revision });
@@ -127,7 +124,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // refuse a record-keeping purge without a handler destroying the content
-        current = "user-2";
+        context = userContext("user-2", spaceId);
         await expect(execute(credential, "purge", { id: created.id })).rejects.toThrow(
             new TypeError(
                 "object credential keeps purged records, so a purge handler of its own destroys their content",
@@ -145,11 +142,11 @@ test.each(TEST_DIALECTS)(
             ...created,
             value: null,
             revision: 5,
-            updatedAt: expect.any(Number),
+            updatedAt: any(Number),
             updatedBy: Subject.key(principal.user.reference("universe", "user-2")),
-            deletionRequestedAt: expect.any(Number),
+            deletionRequestedAt: any(Number),
             deletedBy: Subject.key(principal.user.reference("universe", "user-1")),
-            purgedAt: expect.any(Number),
+            purgedAt: any(Number),
         });
 
         // refuse purging and restoring a purged record
@@ -157,7 +154,7 @@ test.each(TEST_DIALECTS)(
             code: "CONFLICT",
             message: "credential is purged",
         });
-        current = "user-1";
+        context = userContext("user-1", spaceId);
         await expect(execute(handled, "restore", { id: created.id })).rejects.toMatchObject({
             code: "CONFLICT",
             message: "credential is purged",
@@ -165,7 +162,7 @@ test.each(TEST_DIALECTS)(
 
         // purge a record past the host's window as the system, through its handler, once
         const expired = await execute(handled, "create", {
-            custodian: "user-2",
+            custodianId: "user-2",
             value: "swordfish",
         });
         await execute(handled, "delete", { id: expired.id, revision: expired.revision });
@@ -184,21 +181,41 @@ test.each(TEST_DIALECTS)(
 
         // look again and purge after the next window ends
         const controller = recoverable.controller(server);
-        const pending = await execute(handled, "create", { custodian: "user-2", value: "later" });
+        const pending = await execute(handled, "create", { custodianId: "user-2", value: "later" });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });
         const week = 7 * 24 * 60 * 60 * 1000;
-        const delay = await controller.reconcile(
-            "trash",
-            reconciliation(AbortSignal.timeout(5000)),
+        const delay = present(
+            await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),
+            "the wait until the next window ends",
         );
-        const change = (before: object, after: object) =>
-            ({ operation: "update", before, after }) as unknown as Change;
+        const updated = (
+            before: Partial<typeof pending>,
+            after: Partial<typeof pending>,
+        ): Change<typeof credential.table> => ({
+            transaction: null,
+            table: credential.table,
+            key: { id: pending.id },
+            scope: spaceId,
+            changedAt: 1,
+            operation: "update",
+            before: { ...pending, ...before },
+            after: { ...pending, ...after },
+            sequence: 1,
+        });
+        if (controller.keys === undefined) {
+            throw new TypeError("the trash controller keys no changes");
+        }
         expect([
             controller.watches,
-            controller.keys!(change({ deletionRequestedAt: null }, { deletionRequestedAt: 1 })),
-            controller.keys!(change({ value: "old" }, { value: "new", deletionRequestedAt: null })),
+            controller.keys(updated({ deletionRequestedAt: null }, { deletionRequestedAt: 1 })),
+            controller.keys(
+                updated(
+                    { value: "old", deletionRequestedAt: null },
+                    { value: "new", deletionRequestedAt: null },
+                ),
+            ),
             await controller.list(),
-            delay! > week - 60_000 && delay! <= week,
+            delay > week - 60_000 && delay <= week,
         ]).toEqual([[handled.table], ["trash"], [], ["trash"], true]);
         await database
             .update(credential.table)

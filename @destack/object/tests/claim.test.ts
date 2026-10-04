@@ -1,6 +1,6 @@
 import { outbox } from "@destack/service/outbox";
 import { Scope } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
+import { Change, Snapshot, type Dialect } from "@destack/db";
 import { ClaimController, ObjectServer } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import {
@@ -11,18 +11,17 @@ import {
 } from "@destack/directory";
 import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
-import type { Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
+import { aligned, schema, present } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
-import { profile, profilesDatabase, profilesService } from "./fixture/profiles.ts";
+import { profile, profilesDatabase, profilesService } from "./fixture/profile.ts";
 import { none, principal } from "@destack/access";
 import { copyScope } from "@destack/access/test";
 import { openSpace } from "./fixture/space.ts";
@@ -112,55 +111,60 @@ test.each(TEST_DIALECTS)(
         const now = Date.now();
         const row = {
             scope: east.spaceId,
-            owner: "carol",
+            ownerId: "carol",
             handle: "carol",
             createdAt: now,
             updatedAt: now,
         };
         await east.database
             .insert(profile.table)
-            .values({ ...row, id: identifier("profile").parse(`profile-${v7()}`) });
+            .values({ ...row, id: schema.identifier("profile").parse(`profile-${v7()}`) });
         await east.database
             .insert(profile.table)
-            .values({ ...row, id: identifier("profile").parse(`profile-${v7()}`) });
+            .values({ ...row, id: schema.identifier("profile").parse(`profile-${v7()}`) });
         const { changes } = await east.database.log.read({ tables: [profile.table], after });
         const replace = async (position: number) => {
-            const change = changes[position]!;
-            const row = change.after as Readonly<Record<string, unknown>>;
-            const owned = await profile.owned(
+            const change = aligned(changes, position);
+            const image = Change.image(change);
+            const owned = await profile.claimsOf(
                 String(change.key.id),
-                row,
+                image,
                 Snapshot.live(east.database),
             );
 
             return directory.replace(owned, `change-${change.sequence}`);
         };
         await replace(0);
-        expect(await handle("carol")).toBe(changes[0]!.key.id);
+        expect(await handle("carol")).toBe(aligned(changes, 0).key.id);
         expect(await replace(1)).toEqual([
             {
                 index: profile.index("handle"),
-                key: '[null,"carol"]',
-                objectId: changes[1]!.key.id,
+                key: '["universe","carol"]',
+                packageId: profile.policy.definition.packageId,
+                objectId: aligned(changes, 1).key.id,
                 scope: east.spaceId,
             },
         ]);
 
         // keep an existing object's claim, release a failed one, and wait for the later one
-        const kept = identifier("profile").parse(`profile-${v7()}`);
+        const kept = schema.identifier("profile").parse(`profile-${v7()}`);
         await east.database.insert(profile.table).values({ ...row, id: kept, handle: "kept" });
-        const reserved = { index: profile.index("handle"), scope: east.spaceId };
+        const reserved = {
+            index: profile.index("handle"),
+            packageId: profile.policy.definition.packageId,
+            scope: east.spaceId,
+        };
         vi.useFakeTimers({ toFake: ["Date"], now: now - RESERVATION_MILLISECONDS });
         await directory.claim(
             [
-                { ...reserved, key: '[null,"kept"]', objectId: kept },
-                { ...reserved, key: '[null,"lost"]', objectId: `profile-${v7()}` },
+                { ...reserved, key: '["universe","kept"]', objectId: kept },
+                { ...reserved, key: '["universe","lost"]', objectId: `profile-${v7()}` },
             ],
             "request",
         );
         vi.setSystemTime(now - RESERVATION_MILLISECONDS + 1000);
         await directory.claim(
-            [{ ...reserved, key: '[null,"later"]', objectId: `profile-${v7()}` }],
+            [{ ...reserved, key: '["universe","later"]', objectId: `profile-${v7()}` }],
             "request",
         );
         vi.useRealTimers();
@@ -171,7 +175,7 @@ test.each(TEST_DIALECTS)(
         expect([
             controller.watches,
             await controller.list(),
-            next! > 0 && next! <= 1000,
+            next !== undefined && next > 0 && next <= 1000,
             await handle("kept"),
             await handle("lost"),
         ]).toEqual([[profile.table], ["reservations"], true, kept, undefined]);
@@ -180,8 +184,8 @@ test.each(TEST_DIALECTS)(
 
 /** Serve one space's profiles in its own database, returning a client per user. */
 async function serveProfiles(dialect: Dialect, directory: Directory) {
-    // hold the space's profiles in a database of its own
-    const spaceId = identifier("space").parse(`space-${v7()}`);
+    // keep the space's profiles in a database of its own
+    const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     const storage = await TestDatabase.create(dialect, profilesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
@@ -200,7 +204,10 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
         drainTimeout: 1000,
         authorizeHost: async () => {},
         authenticate: async (request) => {
-            const id = request.headers.get("authorization")!.slice("Bearer ".length);
+            const id = present(
+                request.headers.get("authorization"),
+                "the authorization header",
+            ).slice("Bearer ".length);
             const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
@@ -251,7 +258,7 @@ test.each(TEST_DIALECTS)(
             plural: "routes",
             scope: folder,
             fields: { path: field.string() },
-            indexes: { path: { on: ["path"], unique: true, across: account } },
+            indexes: { path: { on: ["path"], unique: true, across: () => account } },
             permissions: { read: none() },
         });
 
@@ -260,15 +267,16 @@ test.each(TEST_DIALECTS)(
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
-        for (const [accountId, folderId] of [
+        const folders: readonly (readonly [string, string])[] = [
             ["account-1", "folder-1"],
             ["account-1", "folder-2"],
             ["account-2", "folder-3"],
-        ]) {
+        ];
+        for (const [accountId, folderId] of folders) {
             if (folderId !== "folder-2") {
-                await copyScope(storage.database, account.reference(Scope.universe.id, accountId!));
+                await copyScope(storage.database, account.reference(Scope.universe.id, accountId));
             }
-            await copyScope(storage.database, folder.reference(accountId!, folderId!));
+            await copyScope(storage.database, folder.reference(accountId, folderId));
         }
 
         // claim the same path in each folder
@@ -286,20 +294,45 @@ test.each(TEST_DIALECTS)(
                 plural: "strays",
                 scope: account,
                 fields: { path: field.string() },
-                indexes: { path: { on: ["path"], unique: true, across: folder } },
+                indexes: { path: { on: ["path"], unique: true, across: () => folder } },
                 permissions: { read: none() },
             });
 
         // one account's folders share a key, another account's folder claims apart
-        const index = keys[0]![0]!.index;
+        const index = present(keys[0]?.[0], "the first folder's claim").index;
+        const { packageId } = route.policy.definition;
         expect(keys).toEqual([
-            [{ index, key: '["account-1","/home"]', objectId: "route-0", scope: "folder-1" }],
-            [{ index, key: '["account-1","/home"]', objectId: "route-1", scope: "folder-2" }],
-            [{ index, key: '["account-2","/home"]', objectId: "route-2", scope: "folder-3" }],
+            [
+                {
+                    index,
+                    packageId,
+                    key: '["account-1","/home"]',
+                    objectId: "route-0",
+                    scope: "folder-1",
+                },
+            ],
+            [
+                {
+                    index,
+                    packageId,
+                    key: '["account-1","/home"]',
+                    objectId: "route-1",
+                    scope: "folder-2",
+                },
+            ],
+            [
+                {
+                    index,
+                    packageId,
+                    key: '["account-2","/home"]',
+                    objectId: "route-2",
+                    scope: "folder-3",
+                },
+            ],
         ]);
         expect(unrelated).toThrow(
             new TypeError(
-                "index path of stray is unique within a scope enclosing its objects or across every scope",
+                "index path of stray must be unique within the universe or a scope type enclosing its objects",
             ),
         );
     },

@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { TABLE } from "@destack/db";
-import { defineObject, field, method } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { space } from "./fixture/space.ts";
 
 /** A review machine shared by the declarations below. */
@@ -23,19 +23,19 @@ test("derive one column and one method per transition for each state field of an
             review: field.state(review),
         },
         permissions: ["read", "write", "review"],
-        methods: { get: method.get("read") },
+        methods: (method) => ({ get: method.get("read") }),
     });
 
-    // hold each machine in its own column, starting in its initial state
+    // keep each machine in its own column, starting in its initial state
     const columns = article.table[TABLE].columns;
     expect([
-        columns.status!.definition.default,
-        columns.review!.definition.default,
-        columns.review!.definition.enumValues,
+        columns.status.definition.default,
+        columns.review.definition.default,
+        columns.review.definition.enumValues,
     ]).toEqual(["draft", "pending", ["pending", "approved"]]);
 
     // derive every transition of every state field as a method
-    expect(Object.keys(article.methods).sort()).toEqual(["approve", "get", "publish"]);
+    expect(Object.keys(article.methods).toSorted()).toEqual(["approve", "get", "publish"]);
     expect(article.methods.approve.transition).toEqual({
         field: "review",
         from: ["pending"],
@@ -74,11 +74,11 @@ test("change state fields only through their transitions, modifiers keeping the 
         scope: space,
         fields: { title: field.string(), review: field.state(review).optional() },
         permissions: ["write", "review"],
-        methods: { create: method.create("write"), update: method.update("write") },
+        methods: (method) => ({ create: method.create("write"), update: method.update("write") }),
     });
 
     // leave the state out of what callers write, and keep its transition through the modifier
-    expect([article.written, Object.keys(article.methods).sort()]).toEqual([
+    expect([article.written, Object.keys(article.methods).toSorted()]).toEqual([
         ["title"],
         ["approve", "create", "update"],
     ]);

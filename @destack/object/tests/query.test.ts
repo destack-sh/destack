@@ -1,12 +1,17 @@
 import { expect, test, onTestFinished } from "@destack/test";
-import { Condition } from "@destack/db/query";
-import { Expression } from "@destack/schema/expression";
+import { Expression, type Path } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { RequestId } from "@destack/service/request";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook } from "./fixture/notes.ts";
-import { page } from "./fixture/pages.ts";
+import { note, notebook } from "./fixture/note.ts";
+import { page } from "./fixture/page.ts";
 import { ObjectType } from "../src/index.ts";
+import { QueriesParameters } from "../src/replica/replica.ts";
+import { present, schema } from "@destack/schema";
+import { included, type Query } from "@destack/sync";
+
+/** The rows an include adds, read for their titles. */
+const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
 
 test.for(TEST_DIALECTS)(
     "read a query's rows, includes and aggregates with predictions before the server confirms them on %s",
@@ -15,22 +20,25 @@ test.for(TEST_DIALECTS)(
         const device = await Device.open("alice", endpoint("alice"), []);
 
         // read notebooks with their first two notes and note counts
-        const books = device.client.subscribe(notebook, {
-            order: [{ column: "name", direction: "asc" }],
-            include: {
-                notes: { order: [{ column: "title", direction: "asc" }], limit: 2 },
-                size: { via: "notes", aggregate: { values: { notes: { function: "count" } } } },
-            },
-        });
-        const counts = device.client.subscribe(note, {
-            where: Condition.ne("title", ""),
-            aggregate: { groupBy: ["parentId"], values: { notes: { function: "count" } } },
-        });
+        const books = device.client.query.notebook
+            .findMany({
+                orderBy: { name: "asc" },
+                with: { notes: { orderBy: { title: "asc" }, limit: 2 } },
+                extras: { size: Expression.rollup("count", "notes") },
+            })
+            .subscribe();
+        const counts = device.client.query.note
+            .aggregate({
+                where: { title: { ne: "" } },
+                groupBy: ["parentId"],
+                values: { notes: { function: "count" } },
+            })
+            .subscribe();
         const shelf = async () =>
             (await books.read()).map((book) => [
                 book.name,
-                (book.notes as { title: string }[]).map((entry) => entry.title),
-                book.size,
+                book.notes.map((entry) => entry.title),
+                { notes: book.size },
             ]);
 
         // predict a notebook with three notes offline and read them at once
@@ -48,7 +56,7 @@ test.for(TEST_DIALECTS)(
             { group: { parentId: bookId }, values: { notes: 3 } },
         ]);
 
-        // hold the same once the server executed them and the copy holds its rows
+        // keep the same once the server executed them and the copy has its rows
         device.online();
         await created.confirmed;
         await Promise.all([books.ready, counts.ready]);
@@ -77,21 +85,27 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const { endpoint } = await serveNotes(dialect);
         const device = await Device.open("alice", endpoint("alice"), []);
-        const books = device.client.subscribe(notebook, {
-            order: [{ column: "name", direction: "asc" }],
-            include: {
-                notes: { order: [{ column: "title", direction: "asc" }] },
-                size: { via: "notes", aggregate: { values: { notes: { function: "count" } } } },
-            },
-        });
+        const books = device.client.query.notebook
+            .findMany({
+                orderBy: { name: "asc" },
+                with: { notes: { orderBy: { title: "asc" } } },
+                extras: { size: Expression.rollup("count", "notes") },
+            })
+            .subscribe();
         const controller = new AbortController();
         const watched = books.watch(controller.signal);
-        const shelf = async () =>
-            ((await watched.next()).value as Record<string, unknown>[]).map((book) => [
+        const shelf = async () => {
+            const next = await watched.next();
+            if (next.done === true) {
+                throw new TypeError("the watch ended");
+            }
+
+            return next.value.map((book) => [
                 book.name,
-                (book.notes as { title: string }[]).map((entry) => entry.title),
-                book.size,
+                book.notes.map((entry) => entry.title),
+                { notes: book.size },
             ]);
+        };
 
         // read nothing, then each notebook after its prediction
         expect(await shelf()).toEqual([]);
@@ -135,26 +149,22 @@ test.for(TEST_DIALECTS)(
         // list one notebook per page, with its first two notes and its note count beside it
         const query = {
             spaceId,
-            order: [{ column: "name", direction: "asc" as const }],
+            orderBy: { name: "asc" } as const,
             limit: 1,
-            include: {
-                notes: { order: [{ column: "title", direction: "asc" as const }], limit: 2 },
-                size: {
-                    via: "notes",
-                    aggregate: { values: { notes: { function: "count" as const } } },
-                },
-            },
+            with: { notes: { orderBy: { title: "asc" } as const, limit: 2 } },
+            extras: { size: Expression.rollup("count", "notes") },
         };
         const first = await alice.notebook.list(query);
-        const second = await alice.notebook.list({ ...query, cursor: first.cursor! });
-        const titles = (included: unknown) =>
-            (included as { title: string }[]).map((note) => note.title);
+        const second = await alice.notebook.list({
+            ...query,
+            cursor: present(first.cursor, "the first page's cursor"),
+        });
         expect([
             first.items.map((item) => item.name),
-            titles(first.included!.notes![home]),
-            first.included!.size![home],
+            includedTitles(first.included, "notes", home),
+            { notes: extrasOf(first.extras, home)["size"] },
             second.items.map((item) => item.name),
-            titles(second.included!.notes![travel]),
+            includedTitles(second.included, "notes", travel),
             second.cursor,
         ]).toEqual([["Home"], ["Budget", "Chores"], { notes: 3 }, ["Travel"], ["Maps"], null]);
 
@@ -164,8 +174,11 @@ test.for(TEST_DIALECTS)(
             aggregate: { groupBy: ["parentId"], values: { notes: { function: "count" } } },
         });
         expect(
-            [...counted.groups!].sort((left, right) =>
-                left.values.notes! > right.values.notes! ? -1 : 1,
+            present(counted.groups, "the note groups").toSorted((left, right) =>
+                present(left.values["notes"], "a group's note count") >
+                present(right.values["notes"], "a group's note count")
+                    ? -1
+                    : 1,
             ),
         ).toEqual([
             { group: { parentId: home }, values: { notes: 3 } },
@@ -180,7 +193,7 @@ test.for(TEST_DIALECTS)(
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
 
-        // file notebooks holding three, one and no notes
+        // file notebooks with three, one and no notes
         const book = async (name: string, notes: number) => {
             const created = await alice.notebook.create({
                 spaceId,
@@ -201,25 +214,28 @@ test.for(TEST_DIALECTS)(
         const travel = await book("Travel", 1);
         await book("Empty", 0);
 
-        // page the notebooks holding notes, fullest first, with their share of ten notes
-        const compute = {
+        // page the notebooks with notes, fullest first, with their share of ten notes
+        const extras = {
             share: Expression.divide(Expression.column("noteCount"), Expression.literal(10)),
             label: Expression.coalesce(Expression.column("name"), Expression.literal("untitled")),
         };
         const query = {
             spaceId,
-            compute,
-            where: Condition.gt("share", 0),
-            order: [{ column: "share", direction: "desc" as const }],
+            extras,
+            where: { share: { gt: 0 } },
+            orderBy: { share: "desc" } as const,
             limit: 1,
         };
         const first = await alice.notebook.list(query);
-        const second = await alice.notebook.list({ ...query, cursor: first.cursor! });
+        const second = await alice.notebook.list({
+            ...query,
+            cursor: present(first.cursor, "the first page's cursor"),
+        });
         expect([
             first.items.map((item) => item.name),
-            first.computed,
+            first.extras,
             second.items.map((item) => item.name),
-            second.computed,
+            second.extras,
             second.cursor,
         ]).toEqual([
             ["Home"],
@@ -232,13 +248,17 @@ test.for(TEST_DIALECTS)(
         // read the same query from a local copy, the computed values inline
         const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
-        const local = device.client.subscribe(notebook, {
-            compute,
-            where: Condition.gt("share", 0),
-            order: query.order,
-        });
+        const local = device.client.query.notebook
+            .findMany({
+                extras,
+                where: { share: { gt: 0 } },
+                orderBy: query.orderBy,
+            })
+            .subscribe();
         await local.ready;
-        expect((await local.read()).map((row) => [row.name, row.share, row.label])).toEqual([
+        expect(
+            (await local.read()).map((row) => [row["name"], row["share"], row["label"]]),
+        ).toEqual([
             ["Home", 0.3, "Home"],
             ["Travel", 0.1, "Travel"],
         ]);
@@ -246,7 +266,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "list and read the notebooks holding a pinned note outside the trash on %s",
+    "list and read the notebooks with a pinned note outside the trash on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
@@ -274,17 +294,17 @@ test.for(TEST_DIALECTS)(
 
         // list them on the server, and read them from a device's copy
         const query = {
-            where: Condition.exists("notes", Condition.eq("pinned", true)),
-            order: [{ column: "name", direction: "asc" as const }],
+            where: { notes: { pinned: true } },
+            orderBy: { name: "asc" } as const,
         };
         const listed = await alice.notebook.list({ spaceId, ...query });
         const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
-        const local = device.client.subscribe(notebook, query);
+        const local = device.client.query.notebook.findMany(query).subscribe();
         await local.ready;
         expect([
             listed.items.map((item) => item.name),
-            (await local.read()).map((row) => row.name),
+            (await local.read()).map((row) => row["name"]),
         ]).toEqual([["Home"], ["Home"]]);
     },
 );
@@ -296,41 +316,56 @@ test.for(TEST_DIALECTS)(
         const device = await Device.open("alice", endpoint("alice"), []);
 
         // follow notebooks and notes together, newest first, three at most
+        const { query } = device.client.of({ notebook, note });
         const activity = device.client.union(
-            { notebooks: { object: notebook }, notes: { object: note } },
-            { order: [{ column: "createdAt", direction: "desc" }], limit: 3 },
+            { notebooks: query.notebook.findMany(), notes: query.note.findMany() },
+            { orderBy: { createdAt: "desc" }, limit: 3 },
         );
         const controller = new AbortController();
         const watched = activity.watch(controller.signal);
-        const names = (entries: readonly Readonly<Record<string, unknown>>[]) =>
-            entries.map((entry) => {
-                const row = entry.row as { name?: string; title?: string };
+        const next = async () => {
+            const read = await watched.next();
+            if (read.done === true) {
+                throw new TypeError("the watched activity ended");
+            }
 
-                return `${String(entry.name)}:${row.name ?? row.title}`;
-            });
+            return unionNames(read.value);
+        };
 
         // file a notebook with two notes, a millisecond apart, and read the newest three
         const book = await device.client.mutate(notebook).create({ name: "Home" }).predicted;
         for (const title of ["Chores", "Budget"]) {
-            await new Promise((resolve) => setTimeout(resolve, 2));
+            await new Promise((resolve) => {
+                setTimeout(resolve, 2);
+            });
             await device.client.mutate(note).create({ parentId: book.id, title }).predicted;
         }
-        await new Promise((resolve) => setTimeout(resolve, 2));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 2);
+        });
         await device.client.mutate(notebook).create({ name: "Travel" }).predicted;
-        expect(names(await activity.read())).toEqual([
+        expect(unionNames(await activity.read())).toEqual([
             "notebooks:Travel",
             "notes:Budget",
             "notes:Chores",
         ]);
 
         // watch the same feed as local commits change it
-        let latest = names((await watched.next()).value!);
+        let latest = await next();
         while (latest.length < 3) {
-            latest = names((await watched.next()).value!);
+            latest = await next();
         }
         expect(latest).toEqual(["notebooks:Travel", "notes:Budget", "notes:Chores"]);
         controller.abort();
         await activity.close();
+
+        // refuse a member ordering itself, which the union's own order replaces
+        expect(() =>
+            device.client.union(
+                { notebooks: query.notebook.findMany({ orderBy: { name: "asc" } }) },
+                { orderBy: { createdAt: "desc" }, limit: 3 },
+            ),
+        ).toThrow("union member notebooks orders or limits itself");
     },
 );
 
@@ -361,20 +396,17 @@ test.for(TEST_DIALECTS)(
 
         // sort by the notebook's name, then the title, on the server and in a device's copy
         const query = {
-            compute: { notebook: Expression.lookup("parent", "name") },
-            order: [
-                { column: "notebook", direction: "asc" as const },
-                { column: "title", direction: "asc" as const },
-            ],
+            extras: { notebook: Expression.lookup("parent", "name") },
+            orderBy: { notebook: "asc", title: "asc" } as const,
         };
         const listed = await alice.note.list({ spaceId, ...query });
         const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
-        const local = device.client.subscribe(note, query);
+        const local = device.client.query.note.findMany(query).subscribe();
         await local.ready;
         expect([
-            listed.items.map((item) => [listed.computed![item.id]!.notebook, item.title]),
-            (await local.read()).map((row) => [row.notebook, row.title]),
+            listed.items.map((item) => [extrasOf(listed.extras, item.id)["notebook"], item.title]),
+            (await local.read()).map((row) => [row["notebook"], row["title"]]),
         ]).toEqual([
             [
                 ["Home", "Budget"],
@@ -391,12 +423,12 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "list and read notebooks by how many pinned notes outside the trash they hold on %s",
+    "list and read notebooks by how many pinned notes outside the trash they have on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
 
-        // file notebooks holding two, one and no pinned notes, one of Work's in the trash
+        // file notebooks with two, one and no pinned notes, one of Work's in the trash
         const book = async (name: string, pinned: number) => {
             const created = await alice.notebook.create({
                 spaceId,
@@ -419,31 +451,27 @@ test.for(TEST_DIALECTS)(
         await book("Home", 2);
         const work = await book("Work", 2);
         await book("Travel", 0);
-        await alice.note.delete({ spaceId, id: work[0]!, requestId: RequestId.create() });
+        await alice.note.delete({
+            spaceId,
+            id: present(work[0], "the first work note"),
+            requestId: RequestId.create(),
+        });
 
         // order them by their pinned notes, then by name, on the server and in a device's copy
         const query = {
-            compute: {
-                pinned: Expression.rollup(
-                    "count",
-                    "notes",
-                    undefined,
-                    Condition.eq("pinned", true),
-                ),
+            extras: {
+                pinned: Expression.rollup("count", "notes", undefined, { pinned: true }),
             },
-            order: [
-                { column: "pinned", direction: "desc" as const },
-                { column: "name", direction: "asc" as const },
-            ],
+            orderBy: { pinned: "desc", name: "asc" } as const,
         };
         const listed = await alice.notebook.list({ spaceId, ...query });
         const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
-        const local = device.client.subscribe(notebook, query);
+        const local = device.client.query.notebook.findMany(query).subscribe();
         await local.ready;
         expect([
-            listed.items.map((item) => [item.name, listed.computed![item.id]!.pinned]),
-            (await local.read()).map((row) => [row.name, row.pinned]),
+            listed.items.map((item) => [item.name, extrasOf(listed.extras, item.id)["pinned"]]),
+            (await local.read()).map((row) => [row["name"], row["pinned"]]),
         ]).toEqual([
             [
                 ["Home", 2],
@@ -468,19 +496,19 @@ test.for(TEST_DIALECTS)(
         device.online();
 
         // close the query and keep it followed for a minute
-        const kept = device.client.subscribe(notebook, {}, { keep: { minutes: 1 } });
+        const kept = device.client.query.notebook.findMany({}).subscribe({ keep: { minutes: 1 } });
         await kept.ready;
         await kept.close();
 
         // receive a notebook the server creates after the close into the local copy
         await alice.notebook.create({ spaceId, requestId: RequestId.create(), name: "Later" });
         const database = device.client.database;
-        const held = await database.log.until(
+        const isReceived = await database.log.until(
             async () =>
                 (await database.select().from(notebook.table)).some((row) => row.name === "Later"),
             AbortSignal.timeout(4000),
         );
-        expect(held).toBe(true);
+        expect(isReceived).toBe(true);
     },
 );
 
@@ -496,12 +524,14 @@ test.for(TEST_DIALECTS)(
         device.online();
         const database = device.client.database;
         const names = async () =>
-            (await database.select().from(notebook.table)).map((row) => row.name).sort();
+            (await database.select().from(notebook.table)).map((row) => row.name).toSorted();
 
         // keep home always and every notebook for a minute, then close both
-        const home = { where: Condition.eq("name", "Home") };
-        const always = device.client.subscribe(notebook, home, { keep: "always" });
-        const minute = device.client.subscribe(notebook, {}, { keep: { minutes: 1 } });
+        const home = { where: { name: "Home" } };
+        const always = device.client.query.notebook.findMany(home).subscribe({ keep: "always" });
+        const minute = device.client.query.notebook
+            .findMany({})
+            .subscribe({ keep: { minutes: 1 } });
         await Promise.all([always.ready, minute.ready]);
         await Promise.all([always.close(), minute.close()]);
 
@@ -512,18 +542,18 @@ test.for(TEST_DIALECTS)(
             async () => (await names()).length === 1,
             waiting.signal,
         );
-        const held = await names();
+        const kept = await names();
         await device.client.release(notebook, home);
         const isReleased = await database.log.until(
             async () => (await names()).length === 0,
             waiting.signal,
         );
-        expect([isEvicted, held, isReleased]).toEqual([true, ["Home"], true]);
+        expect([isEvicted, kept, isReleased]).toEqual([true, ["Home"], true]);
     },
 );
 
 test.for(TEST_DIALECTS)(
-    "describe what a client's copy holds, the queries it follows and what waits for the server on %s",
+    "describe what a client's copy has, the queries it follows and what waits for the server on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
@@ -532,7 +562,7 @@ test.for(TEST_DIALECTS)(
         device.online();
 
         // follow the notebooks, then keep them always once closed
-        const notebooks = device.client.subscribe(notebook, {}, { keep: "always" });
+        const notebooks = device.client.query.notebook.findMany({}).subscribe({ keep: "always" });
         await notebooks.ready;
         await notebooks.close();
 
@@ -542,9 +572,13 @@ test.for(TEST_DIALECTS)(
             inspection.rows,
             inspection.storage,
             inspection.subscriptions.map((entry) => entry.keep),
-            inspection.replica.isShaped,
-            inspection.replica.queries.length,
-            inspection.outbox,
+            inspection.replica.isLaidOut,
+            Object.keys(
+                QueriesParameters.parse(
+                    present(inspection.replica.subscription, "the copy's subscription").parameters,
+                ).queries ?? {},
+            ).length,
+            inspection.mutations,
         ]).toEqual([
             { notebook: 1, note: 0 },
             { rows: 10 },
@@ -563,14 +597,14 @@ test("compile includes of a handled tree and its parent like the declared types"
     const queries = ObjectType.queries(
         [handledPage, handledNotebook, note],
         {
-            tree: { object: "page", include: { descendants: {} } },
-            filed: { object: "notebook", include: { notes: {} } },
+            tree: { object: "page", with: { descendants: {} } },
+            filed: { object: "notebook", with: { notes: {} } },
         },
         [spaceId],
     );
 
     // join the tree's descendants and the notebook's notes
-    expect([queries.tree!.include!.descendants!.on, queries.filed!.include!.notes!.on]).toEqual([
+    expect([joinOf(queries, "tree", "descendants"), joinOf(queries, "filed", "notes")]).toEqual([
         { kind: "descendants", column: "parentId" },
         { kind: "key", column: "parentId", parent: "id" },
     ]);
@@ -593,8 +627,9 @@ test("watch a query keeping each unchanged row as the same object after another 
     const [apples] = await created.predicted;
     const stop = new AbortController();
     onTestFinished(() => stop.abort());
-    const watched = device.client
-        .subscribe(note, { order: [{ column: "title", direction: "asc" }] })
+    const watched = device.client.query.note
+        .findMany({ orderBy: { title: "asc" } })
+        .subscribe()
         .watch(stop.signal);
     const next = async () => {
         const read = await watched.next();
@@ -607,14 +642,59 @@ test("watch a query keeping each unchanged row as the same object after another 
     const initial = await next();
 
     // rename the first note past the others
-    await device.client.mutate(note).update({ id: apples!, title: "Dates" }).predicted;
+    await device.client
+        .mutate(note)
+        .update({ id: present(apples, "the apples note"), title: "Dates" }).predicted;
     const renamed = await next();
 
     // keep the two unchanged notes as the same objects, and present the renamed one anew
     expect([
-        renamed.map((row) => row.title),
+        renamed.map((row) => row["title"]),
         renamed[0] === initial[1],
         renamed[1] === initial[2],
         renamed[2] === initial[0],
     ]).toEqual([["Bread", "Cheese", "Dates"], true, true, false]);
 });
+
+/** Read what a listed row includes under an include's name. */
+function includedOf(
+    includes: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined,
+    name: string,
+    id: string,
+): unknown {
+    return present(present(includes, "the listed rows' includes")[name], `include ${name}`)[id];
+}
+
+/** Read the titles of the rows a listed row includes under an include's name. */
+function includedTitles(
+    includes: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined,
+    name: string,
+    id: string,
+): string[] {
+    return TITLED_ROWS.parse(includedOf(includes, name, id)).map((row) => row.title);
+}
+
+/** Read the extras a listed query computes for one row. */
+function extrasOf<Value>(
+    extras: Readonly<Record<string, Readonly<Record<string, Value>>>> | undefined,
+    id: string,
+): Readonly<Record<string, Value>> {
+    return present(present(extras, "the extras")[id], `the extras of ${id}`);
+}
+
+/** Read how a compiled query joins one of its includes. */
+function joinOf(queries: Readonly<Record<string, Query>>, name: string, include: string): Path {
+    return included(present(queries[name], `query ${name}`), include).relation.on;
+}
+
+/** Name each entry of a union by its member and its notebook's name or note's title. */
+function unionNames(
+    entries: readonly (
+        | { readonly name: "notebooks"; readonly row: { readonly name: string } }
+        | { readonly name: "notes"; readonly row: { readonly title: string } }
+    )[],
+): string[] {
+    return entries.map((entry) =>
+        entry.name === "notebooks" ? `notebooks:${entry.row.name}` : `notes:${entry.row.title}`,
+    );
+}

@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
-import { notebook } from "./fixture/notes.ts";
+import { notebook } from "./fixture/note.ts";
 
 test("read through methods that change nothing on the server, and refuse mutations there", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
@@ -8,7 +8,7 @@ test("read through methods that change nothing on the server, and refuse mutatio
     const device = await Device.open("alice", endpoint("alice"));
     device.online();
 
-    // read a confirmed notebook as the server holds it
+    // read a confirmed notebook as the server has it
     const created = device.client.mutate(notebook).create({ name: "Travel" });
     const { id } = await created.predicted;
     await created.confirmed;

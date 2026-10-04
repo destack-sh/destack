@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook } from "./fixture/notes.ts";
+import { note, notebook } from "./fixture/note.ts";
 
 test("predict recorded calls as one mutation, which the server executes together", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
@@ -27,7 +27,7 @@ test("predict recorded calls as one mutation, which the server executes together
     await submitted.predicted;
     const predicted = await device.titles();
     await submitted.confirmed;
-    const stored = (await alice.note.list({ spaceId })).items.map((item) => item.title).sort();
+    const stored = (await alice.note.list({ spaceId })).items.map((item) => item.title).toSorted();
     expect([predicted, stored, device.errors]).toEqual([
         ["Packing", "Tickets"],
         ["Packing", "Tickets"],

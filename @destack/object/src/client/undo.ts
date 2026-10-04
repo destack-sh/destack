@@ -8,11 +8,13 @@ import {
     inArray,
     json,
     max,
+    TABLE,
     text,
     type DatabaseConnection,
+    type Select,
 } from "@destack/db";
 
-import { schema, type Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 
@@ -46,6 +48,19 @@ export type StoredStep = Omit<Step, "object" | "current"> & {
     readonly release: Version;
 };
 
+/** The steps an entry keeps, as their JSON reads back. */
+const STORED_STEPS: schema.Schema<StoredStep[]> = schema.array(
+    schema.looseObject({
+        object: schema.string(),
+        release: Version,
+        name: schema.string(),
+        input: schema.record(schema.string(), schema.json()),
+        result: schema.unknown().exactOptional(),
+        before: schema.record(schema.string(), schema.json()).exactOptional(),
+        after: schema.record(schema.string(), schema.json()).exactOptional(),
+    }),
+);
+
 /** A party's undo and redo stacks of mutations, as steps their inverses undo. */
 export class UndoStack {
     /** The client whose mutations the stacks keep. */
@@ -70,14 +85,15 @@ export class UndoStack {
         }
 
         // fill missing results in call order
-        const steps = (entry.steps as StoredStep[]).map((step, position) =>
-            step.result === undefined && value[position] !== undefined
-                ? { ...step, result: value[position] }
+        const results: readonly unknown[] = value;
+        const steps = STORED_STEPS.parse(entry.steps).map((step, position) =>
+            step.result === undefined && results[position] !== undefined
+                ? { ...step, result: results[position] }
                 : step,
         );
         await this.client.database
             .update(undoEntry)
-            .set({ steps: steps as never })
+            .set({ steps: schema.json().parse(steps) })
             .where(eq(undoEntry.id, entry.id));
     }
 
@@ -94,7 +110,10 @@ export class UndoStack {
         // require an inverse for every call
         const isUndoable =
             steps.length > 0 &&
-            steps.every((step) => this.client.method(`${step.object}.${step.name}`).method.inverse);
+            steps.every(
+                (step) =>
+                    this.client.method(`${step.object}.${step.name}`).method.inverse !== undefined,
+            );
         if (!isUndoable) {
             return;
         }
@@ -107,7 +126,7 @@ export class UndoStack {
             origin: this.client.origin,
             sequence: (last?.sequence ?? 0) + 1,
             state: "done",
-            steps: steps as never,
+            steps: schema.json().parse(steps),
             mutationId: id,
         });
     }
@@ -136,69 +155,96 @@ export class UndoStack {
     ): Promise<boolean> {
         while (true) {
             // take the latest entry
-            const [entry] = await this.client.database
-                .select()
-                .from(undoEntry)
-                .where(and(eq(undoEntry.origin, this.client.origin), eq(undoEntry.state, from)))
-                .orderBy(from === "done" ? desc(undoEntry.sequence) : asc(undoEntry.sequence))
-                .limit(1);
+            const entry = await this.#latest(from);
             if (entry === undefined) {
                 return false;
             }
 
-            // invert its steps in reverse order
-            const calls: sync.Call[] = [];
-            for (const stored of [...(entry.steps as StoredStep[])].reverse()) {
-                const { object, name, method } = this.client.method(
-                    `${stored.object}.${stored.name}`,
-                );
-                if (stored.release !== object.package.version) {
-                    calls.length = 0;
-                    break;
-                }
-                const id = stored.after?.id ?? stored.input.id;
-                const current =
-                    typeof id === "string"
-                        ? await this.client.row(this.client.database, object, id)
-                        : undefined;
-                const step: Step = {
-                    ...stored,
-                    object,
-                    name,
-                    ...(current === undefined ? {} : { current }),
-                };
-                calls.push(...(method.inverse?.(step) ?? []));
-            }
+            // invert its steps, dropping an entry with nothing to invert
+            const calls = await this.#inverseCalls(entry);
             if (calls.length === 0) {
                 await this.client.database.delete(undoEntry).where(eq(undoEntry.id, entry.id));
                 continue;
             }
 
             // submit the inverse as one mutation
-            await this.client.prediction.add(
-                this.client.database,
-                mutationId,
-                this.client.origin,
-                async (database) => {
-                    // predict each inverse call
-                    const steps: StoredStep[] = [];
-                    for (const call of calls) {
-                        const { object, name } = this.client.method(call.method);
-                        steps.push(
-                            (await this.client.step(database, object, name, call.input, true)).step,
-                        );
-                    }
-                    await database
-                        .update(undoEntry)
-                        .set({ steps: steps as never, state: to, mutationId })
-                        .where(eq(undoEntry.id, entry.id));
-
-                    return { calls, result: undefined };
-                },
-            );
+            await this.#submitInverse(entry, calls, to, mutationId);
 
             return true;
         }
+    }
+
+    /** Read the party's latest entry in a state: the last done, or the first undone. */
+    async #latest(from: "done" | "undone"): Promise<Select<typeof undoEntry> | undefined> {
+        const [entry] = await this.client.database
+            .select()
+            .from(undoEntry)
+            .where(and(eq(undoEntry.origin, this.client.origin), eq(undoEntry.state, from)))
+            .orderBy(from === "done" ? desc(undoEntry.sequence) : asc(undoEntry.sequence))
+            .limit(1);
+
+        return entry;
+    }
+
+    /** Invert an entry's steps in reverse order, none once a step's type changed release. */
+    async #inverseCalls(entry: Select<typeof undoEntry>): Promise<sync.Call[]> {
+        const calls: sync.Call[] = [];
+        for (const stored of STORED_STEPS.parse(entry.steps).toReversed()) {
+            // refuse a step recorded by another release
+            const { object, name, method } = this.client.method(`${stored.object}.${stored.name}`);
+            if (stored.release !== object.package.version) {
+                return [];
+            }
+
+            // invert the step against the object's current row
+            const id = stored.after?.["id"] ?? stored.input["id"];
+            const row =
+                typeof id === "string"
+                    ? await this.client.row(this.client.database, object, id)
+                    : undefined;
+            const current = row && object.table[TABLE].encode(row);
+            const step: Step = {
+                ...stored,
+                object,
+                name,
+                ...(current === undefined ? {} : { current }),
+            };
+            calls.push(...(method.inverse?.(step) ?? []));
+        }
+
+        return calls;
+    }
+
+    /** Submit an entry's inverse calls as one mutation, moving the entry to a state. */
+    async #submitInverse(
+        entry: Select<typeof undoEntry>,
+        calls: readonly sync.Call[],
+        to: "done" | "undone",
+        mutationId: string,
+    ): Promise<void> {
+        await this.client.prediction.add(
+            this.client.database,
+            mutationId,
+            this.client.origin,
+            async (database) => {
+                // predict each inverse call
+                const steps: StoredStep[] = [];
+                for (const call of calls) {
+                    const { object, name } = this.client.method(call.method);
+                    steps.push(
+                        (await this.client.step(database, object, name, call.input, true)).step,
+                    );
+                }
+
+                // record the inverse steps under the entry's new state
+                await database
+                    .update(undoEntry)
+                    .set({ steps: schema.json().parse(steps), state: to, mutationId })
+                    .where(eq(undoEntry.id, entry.id));
+
+                return { calls, result: undefined };
+            },
+        );
     }
 
     /** Drop the entries of mutations the server rejected. */

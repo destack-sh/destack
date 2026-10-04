@@ -1,19 +1,17 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit";
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase, Expression } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Expression } from "@destack/schema/expression";
 import { schema } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
 
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
-import { defineObject, field, method } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { testCallKey } from "@destack/service/test";
+import { userContext } from "./fixture/user.ts";
 
 /** Cards whose `title` became `name`. */
 const card = defineObject({
@@ -26,11 +24,11 @@ const card = defineObject({
         name: field.string(schema.string().min(1)),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         create: method.create("write"),
         update: method.update("write"),
-    },
+    }),
 });
 
 test.for(TEST_DIALECTS)(
@@ -41,6 +39,7 @@ test.for(TEST_DIALECTS)(
             defineDatabase({
                 name: "main",
                 tables: [journal, ...card.tables],
+                copies: [],
             }),
             { isMigrated: true },
         );
@@ -49,26 +48,16 @@ test.for(TEST_DIALECTS)(
         const server = new ObjectServer({
             objects: { card },
             database: storage.database,
-            context: () => ({
-                subjects: [principal.user.reference("universe", "alice")],
-                now: Date.now(),
-                attributes: {},
-            }),
             callKey: testCallKey,
             origin: {
                 package: card.package,
                 service: "test",
             },
         });
-        const context = {
-            scope: spaceId,
-            requireAuthentication: () => ({ id: "alice" }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-        } as unknown as ServiceContext;
+        const context = userContext("alice", spaceId);
 
         // create and rename a card through calls of the release before the rename
-        const [created] = (await server.mutate(
+        const [result] = await server.mutate(
             {
                 id: RequestId.create(),
                 calls: [
@@ -80,7 +69,8 @@ test.for(TEST_DIALECTS)(
                 ],
             },
             context,
-        )) as [{ id: string }];
+        );
+        const created = schema.looseObject({ id: schema.string() }).parse(result);
         await server.mutate(
             {
                 id: RequestId.create(),
@@ -113,9 +103,7 @@ test.for(TEST_DIALECTS)(
             code: "BAD_REQUEST",
             message: "card.update was made against release 2026.10.0 of card, which is at 2026.9.0",
         });
-        const stored = (await server.call(card, "get", { spaceId, id: created.id }, context)) as {
-            name: string;
-        };
+        const stored = await server.call(card, "get", { spaceId, id: created.id }, context);
         expect(stored.name).toBe("Roadmap");
     },
 );
@@ -128,11 +116,11 @@ test("refuse method conversions keyed by a release after the object's package re
             scope: space,
             fields: { name: field.string() },
             permissions: ["write"],
-            methods: {
+            methods: (method) => ({
                 create: method.create("write", {
                     convert: { "2026.10.0": { name: Expression.column("title") } },
                 }),
-            },
+            }),
         }),
     ).toThrow(
         new TypeError(

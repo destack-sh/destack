@@ -5,26 +5,29 @@ import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
+import { schema, present } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { Server, type ServiceImplementation } from "@destack/service/server";
 import { v7 } from "uuid";
-import { note, notebook, notesDatabase, notesService } from "./notes.ts";
+import { note, notebook, notesDatabase, notesService } from "./note.ts";
 import { principal } from "@destack/access";
 import { openSpace, unmoved } from "./space.ts";
 import { testCallKey } from "@destack/service/test";
 
-/** The space holding the notes. */
-export const spaceId = identifier("space").parse(`space-${v7()}`);
+/** The space with the notes. */
+export const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+
+/** The object types a device keeps, by key. */
+const DEVICE_OBJECTS = { notebook, note };
 
 /** The package serving the notes. */
 const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e238");
 
 /** Serve a space's notes to bearer-named users, returning a client per user. */
 export async function serveNotes(dialect: Dialect) {
-    // hold the space's notes in memory
+    // keep the space's notes in memory
     const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
@@ -56,7 +59,10 @@ export function serveObjects(implementation: ServiceImplementation, scope: strin
         drainTimeout: 1000,
         authorizeHost: async () => {},
         authenticate: async (request) => {
-            const id = request.headers.get("authorization")!.slice("Bearer ".length);
+            const id = present(
+                request.headers.get("authorization"),
+                "the authorization header",
+            ).slice("Bearer ".length);
             const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
@@ -83,12 +89,12 @@ export function serveObjects(implementation: ServiceImplementation, scope: strin
     return { server, endpoint };
 }
 
-/** A user's device holding notebooks and notes in a local database file. */
+/** A user's device with notebooks and notes in a local database file. */
 export class Device {
     /** The local database file. */
     readonly storage: TestDatabase;
-    /** The objects the device holds. */
-    readonly client: ObjectClient;
+    /** The objects the device keeps. */
+    readonly client: ObjectClient<typeof DEVICE_OBJECTS>;
     /** The failures pushing and following reported. */
     readonly errors: unknown[] = [];
     /** Stop pushing and following. */
@@ -96,8 +102,8 @@ export class Device {
     /** The running push and follow loops. */
     #loops: Promise<void>[] = [];
 
-    /** Hold a device's storage and objects. */
-    private constructor(storage: TestDatabase, client: ObjectClient) {
+    /** Keep a device's storage and objects. */
+    private constructor(storage: TestDatabase, client: ObjectClient<typeof DEVICE_OBJECTS>) {
         this.storage = storage;
         this.client = client;
     }
@@ -112,12 +118,12 @@ export class Device {
             readonly push?: { readonly mutations: number };
         } = {},
     ) {
-        // create the local database and hold the space's notebooks and notes in it
-        const tables = ObjectClient.tables([notebook, note]);
+        // create the local database and keep the space's notebooks and notes in it
+        const tables = ObjectClient.tables({ notebook, note });
         const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
         const client = await ObjectClient.open({
             database: storage.database,
-            objects: [notebook, note],
+            objects: DEVICE_OBJECTS,
             scope: spaceId,
             caller: principal.user.reference("universe", user),
             endpoint,
@@ -125,7 +131,7 @@ export class Device {
             ...options,
         });
         for (const object of queried) {
-            client.subscribe(object);
+            client.queryOf(object).findMany().subscribe();
         }
         const device = new Device(storage, client);
         onTestFinished(() => device.close());
@@ -161,14 +167,14 @@ export class Device {
         this.#loops = [];
     }
 
-    /** Read the titles of the notes outside the trash the device holds. */
+    /** Read the titles of the notes outside the trash the device has. */
     async titles(): Promise<string[]> {
         const rows = await this.client.database
             .select({ title: note.table.title })
             .from(note.table)
             .where(isNull(note.table.deletionRequestedAt));
 
-        return rows.map((row) => row.title).sort();
+        return rows.map((row) => row.title).toSorted();
     }
 
     /** Stop and remove the device. */

@@ -1,28 +1,31 @@
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
-import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
-import { anyone, Capability, principal } from "@destack/access";
-import { page, pageDatabase, pagesService } from "./fixture/pages.ts";
+import { anyone, LinkSecret, principal } from "@destack/access";
+import { Subject } from "@destack/sync";
+import { page, pageDatabase, pagesService } from "./fixture/page.ts";
 import { openSpace, unmoved } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 
-/** The space holding the pages. */
-const spaceId = identifier("space").parse(`space-${v7()}`);
+/** The space with the pages. */
+const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
 /** The package serving the pages. */
 const audience = PackageId.parse("package-01a0d5eb-fbad-732f-bbb4-a58aebbeb908");
+
+/** The rows an include adds, read for their titles. */
+const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
 
 /** Serve a space's pages to bearer-named users and anonymous readers. */
 async function servePages(dialect: Dialect) {
@@ -65,7 +68,7 @@ async function servePages(dialect: Dialect) {
     });
     onTestFinished(() => server.close());
 
-    // reach the server with some headers
+    // call the server with some headers
     const endpoint = (headers: Record<string, string>): ClientOptions => ({
         url: "https://page.test",
         headers,
@@ -77,23 +80,23 @@ async function servePages(dialect: Dialect) {
     return { connect, endpoint };
 }
 
-/** Hold a user's pages on a device. */
+/** Keep a user's pages on a device. */
 async function openDevice(user: string, endpoint: ClientOptions) {
-    // create the local database and hold the space's pages in it
-    const storage = await TestDatabase.create("sqlite", ObjectClient.tables([page]), {
+    // create the local database and keep the space's pages in it
+    const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ page }), {
         storage: "file",
     });
     const client = await ObjectClient.open({
         database: storage.database,
-        objects: [page],
+        objects: { page },
         scope: spaceId,
         caller: principal.user.reference("universe", user),
         endpoint,
         reconnect: unmoved,
     });
 
-    // hold every page of the space, pushing and following until the test finishes
-    client.subscribe(page, { deleted: "include" });
+    // keep every page of the space, pushing and following until the test finishes
+    client.query.page.findMany({ deleted: "include" }).subscribe();
     const controller = new AbortController();
     const errors: unknown[] = [];
     const loops = [
@@ -116,7 +119,7 @@ async function openDevice(user: string, endpoint: ClientOptions) {
         return rows
             .filter((row) => row.parentId === parentId)
             .map((row) => row.title)
-            .sort();
+            .toSorted();
     };
 
     return { client, errors, titles };
@@ -136,7 +139,9 @@ test.each(TEST_DIALECTS)(
                 spaceId,
                 requestId: RequestId.create(),
                 title,
-                ...(parentId === undefined ? {} : { parentId: identifier("page").parse(parentId) }),
+                ...(parentId === undefined
+                    ? {}
+                    : { parentId: schema.identifier("page").parse(parentId) }),
             });
         const handbook = await create("Handbook");
         const onboarding = await create("Onboarding", handbook.id);
@@ -169,7 +174,7 @@ test.each(TEST_DIALECTS)(
             parentId: onboarding.id,
             title: "Tools",
         });
-        expect(tools.owner).toBe("bob");
+        expect(Subject.read(tools.owner)).toEqual(principal.user.reference("universe", "bob"));
         await expect(
             bob.page.move({
                 spaceId,
@@ -206,19 +211,19 @@ test.each(TEST_DIALECTS)(
         });
 
         // publish the tree through a link anyone presenting its secret may read, signed in or not
-        const link = await Capability.create();
+        const link = await LinkSecret.create();
         await alice.page.grant({
             spaceId,
             id: handbook.id,
             requestId: RequestId.create(),
-            relation: "viewer",
+            relation: "public",
             subject: anyone.reference("*", "*"),
-            conditions: { capability: link.digest },
+            conditions: { linkSecret: link.digest },
         });
-        const visitor = connect({ "destack-capability": link.secret });
+        const visitor = connect({ "destack-link-secret": link.secret });
         expect((await visitor.page.get({ spaceId, id: tools.id })).title).toBe("Tools");
         expect(
-            (await visitor.page.list({ spaceId })).items.map((item) => item.title).sort(),
+            (await visitor.page.list({ spaceId })).items.map((item) => item.title).toSorted(),
         ).toEqual(["Handbook", "Onboarding", "Tools"]);
         await expect(connect({}).page.get({ spaceId, id: handbook.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
@@ -243,7 +248,10 @@ test.each(TEST_DIALECTS)(
         });
         expect([
             why.isAllowed,
-            why.authorities[0]!.grants.map((grant) => [grant.path.join(" / "), grant.failure]),
+            present(why.authorities[0], "the first authority").grants.map((grant) => [
+                grant.path.join(" / "),
+                grant.failure,
+            ]),
         ]).toEqual([
             false,
             [
@@ -318,9 +326,9 @@ test.each(TEST_DIALECTS)(
             ["First week"],
         ]);
         await tree.confirmed;
-        expect((await alice.page.list({ spaceId })).items.map((item) => item.title).sort()).toEqual(
-            ["First week", "Handbook", "Onboarding"],
-        );
+        expect(
+            (await alice.page.list({ spaceId })).items.map((item) => item.title).toSorted(),
+        ).toEqual(["First week", "Handbook", "Onboarding"]);
 
         // move a page to the root, and refuse a move into its own subtree before queueing it
         const moved = device.client.mutate(page).move({ id: week.id, parentId: null });
@@ -336,7 +344,7 @@ test.each(TEST_DIALECTS)(
             code: "CONFLICT",
             message: "page cannot move into its own subtree",
         });
-        expect(await device.client.outbox.pending(device.client.database)).toEqual([]);
+        expect(await device.client.prediction.pending(device.client.database)).toEqual([]);
 
         // trash and restore a page, shown at once and confirmed by the server
         const trashed = device.client.mutate(page).delete({ id: week.id });
@@ -366,7 +374,9 @@ test.each(TEST_DIALECTS)(
                 spaceId,
                 requestId: RequestId.create(),
                 title,
-                ...(parentId === undefined ? {} : { parentId: identifier("page").parse(parentId) }),
+                ...(parentId === undefined
+                    ? {}
+                    : { parentId: schema.identifier("page").parse(parentId) }),
             });
         const handbook = await create("Handbook");
         const onboarding = await create("Onboarding", handbook.id);
@@ -380,16 +390,16 @@ test.each(TEST_DIALECTS)(
             subject: principal.user.reference("universe", "bob"),
         });
 
-        // hold the shared tree on bob's device
+        // keep the shared tree on bob's device
         const device = await openDevice("bob", endpoint({ authorization: "Bearer bob" }));
-        const held = async () => {
+        const titles = async () => {
             const rows = await device.client.database
                 .select({ title: page.table.title })
                 .from(page.table);
 
-            return rows.map((row) => row.title).sort();
+            return rows.map((row) => row.title).toSorted();
         };
-        await expect.poll(held).toEqual(["Day one", "First week", "Handbook", "Onboarding"]);
+        await expect.poll(titles).toEqual(["Day one", "First week", "Handbook", "Onboarding"]);
 
         // drop and regain a subtree when it moves out of and into the shared tree
         await alice.page.move({
@@ -398,14 +408,14 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
             parentId: null,
         });
-        await expect.poll(held).toEqual(["Handbook", "Onboarding"]);
+        await expect.poll(titles).toEqual(["Handbook", "Onboarding"]);
         await alice.page.move({
             spaceId,
             id: week.id,
             requestId: RequestId.create(),
             parentId: onboarding.id,
         });
-        await expect.poll(held).toEqual(["Day one", "First week", "Handbook", "Onboarding"]);
+        await expect.poll(titles).toEqual(["Day one", "First week", "Handbook", "Onboarding"]);
         expect(device.errors).toEqual([]);
     },
 );
@@ -420,28 +430,29 @@ test.for(TEST_DIALECTS)("list the pages below and above each page on %s", async 
             spaceId,
             requestId: RequestId.create(),
             title,
-            ...(parentId === undefined ? {} : { parentId: identifier("page").parse(parentId) }),
+            ...(parentId === undefined
+                ? {}
+                : { parentId: schema.identifier("page").parse(parentId) }),
         });
     const handbook = await create("Handbook");
     const guide = await create("Guide", handbook.id);
     const chapter = await create("Chapter", guide.id);
-    const titles = (rows: unknown) => (rows as { title: string }[]).map((row) => row.title);
 
     // list the top page with every page below it, and the deepest with every page above it
     const tops = await alice.page.list({
         spaceId,
-        where: Condition.missing("parentId"),
-        include: { descendants: { order: [{ column: "title", direction: "asc" }] } },
+        where: { parentId: { isNull: true } },
+        with: { descendants: { orderBy: { title: "asc" } as const } },
     });
     const deepest = await alice.page.list({
         spaceId,
-        where: Condition.eq("title", "Chapter"),
-        include: { ancestors: {} },
+        where: { title: "Chapter" },
+        with: { ancestors: {} },
     });
     expect([
         tops.items.map((item) => item.title),
-        titles(tops.included!.descendants![handbook.id]),
-        titles(deepest.included!.ancestors![chapter.id]).sort(),
+        includedTitles(tops.included, "descendants", handbook.id),
+        includedTitles(deepest.included, "ancestors", chapter.id).toSorted(),
     ]).toEqual([["Handbook"], ["Chapter", "Guide"], ["Guide", "Handbook"]]);
 });
 
@@ -461,29 +472,35 @@ test.for(TEST_DIALECTS)(
         });
 
         // follow the top pages with every page below them, read once and live
-        const tops = device.subscribe(page, {
-            where: Condition.missing("parentId"),
-            include: { descendants: { order: [{ column: "title", direction: "asc" }] } },
-        });
+        const tops = device.query.page
+            .findMany({
+                where: { parentId: { isNull: true } },
+                with: { descendants: { orderBy: { title: "asc" } } },
+            })
+            .subscribe();
         await tops.ready;
         const controller = new AbortController();
         const watched = tops.watch(controller.signal);
-        const shelf = (rows: readonly Readonly<Record<string, unknown>>[]) =>
-            rows.map((row) => [
-                row.title,
-                (row.descendants as { title: string }[]).map((below) => below.title),
-            ]);
-        expect(shelf((await watched.next()).value!)).toEqual([["Handbook", []]]);
+        const next = async () => {
+            const read = await watched.next();
+            if (read.done === true) {
+                throw new TypeError("the watched pages ended");
+            }
+
+            return shelf(read.value);
+        };
+        expect(await next()).toEqual([["Handbook", []]]);
 
         // grow the tree two levels, watching until both show
         const guide = await device
             .mutate(page)
-            .create({ parentId: identifier("page").parse(handbook.id), title: "Guide" }).predicted;
+            .create({ parentId: schema.identifier("page").parse(handbook.id), title: "Guide" })
+            .predicted;
         await watched.next();
         await device.mutate(page).create({ parentId: guide.id, title: "Chapter" }).predicted;
-        let shown = shelf((await watched.next()).value!);
-        while ((shown[0]?.[1] as readonly string[] | undefined)?.length !== 2) {
-            shown = shelf((await watched.next()).value!);
+        let shown = await next();
+        while (shown[0]?.[1].length !== 2) {
+            shown = await next();
         }
         expect([shown, shelf(await tops.read())]).toEqual([
             [["Handbook", ["Chapter", "Guide"]]],
@@ -492,3 +509,26 @@ test.for(TEST_DIALECTS)(
         controller.abort();
     },
 );
+
+/** Read the titles of the rows a listed row includes under a name. */
+function includedTitles(
+    included: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined,
+    name: string,
+    id: string,
+): string[] {
+    const rows = present(present(included, "the listed rows' includes")[name], `include ${name}`)[
+        id
+    ];
+
+    return TITLED_ROWS.parse(rows).map((row) => row.title);
+}
+
+/** Read the top pages' titles, each with the titles of the pages below it. */
+function shelf(
+    rows: readonly {
+        readonly title: string;
+        readonly descendants: readonly { readonly title: string }[];
+    }[],
+): [string, string[]][] {
+    return rows.map((row) => [row.title, row.descendants.map((below) => below.title)]);
+}

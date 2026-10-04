@@ -2,17 +2,17 @@ import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit";
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 
-import { defineObject, field, method } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { ObjectServer, SystemCall } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 
-/** The space holding the machines. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
+/** The space with the machines. */
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
 
 /** The machine the system provisions under the identifier it chose. */
 const MACHINE = "machine-01996ab0-0000-7000-8000-000000000041";
@@ -29,18 +29,19 @@ const machine = defineObject({
         address: field.string().optional(),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: {
+    methods: (method) => ({
         create: method.create("write", { fields: ["size"] }),
         provision: method.create(null, { isSystem: true }),
         update: method.update("write", { fields: ["size"] }),
         delete: method.delete("write"),
-    },
+    }),
 });
 
-/** The database holding the machines, their access and the journal. */
+/** The database with the machines, their access and the journal. */
 const machineDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...machine.tables],
+    copies: [],
 });
 
 test.each(TEST_DIALECTS)(
@@ -52,7 +53,6 @@ test.each(TEST_DIALECTS)(
         const server = new ObjectServer({
             objects: { machine },
             database: storage.database,
-            context: () => ({ subjects: [], now: 0, attributes: {} }),
             callKey: testCallKey,
             origin: {
                 package: machine.package,
@@ -69,12 +69,12 @@ test.each(TEST_DIALECTS)(
         await server.executeAsSystem(
             machine,
             "provision",
-            [{ scope: spaceId, id: MACHINE, input: { owner: "global:user-1", size: "small" } }],
+            [{ scope: spaceId, id: MACHINE, input: { ownerId: "global:user-1", size: "small" } }],
             1_000,
         );
-        const created = (await read())!;
+        const created = present(await read(), "the machine");
 
-        // observe it twice and keep the transition time while the status holds
+        // observe it twice and keep the transition time while the status stays
         const ready = { status: "false", reason: "Provisioning", message: "" } as const;
         await server.executeAsSystem(
             machine,
@@ -86,7 +86,7 @@ test.each(TEST_DIALECTS)(
             machine,
             "observe",
             [
-                SystemCall.of((await read())!, {
+                SystemCall.of(present(await read(), "the machine"), {
                     observedGeneration: 1,
                     conditions: { ready: { ...ready, message: "waiting for capacity" } },
                     fields: { address: "10.0.0.1" },
@@ -94,20 +94,15 @@ test.each(TEST_DIALECTS)(
             ],
             3_000,
         );
-        const observed = (await read())!;
+        const observed = present(await read(), "the machine");
 
         // delete it through its controller: request, then finalize inside an open transaction
         await server.executeAsSystem(machine, "delete", [SystemCall.of(observed)], 4_000);
-        const requested = (await read())!;
+        const requested = present(await read(), "the machine");
         await storage.database.transaction(async (transaction) => {
-            await server.invoke(
-                transaction,
-                spaceId,
-                machine,
-                "finalize",
-                { id: created.id },
-                5_000,
-            );
+            await server
+                .invoke(machine, { database: transaction, scope: spaceId, now: 5_000 })
+                .finalize({ id: created.id });
         });
         const finalized = await read();
 
@@ -115,14 +110,19 @@ test.each(TEST_DIALECTS)(
         await server.executeAsSystem(
             machine,
             "provision",
-            [{ scope: spaceId, input: { owner: "global:user-1", size: "large" } }],
+            [{ scope: spaceId, input: { ownerId: "global:user-1", size: "large" } }],
             6_000,
         );
         await Scope.fence(storage.database, spaceId, "host-2", 7_000);
         const moved = server.executeAsSystem(
             machine,
             "observe",
-            [SystemCall.of((await read())!, { observedGeneration: 1, conditions: {} })],
+            [
+                SystemCall.of(present(await read(), "the machine"), {
+                    observedGeneration: 1,
+                    conditions: {},
+                }),
+            ],
             8_000,
         );
         await expect(moved).rejects.toMatchObject({

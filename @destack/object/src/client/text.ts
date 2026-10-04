@@ -1,21 +1,20 @@
-import { Condition } from "@destack/db/query";
 import { v7 } from "uuid";
-import type { ObjectType } from "../object/index.ts";
+import type { ObjectOf, ObjectType } from "../object/index.ts";
 import { Sequence, type Run, type TextChange } from "../sequence/index.ts";
-import type { Edited } from "../text/chunk.ts";
+import { Undo } from "../text/chunk.ts";
 import { chunk } from "../text/table.ts";
 import type { ObjectClient, Submission } from "./client.ts";
 
 /** One text field of an object, followed as its sequence and changed by visible offsets. */
 export interface LiveText {
-    /** Settles once the copy holds the text. */
+    /** Settles once the copy has the text. */
     readonly ready: Promise<void>;
     /** Read the text's sequence, predictions included. */
     read(): Promise<Sequence>;
     /** Yield the sequence, then again after each change. */
     watch(signal: AbortSignal): AsyncGenerator<Sequence>;
     /** Replace the text between two offsets, after every earlier change, as one predicted edit. */
-    change(change: TextChange): Promise<Submission<Edited>>;
+    change(change: TextChange): Promise<Submission<Undo>>;
     /** Stop following the text. */
     close(): Promise<void>;
 }
@@ -25,20 +24,17 @@ export const LiveText = {
     /** Follow one text field of an object as its sequence, changing it by visible offsets. */
     open(client: ObjectClient, object: ObjectType, id: string, field: string): LiveText {
         // follow the field's chunks in position order
-        const chunks = client.objects.find((held) => held.table === chunk);
+        const chunks = client.objects.find(isChunkType);
         if (chunks === undefined || !object.text.includes(field)) {
-            throw new TypeError(`object ${object.name} holds no text field ${field}`);
+            throw new TypeError(`object ${object.name} has no text field ${field}`);
         }
-        const query = client.subscribe(chunks, {
-            where: Condition.all(
-                Condition.eq("parentType", object.name),
-                Condition.eq("parentId", id),
-                Condition.eq("field", field),
-            ),
-            order: [{ column: "position", direction: "asc" }],
-        });
-        const sequence = (rows: readonly Readonly<Record<string, unknown>>[]) =>
-            new Sequence(rows.flatMap((row) => row.runs as readonly Run[]));
+        const query = client
+            .queryOf(chunks)
+            .findMany({
+                where: { parentType: object.name, parentId: id, field: field },
+                orderBy: { position: "asc" },
+            })
+            .subscribe();
 
         // apply changes in order against the text of the previous change
         let previous: Promise<unknown> = Promise.resolve();
@@ -46,13 +42,11 @@ export const LiveText = {
             const next = previous.then(async () => {
                 // translate the offsets against the current text, edit, and wait for the prediction
                 const edits = sequence(await query.read()).change(replaced, v7());
-                const mutator = client.mutate(object) as unknown as Readonly<
-                    Record<string, (input: object) => Submission<Edited>>
-                >;
-                const editing = mutator.edit!({ id, field, edits });
-                await editing.predicted;
+                const editing = client.call(object, "edit", { id, field, edits });
+                const predicted = editing.predicted.then((value) => Undo.parse(value));
+                await predicted;
 
-                return editing;
+                return { predicted, confirmed: editing.confirmed };
             });
             previous = next.catch(() => {});
 
@@ -72,3 +66,13 @@ export const LiveText = {
         };
     },
 };
+
+/** Report whether an object type keeps its rows in the chunk table, which guards no field. */
+function isChunkType(type: ObjectType): type is ObjectOf<{ table: typeof chunk; fields: {} }> {
+    return type.table === chunk;
+}
+
+/** Assemble a text's sequence from its chunks in position order. */
+function sequence(rows: readonly { readonly runs: readonly Run[] }[]): Sequence {
+    return new Sequence(rows.flatMap((row) => row.runs));
+}

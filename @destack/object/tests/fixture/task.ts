@@ -1,9 +1,9 @@
 import { schema } from "@destack/schema";
 import { journal } from "@destack/audit";
 import { relation, through, union, principal } from "@destack/access";
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase } from "@destack/db";
 import { defineService } from "@destack/service";
-import { defineObject, field, method } from "../../src/index.ts";
+import { defineObject, field } from "../../src/index.ts";
 import { user } from "../schema.ts";
 import { space } from "./space.ts";
 
@@ -31,12 +31,12 @@ export const project = defineObject({
         manage: relation("owner"),
     },
     shareable: { by: "manage" },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("manage"),
         update: method.update("manage"),
-    },
+    }),
 });
 
 /** A piece of work in a project, done by its assignee. */
@@ -69,13 +69,13 @@ export const task = defineObject({
         plan: through("parent", "plan"),
         manage: through("parent", "manage"),
     },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("plan"),
         update: method.update("plan"),
         delete: method.delete("plan"),
-    },
+    }),
 });
 
 /** A remark on a task, made and read by the task's readers. */
@@ -89,12 +89,12 @@ export const comment = defineObject({
         text: field.string(schema.string().min(1).max(10_000)),
     },
     permissions: { read: through("parent", "read"), edit: relation("author") },
-    methods: {
+    methods: (method) => ({
         list: method.list("read"),
         create: method.create("read"),
         update: method.update("edit"),
         delete: method.delete("edit"),
-    },
+    }),
 });
 
 /** Projects, tasks and comments, with their sharing and sync. */
@@ -104,4 +104,5 @@ export const tasksService = defineService("tasks", { objects: { project, task, c
 export const tasksDatabase = defineDatabase({
     name: "main",
     tables: [...project.tables, ...task.tables, ...comment.tables, journal],
+    copies: [],
 });

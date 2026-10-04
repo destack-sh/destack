@@ -1,18 +1,19 @@
 import { expect, test } from "@destack/test";
 import { journal } from "@destack/audit";
-import { eq, type DatabaseConnection } from "@destack/db";
-import { Condition } from "@destack/db/query";
+import { eq } from "@destack/db";
 import { channelHub, TEST_DIALECTS } from "@destack/db/test";
 import { BrowserTab, ObjectClient, type BrowserHost } from "../src/client/index.ts";
 import { serveDatabase, type Message } from "@destack/db/shared";
 import { WasmClient } from "@destack/db/wasm";
-import { identifier } from "@destack/schema";
+import { schema, present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { note, notebook } from "./fixture/notes.ts";
+import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
+import { Subject } from "@destack/sync";
 
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";
+import { any } from "./fixture/match.ts";
 
 test.each(TEST_DIALECTS)(
     "keep notes private until shared, move them between notebooks and sync them on %s",
@@ -49,7 +50,7 @@ test.each(TEST_DIALECTS)(
             subject: principal.user.reference("universe", "bob"),
         });
         const titles = async () =>
-            (await bob.note.list({ spaceId })).items.map((item) => item.title).sort();
+            (await bob.note.list({ spaceId })).items.map((item) => item.title).toSorted();
         expect(await titles()).toEqual(["Sources"]);
         const edited = await bob.note.update({
             spaceId,
@@ -129,12 +130,14 @@ test.each(TEST_DIALECTS)(
         const questions = device.client
             .mutate(note)
             .create({ parentId: research.id, title: "Questions" });
-        expect((await questions.predicted).owner).toBe("bob");
+        expect(Subject.read((await questions.predicted).owner)).toEqual(
+            principal.user.reference("universe", "bob"),
+        );
         expect(await device.titles()).toEqual(["Ideas", "Questions", "Sources"]);
         await questions.confirmed;
-        expect((await alice.note.list({ spaceId })).items.map((item) => item.title).sort()).toEqual(
-            ["Ideas", "Questions", "Sources"],
-        );
+        expect(
+            (await alice.note.list({ spaceId })).items.map((item) => item.title).toSorted(),
+        ).toEqual(["Ideas", "Questions", "Sources"]);
         expect(device.errors).toEqual([]);
     },
 );
@@ -159,17 +162,18 @@ test.each(TEST_DIALECTS)(
 
         // keep the queue and the prediction when the device restarts
         await device.offline();
+        const reconnected = await device.storage.connect(ObjectClient.tables({ notebook, note }));
         const restarted = await ObjectClient.open({
-            database: await device.storage.connect(ObjectClient.tables([notebook, note])),
-            objects: [notebook, note],
+            database: reconnected,
+            objects: { notebook, note },
             scope: spaceId,
             caller: principal.user.reference("universe", "alice"),
             endpoint: endpoint("alice"),
             reconnect: unmoved,
         });
-        expect(await restarted.outbox.pending(restarted.database)).toEqual([
+        expect(await restarted.prediction.pending(restarted.database)).toEqual([
             {
-                id: expect.any(String),
+                id: any(String),
                 calls: [
                     {
                         method: "notebook.create",
@@ -182,14 +186,14 @@ test.each(TEST_DIALECTS)(
                         input: {
                             parentId: book.id,
                             title: "Packing",
-                            id: expect.any(String),
+                            id: any(String),
                             spaceId,
                         },
                     },
                 ],
             },
         ]);
-        await (restarted.database as DatabaseConnection & { close(): Promise<void> }).close();
+        await reconnected.close();
 
         // execute the batch on the server once online, and confirm it through the replica
         device.online();
@@ -198,21 +202,23 @@ test.each(TEST_DIALECTS)(
         expect(await device.titles()).toEqual(["Packing"]);
 
         // rebase a predicted title onto a text change another device made meanwhile
-        const [packing] = (await alice.note.list({ spaceId })).items;
+        const [listed] = (await alice.note.list({ spaceId })).items;
+        const packing = present(listed, "the packing note");
         await device.offline();
-        const retitled = device.client.mutate(note).update({ id: packing!.id, title: "Luggage" });
+        const retitled = device.client.mutate(note).update({ id: packing.id, title: "Luggage" });
         await retitled.predicted;
         await alice.note.update({
             spaceId,
-            id: packing!.id,
+            id: packing.id,
             requestId: RequestId.create(),
             text: "passport, charger",
         });
         device.follow();
         const local = async () => {
             const [row] = await device.client.database.select().from(note.table);
+            const { title, text } = present(row, "the local note");
 
-            return [row!.title, row!.text];
+            return [title, text];
         };
         await expect.poll(local).toEqual(["Luggage", "passport, charger"]);
 
@@ -220,7 +226,7 @@ test.each(TEST_DIALECTS)(
         device.push();
         await retitled.confirmed;
         expect(await local()).toEqual(["Luggage", "passport, charger"]);
-        const stored = await alice.note.get({ spaceId, id: packing!.id });
+        const stored = await alice.note.get({ spaceId, id: packing.id });
         expect([stored.title, stored.text]).toEqual(["Luggage", "passport, charger"]);
 
         // refuse a batch the server forbids as a whole, and revert both of its predictions
@@ -260,7 +266,7 @@ test.each(TEST_DIALECTS)(
         const lost = device.client.mutate(note).create({ parentId: book.id, title: "Tickets" });
         const { id: lostId } = await lost.predicted;
         await expect
-            .poll(async () => await device.client.outbox.pending(device.client.database))
+            .poll(async () => await device.client.prediction.pending(device.client.database))
             .toEqual([]);
         await database.delete(note.table).where(eq(note.table.id, lostId));
         await database.delete(journal);
@@ -274,7 +280,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "hold only the queries a device subscribes to, with their includes, as rows move between them on %s",
+    "keep only the queries a device subscribes to, with their includes, as rows move between them on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
@@ -286,7 +292,7 @@ test.each(TEST_DIALECTS)(
             alice.note.create({
                 spaceId,
                 requestId: RequestId.create(),
-                parentId: identifier("notebook").parse(parentId),
+                parentId: schema.identifier("notebook").parse(parentId),
                 title,
             });
         const travel = await notebookNamed("Travel");
@@ -294,12 +300,11 @@ test.each(TEST_DIALECTS)(
         await noteIn(travel.id, "Packing");
         const plan = await noteIn(work.id, "Plan");
 
-        // hold the travel notes and the notebook they belong to, nothing of work
+        // keep the travel notes and the notebook they belong to, nothing of work
         const device = await Device.open("alice", endpoint("alice"), []);
-        const travelNotes = device.client.subscribe(note, {
-            where: Condition.eq("parentId", travel.id),
-            include: { parent: {} },
-        });
+        const travelNotes = device.client.query.note
+            .findMany({ where: { parentId: travel.id }, with: { parent: true } })
+            .subscribe();
         device.online();
         await travelNotes.ready;
         const books = async () =>
@@ -309,7 +314,7 @@ test.each(TEST_DIALECTS)(
                     .from(notebook.table)
             )
                 .map((row) => row.name)
-                .sort();
+                .toSorted();
         expect([await device.titles(), await books()]).toEqual([["Packing"], ["Travel"]]);
 
         // take a note in when it moves into travel and let it go when it moves out
@@ -329,10 +334,9 @@ test.each(TEST_DIALECTS)(
         await expect.poll(() => device.titles()).toEqual(["Packing"]);
 
         // add the work notebook with its notes, then stop following travel
-        const workBook = device.client.subscribe(notebook, {
-            where: Condition.eq("name", "Work"),
-            include: { notes: {} },
-        });
+        const workBook = device.client.query.notebook
+            .findMany({ where: { name: "Work" }, with: { notes: true } })
+            .subscribe();
         await workBook.ready;
         expect([await device.titles(), await books()]).toEqual([
             ["Packing", "Plan"],
@@ -362,7 +366,7 @@ test.each(TEST_DIALECTS)(
         });
         expect(travel.noteCount).toBe(0);
 
-        // predict the count of a note created offline, before the server holds it
+        // predict the count of a note created offline, before the server has it
         const device = await Device.open("alice", endpoint("alice"));
         device.follow();
         await expect
@@ -374,18 +378,19 @@ test.each(TEST_DIALECTS)(
             .mutate(note)
             .create({ parentId: travel.id, title: "Packing" });
         const { id } = await created.predicted;
-        const count = async () =>
-            (
-                await device.client.database
-                    .select({ count: notebook.table.noteCount })
-                    .from(notebook.table)
-            )[0]!.count;
+        const count = async () => {
+            const [row] = await device.client.database
+                .select({ count: notebook.table.noteCount })
+                .from(notebook.table);
+
+            return present(row, "the notebook's count").count;
+        };
         expect([
             await count(),
             (await alice.notebook.get({ spaceId, id: travel.id })).noteCount,
         ]).toEqual([1, 0]);
 
-        // hold the server's count after it executes the note, excluding trashed notes
+        // keep the server's count after it executes the note, excluding trashed notes
         device.push();
         await created.confirmed;
         expect([
@@ -409,7 +414,7 @@ test("share one browser database between tabs, handing it over when the owning t
     const locks = new Map<string, Promise<void>>();
     const host = (): BrowserHost => ({
         channel: join(),
-        request: (name, hold, signal) =>
+        request: (name, callback, signal) =>
             new Promise<void>((resolve, reject) => {
                 // reject an aborted wait
                 let isGranted = false;
@@ -423,12 +428,12 @@ test("share one browser database between tabs, handing it over when the owning t
                     { once: true },
                 );
 
-                // queue behind the lock's holder and hold it unless the wait aborted
+                // queue behind the lock's holder and take it unless the wait aborted
                 const previous = locks.get(name) ?? Promise.resolve();
                 const next = previous.then(async () => {
-                    if (!signal?.aborted) {
+                    if (signal?.aborted !== true) {
                         isGranted = true;
-                        await hold();
+                        await callback();
                     }
                 });
                 locks.set(
@@ -446,7 +451,7 @@ test("share one browser database between tabs, handing it over when the owning t
     const open = () =>
         BrowserTab.open({
             name: "notes",
-            objects: [notebook, note],
+            objects: { notebook, note },
             scope: spaceId,
             caller: principal.user.reference("universe", "alice"),
             endpoint: endpoint("alice"),
@@ -462,8 +467,8 @@ test("share one browser database between tabs, handing it over when the owning t
     await first.ready;
     const second = await open();
     await second.ready;
-    await second.client.subscribe(notebook).ready;
-    await second.client.subscribe(note).ready;
+    await second.client.query.notebook.findMany().subscribe().ready;
+    await second.client.query.note.findMany().subscribe().ready;
 
     // write through the second tab
     const travel = second.client.mutate(notebook).create({ name: "Travel" });
@@ -474,7 +479,7 @@ test("share one browser database between tabs, handing it over when the owning t
     // forget a tab's subscriptions after it closes and frees its presence lock
     const third = await open();
     await third.ready;
-    await third.client.subscribe(note).ready;
+    await third.client.query.note.findMany().subscribe().ready;
     const isPresent = async () => (await first.client.origins()).has(third.client.origin);
     const before = await isPresent();
     await third.close();
@@ -492,4 +497,85 @@ test("share one browser database between tabs, handing it over when the owning t
         "Packing",
     ]);
     await second.close();
+});
+
+test("decide checks on a device from its copy of the caller's access rows, and follow a grant and its revocation into them", async () => {
+    const { connect, endpoint } = await serveNotes("sqlite");
+    const alice = connect("alice");
+
+    // keep a notebook alice owns, which bob's device cannot read yet
+    const research = await alice.notebook.create({
+        spaceId,
+        requestId: RequestId.create(),
+        name: "Research",
+    });
+    const device = await Device.open("bob", endpoint("bob"));
+    device.online();
+    const checks = async () => [
+        await device.client.can(notebook, research.id, "read"),
+        await device.client.can(notebook, research.id, "edit"),
+        await device.client.can(notebook, research.id, "manage"),
+    ];
+    expect(await checks()).toEqual([false, false, false]);
+
+    // let bob edit once the grant reaches the device, without managing
+    const granted = await alice.notebook.grant({
+        spaceId,
+        id: research.id,
+        requestId: RequestId.create(),
+        relation: "editor",
+        subject: principal.user.reference("universe", "bob"),
+    });
+    await expect.poll(checks).toEqual([true, true, false]);
+
+    // take the access away again once the revocation reaches the device
+    await alice.notebook.revoke({
+        spaceId,
+        id: research.id,
+        requestId: RequestId.create(),
+        relationshipId: granted.id,
+    });
+    await expect.poll(checks).toEqual([false, false, false]);
+    expect(device.errors).toEqual([]);
+});
+
+test("show a notebook's relationships to everyone who reads it, and to no one else", async () => {
+    const { connect } = await serveNotes("sqlite");
+    const alice = connect("alice");
+    const bob = connect("bob");
+    const carol = connect("carol");
+    const dave = connect("dave");
+
+    // share alice's notebook with bob as editor and carol as viewer
+    const research = await alice.notebook.create({
+        spaceId,
+        requestId: RequestId.create(),
+        name: "Research",
+    });
+    for (const [user, relation] of [
+        ["bob", "editor"],
+        ["carol", "viewer"],
+    ] as const) {
+        await alice.notebook.grant({
+            spaceId,
+            id: research.id,
+            requestId: RequestId.create(),
+            relation,
+            subject: principal.user.reference("universe", user),
+        });
+    }
+
+    // list the same relationships for each reader, and refuse a stranger
+    const listed = async (caller: typeof alice) =>
+        (await caller.notebook.relationships({ spaceId, id: research.id })).items
+            .map((item) => `${"relation" in item ? item.relation : item.role}:${item.subject.id}`)
+            .toSorted();
+    expect([await listed(alice), await listed(bob), await listed(carol)]).toEqual([
+        ["editor:bob", "viewer:carol"],
+        ["editor:bob", "viewer:carol"],
+        ["editor:bob", "viewer:carol"],
+    ]);
+    await expect(dave.notebook.relationships({ spaceId, id: research.id })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+    });
 });

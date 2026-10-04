@@ -1,26 +1,34 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { Condition } from "@destack/db/query";
-import { defineTrigger, type ChangeTrigger, type RunRequest } from "@destack/service/trigger";
+import {
+    defineTrigger,
+    Trigger,
+    type ChangeTrigger,
+    type RunRequest,
+} from "@destack/service/trigger";
+import { present, schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
 import { ChangeController } from "../src/server/change.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook } from "./fixture/notes.ts";
+import { note, notebook } from "./fixture/note.ts";
 
 /** Pin each note entering or changing among the titled ones. */
-const titled = defineTrigger({
-    name: "titled",
-    on: {
-        change: {
-            object: note,
-            where: Condition.ne("title", ""),
-            operations: ["create", "update"],
-            from: "snapshot",
+const titled = changeTrigger(
+    defineTrigger({
+        name: "titled",
+        on: {
+            change: {
+                object: note,
+                where: { title: { ne: "" } },
+                operations: ["create", "update"],
+                from: "snapshot",
+            },
         },
-    },
-    call: (change) => note.calls().update({ id: String(change.after!.id), pinned: true }),
-}) as ChangeTrigger;
+        call: (change) =>
+            note.calls().update({ id: present(change.after, "the changed note").id, pinned: true }),
+    }),
+);
 
 /** Read the key a change controller follows a trigger under. */
 function keyOf(trigger: {
@@ -28,6 +36,20 @@ function keyOf(trigger: {
     readonly name: string;
 }): string {
     return `${trigger.package.id}/${trigger.name}`;
+}
+
+/** Read a trigger firing on changes, refusing one of another kind. */
+function changeTrigger(trigger: Trigger): ChangeTrigger {
+    return present(Trigger.of(trigger, "change"), `change trigger ${trigger.name}`);
+}
+
+/** Read the message of a reported error, refusing a report of anything else. */
+function messageOf(error: unknown): string {
+    if (!(error instanceof Error)) {
+        throw new TypeError("a trigger reported something other than an error");
+    }
+
+    return error.message;
 }
 
 /** A change trigger's run request. */
@@ -114,7 +136,11 @@ test.each(TEST_DIALECTS)(
             ["titled", note.calls().update({ id: first.id, pinned: true }), first.id],
             ["titled", note.calls().update({ id: second.id, pinned: true }), null],
         ]);
-        expect(changes[1]!.position.sequence > changes[0]!.position.sequence).toBe(true);
+        const [earlier, later] = changes;
+        expect(
+            present(later, "the later change").position.sequence >
+                present(earlier, "the earlier change").position.sequence,
+        ).toBe(true);
         expect(reports).toEqual([]);
     },
 );
@@ -126,25 +152,29 @@ test.each(TEST_DIALECTS)(
         const { connect, database } = await serveNotes(dialect);
         const alice = connect("alice");
         const seen: [string, string | null, string | null][] = [];
-        const trigger = defineTrigger({
-            name: "retitled",
-            on: {
-                change: {
-                    object: note,
-                    where: Condition.ne("title", ""),
-                    operations: ["create", "update", "delete"],
+        const trigger = changeTrigger(
+            defineTrigger({
+                name: "retitled",
+                on: {
+                    change: {
+                        object: note,
+                        where: { title: { ne: "" } },
+                        operations: ["create", "update", "delete"],
+                    },
                 },
-            },
-            call: (change) => {
-                seen.push([
-                    change.operation,
-                    change.before === undefined ? null : String(change.before.title),
-                    change.after === undefined ? null : String(change.after.title),
-                ]);
+                call: (change) => {
+                    seen.push([
+                        change.operation,
+                        change.before === undefined ? null : change.before.title,
+                        change.after === undefined ? null : change.after.title,
+                    ]);
 
-                return note.calls().update({ id: String((change.after ?? change.before)!.id) });
-            },
-        }) as ChangeTrigger;
+                    return note.calls().update({
+                        id: present(change.after ?? change.before, "the changed note").id,
+                    });
+                },
+            }),
+        );
         const controller = new ChangeController(
             database,
             [trigger],
@@ -182,17 +212,21 @@ test.each(TEST_DIALECTS)(
         // follow every note from now on, a minute of lag, failing to build a call of an untitled note
         const { connect, database } = await serveNotes(dialect);
         const alice = connect("alice");
-        const lagging = defineTrigger({
-            name: "lagging",
-            on: { change: { object: note, operations: ["create"], maxLag: 60_000 } },
-            call: (change) => {
-                if (change.after!.title === "") {
-                    throw new TypeError("an untitled note has nothing to pin");
-                }
+        const lagging = changeTrigger(
+            defineTrigger({
+                name: "lagging",
+                on: { change: { object: note, operations: ["create"], maxLag: 60_000 } },
+                call: (change) => {
+                    // refuse an untitled note
+                    const created = present(change.after, "the created note");
+                    if (created.title === "") {
+                        throw new TypeError("an untitled note has nothing to pin");
+                    }
 
-                return note.calls().update({ id: String(change.after!.id), pinned: true });
-            },
-        }) as ChangeTrigger;
+                    return note.calls().update({ id: created.id, pinned: true });
+                },
+            }),
+        );
         const recorded: string[] = [];
         const reports: string[] = [];
         let now = Date.now();
@@ -201,10 +235,10 @@ test.each(TEST_DIALECTS)(
             [lagging],
             {
                 send: async (request) => {
-                    recorded.push(request.call.input.id as string);
+                    recorded.push(schema.string().parse(request.call.input["id"]));
                 },
             },
-            (error) => reports.push((error as Error).message),
+            (error) => reports.push(messageOf(error)),
             () => now,
         );
         const create = async (title: string) =>
@@ -230,7 +264,7 @@ test.each(TEST_DIALECTS)(
         await controller.reconcile(keyOf(lagging));
 
         expect([delay, recorded]).toEqual([20_000, [kept, next]]);
-        expect(reports.map((message) => message.replace(/\d+/g, "N"))).toEqual([
+        expect(reports.map((message) => message.replace(/\d+/gu, "N"))).toEqual([
             "trigger lagging builds no call of change N",
             "trigger lagging lost the changes after N to compaction",
         ]);

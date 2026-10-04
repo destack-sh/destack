@@ -2,22 +2,26 @@ import { Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit";
-import type { DatabaseConnection } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
+import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
-import { defineObject, field, Intrinsic, method, type ObjectType } from "../src/index.ts";
+import {
+    defineObject,
+    field,
+    Intrinsic,
+    type CallableName,
+    type ObjectType,
+} from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/service/test";
 
 /** The space containing the pages. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
 
 /** A minute in milliseconds, the step between the test's changes. */
 const MINUTE = 60_000;
@@ -47,12 +51,12 @@ const page = defineObject({
     shareable: { by: "manage" },
     attachments: [activity.attach({ by: "read" }), checkpoint.attach({ by: "edit" })],
     tracked: { by: "edit", activity },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("edit"),
         update: method.update("edit"),
-    },
+    }),
 });
 
 test.for(TEST_DIALECTS)(
@@ -83,16 +87,7 @@ test.for(TEST_DIALECTS)(
         await call(page, "update", { id: created.id, body: "final" });
 
         // list one activity per session, with the fields each changed
-        const activities = (await call(activity, "list", {})) as unknown as {
-            items: {
-                caller: string;
-                startedAt: number;
-                endedAt: number;
-                fields: string[];
-                changes: number;
-                from: { epoch: string; sequence: number };
-            }[];
-        };
+        const activities = await call(activity, "list", {});
         const sessions = activities.items.toSorted(
             (left, right) => left.startedAt - right.startedAt,
         );
@@ -109,7 +104,7 @@ test.for(TEST_DIALECTS)(
                 caller: Subject.key(principal.user.reference("universe", "alice")),
                 startedAt: 0,
                 endedAt: 1 * MINUTE,
-                fields: ["owner", "title", "body"],
+                fields: ["ownerId", "title", "body"],
                 changes: 3,
             },
             {
@@ -129,25 +124,24 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // read the page before each later session, and find nothing before it existed
-        const read = async (at: object) => {
-            const row = (await call(page, "get", { id: created.id, at })) as unknown as {
-                title: string;
-                body: string;
-            };
+        const read = async (position: object) => {
+            const row = await call(page, "get", { id: created.id, at: position });
 
             return [row.title, row.body];
         };
-        expect([await read(sessions[1]!.from), await read(sessions[2]!.from)]).toEqual([
+        const [first, second, third] = sessions;
+        if (first === undefined || second === undefined || third === undefined) {
+            throw new TypeError("the page's history has fewer than three sessions");
+        }
+        expect([await read(second.from), await read(third.from)]).toEqual([
             ["Plan", "outline"],
             ["Roadmap", "outline"],
         ]);
-        await expect(read(sessions[0]!.from)).rejects.toMatchObject({ code: "NOT_FOUND" });
+        await expect(read(first.from)).rejects.toMatchObject({ code: "NOT_FOUND" });
 
         // list the pages at a position as each caller could read them then and now
-        const listed = async (at: object) =>
-            (
-                (await call(page, "list", { at })) as unknown as { items: { title: string }[] }
-            ).items.map((item) => item.title);
+        const listed = async (position: object) =>
+            (await call(page, "list", { at: position })).items.map((item) => item.title);
         const aliceListed = await listed(beforeGrant);
         as("bob");
         const bobListed = await listed(beforeGrant);
@@ -155,31 +149,23 @@ test.for(TEST_DIALECTS)(
 
         // find nothing for bob before he was granted the page, nor for carol ever
         await expect(read(beforeGrant)).rejects.toMatchObject({ code: "NOT_FOUND" });
-        expect(await read(sessions[2]!.from)).toEqual(["Roadmap", "outline"]);
+        expect(await read(third.from)).toEqual(["Roadmap", "outline"]);
         as("carol");
-        await expect(read(sessions[2]!.from)).rejects.toMatchObject({ code: "NOT_FOUND" });
+        await expect(read(third.from)).rejects.toMatchObject({ code: "NOT_FOUND" });
 
         // name a checkpoint and read the page at it
         as("alice");
-        const named = (await call(checkpoint, "create", {
-            ...host,
-            title: "Final",
-        })) as unknown as { position: object; createdBy: string };
+        const named = await call(checkpoint, "create", { ...host, title: "Final" });
         expect([named.createdBy, await read(named.position)]).toEqual([
             Subject.key(principal.user.reference("universe", "alice")),
             ["Roadmap", "final"],
         ]);
 
         // revert to before bob's session
-        const reverted = (await call(page, "revert", {
-            id: created.id,
-            at: sessions[1]!.from,
-        })) as unknown as { title: string; body: string };
+        const reverted = await call(page, "revert", { id: created.id, at: second.from });
         expect([reverted.title, reverted.body]).toEqual(["Plan", "outline"]);
-        const latest = (await call(activity, "list", {})) as unknown as {
-            items: { changes: number; fields: string[]; endedAt: number }[];
-        };
-        expect(latest.items.find((item) => item.endedAt === 30 * MINUTE)!).toMatchObject({
+        const latest = await call(activity, "list", {});
+        expect(latest.items.find((item) => item.endedAt === 30 * MINUTE)).toMatchObject({
             changes: 2,
             fields: ["body", "title"],
         });
@@ -195,12 +181,12 @@ test("refuse history without the activity among the attachments", () => {
             fields: { owner: field.reference(principal.user).caller() },
             permissions: { read: relation("owner") },
             tracked: { by: "read", activity },
-            methods: { get: method.get("read") },
+            methods: (method) => ({ get: method.get("read") }),
         }),
     ).toThrow(new TypeError("object sheet keeps history but takes no activities"));
 });
 
-test("refuse serving history that reads through an object keeping none", () => {
+test("refuse serving history that reads through an object keeping none", async () => {
     // read pages through an untracked folder
     const folder = defineObject({
         name: "folder",
@@ -208,7 +194,7 @@ test("refuse serving history that reads through an object keeping none", () => {
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
         permissions: { read: relation("owner") },
-        methods: { get: method.get("read") },
+        methods: (method) => ({ get: method.get("read") }),
     });
     const sheet = defineObject({
         name: "sheet",
@@ -219,16 +205,21 @@ test("refuse serving history that reads through an object keeping none", () => {
         permissions: { read: through("parent", "read") },
         attachments: [activity.attach({ by: "read" })],
         tracked: { by: "read", activity },
-        methods: { get: method.get("read") },
+        methods: (method) => ({ get: method.get("read") }),
     });
 
     // refuse the sheet's history, which the folder's lost changes decided
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({ name: "main", tables: [journal], copies: [] }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
     expect(
         () =>
             new ObjectServer({
                 objects: { activity, folder, sheet },
-                database: { copies: () => false } as unknown as DatabaseConnection,
-                context: () => ({ subjects: [], now: 0, attributes: {} }),
+                database: storage.database,
                 callKey: testCallKey,
                 origin: { package: activity.package, service: "test" },
             }),
@@ -239,13 +230,14 @@ test("refuse serving history that reads through an object keeping none", () => {
 
 /** Serve pages over a new database to one user at a set time. */
 async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
-    // hold the pages, their activities and checkpoints, and requests in one database
+    // keep the pages, their activities and checkpoints, and requests in one database
     const objects = { activity, checkpoint, page };
     const storage = await TestDatabase.create(
         dialect,
         defineDatabase({
             name: "main",
             tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
+            copies: [],
         }),
         { isMigrated: true },
     );
@@ -258,11 +250,6 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
     const server = new ObjectServer({
         objects,
         database: storage.database,
-        context: () => ({
-            subjects: [principal.user.reference("universe", current)],
-            now,
-            attributes: {},
-        }),
         callKey: testCallKey,
         origin: {
             package: activity.package,
@@ -271,29 +258,30 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
-    const context = {
-        scope: spaceId,
-        requireAuthentication: () => ({ id: current }),
-        bookmark: new Bookmark(),
-        observed: new Bookmark(),
-        signal: controller.signal,
-        request: new Request("https://test.local", { signal: controller.signal }),
-    } as unknown as ServiceContext;
+    const sign = () =>
+        userContext(current, spaceId, { signal: controller.signal, clock: () => now });
+    let context = sign();
 
     return {
         storage,
-        call: async (object: ObjectType, name: string, input: object) =>
-            (await server.call(
+        call: <Object extends ObjectType, Name extends CallableName<Object>>(
+            object: Object,
+            name: Name,
+            input: object,
+        ) =>
+            server.call(
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
                 context,
-            )) as { id: string },
-        as: (user: string) => {
-            current = user;
+            ),
+        as: (caller: string) => {
+            current = caller;
+            context = sign();
         },
         at: (time: number) => {
             now = time;
+            context = sign();
         },
     };
 }
@@ -303,8 +291,12 @@ test("undo a revert by updating the reverted fields no one changed since back", 
     const input = { spaceId, id: "page-1", at: { epoch: "epoch", sequence: 3 } };
     const before = { title: "Roadmap", body: "final" };
     const after = { title: "Plan", body: "outline" };
+    const { revert } = page.methods;
+    if (revert.inverse === undefined) {
+        throw new TypeError("the revert has no inverse");
+    }
     expect(
-        page.methods.revert.inverse!({
+        revert.inverse({
             object: page,
             name: "revert",
             input,

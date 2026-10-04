@@ -1,4 +1,5 @@
 import { expect, test } from "@destack/test";
+import { aligned, present } from "@destack/schema";
 import {
     Sequence,
     TextChange,
@@ -9,6 +10,18 @@ import {
 
 /** The edits each seeded run makes. */
 const EDITS = 400;
+
+/** One party editing a copy: the server's sequence it last saw and its edits not yet pushed. */
+interface Party {
+    /** The party's site, prefixing its runs. */
+    readonly site: string;
+    /** The runs the party has typed. */
+    counter: number;
+    /** The server's sequence the party last saw. */
+    seen: Sequence;
+    /** The party's edits not yet pushed, in order. */
+    pending: SequenceEdit[];
+}
 
 /** Draw a pseudo-random number from a seed, the same sequence every run. */
 function random(seed: { value: number }): number {
@@ -30,7 +43,12 @@ function edit(
         const from = Math.floor(random(seed) * (length - 1));
         const to = Math.min(length - 1, from + Math.floor(random(seed) * 5));
 
-        return { delete: { from: sequence.element(from)!, to: sequence.element(to)! } };
+        return {
+            delete: {
+                from: present(sequence.element(from), `the element at ${from}`),
+                to: present(sequence.element(to), `the element at ${to}`),
+            },
+        };
     }
 
     // type a few characters after a visible element, or at the start
@@ -47,10 +65,25 @@ function visible(sequence: Sequence): string[] {
         typeof piece.text === "number"
             ? []
             : Array.from(
-                  { length: (piece.text as string).length },
+                  { length: piece.text.length },
                   (_, index) => `${piece.run}:${piece.start + index}`,
               ),
     );
+}
+
+/** Read a party's copy: the server's sequence it saw with its pending edits over it. */
+function copy(party: Party): Sequence {
+    return party.pending.reduce((sequence, next) => sequence.apply(next), party.seen);
+}
+
+/** Name an element of the base run. */
+function element(offset: number): Element {
+    return { run: "base.1", offset };
+}
+
+/** Name an element of the first typed run. */
+function at(offset: number): Element {
+    return { run: "a.1", offset };
 }
 
 test.for([3, 17, 91])(
@@ -59,20 +92,18 @@ test.for([3, 17, 91])(
         const seed = { value };
         const sites = ["a", "b", "c"];
 
-        // hold the server's sequence and each party's pending edits
+        // keep the server's sequence and each party's pending edits
         let server = new Sequence();
-        const parties = sites.map((site) => ({
+        const parties = sites.map((site): Party => ({
             site,
             counter: 0,
             seen: server,
-            pending: [] as SequenceEdit[],
+            pending: [],
         }));
-        const copy = (party: (typeof parties)[number]) =>
-            party.pending.reduce((sequence, next) => sequence.apply(next), party.seen);
 
         // edit, push and follow in turns
         for (let step = 0; step < EDITS; step++) {
-            const party = parties[Math.floor(random(seed) * parties.length)]!;
+            const party = aligned(parties, Math.floor(random(seed) * parties.length));
             const draw = random(seed);
             if (draw < 0.7) {
                 party.counter += 1;
@@ -129,7 +160,6 @@ test.for([5, 23, 77])(
 test("restore only the elements a deletion hid, leaving another party's earlier deletion in place", () => {
     // delete "quick " as one party, then "the quick brown" as another, and undo only the second
     const base = new Sequence().apply({ insert: "the quick brown fox", run: "base.1" });
-    const element = (offset: number): Element => ({ run: "base.1", offset });
     const first = base.apply({ delete: { from: element(4), to: element(9) } });
     const second = { delete: { from: element(0), to: element(14) } } as const;
     const undone = Sequence.inverse(second, first).reduce(
@@ -155,7 +185,6 @@ test("find elements by visible offset and offsets by element, across tombstones"
 
 test("resolve annotations over edits by their boundaries: bold grows at its end, a link does not, neither grows at its start", () => {
     // write "hello world" with a bold "hello" and a linked "world"
-    const at = (offset: number): Element => ({ run: "a.1", offset });
     const text = new Sequence().apply({ insert: "hello world", run: "a.1" });
     const bold: Annotation = {
         id: "bold",
@@ -191,7 +220,6 @@ test("resolve annotations over edits by their boundaries: bold grows at its end,
 
 test("cover overlapping annotations in one stretch each, keeping boundaries on deleted elements in place", () => {
     // annotate overlapping ranges, then delete the comment's first element
-    const at = (offset: number): Element => ({ run: "a.1", offset });
     const text = new Sequence().apply({ insert: "the quick brown fox", run: "a.1" });
     const comment: Annotation = {
         id: "comment",
@@ -285,7 +313,11 @@ test("keep a deletion's length alone, and restore exactly the characters it remo
     // insert after a deleted element, and restore the deletion through its inverse
     const inserted = deleted.apply({ insert: "X", run: "b.1", after: { run: "a.1", offset: 2 } });
     const [restore] = Sequence.inverse(deletion, typed);
-    expect([inserted.text(), restore, deleted.apply(restore!).text()]).toEqual([
+    expect([
+        inserted.text(),
+        restore,
+        deleted.apply(present(restore, "the restoring edit")).text(),
+    ]).toEqual([
         "aXef",
         {
             restore: {
@@ -297,7 +329,7 @@ test("keep a deletion's length alone, and restore exactly the characters it remo
         "abcdef",
     ]);
 
-    // refuse restoring another number of characters than the tombstones hold
+    // refuse restoring another number of characters than the tombstones have
     expect(() =>
         deleted.apply({
             restore: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 }, text: "bc" },

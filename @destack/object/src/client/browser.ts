@@ -1,8 +1,7 @@
-import { broadcastChannel, type Channel } from "@destack/db/channel";
+import { broadcastChannel, type Channel, type Table } from "@destack/db";
 import type { Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
-import { connectShared, type Message } from "@destack/db/shared";
-import type { Table } from "@destack/db";
+import { connectShared } from "@destack/db/shared";
 import type { ClientOptions } from "@destack/service/client";
 import { RequestId } from "@destack/service/request";
 import type { ObjectType } from "../object/object.ts";
@@ -11,17 +10,19 @@ import { ObjectClient } from "./client.ts";
 /** The browser capabilities tabs share. */
 export interface BrowserHost {
     /** The channel every tab and the database worker share. */
-    readonly channel: Channel<Message>;
-    /** Hold a named lock while a callback runs. */
-    request(name: string, hold: () => Promise<void>, signal?: AbortSignal): Promise<void>;
-    /** Start the worker holding the database, returning how to stop it. */
+    readonly channel: Channel<unknown>;
+    /** Take a named lock while a callback runs. */
+    request(name: string, callback: () => Promise<void>, signal?: AbortSignal): Promise<void>;
+    /** Start the worker with the database, returning how to stop it. */
     start(): Promise<() => Promise<void>>;
 }
 
-/** One tab's objects over the database the owning tab's worker holds. */
-export class BrowserTab {
+/** One tab's objects over the database of the owning tab's worker. */
+export class BrowserTab<
+    Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
+> {
     /** The tab's client. */
-    readonly client: ObjectClient;
+    readonly client: ObjectClient<Objects>;
     /** Settles once the database answers with its tables. */
     readonly ready: Promise<void>;
     /** The connection to the owning tab's worker. */
@@ -39,7 +40,7 @@ export class BrowserTab {
 
     /** Join the tabs as one party. */
     private constructor(
-        client: ObjectClient,
+        client: ObjectClient<Objects>,
         database: ReturnType<typeof connectShared>,
         ready: Promise<void>,
         host: BrowserHost,
@@ -47,7 +48,7 @@ export class BrowserTab {
         stopping: AbortController,
         own: { readonly tables: readonly Table[]; readonly report: (error: unknown) => void },
     ) {
-        // hold the presence lock
+        // take the presence lock
         this.client = client;
         this.ready = ready;
         this.#database = database;
@@ -74,13 +75,13 @@ export class BrowserTab {
             });
     }
 
-    /** Open a tab's objects over the database the owning tab's worker holds. */
-    static async open<Object extends ObjectType>(options: {
+    /** Open a tab's objects over the database of the owning tab's worker. */
+    static async open<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
         /** The database's name, shared by every tab of the origin. */
         readonly name: string;
-        /** The object types to hold. */
-        readonly objects: readonly Object[];
-        /** The scope whose objects to hold. */
+        /** The object types to keep, by key. */
+        readonly objects: Objects;
+        /** The scope whose objects to keep. */
         readonly scope: string;
         /** The calling principal. */
         readonly caller: Subject;
@@ -88,7 +89,7 @@ export class BrowserTab {
         readonly endpoint: ClientOptions;
         /** Where and how to reach the cell serving a moved scope now. */
         readonly reconnect: (cell: string) => ClientOptions;
-        /** The most object rows the shared copy holds, absent for no limit. */
+        /** The most object rows the shared copy keeps, absent for no limit. */
         readonly storage?: { readonly rows: number };
         /** How long the shared local log keeps changes, a minute by default. */
         readonly log?: { readonly keep: Duration };
@@ -96,7 +97,7 @@ export class BrowserTab {
         readonly host?: BrowserHost;
         /** Report the owning tab's loop failures. */
         readonly report: (error: unknown) => void;
-    }): Promise<BrowserTab> {
+    }): Promise<BrowserTab<Objects>> {
         // connect to the shared database
         const host = options.host ?? BrowserTab.host(options.name);
         const origin = RequestId.create();
@@ -122,9 +123,9 @@ export class BrowserTab {
     /** Bind the page's Web Locks, broadcast channel and database worker. */
     static host(name: string): BrowserHost {
         return {
-            channel: broadcastChannel<Message>(`destack:${name}`),
-            request: (lock, hold, signal) =>
-                navigator.locks.request(lock, signal === undefined ? {} : { signal }, hold),
+            channel: broadcastChannel(`destack:${name}`),
+            request: (lock, callback, signal) =>
+                navigator.locks.request(lock, signal === undefined ? {} : { signal }, callback),
             start: async () => {
                 // start the database worker
                 const worker = new Worker(new URL("./database.worker.ts", import.meta.url), {
@@ -200,7 +201,7 @@ export class BrowserTab {
         }
     }
 
-    /** Name the lock a party's tab holds while it is open. */
+    /** Name the lock a party's tab takes while it is open. */
     #presence(origin: string): string {
         return `destack:${this.#name}:tab:${origin}`;
     }

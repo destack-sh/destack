@@ -3,54 +3,51 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { none, principal, relation, through } from "@destack/access";
 import { journal } from "@destack/audit";
 import { copyScope, suspendCopy } from "@destack/access/test";
-import { asc, type DatabaseConnection } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import { asc, type DatabaseConnection, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
+import { schema, present, type Identifier } from "@destack/schema";
 
 import { Replica, Scope } from "@destack/sync";
-import { defineObject, field, method } from "../src/index.ts";
-import { ObjectServer, SystemAuthorization } from "../src/server/index.ts";
+import { defineObject, field } from "../src/index.ts";
+import { ObjectServer, Subscriber, SystemAuthorization } from "../src/server/index.ts";
 
 /** The space the copies are kept for. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
 /** People of the universe the spaces they joined read. */
 const person = defineObject({
     name: "person",
     plural: "persons",
-    tier: "global",
     scope: "universe",
     isScope: true,
     fields: { name: field.string() },
     relations: { joined: { subjects: [principal.cell], grantedBy: null } },
     permissions: { read: relation("joined") },
-    methods: { list: method.list("read") },
+    methods: (method) => ({ list: method.list("read") }),
 });
 
 /** Profiles living in their person's own scope, read by whoever reads the person. */
 const profile = defineObject({
     name: "profile",
     plural: "profiles",
-    tier: "global",
     scope: person,
     fields: {
         handle: field.string(),
         email: field.string().guard({ read: "manage" }),
     },
     permissions: { read: through("person", "read"), manage: none() },
-    methods: { list: method.list("read") },
+    methods: (method) => ({ list: method.list("read") }),
 });
 
 /** Serve people and profiles over a database. */
 function serve(
     database: DatabaseConnection,
-    replicas?: NonNullable<ConstructorParameters<typeof ObjectServer>[0]["replicas"]>,
+    subscriber?: NonNullable<ConstructorParameters<typeof ObjectServer>[0]["subscriber"]>,
 ) {
     return new ObjectServer({
         objects: { person, profile },
         database,
-        ...(replicas === undefined ? {} : { replicas }),
+        ...(subscriber === undefined ? {} : { subscriber }),
         callKey: testCallKey,
         origin: {
             package: person.package,
@@ -64,7 +61,11 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const tables = [...person.tables, ...profile.tables, journal];
         const home = await TestDatabase.create(dialect, tables, { isMigrated: true });
-        const regional = defineDatabase({ name: "cell", tier: "regional", tables });
+        const regional = defineDatabase({
+            name: "cell",
+            tables: [journal],
+            copies: [...person.tables, ...profile.tables],
+        });
         const cell = await TestDatabase.create(dialect, regional, { isMigrated: true });
         onTestFinished(async () => {
             await Promise.all([home.close(), cell.close()]);
@@ -72,12 +73,10 @@ test.each(TEST_DIALECTS)(
 
         // keep three people at home with a profile each, one of them suspended
         const now = 1;
-        const [ada, bob, cy] = [1, 2, 3].map((index) =>
-            identifier("person").parse(`person-01996ab0-0000-7000-8000-00000000000${index}`),
-        );
-        const people = [ada!, bob!, cy!];
-        const profileOf = (id: string) =>
-            identifier("profile").parse(id.replace("person", "profile"));
+        const ada = personOf(1);
+        const bob = personOf(2);
+        const cy = personOf(3);
+        const people = [ada, bob, cy];
         for (const id of people) {
             await copyScope(home.database, person.reference(Scope.universe.id, id));
         }
@@ -100,7 +99,7 @@ test.each(TEST_DIALECTS)(
                 updatedAt: now,
             })),
         );
-        await suspendCopy(home.database, cy!, now);
+        await suspendCopy(home.database, cy, now);
 
         // let the space read ada and the suspended cy
         const served = serve(home.database);
@@ -116,28 +115,37 @@ test.each(TEST_DIALECTS)(
                 relation: "joined",
                 subject: principal.cell.reference(Scope.universe.id, spaceId),
             });
-        const joined = await join(ada!);
-        await join(cy!);
+        const joined = await join(ada);
+        await join(cy);
 
         // keep the space's copy of the universe on the cell, decided at home for the space
         const copying: ObjectServer<{ person: typeof person; profile: typeof profile }> = serve(
             cell.database,
-            {
-                source: {
+            Subscriber.of(
+                {
                     stream: (asked, signal) =>
                         served.source.replicate(
                             asked,
+                            asked.after,
                             { subject: principal.cell.reference(Scope.universe.id, asked.below) },
                             signal,
                         ),
                 },
-                requests: async () => [copying.source.universeRequest(spaceId)!],
-            },
+                async () => [
+                    present(copying.source.universeRequest(spaceId), "the universe request"),
+                ],
+            ),
         );
-        const follower = copying.controllers().find((each) => each.name === "replica")!;
+        const follower = present(
+            copying.controllers().find((each) => each.name === "replica"),
+            "the replica controller",
+        );
         const controller = new AbortController();
         const [key] = await follower.list();
-        const following = follower.reconcile(key!, reconciliation(controller.signal));
+        const following = follower.reconcile(
+            present(key, "the replica key"),
+            reconciliation(controller.signal),
+        );
         onTestFinished(async () => {
             controller.abort();
             await following.catch(() => undefined);
@@ -163,24 +171,34 @@ test.each(TEST_DIALECTS)(
         // copy the readable people, and the profile of the one whose scope is active, without its guarded field
         expect(await copied()).toEqual({
             persons: [ada, cy],
-            profiles: [[profileOf(ada!), ada, "@0", null]],
+            profiles: [[profileOf(ada), ada, "@0", null]],
         });
 
         // add a person joining the space with their profile
-        await join(bob!);
+        await join(bob);
         expect(await copied()).toEqual({
             persons: [ada, bob, cy],
             profiles: [
-                [profileOf(ada!), ada, "@0", null],
-                [profileOf(bob!), bob, "@1", null],
+                [profileOf(ada), ada, "@0", null],
+                [profileOf(bob), bob, "@1", null],
             ],
         });
 
         // take a person leaving the space out with their profile
-        await system.revoke(person.reference(Scope.universe.id, ada!), joined.id);
+        await system.revoke(person.reference(Scope.universe.id, ada), joined.id);
         expect(await copied()).toEqual({
             persons: [bob, cy],
-            profiles: [[profileOf(bob!), bob, "@1", null]],
+            profiles: [[profileOf(bob), bob, "@1", null]],
         });
     },
 );
+
+/** Build the identifier of a numbered person. */
+function personOf(index: number): Identifier<"person"> {
+    return schema.identifier("person").parse(`person-01996ab0-0000-7000-8000-00000000000${index}`);
+}
+
+/** Build the identifier of a person's profile. */
+function profileOf(id: string): Identifier<"profile"> {
+    return schema.identifier("profile").parse(id.replace("person", "profile"));
+}

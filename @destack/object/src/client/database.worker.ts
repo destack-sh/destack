@@ -1,5 +1,4 @@
-import { broadcastChannel } from "@destack/db/channel";
-import type { Message } from "@destack/db/shared";
+import { broadcastChannel } from "@destack/db";
 import { serveBrowserDatabase } from "@destack/db/wasm";
 
 // serve the named database to every tab on its channel
@@ -7,7 +6,7 @@ self.addEventListener(
     "message",
     (event: MessageEvent<{ readonly name: string }>) => {
         const name = event.data.name;
-        void serveBrowserDatabase(name, broadcastChannel<Message>(`destack:${name}`));
+        void serveBrowserDatabase(name, broadcastChannel(`destack:${name}`));
     },
     { once: true },
 );
