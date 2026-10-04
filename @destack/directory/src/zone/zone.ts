@@ -52,7 +52,6 @@ export const zoneTable = defineTable(
         target: text("target"),
     },
     {
-        tier: "global",
         log: {},
         constraints: (zone) => [
             check("zone_epoch", sql`${zone.epoch} > 0`),
@@ -77,7 +76,6 @@ export const assignmentTable = defineTable(
         assignedAt: integer("assigned_at").notNull(),
     },
     {
-        tier: "global",
         log: {},
         constraints: (assignment) => [index("assignment_cell").on(assignment.cell)],
     },
@@ -96,5 +94,5 @@ export const cellTable = defineTable(
         /** When the cell last published its endpoint, in UTC epoch milliseconds. */
         publishedAt: integer("published_at").notNull(),
     },
-    { tier: "global", log: {} },
+    { log: {} },
 );

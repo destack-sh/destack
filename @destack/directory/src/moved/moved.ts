@@ -1,9 +1,6 @@
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 
-/** The HTTP status of a scope that moved: 421 Misdirected Request. */
-const MOVED_STATUS = 421;
-
 /** A scope that moved, and the cell it answers at now. */
 export interface Moved {
     /** The moved scope. */
@@ -25,7 +22,6 @@ export const Moved = {
     /** Build the failure that points to the cell a scope moved to. */
     error(moved: Moved): ServiceError<"MOVED", Moved> {
         return new ServiceError("MOVED", {
-            status: MOVED_STATUS,
             message: `${moved.scope} moves to ${moved.cell}`,
             data: moved,
         });
@@ -41,7 +37,7 @@ export const Moved = {
     /** Read the cell a MOVED response points to, absent for other responses. */
     async read(response: Response): Promise<Moved | undefined> {
         // skip other statuses without reading their body
-        if (response.status !== MOVED_STATUS) {
+        if (response.status !== ServiceError.status("MOVED")) {
             return undefined;
         }
 

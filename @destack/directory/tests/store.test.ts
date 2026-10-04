@@ -17,7 +17,9 @@ test.each(TEST_DIALECTS)(
         const owned = (key: string) => ({
             indexes: [index],
             objectId: "space-1",
-            claims: [{ index, key, objectId: "space-1", scope: "account-1" }],
+            claims: [
+                { index, key, packageId: "package-1", objectId: "space-1", scope: "account-1" },
+            ],
         });
         await directory.replace(owned("notes"), "request-1");
 
@@ -39,6 +41,7 @@ test.each(TEST_DIALECTS)(
             .toEqual([zone, 0]);
 
         // follow a move to another cell, its endpoint, and a renamed claim
+        await directory.move(zone, "host-2");
         await directory.place({ ...zone, cell: "host-2", epoch: 2 });
         await directory.publish("host-2", "account-1", "https://host-2.test/");
         await directory.replace(owned("archive"), "request-2");
@@ -81,6 +84,7 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([["space-1"], ["laptop"]]);
 
         // refuse a cell or epoch that no longer serves the zone
+        await directory.move(first, "host-2");
         await directory.place({ ...first, cell: "host-2", epoch: 2 });
         await expect(directory.assign(first, "laptop")).rejects.toMatchObject({
             code: "CONFLICT",

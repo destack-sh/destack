@@ -7,10 +7,12 @@ export const RESERVATION_MILLISECONDS = 60_000;
 /** A name an object claims in a unique index across databases. */
 export const Claim = defineSchema(
     schema.object({
-        /** The index: the object type's package, type and index name. */
+        /** The index: the object type's package, type and index name, or a namespace types share. */
         index: schema.string().min(1),
         /** The indexed values, with the scope they are unique within, as canonical JSON. */
         key: schema.string(),
+        /** The package of the claiming object's type. */
+        packageId: schema.string().min(1),
         /** The object claiming the name. */
         objectId: schema.string().min(1),
         /** The scope the object lives in. */
@@ -50,10 +52,12 @@ export type Expiry = schema.Infer<typeof Expiry>;
 export const claimTable = defineTable(
     "claim",
     {
-        /** The index: the object type's package, type and index name. */
+        /** The index: the object type's package, type and index name, or a namespace types share. */
         index: text("index").primaryKey(),
         /** The indexed values, with the scope they are unique within, as canonical JSON. */
         key: text("key").primaryKey(),
+        /** The package of the claiming object's type. */
+        packageId: text("package_id").notNull(),
         /** The object claiming the name. */
         objectId: text("object_id").notNull(),
         /** The scope the object lives in. */
@@ -66,7 +70,6 @@ export const claimTable = defineTable(
         expiresAt: integer("expires_at").notNull(),
     },
     {
-        tier: "global",
         constraints: (claim) => [
             index("claim_request").on(claim.requestId),
             index("claim_object").on(claim.index, claim.objectId),

@@ -1,6 +1,7 @@
 import {
     Change,
     and,
+    desc,
     eq,
     gt,
     inArray,
@@ -12,6 +13,8 @@ import {
     type DatabaseConnection,
     ReadCache,
     CHAIN_TERMS,
+    DatabaseError,
+    type Select,
 } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import {
@@ -30,12 +33,19 @@ import {
     type Zone,
 } from "../zone/zone.ts";
 import { Directory } from "./directory.ts";
+import {
+    type Identity,
+    IdentityOperation,
+    type OperationClaims,
+    identityOperationTable,
+    RECOVERY_MILLISECONDS,
+} from "../identity/identity.ts";
 
 /** The most reads of each kind the store keeps: about 3 MiB at 200 bytes an entry. */
 const CAPACITY = 16_384;
 
-/** The global tables of the kept reads, with logged changes that invalidate them. */
-const CACHED_TABLES = [claimTable, zoneTable, cellTable];
+/** The tables of the kept reads, with logged changes that invalidate them. */
+const CACHED_TABLES = [claimTable, zoneTable, cellTable, identityOperationTable];
 
 /** The columns of a zone. */
 const ZONE_COLUMNS = {
@@ -45,9 +55,9 @@ const ZONE_COLUMNS = {
     epoch: zoneTable.epoch,
 };
 
-/** The directory itself, in the global database, keeping its reads while it follows the log. */
+/** The directory itself, in the account service's database, keeping its reads while it follows the log. */
 export class DirectoryStore extends Directory {
-    /** The global database. */
+    /** The account service's database. */
     readonly database: DatabaseConnection;
     /** Claim owners by index and key. */
     readonly #owners = new ReadCache<Pick<Claim, "objectId" | "scope"> | undefined>(CAPACITY);
@@ -55,13 +65,18 @@ export class DirectoryStore extends Directory {
     readonly #zones = new ReadCache<Zone | undefined>(CAPACITY);
     /** Cells by identifier. */
     readonly #cells = new ReadCache<Cell | undefined>(CAPACITY);
+    /** Current identities by space. */
+    readonly #identities = new ReadCache<Identity | undefined>(CAPACITY);
+    /** The directory's clock, in UTC epoch milliseconds. */
+    readonly #clock: () => number;
     /** Whether the log is followed, which keeps the reads current. */
     #isFollowing = false;
 
-    /** Keep the zones, cells and claims in the global database. */
-    constructor(database: DatabaseConnection) {
+    /** Keep the directory's tables in the account service's database. */
+    constructor(database: DatabaseConnection, options: { readonly clock?: () => number } = {}) {
         super();
         this.database = database;
+        this.#clock = options.clock ?? (() => Date.now());
     }
 
     /** Keep the reads, forgetting those each logged change affects, until the signal aborts. */
@@ -81,9 +96,9 @@ export class DirectoryStore extends Directory {
 
     // zones and cells
 
-    /** Place a zone in its cell at an epoch and refuse an earlier epoch. */
+    /** Place a zone in its cell: create it, keep its placement and end its move, or take it over in its move's target at the next epoch. */
     async place(zone: Zone): Promise<void> {
-        // move the zone to a later epoch, or keep the same placement
+        // keep the placement, or take the zone over in the cell its move still targets
         const placed = await this.database
             .insert(zoneTable)
             .values({
@@ -96,12 +111,12 @@ export class DirectoryStore extends Directory {
             .onConflictDoUpdate({
                 target: zoneTable.id,
                 set: { parent: zone.scope, cell: zone.cell, epoch: zone.epoch, target: null },
-                setWhere: sql`${zoneTable.epoch} < ${zone.epoch} OR (${zoneTable.epoch} = ${zone.epoch} AND ${zoneTable.cell} = ${zone.cell})`,
+                setWhere: sql`(${zoneTable.epoch} = ${zone.epoch} AND ${zoneTable.cell} = ${zone.cell}) OR (${zoneTable.epoch} + 1 = ${zone.epoch} AND ${zoneTable.target} = ${zone.cell})`,
             })
             .returning({ id: zoneTable.id });
         if (placed.length === 0) {
             throw new ServiceError("CONFLICT", {
-                message: `${zone.id} is placed at a later epoch or in another cell`,
+                message: `${zone.id} is neither placed in ${zone.cell} at epoch ${zone.epoch} nor moving there`,
             });
         }
     }
@@ -149,7 +164,7 @@ export class DirectoryStore extends Directory {
         await this.#requireServing(zone);
         await this.database
             .insert(assignmentTable)
-            .values({ zone: zone.id, cell, scope: ZONE_SCOPE, assignedAt: Date.now() })
+            .values({ zone: zone.id, cell, scope: ZONE_SCOPE, assignedAt: this.#clock() })
             .onConflictDoNothing();
     }
 
@@ -199,7 +214,7 @@ export class DirectoryStore extends Directory {
 
     /** Record the URL a cell answers at, replacing the one it published before. */
     async publish(cell: string, scope: string, endpoint: string): Promise<void> {
-        const now = Date.now();
+        const now = this.#clock();
         await this.database
             .insert(cellTable)
             .values({ id: cell, scope, endpoint, publishedAt: now })
@@ -221,12 +236,139 @@ export class DirectoryStore extends Directory {
         });
     }
 
+    // identities
+
+    /** Apply a signed identity operation, a space's first only from the cell serving its zone. */
+    async apply(operation: string, zone?: Zone): Promise<void> {
+        // read the operation and the space's log
+        const claims = IdentityOperation.claims(operation);
+        const log = await this.database
+            .select()
+            .from(identityOperationTable)
+            .where(eq(identityOperationTable.space, claims.space))
+            .orderBy(identityOperationTable.sequence);
+
+        // start the identity, or follow a current operation of it
+        if (log.length === 0) {
+            await this.#start(operation, claims, zone);
+        } else {
+            await this.#follow(operation, claims, log);
+        }
+    }
+
+    /** Start a space's identity from the cell serving its zone, signed by one of the operation's rotation keys. */
+    async #start(operation: string, claims: OperationClaims, zone?: Zone): Promise<void> {
+        // require the space's zone in the cell serving it, and no operation before
+        const isServed =
+            zone !== undefined &&
+            zone.id === claims.space &&
+            claims.previous === null &&
+            (
+                await this.database
+                    .select({ id: zoneTable.id })
+                    .from(zoneTable)
+                    .where(this.#serving(zone))
+            ).length > 0;
+        if (!isServed) {
+            throw new ServiceError("FORBIDDEN", {
+                message: `only the cell serving ${claims.space} starts its identity`,
+            });
+        }
+
+        // append it first in the log
+        await this.#append(operation, claims.space, 0, await this.#priority(operation, claims));
+    }
+
+    /** Follow a current operation of a space's identity, nullifying later ones its higher-priority key may recover. */
+    async #follow(
+        operation: string,
+        claims: OperationClaims,
+        log: readonly Select<typeof identityOperationTable>[],
+    ): Promise<void> {
+        // find the current operation it follows
+        const current = log.filter((entry) => !entry.isNullified);
+        const previous = current.find((entry) => entry.digest === claims.previous);
+        if (previous === undefined) {
+            throw new ServiceError("CONFLICT", {
+                message: `the operation follows no current operation of ${claims.space}`,
+            });
+        }
+
+        // require a rotation key of the identity it follows, outranking any operation it nullifies
+        const priority = await this.#priority(
+            operation,
+            IdentityOperation.claims(previous.operation),
+        );
+        const following = current.find((entry) => entry.sequence > previous.sequence);
+        const isRecoverable =
+            following === undefined ||
+            (priority < following.priority &&
+                following.appliedAt + RECOVERY_MILLISECONDS >= this.#clock());
+        if (!isRecoverable) {
+            throw new ServiceError("CONFLICT", {
+                message: `the operation cannot nullify the later operations of ${claims.space}`,
+            });
+        }
+
+        // nullify the operations after the one it follows, and append it
+        await this.database.transaction(async (transaction) => {
+            await transaction
+                .update(identityOperationTable)
+                .set({ isNullified: true })
+                .where(
+                    and(
+                        eq(identityOperationTable.space, claims.space),
+                        gt(identityOperationTable.sequence, previous.sequence),
+                    ),
+                );
+            await this.#append(operation, claims.space, log.length, priority, transaction);
+        });
+    }
+
+    /** Read a space's current identity, absent before its first operation. */
+    async identity(space: string): Promise<Identity | undefined> {
+        return this.#read(this.#identities, space, async () => {
+            // read the latest operation in force
+            const [latest] = await this.database
+                .select({
+                    operation: identityOperationTable.operation,
+                    digest: identityOperationTable.digest,
+                })
+                .from(identityOperationTable)
+                .where(
+                    and(
+                        eq(identityOperationTable.space, space),
+                        eq(identityOperationTable.isNullified, false),
+                    ),
+                )
+                .orderBy(desc(identityOperationTable.sequence))
+                .limit(1);
+            if (latest === undefined) {
+                return undefined;
+            }
+            const { signingKey, rotationKeys } = IdentityOperation.claims(latest.operation);
+
+            return { signingKey, rotationKeys, digest: latest.digest };
+        });
+    }
+
+    /** List a space's signed identity operations in order, nullified ones included. */
+    async operations(space: string): Promise<readonly string[]> {
+        const log = await this.database
+            .select({ operation: identityOperationTable.operation })
+            .from(identityOperationTable)
+            .where(eq(identityOperationTable.space, space))
+            .orderBy(identityOperationTable.sequence);
+
+        return log.map((entry) => entry.operation);
+    }
+
     // claims
 
-    /** Reserve a request's claims in chunks until its write commits, returning the names other objects own. */
+    /** Reserve a request's claims in chunks until its write commits, returning the names other objects hold. */
     async claim(claims: readonly Claim[], requestId: string): Promise<readonly Claim[]> {
-        // reserve each chunk for a minute, collecting the names other objects own
-        const expiresAt = Date.now() + RESERVATION_MILLISECONDS;
+        // reserve each chunk for a minute, collecting the names other objects hold
+        const expiresAt = this.#clock() + RESERVATION_MILLISECONDS;
         const refused: Claim[] = [];
         for (let start = 0; start < claims.length; start += CHAIN_TERMS) {
             const chunk = claims.slice(start, start + CHAIN_TERMS);
@@ -252,7 +394,7 @@ export class DirectoryStore extends Directory {
             .where(and(eq(claimTable.requestId, requestId), eq(claimTable.state, "reserved")));
     }
 
-    /** Replace an object's claims after a write that reserved none, unless other objects own some of its names. */
+    /** Replace an object's claims after a write that reserved none, unless other objects hold some of its names. */
     async replace(owned: ObjectClaims, requestId: string): Promise<readonly Claim[]> {
         // read the owners of the object's names, a chunk at a time
         const chunks: { claims: readonly Claim[]; owners: Map<string, string> }[] = [];
@@ -261,14 +403,14 @@ export class DirectoryStore extends Directory {
             chunks.push({ claims, owners: await this.#owned(claims) });
         }
 
-        // refuse the names other objects own before writing any
+        // refuse the names other objects hold before writing any
         const refused = chunks.flatMap(({ claims, owners }) => taken(claims, owners));
         if (refused.length > 0) {
             return refused;
         }
 
         // confirm the names the object owns already and insert the new ones
-        const now = Date.now();
+        const now = this.#clock();
         for (const { claims, owners } of chunks) {
             const held = claims.filter((entry) => owners.has(nameKey(entry)));
             const fresh = claims.filter((entry) => !owners.has(nameKey(entry)));
@@ -317,7 +459,7 @@ export class DirectoryStore extends Directory {
     /** List the expired reservations of some indexes, and the next deadline, by the directory's clock. */
     async expired(indexes: readonly string[]): Promise<Expiry> {
         // read the expired reservations of the indexes
-        const now = Date.now();
+        const now = this.#clock();
         const reserved = and(
             eq(claimTable.state, "reserved"),
             inArray(claimTable.index, [...indexes]),
@@ -325,6 +467,7 @@ export class DirectoryStore extends Directory {
         const claims = await this.database
             .select({
                 index: claimTable.index,
+                packageId: claimTable.packageId,
                 key: claimTable.key,
                 objectId: claimTable.objectId,
                 scope: claimTable.scope,
@@ -363,7 +506,49 @@ export class DirectoryStore extends Directory {
         );
     }
 
-    /** Reserve a chunk of claims in one insert, returning the names other objects own. */
+    /** Find the priority of the rotation key of an identity that signed an operation, refusing one none signed. */
+    async #priority(operation: string, identity: Pick<Identity, "rotationKeys">): Promise<number> {
+        const priority = await IdentityOperation.priority(operation, identity.rotationKeys);
+        if (priority === undefined) {
+            throw new ServiceError("UNAUTHORIZED", {
+                message: "no rotation key of the identity signed the operation",
+            });
+        }
+
+        return priority;
+    }
+
+    /** Append a verified operation to a space's log. */
+    async #append(
+        operation: string,
+        space: string,
+        sequence: number,
+        priority: number,
+        database: DatabaseConnection = this.database,
+    ): Promise<void> {
+        // refuse an operation another one appended at the same position first
+        try {
+            await database.insert(identityOperationTable).values({
+                space,
+                sequence,
+                scope: ZONE_SCOPE,
+                digest: await IdentityOperation.digest(operation),
+                operation,
+                priority,
+                appliedAt: this.#clock(),
+                isNullified: false,
+            });
+        } catch (error) {
+            throw error instanceof DatabaseError && error.code === "DUPLICATE"
+                ? new ServiceError("CONFLICT", {
+                      message: `another operation of ${space} was applied first`,
+                      cause: error,
+                  })
+                : error;
+        }
+    }
+
+    /** Reserve a chunk of claims in one insert, returning the names other objects hold. */
     async #reserve(
         claims: readonly Claim[],
         requestId: string,
@@ -410,9 +595,11 @@ export class DirectoryStore extends Directory {
 
     /** Forget every read. */
     #clear(): void {
+        // forget each kind of read
         this.#owners.clear();
         this.#zones.clear();
         this.#cells.clear();
+        this.#identities.clear();
     }
 
     /** Forget the reads one change affects, before and after it. */
@@ -421,12 +608,20 @@ export class DirectoryStore extends Directory {
             (image) => image !== null,
         );
         for (const image of images) {
-            // forget the cached read: a claim by its name, a zone or cell by its identifier
+            // forget a claim by its name
             if ("index" in image) {
                 this.#owners.forget(nameKey({ index: image.index, key: image.key }));
-            } else if (change.table === zoneTable) {
+            }
+            // forget an identity by its space
+            else if ("sequence" in image) {
+                this.#identities.forget(image.space);
+            }
+            // forget a zone by its identifier
+            else if (change.table === zoneTable) {
                 this.#zones.forget(image.id);
-            } else {
+            }
+            // forget a cell by its identifier
+            else {
                 this.#cells.forget(image.id);
             }
         }

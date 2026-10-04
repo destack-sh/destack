@@ -4,12 +4,13 @@ import { ServiceError } from "@destack/service/error";
 import type { Claim, Expiry, ObjectClaims } from "../claim/claim.ts";
 import { Moved } from "../moved/moved.ts";
 import type { Cell, Zone } from "../zone/zone.ts";
+import type { Identity } from "../identity/identity.ts";
 
 /** The universe's cell router: which cell serves each zone, where each cell answers, and which object claims each unique name. */
 export abstract class Directory {
     // zones and cells
 
-    /** Place a zone in its cell at an epoch and refuse an earlier epoch. */
+    /** Place a zone in its cell: create it, keep its placement and end its move, or take it over in its move's target at the next epoch. */
     abstract place(zone: Zone): Promise<void>;
 
     /** Withdraw a zone its cell serves at an epoch. */
@@ -41,6 +42,17 @@ export abstract class Directory {
 
     /** Read a cell, absent before it published an endpoint. */
     abstract cell(id: string): Promise<Cell | undefined>;
+
+    // identities
+
+    /** Apply a signed identity operation, a space's first only from the cell serving its zone. */
+    abstract apply(operation: string, zone?: Zone): Promise<void>;
+
+    /** Read a space's current identity, absent before its first operation. */
+    abstract identity(space: string): Promise<Identity | undefined>;
+
+    /** List a space's signed identity operations in order, nullified ones included, for auditing. */
+    abstract operations(space: string): Promise<readonly string[]>;
 
     // claims
 
