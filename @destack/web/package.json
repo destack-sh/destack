@@ -1,0 +1,39 @@
+{
+    "name": "@destack/web",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "exports": {
+        "./destack.json": "./destack.json",
+        "./build": "./src/build/index.ts"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/view": "workspace:*",
+        "rolldown": "1.2.9"
+    },
+    "peerDependencies": {
+        "@destack/build": "workspace:*",
+        "vite": "8.3.0"
+    },
+    "peerDependenciesMeta": {
+        "@destack/build": {
+            "optional": true
+        },
+        "vite": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@destack/build": "workspace:*",
+        "@destack/test": "workspace:*",
+        "happy-dom": "20.14.5",
+        "vite": "8.3.0"
+    }
+}

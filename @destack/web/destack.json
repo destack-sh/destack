@@ -1,0 +1,9 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a103c1-562e-7137-942d-c7336bd8e645",
+    "language": "typescript",
+    "runtimes": [
+        "bun"
+    ],
+    "build": "./build#webExtension"
+}
