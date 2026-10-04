@@ -104,45 +104,8 @@ export function serveDatabase(client: ConnectionClient, raw: Channel<unknown>): 
     // type the channel's messages, name this owner and keep party transactions open
     const channel = typedChannel(raw, Message);
     const owner = crypto.randomUUID();
-    const transactions = new Map<number, OpenTransaction>();
-    let next = 0;
-
-    // run one step
-    const run = async (step: Step): Promise<unknown> => {
-        // run a statement
-        if (step.type === "statement") {
-            const open =
-                step.transaction === undefined ? undefined : transactions.get(step.transaction);
-            if (step.transaction !== undefined && open === undefined) {
-                throw new DatabaseError("TRANSACTION_CLOSED", "the shared transaction has ended");
-            }
-            open?.touch();
-            const target = open?.client ?? client;
-            return step.method === "exec"
-                ? await target.exec(step.sql)
-                : await target[step.method](step.sql, step.parameters);
-        }
-        // begin a transaction
-        else if (step.type === "begin") {
-            const id = next++;
-            const opened = await OpenTransaction.begin(client, step.mode, () =>
-                transactions.delete(id),
-            );
-            transactions.set(id, opened);
-
-            return id;
-        }
-        // end a transaction
-        else {
-            const open = transactions.get(step.transaction);
-            if (open === undefined) {
-                throw new DatabaseError("TRANSACTION_CLOSED", "the shared transaction has ended");
-            }
-            await open.end(step.type === "commit");
-
-            return undefined;
-        }
-    };
+    const transactions = new Map<number, OwnerTransaction>();
+    const run = stepRunner(client, transactions);
 
     // announce this owner to a joining party
     const stop = channel.listen((message) => {
@@ -177,8 +140,62 @@ export function serveDatabase(client: ConnectionClient, raw: Channel<unknown>): 
     };
 }
 
+/** Run the steps the parties request on a connection. */
+function stepRunner(
+    client: ConnectionClient,
+    transactions: Map<number, OwnerTransaction>,
+): (step: Step) => Promise<unknown> {
+    let next = 0;
+
+    return async (step) => {
+        // run a statement
+        if (step.type === "statement") {
+            return runStatement(client, transactions, step);
+        }
+        // begin a transaction
+        else if (step.type === "begin") {
+            const id = next++;
+            const opened = await OwnerTransaction.begin(client, step.mode, () =>
+                transactions.delete(id),
+            );
+            transactions.set(id, opened);
+
+            return id;
+        }
+        // end a transaction
+        else {
+            const open = transactions.get(step.transaction);
+            if (open === undefined) {
+                throw new DatabaseError("TRANSACTION_CLOSED", "the shared transaction has ended");
+            }
+            await open.end(step.type === "commit");
+
+            return undefined;
+        }
+    };
+}
+
+/** Run a statement on the connection or within a party's open transaction. */
+async function runStatement(
+    client: ConnectionClient,
+    transactions: ReadonlyMap<number, OwnerTransaction>,
+    step: Extract<Step, { readonly type: "statement" }>,
+): Promise<unknown> {
+    // find the open transaction and keep it alive
+    const open = step.transaction === undefined ? undefined : transactions.get(step.transaction);
+    if (step.transaction !== undefined && open === undefined) {
+        throw new DatabaseError("TRANSACTION_CLOSED", "the shared transaction has ended");
+    }
+    open?.touch();
+    const target = open?.client ?? client;
+
+    return step.method === "exec"
+        ? await target.exec(step.sql)
+        : await target[step.method](step.sql, step.parameters);
+}
+
 /** A transaction the owner keeps open for a party. */
-class OpenTransaction {
+class OwnerTransaction {
     /** The transaction's client. */
     readonly client: QueryClient;
     /** Resolve on commit and reject on rollback. */
@@ -210,10 +227,10 @@ class OpenTransaction {
         connection: ConnectionClient,
         mode: "deferred" | "immediate" | "exclusive",
         forget: () => void,
-    ): Promise<OpenTransaction> {
+    ): Promise<OwnerTransaction> {
         return new Promise((resolve, reject) => {
             // keep the callback open until the party ends it
-            let opened: OpenTransaction | undefined;
+            let opened: OwnerTransaction | undefined;
             const begin = connection.transactionAsync(
                 (transaction) =>
                     new Promise<void>((finish, abort) => {
@@ -221,7 +238,7 @@ class OpenTransaction {
                             commit
                                 ? finish()
                                 : abort(new Error("the shared transaction rolled back"));
-                        opened = new OpenTransaction(transaction, done, end, forget);
+                        opened = new OwnerTransaction(transaction, done, end, forget);
                         resolve(opened);
                     }),
             );

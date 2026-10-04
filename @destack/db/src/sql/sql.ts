@@ -71,20 +71,20 @@ export class SQL<Value = unknown> implements SQLWrapper {
     }
 
     /** Alias the value in a selection. */
-    as<Alias extends string>(alias: Alias): Aliased<Value, Alias> {
-        return new Aliased(this, alias);
+    as<Name extends string>(alias: Name): Alias<Value, Name> {
+        return new Alias(this, alias);
     }
 }
 
 /** A fragment named in a selection, as `expression AS "alias"`. */
-export class Aliased<Value = unknown, Alias extends string = string> implements SQLWrapper {
+export class Alias<Value = unknown, Name extends string = string> implements SQLWrapper {
     /** The named fragment. */
     readonly sql: SQL<Value>;
     /** The name. */
-    readonly alias: Alias;
+    readonly alias: Name;
 
     /** Create the named fragment. */
-    constructor(fragment: SQL<Value>, alias: Alias) {
+    constructor(fragment: SQL<Value>, alias: Name) {
         this.sql = fragment;
         this.alias = alias;
     }

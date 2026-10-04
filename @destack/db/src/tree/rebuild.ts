@@ -31,6 +31,27 @@ export async function rebuildTree(
         );
     }
 
+    // read every parent link, validate every chain and stage every path
+    const scopes = await readParents(database, tree);
+    requireChains(scopes);
+    const staged = sql.identifier(STAGED);
+    await stagePaths(database, staged, scopes);
+
+    // remove stale paths and add missing ones
+    const ancestors = sql.identifier(tree.ancestors);
+    await database.execute(sql`DELETE FROM ${ancestors}
+        WHERE NOT EXISTS (SELECT 1 FROM ${staged} WHERE ${same(staged, ancestors)})`);
+    await database.execute(sql`INSERT INTO ${ancestors} (scope, ancestor, descendant, depth)
+        SELECT scope, ancestor, descendant, depth FROM ${staged}
+        WHERE NOT EXISTS (SELECT 1 FROM ${ancestors} WHERE ${same(ancestors, staged)})`);
+    await database.execute(sql`DROP TABLE ${staged}`);
+}
+
+/** Read every parent link of a tree by scope. */
+async function readParents(
+    database: DatabaseConnection,
+    tree: TreeDescription,
+): Promise<Map<string, Map<string, string | null>>> {
     // read every parent link
     const rows = await database.execute(
         sql`SELECT ${sql.identifier(tree.id)} AS id, ${sql.identifier(tree.scope)} AS scope,
@@ -56,10 +77,15 @@ export async function rebuildTree(
         parents.set(row.id, row.parent);
     }
 
-    // validate every parent chain
+    return scopes;
+}
+
+/** Require every parent chain to end at a root without a cycle or a missing parent. */
+function requireChains(scopes: ReadonlyMap<string, ReadonlyMap<string, string | null>>): void {
     for (const parents of scopes.values()) {
         const complete = new Set<string>();
         for (const id of parents.keys()) {
+            // walk the chain up to a root or a validated node
             const path = new Set<string>();
             let current: string | null = id;
             while (current !== null && !complete.has(current)) {
@@ -73,14 +99,22 @@ export async function rebuildTree(
                 path.add(current);
                 current = parent;
             }
+
+            // mark the walked nodes validated
             for (const member of path) {
                 complete.add(member);
             }
         }
     }
+}
 
+/** Stage every node's path to each of its ancestors in a temporary table. */
+async function stagePaths(
+    database: DatabaseConnection,
+    staged: SQL,
+    scopes: ReadonlyMap<string, ReadonlyMap<string, string | null>>,
+): Promise<void> {
     // stage the paths in bounded batches
-    const staged = sql.identifier(STAGED);
     await database.execute(sql`CREATE TEMPORARY TABLE ${staged}
         (scope text NOT NULL, ancestor text NOT NULL, descendant text NOT NULL, depth integer NOT NULL)`);
     const flush = async (batch: readonly SQL[]) =>
@@ -108,15 +142,6 @@ export async function rebuildTree(
     if (batch.length > 0) {
         await flush(batch);
     }
-
-    // remove stale paths and add missing ones
-    const ancestors = sql.identifier(tree.ancestors);
-    await database.execute(sql`DELETE FROM ${ancestors}
-        WHERE NOT EXISTS (SELECT 1 FROM ${staged} WHERE ${same(staged, ancestors)})`);
-    await database.execute(sql`INSERT INTO ${ancestors} (scope, ancestor, descendant, depth)
-        SELECT scope, ancestor, descendant, depth FROM ${staged}
-        WHERE NOT EXISTS (SELECT 1 FROM ${ancestors} WHERE ${same(ancestors, staged)})`);
-    await database.execute(sql`DROP TABLE ${staged}`);
 }
 
 /** Match two path rows with the same scope, ancestor, descendant and depth. */

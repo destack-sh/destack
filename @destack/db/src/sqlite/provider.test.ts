@@ -10,7 +10,7 @@ import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineTable, sql, TABLE, text } from "../index.ts";
 import { sqliteConnector } from "./connector.ts";
-import { sqliteProvider } from "./provider.ts";
+import { databaseProvider } from "./provider.ts";
 
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
@@ -19,7 +19,7 @@ const note = defineTable("note", { id: text("id").primaryKey(), title: text("tit
 const beside = defineTable("beside", { id: text("id").primaryKey() });
 
 /** The database with the notes. */
-const notes = defineDatabase({ name: "notes", tables: [note] });
+const notes = defineDatabase({ name: "notes", tables: [note], copies: [] });
 
 /** Close a connection once it opens, or read why it failed to. */
 function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Promise<unknown> {
@@ -37,12 +37,12 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
     // provide databases below a scratch directory
     const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
     onTestFinished(() => rm(directory, { recursive: true }));
-    const provider = sqliteProvider(pathToFileURL(`${directory}/`), "database");
+    const provider = databaseProvider.sqlite(pathToFileURL(`${directory}/`), "database");
     const record = {
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000001"),
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
-        spec: { tier: "zonal" as const },
+        spec: { copies: [] },
         reference: null,
     };
     const bound = (reference: string) => ({
@@ -82,12 +82,12 @@ test("open a provisioned SQLite database over its desired tables, migrating tabl
     // provision and apply the notes on a database file
     const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
     onTestFinished(() => rm(directory, { recursive: true }));
-    const provider = sqliteProvider(pathToFileURL(`${directory}/`), "database");
+    const provider = databaseProvider.sqlite(pathToFileURL(`${directory}/`), "database");
     const empty = {
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000003"),
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
-        spec: { tier: "zonal" as const },
+        spec: { copies: [] },
         reference: null,
     };
     const record = { ...empty, ...(await provider.provision.provision(empty)) };

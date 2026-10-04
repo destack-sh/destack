@@ -3,7 +3,7 @@ import {
     fill,
     render,
     sql,
-    type Rendered,
+    type StatementTemplate,
     type SQL,
     type SQLWrapper,
 } from "../sql/index.ts";
@@ -20,7 +20,7 @@ export class Statement {
     /** Build the statement from named values. */
     readonly #build: (value: (name: string) => SQLWrapper) => SQL;
     /** The rendered statement of each dialect. */
-    readonly #rendered = new Map<Dialect, Rendered>();
+    readonly #rendered = new Map<Dialect, StatementTemplate>();
 
     /** Create the statement. */
     constructor(build: (value: (name: string) => SQLWrapper) => SQL) {
@@ -44,7 +44,7 @@ export class Statement {
     }
 
     /** Render the statement once per dialect. */
-    #render(dialect: Dialect): Rendered {
+    #render(dialect: Dialect): StatementTemplate {
         // reuse the dialect's rendering
         const known = this.#rendered.get(dialect);
         if (known !== undefined) {

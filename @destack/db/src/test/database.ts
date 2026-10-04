@@ -291,7 +291,7 @@ class TestServer {
 
         // migrate it on a pool the schema keeps
         const pools: postgres.Sql[] = [];
-        const database = new LentDatabase(this.connect(name), tables, pools);
+        const database = new PoolDatabase(this.connect(name), tables, pools);
         await database.apply(await database.plan({ declared: state }));
         await database.close();
 
@@ -348,7 +348,7 @@ class TestServer {
     ): Promise<TestSchema | undefined> {
         // refuse a schema without state, without a log, or with foreign tables
         const pools: postgres.Sql[] = [];
-        const database = new LentDatabase(this.connect(name), tables, pools);
+        const database = new PoolDatabase(this.connect(name), tables, pools);
         const names = (await this.#readRelations(name))
             .filter((relation) => relation.kind !== "S")
             .map((relation) => relation.name);
@@ -470,7 +470,7 @@ class TestSchema {
     async connect<Models extends Readonly<Record<string, Model>>>(
         tables: declaration.Database<Models> | readonly Table[],
     ): Promise<TestConnection<Models>> {
-        return new LentDatabase(
+        return new PoolDatabase(
             this.pools.pop() ?? this.server.connect(this.name),
             tables,
             this.pools,
@@ -479,7 +479,7 @@ class TestSchema {
 }
 
 /** A PostgreSQL database over a pool a test schema lends. */
-class LentDatabase<
+class PoolDatabase<
     Models extends Readonly<Record<string, Model>>,
 > extends PostgresDatabase<Models> {
     /** The idle pools the pool returns to. */

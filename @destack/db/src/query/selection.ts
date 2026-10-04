@@ -1,4 +1,4 @@
-import { Aliased, SQL, sql } from "../sql/index.ts";
+import { Alias, SQL, sql } from "../sql/index.ts";
 import { Column, type ColumnDefinition, type ValueOf } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -6,7 +6,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 /** The fields of a selection: columns, fragments, whole tables or nested groups. */
 export interface Selection {
     /** A selected field or nested group. */
-    readonly [property: string]: Column | SQL | Aliased | Table | Selection;
+    readonly [property: string]: Column | SQL | Alias | Table | Selection;
 }
 
 /** The record a selection produces, with the groups of nullable joined tables nullable. */
@@ -17,7 +17,7 @@ export type SelectionResult<Fields extends Selection, NullableTables extends str
             : Definition["nullable"] extends false
               ? ValueOf<Definition>
               : ValueOf<Definition> | null
-        : Fields[Property] extends SQL<infer Value> | Aliased<infer Value>
+        : Fields[Property] extends SQL<infer Value> | Alias<infer Value>
           ? Value
           : Fields[Property] extends Table
             ? Fields[Property][typeof TABLE]["name"] extends NullableTables
@@ -48,7 +48,7 @@ type NullableSelection<
 /** A selected value at its position in the driver row. */
 interface Leaf {
     /** The selected column or fragment. */
-    readonly field: Column | SQL | Aliased;
+    readonly field: Column | SQL | Alias;
     /** The position in the driver row. */
     readonly index: number;
 }
@@ -62,13 +62,13 @@ interface Group {
 /** A selection flattened to fields in order and decoded back into nested records. */
 export class Projection<Selected extends Selection = Selection> {
     /** The selected values in field order. */
-    readonly fields: readonly (Column | SQL | Aliased)[];
+    readonly fields: readonly (Column | SQL | Alias)[];
     /** The record shape over the field positions. */
     readonly #root: Group;
 
     /** Flatten a selection in property order. */
     constructor(selection: Selected) {
-        const fields: (Column | SQL | Aliased)[] = [];
+        const fields: (Column | SQL | Alias)[] = [];
         this.#root = group(selection, fields);
         this.fields = fields;
     }
@@ -99,10 +99,10 @@ export class Projection<Selected extends Selection = Selection> {
 }
 
 /** Collect a selection's fields in property order into a group shape. */
-function group(selection: Selection, fields: (Column | SQL | Aliased)[]): Group {
+function group(selection: Selection, fields: (Column | SQL | Alias)[]): Group {
     const entries = Object.entries(selection).map(([property, field]): [string, Leaf | Group] => {
         // keep a selected value at the next position
-        if (field instanceof Column || field instanceof SQL || field instanceof Aliased) {
+        if (field instanceof Column || field instanceof SQL || field instanceof Alias) {
             fields.push(field);
 
             return [property, { field, index: fields.length - 1 }];
@@ -170,7 +170,7 @@ function isMissingGroup(
 }
 
 /** Decode one selected driver value by its column or fragment decoder, keeping null. */
-function decodeValue(field: Column | SQL | Aliased, value: unknown, dialect: Dialect): unknown {
+function decodeValue(field: Column | SQL | Alias, value: unknown, dialect: Dialect): unknown {
     if (value === undefined) {
         throw new TypeError("the database driver returned fewer values than the query selects");
     } else if (value === null) {

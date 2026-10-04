@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { createConnection, createServer, type Server, type Socket } from "node:net";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FileLock } from "@destack/fs";
+import { FileLock, runtimeDirectory } from "@destack/fs";
 import type { Channel } from "./channel.ts";
 
 /** The hexadecimal digits of a path's digest naming its socket, short enough for the 104 bytes of a macOS socket path. */
@@ -27,12 +26,11 @@ export function socketChannel(path: string): Channel<unknown> {
     return new SocketChannel(path);
 }
 
-/** Name the socket and lock files a path's channel meets at, in the person's runtime directory or else the temporary one. */
+/** Name the socket and lock files a path's channel meets at in a runtime directory. */
 export function channelFiles(
     path: string,
-    environment: Readonly<Record<string, string | undefined>> = process.env,
+    directory: string,
 ): { readonly socket: string; readonly lock: string } {
-    const directory = environment["XDG_RUNTIME_DIR"] ?? tmpdir();
     const name = createHash("sha256").update(path).digest("hex").slice(0, NAME_DIGITS);
 
     return {
@@ -43,10 +41,8 @@ export function channelFiles(
 
 /** A party of a socket channel: the one with its lock serves the socket, the others connect to it. */
 class SocketChannel implements Channel<unknown> {
-    /** The socket path. */
-    readonly #socket: string;
-    /** The lock path electing the serving party. */
-    readonly #lock: string;
+    /** The path the parties share, such as a SQLite file. */
+    readonly #path: string;
     /** The listeners in this process. */
     readonly #listeners = new Set<Listener>();
     /** The lines sent before joining. */
@@ -60,11 +56,9 @@ class SocketChannel implements Channel<unknown> {
     /** The connection to the serving party, while another party serves. */
     #peer: Socket | undefined;
 
-    /** Derive the socket and lock paths of a path. */
+    /** Meet the other parties of a path. */
     constructor(path: string) {
-        const files = channelFiles(path);
-        this.#socket = files.socket;
-        this.#lock = files.lock;
+        this.#path = path;
     }
 
     /** Whether this party serves the socket or is connected to the party serving it. */
@@ -135,61 +129,21 @@ class SocketChannel implements Channel<unknown> {
 
     /** Serve the socket when it has the lock, or connect to the party serving it. */
     async #elect(): Promise<void> {
+        // meet at the path's files in the person's runtime directory
+        const files = channelFiles(this.#path, await runtimeDirectory());
         while (true) {
-            // serve the socket, replacing one a stopped party left
-            const lock = await FileLock.tryAcquire(this.#lock);
+            // serve the socket while holding the lock
+            const lock = await FileLock.tryAcquire(files.lock);
             if (lock !== undefined) {
-                await unlink(this.#socket).catch((error: NodeJS.ErrnoException) => {
-                    if (error.code !== "ENOENT") {
-                        throw error;
-                    }
-                });
-                const peers = new Set<Socket>();
-                const server = createServer((peer) => {
-                    // relay each connected party's lines to the others
-                    peers.add(peer);
-                    this.#read(peer, (line) => {
-                        // deliver here, and forward to every other party
-                        this.#deliver(line);
-                        for (const other of peers) {
-                            if (other !== peer) {
-                                other.write(line);
-                            }
-                        }
-                    });
-                    // drop a party whose connection fails
-                    peer.on("close", () => peers.delete(peer));
-                    peer.on("error", () => peer.destroy());
-                    peer.unref();
-                });
-                await new Promise<void>((resolve, reject) => {
-                    server.once("error", reject);
-                    server.listen(this.#socket, () => resolve());
-                });
-
-                // fail the listeners once serving fails, and never keep the process alive
-                server.removeAllListeners("error");
-                server.on("error", (error) => this.#fail(error));
-                server.unref();
-                this.#hub = { server, lock, peers };
+                await this.#serve(files.socket, lock);
 
                 return;
             }
 
-            // connect to the serving party, joining again when it goes away
-            const peer = await connect(this.#socket);
+            // connect to the serving party
+            const peer = await connect(files.socket);
             if (peer !== undefined) {
-                this.#read(peer, (line) => this.#deliver(line));
-                peer.on("error", () => peer.destroy());
-                peer.unref();
-                peer.on("close", () => {
-                    this.#peer = undefined;
-                    this.#joining = undefined;
-                    if (this.#listeners.size > 0) {
-                        this.#join();
-                    }
-                });
-                this.#peer = peer;
+                this.#follow(peer);
 
                 return;
             }
@@ -199,6 +153,67 @@ class SocketChannel implements Channel<unknown> {
                 setTimeout(resolve, REJOIN_MILLISECONDS);
             });
         }
+    }
+
+    /** Serve the socket under the lock and relay the parties' lines. */
+    async #serve(socket: string, lock: FileLock): Promise<void> {
+        // replace a socket a stopped party left
+        await unlink(socket).catch((error: NodeJS.ErrnoException) => {
+            if (error.code !== "ENOENT") {
+                throw error;
+            }
+        });
+
+        // relay each connected party's lines
+        const peers = new Set<Socket>();
+        const server = createServer((peer) => this.#relay(peer, peers));
+        await new Promise<void>((resolve, reject) => {
+            server.once("error", reject);
+            server.listen(socket, () => resolve());
+        });
+
+        // fail the listeners once serving fails, and never keep the process alive
+        server.removeAllListeners("error");
+        server.on("error", (error) => this.#fail(error));
+        server.unref();
+        this.#hub = { server, lock, peers };
+    }
+
+    /** Relay a connected party's lines to this process and the other parties. */
+    #relay(peer: Socket, peers: Set<Socket>): void {
+        // relay each connected party's lines to the others
+        peers.add(peer);
+        this.#read(peer, (line) => {
+            // deliver here, and forward to every other party
+            this.#deliver(line);
+            for (const other of peers) {
+                if (other !== peer) {
+                    other.write(line);
+                }
+            }
+        });
+
+        // drop a party whose connection fails
+        peer.on("close", () => peers.delete(peer));
+        peer.on("error", () => peer.destroy());
+        peer.unref();
+    }
+
+    /** Receive the serving party's lines and join again when it goes away. */
+    #follow(peer: Socket): void {
+        // deliver the serving party's lines here
+        this.#read(peer, (line) => this.#deliver(line));
+        peer.on("error", () => peer.destroy());
+        peer.unref();
+        peer.on("close", () => {
+            // join again while listening
+            this.#peer = undefined;
+            this.#joining = undefined;
+            if (this.#listeners.size > 0) {
+                this.#join();
+            }
+        });
+        this.#peer = peer;
     }
 
     /** Send one line to the other parties. */

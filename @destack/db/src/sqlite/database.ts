@@ -5,7 +5,7 @@ import {
     requireDistinct,
     type Locality,
 } from "../database/connection.ts";
-import type { OpenChannel } from "../channel/channel.ts";
+import type { Channel } from "../channel/channel.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { SqliteSession } from "../database/session.ts";
 import { expandTrees } from "../tree/tree.ts";
@@ -27,7 +27,7 @@ export class SqliteDatabase<
         client: Client,
         tables: declaration.Database<Models> | readonly Table[],
         locality: Locality,
-        openChannel: OpenChannel | undefined,
+        openChannel: ((name: string) => Channel<unknown>) | undefined,
     ) {
         // declare the tables with their tree tables
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
@@ -39,7 +39,7 @@ export class SqliteDatabase<
                     locality,
                     openChannel,
                     "connection",
-                    "tables" in tables ? tables.spec.tier : undefined,
+                    "tables" in tables ? tables.spec.copies : [],
                 ),
             ),
             declared,
@@ -62,5 +62,5 @@ export class SqliteDatabase<
 /** The options of a SQLite connection. */
 export interface ConnectOptions {
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
-    readonly openChannel?: OpenChannel;
+    readonly openChannel?: (name: string) => Channel<unknown>;
 }

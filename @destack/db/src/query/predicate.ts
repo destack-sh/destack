@@ -240,13 +240,11 @@ function bind(
 function render(predicate: Predicate, binding: Binding<SQLWrapper>): SQL {
     switch (predicate.kind) {
         case "compare": {
-            // order text by byte, and bind the value through the field's column
+            // bind the value through the field's column
             const field = binding.field(predicate.name);
-            const isOrdered = predicate.operator !== "eq" && predicate.operator !== "ne";
-            const left = isOrdered && Column.is(field) ? Order.text(field) : field;
             const right = renderValue(predicate.value, field, binding);
 
-            return sql`(${left} ${sql.raw(OPERATORS[predicate.operator])} ${right})`;
+            return sql`(${field} ${sql.raw(OPERATORS[predicate.operator])} ${right})`;
         }
         case "oneOf": {
             const field = binding.field(predicate.name);

@@ -79,7 +79,7 @@ export type ConditionOf<Entity extends Model, Computed extends Extras = {}> = Co
 >;
 
 /** One result of a relational read: the selected fields, the extras and each relation's results. */
-export type FindResult<Entity extends Model, Options> = Selected<Entity["value"], Options> &
+export type FindResult<Entity extends Model, Options> = SelectionOf<Entity["value"], Options> &
     ExtrasOf<Options> &
     WithOf<Entity, Options>;
 
@@ -98,7 +98,7 @@ export type Group<Options extends Aggregate = Aggregate> = {
 };
 
 /** The fields the options' columns select. */
-type Selected<Value, Options> = Options extends {
+type SelectionOf<Value, Options> = Options extends {
     readonly columns: infer Columns extends Readonly<Record<string, boolean | undefined>>;
 }
     ? true extends Columns[keyof Columns]

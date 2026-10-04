@@ -12,12 +12,16 @@ import { connectors } from "#connector";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { DatabaseState, declareState } from "../migration/state.ts";
-import { DatabaseTier } from "./tier.ts";
 import { Relations } from "../query/relation.ts";
 import type { Model } from "../query/model.ts";
 
 /** A database's resource settings. */
-export const DatabaseSpec = defineSchema(schema.object({ tier: DatabaseTier }));
+export const DatabaseSpec = defineSchema(
+    schema.object({
+        /** The SQL names of the tables the database copies from their owning service. */
+        copies: schema.array(schema.string().min(1)),
+    }),
+);
 /** A database's resource settings. */
 export type DatabaseSpec = schema.Infer<typeof DatabaseSpec>;
 
@@ -44,7 +48,7 @@ export interface DatabaseConnector {
 export class Database<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > extends ResourceDeclaration<DatabaseConnection<Models>, DatabaseDescription> {
-    /** The tables the database keeps, referencing tables kept elsewhere without foreign keys. */
+    /** The tables the database keeps, its own and its copies, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads name. */
     readonly relations: Relations<Models>;
@@ -66,6 +70,11 @@ export class Database<
         Record<string, Connector<DatabaseConnection<Models>, this>>
     > {
         return connectors;
+    }
+
+    /** Decide whether the database keeps a table's rows as copies from their owning service. */
+    copies(table: Table): boolean {
+        return this.spec.copies.includes(table[TABLE].sqlName);
     }
 
     /** Describe the required tables. */
@@ -95,35 +104,26 @@ export interface DatabaseDefinition<
 > {
     /** The package-local database name. */
     readonly name: string;
-    /** Where the database lives, within one zone when absent. */
-    readonly tier?: DatabaseTier;
-    /** The tables the database keeps, referencing tables kept elsewhere without foreign keys. */
+    /** The tables the database owns, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
+    /** The tables the database copies from their owning service, which its follows fill. */
+    readonly copies: readonly Table[];
     /** The relations of the tables. */
     readonly relations?: Relations<Models>;
 }
 
-/**
- * Declare a database.
- *
- * A database keeps tables of its own tier and of wider ones, whose rows it replicates from their home.
- */
+/** Declare a database of the tables it owns and the tables it copies from their owning service. */
 export function defineDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(definition: DatabaseDefinition<Models>, module?: ModuleMetadata): Database<Models> {
-    // reject duplicate SQL names and tables of a narrower tier
+    // reject duplicate SQL names within and across the owned and copied tables
     const owner = ModuleMetadata.require(module, "defineDatabase").package;
-    const tier = definition.tier ?? "zonal";
-    const tiers = DatabaseTier.options;
     const names = new Map<string, Table>();
-    for (const table of expandTrees(definition.tables)) {
-        const { sqlName, tier: declared } = table[TABLE];
-        const existing = names.get(sqlName);
-        if (existing !== undefined && existing !== table) {
+    const copies = expandTrees(definition.copies);
+    for (const table of [...expandTrees(definition.tables), ...copies]) {
+        const { sqlName } = table[TABLE];
+        if (names.has(sqlName)) {
             throw new TypeError(`duplicate SQL table: ${sqlName}`);
-        }
-        if (declared !== undefined && tiers.indexOf(declared) > tiers.indexOf(tier)) {
-            throw new TypeError(`${declared} table ${sqlName} in a ${tier} database`);
         }
         names.set(sqlName, table);
     }
@@ -141,7 +141,7 @@ export function defineDatabase<
     const description = DatabaseKind.description.parse({
         name: definition.name,
         kind: "database",
-        spec: { tier },
+        spec: { copies: copies.map((table) => table[TABLE].sqlName) },
     });
 
     return new Database(owner, description, [...names.values()], relations);

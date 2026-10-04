@@ -6,7 +6,7 @@ import {
     type ColumnDefinition,
     type ColumnValue,
 } from "../table/column.ts";
-import { type Aliased, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from "./sql.ts";
+import { type Alias, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from "./sql.ts";
 
 /**
  * The most predicates one flat chain joins.
@@ -16,14 +16,14 @@ import { type Aliased, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from
 export const CHAIN_TERMS = 90;
 
 /** A typed operand: a column reading the value, a fragment or a named fragment. */
-type Typed<Value> =
+type Operand<Value> =
     | Column<ColumnDefinition & { fromJson(value: unknown): Value }>
     | SQL<Value>
-    | Aliased<Value>;
+    | Alias<Value>;
 
 /** A comparison of a typed operand with a value or another fragment. */
 export type Comparison = <Value>(
-    left: Typed<Value>,
+    left: Operand<Value>,
     right: NoInfer<Value> | SQLWrapper,
 ) => SQL<boolean>;
 
@@ -77,7 +77,7 @@ export function not(condition: SQLWrapper): SQL<boolean> {
 
 /** Match a typed value in a list or subquery. */
 export function inArray<Value>(
-    value: Typed<Value>,
+    value: Operand<Value>,
     candidates: readonly NoInfer<Value>[] | SQLWrapper,
 ): SQL<boolean>;
 /** Match a value in a list or subquery. */
@@ -95,7 +95,7 @@ export function inArray(
 
 /** Match a typed value outside a list or subquery. */
 export function notInArray<Value>(
-    value: Typed<Value>,
+    value: Operand<Value>,
     candidates: readonly NoInfer<Value>[] | SQLWrapper,
 ): SQL<boolean>;
 /** Match a value outside a list or subquery. */
@@ -122,18 +122,18 @@ export function isNotNull(value: SQLWrapper): SQL<boolean> {
 }
 
 /** Match text by a LIKE pattern. */
-export function like(value: Typed<string>, pattern: string | SQLWrapper): SQL<boolean> {
+export function like(value: Operand<string>, pattern: string | SQLWrapper): SQL<boolean> {
     return sql<boolean>`${value} LIKE ${bind(value, pattern)}`;
 }
 
 /** Match text outside a LIKE pattern. */
-export function notLike(value: Typed<string>, pattern: string | SQLWrapper): SQL<boolean> {
+export function notLike(value: Operand<string>, pattern: string | SQLWrapper): SQL<boolean> {
     return sql<boolean>`${value} NOT LIKE ${bind(value, pattern)}`;
 }
 
 /** Match a value within inclusive bounds. */
 export function between<Value>(
-    value: Typed<Value>,
+    value: Operand<Value>,
     lower: NoInfer<Value> | SQLWrapper,
     upper: NoInfer<Value> | SQLWrapper,
 ): SQL<boolean> {
@@ -142,7 +142,7 @@ export function between<Value>(
 
 /** Match a value outside inclusive bounds. */
 export function notBetween<Value>(
-    value: Typed<Value>,
+    value: Operand<Value>,
     lower: NoInfer<Value> | SQLWrapper,
     upper: NoInfer<Value> | SQLWrapper,
 ): SQL<boolean> {

@@ -13,9 +13,6 @@ export interface Channel<Message> {
     ): () => void;
 }
 
-/** Open a database's channel of a name, reaching the other connections to the same database with messages of any shape. */
-export type OpenChannel = (name: string) => Channel<unknown>;
-
 /** A commit announced on a database's channel. */
 export const Commit = schema.object({
     /** The message kind. */

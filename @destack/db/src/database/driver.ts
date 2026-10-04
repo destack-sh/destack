@@ -2,7 +2,7 @@ import type { TransactionState } from "./transaction.ts";
 import type { ConnectionState } from "./connection.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import type { Bound } from "../sql/index.ts";
+import type { DriverStatement } from "../sql/index.ts";
 import type { Session } from "./session.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
 import { type Span, trace } from "@destack/telemetry";
@@ -74,7 +74,7 @@ export class DatabaseDriver {
     }
 
     /** Read every row of a bound statement as an array of values. */
-    values(statement: Bound): Promise<unknown[][]> {
+    values(statement: DriverStatement): Promise<unknown[][]> {
         this.transaction?.assertActive();
 
         return this.run(() =>
@@ -83,7 +83,7 @@ export class DatabaseDriver {
     }
 
     /** Read every row of a bound statement by column name. */
-    all(statement: Bound): Promise<Record<string, unknown>[]> {
+    all(statement: DriverStatement): Promise<Record<string, unknown>[]> {
         this.transaction?.assertActive();
 
         return this.run(() =>
@@ -92,7 +92,7 @@ export class DatabaseDriver {
     }
 
     /** Run a bound write statement, identified on SQLite outside a transaction. */
-    async execute(statement: Bound): Promise<void> {
+    async execute(statement: DriverStatement): Promise<void> {
         this.transaction?.assertActive();
         await this.write((session) =>
             failing(statement, session.run(statement.text, statement.parameters)),
@@ -124,7 +124,7 @@ export class DatabaseDriver {
 }
 
 /** Report a driver failure with its statement, leaving classified failures as they are. */
-async function failing<Value>(statement: Bound, pending: Promise<Value>): Promise<Value> {
+async function failing<Value>(statement: DriverStatement, pending: Promise<Value>): Promise<Value> {
     try {
         return await pending;
     } catch (error) {

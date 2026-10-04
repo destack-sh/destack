@@ -25,8 +25,8 @@ const RANKED = schema.object({
     rank: schema.union([schema.number(), schema.string()]).transform((rank) => Number(rank)),
 });
 
-/** Listed items at a minimum rank. */
-const listed = new Statement(
+/** The items at a minimum rank, by identifier. */
+const rankQuery = new Statement(
     (value) => sql`SELECT ${item.id} AS id, ${item.rank} AS rank
         FROM ${item} JOIN ${jsonElements(value("ids"), "listed")} ON ${item.id} = listed.value ->> 0
         WHERE ${item.rank} >= ${value("minimum")}
@@ -47,9 +47,9 @@ test.for(TEST_DIALECTS)(
         // read through one statement with different values
         const ranked = (rows: readonly Record<string, unknown>[]) =>
             rows.map((row) => RANKED.parse(row));
-        const outside = await listed.all(storage.database, { ids: ids(["a", "c"]), minimum: 1 });
+        const outside = await rankQuery.all(storage.database, { ids: ids(["a", "c"]), minimum: 1 });
         const inside = await storage.database.transaction((transaction) =>
-            listed.all(transaction, { ids: ids(["a", "b", "c"]), minimum: 2 }),
+            rankQuery.all(transaction, { ids: ids(["a", "b", "c"]), minimum: 2 }),
         );
         expect([ranked(outside), ranked(inside)]).toEqual([
             [

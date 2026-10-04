@@ -54,7 +54,7 @@ const PlaceholderValue: schema.Schema<Placeholder> = schema.union([
 ]);
 
 /** A value a field compares with, or a placeholder read when the condition runs. */
-const Bound = schema.union([Comparable, PlaceholderValue]);
+const Comparand = schema.union([Comparable, PlaceholderValue]);
 
 /** The comparisons of one field. */
 export type FieldCondition<Value extends Comparable = Comparable> = {
@@ -97,12 +97,12 @@ export type FieldCondition<Value extends Comparable = Comparable> = {
 /** The comparisons of one field, as resolving reads them. */
 const FieldCondition: schema.Schema<FieldCondition> = schema.lazy(() =>
     schema.object({
-        eq: Bound.exactOptional(),
-        ne: Bound.exactOptional(),
-        lt: Bound.exactOptional(),
-        lte: Bound.exactOptional(),
-        gt: Bound.exactOptional(),
-        gte: Bound.exactOptional(),
+        eq: Comparand.exactOptional(),
+        ne: Comparand.exactOptional(),
+        lt: Comparand.exactOptional(),
+        lte: Comparand.exactOptional(),
+        gt: Comparand.exactOptional(),
+        gte: Comparand.exactOptional(),
         in: schema.array(Comparable).exactOptional(),
         notIn: schema.array(Comparable).exactOptional(),
         like: schema.string().exactOptional(),

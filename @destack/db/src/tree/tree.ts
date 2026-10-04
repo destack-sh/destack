@@ -49,8 +49,6 @@ export class Tree {
         // index ancestors and descendants per scope
         const name = `${definition.table[TABLE].name}_${definition.name}_ancestor`;
         const owner = { package: definition.table[TABLE].package };
-        const tier = definition.table[TABLE].tier;
-        const placement = tier === undefined ? {} : { tier };
         this.ancestors = defineTable(
             name,
             {
@@ -60,7 +58,6 @@ export class Tree {
                 depth: integer("depth").notNull(),
             },
             {
-                ...placement,
                 constraints: (path) => [
                     index(`${name}_descendant`).on(path.scope, path.descendant, path.ancestor),
                 ],
@@ -74,7 +71,7 @@ export class Tree {
         this.revision = defineTable(
             `${name}_revision`,
             { scope: text("scope").primaryKey(), revision: integer("revision").notNull() },
-            placement,
+            {},
             owner,
         );
     }

@@ -5,7 +5,7 @@ import { DatabaseError } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import type { Scalar } from "../query/condition.ts";
 import {
-    Aliased,
+    Alias,
     DialectSQL,
     isSQLWrapper,
     Name,
@@ -17,7 +17,7 @@ import {
 } from "./sql.ts";
 
 /** A statement's text and positional parameters, some of them filled by name when it runs. */
-export interface Rendered {
+export interface StatementTemplate {
     /** The statement text with positional parameter markers. */
     readonly text: string;
     /** The driver values and placeholders in marker order. */
@@ -25,7 +25,7 @@ export interface Rendered {
 }
 
 /** A statement's text and the driver values of its parameters. */
-export interface Bound {
+export interface DriverStatement {
     /** The statement text with positional parameter markers. */
     readonly text: string;
     /** The driver values in marker order. */
@@ -33,7 +33,7 @@ export interface Bound {
 }
 
 /** Render a fragment for a dialect: identifiers quoted, values bound in order. */
-export function render(fragment: SQLWrapper, dialect: Dialect): Rendered {
+export function render(fragment: SQLWrapper, dialect: Dialect): StatementTemplate {
     const parameters: (DriverValue | Placeholder)[] = [];
     const text = renderChunk(fragment, { dialect, parameters });
 
@@ -55,9 +55,9 @@ export function match(value: Scalar, dialect: Dialect): string {
 
 /** Bind a rendered statement's placeholders to named driver values. */
 export function fill(
-    rendered: Rendered,
+    rendered: StatementTemplate,
     values: Readonly<Record<string, DriverValue>> = {},
-): Bound {
+): DriverStatement {
     const parameters = rendered.parameters.map((parameter) => {
         // pass bound values through
         if (!(parameter instanceof Placeholder)) {
@@ -140,7 +140,7 @@ function renderChunk(chunk: Chunk, target: Target): string {
         return renderChunk(chunk.chunks, target);
     }
     // render a named fragment as its expression
-    else if (chunk instanceof Aliased) {
+    else if (chunk instanceof Alias) {
         return renderChunk(chunk.sql, target);
     }
     // render any other SQL value, such as a query, as its fragment

@@ -3,7 +3,6 @@ import type { Many, Model, One } from "./model.ts";
 import { DatabaseError } from "../error/error.ts";
 import { sql, type SQL } from "../sql/index.ts";
 import { Condition } from "./condition.ts";
-import { Order } from "./order.ts";
 import type { Extras, Namespace } from "./namespace.ts";
 import type { ColumnDefinition, Column } from "../table/column.ts";
 import type { Rollup } from "../expression/expression.ts";
@@ -78,7 +77,7 @@ export interface RelationColumn {
 }
 
 /** A relation joining its rows by a key or through a join table. */
-type JoinedRelation = Relation & { readonly on: KeyPath | JunctionPath };
+type RelationJoin = Relation & { readonly on: KeyPath | JunctionPath };
 
 /** The rows a relational read keeps of a table along a path, every row when absent. */
 export type Filter = (table: Table, path: Path) => SQL | undefined;
@@ -280,7 +279,7 @@ class Subquery {
     }
 
     /** Read a key or junction relation of the table, refusing a tree path. */
-    #joined(via: string): JoinedRelation {
+    #joined(via: string): RelationJoin {
         // refuse a tree path
         const relation = this.#relations.get(this.#table, via);
         const on = relation.on;
@@ -295,7 +294,7 @@ class Subquery {
     }
 
     /** Render the join of a related row to the table's row. */
-    #join(relation: JoinedRelation): SQL {
+    #join(relation: RelationJoin): SQL {
         // match the row's key
         const target = relation.table[TABLE];
         const on = relation.on;
@@ -356,7 +355,7 @@ export type RelationBuilder<Tables extends Readonly<Record<string, Table>>> = {
 };
 
 /** The relations a schema declares, by table name and relation name. */
-type Declared<Tables> = { readonly [Name in keyof Tables]?: Readonly<Record<string, Relation>> };
+type RelationMap<Tables> = { readonly [Name in keyof Tables]?: Readonly<Record<string, Relation>> };
 
 /** The models of a schema's tables, as relational reads type them. */
 export type ModelsOf<Tables extends Readonly<Record<string, Table>>, Relations> = {
@@ -397,7 +396,7 @@ type NameOf<Tables extends Readonly<Record<string, Table>>, Target> = {
 /** Declare a schema's relations by table. */
 export function defineRelations<
     const Tables extends Readonly<Record<string, Table>>,
-    const Defined extends Declared<Tables> = {},
+    const Defined extends RelationMap<Tables> = {},
 >(
     tables: Tables,
     define: (builder: RelationBuilder<Tables>) => Defined,
@@ -545,8 +544,8 @@ function aggregateOf(measure: Rollup, column: Column | undefined): SQL {
     else if (measure === "sum") {
         return sql`sum(${column})`;
     }
-    // take the least or greatest value, text by byte
+    // take the least or greatest value
     else {
-        return sql`${sql.raw(measure)}(${Order.text(column)})`;
+        return sql`${sql.raw(measure)}(${column})`;
     }
 }

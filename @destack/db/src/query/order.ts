@@ -236,26 +236,18 @@ export const Order = {
 
     /** Render a column or computed value to sort by, text by byte. */
     expression(table: Table, name: string, namespace: Namespace = { extras: {} }): SQLWrapper {
-        // render a column or computed value, collating text by byte
+        // render a column collated by its declaration
         const expression = namespace.extras[name];
         if (expression === undefined) {
-            return Order.text(Order.column(table, name));
+            return Order.column(table, name);
         }
+
+        // render a computed value with text collated by byte
         const rendered = Expression.render(expression, table, namespace);
 
         return Expression.kind(expression, table, namespace) === "text"
             ? dialectSQL({ sqlite: sql`${rendered}`, postgresql: sql`${rendered} COLLATE "C"` })
             : rendered;
-    },
-
-    /** Collate a text column by byte. */
-    text(column: Column): SQLWrapper {
-        return column.definition.kind === "text"
-            ? dialectSQL({
-                  sqlite: sql`${column}`,
-                  postgresql: sql`${column} COLLATE "C"`,
-              })
-            : column;
     },
 };
 

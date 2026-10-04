@@ -4,7 +4,6 @@ import { classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
-import { DatabaseTier } from "../declare/tier.ts";
 import { SelectBuilder } from "../query/select.ts";
 import { MutationQuery } from "../query/mutation.ts";
 import {
@@ -17,14 +16,14 @@ import {
 } from "../migration/state.ts";
 import { applyPlan } from "../migration/apply.ts";
 import { planTables, type TablePlan } from "../migration/plan.ts";
-import { mergeStates, type MergedState } from "../migration/merge.ts";
+import { mergeStates, type Merge } from "../migration/merge.ts";
 import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
 import { LOG_TOPIC } from "../log/schema.ts";
-import { Commit, typedChannel, type Channel, type OpenChannel } from "../channel/channel.ts";
+import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
 import { qualify } from "../table/namespace.ts";
@@ -64,11 +63,6 @@ export class DatabaseConnection<
         return this.#query;
     }
 
-    /** The tier of the database, absent for a connection over bare tables. */
-    get tier(): DatabaseTier | undefined {
-        return this.state.tier;
-    }
-
     /** Open a channel of a name to the database's other connections, refusing a sole writer's; its reader types the messages. */
     channel(name: string): Channel<unknown> {
         const open = this.state.openChannel;
@@ -82,16 +76,9 @@ export class DatabaseConnection<
         return open(name);
     }
 
-    /** Decide whether the database keeps a table's rows as copies from their home: the tables of a wider tier than its own. */
+    /** Decide whether the database keeps a table's rows as copies from their owning service, as its declaration lists them. */
     copies(table: Table): boolean {
-        const tiers = DatabaseTier.options;
-        const declared = table[TABLE].tier;
-
-        return (
-            this.tier !== undefined &&
-            declared !== undefined &&
-            tiers.indexOf(declared) < tiers.indexOf(this.tier)
-        );
+        return this.state.copies.has(table[TABLE].sqlName);
     }
 
     /** The database's SQL dialect. */
@@ -265,7 +252,7 @@ export class DatabaseConnection<
     }
 
     /** Plan the migration from the applied tables to declared ones. */
-    async plan(state: Pick<MergedState, "declared"> & Partial<MergedState>): Promise<TablePlan> {
+    async plan(state: Pick<Merge, "declared"> & Partial<Merge>): Promise<TablePlan> {
         return planTables({
             applied: await readState(this),
             existing: await readTables(this),
@@ -387,12 +374,12 @@ export type Locality = "embedded" | "networked";
 export class ConnectionState {
     /** Where the connection's database runs. */
     readonly locality: Locality;
-    /** The tier of the database, absent for a connection over bare tables. */
-    readonly tier: DatabaseTier | undefined;
+    /** The SQL names of the tables the database copies, empty for a connection over bare tables. */
+    readonly copies: ReadonlySet<string>;
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
-    readonly openChannel: OpenChannel | undefined;
+    readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
     /** Whether the database keeps a log. */
     isLogged = false;
     /** The submitted statements and transactions. */
@@ -407,13 +394,13 @@ export class ConnectionState {
     /** Create the state of a new connection. */
     constructor(
         locality: Locality,
-        openChannel: OpenChannel | undefined,
+        openChannel: ((name: string) => Channel<unknown>) | undefined,
         announcer: Announcer,
-        tier?: DatabaseTier,
+        copies: readonly string[],
     ) {
         // keep the channels, and watch commits on the log channel
         this.locality = locality;
-        this.tier = tier;
+        this.copies = new Set(copies);
         this.openChannel = openChannel;
         this.commits = new CommitWatch(
             openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),

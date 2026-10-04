@@ -24,7 +24,6 @@ import { Expression } from "../expression/expression.ts";
 import type { Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../inspect/log.ts";
-import type { DatabaseTier } from "../declare/tier.ts";
 import { Tree } from "../tree/tree.ts";
 import type { ColumnDescription } from "../inspect/table.ts";
 import type { TableState } from "../migration/state.ts";
@@ -88,8 +87,7 @@ export class Table<
         // build each column by kind
         const columns = Object.fromEntries(
             description.columns.map((column) => {
-                const isUnlogged =
-                    state.log !== undefined && column.kind !== "binary" && !logged.has(column.name);
+                const isUnlogged = state.log !== undefined && !logged.has(column.name);
                 const definition = {
                     ...COLUMNS[column.kind](column.name).definition,
                     nullable: column.nullable,
@@ -147,8 +145,6 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly columns: Columns;
     /** How long the log keeps the table's changes. */
     readonly retention: ChangeRetention;
-    /** The home tier of the table's rows, replicated into narrower databases, any tier when absent. */
-    readonly tier: DatabaseTier | undefined;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -190,7 +186,6 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.sqlName = identity.sqlName;
         this.columns = columns;
         this.retention = declaration.retention;
-        this.tier = declaration.tier;
         this.moved = declaration.moved;
         this.convert = declaration.convert;
         this.aggregates = declaration.aggregates;
@@ -224,14 +219,10 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return this.#entries;
     }
 
-    /** The logged columns: every column but binary and sensitive ones. */
+    /** The logged columns: every column but sensitive ones. */
     get logged(): Readonly<Record<string, Column>> {
         this.#logged ??= Object.fromEntries(
-            this.entries.filter(
-                ([, column]) =>
-                    column.definition.kind !== "binary" &&
-                    column.definition.classification !== "sensitive",
-            ),
+            this.entries.filter(([, column]) => column.definition.classification !== "sensitive"),
         );
 
         return this.#logged;
@@ -416,8 +407,6 @@ interface TableDeclaration {
     readonly constraints: () => readonly TableConstraint[];
     /** How long the log keeps the table's changes. */
     readonly retention: ChangeRetention;
-    /** The home tier of the table's rows, replicated into narrower databases, any tier when absent. */
-    readonly tier?: DatabaseTier | undefined;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -476,8 +465,6 @@ export interface Dependent {
 
 /** The options of a table. */
 export interface TableOptions<Columns> {
-    /** The home tier of the table's rows, replicated into narrower databases, any tier when absent. */
-    readonly tier?: DatabaseTier;
     /** The constraints and indexes. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
     /** Log committed changes under the scope column, or the database's scope for a table without one. */
@@ -530,13 +517,13 @@ export type Select<Definition extends Table> = {
     [Property in keyof Definitions<Definition>]: ValueIn<Definitions<Definition>[Property]>;
 };
 
-/** The selected record of the columns the log carries: every column except binary and sensitive ones. */
-export type Logged<Definition extends Table> = Definition extends Table
+/** The selected record of the columns the log records: every column except sensitive ones. */
+export type RowImage<Definition extends Table> = Definition extends Table
     ? {
           [
-              Property in keyof Definitions<Definition> as Definitions<Definition>[Property] extends
-                  | { readonly kind: "binary" }
-                  | { readonly classification: "sensitive" }
+              Property in keyof Definitions<Definition> as Definitions<Definition>[Property] extends {
+                  readonly classification: "sensitive";
+              }
                   ? never
                   : Property
           ]: ValueIn<Definitions<Definition>[Property]>;
@@ -605,7 +592,6 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         {
             constraints: () => options.constraints?.(columns) ?? [],
             retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
-            ...(options.tier === undefined ? {} : { tier: options.tier }),
             moved: options.moved ?? {},
             convert: options.convert ?? {},
             aggregates: options.aggregates ?? [],
@@ -618,7 +604,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
 }
 
 /** The columns of a query alias. */
-export type AliasedColumnMap<Definition extends Table, Name extends string> = {
+export type AliasColumnMap<Definition extends Table, Name extends string> = {
     [Property in keyof Definitions<Definition>]: Column<Definitions<Definition>[Property], Name>;
 };
 
@@ -626,7 +612,7 @@ export type AliasedColumnMap<Definition extends Table, Name extends string> = {
 export function alias<Definition extends Table, Name extends string>(
     source: Definition,
     name: Name,
-): Table<Name, AliasedColumnMap<Definition, Name>> & AliasedColumnMap<Definition, Name> {
+): Table<Name, AliasColumnMap<Definition, Name>> & AliasColumnMap<Definition, Name> {
     // qualify each column by the alias
     const columns = aliasColumns(source, name);
     const definition = new Table(
@@ -635,7 +621,6 @@ export function alias<Definition extends Table, Name extends string>(
         {
             constraints: () => [],
             retention: source[TABLE].retention,
-            tier: source[TABLE].tier,
             moved: source[TABLE].moved,
             convert: source[TABLE].convert,
             aggregates: source[TABLE].aggregates,
@@ -677,7 +662,7 @@ function attachColumns(sqlName: string, builders: ColumnBuilderMap): ColumnMap {
 function aliasColumns<Definition extends Table, Name extends string>(
     source: Definition,
     name: Name,
-): AliasedColumnMap<Definition, Name>;
+): AliasColumnMap<Definition, Name>;
 /**
  * Qualify a table's columns by an alias, in property order.
  *

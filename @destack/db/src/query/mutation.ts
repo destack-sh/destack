@@ -1,5 +1,5 @@
 import {
-    Aliased,
+    Alias,
     fill,
     isSQLWrapper,
     Parameter,
@@ -25,12 +25,12 @@ export type InsertValue<Definition extends Table> = {
 };
 
 /** The values one inserted record or one update writes, by property. */
-type Written = Readonly<Record<string, ColumnValue | SQL | Placeholder | undefined>>;
+type WriteRecord = Readonly<Record<string, ColumnValue | SQL | Placeholder | undefined>>;
 
 /** The fields a mutation returns. */
 export interface ReturningSelection {
     /** A changed column or expression. */
-    readonly [property: string]: Column | SQL | Aliased;
+    readonly [property: string]: Column | SQL | Alias;
 }
 
 /** How an insert treats rows that conflict with a unique key. */
@@ -65,9 +65,9 @@ interface MutationState<Definition extends Table> {
     /** The SQL operation. */
     readonly operation: "insert" | "update" | "delete";
     /** The inserted records by property. */
-    readonly records: readonly Written[];
+    readonly records: readonly WriteRecord[];
     /** The updated values by property. */
-    readonly changes: Written;
+    readonly changes: WriteRecord;
     /** The changed rows of an update or deletion. */
     readonly where: SQLWrapper | undefined;
     /** The insert's conflict handling. */
@@ -115,7 +115,7 @@ export class MutationQuery<
         this: MutationQuery<Definition, Result, "insert">,
         values: InsertValue<Definition> | readonly InsertValue<Definition>[],
     ): MutationQuery<Definition, Result, "insert"> {
-        const records: readonly Written[] = Array.isArray(values) ? values : [values];
+        const records: readonly WriteRecord[] = Array.isArray(values) ? values : [values];
 
         return new MutationQuery({ ...this.state, records });
     }
@@ -240,40 +240,7 @@ export class MutationQuery<
 
         // insert every written column, defaulting the columns a record leaves out and refusing properties of no column
         if (state.operation === "insert") {
-            if (state.records.length === 0) {
-                throw new DatabaseError(
-                    "INVALID_QUERY",
-                    `insert into ${table[TABLE].name} has no records`,
-                );
-            }
-            for (const property of new Set(
-                state.records.flatMap((record) => Object.keys(record)),
-            )) {
-                if (!Object.hasOwn(table[TABLE].columns, property)) {
-                    throw new DatabaseError(
-                        "INVALID_QUERY",
-                        `${table[TABLE].name} has no column ${property}`,
-                    );
-                }
-            }
-            const written = table[TABLE].entries.filter(
-                ([property, column]) =>
-                    column.definition.generated === undefined &&
-                    state.records.some((record) => record[property] !== undefined),
-            );
-            const rows = state.records.map(
-                (record) =>
-                    sql`(${sql.join(
-                        written.map(([property, column]) => valueOf(column, record[property])),
-                        sql.raw(", "),
-                    )})`,
-            );
-            parts.push(
-                sql`INSERT INTO ${table} (${sql.join(
-                    written.map(([, column]) => sql.identifier(column.definition.name)),
-                    sql.raw(", "),
-                )}) VALUES ${sql.join(rows, sql.raw(", "))}`,
-            );
+            parts.push(insertSQL(table, state.records));
         }
         // update the matching rows
         else if (state.operation === "update") {
@@ -288,24 +255,8 @@ export class MutationQuery<
         }
 
         // skip or update conflicting rows
-        const conflict = state.conflict;
-        if (conflict !== undefined) {
-            const target =
-                conflict.target === undefined
-                    ? sql.empty()
-                    : sql` (${sql.join(
-                          conflict.target.map((column) => sql.identifier(column.definition.name)),
-                          sql.raw(", "),
-                      )})${conflict.targetWhere === undefined ? sql.empty() : sql` WHERE ${conflict.targetWhere}`}`;
-            parts.push(
-                conflict.action === "nothing"
-                    ? sql` ON CONFLICT${target} DO NOTHING`
-                    : sql` ON CONFLICT${target} DO UPDATE SET ${assignments(table, conflict.set)}${
-                          conflict.setWhere === undefined
-                              ? sql.empty()
-                              : sql` WHERE ${conflict.setWhere}`
-                      }`,
-            );
+        if (state.conflict !== undefined) {
+            parts.push(conflictSQL(table, state.conflict));
         }
 
         // return the changed rows' fields
@@ -317,8 +268,60 @@ export class MutationQuery<
     }
 }
 
+/** Write an insert of every column some record sets. */
+function insertSQL(table: Table, records: readonly WriteRecord[]): SQL {
+    // require records of known columns
+    if (records.length === 0) {
+        throw new DatabaseError("INVALID_QUERY", `insert into ${table[TABLE].name} has no records`);
+    }
+    for (const property of new Set(records.flatMap((record) => Object.keys(record)))) {
+        if (!Object.hasOwn(table[TABLE].columns, property)) {
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `${table[TABLE].name} has no column ${property}`,
+            );
+        }
+    }
+
+    // write the columns some record sets
+    const written = table[TABLE].entries.filter(
+        ([property, column]) =>
+            column.definition.generated === undefined &&
+            records.some((record) => record[property] !== undefined),
+    );
+    const rows = records.map(
+        (record) =>
+            sql`(${sql.join(
+                written.map(([property, column]) => valueOf(column, record[property])),
+                sql.raw(", "),
+            )})`,
+    );
+
+    return sql`INSERT INTO ${table} (${sql.join(
+        written.map(([, column]) => sql.identifier(column.definition.name)),
+        sql.raw(", "),
+    )}) VALUES ${sql.join(rows, sql.raw(", "))}`;
+}
+
+/** Write an insert's clause skipping or updating the rows that conflict with a unique key. */
+function conflictSQL<Definition extends Table>(table: Table, conflict: Conflict<Definition>): SQL {
+    const target =
+        conflict.target === undefined
+            ? sql.empty()
+            : sql` (${sql.join(
+                  conflict.target.map((column) => sql.identifier(column.definition.name)),
+                  sql.raw(", "),
+              )})${conflict.targetWhere === undefined ? sql.empty() : sql` WHERE ${conflict.targetWhere}`}`;
+
+    return conflict.action === "nothing"
+        ? sql` ON CONFLICT${target} DO NOTHING`
+        : sql` ON CONFLICT${target} DO UPDATE SET ${assignments(table, conflict.set)}${
+              conflict.setWhere === undefined ? sql.empty() : sql` WHERE ${conflict.setWhere}`
+          }`;
+}
+
 /** Write `column = value` for each set property. */
-function assignments(table: Table, changes: Written): SQL {
+function assignments(table: Table, changes: WriteRecord): SQL {
     const set = Object.entries(changes).flatMap(([property, value]) => {
         const column = table[TABLE].columns[property];
         if (column === undefined) {

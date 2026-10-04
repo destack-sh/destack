@@ -248,19 +248,19 @@ export interface ReferenceAction {
 }
 
 /** A column definition of a value, kind and JSON form, as its constructor declares it. */
-type Defined<
+type ColumnDefinitionOf<
     Value extends ColumnValue,
     Kind extends ColumnKind,
     Json extends JsonValue = JsonOf<Value>,
 > = ColumnDefinition<Value, Json> & { readonly kind: Kind };
 
 /** Define text. */
-export function text(name: string): ColumnBuilder<Defined<string, "text">>;
+export function text(name: string): ColumnBuilder<ColumnDefinitionOf<string, "text">>;
 /** Define text from a set of strings. */
 export function text<const Values extends readonly [string, ...string[]]>(
     name: string,
     options: { readonly enum: Values },
-): ColumnBuilder<Defined<Values[number], "text">>;
+): ColumnBuilder<ColumnDefinitionOf<Values[number], "text">>;
 /**
  * Define text.
  *
@@ -269,7 +269,7 @@ export function text<const Values extends readonly [string, ...string[]]>(
 export function text(
     name: string,
     options?: { readonly enum: readonly [string, ...string[]] },
-): ColumnBuilder<Defined<string, "text">> {
+): ColumnBuilder<ColumnDefinitionOf<string, "text">> {
     // keep the enum values beside the text column
     const types = { sqlite: "text", postgresql: "text" };
     if (options === undefined) {
@@ -281,7 +281,7 @@ export function text(
 }
 
 /** Define an exact integer. */
-export function integer(name: string): ColumnBuilder<Defined<number, "integer">> {
+export function integer(name: string): ColumnBuilder<ColumnDefinitionOf<number, "integer">> {
     const validator = schema
         .number()
         .int()
@@ -305,7 +305,7 @@ export function integer(name: string): ColumnBuilder<Defined<number, "integer">>
 }
 
 /** Define a double-precision number. */
-export function real(name: string): ColumnBuilder<Defined<number, "real">> {
+export function real(name: string): ColumnBuilder<ColumnDefinitionOf<number, "real">> {
     return scalarColumn(
         name,
         "real",
@@ -315,7 +315,7 @@ export function real(name: string): ColumnBuilder<Defined<number, "real">> {
 }
 
 /** Define a boolean. */
-export function boolean(name: string): ColumnBuilder<Defined<boolean, "boolean">> {
+export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean, "boolean">> {
     const validator = schema.boolean();
     const column = scalarColumn(
         name,
@@ -363,11 +363,11 @@ export function boolean(name: string): ColumnBuilder<Defined<boolean, "boolean">
 export function json<Value extends JsonValue>(
     name: string,
     validator: schema.Schema<Value>,
-): ColumnBuilder<Defined<Value, "json", Value>> {
+): ColumnBuilder<ColumnDefinitionOf<Value, "json", Value>> {
     // require a declarative schema
     defineSchema(validator);
 
-    return new ColumnBuilder<Defined<Value, "json", Value>>({
+    return new ColumnBuilder<ColumnDefinitionOf<Value, "json", Value>>({
         name,
         kind: "json",
         types: { sqlite: "text", postgresql: "jsonb" },
@@ -398,13 +398,13 @@ export function json<Value extends JsonValue>(
 export function identifier<const Prefix extends string>(
     name: string,
     prefix: Prefix | (() => Prefix),
-): ColumnBuilder<Defined<Identifier<Prefix>, "text", string>> {
+): ColumnBuilder<ColumnDefinitionOf<Identifier<Prefix>, "text", string>> {
     const validator =
         typeof prefix === "function"
             ? schema.lazy(() => schema.identifier(prefix()))
             : schema.identifier(prefix);
 
-    return new ColumnBuilder<Defined<Identifier<Prefix>, "text", string>>({
+    return new ColumnBuilder<ColumnDefinitionOf<Identifier<Prefix>, "text", string>>({
         name,
         kind: "text",
         types: { sqlite: "text", postgresql: "text" },
@@ -419,10 +419,10 @@ export function identifier<const Prefix extends string>(
 }
 
 /** Define bytes. */
-export function binary(name: string): ColumnBuilder<Defined<Uint8Array, "binary">> {
+export function binary(name: string): ColumnBuilder<ColumnDefinitionOf<Uint8Array, "binary">> {
     const validator = schema.instanceof(Uint8Array);
 
-    return new ColumnBuilder<Defined<Uint8Array, "binary">>({
+    return new ColumnBuilder<ColumnDefinitionOf<Uint8Array, "binary">>({
         name,
         kind: "binary",
         types: { sqlite: "blob", postgresql: "bytea" },
@@ -442,18 +442,18 @@ export function binary(name: string): ColumnBuilder<Defined<Uint8Array, "binary"
 }
 
 /** Define a reference to content a blob store keeps: the SHA-256 digest of its bytes, as hexadecimal. */
-export function blob(name: string): ColumnBuilder<Defined<string, "blob">> {
+export function blob(name: string): ColumnBuilder<ColumnDefinitionOf<string, "blob">> {
     return scalarColumn(name, "blob", { sqlite: "text", postgresql: "text" }, Digest);
 }
 
 /** Define an exact signed 64-bit integer. */
-export function bigint(name: string): ColumnBuilder<Defined<bigint, "bigint">> {
+export function bigint(name: string): ColumnBuilder<ColumnDefinitionOf<bigint, "bigint">> {
     const validator = schema
         .bigint()
         .min(-(1n << 63n))
         .max((1n << 63n) - 1n);
 
-    return new ColumnBuilder<Defined<bigint, "bigint">>({
+    return new ColumnBuilder<ColumnDefinitionOf<bigint, "bigint">>({
         name,
         kind: "bigint",
         types: { sqlite: "integer", postgresql: "bigint" },
@@ -477,7 +477,7 @@ export function bigint(name: string): ColumnBuilder<Defined<bigint, "bigint">> {
 }
 
 /** Define an exact decimal string. */
-export function numeric(name: string): ColumnBuilder<Defined<string, "numeric">> {
+export function numeric(name: string): ColumnBuilder<ColumnDefinitionOf<string, "numeric">> {
     // read SQLite's arithmetic results as decimal text
     return scalarColumn(
         name,
@@ -500,8 +500,8 @@ function scalarColumn<Value extends string | number | boolean | null, Kind exten
     types: Readonly<Record<Dialect, string>>,
     validator: schema.Schema<Value>,
     read: (value: unknown) => unknown = (value) => value,
-): ColumnBuilder<Defined<Value, Kind, Value>> {
-    return new ColumnBuilder<Defined<Value, Kind, Value>>({
+): ColumnBuilder<ColumnDefinitionOf<Value, Kind, Value>> {
+    return new ColumnBuilder<ColumnDefinitionOf<Value, Kind, Value>>({
         name,
         kind,
         types,
