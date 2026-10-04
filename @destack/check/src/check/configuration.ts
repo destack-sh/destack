@@ -102,8 +102,11 @@ export function lintConfiguration(
             "unicorn/no-thenable": "off",
             "eslint/no-control-regex": "off",
 
-            // single-letter names outside indices and vector components
-            "eslint/id-length": ["error", { min: 2, exceptions: ["i", "j", "x", "y", "z", "_"] }],
+            // single-letter names outside indices, vector components and the message tag
+            "eslint/id-length": [
+                "error",
+                { min: 2, exceptions: ["i", "j", "x", "y", "z", "_", "t"] },
+            ],
 
             // lowercase single-word or kebab-case file names
             "unicorn/filename-case": ["error", { case: "kebabCase" }],

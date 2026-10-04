@@ -1,28 +1,10 @@
 {
-    "plugins": [
-        "typescript",
-        "oxc",
-        "unicorn"
-    ],
-    "categories": {
-        "correctness": "error",
-        "suspicious": "error",
-        "perf": "error"
-    },
-    "jsPlugins": [
-        "@destack/check/lint"
-    ],
+    "plugins": ["typescript", "oxc", "unicorn"],
+    "categories": { "correctness": "error", "suspicious": "error", "perf": "error" },
+    "jsPlugins": ["@destack/check/lint"],
     "rules": {
-        "eslint/curly": [
-            "error",
-            "all"
-        ],
-        "typescript/parameter-properties": [
-            "error",
-            {
-                "prefer": "class-property"
-            }
-        ],
+        "eslint/curly": ["error", "all"],
+        "typescript/parameter-properties": ["error", { "prefer": "class-property" }],
         "oxc/no-accumulating-spread": "error",
         "eslint/no-unused-vars": [
             "error",
@@ -32,21 +14,12 @@
                 "ignoreRestSiblings": true
             }
         ],
-        "typescript/consistent-type-assertions": [
-            "error",
-            {
-                "assertionStyle": "never"
-            }
-        ],
+        "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
         "typescript/no-non-null-assertion": "error",
         "typescript/no-explicit-any": "error",
         "typescript/ban-ts-comment": [
             "error",
-            {
-                "ts-expect-error": true,
-                "ts-ignore": true,
-                "ts-nocheck": true
-            }
+            { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true }
         ],
         "typescript/no-unsafe-type-assertion": "error",
         "typescript/no-unsafe-argument": "error",
@@ -74,24 +47,9 @@
         "eslint/no-control-regex": "off",
         "eslint/id-length": [
             "error",
-            {
-                "min": 2,
-                "exceptions": [
-                    "i",
-                    "j",
-                    "x",
-                    "y",
-                    "z",
-                    "_"
-                ]
-            }
+            { "min": 2, "exceptions": ["i", "j", "x", "y", "z", "_", "t"] }
         ],
-        "unicorn/filename-case": [
-            "error",
-            {
-                "case": "kebabCase"
-            }
-        ],
+        "unicorn/filename-case": ["error", { "case": "kebabCase" }],
         "eslint/no-console": "error",
         "unicorn/require-post-message-target-origin": "off",
         "unicorn/require-module-specifiers": "off",
@@ -131,53 +89,26 @@
             "rules": {
                 "eslint/no-restricted-imports": [
                     "error",
-                    {
-                        "patterns": [
-                            "**/server",
-                            "**/server/**",
-                            "*/server"
-                        ]
-                    }
+                    { "patterns": ["**/server", "**/server/**", "*/server"] }
                 ]
             }
         },
         {
-            "files": [
-                "@destack/account/src/authentication/database.ts"
-            ],
-            "rules": {
-                "typescript/no-unnecessary-type-parameters": "off"
-            }
+            "files": ["@destack/account/src/authentication/database.ts"],
+            "rules": { "typescript/no-unnecessary-type-parameters": "off" }
         },
         {
-            "files": [
-                "@destack/package/src/declare/package.test.ts"
-            ],
-            "rules": {
-                "destack/valid-package-handle": "off"
-            }
+            "files": ["@destack/forge/tests/fixture/consumer/run.js"],
+            "rules": { "eslint/no-console": "off", "typescript/no-unsafe-call": "off" }
         },
         {
-            "files": [
-                "@destack/registry/tests/fixture/consumer/run.js"
-            ],
-            "rules": {
-                "eslint/no-console": "off",
-                "typescript/no-unsafe-call": "off"
-            }
+            "files": ["@destack/package/src/declare/package.test.ts"],
+            "rules": { "destack/valid-package-handle": "off" }
         },
         {
-            "files": [
-                "@destack/telemetry/src/browser/devtools.ts"
-            ],
-            "rules": {
-                "eslint/no-console": "off"
-            }
+            "files": ["@destack/telemetry/src/browser/devtools.ts"],
+            "rules": { "eslint/no-console": "off" }
         }
     ],
-    "options": {
-        "denyWarnings": true,
-        "typeAware": true,
-        "respectEslintDisableDirectives": false
-    }
+    "options": { "denyWarnings": true, "typeAware": true, "respectEslintDisableDirectives": false }
 }

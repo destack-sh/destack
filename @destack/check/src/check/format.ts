@@ -37,12 +37,13 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
         // supply fixed formatting and include every selected file
         const configuration = join(temporary, "format.json");
         await writeFile(configuration, JSON.stringify(formatConfiguration));
-        // leave migration snapshots and byte-exact fixture sources and outputs as written
+        // leave migration snapshots, generated JSON Schemas and byte-exact fixture files as written
         const ignore = join(temporary, "ignore");
         await writeFile(
             ignore,
             [
                 "**/migration/**/snapshot.json",
+                "**/schemas/*.json",
                 "**/fixture/**/source/**",
                 "**/fixture/**/expected/**",
             ]

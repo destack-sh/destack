@@ -45,7 +45,10 @@
         "eslint/no-unassigned-vars": "off",
         "unicorn/no-thenable": "off",
         "eslint/no-control-regex": "off",
-        "eslint/id-length": ["error", { "min": 2, "exceptions": ["i", "j", "x", "y", "z", "_"] }],
+        "eslint/id-length": [
+            "error",
+            { "min": 2, "exceptions": ["i", "j", "x", "y", "z", "_", "t"] }
+        ],
         "unicorn/filename-case": ["error", { "case": "kebabCase" }],
         "eslint/no-console": "error",
         "unicorn/require-post-message-target-origin": "off",

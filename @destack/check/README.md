@@ -29,10 +29,10 @@ bun run destack-check configure
         "types": ["bun", "@destack/build/browser", "vite/client"],
         // JSX for @opentui/solid when declared, else for @destack/view in a package with TSX modules using it
         "jsx": "preserve",
-        "jsxImportSource": "@destack/view"
+        "jsxImportSource": "@destack/view",
     },
     // the sources and configuration files, without nested packages
-    "include": ["src", "tests", "*.config.ts"]
+    "include": ["src", "tests", "*.config.ts"],
 }
 ```
 
