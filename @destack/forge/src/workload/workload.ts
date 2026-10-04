@@ -19,7 +19,7 @@ export const forgeConfiguration = new ResourceHandle<ForgeConfiguration>(
 /** The forge: repositories and their references, packages with their releases and builds, and the npm endpoints, one per residency. */
 export const forgeWorkload = defineWorkload({
     name: "forge",
-    placement: ["per-residency"],
+    placement: ["residency"],
     start: (context) => {
         // serve the forge over its database, following the account service as its placement
         const forge = new ForgeServer({
