@@ -112,7 +112,6 @@ const shelf = defineObject({
 const shelfDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...book.tables, ...shelf.tables, ...slip.tables],
-    copies: [],
 });
 
 /** Read a call's refusal as the service reports it to its caller. */

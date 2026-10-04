@@ -88,7 +88,6 @@ test.for(TEST_DIALECTS)(
             defineDatabase({
                 name: "main",
                 tables: [...objectDatabase.tables, ...memo.tables, ...receipt.tables],
-                copies: [],
             }),
             { isMigrated: true },
         );
@@ -205,7 +204,6 @@ test("settle the address of a recipient without a user, and record it again once
         defineDatabase({
             name: "main",
             tables: [...objectDatabase.tables, ...memo.tables],
-            copies: [],
         }),
         { isMigrated: true },
     );

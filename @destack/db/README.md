@@ -72,7 +72,6 @@ export const relations = defineRelations({ project, task, tag, taskTag }, (r) =>
 export const work = defineDatabase({
     name: "work",
     tables: [project, task, tag, taskTag],
-    copies: [],
     relations,
 });
 

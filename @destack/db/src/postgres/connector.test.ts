@@ -18,7 +18,7 @@ const ADDRESS = TEST_DIALECTS.includes("postgresql")
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
 
 /** The database with the notes. */
-const notes = defineDatabase({ name: "notes", tables: [note], copies: [] });
+const notes = defineDatabase({ name: "notes", tables: [note] });
 
 test.skipIf(ADDRESS === undefined)(
     "refuse an unmigrated PostgreSQL database, then open the migrated one as its sole writer",

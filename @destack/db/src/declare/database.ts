@@ -106,8 +106,8 @@ export interface DatabaseDefinition<
     readonly name: string;
     /** The tables the database owns, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
-    /** The tables the database copies from their owning service, which its follows fill. */
-    readonly copies: readonly Table[];
+    /** The tables the database copies from their owning service, which its follows fill, none by default. */
+    readonly copies?: readonly Table[];
     /** The relations of the tables. */
     readonly relations?: Relations<Models>;
 }
@@ -119,7 +119,7 @@ export function defineDatabase<
     // reject duplicate SQL names within and across the owned and copied tables
     const owner = ModuleMetadata.require(module, "defineDatabase").package;
     const names = new Map<string, Table>();
-    const copies = expandTrees(definition.copies);
+    const copies = expandTrees(definition.copies ?? []);
     for (const table of [...expandTrees(definition.tables), ...copies]) {
         const { sqlName } = table[TABLE];
         if (names.has(sqlName)) {

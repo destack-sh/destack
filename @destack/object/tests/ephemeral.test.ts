@@ -458,7 +458,6 @@ async function serveBoards(dialect: Dialect) {
         defineDatabase({
             name: "main",
             tables: [journal, ...board.tables, ...profile.tables],
-            copies: [],
         }),
         { isMigrated: true },
     );

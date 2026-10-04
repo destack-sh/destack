@@ -59,5 +59,4 @@ export const notesService = defineService("notes", { objects: { notebook, note }
 export const notesDatabase = defineDatabase({
     name: "main",
     tables: [...notebook.tables, ...note.tables, journal],
-    copies: [],
 });

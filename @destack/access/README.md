@@ -211,7 +211,7 @@ const role = await authorization.createRole(space, {
 `accessTables` lists the tables every database with protected objects includes.
 
 ```ts
-export const main = defineDatabase({ name: "main", tables: [...accessTables, notes], copies: [] });
+export const main = defineDatabase({ name: "main", tables: [...accessTables, notes]});
 ```
 
 ## Copies

@@ -42,7 +42,7 @@ test("read external objects named by their key from the database their files ope
     // open each scope's entries from files, here one database built per scope
     const files = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "files", tables: entry.tables, copies: [] }),
+        defineDatabase({ name: "files", tables: entry.tables }),
         { isMigrated: true },
     );
     onTestFinished(() => files.close());

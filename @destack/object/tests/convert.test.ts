@@ -39,7 +39,6 @@ test.for(TEST_DIALECTS)(
             defineDatabase({
                 name: "main",
                 tables: [journal, ...card.tables],
-                copies: [],
             }),
             { isMigrated: true },
         );

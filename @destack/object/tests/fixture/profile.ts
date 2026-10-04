@@ -32,5 +32,4 @@ export const profilesService = defineService("profiles", { objects: { profile } 
 export const profilesDatabase = defineDatabase({
     name: "main",
     tables: [...profile.tables, journal],
-    copies: [],
 });

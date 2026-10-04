@@ -211,7 +211,7 @@ test("refuse serving history that reads through an object keeping none", async (
     // refuse the sheet's history, which the folder's lost changes decided
     const storage = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "main", tables: [journal], copies: [] }),
+        defineDatabase({ name: "main", tables: [journal] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -237,7 +237,6 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
         defineDatabase({
             name: "main",
             tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
-            copies: [],
         }),
         { isMigrated: true },
     );

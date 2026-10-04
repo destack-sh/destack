@@ -49,7 +49,6 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
         defineDatabase({
             name: "main",
             tables: [...auditTables, ...call.tables, space.table, journal],
-            copies: [],
         }),
         { isMigrated: true },
     );

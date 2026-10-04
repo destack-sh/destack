@@ -44,7 +44,6 @@ const alert = defineObject({
 const alertDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...alert.tables],
-    copies: [],
 });
 
 test.each(TEST_DIALECTS)(

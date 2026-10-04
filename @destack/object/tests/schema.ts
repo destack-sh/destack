@@ -153,5 +153,4 @@ export const objectDatabase = defineDatabase({
         ...taskCopy.tables,
         ...folder.tables,
     ],
-    copies: [],
 });

@@ -46,7 +46,6 @@ const member = defineObject({
 const memberDatabase = defineDatabase({
     name: "main",
     tables: [journal, outbox, ...member.tables],
-    copies: [],
 });
 
 test.each(TEST_DIALECTS)(

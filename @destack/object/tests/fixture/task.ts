@@ -104,5 +104,4 @@ export const tasksService = defineService("tasks", { objects: { project, task, c
 export const tasksDatabase = defineDatabase({
     name: "main",
     tables: [...project.tables, ...task.tables, ...comment.tables, journal],
-    copies: [],
 });

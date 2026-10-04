@@ -291,7 +291,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
     // serve the tallies of a space
     const storage = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "main", tables: [...tally.tables, journal], copies: [] }),
+        defineDatabase({ name: "main", tables: [...tally.tables, journal] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -350,7 +350,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     // serve the stamps of a space
     const storage = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "main", tables: [...stamp.tables, journal], copies: [] }),
+        defineDatabase({ name: "main", tables: [...stamp.tables, journal] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());

@@ -330,7 +330,6 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         defineDatabase({
             name: "main",
             tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
-            copies: [],
         }),
         { isMigrated: true },
     );

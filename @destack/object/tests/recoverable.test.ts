@@ -45,7 +45,6 @@ const credential = defineObject({
 const credentialDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...credential.tables],
-    copies: [],
 });
 
 test.each(TEST_DIALECTS)(

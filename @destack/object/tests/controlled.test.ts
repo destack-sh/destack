@@ -41,7 +41,6 @@ const machine = defineObject({
 const machineDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...machine.tables],
-    copies: [],
 });
 
 test.each(TEST_DIALECTS)(

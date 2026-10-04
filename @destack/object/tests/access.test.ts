@@ -27,7 +27,6 @@ test.for(TEST_DIALECTS)(
             defineDatabase({
                 name: "main",
                 tables: [...role.tables, space.table, journal],
-                copies: [],
             }),
             { isMigrated: true },
         );

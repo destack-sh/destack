@@ -65,7 +65,6 @@ const documentsService = defineService("documents", { objects: { document } });
 const documentsDatabase = defineDatabase({
     name: "main",
     tables: [...document.tables, journal],
-    copies: [],
 });
 
 /** Serve a space's documents to bearer-named users. */

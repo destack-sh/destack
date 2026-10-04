@@ -53,7 +53,6 @@ const reminder = defineObject({
 const reminderDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...reminder.tables],
-    copies: [],
 });
 
 test.each(TEST_DIALECTS)(

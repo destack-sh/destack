@@ -37,7 +37,7 @@ const results = await calls.execute(request, fingerprint, {
 `journal` is the table a database with journaled calls includes.
 
 ```ts
-export const main = defineDatabase({ name: "main", tables: [journal, ...note.tables] });
+export const main = defineDatabase({ name: "main", tables: [journal, ...note.tables]});
 ```
 
 ## Recorders
@@ -119,5 +119,5 @@ await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
 `auditTables` lists the tables of the history's database.
 
 ```ts
-export const histories = defineDatabase({ name: "history", tables: auditTables });
+export const histories = defineDatabase({ name: "history", tables: auditTables});
 ```

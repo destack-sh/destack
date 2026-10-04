@@ -40,7 +40,6 @@ const chore = defineObject({
 const choreDatabase = defineDatabase({
     name: "main",
     tables: [journal, ...chore.tables],
-    copies: [],
 });
 
 test.each(TEST_DIALECTS)(

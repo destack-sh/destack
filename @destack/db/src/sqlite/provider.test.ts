@@ -19,7 +19,7 @@ const note = defineTable("note", { id: text("id").primaryKey(), title: text("tit
 const beside = defineTable("beside", { id: text("id").primaryKey() });
 
 /** The database with the notes. */
-const notes = defineDatabase({ name: "notes", tables: [note], copies: [] });
+const notes = defineDatabase({ name: "notes", tables: [note] });
 
 /** Close a connection once it opens, or read why it failed to. */
 function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Promise<unknown> {

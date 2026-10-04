@@ -136,7 +136,7 @@ function review(plan: TablePlan) {
 
 /** Declare one release of the main database over its tables. */
 function release(tables: readonly Table[]) {
-    return defineDatabase({ name: "main", tables, copies: [] });
+    return defineDatabase({ name: "main", tables });
 }
 
 test.for(TEST_DIALECTS)(
@@ -510,7 +510,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskOne]);
         const state = (tables: readonly Table[]) =>
-            defineDatabase({ name: "main", tables, copies: [] }).state().tables[dialect];
+            defineDatabase({ name: "main", tables }).state().tables[dialect];
 
         // create a shared table once
         const plan = await database.plan(mergeStates([state([taskOne]), state([taskOne])]));
@@ -534,7 +534,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskOne]);
         const state = (tables: readonly Table[]) =>
-            defineDatabase({ name: "main", tables, copies: [] }).state().tables[dialect];
+            defineDatabase({ name: "main", tables }).state().tables[dialect];
         await database.migrate([taskOne]);
         await database.execute(
             sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
@@ -613,7 +613,6 @@ test.for(TEST_DIALECTS)(
         const declared = defineDatabase({
             name: "main",
             tables: [taskOne],
-            copies: [],
         });
 
         // report the missing table until applied
@@ -637,7 +636,7 @@ test.each(TEST_DIALECTS)(
         // migrate a database with documents but without their folders
         const storage = await TestDatabase.create(
             dialect,
-            defineDatabase({ name: "documents", tables: [document], copies: [] }),
+            defineDatabase({ name: "documents", tables: [document] }),
             { isMigrated: true },
         );
         onTestFinished(() => storage.close());

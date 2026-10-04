@@ -38,5 +38,4 @@ export const pagesService = defineService("pages", { objects: { page } });
 export const pageDatabase = defineDatabase({
     name: "main",
     tables: [...page.tables, journal],
-    copies: [],
 });

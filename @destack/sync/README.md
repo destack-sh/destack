@@ -265,7 +265,6 @@ tracker.broadcast(topic, event);
 export const local = defineDatabase({
     name: "local",
     tables: [...replicaTables, ...predictionTables, project, task],
-    copies: [],
 });
 ```
 

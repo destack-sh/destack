@@ -83,7 +83,6 @@ const database = defineDatabase({
     name: "work",
     tables: [project, task, tag, taskTag, page],
     relations,
-    copies: [],
 });
 
 /** Open the database with two projects, five tasks, two tags and a page forest. */
@@ -220,7 +219,7 @@ test("read the first row by order, none when no row meets the condition, and ref
 });
 
 test("refuse relations naming a table the database does not keep", () => {
-    expect(() =>
-        defineDatabase({ name: "projects", tables: [project], relations, copies: [] }),
-    ).toThrow(new TypeError("relations name table task, which the database does not keep"));
+    expect(() => defineDatabase({ name: "projects", tables: [project], relations })).toThrow(
+        new TypeError("relations name table task, which the database does not keep"),
+    );
 });
