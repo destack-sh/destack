@@ -249,7 +249,7 @@ Write code and prose that read plain and boring.
   const MAX_IDENTIFIER_LENGTH = 63;
   ```
 
-- **WL15** Branches SHOULD be spelled out at the same level as if-else chains instead of repeated continue and return jumps.
+- **WL15** Branches SHOULD be spelled out at the same level as if-else chains (or similar multi branch-y group) instead of repeated _discontinous_ continue and return jumps.
   ```text
   // option A
   if A {
@@ -512,7 +512,7 @@ Land changes through branches and plain commits under the strict cooperation pro
 - **SB01** Work SHOULD happen on branches and worktrees off a main branch.
 - **SB02** Branches SHOULD rebase off main frequently and merge back into main.
 
-- **SB03** Merges into main SHOULD fast-forward or cherry-pick to retain history.
+- **SB03** Merges into main SHOULD fast-forward (or cherry-pick) to retain history.
 - **SB04** Merges into main MAY squash many small commits.
 
 ### Committing (SC)
