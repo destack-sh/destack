@@ -34,6 +34,7 @@ permission("read"); // the holders of another permission on the object
 through("parent", "read"); // the holders of a permission on the related object
 grantersOf("object"); // whoever may grant on the object a row references
 readersOf("object", "relation"); // whoever sees the relationships of the object a row references
+contained(principal.installation); // the principals inside the object's scope, or inside the scope it is
 resource({ team: 1 }); // everyone, where a condition over the object's attributes holds
 context({ team: 1 }); // everyone, where a condition over the request's attributes holds
 union(relation("owner"), relation("editor")); // also intersection and exclusion
@@ -210,12 +211,12 @@ const role = await authorization.createRole(space, {
 `accessTables` lists the tables every database with protected objects includes.
 
 ```ts
-export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
+export const main = defineDatabase({ name: "main", tables: [...accessTables, notes], copies: [] });
 ```
 
 ## Copies
 
-`chain` lists the `chain` shape subscriptions a database below a scope follows for each scope above it.
+`chain` lists the `chain` shape subscriptions a database below a scope follows for each scope above it, each copy named by `Authorizer.chainCopy(below)`.
 
 ```ts
 for (const request of await authorizer.chain(database, spaceId, { isHome: true })) {
@@ -228,6 +229,20 @@ for (const request of await authorizer.chain(database, spaceId, { isHome: true }
             { subscription: request },
         );
 }
+```
+
+## Representation
+
+`Caller.represent` lets a caller act as the principal an object stands for, with the caller as its actor, and `AccessContext.withCells` lets hosts act for the cells they are.
+
+```ts
+const represented = Caller.represent(caller, {
+    permission,
+    object: space,
+    subject,
+    within: [account],
+});
+const served = AccessContext.withCells(context);
 ```
 
 ## Enclosed scopes

@@ -4,38 +4,58 @@ Keep the results of tree-shaped queries over logged tables current in subscriber
 
 ## Queries
 
-A `Query` selects rows of one logged table in some scopes, with the rows each one includes.
+`Query` selects rows of one logged table in some scopes with db's `QueryOptions`.
 
 ```ts
+const relations = defineRelations({ project, task }, (r) => ({
+    project: { tasks: r.many.task({ from: r.project.id, to: r.task.projectId }) },
+}));
 const board: Query = {
     table: project,
     scopes: [spaceId],
-    where: Condition.eq("archived", false),
-    order: [{ column: "name", direction: "asc" }],
+    relations,
+    where: { archived: false },
+    orderBy: { name: "asc" },
     limit: 50,
-    include: {
-        tasks: { table: task, on: { kind: "key", column: "projectId", parent: "id" }, limit: 5 },
-        size: {
-            table: task,
-            on: { kind: "key", column: "projectId", parent: "id" },
-            aggregate: { values: { tasks: { function: "count" } } },
-        },
-    },
+    with: { tasks: { limit: 5 } },
 };
+const size: Query = {
+    table: project,
+    scopes: [spaceId],
+    relations,
+    with: { tasks: { aggregate: { values: { tasks: { function: "count" } } } } },
+};
+```
+
+## Includes
+
+`included(query, name)` resolves an include of a query as a query of the related table.
+
+```ts
+const tasks = included(board, "tasks"); // a Query over task, limited to 5 per project
 ```
 
 ## Query fields
 
-Each field of a query narrows, extends or measures its rows.
+`aggregate` keeps measures per group in place of a query's rows.
 
-| Field | Meaning |
-|---|---|
-| `where` | A db `Condition` over logged columns and computed values |
-| `compute` | Values computed per row, with `lookup` and `rollup` over relations |
-| `order`, `limit` | A window of the first rows, per held row for an include |
-| `include` | Rows a `key`, `junction`, `descendants` or `ancestors` path reaches from each held row |
-| `relations` | Related rows the condition measures without holding them |
-| `aggregate` | `count`, `sum`, `avg`, `min` and `max` per `groupBy` group, held instead of the rows |
+```ts
+const query: Query = {
+    table: task,
+    scopes: [spaceId],
+    where: { isDone: false }, // a db Condition over logged columns and computed values
+    extras: { comments: { kind: "rollup", function: "count", via: "comments", where: {} } }, // values computed per row over relations
+    orderBy: { createdAt: "desc" }, // the first rows, completed by the primary key, per selected row
+    limit: 50,
+    with: { comments: { limit: 3 } }, // the rows each named relation joins: a key, junction or tree path
+    relations, // the schema's relations, which with, conditions, lookups and rollups name
+};
+const counts: Query = {
+    table: task,
+    scopes: [spaceId],
+    aggregate: { groupBy: ["state"], values: { tasks: { function: "count" } } }, // kept instead of the rows
+};
+```
 
 ## Feeds
 
@@ -53,23 +73,27 @@ for await (const rows of feed.watch("board", board, signal)) {
 
 ## Pages
 
-A `QueryPage` moves a subscriber from one log position to the next.
+`Page` moves a subscriber from one log position to the next, with rows in their JSON form: exact integers as decimal text and bytes as base64.
 
-| Field | Meaning |
-|---|---|
-| `reset` | A snapshot starts, so the subscriber drops what it holds |
-| `complete` | The subscriber holds its queries at `position` |
-| `changes` | Rows entering, changing or leaving, with the columns concealed from the subscriber |
-| `results` | Aggregate groups changing |
-| `outcomes` | The subscriber's mutations the source executed or rejected |
-| `broadcasts` | Events sent to what the subscriber follows |
+```ts
+interface Page {
+    readonly reset: boolean; // a snapshot starts, so the subscriber drops what it has
+    readonly complete: boolean; // the subscriber has its queries at position
+    readonly position: LogPosition; // the log position to continue after
+    readonly changes: readonly RowChange[]; // rows entering, changing or leaving, concealed columns named
+    readonly results?: readonly ResultChange[]; // aggregate groups changing
+    readonly broadcasts?: readonly Broadcast[]; // events sent to what the subscriber follows
+    readonly scopes?: readonly string[]; // the scopes the subscription reads, nearest first
+}
+```
 
 ## Audiences
 
-An `Audience` decides which rows a subscriber may hold and which columns it may read, and `EVERYONE` admits all.
+An `Audience` decides which rows a subscriber may have and which columns it may read, and `Watch.matches` tests a change against the `watches` that decide again.
 
 ```ts
 feed.subscribe({ board }, after, signal, { audience: EVERYONE });
+const isDeciding = Watch.matches(audience.watches, change);
 ```
 
 ## Dataflows
@@ -81,7 +105,7 @@ const dataflow = new Dataflow(
     { board },
     { audience, database, changesThrough: changesThroughLog(database), isMaterialized: true },
 );
-await dataflow.fill(await View.latest(database));
+await dataflow.load(await View.latest(database));
 const rows = await dataflow.read("board");
 ```
 
@@ -91,13 +115,15 @@ A `Replica` copies one scope's query results into another database.
 
 ```ts
 const copy = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, signal), signal, {
+await copy.follow(local, ({ after }, signal) => feed.subscribe({ board }, after, signal), signal, {
     prediction,
 });
 const projects = await copy.rows(local, "board", board, prediction);
 ```
 
-A table in `within` is copied across scopes: its rows live in the scopes that another copied table's rows are.
+## Copies across scopes
+
+`within` copies a table across scopes, into the scopes another copied table's rows live in.
 
 ```ts
 const copy = new Replica({
@@ -108,35 +134,97 @@ const copy = new Replica({
 });
 ```
 
-Several replicas may include one row, which stays until none includes it and keeps a column while one of them shows it.
+## Shared rows
+
+`Replica.includes` matches the rows a replica includes, and a row stays until no replica includes it.
 
 ```ts
 const tasks = await local.select().from(task).where(Replica.includes("board", task));
 ```
 
-A database copying another server's rows sends a `ReplicaRequest` to a `ReplicaSource`, and resumes only the request it completed.
+## Dropping copies
+
+`drop` deletes the rows only this copy includes, retracts its projections and forgets its record, and `Replica.subscriptions` lists the subscriptions a database's copies follow.
 
 ```ts
-const request = {
-    name: "chain",
-    scope: accountId,
-    below: spaceId,
-    access: true,
-    held: [],
-    copied: [],
-    rows: [],
-};
-await copy.follow(local, (after, signal) => source.stream({ ...request, after }, signal), signal, {
-    request,
+const kept = await Replica.subscriptions(local);
+await copy.drop(local);
+```
+
+## Projections
+
+`projectors` upsert a target row per kept source row by its unique source reference, and retract it when the source row leaves the copy.
+
+```ts
+const inbox = new Replica({ name: "inbox", scope: spaceId, tables: [], projectors: [entries] });
+```
+
+## Shapes
+
+`defineShape` declares a served shape, and `subscription` builds the `Subscription` cells and clients follow it through.
+
+```ts
+const board = defineShape({
+    name: "board",
+    parameters: schema.object({ board: schema.string() }),
+    audience: "reader",
+    replica: ({ name, scope, parameters }) =>
+        new Replica({
+            name,
+            scope,
+            tables: [task],
+            where: new Map([[task, { boardId: parameters.board }]]),
+        }),
 });
+const subscription = board.subscription({
+    name: "board",
+    scope,
+    below: spaceId,
+    parameters: { board: boardId },
+});
+await board
+    .replica(subscription)
+    .follow(local, (from, signal) => source.stream({ ...subscription, ...from }, signal), signal, {
+        subscription,
+    });
+```
+
+## Shape audiences
+
+`audience` names who a shape's copy is for, which admits its followers and decides its rows.
+
+```ts
+type ShapeAudience =
+    | "contained" // the scope below, by containment, as a chain's access rows are
+    | "reader" // the principal of the scope below where the rows live, or the caller relaying them
+    | "caller" // the calling follower in the copied scope
+    | "recipient"; // each row's recipient, followed only by the home they live in
+```
+
+## Resuming
+
+`follow` resumes a completed subscription from its position, reshapes other parameters from `previous` without a refetch, and starts another shape from a snapshot.
+
+```ts
+const next = board.subscription({
+    name: "board",
+    scope,
+    below: spaceId,
+    parameters: { board: otherBoardId },
+});
+await board
+    .replica(next)
+    .follow(local, (from, signal) => source.stream({ ...next, ...from }, signal), signal, {
+        subscription: next,
+    });
 ```
 
 ## Predictions
 
-A `Prediction` shows a client's queued mutations over its copy, in layers: the main line's mutations, then a checked-out branch's rows, then the branch's own queued edits.
+`Prediction` shows a client's queued mutations over its copy: the main line's, then a checked-out branch's rows, then the branch's own edits.
 
 ```ts
-const prediction = new Prediction([project, task], predict, reach, branches);
+const prediction = new Prediction({ tables: [project, task], predict, reads, branches });
 const result = await prediction.add(local, mutationId, origin, async (transaction) => ({
     calls,
     result: await rename(transaction),
@@ -144,16 +232,20 @@ const result = await prediction.add(local, mutationId, origin, async (transactio
 await prediction.checkout(local, branchId); // edits now queue for the branch
 ```
 
-Its `Outbox` keeps the queue until the source executes or rejects each mutation.
+## Acknowledgements
+
+`acknowledge` marks a mutation executed at the source's watermark, and the copy's first completed page at that watermark drops its prediction.
 
 ```ts
-const next = await prediction.outbox.pending(local, { limit: 100 }); // the mutations the next push carries
-const { pending, executed, rejected } = await prediction.outbox.inspect(local);
+const next = await prediction.pending(local, { limit: 100 }); // the mutations the next push sends
+await prediction.acknowledge(local, next[0].id, watermark);
+await prediction.reject(local, next[1].id, failure);
+const { pending, executed, rejected } = await prediction.inspect(local);
 ```
 
 ## Trackers
 
-A `Tracker` keeps a memory database the same on every instance of a service, and relays events between them.
+`Tracker` keeps a memory database equal on every instance of a service and relays events between them.
 
 ```ts
 const tracker = new Tracker(memory, [cursor], relay);
@@ -167,11 +259,26 @@ tracker.broadcast(topic, event);
 
 ## Storage
 
-A database holding copies includes `replicaTables`, and a client with an outbox also includes `outboxTables`.
+`replicaTables` lists the tables of a database with copies, and `predictionTables` those a client queueing mutations adds.
 
 ```ts
 export const local = defineDatabase({
     name: "local",
-    tables: [...replicaTables, ...outboxTables, project, task],
+    tables: [...replicaTables, ...predictionTables, project, task],
+    copies: [],
 });
+```
+
+## Scopes
+
+`Scope` reads a scope's chain of enclosing scopes, nearest first, and fences a scope while its databases move.
+
+```ts
+import { Scope } from "@destack/sync";
+
+const links = await Scope.chain(snapshot, spaceId);
+const owner = await Scope.object(snapshot, spaceId);
+await Scope.fence(database, spaceId, targetCell, Date.now()); // writes to the scope now refuse
+await Scope.guard(transaction, [spaceId]); // keeps a write's scopes unfenced until it commits
+await Scope.unfence(database, spaceId);
 ```

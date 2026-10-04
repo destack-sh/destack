@@ -25,48 +25,59 @@ export const note = defineObject({
         read: union(relation("owner"), through("parent", "read")),
         write: relation("owner"),
     },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("write"),
         update: method.update("write"),
-    },
+    }),
 });
 ```
 
 ## Traits
 
-Each trait adds columns, permissions and methods to the type.
+Each trait option of `defineObject` adds columns, permissions and methods to the type.
 
-| Trait | Options | Adds |
-|---|---|---|
-| `nested` | `{ in, receive, optional?, delete?, move? }` | The parent reference, and `move` |
-| `recoverable` | `{ within, by, purge?, keep? }` | The trash, with `delete`, `restore` and `purge` |
-| `expiring` | `[{ after, from, where? }]` | Removal by the system once a rule's window passes |
-| `addressed` | `{ recipient }` | A copy in the recipient's home while the recipient may read the object |
-| `versioned` | `true` | The version number within the parent |
-| `controlled` | `true` | The desired generation, a controller's conditions and the deletion request |
-| `declarable` | `{ schema }` | The stack declaration managing the record |
-| `detachable` | `{ by }` | `detach` |
-| `shareable` | `{ by }` | Relationships, proposals and `explain` |
-| `suspendable` | `{ by }` | `suspend` and `resume` on a scope type |
-| `tracked` | `{ by, activity, session? }` | Changes grouped into activities, with `history` and `revert` |
-| `audited` | `{ reads: true }` | An audit event for each read |
+```ts
+defineObject({
+    ...definition,
+    nested: { in: folder, receive: "edit" }, // the parent reference, and move
+    recoverable: { within: { days: 30 }, by: "edit" }, // the trash, with delete, restore and purge
+    expiring: [{ after: { days: 90 }, from: "updatedAt" }], // removal by the system once a rule's window passes
+    projected: { from: () => memo, to: "recipient", source: "memoId" }, // rows of another type projected into each recipient's home
+    versioned: true, // the version number within the parent
+    controlled: { approval: true }, // the desired generation, conditions, deletion request and approved plan
+    bindable: true, // the consumer relation of the installations whose deployments capture the objects
+    provisioned: { kind }, // a resource kind's specification, placement and provider, controlled and bindable
+    declarable: { schema }, // the stack declaration managing the record
+    detachable: { by: "manage" }, // detach
+    shareable: { isPublic: true }, // owner, editor, commenter and viewer roles, relationships, proposals and explain
+    suspendable: { by: "manage" }, // suspend and resume on a scope type
+    tracked: { by: "edit", activity, session: { minutes: 10 } }, // changes grouped into activities, with history and revert
+    audited: { reads: true }, // an audit event for each read
+});
+```
 
 ## Methods
 
-`method` declares a method and the permission it requires.
+`methods` receives the builder declaring each method with the permission it requires, and `isSystem: true` keeps a method to the system.
 
-| Builder | Method |
-|---|---|
-| `method.get`, `method.list` | Read one object, or a page of them |
-| `method.create`, `method.update`, `method.delete` | Change one object |
-| `method.updateMany` | Update every object matching some fields that the caller may change |
-| `method({ permission })` | A custom method, with `isSystem: true` for one only the system executes |
+```ts
+methods: (method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("write", { fields: ["title"] }),
+    update: method.update("write", { fields: ["title"] }),
+    delete: method.delete("write"),
+    archiveAll: method.updateMany("write", { fields: ["archivedAt"], match: ["parentId"] }),
+    search: method.query({ permission: "read", input: SearchInput, output: NotePage }),
+    reindex: method.mutation({ permission: null, isSystem: true }),
+}),
+```
 
 ## Releases
 
-A renamed field keeps its column and its earlier callers' inputs, and `convert` computes fields from stored rows and earlier callers' inputs by the release introducing them.
+`moved` keeps a renamed field's column and earlier callers' inputs, and `convert` computes fields by the release introducing them.
 
 ```ts
 const note = defineObject({
@@ -78,7 +89,7 @@ const note = defineObject({
         },
     },
     fields: { body: field.string(), pinned: field.boolean() },
-    methods: { create: method.create("write"), update: method.update("write") },
+    methods: (method) => ({ create: method.create("write"), update: method.update("write") }),
 });
 // queued calls and undo steps record their release; the server converts calls of earlier releases, a later release is refused
 ```
@@ -97,27 +108,39 @@ export const note = base.note.handle({
         return row;
     },
     tidy: (call) =>
-        call.invoke(book, "tidy", { where: { shelf: call.target!.name }, isTidy: true }),
+        call.invoke(book).tidy({ where: { shelf: call.requireTarget().name }, isTidy: true }),
 });
 ```
 
-## Effects
+## External work
 
-`prepare` runs before the transaction, `effect` runs in it, and `settle` runs at least once after it.
+`prepare` runs before a method's transaction, `handler` in it, and `commit` or `rollback` at least once after it, as the recorded settlement says.
 
 ```ts
 export const repository = base.repository.handle({
-    refresh: {
-        prepare: (call) => storage.references(call.target!.id),
-        effect: (call) => upsertReferences(call, call.prepared as GitReference[]),
-        settle: async (call, prepared, isCommitted) => release(prepared, isCommitted),
+    purge: {
+        prepare: async (call) => columnsOf(call.requireTarget()),
+        commit: async (_call, prepared) => storage.erase(prepared),
+    },
+    create: {
+        prepare: (call) => storage.provide(call.input),
+        handler: (call, next) => next(call.with({ input: { ...call.input, ...call.prepared } })),
+        rollback: async (_call, prepared) => prepared && storage.release(prepared),
     },
 });
 ```
 
+## Settlement
+
+`commit` and `rollback` take the recorded call and the value `prepare` returned, parsed by the method's `prepared` schema, and pass `call.idempotencyKey` on so the external system does the work once.
+
+```ts
+commit: async (call, prepared) => storage.erase(prepared, { idempotencyKey: call.idempotencyKey }),
+```
+
 ## Aggregates
 
-An aggregate field counts or sums the objects nested in its holder.
+`field.count` and the other aggregate fields measure the objects nested in their holder.
 
 ```ts
 export const notebook = defineObject({ ..., fields: { noteCount: field.count() } });
@@ -130,7 +153,7 @@ export const note = defineObject({
 
 ## Attachments
 
-An attachment nests in any parent type that lists it.
+`nested: { in: "any" }` nests an attachment in any parent type that lists it.
 
 ```ts
 export const comment = defineObject({
@@ -143,7 +166,7 @@ export const note = defineObject({ ..., attachments: [comment.attach({ by: "edit
 
 ## Storage
 
-An ephemeral object lives in server memory until `linger` after its client disconnects.
+`storage: "ephemeral"` keeps objects in server memory until `linger` after their client disconnects.
 
 ```ts
 export const cursor = defineObject({
@@ -154,21 +177,28 @@ export const cursor = defineObject({
 });
 ```
 
-A durable object type's `tables` include its own tables and `serverTables`, and its `tier` keeps it out of databases of other tiers.
+## Tables
+
+`tables` lists a durable type's tables with `serverTables`, which a database declares as its own or as copies.
 
 ```ts
-export const account = defineObject({ ..., tier: "global" });
 export const accountTables: readonly Table[] = [...account.tables, accountJournal];
+export const database = defineDatabase({ name: "main", tables: [note], copies: accountTables });
 ```
 
 ## Servers
 
-An `ObjectServer` serves the procedures of its object types and runs their controllers.
+`ObjectServer` serves the procedures of its object types and runs their controllers, keeping their journal under the `callKey`.
 
 ```ts
 import { ObjectServer } from "@destack/object/server";
 
-const server = new ObjectServer({ objects: { notebook, note }, database, context, journal, audit });
+const server = new ObjectServer({
+    objects: { notebook, note },
+    database,
+    callKey,
+    origin: { package: notesService.package, service: "notes" },
+});
 const router = server.router();
 await new ControlLoop(database, server.controllers(), { report }).run(signal);
 await server.executeAsSystem(upload, "finish", calls, Date.now());
@@ -176,11 +206,11 @@ await server.executeAsSystem(upload, "finish", calls, Date.now());
 
 ## Controllers
 
-A type's controller reconciles its pending objects by key as the system, and the object server runs it.
+`control` sets the controller reconciling a type's pending objects by key as the system.
 
 ```ts
 export const reminder = base.reminder.control({
-    pending: Condition.missing("sentAt"),
+    pending: { sentAt: { isNull: true } },
     key: (row) => ({ topic: row.topic }),
     watches: [{ table: topic.table, keys: (row) => [{ topic: row.id }] }], // other rows selecting keys again
     async reconcile({ rows, now, execute }) {
@@ -193,42 +223,54 @@ export const reminder = base.reminder.control({
 });
 ```
 
-A controller in `follow` mode keeps a process running for each key until its objects leave the pending ones.
+## Following controllers
+
+`mode: "follow"` keeps a controller's process running for each key until its objects leave the pending ones.
 
 ```ts
 export const host = base.host.control({
-    pending: Condition.eq("status", "enrolled"),
+    pending: { status: "enrolled" },
     mode: "follow",
     reconcile: async ({ rows, signal }) => (await serve(rows[0], signal), undefined),
 });
 ```
 
-## Replicas
+## Subscriber
 
-A server keeps the copies it requests current from a source, and relays its own rows to the databases below it.
+`subscriber` lists the subscriptions a server keeps its copies current through, each with its publisher, and the server drops the kept copies no subscription names any longer.
 
 ```ts
 const server = new ObjectServer({
-    objects,
+    objects: {},
+    policies: [account],
     database,
-    journal,
-    audit,
-    replicas: { source, requests: () => server.replicaRequests(spaceId, { isHome: false }) },
+    origin,
+    subscriber: Subscriber.of(publisher, () => server.source.workloadRequests(placementId)),
 });
 ```
 
-A copy is decided for the principal a served object stands for where the caller holds `represent` on it, and otherwise for the caller, which copies a chain with `replicate` on itself or on the scope.
+## Copy admission
+
+`represent` admits a follower as the principal a copied object stands for through its `self` relation where a server lists the type in `standing`, and `replicate` admits it to a chain.
 
 ```ts
-export const zone = defineObject({ ..., permissions: { represent: relation("cell") } });       // the cell serving a space acts as the space
-export const account = defineObject({ ..., permissions: { replicate: relation("host") } });    // an account's hosts copy its chain
+export const zone = defineObject({ ..., permissions: { represent: relation("cell") } });
+export const account = defineObject({ ..., permissions: { replicate: relation("host") } });
+new ObjectServer({ ..., policies: [zone], standing: [zone] });
 ```
 
-`replicaRequests` lists the requests of a scope's chain and of one copy of the universe's rows its principal may read, such as the users who joined a space.
-A server keeps the types its database copies (`database.copies(table)`: a wider tier than its own) from its source, and refuses writes to them.
-A copied type living in the scopes of other copied types is copied across scopes, each row decided in its own scope, such as the accounts of those users.
+## Copied types
 
-A permission reads through the scope an object lives in under the scope type's name.
+`database.copies` reads the types a database declares as copies, which a server keeps from their owning service and refuses writes to.
+
+```ts
+const subscriptions = await server.source.subscriptions(spaceId, { isHome: false }); // the chain, and the universe's rows the space reads
+const isCopied = database.copies(account.table);
+```
+
+## Scope permissions
+
+`through` reads a permission of the scope an object lives in under the scope type's name.
 
 ```ts
 export const profile = defineObject({ ..., scope: person, permissions: { read: through("person", "read") } });
@@ -236,34 +278,22 @@ export const profile = defineObject({ ..., scope: person, permissions: { read: t
 
 ## Fields
 
-A guarded field is required to write and optional to read: a reader without the permission, and a copy in another database, see it concealed.
+`guard` requires a permission to read a field, which readers without it see concealed.
 
 ```ts
 email: field.string().guard({ read: "update" }),
 ```
 
-## Copies
-
-`addressed.accept` writes the copies a home receives through `INBOX`.
-
-```ts
-const inbox: Destination<Copy> = {
-    ...INBOX,
-    batch: 100,
-    accept: (copies) => addressed.accept(home, copies, homeOf),
-};
-```
-
 ## Clients
 
-An `ObjectClient` holds a scope's objects locally, reaches their package's service at an endpoint, and confirms local mutations from the server.
+`ObjectClient` keeps a scope's objects locally, calls their package's service at an endpoint, and confirms local mutations from the server.
 
 ```ts
 import { ObjectClient } from "@destack/object/client";
 
 const client = await ObjectClient.open({
     database,
-    objects: [notebook, note],
+    objects: { notebook, note },
     scope,
     caller,
     endpoint: { url: `${origin}/.destack/service` },
@@ -277,21 +307,66 @@ await created.predicted;
 await created.confirmed;
 ```
 
-## Queries
+## Client copies
 
-`subscribe` returns a live query over an object type's rows, includes and aggregates.
+`stream` serves a client one `Subscription` per shape.
 
 ```ts
-const books = client.subscribe(notebook, {
-    order: [{ column: "name", direction: "asc" }],
-    include: {
-        notes: { order: [{ column: "title", direction: "asc" }], limit: 5 },
-        size: { via: "notes", aggregate: { values: { notes: { function: "count" } } } },
-    },
+const shapes = [
+    QUERIES_SHAPE, // the live queries of its durable objects
+    EPHEMERAL_SHAPE, // its ephemeral objects, written by the client
+    EXTERNAL_SHAPE, // the queries of its external objects
+    ACCESS_SHAPE, // the access rows its caller's own checks read
+];
+```
+
+## Checks
+
+`can` decides the caller's permissions over the copied access rows with the same policies the server compiles.
+
+```ts
+if (await client.can(note, id, "edit")) {
+    showEditor();
+}
+```
+
+## Typed views
+
+`of` reads and changes some of a client's object types by key.
+
+```ts
+const { query, mutate } = client.of({ notebook, note });
+await mutate.note.update({ id, title: "Groceries" });
+```
+
+## Queries
+
+`client.query.<key>` takes db's `FindOptions`, with `deleted` selecting a recoverable root's trash, and reads once when awaited or stays live when subscribed.
+
+```ts
+const books = client.query.notebook.findMany({
+    orderBy: { name: "asc" },
+    with: { notes: { orderBy: { title: "asc" }, limit: 5 } },
 });
-for await (const rows of books.watch(signal)) {
+for await (const rows of books.subscribe().watch(signal)) {
     render(rows);
 }
+const first = await client.query.note.findFirst({ where: { title: { like: "Idea%" } } });
+const counts = await client.query.note.aggregate({
+    groupBy: ["parentId"],
+    values: { notes: { function: "count" } },
+});
+```
+
+## Unions
+
+`union` follows several queries as one list in a shared order and limit, each entry naming its member.
+
+```ts
+const activity = client.union(
+    { notebooks: client.query.notebook.findMany(), notes: client.query.note.findMany() },
+    { orderBy: { createdAt: "desc" }, limit: 20 },
+);
 ```
 
 ## Undo
@@ -305,7 +380,7 @@ client.redo();
 
 ## Branches
 
-A client with the scope's `branch` types edits a checked-out branch live: its edits push to the branch, and the branch's rows show under them.
+`branch` lets a client edit a checked-out branch live, pushing its edits to the branch.
 
 ```ts
 const client = await ObjectClient.open({
@@ -324,14 +399,18 @@ client.mutate(note).create({ parentId, title: "Socks" });
 await client.mutate(branch).merge({ id }).confirmed; // the device shows the main line again
 ```
 
-Reads take a view: a branch over the main line, a log position, or both.
+## Branch reads
+
+`branch` and `at` read a branch over the main line, a log position, or both.
 
 ```ts
 await client.read(note).list({ branch: id });
 await client.read(note).get({ id: noteId, at: position }); // readable then and now
 ```
 
-A diff follows the changes a branch makes, one per object, with the written fields that differ.
+## Diffs
+
+`diff` follows a branch's changes, one per object, with the written fields that differ.
 
 ```ts
 const diff = client.diff(id);
@@ -340,12 +419,12 @@ for await (const changes of diff.watch(signal)) render(changes); // [{ object, i
 
 ## Browser tabs
 
-A `BrowserTab` shares one SQLite database across all tabs of an origin.
+`BrowserTab` shares one SQLite database across all tabs of an origin.
 
 ```ts
 const tab = await BrowserTab.open({
     name: "notes",
-    objects: [notebook, note],
+    objects: { notebook, note },
     scope,
     caller,
     service,
@@ -353,7 +432,7 @@ const tab = await BrowserTab.open({
     report,
 });
 await tab.ready;
-const notes = tab.client.subscribe(note);
+const notes = await tab.client.query.note.findMany();
 ```
 
 ## Stacks
@@ -373,10 +452,16 @@ const { steps, deferred } = await Stack.apply({
 
 ## Claims
 
-A server with a `directory` claims the keys of each unique index across a scope with every write, so the keys stay unique across databases.
+`directory` claims the keys of each unique index within its `across` scope type with every write, and `lookup` finds the object owning a key.
 
 ```ts
-export const repository = defineObject({ ..., indexes: { name: { on: ["name"], unique: true, across: account } } });
-const server = new ObjectServer({ objects: { repository }, database, context, journal, audit, directory });
+export const repository = defineObject({
+    ...,
+    indexes: {
+        name: { on: ["name"], unique: true, across: () => account },
+        id: { on: ["id"], unique: true, across: () => universe },
+    },
+});
+const server = new ObjectServer({ objects: { repository }, database, callKey, origin, directory });
 const found = await repository.lookup(directory, "name", ["notes"], accountId);
 ```

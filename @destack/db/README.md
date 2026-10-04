@@ -4,7 +4,7 @@ Declare, query, log and migrate SQL tables on SQLite and PostgreSQL.
 
 ## Queries
 
-Queries are written as in [Drizzle](https://orm.drizzle.team/), imported from `@destack/db`.
+`@destack/db` exports the [Drizzle](https://orm.drizzle.team/) query builders and operators.
 
 ```ts
 import { and, asc, eq, isNull, sql } from "@destack/db";
@@ -20,18 +20,32 @@ await database.insert(note).values(row).onConflictDoUpdate({ target: note.id, se
 const [removed] = await database.delete(note).where(eq(note.id, id)).returning();
 ```
 
-| Drizzle | Here |
-|---|---|
-| `select`, `selectDistinct`, `from`, `where`, `innerJoin`, `leftJoin`, `groupBy`, `having`, `orderBy`, `limit`, `offset` | the same, each step returning a new query |
-| `insert`, `values`, `onConflictDoNothing`, `onConflictDoUpdate`, `update`, `set`, `delete`, `returning` | the same |
-| `sql`, `sql.raw`, `sql.join`, `sql.identifier`, `sql.placeholder`, `.as`, `.mapWith` | the same |
-| `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `and`, `or`, `not`, `inArray`, `isNull`, `like`, `between`, `exists`, `asc`, `desc`, `count`, `sum`, `avg`, `min`, `max` | the same |
-| `alias` | `alias`, with `from(table)` naming it where a query reads it |
-| `typeof note.$inferSelect`, `typeof note.$inferInsert` | the same, or `Select<typeof note>`, `Insert<typeof note>`, and `Key<typeof note>` for the key |
-| `primaryKey({ columns: [a, b] })` | `.primaryKey()` on each key column, in declaration order |
-| `db.execute(sql)` | `database.execute(sql, schema)`, each row parsed by the schema |
+## Differences from Drizzle
 
-A column reads back its value through its own validator, so rows written outside Destack still read as typed values or fail loudly.
+`alias`, `Select`, `Insert`, `Key`, `.primaryKey()` and `execute` with a schema differ from Drizzle, and every other query builder, operator and `sql` function matches it.
+
+```ts
+// alias a table, and name the alias with from(table) where a query reads it
+const parent = alias(note, "parent");
+
+// type rows as $inferSelect and $inferInsert do, and the key by its columns
+type NoteRow = Select<typeof note>;
+type NoteInsert = Insert<typeof note>;
+type NoteKey = Key<typeof note>;
+
+// mark each key column with .primaryKey(), in declaration order
+const id = identifier("id", "note").primaryKey();
+
+// parse each row of a raw statement by a schema
+const rows = await database.execute(
+    sql`SELECT ${note.title} FROM ${note}`,
+    schema.object({ title: schema.string() }),
+);
+```
+
+## Typed rows
+
+Each column parses the values it reads with its schema, so a row written outside Destack reads as typed values or throws.
 
 ```ts
 const [row] = await database.execute(
@@ -40,10 +54,76 @@ const [row] = await database.execute(
 );
 ```
 
+## Relations
+
+`defineRelations` declares each table's relations as in Drizzle's relational queries v2, and `database.query` reads rows with them.
+
+```ts
+export const relations = defineRelations({ project, task, tag, taskTag }, (r) => ({
+    project: { tasks: r.many.task({ from: r.project.id, to: r.task.projectId }) },
+    task: {
+        project: r.one.project({ from: r.task.projectId, to: r.project.id }),
+        tags: r.many.tag({
+            from: r.task.id.through(r.taskTag.taskId),
+            to: r.tag.id.through(r.taskTag.tagId),
+        }),
+    },
+}));
+export const work = defineDatabase({
+    name: "work",
+    tables: [project, task, tag, taskTag],
+    copies: [],
+    relations,
+});
+
+const database = work.get(context);
+const projects = await database.query.project.findMany({
+    columns: { name: true },
+    where: { tasks: { isDone: false } },
+    extras: { open: { kind: "rollup", function: "count", via: "tasks", where: { isDone: false } } },
+    with: { tasks: { orderBy: { rank: "asc" }, limit: 3, with: { tags: true } } },
+}); // { name: string; open: Scalar; tasks: { …; tags: { … }[] }[] }[]
+const first = await database.query.task.findFirst({ where: { title: "Plan" } });
+```
+
+## Relation reads
+
+`with` includes a relation's rows, and a condition on a relation tests for a related row.
+
+```ts
+// relate a tree table to its descendants and ancestors through its index, without declaring them
+await database.query.folder.findMany({ with: { descendants: true, ancestors: true } });
+
+// apply a relation's where wherever the relation is read
+const open = r.many.task({ from: r.project.id, to: r.task.projectId, where: { isDone: false } });
+
+// read one statement per level in one read transaction, with a limit per parent
+await database.query.project.findMany({ with: { tasks: { limit: 3 } } });
+
+// name relations in conditions, and look up a related row's column or roll up related rows in extras
+await database.query.task.findMany({
+    where: { project: { name: "Launch" } },
+    extras: { projectName: { kind: "lookup", via: "project", column: "name" } },
+});
+```
+
+## Namespaces
+
+`relations.namespace` resolves relation names in conditions and extras, so `Condition.render` renders them for a plain `select`.
+
+```ts
+const namespace = relations.namespace(task, {
+    tagCount: { kind: "rollup", function: "count", via: "tags", where: {} },
+});
+await database
+    .select()
+    .from(task)
+    .where(Condition.render({ tags: { label: "urgent" }, tagCount: { gte: 2 } }, task, namespace));
+```
+
 ## Tables
 
-`defineTable` declares a table's columns, constraints, log retention and the row conversions of its releases.
-A table's key is its columns marked `.primaryKey()`, in declaration order, so a compound key marks each of its columns.
+`defineTable` declares a table's columns, constraints, log retention and the row conversions of its releases, and the columns marked `.primaryKey()` form its key in declaration order.
 
 ```ts
 export const note = defineTable(
@@ -65,53 +145,68 @@ export const note = defineTable(
 );
 ```
 
+## Text order
+
+Text compares by its UTF-8 bytes on every dialect, so PostgreSQL text columns use the `C` collation and a column created under another collation changes to it in one safe step.
+
+```sql
+ALTER TABLE "note" ALTER COLUMN "title" TYPE text COLLATE "C"
+```
+
 ## Databases
 
-`defineDatabase` declares a database in the `global`, `regional` or `zonal` tier, with each listed table once.
-A database keeps tables of its own tier and of wider tiers, whose rows it replicates from their home, and refuses tables of a narrower tier.
-`connection.copies(table)` tells whether the database keeps a table's rows as copies: the tables of a wider tier than its own.
+`defineDatabase` declares the tables a service owns and the tables it copies from their owning service, and `copies` tells them apart.
 
 ```ts
-export const main = defineDatabase({ name: "main", tables: [note] });
-export const global = defineDatabase({
-    name: "global",
-    tier: "global",
-    tables: [...accountTables, ...hostTables],
-});
+export const main = defineDatabase({ name: "main", tables: [note], copies: [accountTable] });
 
 const database = main.get(context);
 const unapplied = await main.check(database);
+const isCopied = database.copies(accountTable);
 ```
 
-A host manages SQLite files through `sqliteProvider`, and a workload opens them through its declaration's connectors.
+## Providers
+
+`databaseProvider.sqlite` manages a host's SQLite files, and a workload opens one through the `sqlite` connector of its declaration.
 
 ```ts
-import { sqliteProvider } from "@destack/db/sqlite";
+import { databaseProvider } from "@destack/db/sqlite";
 
-const provider = sqliteProvider(new URL("file:///var/destack/databases/"), databaseObject);
-await using connection = await main.connectors["sqlite"]?.connect(binding, main); // SQLite on Bun, none elsewhere yet
+const provider = databaseProvider.sqlite(new URL("file:///var/destack/databases/"), databaseObject);
+await using connection = await main.connectors["sqlite"]?.connect(binding, main); // SQLite on Bun
 ```
 
 ## Connections
 
-Each entry point opens one kind of database.
+`connect` from `@destack/db/bun`, `@destack/db/postgres` or `@destack/db/durable-object` opens a database on that runtime.
 
-| Entry point | Opens |
-|---|---|
-| `@destack/db/bun` | `connect`: a SQLite file or memory database on Bun |
-| `@destack/db/durable-object` | `connect`: a Durable Object's SQLite storage |
-| `@destack/db/sqlite` | `sqliteProvider`, `sqliteConnector`: SQLite files a host provisions and workloads open |
-| `@destack/db/postgres` | `connect`: a PostgreSQL pool or URL |
-| `@destack/db/wasm` | `serveBrowserDatabase`: an OPFS SQLite database served on a channel |
-| `@destack/db/shared` | `connectShared`: a database another party serves |
-| `@destack/db/channel/socket` | `socketChannel`: the processes sharing a SQLite file on one machine |
-| `@destack/db/blob` | `BlobStore`, `DatabaseHandle`: the content blob columns reference |
-| `@destack/db/blob/local` | `LocalBlobStore`: blobs as files named by digest |
-| `@destack/db/test` | `TestDatabase`: an isolated database per dialect |
+```ts
+import { connect } from "@destack/db/bun";
+import { connect as connectPostgres } from "@destack/db/postgres";
+import { connect as connectStorage } from "@destack/db/durable-object";
+
+const file = await connect("notes.db", main);
+const pool = await connectPostgres(process.env.DATABASE_URL, main);
+const storage = connectStorage(state.storage, main);
+```
+
+## Sole writers
+
+A pool that writes its database alone connects as the `sole` writer without `LISTEN`, and `postgresConnector` opens a migrated database that way by URL.
+
+```ts
+import { connect, postgresConnector } from "@destack/db/postgres";
+
+const only = await connect(url, main, "sole");
+await using placed = await postgresConnector.connect(
+    { reference: env.DATABASE.connectionString },
+    main,
+);
+```
 
 ## Writes
 
-A connection runs queries in transactions, upserts rows as they are and removes them by key.
+`transaction` runs queries in a transaction, `upsert` writes rows as they are, `remove` deletes rows by key, and `rehearse` runs a transaction and rolls it back.
 
 ```ts
 const database = await connect("notes.db", main);
@@ -125,7 +220,7 @@ const plan = await database.rehearse((transaction) => transaction.plan(state)); 
 
 ## Statements
 
-A `Statement` renders once per database and runs with named values.
+A `Statement` renders its SQL once per database and runs it with named values.
 
 ```ts
 const notes = new Statement(
@@ -137,20 +232,38 @@ await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
 
 ## Conditions
 
-A `Condition` is data: it renders to SQL and matches rows in memory alike.
+A `Condition` is plain JSON in the shape of Drizzle's relational filters, typed by its row, and `Condition.render` turns it into SQL.
 
 ```ts
-const where = Condition.all(Condition.eq("scope", spaceId), Condition.gte("rank", 2));
-await database
-    .select()
-    .from(note)
-    .where(Condition.render(where, Condition.bind(note)));
-Condition.matches(Condition.compile(where, note), row);
+const where: Condition<Select<typeof note>> = {
+    scope: spaceId,
+    OR: [{ title: { ilike: "travel%" } }, { title: { in: ["Inbox", "Ideas"] } }],
+    NOT: { title: "Draft" },
+};
+await database.select().from(note).where(Condition.render(where, note));
+```
+
+## Patterns
+
+`like` and `ilike` match `%` against any run of characters and `_` against one character, `\` escapes the next character, and `ilike` ignores ASCII case only, on every dialect and in memory.
+
+```ts
+const discounts: Condition<Select<typeof note>> = { title: { like: "100\\%" } };
+const quarters: Condition<Select<typeof note>> = { title: { ilike: "q_ report" } };
+```
+
+## Predicates
+
+`Condition.resolve` turns a condition into a `Predicate` against a `Namespace` of fields and relations, and `Predicate.matches` tests a row against it in memory.
+
+```ts
+const predicate = Condition.resolve(where, Namespace.fields(note));
+Predicate.matches(Predicate.compile(predicate, note), row);
 ```
 
 ## Expressions
 
-An `Expression` computes a value from one row alike in SQL and memory, JSON included.
+An `Expression` computes a value from one row, `Expression.evaluate` runs it in memory, and `Expression.render` renders it as SQL.
 
 ```ts
 const mode = Expression.scalar(
@@ -159,7 +272,7 @@ const mode = Expression.scalar(
 );
 const converted = Expression.object({
     mode: Expression.case(mode, [{ when: "emacs", then: Expression.literal("standard") }], mode),
-    pinned: Expression.json(false),
+    isCompact: Expression.json(false),
 });
 Expression.evaluate(converted, row);
 await database.select({ value: Expression.render(converted, setting) }).from(setting);
@@ -167,7 +280,7 @@ await database.select({ value: Expression.render(converted, setting) }).from(set
 
 ## Migrations
 
-A connection plans the steps from its applied tables to declared ones, addressed `table/<name>` and its parts.
+`plan` lists the steps from the applied tables to the declared ones by paths below `table/<name>`, and `apply` runs them.
 
 ```ts
 await database.migrate([note]);
@@ -177,17 +290,19 @@ const plan = await database.plan(mergeStates(releases.map((state) => state.table
 await database.apply(plan);
 ```
 
-A plan compares the release that applied the tables with the releases declaring them.
+## Releases
 
-| Case | Example | Plan |
-|---|---|---|
-| Upgrade | applied 2026.9.0, declared 2026.10.0 | the changes, then each conversion since 2026.9.0 |
-| Rollout | declared 2026.9.0 and 2026.10.0 together | every column either declares, renamed columns kept in sync |
-| Rollback | applied 2026.10.0, declared 2026.9.0 | nothing when 2026.9.0 still reads the tables, otherwise refused |
+`plan` compares the release that applied the tables with the releases that declare them.
+
+```text
+upgrade   applied 2026.9.0, declared 2026.10.0       -> the changes, then each conversion since 2026.9.0
+rollout   declared 2026.9.0 and 2026.10.0 together   -> every column either declares, renamed columns kept in sync
+rollback  applied 2026.10.0, declared 2026.9.0       -> nothing when 2026.9.0 still reads the tables, otherwise refused
+```
 
 ## Log
 
-`database.log` reads committed changes of logged tables in commit order.
+`database.log.follow` reads the committed changes of logged tables in commit order without sensitive columns, and `advance` and `drop` manage a named reader position.
 
 ```ts
 const position = await database.log.position();
@@ -199,7 +314,9 @@ await database.log.advance("notes/published", consumed, Date.now() + maxLag);
 await database.log.drop("notes/published");
 ```
 
-A change files under its row's scope column, or under the database's scope for a table without one.
+## Log scopes
+
+The log files a change under its row's scope column, or under the scope `log.create` gives the database for a table without one.
 
 ```ts
 await database.log.create(spaceId); // once, when a space's resource database is created
@@ -207,21 +324,23 @@ await database.log.create(spaceId); // once, when a space's resource database is
 
 ## Snapshots
 
-A `Snapshot` reads the logged columns as they were at a log position.
+`database.log.at` returns a `Snapshot` that reads the logged columns as they were at a log position.
 
 ```ts
 const snapshot = database.log.at(position);
-await snapshot.rows(note, Condition.eq("scope", spaceId));
-await snapshot.ordered(note, { where, order: [{ column: "title", direction: "asc" }], count: 20 });
+await snapshot.rows(note, { scope: spaceId });
+await snapshot.ordered(note, { where, orderBy: { title: "asc" }, limit: 20 });
 await snapshot.windows(comment, {
-    where,
-    order,
-    count: 5,
+    where: {},
+    orderBy: { createdAt: "desc" },
+    limit: 5,
     partition: { column: "noteId", values: noteIds },
 }); // the first comments of each note, in one statement
 ```
 
-A snapshot under an `Overlay` reads another layer's rows in place of the database's, such as a branch's.
+## Overlays
+
+`layer` puts an overlay on a snapshot that reads another layer's rows, such as a branch's, in place of the database's.
 
 ```ts
 const branched = Snapshot.live(database).layer(async (table) => rowsByKey.get(table) ?? new Map());
@@ -229,24 +348,27 @@ const branched = Snapshot.live(database).layer(async (table) => rowsByKey.get(ta
 
 ## Channels
 
-A connection wakes its log readers on the commits other writers announce on its `Channel`, as PostgreSQL's `LISTEN` and `NOTIFY` do.
-
-| Channel | Writers |
-|---|---|
-| none | one connection, such as a Durable Object's storage |
-| `broadcastChannel(name)` | tabs and workers of one origin |
-| `socketChannel(path)` | processes on one machine sharing a SQLite file |
-| `postgresChannel(client, name)` | PostgreSQL, announced by the log's commit trigger |
+`openChannel` gives a connection a `Channel` on which other writers announce commits, which wakes its log readers as PostgreSQL's `LISTEN` and `NOTIFY` do.
 
 ```ts
+// share a SQLite file between processes on one machine, meeting in the person's runtime directory
 const database = await connect(path, main, {
     openChannel: (name) => socketChannel(`${path}#${name}`),
 });
+
+// share a database between the tabs and workers of one origin
+const openTabChannel: OpenChannel = (name) => broadcastChannel(name);
+
+// hear PostgreSQL's commits, which the log's commit trigger announces on postgresChannel
+const pool = await connectPostgres(url, main);
+
+// open no channel for a single connection, such as a Durable Object's storage
+const storage = connectStorage(state.storage, main);
 ```
 
 ## Blobs
 
-A `blob` column keeps the SHA-256 digest of content a `BlobStore` keeps.
+A `blob` column holds the SHA-256 digest of content in a `BlobStore`.
 
 ```ts
 const attachment = defineTable("attachment", {
@@ -257,9 +379,20 @@ const digest = await blobs.write(body);
 await database.insert(attachment).values({ id, content: digest });
 ```
 
+## Retired blobs
+
+A `BlobStore` deletes the blobs no row references, so a writer holds it while it writes blobs and retires the blobs of the rows it deletes.
+
+```ts
+await using _held = await blobs.hold();
+const digest = await blobs.write(body);
+await database.insert(attachment).values({ id, content: digest });
+await blobs.retire([previous]);
+```
+
 ## Aggregates
 
-A table keeps counts, sums and extremes of the rows referencing it.
+`aggregates` keeps counts, sums, minimums and maximums of the referencing rows in a column of the referenced table.
 
 ```ts
 aggregates: [
@@ -270,7 +403,7 @@ aggregates: [
 
 ## Dependents
 
-A table cascades or restricts its deletion to rows referencing it under a condition.
+`dependents` cascades or restricts the deletion of a row to the rows that reference it under a condition.
 
 ```ts
 dependents: [{ from: () => comment, key: "parentId", where: { parentType: "note" }, onDelete: "cascade" }],
@@ -278,7 +411,7 @@ dependents: [{ from: () => comment, key: "parentId", where: { parentType: "note"
 
 ## Trees
 
-A table with a `tree` option keeps an ancestor index of its single-parent hierarchy per scope.
+`tree` keeps an ancestor index of a table's single-parent hierarchy per scope.
 
 ```ts
 export const folder = defineTable("folder", columns, {
@@ -288,7 +421,7 @@ export const folder = defineTable("folder", columns, {
 
 ## Shared databases
 
-A browser tab serves its SQLite database to other parties on a channel.
+`serveBrowserDatabase` serves a browser tab's SQLite database on a channel, and `connectShared` connects to it from another tab or worker.
 
 ```ts
 const channel = broadcastChannel("notes");
@@ -298,7 +431,7 @@ const database = connectShared(channel, party, main);
 
 ## Tests
 
-`TestDatabase` opens an isolated database per dialect, PostgreSQL when `DESTACK_TEST_POSTGRES` is set.
+`TestDatabase.create` opens an isolated database per dialect, and runs PostgreSQL when `DESTACK_TEST_POSTGRES` is set.
 
 ```ts
 test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {

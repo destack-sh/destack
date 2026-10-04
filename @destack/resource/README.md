@@ -37,7 +37,7 @@ await database.get(context).select().from(note);
 
 ## Providers
 
-A `Provider` manages one kind's resources on a host, and the host checks each optional `reconcile`, `provision`, `open` or `rewrap` member before it calls it.
+A `Provider` manages one kind's resources on a host through optional `reconcile`, `provision`, `open`, `rewrap` and `fence` members, and declares the `controllers` the host runs beside it.
 
 ```ts
 const record = provider.kind.record(row);
@@ -69,9 +69,10 @@ const connection = await connector.connect(binding, notes);
 
 ## Moves
 
-`open.open` opens a resource's content as a database handle, and `rewrap.wrap` and `rewrap.unwrap` move its host-bound keys to another host's `Recipient`.
+`fence.fence` refuses writes while a move captures a resource, `open.open` opens its content, and `rewrap` moves its host-bound keys to another host's `Recipient`.
 
 ```ts
+await provider.fence?.fence(record);
 const handle = await provider.open.open(record, desired); // { database, blobs?, migrate, close }
 const recipient = await Recipient.generate();
 const wrapped = await source.rewrap.wrap(row, Recipient.of(recipient.key));

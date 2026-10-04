@@ -4,15 +4,13 @@ Declare file storage, read and write its files, and serve it over S3.
 
 ## Declarations
 
-`defineBucket` declares a bucket by name, and the host provides the storage behind it.
+`defineBucket` declares a bucket by name, and `write: "system"` lets the system alone write its files.
 
 ```ts
 import { defineBucket } from "@destack/bucket";
 
-export const files = defineBucket({
-    name: "files",
-    spec: {},
-});
+export const files = defineBucket({ name: "files", spec: {} });
+export const build = defineBucket({ name: "build", spec: { write: "system" } });
 ```
 
 ## Files
@@ -73,46 +71,58 @@ context.bind(files, new R2Bucket(environment.FILES));
 
 ## Device hosts
 
-`LocalBucketHost` keeps a device host's buckets, `S3Server` serves them over S3, and `localBucketProvider` provides them to the host's spaces.
+`LocalBucketHost` keeps a device host's buckets in local directories, and `bucketProvider.local` provides them to the host's spaces.
 
 ```ts
 import { LocalBucketHost } from "@destack/bucket/local";
-import { localBucketProvider } from "@destack/bucket/provider";
-import { S3Server } from "@destack/bucket/s3";
+import { bucketProvider } from "@destack/bucket/provider";
 
 const credentials = await LocalBucketHost.credentials(keychain, `s3/${hostId}`);
-const buckets = new LocalBucketHost({
-    directory,
-    endpoint: new URL(`http://s3.localhost:${port}`),
-    region: "local",
+const buckets = new LocalBucketHost({ directory, endpoint, region: "local", credentials });
+const provider = bucketProvider.local(buckets);
+```
+
+## Cells
+
+`R2BucketHost` keeps a cell's buckets as prefixes of its residency's R2 bucket with their catalogues in the cell's database, and `bucketProvider.r2` provides them.
+
+```ts
+import { R2Bucket, R2BucketHost } from "@destack/bucket/r2";
+
+const buckets = new R2BucketHost({
+    files: new R2Bucket(environment.FILES),
+    name: "destack-production-files-eu",
+    catalogues,
+    endpoint,
+    region: "auto",
     credentials,
 });
-const s3 = new S3Server({
-    region: "local",
-    credentials: async (id) => (id === credentials.accessKeyId ? credentials : undefined),
-    open: (name) => buckets.named(name),
-});
-const provider = localBucketProvider(buckets);
+const provider = bucketProvider.r2(buckets);
+```
+
+## Sweeps
+
+A provider's `controllers` hold the `SweepController`, which sweeps the host's open buckets daily and deletes what interrupted writes left.
+
+```ts
+provider.controllers; // [SweepController]
+```
+
+## Fences
+
+A provider's `fence` refuses every write into a bucket while a transfer copies it, across restarts until `lift`, answering `UNAVAILABLE` and S3 `503 ServiceUnavailable`.
+
+```ts
+await provider.fence.fence(record);
+await provider.fence.lift(record);
 ```
 
 ## Access
 
-Each method of the provisioned `bucket` object requires the `read` or `write` permission, and an installation that uses the bucket has them.
+Each method of the provisioned `bucket` object requires `read` or `write`, and a bucket the system alone writes refuses other writers with `FORBIDDEN`.
 
 ```ts
-export const bucket = defineObject({
-    name: "bucket",
-    scope: space,
-    provisioned: { kind: BucketKind },
-    methods: (method) => ({
-        files: method.query({ permission: "read", input: FileInput.files, output: FilePage }),
-        remove: method.mutation({
-            permission: "write",
-            input: FileInput.remove,
-            output: schema.object({}),
-        }),
-    }),
-});
+await client.open({ mode: "write", ...file }); // ServiceError FORBIDDEN: the system alone writes bucket-…
 ```
 
 ## S3

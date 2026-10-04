@@ -21,6 +21,16 @@ await using other = await FileLock.tryAcquire("/path/to/other.lock"); // undefin
 await using lock = await FileLock.acquire(join(stateDirectory, "daemon.lock"), { signal });
 ```
 
+## Runtime directory
+
+`runtimeDirectory` returns `XDG_RUNTIME_DIR`, or else a private `destack-<uid>` directory under the temporary one, refusing one another user owns, others may open or a link names.
+
+```ts
+import { runtimeDirectory } from "@destack/fs";
+
+await using lock = await FileLock.acquire(join(await runtimeDirectory(), "app.destack.host.lock"));
+```
+
 ## Files
 
 `readOptional` reads a text file, returns `undefined` when it does not exist, and throws on any other error.
