@@ -44,6 +44,7 @@ import type { AggregateRow, Query } from "../query/query.ts";
 import type { Page } from "../query/page.ts";
 import { PAGE_ROWS } from "../dataflow/selection.ts";
 import { SyncError } from "../error/error.ts";
+import { Scope } from "../scope/scope.ts";
 
 /** The notes of a snapshot spanning two pages. */
 const SNAPSHOT_NOTES = PAGE_ROWS + 500;
@@ -88,6 +89,76 @@ test.for(TEST_DIALECTS)(
             await Replica.isCopied(copy, "inbox"),
             (await copy.select().from(note)).map((row) => row.id),
         ]).toEqual([false, ["a"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "copy several scopes in one copy recorded elsewhere, which keeps each scope whose own row it includes, on %s",
+    async (dialect) => {
+        // keep the inbox's and the archive's rows with their scope rows, and a note of the drafts
+        const tables = [Scope.table, ...TABLES];
+        const source = await open(dialect, tables);
+        const copy = await openCopy(dialect, tables);
+        const scopes = ["inbox", "archive"];
+        await source.insert(Scope.table).values(
+            scopes.map((scope) => ({
+                scope,
+                parent: Scope.universe.id,
+                packageId: Scope.universe.packageId,
+                type: "folder",
+            })),
+        );
+        await source
+            .insert(note)
+            .values([
+                first,
+                { ...first, id: "b", scope: "archive" },
+                { ...first, id: "c", scope: "drafts" },
+            ]);
+
+        // follow both scopes in one copy recorded at the universe
+        const folders = new Replica({
+            name: "folders",
+            scope: Scope.universe.id,
+            tables: [Scope.table, note],
+            scopes: new Map<Table, readonly string[]>([
+                [Scope.table, scopes],
+                [note, scopes],
+            ]),
+        });
+        const feed = new Feed(source, [Scope.table, note, replica]);
+        const subscription = { ...subscriptionOf("folders"), scope: Scope.universe.id };
+        const controller = new AbortController();
+        const following = folders.follow(
+            copy,
+            (from, signal) => feed.subscribe(folders.queries, from.after, signal),
+            controller.signal,
+            { subscription },
+        );
+        const head = await source.log.position();
+        const signal = AbortSignal.timeout(5000);
+        const reached = [
+            await Replica.reach(copy, "inbox", head, signal),
+            await Replica.reach(copy, "archive", head, signal),
+        ];
+        controller.abort();
+        await following;
+
+        // keep both scopes' notes, and find the one record as the copy of each scope whose row it includes
+        const origins = await Replica.origins(copy, "notes", [...scopes, "drafts", "universe"]);
+        expect([
+            reached,
+            (await copy.select({ id: note.id }).from(note).orderBy(asc(note.id))).map(
+                (row) => row.id,
+            ),
+            [...origins.keys()].toSorted(),
+            [...origins.values()].map((origin) => origin.position),
+        ]).toEqual([
+            [true, true],
+            ["a", "b"],
+            ["archive", "inbox", "universe"],
+            [head, head, head],
+        ]);
     },
 );
 

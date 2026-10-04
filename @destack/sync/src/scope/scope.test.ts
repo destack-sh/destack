@@ -54,3 +54,41 @@ test.for(TEST_DIALECTS)(
         expect(await moved()).toEqual([undefined, undefined, undefined]);
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "read several scopes' chains at once, each as it reads alone, on %s",
+    async (dialect) => {
+        const database = await open(dialect, [Scope.table]);
+        const row = (scope: string, parent: string, ancestors: string[]) => ({
+            scope,
+            parent,
+            ancestors,
+            packageId: PACKAGE_ID,
+            type: "folder",
+        });
+        await database
+            .insert(Scope.table)
+            .values([
+                row("account", Scope.universe.id, []),
+                row("space", "account", ["account"]),
+                row("other", "account", ["account"]),
+                row("orphan", "missing", ["missing"]),
+            ]);
+
+        // read the chains of scopes sharing an ancestor, an unrooted one and an unknown one
+        const chains = await Scope.chains(Snapshot.live(database), [
+            "space",
+            "other",
+            "orphan",
+            "unknown",
+        ]);
+        expect(
+            [...chains].map(([scope, links]) => [scope, links.map((link) => link.object.id)]),
+        ).toEqual([
+            ["space", ["space", "account", "universe"]],
+            ["other", ["other", "account", "universe"]],
+            ["orphan", ["orphan"]],
+            ["unknown", []],
+        ]);
+    },
+);

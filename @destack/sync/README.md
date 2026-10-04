@@ -134,6 +134,23 @@ const copy = new Replica({
 });
 ```
 
+## Copies of several scopes
+
+`scopes` reads a table in several scopes, and `Replica.reach` and `Replica.origins` find the copy at each scope whose own row it includes.
+
+```ts
+const folders = new Replica({
+    name: "folders",
+    scope: Scope.universe.id,
+    tables: [Scope.table, note],
+    scopes: new Map([
+        [Scope.table, [inboxId, archiveId]],
+        [note, [inboxId, archiveId]],
+    ]),
+});
+await Replica.reach(local, inboxId, position, signal); // the folders copy keeps the inbox
+```
+
 ## Shared rows
 
 `Replica.includes` matches the rows a replica includes, and a row stays until no replica includes it.
@@ -276,6 +293,7 @@ export const local = defineDatabase({
 import { Scope } from "@destack/sync";
 
 const links = await Scope.chain(snapshot, spaceId);
+const chains = await Scope.chains(snapshot, [spaceId, otherSpaceId]); // one read per level for all of them
 const owner = await Scope.object(snapshot, spaceId);
 await Scope.fence(database, spaceId, targetCell, Date.now()); // writes to the scope now refuse
 await Scope.guard(transaction, [spaceId]); // keeps a write's scopes unfenced until it commits

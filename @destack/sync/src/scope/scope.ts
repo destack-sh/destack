@@ -1,4 +1,5 @@
 import { eq, sql, type DatabaseConnection, type RowImage, type Snapshot } from "@destack/db";
+import { found } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import { SyncError } from "../error/index.ts";
 import type { ObjectReference } from "./reference.ts";
@@ -33,7 +34,7 @@ const UNIVERSE_LINK: ScopeLink = {
 const FENCE_LOCK = "destack-fence";
 
 /** A scope's chain and transfer fence, read from and written to its own row. */
-export const Scope = { table: scopeTable, universe, chain, object, fence, guard, unfence };
+export const Scope = { table: scopeTable, universe, chain, chains, object, fence, guard, unfence };
 
 /** One scope of a chain. */
 export interface ScopeLink {
@@ -49,9 +50,19 @@ export interface ScopeLink {
 
 /** Read a scope and the scopes enclosing it, nearest first. */
 async function chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
-    // read the scope's row, then its ancestors' rows by key
+    const chained = await chains(snapshot, [scope]);
+
+    return found(chained, scope);
+}
+
+/** Read the chains of some scopes, nearest first, by scope, reading each level of ancestors once for all of them. */
+async function chains(
+    snapshot: Snapshot,
+    scopes: readonly string[],
+): Promise<Map<string, ScopeLink[]>> {
+    // read the scopes' rows, then their ancestors' rows by key
     const rows = new Map<string, RowImage<typeof scopeTable>>();
-    for (let wanted = [scope]; wanted.length > 0;) {
+    for (let wanted = [...new Set(scopes)]; wanted.length > 0;) {
         const read = await snapshot.select(
             scopeTable,
             ["scope"],
@@ -65,7 +76,15 @@ async function chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
         );
     }
 
-    // order them from the scope up
+    return new Map(scopes.map((scope) => [scope, linked(rows, scope)]));
+}
+
+/** Link a scope's chain from read scope rows, from the scope up. */
+function linked(
+    rows: ReadonlyMap<string, RowImage<typeof scopeTable>>,
+    scope: string,
+): ScopeLink[] {
+    // order the rows from the scope up
     const links: ScopeLink[] = [];
     for (let current = rows.get(scope); current !== undefined;) {
         const id = current.scope;

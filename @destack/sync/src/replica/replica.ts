@@ -15,6 +15,7 @@ import {
     type Insert,
     lt,
     not,
+    or,
     sql,
     text,
     TABLE,
@@ -48,6 +49,7 @@ import { Filter } from "../dataflow/filter.ts";
 import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
+import { scopeTable } from "../scope/table.ts";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
@@ -135,11 +137,7 @@ export const replicaResult = defineTable(
     },
 );
 
-/**
- * The rows each copy keeps, as the follower stores them: the rows it includes and the columns it hides on each.
- *
- * A row several copies include stays until none includes it, and keeps a column while one of them shows it.
- */
+/** The rows each copy keeps on the follower, with the columns it hides on each. */
 export const replicaRow = defineTable(
     "replica_row",
     {
@@ -172,8 +170,8 @@ export class Replica {
     readonly tables: readonly Table[];
     /** The condition on each table's copied rows. */
     readonly where: ReadonlyMap<Table, Condition>;
-    /** The scope of each table whose rows live outside the copy's scope. */
-    readonly scopes: ReadonlyMap<Table, string>;
+    /** The scopes of each table whose rows live outside the copy's scope, or in several scopes. */
+    readonly scopes: ReadonlyMap<Table, readonly string[]>;
     /** The tables whose rows are copied from whichever scope they live in. */
     readonly everywhere: ReadonlySet<Table>;
     /** The parent tables of each table copied across scopes: each of its rows lives in the scope of a parent row's `id`. */
@@ -193,7 +191,7 @@ export class Replica {
         readonly scope: string;
         readonly tables: readonly Table[];
         readonly where?: ReadonlyMap<Table, Condition>;
-        readonly scopes?: ReadonlyMap<Table, string>;
+        readonly scopes?: ReadonlyMap<Table, readonly string[]>;
         readonly everywhere?: ReadonlySet<Table>;
         readonly within?: ReadonlyMap<Table, readonly Table[]>;
         readonly isRelayed?: boolean;
@@ -296,11 +294,11 @@ export class Replica {
     /** Build the query reading one copied table's rows in its scope. */
     #query(table: Table): Query {
         const where = this.where.get(table);
-        const scope = this.scopes.get(table) ?? this.scope;
+        const scopes = this.scopes.get(table) ?? [this.scope];
 
         return {
             table,
-            scopes: this.everywhere.has(table) ? "every" : [scope],
+            scopes: this.everywhere.has(table) ? "every" : scopes,
             ...(where === undefined ? {} : { where }),
         };
     }
@@ -356,9 +354,9 @@ export class Replica {
         signal: AbortSignal,
     ): Promise<boolean> {
         return database.log.until(async () => {
-            // read each copy's home position
-            const records = await database.select().from(replica).where(eq(replica.scope, scope));
-            const copies = records.map((record) => Replica.#origin(record));
+            // read the home position of each copy keeping the scope
+            const keeping = await Replica.#keeping(database, [scope]);
+            const copies = keeping.map(({ record }) => Replica.#origin(record));
 
             // refuse a position of an outdated history
             if (copies.some((copy) => copy !== undefined && copy.position.epoch > position.epoch)) {
@@ -401,23 +399,58 @@ export class Replica {
         shape: string,
         scopes: readonly string[],
     ): Promise<Map<string, Origin>> {
-        // read the complete copies of the shape in the scopes
-        const records = await database.select().from(replica).where(inArray(replica.scope, scopes));
+        // read the complete copies of the shape keeping the scopes
         const origins = new Map<string, Origin>();
-        for (const record of records) {
+        for (const { scope, record } of await Replica.#keeping(database, scopes)) {
             const origin = Replica.#origin(record);
             if (origin === undefined || record.subscription?.shape !== shape) {
                 continue;
             }
 
             // keep the copy its home confirmed first because a row stays while any copy includes it
-            const kept = origins.get(record.scope);
+            const kept = origins.get(scope);
             if (kept === undefined || origin.confirmedAt < kept.confirmedAt) {
-                origins.set(record.scope, origin);
+                origins.set(scope, origin);
             }
         }
 
         return origins;
+    }
+
+    /** Read the records of the copies keeping some scopes, once per scope and copy. */
+    static async #keeping(
+        database: DatabaseConnection,
+        scopes: readonly string[],
+    ): Promise<{ readonly scope: string; readonly record: typeof replica.$inferSelect }[]> {
+        // read the copies recorded at the scopes, and those including the scopes' own rows
+        const keys = new Map(scopes.map((scope) => [Key.name(scopeTable, { scope }), scope]));
+        const rows = await database
+            .select()
+            .from(replica)
+            .leftJoin(
+                replicaRow,
+                and(
+                    eq(replicaRow.name, replica.name),
+                    eq(replicaRow.scope, replica.scope),
+                    eq(replicaRow.table, scopeTable[TABLE].sqlName),
+                    inArray(replicaRow.key, [...keys.keys()]),
+                ),
+            )
+            .where(or(inArray(replica.scope, scopes), inArray(replicaRow.key, [...keys.keys()])));
+
+        // pair each copy with the scope it is recorded at and the scope whose row it includes
+        const pairs = new Map<string, { scope: string; record: typeof replica.$inferSelect }>();
+        for (const { replica: record, replica_row: included } of rows) {
+            const kept = [
+                ...(scopes.includes(record.scope) ? [record.scope] : []),
+                ...(included === null ? [] : [found(keys, included.key)]),
+            ];
+            for (const scope of kept) {
+                pairs.set(`${scope} ${record.name} ${record.scope}`, { scope, record });
+            }
+        }
+
+        return [...pairs.values()];
     }
 
     /** Read the source position the copy has, absent before its first snapshot or after a layout change. */
@@ -971,9 +1004,18 @@ export class Replica {
         // batch each table's writes and each projected table's rows
         const { batches, projected, origin } = await this.#collect(page, delivered, unwrap);
 
-        // write each table's batch
-        for (const [table, batch] of batches) {
-            await this.#writeBatch(transaction, table, batch, retired);
+        // take the removed rows out of the copy children first, then write the kept rows parents first
+        const ordered = this.tables.flatMap((table): [Table, Batch][] => {
+            const batch = batches.get(table);
+
+            return batch === undefined ? [] : [[table, batch]];
+        });
+        for (const [table, batch] of ordered.toReversed()) {
+            const keys = batch.removed.map((row) => Key.name(table, row));
+            await this.#exclude(transaction, table, keys, retired);
+        }
+        for (const [table, batch] of ordered) {
+            await this.#writeKept(transaction, table, batch, retired);
         }
 
         // project the collected rows and keep the groups
@@ -1048,21 +1090,13 @@ export class Replica {
         return origin;
     }
 
-    /** Write a table's batch of one page, retiring the blobs the replaced and deleted rows referenced. */
-    async #writeBatch(
+    /** Write a table's kept rows of one page and record them as included, retiring the blobs the replaced rows referenced. */
+    async #writeKept(
         transaction: DatabaseConnection,
         table: Table,
         batch: Batch,
         retired: Set<string> | undefined,
     ): Promise<void> {
-        // take the removed rows out of the copy
-        await this.#exclude(
-            transaction,
-            table,
-            batch.removed.map((row) => Key.name(table, row)),
-            retired,
-        );
-
         // collect the blobs the kept rows stop referencing
         if (retired !== undefined) {
             await retireReplaced(transaction, table, batch.kept, retired);
@@ -1200,7 +1234,7 @@ export class Replica {
         const where = Condition.render(
             {
                 AND: [
-                    Node.scoped([this.scopes.get(table) ?? this.scope]),
+                    Node.scoped(this.scopes.get(table) ?? [this.scope]),
                     this.where.get(table) ?? {},
                 ],
             },
@@ -1705,11 +1739,7 @@ export interface ApplyOptions {
     readonly unwrap?: (table: Table, row: Row) => Promise<Row>;
 }
 
-/**
- * How a copy projects a source table's rows into rows of its own, as a read model of them.
- *
- * Each kept source row upserts its target row by the target's unique source reference, and a source row leaving the copy retracts it.
- */
+/** How a copy projects a source table's rows into rows of its own, as a read model of them. */
 export interface Projector {
     /** The source table whose rows the copy projects. */
     readonly source: Table;
