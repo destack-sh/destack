@@ -1,7 +1,7 @@
 import { ModuleMetadata } from "@destack/package";
-import { eq } from "../../../sql/index.ts";
-import { defineTable } from "../../../table/table.ts";
-import { text } from "../../../table/column.ts";
+import { eq } from "../../sql/index.ts";
+import { defineTable } from "../../table/table.ts";
+import { text } from "../../table/column.ts";
 import type { DurableObjectStorage } from "../client.ts";
 import { connect } from "../connection.ts";
 

@@ -1,10 +1,10 @@
 /// <reference types="bun" />
 import { Database } from "bun:sqlite";
-import type * as declaration from "../../declare/database.ts";
-import type { Table } from "../../table/table.ts";
-import { SqliteDatabase, type ConnectOptions } from "../database.ts";
+import type * as declaration from "../declare/database.ts";
+import type { Table } from "../table/table.ts";
+import { SqliteDatabase, type ConnectOptions } from "../sqlite/database.ts";
 import { BunClient } from "./client.ts";
-import type { Model } from "../../query/model.ts";
+import type { Model } from "../query/model.ts";
 
 /**
  * The wait for another process's write lock, in milliseconds.

@@ -2,8 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, onTestFinished, test } from "@destack/test";
-import { socketChannel } from "../../channel/socket.ts";
-import { defineTable, text } from "../../index.ts";
+import { socketChannel } from "../channel/socket.ts";
+import { defineTable, text } from "../index.ts";
 import { connect } from "./connection.ts";
 
 /** A logged setting without a scope column. */
@@ -32,7 +32,7 @@ test("wake a file's readers on a commit another process announces on the file's 
     );
     const script = `
         import { Database } from "bun:sqlite";
-        import { socketChannel } from ${JSON.stringify(join(import.meta.dirname, "../../channel/socket.ts"))};
+        import { socketChannel } from ${JSON.stringify(join(import.meta.dirname, "../channel/socket.ts"))};
         const database = new Database(${JSON.stringify(path)});
         database.run("INSERT INTO destack__db__setting (name, value) VALUES ('theme', 'dark')");
         database.close();

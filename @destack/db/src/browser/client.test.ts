@@ -1,10 +1,10 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import init from "@sqlite.org/sqlite-wasm";
-import { asc, eq } from "../../index.ts";
-import { connectShared, serveDatabase, type Message } from "../shared/shared.ts";
+import { asc, eq } from "../index.ts";
+import { connectShared, serveDatabase, type Message } from "./shared.ts";
 import { WasmClient } from "./client.ts";
-import { changeTables, note } from "../../log/test/fixture.ts";
-import { channelHub } from "../../test/channel.ts";
+import { changeTables, note } from "../log/test/fixture.ts";
+import { channelHub } from "../test/channel.ts";
 
 test("declare, log and query tables on SQLite WebAssembly through a channel, as a browser tab does", async () => {
     // serve an in-memory database to a party

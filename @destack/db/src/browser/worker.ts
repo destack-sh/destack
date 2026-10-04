@@ -1,6 +1,6 @@
 import init from "@sqlite.org/sqlite-wasm";
-import type { Channel } from "../../channel/channel.ts";
-import { serveDatabase } from "../shared/shared.ts";
+import type { Channel } from "../channel/channel.ts";
+import { serveDatabase } from "./shared.ts";
 import { WasmClient } from "./client.ts";
 
 /** Open an OPFS database file and serve it to a channel's parties until stopped. */

@@ -8,20 +8,19 @@
     "exports": {
         ".": "./src/index.ts",
         "./postgres": "./src/postgres/index.ts",
-        "./bun": "./src/sqlite/bun/index.ts",
+        "./bun": "./src/bun/index.ts",
         "./test": "./src/test/index.ts",
         "./channel/socket": "./src/channel/socket.ts",
-        "./shared": "./src/sqlite/shared/index.ts",
         "./sqlite": "./src/sqlite/index.ts",
-        "./wasm": "./src/sqlite/wasm/index.ts",
-        "./durable-object": "./src/sqlite/durable-object/index.ts",
+        "./browser": "./src/browser/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts",
         "./blob": "./src/blob/index.ts",
         "./blob/local": "./src/blob/local.ts",
         "./inspect": "./src/inspect/index.ts"
     },
     "imports": {
         "#connector": {
-            "bun": "./src/connector/bun.ts",
+            "bun": "./src/bun/connector.ts",
             "default": "./src/connector/none.ts"
         }
     },

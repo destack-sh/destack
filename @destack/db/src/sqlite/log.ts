@@ -7,7 +7,7 @@ import {
     LOG_HORIZON,
     LOG_TRANSACTION,
     type LogDialect,
-} from "./schema.ts";
+} from "../log/schema.ts";
 
 /** The most arguments of one SQLite function call, SQLITE_MAX_FUNCTION_ARG since SQLite 3.48. */
 const FUNCTION_ARGUMENT_LIMIT = 1000;

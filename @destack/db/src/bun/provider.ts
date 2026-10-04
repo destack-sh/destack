@@ -7,8 +7,8 @@ import {
     type Provisioner,
     type Reconciler,
 } from "@destack/resource";
-import { connect } from "./bun/connection.ts";
-import { open, requireReference } from "./connector.ts";
+import { connect } from "./connection.ts";
+import { open, requireReference } from "./sqlite.ts";
 import { DatabaseError } from "../error/error.ts";
 import { DatabaseKind } from "../declare/database.ts";
 import { mergeStates } from "../migration/merge.ts";

@@ -1,8 +1,8 @@
 import type { Triggers } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { LogDialect } from "./schema.ts";
-import { sqliteLog } from "./sqlite.ts";
-import { postgresLog } from "./postgres.ts";
+import { sqliteLog } from "../sqlite/log.ts";
+import { postgresLog } from "../postgres/log.ts";
 
 /** The log of each dialect. */
 const LOGS: Readonly<Record<Dialect, LogDialect>> = { sqlite: sqliteLog, postgresql: postgresLog };

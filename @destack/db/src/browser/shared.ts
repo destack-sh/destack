@@ -1,13 +1,13 @@
-import { DriverValue } from "../../table/column.ts";
+import { DriverValue } from "../table/column.ts";
 import { schema } from "@destack/schema";
-import type * as declaration from "../../declare/database.ts";
-import { typedChannel, type Channel } from "../../channel/channel.ts";
-import type { Table } from "../../table/table.ts";
-import { SqliteDatabase } from "../database.ts";
-import { DatabaseError, errorCode } from "../../error/error.ts";
-import { Savepoint, type ConnectionClient, type QueryClient } from "../client.ts";
-import { LOG_TOPIC } from "../../log/schema.ts";
-import type { Model } from "../../query/model.ts";
+import type * as declaration from "../declare/database.ts";
+import { typedChannel, type Channel } from "../channel/channel.ts";
+import type { Table } from "../table/table.ts";
+import { SqliteDatabase } from "../sqlite/database.ts";
+import { DatabaseError, errorCode } from "../error/error.ts";
+import { Savepoint, type ConnectionClient, type QueryClient } from "../sqlite/client.ts";
+import { LOG_TOPIC } from "../log/schema.ts";
+import type { Model } from "../query/model.ts";
 
 /**
  * The idle timeout of a party's transaction at the owner, in milliseconds.

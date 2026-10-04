@@ -9,7 +9,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 import type { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
 import { declareState } from "../migration/state.ts";
-import * as sqlite from "../sqlite/bun/connection.ts";
+import * as sqlite from "../bun/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
 import { PostgresDatabase } from "../postgres/database.ts";
 import { LOG_EPOCH, LOG_HORIZON, LOG_TABLES } from "../log/schema.ts";

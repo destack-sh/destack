@@ -5,9 +5,9 @@ import type { Model } from "../query/model.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Table } from "../table/table.ts";
 import { socketChannel } from "../channel/socket.ts";
-import { connect } from "./bun/connection.ts";
-import type { SqliteDatabase } from "./database.ts";
-import type { BunClient } from "./bun/client.ts";
+import { connect } from "./connection.ts";
+import type { SqliteDatabase } from "../sqlite/database.ts";
+import type { BunClient } from "./client.ts";
 
 /** Open SQLite database files inside a workload, refusing one lacking its declaration's tables. */
 export const sqliteConnector: DatabaseConnector = {

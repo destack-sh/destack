@@ -1,8 +1,8 @@
 /// <reference types="bun" />
 import type * as bun from "bun:sqlite";
-import type { DriverValue } from "../../table/column.ts";
-import { Savepoint, WorkQueue, type ConnectionClient, type QueryClient } from "../client.ts";
-import { SqliteScript } from "../script.ts";
+import type { DriverValue } from "../table/column.ts";
+import { Savepoint, WorkQueue, type ConnectionClient, type QueryClient } from "../sqlite/client.ts";
+import { SqliteScript } from "../sqlite/script.ts";
 
 /** The most prepared statement texts per connection: a service runs 400 to 600, at 2 to 10 KB each. */
 const PREPARED_TEXTS = 512;

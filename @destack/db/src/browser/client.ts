@@ -1,6 +1,6 @@
-import type { DriverValue } from "../../table/column.ts";
+import type { DriverValue } from "../table/column.ts";
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
-import { Savepoint, WorkQueue, type ConnectionClient, type QueryClient } from "../client.ts";
+import { Savepoint, WorkQueue, type ConnectionClient, type QueryClient } from "../sqlite/client.ts";
 
 /** Statements over one SQLite WebAssembly database. */
 export class WasmQuery implements QueryClient {

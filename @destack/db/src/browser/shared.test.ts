@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, defineTable, eq, integer, text } from "../../index.ts";
+import { asc, defineTable, eq, integer, text } from "../index.ts";
 import { connect } from "../bun/connection.ts";
-import { channelHub } from "../../test/channel.ts";
+import { channelHub } from "../test/channel.ts";
 import { connectShared, Party, serveDatabase } from "./shared.ts";
 
 /** Notes a party writes. */

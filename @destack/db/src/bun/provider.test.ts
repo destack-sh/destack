@@ -9,7 +9,7 @@ import { schema } from "@destack/schema";
 import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineTable, sql, TABLE, text } from "../index.ts";
-import { sqliteConnector } from "./connector.ts";
+import { sqliteConnector } from "./sqlite.ts";
 import { databaseProvider } from "./provider.ts";
 
 /** Notes with a title. */

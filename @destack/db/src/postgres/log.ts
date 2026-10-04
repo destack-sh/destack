@@ -7,7 +7,7 @@ import {
     LOG_EPOCH,
     LOG_HORIZON,
     type LogDialect,
-} from "./schema.ts";
+} from "../log/schema.ts";
 
 /** The transaction-local setting naming the already stamped transaction. */
 const STAMPED_SETTING = "destack.stamped";

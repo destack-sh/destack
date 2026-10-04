@@ -1,6 +1,6 @@
-import type { DriverValue } from "../../table/column.ts";
-import { WorkQueue, type ConnectionClient, type QueryClient } from "../client.ts";
-import { SqliteScript } from "../script.ts";
+import type { DriverValue } from "../table/column.ts";
+import { WorkQueue, type ConnectionClient, type QueryClient } from "../sqlite/client.ts";
+import { SqliteScript } from "../sqlite/script.ts";
 
 /** The rows one statement of a Durable Object's SQL storage yields. */
 export interface DurableObjectCursor {

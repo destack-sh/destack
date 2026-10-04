@@ -169,7 +169,7 @@ const isCopied = database.copies(accountTable);
 `databaseProvider.sqlite` manages a host's SQLite files, and a workload opens one through the `sqlite` connector of its declaration.
 
 ```ts
-import { databaseProvider } from "@destack/db/sqlite";
+import { databaseProvider } from "@destack/db/bun";
 
 const provider = databaseProvider.sqlite(new URL("file:///var/destack/databases/"), databaseObject);
 await using connection = await main.connectors["sqlite"]?.connect(binding, main); // SQLite on Bun
@@ -177,12 +177,12 @@ await using connection = await main.connectors["sqlite"]?.connect(binding, main)
 
 ## Connections
 
-`connect` from `@destack/db/bun`, `@destack/db/postgres` or `@destack/db/durable-object` opens a database on that runtime.
+`connect` from `@destack/db/bun`, `@destack/db/postgres` or `@destack/db/cloudflare` opens a database on that runtime.
 
 ```ts
 import { connect } from "@destack/db/bun";
 import { connect as connectPostgres } from "@destack/db/postgres";
-import { connect as connectStorage } from "@destack/db/durable-object";
+import { connect as connectStorage } from "@destack/db/cloudflare";
 
 const file = await connect("notes.db", main);
 const pool = await connectPostgres(process.env.DATABASE_URL, main);

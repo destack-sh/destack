@@ -10,13 +10,18 @@
         "./bun": {
             "runtimes": ["bun"]
         },
+        "./cloudflare": {
+            "runtimes": ["workerd"]
+        },
         "./test": {
             "runtimes": ["bun"]
+        },
+        "./browser": {
+            "runtimes": ["browser"]
         }
     },
     "declarations": {
         "defineDatabase": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "resource",
@@ -25,9 +30,10 @@
                     "symbols": "./inspect#databaseSymbols"
                 }
             ]
-        },
-        "defineTable": {
-            "module": 3
         }
+    },
+    "stamps": {
+        "defineDatabase": { "module": 1 },
+        "defineTable": { "module": 3 }
     }
 }
