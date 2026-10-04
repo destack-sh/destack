@@ -4,7 +4,7 @@ import type { Metadata, Targets } from "@tufjs/models";
 import { Release } from "@destack/update/release";
 import { TargetCustom } from "@destack/update/release";
 import type { Catalog, CatalogDistribution } from "./catalog.ts";
-import { INSTALLER_FORMATS, InstallerFormat } from "../distribution/platform.ts";
+import { INSTALLER_FORMATS, InstallerFormat } from "./catalog.ts";
 
 /** A signed target path: a target or installer name, then the update archive or an installer format. */
 const TARGET_PATH = new RegExp(`^([a-z0-9_-]+)\\.(tar\\.gz|${INSTALLER_FORMATS.join("|")})$`, "u");

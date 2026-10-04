@@ -1,6 +1,14 @@
 import { CHANNELS } from "@destack/update/release";
 import { schema } from "@destack/schema";
-import { InstallerFormat } from "../distribution/platform.ts";
+
+/** The native installer formats a release publishes beside its update archives. */
+export const INSTALLER_FORMATS = ["dmg"] as const;
+
+/** A native installer format. */
+export const InstallerFormat = schema.enum(INSTALLER_FORMATS);
+
+/** A native installer format. */
+export type InstallerFormat = schema.Infer<typeof InstallerFormat>;
 
 /** One public archive or installer authenticated by targets metadata. */
 export const CatalogDownload = schema.object({

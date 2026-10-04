@@ -1,8 +1,5 @@
-import { schema } from "@destack/schema";
+import { InstallerFormat } from "../repository/catalog.ts";
 import type { Target } from "@destack/update/release";
-
-/** The native installer formats a release publishes beside its update archives. */
-export const INSTALLER_FORMATS = ["dmg"] as const;
 
 /** The code signers of the platforms that sign their applications. */
 export const SIGNERS = ["apple"] as const;
@@ -73,12 +70,6 @@ export const PLATFORMS: readonly Platform[] = [
         installers: [],
     },
 ];
-
-/** A native installer format. */
-export const InstallerFormat = schema.enum(INSTALLER_FORMATS);
-
-/** A native installer format. */
-export type InstallerFormat = schema.Infer<typeof InstallerFormat>;
 
 /** A platform code signer. */
 export type SignerName = (typeof SIGNERS)[number];
