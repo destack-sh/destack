@@ -14,22 +14,22 @@ macbook.flotothemoon.destack.computer                 the host macbook of flotot
 
 ## Relays
 
-`RelayServer.start` copies the accounts, hosts, host keys and zones names resolve with from the account service, and keeps its hosts' tunnels in memory.
+`implementRelay` copies the accounts, hosts, host keys and zones names resolve with from the account service under its controllers, and its `Relay` keeps its hosts' tunnels in memory.
 
 ```ts
-import { RelayServer } from "@destack/relay/server";
+import { implementRelay } from "@destack/relay/server";
 import { BunRelay } from "@destack/relay/bun";
 import { WorkerdRelay } from "@destack/relay/cloudflare";
 
-const server = RelayServer.start({
+const service = implementRelay({
     origin: "https://relay.destack.space",
     database: relayDatabase.get(context),
     identity, // the WorkloadIdentity following the account service with its workload token
     tokens, // the verifier of the universe's tokens for RELAY_PACKAGE
     report,
 });
-const listener = BunRelay.listen(server, { hostname: "0.0.0.0", port: 443, tls }); // a Bun process
-const object = new WorkerdRelay(server); // a Durable Object: object.fetch(request) accepts tunnels as WebSockets
+const listener = BunRelay.listen(service.relay, { hostname: "0.0.0.0", port: 443, tls }); // a Bun process
+const object = new WorkerdRelay(service.relay); // a Durable Object: object.fetch(request) accepts tunnels as WebSockets
 ```
 
 ## Workload
@@ -43,7 +43,7 @@ const resources = new ResourceContext()
     .bind(relayConfiguration, {
         origin,
         tokens,
-        serve: (server) => BunRelay.listen(server, listener),
+        serve: (relay) => BunRelay.listen(relay, listener),
     }); // operators bind the workload RELAY_ROLE, reading accounts, hosts, host keys and zones
 ```
 

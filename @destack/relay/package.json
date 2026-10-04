@@ -8,6 +8,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./server": "./src/server/index.ts",
+        "./service": "./src/service/index.ts",
         "./bun": "./src/bun/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
         "./tunnel": "./src/tunnel/index.ts",

@@ -13,8 +13,12 @@ import { v7 } from "uuid";
 import { TunnelClient, type TunnelClientOptions } from "../../tunnel/index.ts";
 import { BunRelay } from "../../bun/index.ts";
 import { relayDatabase } from "../../stack/index.ts";
-import { RELAY_PACKAGE, RelayServer, type RelayServerOptions } from "../index.ts";
-import { RELAY_ROLE } from "../../workload/index.ts";
+import { workloadIdentity } from "@destack/account/client";
+import { ResourceContext } from "@destack/resource/context";
+import { testCallKey } from "@destack/service/test";
+import { WorkloadInstance } from "@destack/service/workload";
+import { RELAY_PACKAGE } from "../index.ts";
+import { RELAY_ROLE, relayConfiguration, relayWorkload } from "../../workload/index.ts";
 
 /** Timings short enough for scenarios to watch renewals and reconnects. */
 export const QUICK = {
@@ -55,8 +59,8 @@ export class RelayFixture implements AsyncDisposable {
     readonly names: string[] = [];
     /** The failures the relays and tunnels reported. */
     readonly reports: unknown[] = [];
-    /** The relays started, closed on disposal. */
-    readonly #relays = new Set<BunRelay>();
+    /** The relays started with their workloads, closed on disposal. */
+    readonly #relays = new Map<BunRelay, WorkloadInstance>();
     /** The relays' databases, closed on disposal. */
     readonly #databases: TestDatabase[] = [];
     /** The clients and region servers started, closed on disposal. */
@@ -142,8 +146,8 @@ export class RelayFixture implements AsyncDisposable {
         return id;
     }
 
-    /** Start a relay listening on a port over a database of its own, once its copies reflect the account service. */
-    async relay(port: number, options: Partial<RelayServerOptions> = {}): Promise<BunRelay> {
+    /** Start a relay's workload listening on a port over a database of its own, once its copies reflect the account service. */
+    async relay(port: number): Promise<BunRelay> {
         // keep the relay's copies in a database of its own
         const [dialect] = TEST_DIALECTS;
         const storage = await TestDatabase.create(
@@ -155,23 +159,40 @@ export class RelayFixture implements AsyncDisposable {
         );
         this.#databases.push(storage);
 
-        // follow and call the account service as the relay's workload in its region
+        // follow and call the account service as the relay's workload in its region, listening on the port
         const { placement, region } = this.workload;
-        const server = RelayServer.start({
-            origin: `http://127.0.0.1:${port}`,
-            database: storage.database,
-            identity: this.accounts.identity(region, placement),
-            tokens: new TokenVerifier({
-                authority: { kind: "universe" },
-                issuer: ISSUER,
-                audience: RELAY_PACKAGE.id,
-                keys: this.accounts.keys,
-            }),
+        const listening = Promise.withResolvers<BunRelay>();
+        const resources = new ResourceContext()
+            .bind(relayDatabase, storage.database)
+            .bind(workloadIdentity, this.accounts.identity(region, placement))
+            .bind(relayConfiguration, {
+                origin: `http://127.0.0.1:${port}`,
+                tokens: new TokenVerifier({
+                    authority: { kind: "universe" },
+                    issuer: ISSUER,
+                    audience: RELAY_PACKAGE.id,
+                    keys: this.accounts.keys,
+                }),
+                serve: (relay) => {
+                    const bun = BunRelay.listen(relay, { hostname: "127.0.0.1", port });
+                    listening.resolve(bun);
+
+                    return bun;
+                },
+            });
+        const instance = await WorkloadInstance.start(relayWorkload, {
+            resources,
+            callKey: testCallKey,
             report: (error) => this.reports.push(error),
-            ...options,
+            service: (service) => ({
+                audience: service.package.id,
+                authenticate: async () => null,
+                authorizeHost: async () => {},
+                drainTimeout: 1000,
+            }),
         });
-        const relay = BunRelay.listen(server, { hostname: "127.0.0.1", port });
-        this.#relays.add(relay);
+        const relay = await listening.promise;
+        this.#relays.set(relay, instance);
         await this.settle(relay);
 
         return relay;
@@ -179,14 +200,14 @@ export class RelayFixture implements AsyncDisposable {
 
     /** Wait until a relay's copies reflect the account service as of now. */
     async settle(relay: BunRelay): Promise<void> {
-        await this.accounts.settle(relay.server.relay.objects, this.workload.placement);
+        await this.accounts.settle(relay.relay.objects, this.workload.placement);
     }
 
     /** Close a relay before the scenario ends. */
     async stop(relay: BunRelay): Promise<void> {
+        const instance = present(this.#relays.get(relay), "the relay's workload");
         this.#relays.delete(relay);
-        await relay.close();
-        await relay.server.close();
+        await instance.close();
     }
 
     /** Read a token of the host for its relays. */
@@ -271,9 +292,8 @@ export class RelayFixture implements AsyncDisposable {
         for (const started of this.#hosts) {
             await started.close();
         }
-        for (const relay of this.#relays) {
-            await relay.close();
-            await relay.server.close();
+        for (const instance of this.#relays.values()) {
+            await instance.close();
         }
         for (const storage of this.#databases) {
             await storage.close();

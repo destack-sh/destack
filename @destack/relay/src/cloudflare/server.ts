@@ -1,5 +1,5 @@
 import { TUNNEL_PROTOCOL } from "../session/index.ts";
-import type { RelayServer } from "../server/index.ts";
+import type { Relay } from "../server/index.ts";
 
 /** The server end of a WebSocket workerd accepts in a Durable Object. */
 interface ServerSocket {
@@ -28,19 +28,19 @@ interface Upgrade extends ResponseInit {
 /** A relay in a Durable Object: its names, and its hosts' tunnels over WebSockets the object accepts and keeps open. */
 export class WorkerdRelay {
     /** The relay the object serves. */
-    readonly server: RelayServer;
+    readonly relay: Relay;
     /** The server ends of the open tunnels. */
     readonly #sockets = new Set<ServerSocket>();
 
     /** Serve a relay from the object holding it. */
-    constructor(server: RelayServer) {
-        this.server = server;
+    constructor(relay: Relay) {
+        this.relay = relay;
     }
 
     /** Accept a host's admitted tunnel with the tunnel protocol, and answer every other request. */
     async fetch(request: Request): Promise<Response> {
         // answer a request for a name or a refused tunnel
-        const routed = await this.server.route(request);
+        const routed = await this.relay.route(request);
         if (routed instanceof Response) {
             return routed;
         }
@@ -50,7 +50,7 @@ export class WorkerdRelay {
         const socket = pair[1];
         socket.accept();
         this.#sockets.add(socket);
-        const session = this.server.attach(routed, {
+        const session = this.relay.attach(routed, {
             send: (message) => socket.send(message),
             close: () => socket.close(),
         });
@@ -70,7 +70,7 @@ export class WorkerdRelay {
         // forget the socket once it closes
         socket.addEventListener("close", () => {
             this.#sockets.delete(socket);
-            this.server.detach(routed.hostId, session);
+            this.relay.detach(routed.hostId, session);
         });
 
         // switch protocols, handing the client's end to the host
