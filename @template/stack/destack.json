@@ -13,5 +13,10 @@
             ".oxfmtrc.json"
         ]
     },
-    "runtimes": ["bun", "workerd"]
+    "runtimes": ["bun", "workerd"],
+    "exports": {
+        "./setting": {
+            "runtimes": ["browser", "bun", "workerd"]
+        }
+    }
 }
