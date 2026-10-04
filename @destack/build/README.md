@@ -171,7 +171,7 @@ await store.sweep(retained, new Date(Date.now() - 60 * 60 * 1000));
 
 ## Extensions
 
-`build` in a dependency's `destack.json` names a `BuildExtension`, and the build applies it to the dependents.
+`build` in a package's `destack.json` names a `BuildExtension`, and a package's build applies the extension of each package in its dependency closure once, in name order.
 
 ```json
 { "build": "./build#viewExtension" }
@@ -179,13 +179,14 @@ await store.sweep(retained, new Date(Date.now() - 60 * 60 * 1000));
 
 ## Extension parts
 
-`compile` returns the plugins for one module output, `describe` describes its views and workloads, and `outputs` adds further output kinds.
+`transform` returns the plugins transforming modules wherever they compile, given the runtime, server rendering and the options an output gives each extension; `compile` returns the plugins for one module output, `describe` describes its views and workloads, and `outputs` adds further output kinds.
 
 ```ts
 export const viewExtension: BuildExtension = {
+    transform: ({ server, options }) => viewPlugins(server, options["@destack/view"]), // a web output names its application
     compile(compilation) {
         compilation.entry("./view/notes", "virtual:@destack/view/view/notes");
-        return viewPlugins(compilation.directory, false);
+        return [mountPlugin(views)];
     },
     describe(compilation, compiled) {
         return {
@@ -200,15 +201,22 @@ export const viewExtension: BuildExtension = {
         };
     },
 };
+export const styleExtension: BuildExtension = {
+    transform: ({ directory }) => [
+        styleX({ ...styleOptions(directory), cssInjectionTarget: (path) => path.includes("entry-client") }),
+    ],
+};
 export const webExtension: BuildExtension = { outputs: { web: webOutput } };
 ```
 
-## Dependency extensions
+## Extension packages
 
-The build compiles only module outputs, and the extensions of a package's dependencies add the rest.
+The build compiles only module outputs, and the extensions of the package's dependency closure add the rest.
 
 ```text
-@destack/view    Solid and StyleX compilation, and one ./view/<name> entry per view
+@destack/icon    the bodies of each icon drawn by a literal name
+@destack/style   StyleX compilation
+@destack/view    Solid compilation and one ./view/<name> entry per view
 @destack/web     web outputs: Solid applications with server rendering and prerendered pages
 @destack/space   one ./workload/<name> entry per workload on Bun, and one workload per objects-only service
                  of a package without workloads

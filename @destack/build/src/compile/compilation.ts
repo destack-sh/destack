@@ -31,7 +31,7 @@ import { PackagePath } from "@destack/package/file";
 import type { BuildDescription, DeclarationDescription } from "@destack/package/inspect";
 import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
-import { modulePlugin } from "@destack/package/transform/vite";
+import { modulePlugin } from "@destack/package/vite";
 import { type Runtime } from "@destack/package/runtime";
 import { type PackageSource } from "../source/index.ts";
 import { relativePath } from "../source/dependency.ts";
@@ -41,6 +41,7 @@ import { BuildError } from "../error/index.ts";
 import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
 import { directoryPlugin } from "./asset.ts";
+import { transformPlugins } from "./extension.ts";
 
 /** The files and descriptions one compiled output adds to its build. */
 export interface CompiledFiles {
@@ -68,7 +69,7 @@ interface CompileInput {
     readonly entries: readonly string[];
 }
 
-/** One module output a build compiles with the extensions of the package's dependencies. */
+/** One module output a build compiles with the extensions of the package's dependency closure. */
 export class OutputCompilation implements Compilation {
     /** The output's name. */
     readonly name: string;
@@ -82,12 +83,14 @@ export class OutputCompilation implements Compilation {
     readonly modules: readonly ModuleDescription[];
     /** The directories the package's modules read, by module. */
     readonly directories: ReadonlyMap<string, readonly DirectoryReference[]>;
-    /** The extensions of the package's dependencies. */
+    /** The extensions of the package and its dependencies. */
     readonly extensions: readonly BuildExtension[];
     /** Whether an output kind compiles the output in its pass, where extensions emit no entries. */
     readonly isLent: boolean;
     /** The modules extensions emit, by package entrypoint. */
     readonly #entries = new Map<string, string>();
+    /** The host modules the runtime supplies, and those the importing packages replace with nothing. */
+    readonly #hosts: HostModules;
 
     /** Create the compilation of one output from its settings, package and inspection. */
     constructor(
@@ -258,15 +261,24 @@ export class OutputCompilation implements Compilation {
         }
     }
 
-    /** Collect the extensions' plugins, reporting an extension's failure as a build failure. */
+    /** Collect the extensions' transforms before their compiling plugins, reporting an extension's failure as a build failure. */
     #plugins(): PluginOption[] {
-        return this.extensions.flatMap((extension) => {
+        const compiling = this.extensions.flatMap((extension) => {
             try {
                 return extension.compile?.(this) ?? [];
             } catch (cause) {
                 throw BuildError.from(cause);
             }
         });
+
+        const context = {
+            directory: this.directory,
+            runtime: this.runtime,
+            server: false,
+            options: {},
+        };
+
+        return [...transformPlugins(this.extensions, context), ...compiling];
     }
 
     /** Configure Vite to compile the output's entries into the build directory. */

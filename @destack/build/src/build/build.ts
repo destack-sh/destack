@@ -266,7 +266,7 @@ export type ModuleOptions = schema.Infer<typeof ModuleOptions>;
 export interface BuildOptions {
     /** The source package directory, kept unchanged for the duration of this build. */
     directory: string;
-    /** Named module outputs, and outputs of kinds the package's dependencies compile. */
+    /** Named module outputs, and outputs of kinds the extensions of the package's dependency closure compile. */
     outputs: Readonly<Record<string, ModuleOptions | OutputRequest>>;
     /** Exact dependency releases selected by the package resolver. */
     dependencies: Readonly<Record<string, DependencyResolution>>;

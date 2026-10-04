@@ -10,16 +10,17 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Manifest, Plugin } from "vite";
+import type { Manifest, Plugin, PluginOption } from "vite";
 import type { DependencyResolution } from "@destack/package";
-import type { Compilation, Pass } from "@destack/package/build";
+import type { BuildExtension, Compilation, Pass, TransformContext } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/inspect";
 import type { SourceMapReference } from "@destack/package/source";
-import { modulePlugin } from "@destack/package/transform/vite";
+import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";
 import { linkDependencies, type PackageSource } from "../source/index.ts";
 import type { DirectoryReference } from "../typescript/index.ts";
 import { describeAssets, directoryPlugin } from "./asset.ts";
+import { transformPlugins } from "./extension.ts";
 import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
 import { checkRuntime, type RuntimeCompiler } from "./runtime.ts";
 import { mapSource, sourcePlugin } from "./source.ts";
@@ -40,6 +41,8 @@ export class OutputPass implements Pass {
     readonly directories: ReadonlyMap<string, readonly DirectoryReference[]>;
     /** The runtime environments checking each output's globals. */
     readonly runtimes: RuntimeCompiler;
+    /** The extensions of the package's dependency closure. */
+    readonly extensions: readonly BuildExtension[];
     /** The generated files, by package path. */
     readonly files = new Map<string, Uint8Array<ArrayBuffer>>();
     /** The files written straight into the build directory. */
@@ -70,6 +73,7 @@ export class OutputPass implements Pass {
             >
         >,
         runtimes: RuntimeCompiler,
+        extensions: readonly BuildExtension[],
     ) {
         // keep the build's inputs and one inspection per output
         this.project = project;
@@ -81,6 +85,7 @@ export class OutputPass implements Pass {
             Object.values(compilations).flatMap((compilation) => [...compilation.directories]),
         );
         this.runtimes = runtimes;
+        this.extensions = extensions;
         for (const name of Object.keys(compilations)) {
             this.#inspections.set(name, { packages: {}, inputs: {}, outputs: {} });
         }
@@ -99,6 +104,11 @@ export class OutputPass implements Pass {
             ),
             modulePlugin(),
         ];
+    }
+
+    /** Return the plugins the extensions of the package's dependency closure transform its modules with. */
+    transforms(context: Omit<TransformContext, "directory">): PluginOption[] {
+        return transformPlugins(this.extensions, { ...context, directory: this.project.directory });
     }
 
     /** Return the plugin recording what one Vite environment compiles, into an output when it has one. */

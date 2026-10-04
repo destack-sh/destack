@@ -11,12 +11,26 @@ export type { Plugin, PluginOption };
 
 /** A dependency's part in building the packages that use it, set in its destack.json build field. */
 export interface BuildExtension {
+    /** Return the plugins transforming the modules of a package that uses the dependency, wherever they compile. */
+    transform?(context: TransformContext): readonly PluginOption[];
     /** Return the plugins compiling one module output of a package that uses the dependency. */
     compile?(compilation: Compilation): readonly PluginOption[];
     /** Describe the workloads and views of one compiled module output. */
     describe?(compilation: Compilation, compiled: CompiledOutput): OutputDescription;
     /** The output kinds this dependency compiles in a pass of its own, such as web applications. */
     readonly outputs?: Readonly<Record<string, OutputKind>>;
+}
+
+/** What modules compile for: the package, the runtime, whether a server renders pages, and options an output gives each extension. */
+export interface TransformContext {
+    /** The package directory. */
+    readonly directory: string;
+    /** The runtime the modules run on. */
+    readonly runtime: Runtime;
+    /** Whether a server renders the modules' pages before the browser hydrates them. */
+    readonly server: boolean;
+    /** The options an output gives each extension, by the name of the extension's package. */
+    readonly options: Readonly<Record<string, unknown>>;
 }
 
 /** An output kind compiled in one pass into several outputs, such as a web application's browser and server. */
@@ -54,6 +68,8 @@ export interface ExpandedOutput {
 export interface Pass {
     /** Return the plugins retaining sources, directories and module metadata for every output. */
     plugins(): Plugin[];
+    /** Return the plugins the extensions of the package's dependency closure transform its modules with. */
+    transforms(context: Omit<TransformContext, "directory">): PluginOption[];
     /** Return the plugin recording what one Vite environment compiles, into an output when it has one. */
     record(environment: string, output?: string): Plugin;
     /** Map a generated file's source map source to its package path. */

@@ -221,7 +221,7 @@ src/page/page.browser.ts   replaces page.ts in browser builds
 
 ## Builds
 
-A dependency's `BuildExtension` compiles and describes the outputs of the packages that use it, and `@destack/package/build` exports values every build shares, such as the `TYPE_CHECKS` compiler checks.
+A dependency's `BuildExtension` transforms, compiles and describes the outputs of the packages whose dependency closure includes it, and `@destack/package/build` exports values every build shares, such as the `TYPE_CHECKS` compiler checks.
 
 ```ts
 import type { BuildExtension } from "@destack/package/build";

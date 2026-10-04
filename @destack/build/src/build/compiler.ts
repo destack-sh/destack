@@ -133,7 +133,7 @@ export class BuildCompiler implements AsyncDisposable {
 
     /** Derive the cache keys of a build without checking, evaluating or compiling it. */
     async plan(options: BuildOptions): Promise<BuildKeys> {
-        // plan the outputs with the extensions of the package's dependencies
+        // plan the outputs with the extensions of the package's dependency closure
         const declaration = await readPackageDescription(options.directory);
         const loaded = await loadExtensions(options.directory, declaration);
         const planned = expand(
@@ -198,7 +198,7 @@ export class BuildCompiler implements AsyncDisposable {
         reuse: Readonly<Record<string, CachedOutput>>,
         destination: string,
     ): Promise<{ build: PackageBuild; outputs: Record<string, CachedOutput> }> {
-        // plan the outputs with the extensions of the package's dependencies
+        // plan the outputs with the extensions of the package's dependency closure
         const declaration = await readPackageDescription(options.directory);
         const extensions = (await loadExtensions(options.directory, declaration)).map(
             (entry) => entry.extension,
@@ -523,6 +523,7 @@ export class BuildCompiler implements AsyncDisposable {
             files.directory,
             compilations,
             this.runtimes,
+            extensions,
         );
 
         // compile the outputs and keep their files

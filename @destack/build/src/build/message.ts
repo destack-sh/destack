@@ -60,7 +60,7 @@ const MAX_MESSAGE_BYTES = 256 * 1024 * 1024;
 
 /** The options of a build beside its package directory. */
 export const RequestedBuild = schema.object({
-    /** Named module outputs, and outputs of kinds the package's dependencies compile. */
+    /** Named module outputs, and outputs of kinds the extensions of the package's dependency closure compile. */
     outputs: schema
         .record(schema.string(), schema.union([ModuleOptions, OutputRequest]))
         .readonly(),

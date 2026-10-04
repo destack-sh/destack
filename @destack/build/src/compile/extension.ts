@@ -1,16 +1,27 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type BuildExtension, runtimeConditions } from "@destack/package/build";
+import {
+    type BuildExtension,
+    type PluginOption,
+    runtimeConditions,
+    type TransformContext,
+} from "@destack/package/build";
 import { PackageDefinition, type PackageDescription, PackageExport } from "@destack/package";
 import { PackageLocator } from "@destack/package/transform";
 import { BuildError } from "../error/index.ts";
-import { selectExport } from "../source/index.ts";
-import { schema } from "@destack/schema";
+import { readPackageDescription, selectExport } from "../source/index.ts";
+import { present, schema } from "@destack/schema";
 
-/** The exports of a package.json. */
+/** The exports and requirements of a package.json. */
 const Manifest = schema.looseObject({
     exports: schema.record(schema.string(), PackageExport).exactOptional(),
+    dependencies: schema.record(schema.string(), schema.string()).default({}),
+    peerDependencies: schema.record(schema.string(), schema.string()).default({}),
+    peerDependenciesMeta: schema
+        .record(schema.string(), schema.looseObject({ optional: schema.boolean().exactOptional() }))
+        .default({}),
+    optionalDependencies: schema.record(schema.string(), schema.string()).default({}),
 });
 
 /** The exports of a module. */
@@ -18,6 +29,18 @@ const Exports = schema.record(schema.string(), schema.unknown());
 
 /** The conditions selecting an extension's module in the build worker. */
 const CONDITIONS = new Set(["import", "default", ...runtimeConditions("bun")]);
+
+/** The requirements of a package that decide which dependencies it builds without. */
+interface Requirements {
+    /** The required dependencies. */
+    readonly dependencies: Readonly<Record<string, string>>;
+    /** The dependencies a dependent supplies. */
+    readonly peerDependencies: Readonly<Record<string, string>>;
+    /** Whether each peer is optional. */
+    readonly peerDependenciesMeta: Readonly<Record<string, { readonly optional?: boolean }>>;
+    /** The optional dependencies. */
+    readonly optionalDependencies: Readonly<Record<string, string>>;
+}
 
 /** A build extension with the directory of the package declaring it. */
 export interface LoadedExtension {
@@ -27,48 +50,112 @@ export interface LoadedExtension {
     readonly extension: BuildExtension;
 }
 
-/** Load the extensions the package's dependencies declare in their destack.json, in name order. */
+/** Load each extension of the package's dependency closure once in name order, its development dependencies included in development. */
 export async function loadExtensions(
     directory: string,
     declaration: PackageDescription,
+    options: { readonly development?: boolean } = {},
 ): Promise<LoadedExtension[]> {
-    // read the dependencies in a stable order
-    const names = Object.keys({
-        ...declaration.dependencies,
-        ...declaration.peerDependencies,
-        ...declaration.optionalDependencies,
-    }).toSorted();
+    // walk the Destack packages the package requires, directly or through each other
+    const own = declaration.package.name;
     const locator = new PackageLocator();
-    const extensions: LoadedExtension[] = [];
-    for (const name of names) {
-        // skip an absent optional dependency and refuse an absent required one
-        const installed = locator.directory(name, directory);
-        if (installed === undefined) {
-            if (isOptional(name, declaration)) {
+    const packages = new Map<string, { directory: string; definition: PackageDefinition }>();
+    const requirements: Requirements =
+        options.development === true
+            ? {
+                  ...declaration,
+                  dependencies: { ...declaration.devDependencies, ...declaration.dependencies },
+              }
+            : declaration;
+    const pending: { name: string; directory: string; requirements: Requirements }[] = [
+        { name: own, directory, requirements },
+    ];
+    packages.set(own, { directory, definition: declaration.definition });
+    for (let entry = pending.pop(); entry !== undefined; entry = pending.pop()) {
+        for (const name of requiredNames(entry.requirements)) {
+            // visit each package once
+            if (packages.has(name)) {
                 continue;
             }
-            throw new BuildError("BUILD_FAILED", `missing dependency: ${name}`);
-        }
 
-        // skip dependencies declaring no extension
-        const path = join(installed, "destack.json");
-        if (!existsSync(path)) {
+            // skip an absent optional dependency and refuse an absent required one
+            const installed = locator.directory(name, entry.directory);
+            if (installed === undefined) {
+                if (isOptional(name, entry.requirements)) {
+                    continue;
+                }
+                throw new BuildError(
+                    "BUILD_FAILED",
+                    `missing dependency of ${entry.name}: ${name}`,
+                );
+            }
+
+            // walk on through Destack packages alone
+            const path = join(installed, "destack.json");
+            if (!existsSync(path)) {
+                continue;
+            }
+            const definition = PackageDefinition.read(await readFile(path, "utf8"));
+            packages.set(name, { directory: installed, definition });
+            const manifest = await readManifest(installed);
+            pending.push({ name, directory: installed, requirements: manifest });
+        }
+    }
+
+    // import each declared extension in name order
+    const extensions: LoadedExtension[] = [];
+    for (const name of [...packages.keys()].toSorted()) {
+        const found = present(packages.get(name), `the package ${name}`);
+        if (found.definition.build === undefined) {
             continue;
         }
-        const definition = PackageDefinition.read(await readFile(path, "utf8"));
-        if (definition.build === undefined) {
-            continue;
-        }
-
-        // import the extension from the export its build field refers to
-        const extension = await importExtension(name, installed, definition.build);
-        extensions.push({ directory: installed, extension });
+        const extension = await importExtension(name, found.directory, found.definition.build);
+        extensions.push({ directory: found.directory, extension });
     }
 
     return extensions;
 }
 
-/** Import the extension a dependency's build field names, such as `./build#viewExtension`. */
+/** Load the plugins the extensions of a package's dependency closure, its development dependencies included, transform its modules with in development. */
+export async function loadTransforms(context: TransformContext): Promise<PluginOption[]> {
+    const declaration = await readPackageDescription(context.directory);
+    const loaded = await loadExtensions(context.directory, declaration, { development: true });
+
+    return transformPlugins(
+        loaded.map((entry) => entry.extension),
+        context,
+    );
+}
+
+/** Collect the plugins extensions transform a package's modules with, reporting a failure as a build failure. */
+export function transformPlugins(
+    extensions: readonly BuildExtension[],
+    context: TransformContext,
+): PluginOption[] {
+    return extensions.flatMap((extension) => {
+        try {
+            return extension.transform?.(context) ?? [];
+        } catch (cause) {
+            throw BuildError.from(cause);
+        }
+    });
+}
+
+/** List the names a package requires at run time, its own dependencies, peers and optional ones. */
+function requiredNames(requirements: Requirements): string[] {
+    return Object.keys({
+        ...requirements.dependencies,
+        ...requirements.peerDependencies,
+        ...requirements.optionalDependencies,
+    });
+}
+
+/** Read the exports and requirements of an installed package's package.json. */
+async function readManifest(installed: string): Promise<schema.Infer<typeof Manifest>> {
+    return Manifest.parse(JSON.parse(await readFile(join(installed, "package.json"), "utf8")));
+}
+
+/** Import the extension a package's build field names, such as `./build#viewExtension`. */
 async function importExtension(
     name: string,
     installed: string,
@@ -86,9 +173,7 @@ async function importExtension(
     const exportName = build.slice(separator + 1);
 
     // select the module the build worker's conditions resolve
-    const manifest = Manifest.parse(
-        JSON.parse(await readFile(join(installed, "package.json"), "utf8")),
-    );
+    const manifest = await readManifest(installed);
     const file = selectExport(manifest.exports?.[subpath], CONDITIONS);
     if (typeof file !== "string") {
         throw new BuildError("BUILD_FAILED", `${name} exports no build module at ${subpath}`);
@@ -105,15 +190,15 @@ async function importExtension(
 }
 
 /** Decide whether a package builds without a dependency, as an optional one or an optional peer. */
-function isOptional(name: string, declaration: PackageDescription): boolean {
+function isOptional(name: string, requirements: Requirements): boolean {
     // accept an optional dependency, which overrides a matching dependency
-    if (Object.hasOwn(declaration.optionalDependencies, name)) {
+    if (Object.hasOwn(requirements.optionalDependencies, name)) {
         return true;
     }
 
     // accept an optional peer the package does not also require
-    const isRequired = Object.hasOwn(declaration.dependencies, name);
-    const isOptionalPeer = declaration.peerDependenciesMeta[name]?.optional === true;
+    const isRequired = Object.hasOwn(requirements.dependencies, name);
+    const isOptionalPeer = requirements.peerDependenciesMeta[name]?.optional === true;
 
     return !isRequired && isOptionalPeer;
 }
