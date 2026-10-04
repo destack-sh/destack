@@ -1,0 +1,41 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a106a9-fa56-7592-94ec-524de565163d",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./workload": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./pack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./local": {
+            "runtimes": ["bun"]
+        },
+        "./artifacts": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./github": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./package": {
+            "runtimes": ["bun", "workerd"]
+        }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["tests/fixture/consumer/run.js"],
+                "rules": ["eslint/no-console", "typescript/no-unsafe-call"],
+                "reason": "the consumer fixture is a plain JavaScript program that prints what the installed package returns, as a downstream user's script would"
+            }
+        ]
+    }
+}

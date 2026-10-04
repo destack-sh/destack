@@ -1,7 +1,0 @@
-{
-    "private": true,
-    "type": "module",
-    "dependencies": {
-        "@example/greeting": "2026.9.0"
-    }
-}

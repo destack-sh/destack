@@ -1,0 +1,50 @@
+{
+    "name": "@destack/forge",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Host the Git repositories of accounts and publish, resolve and distribute their Destack packages.",
+    "exports": {
+        "./object": "./src/object/index.ts",
+        "./service": "./src/service/index.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./workload": "./src/workload/index.ts",
+        "./pack": "./src/pack/index.ts",
+        "./storage": "./src/storage/index.ts",
+        "./local": "./src/local/index.ts",
+        "./artifacts": "./src/artifacts/index.ts",
+        "./github": "./src/github/index.ts",
+        "./package": "./src/package.ts"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/build": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "semver": "7.8.5"
+    },
+    "devDependencies": {
+        "@destack/bucket": "workspace:*",
+        "@destack/directory": "workspace:*",
+        "@destack/host": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/semver": "7.8.0",
+        "@types/bun": "1.4.2"
+    }
+}
