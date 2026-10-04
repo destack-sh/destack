@@ -34,7 +34,7 @@ export const Contact = Object.assign(contactSchema, {
         return `${contact.medium}:${contact.address}`;
     },
 
-    /** Reference a contact as the principal relationships and proposals name. */
+    /** Reference a contact as the principal relationships and invitations name. */
     subject(contact: Contact): Subject {
         return principal.contact.reference(Scope.universe.id, Contact.key(contact));
     },
@@ -164,12 +164,7 @@ export const Caller = {
         });
     },
 
-    /**
-     * Act as the principal an object stands for, with the caller as its actor (RFC 8693 4.1).
-     *
-     * The principal's subject sets are its own and the containment sets of the scopes it lives inside.
-     * The caller's contacts and assurance stay with the caller, and its restrictions still apply.
-     */
+    /** Act as the principal an object stands for, with the caller as its actor (RFC 8693 4.1). */
     represent(caller: Caller, standing: Standing): Caller {
         // refuse a delegated caller, whose chain the representation would drop
         if ((caller.delegates ?? []).length > 0) {

@@ -4,12 +4,12 @@ import { Snapshot, asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     ACCESS_MAPPINGS,
-    accessProposal,
+    accessInvitation,
     accessRelationship,
     Authorization,
     Authorizer,
     principal,
-    proposal,
+    invitation,
     Relationship,
     relationship,
     type AccessContext,
@@ -82,7 +82,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "show a proposal to its proposer, its addressee and whoever may grant on its object on %s",
+    "show an invitation to its inviting principal, its addressee and whoever may grant on its object on %s",
     async (dialect) => {
         // open the fixture, where alice owns node b and granted bob editing it
         const fixture = await openFixture(dialect);
@@ -95,14 +95,14 @@ test.for(TEST_DIALECTS)(
 
         // let carol ask to view node b, and alice offer dave viewing it
         const object = node.reference("personal", "b");
-        await new Authorization(authorizer, fixture.database, () => as("carol")).propose({
+        await new Authorization(authorizer, fixture.database, () => as("carol")).invite({
             relationship: {
                 object,
                 relation: "viewer",
                 subject: principal.user.reference("universe", "carol"),
             },
         });
-        await new Authorization(authorizer, fixture.database, () => fixture.alice).propose({
+        await new Authorization(authorizer, fixture.database, () => fixture.alice).invite({
             relationship: {
                 object,
                 relation: "viewer",
@@ -110,7 +110,7 @@ test.for(TEST_DIALECTS)(
             },
         });
 
-        // list the proposals each caller may read, by proposer and addressee
+        // list the invitations each caller may read, by inviting principal and addressee
         const visible = async (context: AccessContext) => {
             const access = await authorizer.resolve(
                 Snapshot.live(fixture.database),
@@ -119,14 +119,14 @@ test.for(TEST_DIALECTS)(
             );
             const rows = await fixture.database
                 .select({
-                    proposer: accessProposal.proposerKey,
-                    addressee: accessProposal.addressee,
+                    inviter: accessInvitation.inviterKey,
+                    addressee: accessInvitation.addressee,
                 })
-                .from(accessProposal)
-                .where(authorizer.where(proposal.permission("read"), access, accessProposal))
-                .orderBy(asc(accessProposal.id));
+                .from(accessInvitation)
+                .where(authorizer.where(invitation.permission("read"), access, accessInvitation))
+                .orderBy(asc(accessInvitation.id));
 
-            return rows.map((row) => `${row.proposer}>${row.addressee}`);
+            return rows.map((row) => `${row.inviter}>${row.addressee}`);
         };
 
         // show both to alice as grantor, and each other caller only its own

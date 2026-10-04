@@ -462,7 +462,7 @@ test("list the spaces an account contains to the account's owner", async () => {
     expect(recorded.map((row) => row.id)).toEqual(["space-1", "space-2"]);
 });
 
-test("refuse an offer whose proposer lost the authority to grant it", async () => {
+test("refuse an offer whose inviting principal lost the authority to grant it", async () => {
     const { database, query, defineRole, relate } = await openRoleFixture();
     const bob = principal.user.reference("universe", "bob");
     const dave = {
@@ -482,7 +482,7 @@ test("refuse an offer whose proposer lost the authority to grant it", async () =
         subjects: [bob],
         now: 1000,
         attributes: {},
-    })).propose({
+    })).invite({
         relationship: {
             object: node.reference("personal", "a"),
             relation: "viewer",

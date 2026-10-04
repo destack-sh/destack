@@ -25,8 +25,6 @@ export const principal = {
     cell: new Policy(OWNER, { name: "cell", permissions: {}, isGlobal: true }),
     /** A platform workload placed in a region, which that region's hosts run and act as through workload tokens. */
     workload: new Policy(OWNER, { name: "workload", permissions: {}, isGlobal: true }),
-    /** A non-person identity an account creates for automation, living in that account. */
-    serviceAccount: new Policy(OWNER, { name: "service-account", permissions: {} }),
     /** A way to reach someone outside Destack that they prove control of, such as an email address. */
     contact: new Policy(OWNER, { name: "contact", permissions: {} }),
     /** A set of people, software and other groups that objects are shared with at once. */
@@ -61,11 +59,11 @@ export const relationship = new Policy(OWNER, {
     permissions: { read: union(relation("subject"), readersOf("object", "relation")) },
 });
 
-/** A proposed relationship awaiting acceptance. */
-export const proposal = new Policy(OWNER, {
-    name: "proposal",
+/** A pending grant of a relationship, awaiting its addressee or a grantor. */
+export const invitation = new Policy(OWNER, {
+    name: "invitation",
     relations: {
-        proposer: { subjects: [principal.user, principal.host, principal.installation] },
+        inviter: { subjects: [principal.user, principal.host, principal.installation] },
         addressee: {
             subjects: [principal.user, principal.host, principal.installation, principal.contact],
         },
@@ -73,7 +71,7 @@ export const proposal = new Policy(OWNER, {
     },
     permissions: {
         read: union(
-            relation("proposer"),
+            relation("inviter"),
             relation("addressee"),
             relation("lender"),
             grantersOf("object"),
@@ -93,7 +91,7 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     anyone,
     role,
     relationship,
-    proposal,
+    invitation,
 ];
 
 /** Determine whether a subject is one principal rather than a set or another object. */

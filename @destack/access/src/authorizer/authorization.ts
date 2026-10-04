@@ -24,12 +24,12 @@ import {
 import { accessRelationship } from "../relationship/table.ts";
 import { LinkSecret, type Link } from "../relationship/link.ts";
 import {
-    Proposal,
-    PROPOSAL_LIFETIME_MILLISECONDS,
-    type ProposalPage,
-    type ProposalRequest,
-} from "../proposal/proposal.ts";
-import { accessProposal } from "../proposal/table.ts";
+    Invitation,
+    INVITATION_LIFETIME_MILLISECONDS,
+    type InvitationPage,
+    type InvitationRequest,
+} from "../invitation/invitation.ts";
+import { accessInvitation } from "../invitation/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import type { Access } from "./access.ts";
@@ -37,7 +37,7 @@ import type { Admission, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
 import type { GrantReader, Lookup } from "./grant.ts";
 
-/** The relationship fields that authorization reads from a request, proposal or stored row. */
+/** The relationship fields that authorization reads from a request, invitation or stored row. */
 type RelationshipFields = {
     /** The related object. */
     readonly object: ObjectReference;
@@ -174,11 +174,7 @@ export class Authorization {
         );
     }
 
-    /**
-     * Resolve the caller's access in scopes another scope encloses, in reads shared by all of them.
-     *
-     * A scope it does not enclose is left out, and a credential pinned to the enclosing scope is refused below it.
-     */
+    /** Resolve the caller's access in the scopes a scope encloses, in reads shared by all of them. */
     async descend(scope: string, below: readonly string[]): Promise<Map<string, Access>> {
         // resolve the scopes not resolved before together
         const known = this.#below.get(scope) ?? new Map<string, Access | undefined>();
@@ -208,11 +204,7 @@ export class Authorization {
         return enclosing;
     }
 
-    /**
-     * Record a new object's access: a scope's place among the scopes containing it, its first relationships, and a scope's owner role.
-     *
-     * The object's own create permission is its caller's to require; the first holders relate without a grant, since none can precede them.
-     */
+    /** Record a new object's access: a scope's containing scopes, its first relationships and a scope's owner role. */
     async create(object: ObjectReference, creation: Creation): Promise<void> {
         // write the access of an object this database keeps
         await this.authorizer.requireLocal(this.database, object);
@@ -338,175 +330,208 @@ export class Authorization {
         return { id: relationship.id, secret: linkSecret.secret };
     }
 
-    /**
-     * Propose a relationship that applies only once accepted.
-     *
-     * A principal asks for a relationship with itself as subject; a grantor offers one to a principal or to whoever proves a recipient identifier.
-     */
-    async propose(request: ProposalRequest): Promise<Proposal> {
+    /** Invite a relationship that applies once accepted, asked for by its subject or offered by a grantor. */
+    async invite(request: InvitationRequest): Promise<Invitation> {
         return this.database.transaction(async (transaction) => {
-            // require an authenticated proposer and an object this database keeps
+            // require an object this database keeps, invited by a principal or the system
             const authorization = this.within(transaction);
-            const proposed = request.relationship;
-            await this.authorizer.requireLocal(transaction, proposed.object);
-            const context = this.context(this.authorizer.governingScope(proposed.object));
-            const proposer = Caller.requirePrincipal(context);
+            const invited = request.relationship;
+            await this.authorizer.requireLocal(transaction, invited.object);
+            const context = this.context(this.authorizer.governingScope(invited.object));
+            const inviter = Caller.principal(context) ?? null;
 
             // validate the relationship, checking an invited contact's principal once it accepts
-            const { subject, ...validated } = proposed;
+            const { subject, ...validated } = invited;
             this.authorizer.validate(
-                policies.principal.contact.is(subject) ? validated : proposed,
+                policies.principal.contact.is(subject) ? validated : invited,
                 context.now,
             );
-            const expiresAt = request.expiresAt ?? context.now + PROPOSAL_LIFETIME_MILLISECONDS;
+            const expiresAt = request.expiresAt ?? context.now + INVITATION_LIFETIME_MILLISECONDS;
             if (!Number.isFinite(expiresAt) || expiresAt <= context.now) {
-                throw new AccessError("FORBIDDEN", "proposal must lapse in the future");
+                throw new AccessError("FORBIDDEN", "invitation must lapse in the future");
             }
 
             // let a principal ask for itself, and require grant authority to offer to anyone else
-            if (!Subject.same(proposed.subject, proposer)) {
+            if (inviter === null || !Subject.same(invited.subject, inviter)) {
                 if (
-                    proposed.subject.relation !== undefined ||
-                    proposed.subject.id === "*" ||
-                    proposed.subject.scope === "*"
+                    invited.subject.relation !== undefined ||
+                    invited.subject.id === "*" ||
+                    invited.subject.scope === "*"
                 ) {
-                    throw new AccessError("FORBIDDEN", "proposal subject must be one principal");
+                    throw new AccessError("FORBIDDEN", "invitation subject must be one principal");
                 }
-                await authorization.authorizeGrant(proposed);
+                await authorization.authorizeGrant(invited);
             }
 
-            // store the proposal apart from the relationships that apply
-            const proposal: Proposal = {
-                id: schema.identifier("proposal").parse(`proposal-${v7()}`),
+            // store the invitation apart from the relationships that apply
+            const invitation: Invitation = {
+                id: schema.identifier("invitation").parse(`invitation-${v7()}`),
                 relationship: {
-                    object: proposed.object,
-                    ...Relationship.via(proposed),
-                    subject: proposed.subject,
-                    expiresAt: proposed.expiresAt ?? null,
-                    ...(proposed.conditions === undefined
-                        ? {}
-                        : { conditions: proposed.conditions }),
+                    object: invited.object,
+                    ...Relationship.via(invited),
+                    subject: invited.subject,
+                    expiresAt: invited.expiresAt ?? null,
+                    ...(invited.conditions === undefined ? {} : { conditions: invited.conditions }),
                 },
-                proposer,
+                inviter,
                 ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
+                status: "pending",
                 createdAt: context.now,
                 expiresAt,
             };
-            await transaction
-                .insert(accessProposal)
-                .values(Proposal.encode(proposal, this.authorizer.governingScope(proposed.object)));
+            const scope = this.authorizer.governingScope(invited.object);
+            await transaction.insert(accessInvitation).values(Invitation.encode(invitation, scope));
 
-            return proposal;
+            return invitation;
         });
     }
 
-    /**
-     * Accept a proposal on an object so its relationship applies.
-     *
-     * A grantor accepts a principal's request; the offered principal, or whoever proves the recipient identifier, accepts an offer and becomes its subject.
-     */
+    /** Accept an invitation on an object so its relationship applies. */
     async accept(object: ObjectReference, id: string): Promise<Relationship> {
         return this.database.transaction(async (transaction) => {
-            // load the current proposal inside the authorization transaction
+            // load the pending invitation inside the authorization transaction
             const authorization = this.within(transaction);
             const context = this.context(this.authorizer.governingScope(object));
-            const proposal = await Proposal.read(transaction, object, id);
-            if (proposal.expiresAt <= context.now) {
-                throw new AccessError("FORBIDDEN", "proposal has lapsed");
+            const invitation = await Invitation.read(transaction, object, id);
+            if (invitation.expiresAt <= context.now) {
+                throw new AccessError("FORBIDDEN", "invitation has lapsed");
             }
 
             // require a grantor for a request
-            const proposed = proposal.relationship;
+            const invited = invitation.relationship;
             let subject: Subject;
-            if (Proposal.asksForItself(proposal)) {
-                await authorization.authorizeGrant(proposed);
-                subject = proposal.relationship.subject;
+            if (Invitation.asksForItself(invitation)) {
+                await authorization.authorizeGrant(invited);
+                subject = invitation.relationship.subject;
             }
-            // require the addressed principal for an offer
+            // require the addressed principal for an offer, which its inviting principal still may grant
             else {
                 const accepting = Caller.requirePrincipal(context);
-                if (!Proposal.addresses(proposal, accepting, context)) {
-                    throw new AccessError("FORBIDDEN", "proposal is addressed to someone else");
+                if (!Invitation.addresses(invitation, accepting, context)) {
+                    throw new AccessError("FORBIDDEN", "invitation is addressed to someone else");
                 }
                 subject = accepting;
-                const proposer = new Authorization(this.authorizer, transaction, () => ({
-                    subjects: [proposal.proposer],
-                    now: context.now,
-                    attributes: {},
-                }));
-                await proposer.authorizeGrant(proposed);
+                await this.#requireInviter(transaction, invitation, context.now);
             }
 
-            // relate the accepting subject and retire the proposal
-            const { expiresAt, ...granted } = proposed;
+            // relate the accepting subject and settle the invitation
+            const { expiresAt, ...granted } = invited;
             const relationship = await authorization.#insert({
                 ...granted,
                 subject,
                 ...(expiresAt === null ? {} : { expiresAt }),
             });
-            await transaction.delete(accessProposal).where(eq(accessProposal.id, Proposal.id(id)));
+            await Authorization.#settle(transaction, id, "accepted", context.now);
             this.renew();
 
             return relationship;
         });
     }
 
-    /** Decline a proposal on an object: its proposer withdrawing, its addressee refusing, or a grantor rejecting it. */
-    async decline(object: ObjectReference, id: string): Promise<Proposal> {
+    /** Withdraw an invitation on an object: its inviting principal or addressee, or a grantor revoking it. */
+    async withdraw(object: ObjectReference, id: string): Promise<Invitation> {
         return this.database.transaction(async (transaction) => {
-            // let the proposer and the addressee decline without grant authority
+            // let the inviting principal and the addressee withdraw without grant authority
             const authorization = this.within(transaction);
             const context = this.context(this.authorizer.governingScope(object));
-            const proposal = await Proposal.read(transaction, object, id);
+            const invitation = await Invitation.read(transaction, object, id);
             const acting = Caller.principal(context);
+            const isInviter =
+                acting !== undefined &&
+                invitation.inviter !== null &&
+                Subject.same(acting, invitation.inviter);
             if (
                 acting === undefined ||
-                (!Subject.same(acting, proposal.proposer) &&
-                    !Proposal.addresses(proposal, acting, context))
+                (!isInviter && !Invitation.addresses(invitation, acting, context))
             ) {
-                await authorization.authorizeRevoke(proposal.relationship);
+                await authorization.authorizeRevoke(invitation.relationship);
             }
-            await transaction.delete(accessProposal).where(eq(accessProposal.id, Proposal.id(id)));
 
-            return proposal;
+            // keep the invitation as revoked
+            await Authorization.#settle(transaction, id, "revoked", context.now);
+
+            return { ...invitation, status: "revoked" };
         });
     }
 
-    /** List a page of the proposals pending on an object, ordered by identifier, as its grantors may. */
-    async proposals(
+    /** Require an offer's inviting principal to still grant its relationship, the system's offers standing as made. */
+    async #requireInviter(
+        transaction: DatabaseConnection,
+        invitation: Invitation,
+        now: number,
+    ): Promise<void> {
+        // let the system's offers stand as made
+        if (invitation.inviter === null) {
+            return;
+        }
+
+        // decide the grant as the inviting principal now
+        const inviter = invitation.inviter;
+        const authorization = new Authorization(this.authorizer, transaction, () => ({
+            subjects: [inviter],
+            now,
+            attributes: {},
+        }));
+        await authorization.authorizeGrant(invitation.relationship);
+    }
+
+    /** Settle a pending invitation as accepted or revoked, refusing one a concurrent write settled first. */
+    static async #settle(
+        transaction: DatabaseConnection,
+        id: string,
+        status: "accepted" | "revoked",
+        now: number,
+    ): Promise<void> {
+        const settled = await transaction
+            .update(accessInvitation)
+            .set({ status, updatedAt: now })
+            .where(
+                and(
+                    eq(accessInvitation.id, Invitation.id(id)),
+                    eq(accessInvitation.status, "pending"),
+                ),
+            )
+            .returning({ id: accessInvitation.id });
+        if (settled.length === 0) {
+            throw new AccessError("CONFLICT", "invitation is no longer pending");
+        }
+    }
+
+    /** List a page of the invitations pending on an object, ordered by identifier, as its grantors may. */
+    async invitations(
         request: {
             readonly object: ObjectReference;
             readonly relation?: string;
             readonly role?: string;
         },
-        page: ProposalPage,
-    ): Promise<Proposal[]> {
+        page: InvitationPage,
+    ): Promise<Invitation[]> {
         return this.database.transaction(async (transaction) => {
-            // require the grant permission, then read the object's proposals after the cursor
+            // require the grant permission, then read the object's invitations after the cursor
             const context = this.context(this.authorizer.governingScope(request.object));
             await this.within(transaction).#requireGrant(request.object, request.relation);
             const rows = await transaction
                 .select()
-                .from(accessProposal)
+                .from(accessInvitation)
                 .where(
                     and(
-                        Proposal.on(request.object),
+                        Invitation.on(request.object),
                         request.relation === undefined
                             ? undefined
-                            : eq(accessProposal.relation, request.relation),
+                            : eq(accessInvitation.relation, request.relation),
                         request.role === undefined
                             ? undefined
                             : eq(
-                                  accessProposal.roleId,
+                                  accessInvitation.roleId,
                                   schema.identifier("role").parse(request.role),
                               ),
-                        Proposal.pending(page, context.now),
+                        Invitation.pending(page, context.now),
                     ),
                 )
-                .orderBy(asc(accessProposal.id))
+                .orderBy(asc(accessInvitation.id))
                 .limit(page.limit);
 
-            return rows.map(Proposal.decode);
+            return rows.map(Invitation.decode);
         });
     }
 
