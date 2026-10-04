@@ -69,7 +69,7 @@ export class Relay {
             database,
             origin: { package: RELAY_PACKAGE, service: "relay" },
             subscriber: Subscriber.of(identity.publisher(), () =>
-                this.objects.source.workloadRequests(identity.placementId),
+                this.objects.source.workloadSubscriptions(identity.placementId),
             ),
         });
 
