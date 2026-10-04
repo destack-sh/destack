@@ -9,7 +9,8 @@
         ".": "./src/index.ts",
         "./server": "./src/server/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./client": "./src/client/index.ts"
+        "./client": "./src/client/index.ts",
+        "./browser": "./src/browser/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
@@ -21,10 +22,10 @@
         "@destack/service": "workspace:*",
         "uuid": "14.0.2",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*"
+        "@destack/telemetry": "workspace:*",
+        "@destack/resource": "workspace:*"
     },
     "devDependencies": {
-        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
     },

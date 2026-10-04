@@ -2,9 +2,9 @@ import { expect, test } from "@destack/test";
 import { journal } from "@destack/audit";
 import { eq } from "@destack/db";
 import { channelHub, TEST_DIALECTS } from "@destack/db/test";
-import { BrowserTab, ObjectClient, type BrowserHost } from "../src/client/index.ts";
-import { serveDatabase, type Message } from "@destack/db/shared";
-import { WasmClient } from "@destack/db/wasm";
+import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
+import { ObjectClient } from "../src/client/index.ts";
+import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { schema, present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { note, notebook } from "./fixture/note.ts";
@@ -112,10 +112,10 @@ test.each(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "note is in the trash" });
 
-        // list and withdraw the trashed note's relationships and proposals
+        // list and withdraw the trashed note's relationships and invitations
         expect([
             await alice.note.relationships({ spaceId, id: loose.id }),
-            await alice.note.proposals({ spaceId, id: loose.id }),
+            await alice.note.invitations({ spaceId, id: loose.id }),
         ]).toEqual([
             { items: [], cursor: null },
             { items: [], cursor: null },

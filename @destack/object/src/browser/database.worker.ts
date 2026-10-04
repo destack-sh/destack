@@ -1,5 +1,5 @@
 import { broadcastChannel } from "@destack/db";
-import { serveBrowserDatabase } from "@destack/db/wasm";
+import { serveBrowserDatabase } from "@destack/db/browser";
 
 // serve the named database to every tab on its channel
 self.addEventListener(

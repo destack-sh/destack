@@ -1,11 +1,11 @@
 import { broadcastChannel, type Channel, type Table } from "@destack/db";
 import type { Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
-import { connectShared } from "@destack/db/shared";
+import { connectShared } from "@destack/db/browser";
 import type { ClientOptions } from "@destack/service/client";
 import { RequestId } from "@destack/service/request";
 import type { ObjectType } from "../object/object.ts";
-import { ObjectClient } from "./client.ts";
+import { ObjectClient } from "../client/client.ts";
 
 /** The browser capabilities tabs share. */
 export interface BrowserHost {

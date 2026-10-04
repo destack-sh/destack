@@ -51,7 +51,7 @@ defineObject({
     provisioned: { kind }, // a resource kind's specification, placement and provider, controlled and bindable
     declarable: { schema }, // the stack declaration managing the record
     detachable: { by: "manage" }, // detach
-    shareable: { isPublic: true }, // owner, editor, commenter and viewer roles, relationships, proposals and explain
+    shareable: { isPublic: true }, // owner, editor, commenter and viewer roles, relationships, invitations and explain
     suspendable: { by: "manage" }, // suspend and resume on a scope type
     tracked: { by: "edit", activity, session: { minutes: 10 } }, // changes grouped into activities, with history and revert
     audited: { reads: true }, // an audit event for each read
@@ -245,7 +245,8 @@ const server = new ObjectServer({
     policies: [account],
     database,
     origin,
-    subscriber: Subscriber.of(publisher, () => server.source.workloadRequests(placementId)),
+    // copy the universe's rows the workload reads, and one copy of its scopes' chains
+    subscriber: Subscriber.of(publisher, () => server.source.workloadSubscriptions(placementId)),
 });
 ```
 
@@ -422,12 +423,14 @@ for await (const changes of diff.watch(signal)) render(changes); // [{ object, i
 `BrowserTab` shares one SQLite database across all tabs of an origin.
 
 ```ts
+import { BrowserTab } from "@destack/object/browser";
+
 const tab = await BrowserTab.open({
     name: "notes",
     objects: { notebook, note },
     scope,
     caller,
-    service,
+    endpoint,
     reconnect,
     report,
 });

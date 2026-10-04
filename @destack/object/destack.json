@@ -3,9 +3,19 @@
     "id": "package-01a0d462-1b26-7401-be27-6258e0a32141",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./browser": {
+            "runtimes": ["browser"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        }
+    },
     "declarations": {
         "defineObject": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "object",
@@ -15,5 +25,8 @@
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineObject": { "module": 1 }
     }
 }
