@@ -1,10 +1,9 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, eq, integer, text, type DatabaseConnection } from "@destack/db";
-import type { Channel } from "@destack/db/channel";
+import { defineTable, eq, integer, text, type DatabaseConnection, type Channel } from "@destack/db";
 import { channelHub, TestDatabase } from "@destack/db/test";
 import { Tracker, type TrackerMessage } from "./tracker.ts";
 
-/** Cursors of sessions on a board, held in memory. */
+/** Cursors of sessions on a board, kept in memory. */
 const cursor = defineTable(
     "cursor",
     {
@@ -78,10 +77,15 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
     // drop a silent instance's rows after three missed heartbeats
     let isCrashed = false;
     const channel = join();
-    const crashing = await open({
-        notify: (message) => !isCrashed && channel.notify(message),
+    const silenced: Channel<TrackerMessage> = {
+        notify: (message) => {
+            if (!isCrashed) {
+                channel.notify(message);
+            }
+        },
         listen: (receive, resume) => channel.listen(receive, resume),
-    });
+    };
+    const crashing = await open(silenced);
     await write(crashing, "bob", (database) =>
         database.insert(cursor).values({ id: "b", scope: "space", position: 1 }),
     );
@@ -90,24 +94,24 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
     await until(async () => (await read(west)).length === 0);
 });
 
-test("replicate which instance holds an owner, released everywhere once its instance stops", async () => {
+test("replicate which instance tracks an owner, released everywhere once its instance stops", async () => {
     const join = channelHub<TrackerMessage>();
     const east = await open(join());
     const west = await open(join());
     const changes: [string, boolean][] = [];
-    west.watchHolds((owner, isHeld) => changes.push([owner, isHeld]));
+    west.watchTracked((owner, isTracked) => changes.push([owner, isTracked]));
 
-    // see a hold on the other instance until released
-    east.hold("alice");
-    await until(() => west.isHeld("alice"));
+    // see the owner tracked on the other instance until released
+    east.track("alice");
+    await until(() => west.isTracked("alice"));
     east.release("alice");
-    await until(() => !west.isHeld("alice"));
+    await until(() => !west.isTracked("alice"));
 
-    // release an instance's holds when it stops
-    east.hold("bob");
-    await until(() => west.isHeld("bob"));
+    // release an instance's tracked owners when it stops
+    east.track("bob");
+    await until(() => west.isTracked("bob"));
     east.close();
-    await until(() => !west.isHeld("bob"));
+    await until(() => !west.isTracked("bob"));
     expect(changes).toEqual([
         ["alice", true],
         ["alice", false],
@@ -117,7 +121,7 @@ test("replicate which instance holds an owner, released everywhere once its inst
 });
 
 /** Track the cursors of an in-memory database on a channel. */
-async function open(channel: Channel<TrackerMessage>): Promise<Tracker> {
+async function open(channel: Channel<unknown>): Promise<Tracker> {
     const storage = await TestDatabase.create("sqlite", [cursor], { isMigrated: true });
     const tracker = new Tracker(storage.database, [cursor], channel, { heartbeat: 5 });
     onTestFinished(async () => {
@@ -142,7 +146,9 @@ async function write(
     tracker.publish(rows);
 
     // let the channel deliver the queued message
-    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    await new Promise<void>((resolve) => {
+        queueMicrotask(resolve);
+    });
 }
 
 /** Read an instance's cursors after it applies its messages. */
@@ -152,9 +158,11 @@ async function read(tracker: Tracker) {
     return tracker.database.select().from(cursor).orderBy(cursor.id);
 }
 
-/** Wait until a check holds. */
+/** Wait until a check passes. */
 async function until(check: () => boolean | Promise<boolean>): Promise<void> {
     while (!(await check())) {
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 1);
+        });
     }
 }

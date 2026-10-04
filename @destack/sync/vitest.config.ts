@@ -1,7 +1,7 @@
-import { defineConfig } from "@destack/test/config";
+import { defineConfiguration } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
-export default defineConfig({
+export default defineConfiguration({
     root: fileURLToPath(new URL(".", import.meta.url)),
     test: {
         projects: [
@@ -16,7 +16,7 @@ export default defineConfig({
                     hookTimeout: 5000,
                 },
             },
-            // hold performance budgets one file at a time, so that measurements do not contend
+            // run performance budgets one file at a time to keep their measurements apart
             {
                 extends: true,
                 test: {

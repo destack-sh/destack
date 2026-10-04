@@ -4,6 +4,15 @@ import { NAME_PATTERN, PackageId } from "@destack/package";
 /** A stable declaration-local name of an object type, relation or permission, in lowercase kebab case. */
 export const AccessName = schema.string().regex(NAME_PATTERN);
 
+/** A subject's key: its package, type, scope, identifier and relation or null. */
+const SubjectKey = schema.tuple([
+    schema.string(),
+    schema.string(),
+    schema.string(),
+    schema.string(),
+    schema.string().nullable(),
+]);
+
 /** The shape of a subject. */
 const shape = defineSchema(
     schema.object({
@@ -16,7 +25,7 @@ const shape = defineSchema(
         /** The subject identifier, or `*` for every object of the type in the scope. */
         id: schema.string().min(1),
         /** The relation whose members are the subjects, for a subject set. */
-        relation: AccessName.optional(),
+        relation: AccessName.exactOptional(),
     }),
 );
 /** A subject: a principal or other object, a subject set of its relation's members, or every object of a type. */
@@ -37,13 +46,7 @@ export const Subject = Object.assign(shape, {
 
     /** Read a subject back from its key. */
     read(key: string): Subject {
-        const [packageId, type, scope, id, relation] = JSON.parse(key) as [
-            string,
-            string,
-            string,
-            string,
-            string | null,
-        ];
+        const [packageId, type, scope, id, relation] = SubjectKey.parse(JSON.parse(key));
 
         return Subject.parse({
             packageId,

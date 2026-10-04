@@ -3,18 +3,21 @@ import {
     bigint,
     binary,
     boolean,
+    defineRelations,
     defineTable,
     index,
     integer,
     json,
     text,
     type DatabaseConnection,
+    type Relation,
+    Relations,
     type Table,
 } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { replicaTables, type Replica } from "../replica/replica.ts";
 import type { Prediction } from "../prediction/prediction.ts";
-import type { QueryPage } from "../query/page.ts";
+import type { Page } from "../query/page.ts";
 import { schema } from "@destack/schema";
 
 /** Test notes. */
@@ -35,13 +38,13 @@ export const note = defineTable(
         labels: json("labels", schema.array(schema.string())).notNull(),
         /** The last edit time. */
         editedAt: integer("edited_at").notNull(),
-        /** Attached bytes, left out of the log. */
+        /** Attached bytes, logged and synced in base64 form. */
         attachment: binary("attachment"),
     },
     { log: {} },
 );
 
-/** Assets with required content outside the log. */
+/** Assets with required binary content and a required secret outside the log. */
 export const asset = defineTable(
     "asset",
     {
@@ -51,11 +54,13 @@ export const asset = defineTable(
         scope: text("scope").notNull(),
         /** The required binary content. */
         content: binary("content").notNull(),
+        /** The required secret, left out of the log. */
+        secret: text("secret").notNull().sensitive(),
     },
     { log: {} },
 );
 
-/** Projects holding tasks. */
+/** Projects with tasks. */
 export const project = defineTable(
     "project",
     {
@@ -175,6 +180,59 @@ export const page = defineTable(
     },
 );
 
+/** A page's pages below it, through the page tree. */
+const BELOW: Relation = {
+    table: page,
+    cardinality: "many",
+    on: { kind: "descendants", column: "parentId" },
+};
+
+/** The relations the test queries name. */
+export const relations = Relations.merge(
+    defineRelations({ project, task, comment, tag, taskTag }, (relate) => ({
+        project: {
+            tasks: relate.many.task({ from: relate.project.id, to: relate.task.projectId }),
+            stats: relate.many.task({ from: relate.project.id, to: relate.task.projectId }),
+            scores: relate.many.task({ from: relate.project.id, to: relate.task.projectId }),
+            size: relate.many.task({ from: relate.project.id, to: relate.task.projectId }),
+            states: relate.many.task({ from: relate.project.id, to: relate.task.projectId }),
+            tags: relate.many.tag({ from: relate.project.id, to: relate.tag.scope }),
+        },
+        task: {
+            project: relate.one.project({ from: relate.task.projectId, to: relate.project.id }),
+            comments: relate.many.comment({ from: relate.task.id, to: relate.comment.taskId }),
+            tags: relate.many.tag({
+                from: relate.task.id.through(relate.taskTag.taskId),
+                to: relate.tag.id.through(relate.taskTag.tagId),
+            }),
+            count: relate.many.tag({
+                from: relate.task.id.through(relate.taskTag.taskId),
+                to: relate.tag.id.through(relate.taskTag.tagId),
+            }),
+        },
+        comment: {
+            task: relate.one.task({ from: relate.comment.taskId, to: relate.task.id }),
+        },
+    })),
+    new Relations(
+        new Map([
+            [
+                page,
+                {
+                    below: BELOW,
+                    size: BELOW,
+                    deep: BELOW,
+                    above: {
+                        table: page,
+                        cardinality: "many",
+                        on: { kind: "ancestors", column: "parentId" },
+                    },
+                },
+            ],
+        ]),
+    ),
+);
+
 /** The tables of each test database. */
 export const TABLES = [note, project, task, comment, tag, taskTag, page, ...replicaTables];
 
@@ -214,13 +272,13 @@ export const first = {
 
 /** Take pages from a subscription until one satisfies a condition, then stop. */
 export async function take(
-    pages: AsyncGenerator<QueryPage>,
-    until: (page: QueryPage) => boolean,
-): Promise<QueryPage[]> {
-    const taken: QueryPage[] = [];
-    for await (const page of pages) {
-        taken.push(page);
-        if (until(page)) {
+    pages: AsyncGenerator<Page>,
+    isLast: (page: Page) => boolean,
+): Promise<Page[]> {
+    const taken: Page[] = [];
+    for await (const read of pages) {
+        taken.push(read);
+        if (isLast(read)) {
             await pages.return(undefined);
         }
     }
@@ -228,25 +286,36 @@ export async function take(
     return taken;
 }
 
+/** Read a generator's next value, refusing its end. */
+export async function nextValue<Value>(generator: AsyncGenerator<Value, unknown>): Promise<Value> {
+    const read = await generator.next();
+    if (read.done === true) {
+        throw new TypeError("the generator ended");
+    }
+
+    return read.value;
+}
+
 /** Apply pages to a copy as one stream. */
 export async function replicate(
     copy: Replica,
     database: DatabaseConnection,
-    pages: readonly QueryPage[],
+    pages: readonly Page[],
     prediction?: Prediction,
 ): Promise<void> {
-    for await (const _page of copy.apply(database, pages, { prediction })) {
+    const applied = copy.apply(database, pages, prediction === undefined ? {} : { prediction });
+    while ((await applied.next()).done !== true) {
         // apply each page in order
     }
 }
 
 /** Read pages from a subscription until one satisfies a condition. */
 export async function until(
-    pages: AsyncGenerator<QueryPage>,
-    condition: (page: QueryPage) => boolean,
-): Promise<QueryPage[]> {
-    const read: QueryPage[] = [];
-    for (let next = await pages.next(); !next.done; next = await pages.next()) {
+    pages: AsyncGenerator<Page>,
+    condition: (page: Page) => boolean,
+): Promise<Page[]> {
+    const read: Page[] = [];
+    for (let next = await pages.next(); next.done !== true; next = await pages.next()) {
         read.push(next.value);
         if (condition(next.value)) {
             break;
