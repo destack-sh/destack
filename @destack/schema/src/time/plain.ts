@@ -32,6 +32,16 @@ export const PlainDate = {
         };
     },
 
+    /** Order two dates: negative when the left comes first, zero when they are the same day. */
+    compare(left: PlainDate, right: PlainDate): number {
+        return left.year - right.year || left.month - right.month || left.day - right.day;
+    },
+
+    /** Report whether two dates are the same day, false when either is absent. */
+    equals(left: PlainDate | undefined, right: PlainDate | undefined): boolean {
+        return left !== undefined && right !== undefined && PlainDate.compare(left, right) === 0;
+    },
+
     /** Read the weekday of a date. */
     weekday(date: PlainDate): Weekday {
         const day = new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
