@@ -1,5 +1,5 @@
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { directoryTables, DirectoryStore } from "../src/index.ts";
 
 test.each(TEST_DIALECTS)(
@@ -90,5 +90,32 @@ test.each(TEST_DIALECTS)(
             code: "CONFLICT",
             message: "space-1 is no longer placed in host-1 at epoch 1",
         });
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "advance a zone's epoch in its own cell, ending its move and refusing every step of the earlier epoch, on %s",
+    async (dialect) => {
+        // place a zone in host-1 moving to host-2, then advance its epoch in host-1
+        const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const directory = new DirectoryStore(storage.database);
+        const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
+        await directory.place(zone);
+        await directory.move(zone, "host-2");
+        await directory.place({ ...zone, epoch: 2 });
+
+        // refuse the earlier epoch's announcement, takeover and placement
+        expect([
+            await refusal(directory.move(zone, "host-2")),
+            await refusal(directory.place({ ...zone, cell: "host-2", epoch: 2 })),
+            await refusal(directory.place(zone)),
+            await directory.locate("space-1"),
+        ]).toEqual([
+            ["CONFLICT", "space-1 is no longer placed in host-1 at epoch 1"],
+            ["CONFLICT", "space-1 is neither placed in host-2 at epoch 2 nor moving there"],
+            ["CONFLICT", "space-1 is neither placed in host-1 at epoch 1 nor moving there"],
+            { ...zone, epoch: 2 },
+        ]);
     },
 );

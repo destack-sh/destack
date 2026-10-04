@@ -10,7 +10,7 @@ import type { Identity } from "../identity/identity.ts";
 export abstract class Directory {
     // zones and cells
 
-    /** Place a zone in its cell: create it, keep its placement and end its move, or take it over in its move's target at the next epoch. */
+    /** Place a zone in its cell: create it, keep its placement and end its move, advance its epoch in its own cell, or take it over in its move's target at the next epoch. */
     abstract place(zone: Zone): Promise<void>;
 
     /** Withdraw a zone its cell serves at an epoch. */

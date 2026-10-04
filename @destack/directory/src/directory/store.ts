@@ -96,9 +96,9 @@ export class DirectoryStore extends Directory {
 
     // zones and cells
 
-    /** Place a zone in its cell: create it, keep its placement and end its move, or take it over in its move's target at the next epoch. */
+    /** Place a zone in its cell: create it, keep its placement and end its move, advance its epoch in its own cell, or take it over in its move's target at the next epoch. */
     async place(zone: Zone): Promise<void> {
-        // keep the placement, or take the zone over in the cell its move still targets
+        // keep the placement, advance the epoch in the same cell, or take the zone over in the cell its move still targets
         const placed = await this.database
             .insert(zoneTable)
             .values({
@@ -111,7 +111,7 @@ export class DirectoryStore extends Directory {
             .onConflictDoUpdate({
                 target: zoneTable.id,
                 set: { parent: zone.scope, cell: zone.cell, epoch: zone.epoch, target: null },
-                setWhere: sql`(${zoneTable.epoch} = ${zone.epoch} AND ${zoneTable.cell} = ${zone.cell}) OR (${zoneTable.epoch} + 1 = ${zone.epoch} AND ${zoneTable.target} = ${zone.cell})`,
+                setWhere: sql`(${zoneTable.epoch} = ${zone.epoch} AND ${zoneTable.cell} = ${zone.cell}) OR (${zoneTable.epoch} + 1 = ${zone.epoch} AND (${zoneTable.cell} = ${zone.cell} OR ${zoneTable.target} = ${zone.cell}))`,
             })
             .returning({ id: zoneTable.id });
         if (placed.length === 0) {
