@@ -2,24 +2,37 @@ import { lstat, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { version } from "./index.ts";
+import { COMMANDS, selectPlatform, version } from "./index.ts";
+import { schema } from "@destack/schema";
 import { Release } from "@destack/update/release";
+import { print } from "../output/index.ts";
 
 /** Target executable selected for this verification host. */
-const target = new Release(version, process.argv[2] ?? Release.target()).target;
+const target = new Release(
+    version,
+    process.argv[2] ?? Release.target(process.platform, process.arch),
+).target;
 
 /** Isolated device state used to exercise the compiled host. */
 const directory = await mkdtemp(join(tmpdir(), "destack-release-check-"));
 /** Native CLI built for this runner. */
 const executable = fileURLToPath(
-    new URL(
-        `../../../../dist/${version}/${target}/bin/destack`,
-        import.meta.url,
-    ),
+    new URL(`../../../../dist/${version}/${target}/bin/destack`, import.meta.url),
 );
 
-/** Run a compiled command with a bounded runtime and return its JSON response. */
-async function run(arguments_: string[]): Promise<Record<string, unknown>> {
+/** A checkout the CLI reports. */
+const Checkout = schema.object({ id: schema.string() }).strip();
+
+/** The CLI's report of the daemon's connection and version. */
+const Status = schema
+    .object({
+        status: schema.string(),
+        daemon: schema.object({ version: schema.string() }).strip().exactOptional(),
+    })
+    .strip();
+
+/** Run a compiled command with a bounded runtime and read its JSON response. */
+async function run<Output>(arguments_: string[], response: schema.Schema<Output>): Promise<Output> {
     // run against isolated device state with a bounded lifetime
     const child = Bun.spawn([executable, ...arguments_, "--json"], {
         env: { ...process.env, DESTACK_DIRECTORY: directory },
@@ -36,26 +49,22 @@ async function run(arguments_: string[]): Promise<Record<string, unknown>> {
         throw new Error(error);
     }
 
-    return JSON.parse(output);
+    return response.parse(JSON.parse(output));
 }
 
-/** Verify every executable and the default view before starting the distribution. */
+/** Verify every executable before starting the distribution. */
 async function verifyDistribution(): Promise<void> {
     // select the packaged application and its platform-specific executable paths
     const root = dirname(dirname(executable));
-    const isMac = target.endsWith("apple-darwin");
-    const application = join(root, isMac ? "Destack.app/Contents" : "Destack");
-    const commands = isMac ? "Helpers" : "helpers";
-    const files = [
-        join(application, isMac ? "MacOS/Destack" : "Destack"),
-        join(application, commands, "destack-desktop-host"),
-        join(application, "view/launch.json"),
-    ];
+    const { bundle } = selectPlatform(target);
+    const application = join(root, bundle.application);
+    const helpers = join(application, bundle.helpers);
+    const files = [join(application, bundle.executable), join(helpers, "destack-desktop-host")];
 
     // require the standalone commands and the copies used by native desktop startup
-    for (const name of ["destack", "destack-daemon", "destack-sandbox"]) {
+    for (const name of COMMANDS) {
         files.push(join(root, "bin", name));
-        files.push(join(application, commands, name));
+        files.push(join(helpers, name));
     }
 
     // reject empty files, links and missing executable permissions before runtime checks
@@ -64,7 +73,7 @@ async function verifyDistribution(): Promise<void> {
         if (!file.isFile() || file.size === 0) {
             throw new Error(`missing packaged file: ${path}`);
         }
-        if (!path.endsWith(".json") && (file.mode & 0o111) === 0) {
+        if ((file.mode & 0o111) === 0) {
             throw new Error(`packaged command is not executable: ${path}`);
         }
     }
@@ -76,33 +85,41 @@ try {
     // reject incomplete application archives before testing the executable service lifecycle
     await verifyDistribution();
 
-    // start the compiled daemon and persist a change through its HTTP client
-    const identity = await run(["version"]);
+    // start the compiled daemon and require the release's version
+    const identity = await run(["version"], schema.object({ version: schema.string() }).strip());
     if (identity.version !== version) {
         throw new Error("CLI version does not match");
     }
-    await run(["daemon", "start"]);
+    await run(["daemon", "start"], schema.json());
     isRunning = true;
-    const status = await run(["status"]);
-    if (
-        status.status !== "connected" ||
-        (status.daemon as { version?: string })?.version !== version
-    ) {
+    const status = await run(["status"], Status);
+    if (status.status !== "connected" || status.daemon?.version !== version) {
         throw new Error("daemon version does not match");
     }
-    await run(["host", "rename", "Release check"]);
-    await run(["daemon", "stop"]);
-    isRunning = false;
-    await run(["daemon", "start"]);
-    isRunning = true;
-    const host = await run(["host", "get"]);
-    if (host.name !== "Release check") {
-        throw new Error("host state did not survive restart");
+
+    // register a Git working directory as a checkout
+    const repository = join(directory, "repository");
+    if (Bun.spawnSync(["git", "init", "--quiet", repository]).exitCode !== 0) {
+        throw new Error("git could not create the verification repository");
     }
-    console.log(`Verified ${version} for ${target} on ${Release.target()}.`);
+    const created = await run(["checkout", "create", repository], Checkout);
+
+    // restart the daemon and read the registered checkout back
+    await run(["daemon", "stop"], schema.json());
+    isRunning = false;
+    await run(["daemon", "start"], schema.json());
+    isRunning = true;
+    const checkouts = await run(["checkout", "list"], schema.array(Checkout));
+    const [checkout] = checkouts;
+    if (checkouts.length !== 1 || checkout?.id !== created.id) {
+        throw new Error("checkout did not survive restart");
+    }
+    print(
+        `Verified ${version} for ${target} on ${Release.target(process.platform, process.arch)}.`,
+    );
 } finally {
     if (isRunning) {
-        await run(["daemon", "stop"]);
+        await run(["daemon", "stop"], schema.json());
     }
     await rm(directory, { recursive: true });
 }

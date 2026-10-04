@@ -44,4 +44,4 @@ if [ "$system" = Darwin ]; then
 fi
 
 # let the compiled verifier authenticate and install the complete signed release
-"$temporary/bin/destack" install --archive "$temporary/destack.tar.gz"
+"$temporary/bin/destack" self install --archive "$temporary/destack.tar.gz"

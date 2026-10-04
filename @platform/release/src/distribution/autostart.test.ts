@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildExecutable } from "./executable.ts";
 
-test.skipIf(process.platform !== "darwin" || process.env.DESTACK_TEST_AUTOSTART !== "1")(
+test.skipIf(process.platform !== "darwin" || process.env["DESTACK_TEST_AUTOSTART"] !== "1")(
     "start, stop and restart a compiled daemon through a temporary LaunchAgent",
     async () => {
         // isolate the native registration and all persistent state

@@ -3,8 +3,9 @@ import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { version } from "./index.ts";
+import { selectPlatform, version } from "./index.ts";
 import { Release } from "@destack/update/release";
+import { print } from "../output/index.ts";
 
 /** Repository containing the compiled target directories. */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -12,7 +13,10 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 /** Package one compiled target and record its digest. */
 async function pack(): Promise<void> {
     // package the desktop and standalone CLI together
-    const target = new Release(version, process.argv[2] ?? Release.target()).target;
+    const target = new Release(
+        version,
+        process.argv[2] ?? Release.target(process.platform, process.arch),
+    ).target;
     const directory = join(ROOT, "dist", version);
     const name = `destack-${version}-${target}.tar.gz`;
     const child = Bun.spawn(
@@ -22,7 +26,7 @@ async function pack(): Promise<void> {
             join(directory, name),
             "-C",
             join(directory, target),
-            target.includes("apple") ? "Destack.app" : "Destack",
+            selectPlatform(target).bundle.application,
             "bin",
         ],
         {
@@ -39,7 +43,11 @@ async function pack(): Promise<void> {
     // record the exact bytes published for this target
     const hash = createHash("sha256");
     let size = 0;
-    for await (const bytes of createReadStream(join(directory, name))) {
+    for await (const chunk of createReadStream(join(directory, name))) {
+        const bytes: unknown = chunk;
+        if (!(bytes instanceof Uint8Array)) {
+            throw new TypeError(`a chunk of ${name} is not bytes`);
+        }
         hash.update(bytes);
         size += bytes.length;
     }
@@ -59,7 +67,7 @@ async function pack(): Promise<void> {
             4,
         ) + "\n",
     );
-    console.log(`${name}: ${size} bytes, SHA-256 ${sha256}`);
+    print(`${name}: ${size} bytes, SHA-256 ${sha256}`);
 }
 
 await pack();

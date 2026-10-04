@@ -1,10 +1,15 @@
 {
-    "name": "@destack/release",
+    "name": "@platform/release",
     "version": "2026.9.0",
-    "private": true,
     "type": "module",
+    "exports": {
+        "./catalog": "./src/repository/catalog.ts"
+    },
     "scripts": {
-        "check": "tsc --project tsconfig.json",
+        "check": "tsc --project tsconfig.json && bun run lint && bun run format-check",
+        "format": "destack-check format src vitest.config.ts",
+        "format-check": "destack-check format-check src vitest.config.ts",
+        "lint": "destack-check check src vitest.config.ts",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
@@ -24,6 +29,7 @@
         "tuf-js": "6.0.0",
         "@destack/build": "workspace:*",
         "@destack/update": "workspace:*",
-        "wrangler": "4.134.0"
+        "wrangler": "4.134.0",
+        "@destack/daemon": "workspace:*"
     }
 }

@@ -6,7 +6,7 @@ import { version } from "./index.ts";
 /** Source repository containing the complete local distribution. */
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 /** Compiled distribution for the current platform. */
-const directory = join(root, "dist", version, Release.target());
+const directory = join(root, "dist", version, Release.target(process.platform, process.arch));
 /** Native desktop entrypoint inside the compiled distribution. */
 const executable =
     process.platform === "darwin"

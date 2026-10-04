@@ -4,7 +4,7 @@ import { text } from "node:stream/consumers";
 
 /** Isolated files prepared by the executable verification. */
 const directory = process.argv[2];
-if (!directory) {
+if (directory === undefined || directory === "") {
     throw new Error("missing sandbox directory");
 }
 

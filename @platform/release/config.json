@@ -1,17 +1,3 @@
 {
-    "stability": "alpha",
-    "desktop": {
-        "title": "Destack",
-        "package": "@destack/home",
-        "view": "home",
-        "services": [
-            {
-                "service": {
-                    "packageId": "package-01a0c80b-6149-73fa-934f-85651a8587c2",
-                    "name": "daemon"
-                },
-                "url": "/service/package-01a0c80b-6149-73fa-934f-85651a8587c2"
-            }
-        ]
-    }
+    "stability": "alpha"
 }

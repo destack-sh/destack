@@ -18,80 +18,90 @@ async function build(): Promise<void> {
     // build every identity from its corresponding authored artwork
     try {
         for (const suffix of ["", "-nightly", "-dev"]) {
-            // generate standard raster sizes
-            const name = `destack${suffix}`;
-            const source = join(ROOT, `platform/brand/icon/icon${suffix}-rounded.svg`);
-            const directory = join(temporary, name);
-            await run(
-                process.execPath,
-                ["run", tauri, "icon", source, "--output", directory],
-                ROOT,
-            );
-            await cp(source, join(output, `${name}.svg`));
-            await cp(join(directory, "icon.png"), join(output, `${name}.png`));
-
-            // refresh the checked-in brand variants when requested
-            if (process.argv.includes("--brand")) {
-                const raster = join(directory, "brand");
-                await run(
-                    process.execPath,
-                    [
-                        "run",
-                        tauri,
-                        "icon",
-                        source,
-                        "--output",
-                        raster,
-                        "--png",
-                        "180",
-                        "--png",
-                        "256",
-                        "--png",
-                        "512",
-                        "--png",
-                        "1024",
-                    ],
-                    ROOT,
-                );
-                for (const size of [180, 256, 512, 1024]) {
-                    const filename =
-                        size === 1024
-                            ? `icon${suffix}-rounded.png`
-                            : `icon${suffix}-rounded-${size}.png`;
-                    await cp(
-                        join(raster, `${size}x${size}.png`),
-                        join(ROOT, "platform/brand/icon", filename),
-                    );
-                }
-            }
-
-            // apply the macOS padding before generating the native icon container
-            if (process.platform === "darwin") {
-                const padded = join(directory, "macos.png");
-                await run(
-                    "swift",
-                    [
-                        "-module-cache-path",
-                        join(temporary, "swift"),
-                        join(ROOT, "platform/release/src/icon/macos.swift"),
-                        join(directory, "icon.png"),
-                        padded,
-                    ],
-                    ROOT,
-                );
-                const macos = join(directory, "macos");
-                await run(
-                    process.execPath,
-                    ["run", tauri, "icon", padded, "--output", macos],
-                    ROOT,
-                );
-                await cp(padded, join(output, `${name}-macos.png`));
-                await cp(join(macos, "icon.icns"), join(output, `${name}.icns`));
-            }
+            await buildIdentity(suffix, tauri, temporary, output);
         }
     } finally {
         await rm(temporary, { recursive: true, force: true });
     }
+}
+
+/** Build the icons of one identity, named by its artwork suffix. */
+async function buildIdentity(
+    suffix: string,
+    tauri: string,
+    temporary: string,
+    output: string,
+): Promise<void> {
+    // generate standard raster sizes
+    const name = `destack${suffix}`;
+    const source = join(ROOT, `@platform/brand/icon/icon${suffix}-rounded.svg`);
+    const directory = join(temporary, name);
+    await run(process.execPath, ["run", tauri, "icon", source, "--output", directory], ROOT);
+    await cp(source, join(output, `${name}.svg`));
+    await cp(join(directory, "icon.png"), join(output, `${name}.png`));
+
+    // refresh the checked-in brand variants when requested
+    if (process.argv.includes("--brand")) {
+        await refreshBrand(suffix, tauri, source, join(directory, "brand"));
+    }
+
+    // build the native icon container on macOS
+    if (process.platform === "darwin") {
+        await buildMacIcon(name, tauri, temporary, directory, output);
+    }
+}
+
+/** Rasterize the artwork at each brand size into the checked-in brand icons. */
+async function refreshBrand(
+    suffix: string,
+    tauri: string,
+    source: string,
+    raster: string,
+): Promise<void> {
+    // rasterize the brand sizes
+    const sizes = [180, 256, 512, 1024];
+    const options = sizes.flatMap((size) => ["--png", String(size)]);
+    await run(
+        process.execPath,
+        ["run", tauri, "icon", source, "--output", raster, ...options],
+        ROOT,
+    );
+
+    // copy each size under its brand filename
+    for (const size of sizes) {
+        const filename =
+            size === 1024 ? `icon${suffix}-rounded.png` : `icon${suffix}-rounded-${size}.png`;
+        await cp(join(raster, `${size}x${size}.png`), join(ROOT, "@platform/brand/icon", filename));
+    }
+}
+
+/** Pad the raster icon for macOS and generate its `.icns` container. */
+async function buildMacIcon(
+    name: string,
+    tauri: string,
+    temporary: string,
+    directory: string,
+    output: string,
+): Promise<void> {
+    // apply the macOS padding before generating the native icon container
+    const padded = join(directory, "macos.png");
+    await run(
+        "swift",
+        [
+            "-module-cache-path",
+            join(temporary, "swift"),
+            join(ROOT, "@platform/release/src/icon/macos.swift"),
+            join(directory, "icon.png"),
+            padded,
+        ],
+        ROOT,
+    );
+
+    // generate the container and copy both files
+    const macos = join(directory, "macos");
+    await run(process.execPath, ["run", tauri, "icon", padded, "--output", macos], ROOT);
+    await cp(padded, join(output, `${name}-macos.png`));
+    await cp(join(macos, "icon.icns"), join(output, `${name}.icns`));
 }
 
 await build();

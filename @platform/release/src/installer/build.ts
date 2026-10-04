@@ -1,7 +1,20 @@
+import { listInstallers } from "../distribution/index.ts";
 import { buildMacInstaller } from "./macos.ts";
+import { print } from "../output/index.ts";
 
-// build the universal macOS installer
-if (process.argv[2] !== undefined && process.argv[2] !== "macos") {
-    throw new Error("select macos");
+/** The installers of the released platforms. */
+const installers = listInstallers().map(({ installer }) => installer);
+/** The installer selected by its download name. */
+const installer = installers.find(({ name }) => name === process.argv[2]);
+
+// refuse an unknown installer name
+if (installer === undefined) {
+    throw new Error(`select an installer: ${installers.map(({ name }) => name).join(", ")}`);
 }
-console.log(await buildMacInstaller());
+
+// build the installer with its format's builder
+switch (installer.format) {
+    case "dmg":
+        print(await buildMacInstaller(installer));
+        break;
+}

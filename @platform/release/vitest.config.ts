@@ -1,6 +1,6 @@
-import { defineConfig } from "@destack/test/config";
+import { defineConfiguration } from "@destack/test/config";
 
-export default defineConfig({
+export default defineConfiguration({
     ssr: { resolve: { conditions: ["bun"], externalConditions: ["bun"] } },
     test: {
         root: import.meta.dirname,
