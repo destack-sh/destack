@@ -1,8 +1,12 @@
 import type { SettingSelection } from "@destack/setting";
-import type { SettingRow } from "@destack/setting/object";
-import { language } from "./settings/index.ts";
+import type { SettingValue } from "@destack/setting/object";
+import { language } from "./setting/index.ts";
 
-/** Resolve the content language from the setting rows of a user's scope and the space they act in. */
-export function readLanguage(selection: SettingSelection, rows: readonly SettingRow[]) {
-    return language.resolve(selection, rows).value;
+/** Resolve the content language from setting rows along a scope chain, nearest scope first. */
+export function readLanguage(
+    selection: SettingSelection,
+    rows: readonly SettingValue[],
+    chain: readonly string[],
+) {
+    return language.resolve(selection, rows, chain).value;
 }

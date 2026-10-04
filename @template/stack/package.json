@@ -1,7 +1,6 @@
 {
     "name": "@template/stack",
     "version": "2026.9.0",
-    "private": true,
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
@@ -10,7 +9,7 @@
         ".": "./src/index.ts",
         "./space": "./src/space/index.ts",
         "./account": "./src/account/index.ts",
-        "./settings": "./src/settings/index.ts"
+        "./setting": "./src/setting/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",

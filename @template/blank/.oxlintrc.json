@@ -1,28 +1,10 @@
 {
-    "plugins": [
-        "typescript",
-        "oxc",
-        "unicorn"
-    ],
-    "categories": {
-        "correctness": "error",
-        "suspicious": "error",
-        "perf": "error"
-    },
-    "jsPlugins": [
-        "@destack/check/lint"
-    ],
+    "plugins": ["typescript", "oxc", "unicorn"],
+    "categories": { "correctness": "error", "suspicious": "error", "perf": "error" },
+    "jsPlugins": ["@destack/check/lint"],
     "rules": {
-        "eslint/curly": [
-            "error",
-            "all"
-        ],
-        "typescript/parameter-properties": [
-            "error",
-            {
-                "prefer": "class-property"
-            }
-        ],
+        "eslint/curly": ["error", "all"],
+        "typescript/parameter-properties": ["error", { "prefer": "class-property" }],
         "oxc/no-accumulating-spread": "error",
         "eslint/no-unused-vars": [
             "error",
@@ -32,21 +14,12 @@
                 "ignoreRestSiblings": true
             }
         ],
-        "typescript/consistent-type-assertions": [
-            "error",
-            {
-                "assertionStyle": "never"
-            }
-        ],
+        "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
         "typescript/no-non-null-assertion": "error",
         "typescript/no-explicit-any": "error",
         "typescript/ban-ts-comment": [
             "error",
-            {
-                "ts-expect-error": true,
-                "ts-ignore": true,
-                "ts-nocheck": true
-            }
+            { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true }
         ],
         "typescript/no-unsafe-type-assertion": "error",
         "typescript/no-unsafe-argument": "error",
@@ -72,26 +45,8 @@
         "eslint/no-unassigned-vars": "off",
         "unicorn/no-thenable": "off",
         "eslint/no-control-regex": "off",
-        "eslint/id-length": [
-            "error",
-            {
-                "min": 2,
-                "exceptions": [
-                    "i",
-                    "j",
-                    "x",
-                    "y",
-                    "z",
-                    "_"
-                ]
-            }
-        ],
-        "unicorn/filename-case": [
-            "error",
-            {
-                "case": "kebabCase"
-            }
-        ],
+        "eslint/id-length": ["error", { "min": 2, "exceptions": ["i", "j", "x", "y", "z", "_"] }],
+        "unicorn/filename-case": ["error", { "case": "kebabCase" }],
         "eslint/no-console": "error",
         "unicorn/require-post-message-target-origin": "off",
         "unicorn/require-module-specifiers": "off",
@@ -131,20 +86,10 @@
             "rules": {
                 "eslint/no-restricted-imports": [
                     "error",
-                    {
-                        "patterns": [
-                            "**/server",
-                            "**/server/**",
-                            "*/server"
-                        ]
-                    }
+                    { "patterns": ["**/server", "**/server/**", "*/server"] }
                 ]
             }
         }
     ],
-    "options": {
-        "denyWarnings": true,
-        "typeAware": true,
-        "respectEslintDisableDirectives": false
-    }
+    "options": { "denyWarnings": true, "typeAware": true, "respectEslintDisableDirectives": false }
 }
