@@ -71,10 +71,10 @@ export const Plan = Object.assign(
 export type Compatibility = "backward" | "forward";
 
 /** Compare two releases' entries of one declaration, throwing a PlanError for changes the later release must declare. */
-export type Compare = (before: Released, after: Released) => Plan;
+export type Comparator = (before: ReleaseEntry, after: ReleaseEntry) => Plan;
 
 /** A release's entry of a declaration: its description and the release declaring it. */
-export interface Released {
+export interface ReleaseEntry {
     /** The description. */
     readonly description: DeclarationDescription["description"];
     /** The symbol's package at the release declaring it. */

@@ -2,7 +2,7 @@ import { defineSchema, schema, Version } from "@destack/schema";
 import { graph, type Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Address } from "./address.ts";
-import { Plan, Step, type Compare } from "./plan.ts";
+import { Plan, Step, type Comparator } from "./plan.ts";
 import { Vocabulary } from "./vocabulary.ts";
 
 /** The steps from a package's previous release to this one. */
@@ -51,7 +51,7 @@ function planUpgrade(
     history: History,
     release: Package,
     declarations: readonly graph.Declaration[],
-    compare: (declaration: graph.Declaration) => Compare | undefined,
+    compare: (declaration: graph.Declaration) => Comparator | undefined,
 ): Upgrade {
     // name the releases declaring each side of a comparison
     const earlier = { package: { ...release, version: history.release } };

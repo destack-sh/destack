@@ -60,6 +60,7 @@ export type Provider<
     Handle = never,
     Table = never,
     Row extends object = never,
+    Controller = never,
 > = {
     /** The resource kind managed. */
     readonly kind: Kind;
@@ -68,21 +69,25 @@ export type Provider<
     /** The object type the kind's resources are in their space, such as a vault. */
     readonly object: Object;
     /** Reconcile resources toward their kind's desired state, required exactly of providers of kinds with one. */
-    readonly reconcile?: Reconcile<Kind>;
+    readonly reconcile?: Reconciler<Kind>;
     /** Create and remove the resources the provider hosts. */
-    readonly provision?: Provision<Kind>;
+    readonly provision?: Provisioner<Kind>;
     /** Open the resources' content as a database. */
-    readonly open?: Open<Kind, Handle>;
+    readonly open?: Opener<Kind, Handle>;
     /** Rewrap the rows the provider binds to its host for another host. */
-    readonly rewrap?: Rewrap<Table, Row>;
+    readonly rewrap?: Rewrapper<Table, Row>;
+    /** Refuse writes into the resources' content while a transfer copies it. */
+    readonly fence?: Fence<Kind>;
+    /** The controllers the host runs beside the provider, such as a sweep of its resources' content. */
+    readonly controllers?: readonly Controller[];
 } & (Kind["state"] extends schema.Schema
-    ? { readonly reconcile: Reconcile<Kind> }
+    ? { readonly reconcile: Reconciler<Kind> }
     : Kind["state"] extends undefined
       ? { readonly reconcile?: never }
       : unknown);
 
 /** Take a resource to the desired states its kind declares, required of providers of kinds with a state. */
-export interface Reconcile<Kind extends ResourceKind = ResourceKind> {
+export interface Reconciler<Kind extends ResourceKind = ResourceKind> {
     /** Plan the steps taking the resource to the union of the desired states. */
     plan(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Plan>;
     /** Apply the plan with the reviewed digest, refusing when the resource or desired states changed. */
@@ -94,7 +99,7 @@ export interface Reconcile<Kind extends ResourceKind = ResourceKind> {
 }
 
 /** Create and remove resources the provider hosts. */
-export interface Provision<Kind extends ResourceKind = ResourceKind> {
+export interface Provisioner<Kind extends ResourceKind = ResourceKind> {
     /** Create or confirm the resource, returning the same reference each time. */
     provision(record: ResourceRecord<Kind>): Promise<Placement>;
     /** Destroy the resource and everything it stores. */
@@ -102,13 +107,21 @@ export interface Provision<Kind extends ResourceKind = ResourceKind> {
 }
 
 /** Open a resource's content as a database, such as a database resource's file. */
-export interface Open<Kind extends ResourceKind = ResourceKind, Handle = unknown> {
+export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unknown> {
     /** Open the provisioned resource as its desired states describe it. */
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
 }
 
+/** Refuse writes into a resource's content while a transfer copies it, as a lease fence refuses a former holder. */
+export interface Fence<Kind extends ResourceKind = ResourceKind> {
+    /** Refuse every write into the resource's content until lifted, returning once the writes in flight finished. */
+    fence(record: ResourceRecord<Kind>): Promise<void>;
+    /** Accept writes into the resource's content again. */
+    lift(record: ResourceRecord<Kind>): Promise<void>;
+}
+
 /** Rewrap the rows a provider binds to its host, such as keys wrapped under the host's root key, for another host. */
-export interface Rewrap<Table, Row extends object> {
+export interface Rewrapper<Table, Row extends object> {
     /** The table of the host-bound rows. */
     readonly table: Table;
     /** Wrap a row's host-bound values for the target's recipient. */
