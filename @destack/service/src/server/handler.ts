@@ -11,9 +11,8 @@ import {
 } from "@orpc/server";
 import type { ServiceRouter } from "../service/index.ts";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { Expression } from "@destack/schema/expression";
-import type { JsonValue } from "@destack/db";
-import { schema, toJsonSchema, Version } from "@destack/schema";
+import { schema, toJsonSchema, Version, type JsonSchema } from "@destack/schema";
+import { Expression } from "@destack/db";
 import type { Service } from "../declare/service.ts";
 import { VERSION_HEADER } from "../request/request.ts";
 import { ServiceError } from "../error/index.ts";
@@ -23,6 +22,9 @@ import { ServiceTelemetry } from "../telemetry/index.ts";
 import { SmartCoercionPlugin } from "@orpc/json-schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
 
+/** An input as a request decodes it before coercion: a JSON object. */
+const JsonInput = schema.record(schema.string(), schema.json());
+
 /** Convert Destack schemas for HTTP decoding and OpenAPI. */
 const schemaConverter: ConditionalSchemaConverter = {
     condition: (validator) => validator instanceof schema.Schema,
@@ -31,9 +33,20 @@ const schemaConverter: ConditionalSchemaConverter = {
             throw new TypeError("expected a Destack schema");
         }
 
-        return [true, toJsonSchema(validator) as JSONSchema];
+        return [true, openApiSchemaOf(toJsonSchema(validator))];
     },
 };
+
+/** Read a Destack JSON Schema as oRPC's declaration of the same draft 2020-12 document. */
+function openApiSchemaOf(description: JsonSchema): JSONSchema;
+/**
+ * Pass the document through unchanged.
+ *
+ * @construct Zod and oRPC declare the same JSON Schema draft 2020-12 document and differ only in how they type `$defs`.
+ */
+function openApiSchemaOf(description: JsonSchema): unknown {
+    return description;
+}
 
 /** Implement service procedures. */
 export { implement } from "@orpc/server";
@@ -47,51 +60,77 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
     constructor(router: Router<ServiceRouter, State>, options: HandlerOptions<State>) {
         // reject missing enforcement
         ServiceHandler.#checkAccess(router, options, new Set());
-        const telemetry = new ServiceTelemetry("server");
 
         // report failures and extract trace context
         super(router, {
             ...options,
             plugins: [
                 new SmartCoercionPlugin({ schemaConverters: [schemaConverter] }),
+                ServiceHandler.#releasePlugin<State>(options.service),
                 ...(options.plugins ?? []),
             ],
             clientInterceptors: [
-                ({ path, next, context }) =>
-                    telemetry.invoke(path, next, {
-                        "destack.caller.version": ServiceHandler.#observedRelease(context.request),
-                    }),
-                (call) => {
-                    // refuse releases the service does not serve, then convert earlier inputs
-                    const caller = ServiceHandler.#requireRelease(
-                        call.context.request,
-                        options.service,
-                    );
-                    const input = ServiceHandler.#convert(
-                        call.procedure,
-                        call.input,
-                        caller,
-                        options.service.package.version,
-                    );
-
-                    return call.next({ ...call, input });
-                },
-                async ({ next, procedure, path, input, context, signal }) => {
-                    // check access before the handler
-                    const { convert: _convert, ...access } = ProcedureMeta.of(procedure);
-                    const call: ProcedureCall<State> = { access, path, input, context, signal };
-
-                    return invokeProcedure(call, next, options);
-                },
+                ...ServiceHandler.#callInterceptors(options),
                 ...(options.clientInterceptors ?? []),
             ],
 
             adapterInterceptors: [
-                ({ request, next }) => context.with(extractContext(request.headers), next),
+                (call) => context.with(extractContext(call.request.headers), () => call.next()),
                 ...(options.adapterInterceptors ?? []),
             ],
         });
         this.health = options.health;
+    }
+
+    /** Refuse unserved releases and convert earlier inputs as JSON, before coercion as the earlier plugin. */
+    static #releasePlugin<State extends ServiceState>(
+        service: Service,
+    ): NonNullable<OpenAPIHandlerOptions<State>["plugins"]>[number] {
+        return {
+            order: 1,
+            init: (handler) => {
+                handler.clientInterceptors ??= [];
+                handler.clientInterceptors.unshift((call) => {
+                    // refuse unserved releases and convert earlier inputs as JSON
+                    const caller = ServiceHandler.#requireRelease(call.context.request, service);
+                    const input = ServiceHandler.#convert(
+                        call.procedure,
+                        call.input,
+                        caller,
+                        service.package.version,
+                    );
+
+                    return call.next({ ...call, input });
+                });
+            },
+        };
+    }
+
+    /** Trace each call with the caller's release, and check access before its handler. */
+    static #callInterceptors<State extends ServiceState>(
+        options: HandlerOptions<State>,
+    ): NonNullable<OpenAPIHandlerOptions<State>["clientInterceptors"]> {
+        const telemetry = new ServiceTelemetry("server");
+
+        return [
+            (call) =>
+                telemetry.invoke(call.path, () => call.next(), {
+                    "destack.caller.version": ServiceHandler.#observedRelease(call.context.request),
+                }),
+            async (interception) => {
+                // check access before the handler
+                const { convert: _convert, ...access } = ProcedureMeta.of(interception.procedure);
+                const call: ProcedureCall<State> = {
+                    access,
+                    path: interception.path,
+                    input: interception.input,
+                    context: interception.context,
+                    ...(interception.signal === undefined ? {} : { signal: interception.signal }),
+                };
+
+                return invokeProcedure(call, () => interception.next(), options);
+            },
+        ];
     }
 
     /** Answer probes, then dispatch. */
@@ -158,26 +197,29 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
     ): unknown {
         // keep an input of this release as it is
         const convert = ProcedureMeta.of(procedure).convert ?? {};
-        if (Version.between(Object.keys(convert), caller, served).length === 0) {
+        if (Version.between(convert, caller, served).length === 0) {
             return input;
         }
 
-        // require an object input, and assign each release's fields in order
-        if (typeof input !== "object" || input === null || Array.isArray(input)) {
+        // require a decoded JSON object input and assign each release's fields in order
+        const decoded = JsonInput.safeParse(input);
+        if (!decoded.success) {
             throw new ServiceError("BAD_REQUEST", {
-                message: "a converted input must be an object",
+                message: "a converted input must be a JSON object",
             });
         }
-        const converted = Expression.upgrade(
-            convert,
-            input as Readonly<Record<string, JsonValue>>,
-            caller,
-            served,
-        );
+        const converted = Expression.upgrade(convert, decoded.data, caller, served);
 
         // keep only the fields this release declares, the earlier ones the conversions read
-        const shape = (procedure["~orpc"].inputSchema as { readonly shape?: object } | undefined)
-            ?.shape;
+        const inputSchema: unknown = procedure["~orpc"].inputSchema;
+        const shape =
+            typeof inputSchema === "object" &&
+            inputSchema !== null &&
+            "shape" in inputSchema &&
+            typeof inputSchema.shape === "object" &&
+            inputSchema.shape !== null
+                ? inputSchema.shape
+                : undefined;
 
         return shape === undefined
             ? converted
@@ -232,7 +274,7 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
     }
 }
 
-/** The state every call of a service handler carries: at least its request. */
+/** The state of every call of a service handler: at least its request. */
 export type ServiceState = Context & { readonly request: Request };
 
 /** The options of a service handler. */

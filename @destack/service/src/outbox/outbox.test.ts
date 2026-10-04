@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { Outbox, outbox, type Destination } from "./outbox.ts";
 
 /** A message two destinations receive. */
-const Message = schema.object({ text: schema.string(), note: schema.string().optional() });
+const Message = schema.object({ text: schema.string(), note: schema.string().exactOptional() });
 /** A message two destinations receive. */
 type Message = schema.Infer<typeof Message>;
 
@@ -35,7 +35,7 @@ for (const dialect of TEST_DIALECTS) {
                 await sender.append(mail, `mail-${text}`, { text }, transaction);
             }
         });
-        await sender.append(inbox, "inbox-first", { text: "first", note: undefined });
+        await sender.append(inbox, "inbox-first", { text: "first" });
         await sender.append(mail, "mail-first", { text: "first" });
 
         // deliver the mails in batches of two
@@ -52,7 +52,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 }
 
-test("refuse a held key with other contents, and a transaction on another database", async () => {
+test("refuse an existing key with other contents, and a transaction on another database", async () => {
     const storage = await TestDatabase.create("sqlite", [outbox], { isMigrated: true });
     const other = await TestDatabase.create("sqlite", [outbox], { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -60,7 +60,7 @@ test("refuse a held key with other contents, and a transaction on another databa
     const sender = new Outbox(storage.database);
     const mail = collecting("mail", 2);
 
-    // hold a key, then append other contents under it
+    // append a key, then append other contents under it
     await sender.append(mail, "mail-first", { text: "first" });
     await expect(sender.append(mail, "mail-first", { text: "other" })).rejects.toMatchObject({
         code: "CONFLICT",

@@ -1,12 +1,8 @@
 import { defineSchema, schema } from "@destack/schema";
 import { DeclarationReference } from "@destack/package/declare";
-import { type Key, type Table, type Logged, type Row, LogPosition, Condition } from "@destack/db";
+import { type Key, type Table, type RowImage, type Row, LogPosition, Condition } from "@destack/db";
 
-/**
- * The default change retention of a change trigger, in milliseconds.
- *
- * A week matches common event logs: about 6M changes of a space writing 10 a second.
- */
+/** The default change retention of a change trigger in milliseconds: a week, about 6M changes of a space writing 10 a second. */
 export const MAX_LAG_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 /** The changes a change trigger fires on. */
@@ -39,7 +35,7 @@ export type ChangeOn = schema.Infer<typeof ChangeOn>;
 export type ChangedObject<Target> = Target extends {
     readonly table: infer Definition extends Table;
 }
-    ? Logged<Definition>
+    ? RowImage<Definition>
     : Row;
 
 /** One change a change trigger fires on. */

@@ -7,5 +7,6 @@ export function describeWorkload(workload: Workload): WorkloadDefinition {
     return WorkloadDefinition.parse({
         name: workload.name,
         compute: ComputeDefinition.merge(workload.compute),
+        ...(workload.placement === undefined ? {} : { placement: workload.placement }),
     });
 }

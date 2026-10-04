@@ -1,3 +1,5 @@
+import { aligned, found } from "@destack/schema";
+
 /** A current value with change notifications. */
 export class Observable<Value> {
     /** Resubscribe after each completed subscription until cancelled. */
@@ -28,18 +30,20 @@ export class Observable<Value> {
         // race the streams for their next values
         const values = new Map<number, Value>();
         const next = (index: number) =>
-            streams[index]!.next().then((result) => ({ index, result }));
+            aligned(streams, index)
+                .next()
+                .then((result) => ({ index, result }));
         const pending = new Map(streams.map((_, index) => [index, next(index)]));
         while (pending.size > 0) {
             // yield once every stream has a value
             const { index, result } = await Promise.race(pending.values());
-            if (result.done) {
+            if (result.done === true) {
                 pending.delete(index);
             } else {
                 values.set(index, result.value);
                 pending.set(index, next(index));
                 if (values.size === streams.length) {
-                    yield combine(streams.map((_, position) => values.get(position)!));
+                    yield combine(streams.map((_, position) => found(values, position)));
                 }
             }
         }
@@ -92,7 +96,8 @@ export class Observable<Value> {
     async *watch(signal?: AbortSignal): AsyncGenerator<Value> {
         // start before the first revision
         let revision = -1;
-        while (!this.#isClosed && !signal?.aborted) {
+        const isWatching = () => !this.#isClosed && signal?.aborted !== true;
+        while (isWatching()) {
             // subscribe before reading
             const pending = Promise.withResolvers<void>();
             const wake = () => pending.resolve();

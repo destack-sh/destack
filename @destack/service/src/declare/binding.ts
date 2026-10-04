@@ -51,9 +51,14 @@ export class ServiceBinding<
                         throw new TypeError(`service binding ${this.name} holds no credential`);
                     }
 
-                    return createClient(this.service, {
+                    // dispose nothing
+                    const client = createClient(this.service, {
                         url: binding.reference,
                         headers: () => ({ authorization: `Bearer ${credential}` }),
+                    });
+
+                    return Object.assign(client, {
+                        [Symbol.asyncDispose]: () => Promise.resolve(),
                     });
                 },
             },

@@ -15,6 +15,34 @@ import type {} from "@destack/package/import-meta";
 /** The service the handlers serve, whose release the clients speak. */
 const fixture = defineService("fixture", {});
 
+/** Hide the notes from carol, and refuse everyone else but alice. */
+const authorize: NonNullable<
+    HandlerOptions<{ caller: string; request: Request }>["authorize"]
+> = async ({ context, access }) => {
+    // conceal the denial from carol, and refuse anyone but alice reading notes
+    const denial = new ServiceError("FORBIDDEN", { message: "permission denied: read" });
+    if (context.caller === "carol") {
+        throw conceal(denial, "no notes");
+    } else if (
+        context.caller !== "alice" ||
+        access.authentication !== "identity" ||
+        access.permission?.packageId !== import.meta.destack.package.id ||
+        access.permission.type !== "notes" ||
+        access.permission.name !== "read"
+    ) {
+        throw denial;
+    }
+};
+
+/** Read the call count of a histogram point. */
+function countOf(value: number | { readonly count: number }): number {
+    if (typeof value === "number") {
+        throw new TypeError("a call duration point is a histogram");
+    }
+
+    return value.count;
+}
+
 test("enforce access and audit requirements through streamed HTTP calls", async ({
     onTestFinished,
 }) => {
@@ -70,25 +98,8 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         }),
     });
 
-    // authorize the caller and permission
+    // report the service's health
     const health = new Health("notes");
-    const authorize: NonNullable<
-        HandlerOptions<{ caller: string; request: Request }>["authorize"]
-    > = async ({ context, access }) => {
-        // hide the notes from carol, and refuse everyone else but alice
-        const denial = new ServiceError("FORBIDDEN", { message: "permission denied: read" });
-        if (context.caller === "carol") {
-            throw conceal(denial, "no notes");
-        } else if (
-            context.caller !== "alice" ||
-            access.authentication !== "identity" ||
-            access.permission?.packageId !== import.meta.destack.package.id ||
-            access.permission.type !== "notes" ||
-            access.permission.name !== "read"
-        ) {
-            throw denial;
-        }
-    };
 
     // reject missing enforcement
     expect(() => new ServiceHandler(router, { service: fixture, health })).toThrow(
@@ -169,7 +180,6 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         authorize,
         audit: async () => {
             throw new ServiceError("UNAVAILABLE", {
-                status: 503,
                 message: "audit storage unavailable",
             });
         },
@@ -185,8 +195,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         },
     });
     const drained = (async () => {
-        for await (const _ of await blocked.read()) {
-        }
+        await Array.fromAsync(await blocked.read());
     })();
     await expect(drained).rejects.toMatchObject({
         code: "UNAVAILABLE",
@@ -212,10 +221,10 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
             name: metric.descriptor.name,
             calls: metric.dataPoints.map((point) => ({
                 attributes: point.attributes,
-                count: (point.value as { count: number }).count,
+                count: countOf(point.value),
             })),
         }))
-        .sort((left, right) => left.name.localeCompare(right.name));
+        .toSorted((left, right) => left.name.localeCompare(right.name));
     const outcomes = [
         { attributes: { "rpc.system.name": "orpc", "rpc.method": "read" }, count: 1 },
         {
@@ -303,6 +312,44 @@ test("withhold streamed values after access revocation", async () => {
     await rejected;
     expect(isClosed).toBe(true);
     expect(outcomes).toEqual(["denied"]);
+});
+
+test("answer a failure thrown by a handler with the status its code declares", async () => {
+    // throw Destack's own UNAVAILABLE code from a handler, naming no status
+    const service = {
+        read: defineProcedure({ authentication: "public", permission: null, audit: false })
+            .route({ method: "GET", path: "/read" })
+            .output(schema.string()),
+    };
+    const implementation = implement(service);
+    const router = implementation.router({
+        read: implementation.read.handler(async () => {
+            throw new ServiceError("UNAVAILABLE", { message: "the instance is starting" });
+        }),
+    });
+    const handler = new ServiceHandler(router, {
+        service: fixture,
+        health: new Health("read"),
+    });
+
+    // answer 503 Service Unavailable with the code and message
+    const statuses: number[] = [];
+    const client = createClient(defineService("fixture", service), {
+        url: "https://test.local",
+        fetch: async (request) => {
+            const result = await handler.handle(request, { context: { request } });
+            const response = result.matched ? result.response : new Response(null, { status: 404 });
+            statuses.push(response.status);
+
+            return response;
+        },
+    });
+    await expect(client.read()).rejects.toMatchObject({
+        code: "UNAVAILABLE",
+        status: 503,
+        message: "the instance is starting",
+    });
+    expect(statuses).toEqual([503]);
 });
 
 /** Collect metrics after the calls finish. */

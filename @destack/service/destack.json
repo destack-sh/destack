@@ -2,21 +2,16 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
     "language": "typescript",
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ],
+    "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./bun": {
-            "runtimes": [
-                "bun"
-            ]
+            "runtimes": ["bun"]
+        },
+        "./cloudflare": {
+            "runtimes": ["workerd"]
         },
         "./test": {
-            "runtimes": [
-                "bun"
-            ]
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
@@ -26,7 +21,8 @@
                 {
                     "kind": "service",
                     "function": "./inspect#describeService",
-                    "compare": "./inspect#compareService"
+                    "compare": "./inspect#compareService",
+                    "symbols": "./inspect#serviceSymbols"
                 }
             ]
         },
@@ -35,7 +31,8 @@
             "describes": [
                 {
                     "kind": "resource",
-                    "function": "./inspect#describeServiceBinding"
+                    "function": "./inspect#describeServiceBinding",
+                    "symbols": "./inspect#serviceBindingSymbols"
                 }
             ]
         },
@@ -44,7 +41,8 @@
             "describes": [
                 {
                     "kind": "trigger",
-                    "function": "./inspect#describeTrigger"
+                    "function": "./inspect#describeTrigger",
+                    "symbols": "./inspect#triggerSymbols"
                 }
             ]
         },

@@ -80,6 +80,12 @@ throw isReader ? denial : conceal(denial, `no note ${id}`); // the caller sees N
 denialOf(failure)?.code; // "FORBIDDEN" for both
 ```
 
+```ts
+// a code declares its status: UNAVAILABLE 503 and MOVED 421 beside oRPC's common codes
+throw new ServiceError("UNAVAILABLE", { message: "the instance is starting" }); // 503
+ServiceError.status("MOVED"); // 421
+```
+
 ## Workloads
 
 `defineWorkload` declares a `start` that runs once per instance and returns the served services and the package's triggers.
@@ -104,6 +110,15 @@ const instance = await WorkloadInstance.start(workload, {
     service: () => serverOptions,
 });
 const response = await instance.fetch(notesService, request);
+```
+
+```ts
+// placement lists where the universe's deployer may run a platform workload: in the universe, residency, space or host tier
+export const forgeWorkload = defineWorkload({
+    name: "forge",
+    placement: ["residency"],
+    start: (context) => ({ services: [forge(context)] }),
+});
 ```
 
 ## Runners
@@ -134,6 +149,20 @@ import { runWorkload } from "@destack/service/bun";
 await runWorkload(runner, lines(process.stdin), async (ready) =>
     process.stdout.write(`${JSON.stringify(ready)}\n`),
 );
+```
+
+## Cloudflare runners
+
+`DurableWorkload` holds one workload in a Durable Object: it starts the workload before the object's first event, hands the object's storage to the workload as its controllers' alarm, and settles each alarm once no controller is due.
+
+```ts
+import { DurableWorkload } from "@destack/service/cloudflare";
+
+export class DurableAccount extends DurableWorkload {
+    constructor(state: DurableObjectState, environment: Environment) {
+        super(state, (alarm) => start(environment, alarm)); // anything with fetch(request) and alarm(deadline)
+    }
+}
 ```
 
 ## Runner messages
@@ -195,6 +224,26 @@ const verifier = new TokenVerifier({
     keys,
 });
 const verified = await verifier.authenticate(request, spaceId); // any space when spaceId is absent
+```
+
+```ts
+// a token names each installation with the deployment it runs in, or names its installation as subject alone under its own key
+const workload = {
+    subject: installation,
+    deployments: [{ subject: installation, id: deploymentId }],
+};
+const external = { subject: installation, credential: { kind: INSTALLATION_KEY, id: keyId } };
+```
+
+```ts
+// the server finds the principal's standing object, requires represent of the caller and decides as the principal with the caller as actor (RFC 8693)
+import { Represented } from "@destack/service/authentication";
+
+const fetch = Represented.fetch(
+    hostFetch,
+    principal.space.reference(Scope.universe.id, spaceId),
+);
+await connect({ url, fetch }).repository.open({ accountId, id, mode: "read" }); // decided as the space
 ```
 
 ## Pages

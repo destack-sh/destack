@@ -11,7 +11,7 @@ import {
     SpanStatusCode,
 } from "@destack/telemetry";
 import { AsyncIteratorClass, setGlobalOtelConfig } from "@orpc/shared";
-import { ServiceError } from "../error/index.ts";
+import { isServiceError } from "../error/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The instrumenting package. */
@@ -67,14 +67,8 @@ export class ServiceTelemetry {
             const result = await next();
 
             // trace a stream until it ends
-            if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
-                return this.#watch(
-                    result as AsyncIterable<unknown>,
-                    started,
-                    attributes,
-                    span,
-                    active,
-                );
+            if (isAsyncIterable(result)) {
+                return this.#watch(result, started, attributes, span, active);
             }
 
             // record a value call
@@ -129,12 +123,11 @@ export class ServiceTelemetry {
     #record(started: number, attributes: Attributes, span: Span, error?: unknown): void {
         // label the failure and end the span
         if (error !== undefined) {
-            attributes["error.type"] =
-                error instanceof ServiceError ? String(error.status) : "internal";
+            attributes["error.type"] = isServiceError(error) ? String(error.status) : "internal";
         }
 
         // mark failed calls, then record the call
-        if (attributes["error.type"]) {
+        if (attributes["error.type"] !== undefined) {
             span.setStatus({ code: SpanStatusCode.ERROR });
         }
         span.setAttributes(attributes);
@@ -151,4 +144,9 @@ function instrumentService(): void {
         context,
         propagation,
     });
+}
+
+/** Report whether a call's result is a stream. */
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+    return value !== null && typeof value === "object" && Symbol.asyncIterator in value;
 }

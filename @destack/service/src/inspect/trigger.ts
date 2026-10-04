@@ -1,4 +1,5 @@
-import { TimeZone } from "@destack/schema";
+import { graph } from "@destack/package";
+import { schema, TimeZone, type JsonValue } from "@destack/schema";
 import { CronExpressionParser } from "cron-parser";
 import { DeclarationReference } from "@destack/package/declare";
 import { type ScheduleTiming, type Trigger, TriggerDescription } from "../trigger/index.ts";
@@ -47,4 +48,37 @@ export function describeTiming(described: ScheduleTiming): ScheduleTiming {
     }
 
     return described;
+}
+
+/** List the object method a scheduled trigger invokes in the trigger's package. */
+export function triggerSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
+    // invoke nothing outside a schedule
+    const { on } = TriggerDescription.parse(input);
+    if (!("schedule" in on)) {
+        return [];
+    }
+
+    // split the object type and method the call names, as in `note.get`
+    const { call } = on.schedule;
+    const separator = call.method.indexOf(".");
+    if (separator === -1) {
+        throw new TypeError(`trigger call names no object type: ${call.method}`);
+    }
+    const type = call.method.slice(0, separator);
+    const method = call.method.slice(separator + 1);
+
+    return schema.array(graph.MemberSymbol).parse([
+        {
+            relationships: [
+                {
+                    kind: "invokes",
+                    symbol: {
+                        kind: "method",
+                        name: method,
+                        parent: { kind: "object", name: type },
+                    },
+                },
+            ],
+        },
+    ]);
 }

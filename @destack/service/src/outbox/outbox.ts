@@ -1,4 +1,5 @@
 import {
+    Change,
     and,
     asc,
     defineTable,
@@ -7,11 +8,9 @@ import {
     integer,
     text,
     type DatabaseConnection,
-    type Table,
+    inArray,
 } from "@destack/db";
-import { Condition } from "@destack/db/query";
-import { canonicalize } from "@destack/schema/json";
-import { schema } from "@destack/schema";
+import { canonicalize, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 import type { Controller } from "../control/index.ts";
 
@@ -23,7 +22,7 @@ export const outbox = defineTable(
     "outbox",
     {
         /** The message key. */
-        id: text("id").primaryKey().notNull(),
+        id: text("id").primaryKey(),
         /** The destination's name. */
         destination: text("destination").notNull(),
         /** The message as canonical JSON. */
@@ -48,7 +47,7 @@ export interface Address<Message = unknown> {
 
 /** A receiver of an outbox's messages, accepting each once by key. */
 export interface Destination<Message = unknown> extends Address<Message> {
-    /** The most messages one delivery carries. */
+    /** The most messages one delivery sends. */
     readonly batch: number;
     /** Accept messages oldest first and once per key. */
     accept(
@@ -59,7 +58,7 @@ export interface Destination<Message = unknown> extends Address<Message> {
 
 /** Messages sent with their transactions and delivered at least once, in order. */
 export class Outbox {
-    /** The database holding the outbox. */
+    /** The database with the outbox. */
     readonly database: DatabaseConnection;
 
     /** Bind the outbox to its database. */
@@ -111,11 +110,12 @@ export class Outbox {
             rows.map((row) => row.message),
             { signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]) },
         );
-        const keys = Condition.oneOf(
-            "id",
-            rows.map((row) => row.id),
+        await this.database.delete(outbox).where(
+            inArray(
+                outbox.id,
+                rows.map((row) => row.id),
+            ),
         );
-        await this.database.delete(outbox).where(Condition.render(keys, Condition.bind(outbox)));
 
         return rows.length;
     }
@@ -124,10 +124,9 @@ export class Outbox {
     controller<Message>(destination: Destination<Message>): Controller {
         return {
             name: destination.name,
-            watches: [outbox as Table],
+            watches: [outbox],
             keys: (change) =>
-                (change.after as { destination?: string } | undefined)?.destination ===
-                destination.name
+                Change.after(change)?.["destination"] === destination.name
                     ? [destination.name]
                     : [],
             list: async () =>
@@ -179,12 +178,12 @@ export class Outbox {
             return;
         }
 
-        // refuse a held key with another destination or other contents
-        const [held] = await transaction
+        // refuse an existing key with another destination or other contents
+        const [existing] = await transaction
             .select({ message: outbox.message })
             .from(outbox)
             .where(and(eq(outbox.id, id), eq(outbox.destination, destination.name)));
-        if (held === undefined || held.message !== content) {
+        if (existing === undefined || existing.message !== content) {
             throw new ServiceError("CONFLICT", {
                 message: `${destination.name} message ${id} has conflicting contents`,
             });

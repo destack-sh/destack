@@ -9,9 +9,9 @@ const MAX_PAGE_LIMIT = 1000;
 /** A page request. */
 export const PageRequest = schema.object({
     /** The cursor of the preceding page. */
-    cursor: schema.string().min(1).optional(),
+    cursor: schema.string().min(1).exactOptional(),
     /** The most records the page returns, 50 when absent. */
-    limit: schema.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
+    limit: schema.number().int().min(1).max(MAX_PAGE_LIMIT).exactOptional(),
 });
 
 /** A page position within a collection scope. */

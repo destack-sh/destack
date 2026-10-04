@@ -31,19 +31,20 @@ export function createClient<
         ...options,
         plugins: [new ClientRetryPlugin(), ...(options.plugins ?? [])],
         adapterInterceptors: [
-            async ({ request, next }) => {
+            async (call) => {
                 // send the trace, the release and the required watermarks
-                injectContext(request.headers);
-                request.headers.set(VERSION_HEADER, service.package.version);
+                const headers = call.request.headers;
+                injectContext(headers);
+                headers.set(VERSION_HEADER, service.package.version);
                 const bookmark = options.bookmark;
-                if (bookmark && bookmark.watermarks.length > 0) {
-                    request.headers.set(BOOKMARK_HEADER, bookmark.format());
+                if (bookmark !== undefined && bookmark.watermarks.length > 0) {
+                    headers.set(BOOKMARK_HEADER, bookmark.format());
                 }
 
                 // observe the response's watermarks
-                const response = await next();
+                const response = await call.next();
                 const observed = response.headers.get(BOOKMARK_HEADER);
-                if (bookmark && observed) {
+                if (bookmark !== undefined && observed !== null && observed !== "") {
                     for (const watermark of Bookmark.parse(observed).watermarks) {
                         bookmark.observe(watermark);
                     }
@@ -56,7 +57,7 @@ export function createClient<
     });
 
     return createORPCClient<Client<Definition, Context>>({
-        call: (path, input, options) =>
-            telemetry.invoke(path, () => link.call(path, input, options)),
+        call: (path, input, callOptions) =>
+            telemetry.invoke(path, () => link.call(path, input, callOptions)),
     });
 }

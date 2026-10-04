@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
-import { Expression } from "@destack/schema/expression";
-import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
+import { Expression } from "@destack/db";
+import { PackageId } from "@destack/package";
 import { defineService } from "../declare/service.ts";
 import { defineProcedure } from "../procedure/index.ts";
-import { compareService, describeService } from "./service.ts";
+import { compareService, describeService, serviceSymbols } from "./service.ts";
 
 /** The release under comparison. */
 const RELEASE = "2026.9.0";
@@ -73,7 +73,14 @@ test("plan a service's changes between releases, converting narrowed inputs and 
         try {
             return compareService(entry(before, "2026.8.0"), entry(after, RELEASE)).steps;
         } catch (error) {
-            return (error as Error).message;
+            // read the refusal's message
+            if (!(error instanceof Error)) {
+                throw new TypeError("comparing services failed with a value that is no error", {
+                    cause: error,
+                });
+            }
+
+            return error.message;
         }
     };
 
@@ -90,13 +97,13 @@ test("plan a service's changes between releases, converting narrowed inputs and 
             {
                 action: "convert",
                 target: "service/search/procedure/count/input",
-                risk: "data-dependent",
+                risk: "fallible",
                 detail: "convert values to 2026.9.0",
             },
             {
                 action: "convert",
                 target: "service/search/procedure/search/input",
-                risk: "data-dependent",
+                risk: "fallible",
                 detail: "convert values to 2026.9.0",
             },
             {
@@ -119,5 +126,47 @@ test("plan a service's changes between releases, converting narrowed inputs and 
             },
         ],
         "service/search/procedure/count/input: declare a conversion for 2026.9.0",
+    ]);
+});
+
+test("list a service's procedures as members the service serves", () => {
+    // describe a service with a nested procedure
+    const described = describeService(
+        defineService("search", {
+            search: procedure().input(schema.object({ text: schema.string() })),
+            index: { rebuild: procedure() },
+        }),
+    );
+    const [rebuild, search] = described.api.procedures;
+
+    expect(serviceSymbols(entry(described, RELEASE).description)).toEqual([
+        {
+            relationships: [
+                {
+                    kind: "serves",
+                    symbol: {
+                        kind: "procedure",
+                        name: "index.rebuild",
+                        parent: { kind: "service", name: "search" },
+                    },
+                },
+                {
+                    kind: "serves",
+                    symbol: {
+                        kind: "procedure",
+                        name: "search",
+                        parent: { kind: "service", name: "search" },
+                    },
+                },
+            ],
+        },
+        {
+            member: { kind: "procedure", name: "index.rebuild", description: rebuild },
+            relationships: [],
+        },
+        {
+            member: { kind: "procedure", name: "search", description: search },
+            relationships: [],
+        },
     ]);
 });

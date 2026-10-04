@@ -1,9 +1,12 @@
-import { Address, Plan, type Compare, type Step } from "@destack/resource";
-import { defineSchema, schema, Version, type JsonSchema } from "@destack/schema";
+import { Address, Plan, type Comparator, type Step } from "@destack/resource";
+import { defineSchema, schema, Version, type JsonSchema, type JsonValue } from "@destack/schema";
 import type { ServiceRouter } from "../service/index.ts";
 import { describeProcedures, ProcedureDescription } from "./procedure.ts";
 import type { Service } from "../declare/service.ts";
-import { DeclarationName } from "@destack/package";
+import { DeclarationName, graph } from "@destack/package";
+
+/** The releases a procedure converts earlier callers' inputs at. */
+const CONVERSIONS = schema.record(schema.string(), schema.json());
 
 /** The procedures of a service. */
 export const RouterDescription = defineSchema(
@@ -23,7 +26,7 @@ export const ServiceDescription = defineSchema(
         /** The package-local service name. */
         name: DeclarationName,
         /** The oldest caller release the service serves, every release when absent. */
-        since: Version.optional(),
+        since: Version.exactOptional(),
         /** The service transport. */
         protocol: schema.literal("http"),
         /** The service's procedures. */
@@ -66,15 +69,15 @@ export function describeRouter(name: string, service: ServiceRouter): RouterDesc
 }
 
 /** Plan a service's changes between releases: its procedures, their inputs and outputs, and the earliest callers it serves. */
-export const compareService: Compare = (earlier, later) => {
+export const compareService: Comparator = (earlier, later) => {
     // read both releases' services and the releases declaring them
     const before = ServiceDescription.parse(earlier.description);
     const after = ServiceDescription.parse(later.description);
     const from = earlier.symbol.package.version;
     const release = later.symbol.package.version;
     const target = Address.join("service", after.name);
-    const parts: (() => Plan)[] = [];
-    const step = (entry: Step) => parts.push(() => ({ steps: [entry] }));
+    const plans: (() => Plan)[] = [];
+    const step = (entry: Step) => plans.push(() => ({ steps: [entry] }));
 
     // refuse earlier callers no longer served
     if (
@@ -105,30 +108,7 @@ export const compareService: Compare = (earlier, later) => {
         }
         // read earlier callers' inputs, and let earlier callers read the outputs
         else {
-            const convert = (procedure.metadata?.convert ?? {}) as Readonly<
-                Record<string, unknown>
-            >;
-            const isConverted = Version.between(Object.keys(convert), from, release).length > 0;
-            parts.push(
-                () =>
-                    Plan.values({
-                        target: Address.join(at, "input"),
-                        before: payload(previous.input),
-                        after: payload(procedure.input),
-                        release,
-                        compatibility: "backward",
-                        isConverted,
-                    }),
-                () =>
-                    Plan.values({
-                        target: Address.join(at, "output"),
-                        before: payload(previous.output),
-                        after: payload(procedure.output),
-                        release,
-                        compatibility: "forward",
-                        isConverted: false,
-                    }),
-            );
+            plans.push(...payloadPlans(previous, procedure, at, { from, release }));
         }
     }
 
@@ -142,14 +122,74 @@ export const compareService: Compare = (earlier, later) => {
         });
     }
 
-    return Plan.join(parts);
+    return Plan.join(plans);
 };
+
+/** Plan a kept procedure's input for earlier callers' inputs and its output for earlier callers. */
+function payloadPlans(
+    previous: ProcedureDescription,
+    procedure: ProcedureDescription,
+    target: string,
+    releases: { readonly from: string; readonly release: string },
+): (() => Plan)[] {
+    // read the releases converting earlier callers' inputs
+    const { from, release } = releases;
+    const declared = procedure.metadata?.["convert"];
+    const convert = declared === undefined ? undefined : CONVERSIONS.parse(declared);
+    const isConverted = convert !== undefined && Version.between(convert, from, release).length > 0;
+
+    return [
+        () =>
+            Plan.values({
+                target: Address.join(target, "input"),
+                before: payload(previous.input),
+                after: payload(procedure.input),
+                release,
+                compatibility: "backward",
+                isConverted,
+            }),
+        () =>
+            Plan.values({
+                target: Address.join(target, "output"),
+                before: payload(previous.output),
+                after: payload(procedure.output),
+                release,
+                compatibility: "forward",
+                isConverted: false,
+            }),
+    ];
+}
 
 /** Read a payload's value schema, or the event schema of a stream, accepting anything when absent. */
 function payload(description: ProcedureDescription["input"]): JsonSchema {
-    return description === undefined
-        ? {}
-        : description.kind === "value"
-          ? description.schema
-          : description.yields;
+    // accept anything without a payload
+    if (description === undefined) {
+        return {};
+    }
+
+    return description.kind === "value" ? description.schema : description.yields;
+}
+
+/** List a service's procedures as its member symbols, each served by the service. */
+export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
+    const service = ServiceDescription.parse(input);
+    const procedures = service.api.procedures.map((procedure) => ({
+        kind: "procedure",
+        name: procedure.name.join("."),
+        description: procedure,
+    }));
+
+    return schema.array(graph.MemberSymbol).parse([
+        {
+            relationships: procedures.map((procedure) => ({
+                kind: "serves",
+                symbol: {
+                    kind: "procedure",
+                    name: procedure.name,
+                    parent: { kind: "service", name: service.name },
+                },
+            })),
+        },
+        ...procedures.map((member) => ({ member, relationships: [] })),
+    ]);
 }

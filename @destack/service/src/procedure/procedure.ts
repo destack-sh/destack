@@ -1,6 +1,6 @@
 import { oc } from "@orpc/contract";
 import { schema, Version } from "@destack/schema";
-import { Expression } from "@destack/schema/expression";
+import { Expression } from "@destack/db";
 import { PermissionReference, type Permission } from "@destack/access/declare";
 
 /** The access and audit requirements of a procedure. */
@@ -25,7 +25,7 @@ export const ProcedureMeta = Object.assign(
         /** The input fields each release computes from an earlier input's fields, by the release introducing them. */
         convert: schema
             .record(Version, schema.record(schema.string().min(1), Expression.schema))
-            .optional(),
+            .exactOptional(),
     }),
     {
         /** Read a procedure's declared requirements and conversions, parsing them once. */

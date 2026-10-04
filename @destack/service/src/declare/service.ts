@@ -4,7 +4,10 @@ import { Version } from "@destack/schema";
 import type { ServiceRouter } from "../service/service.ts";
 
 /** A declared HTTP service. */
-export interface Service<Router extends ServiceRouter = ServiceRouter> extends Declaration {
+export interface Service<
+    Router extends ServiceRouter = ServiceRouter,
+    Objects extends Readonly<Record<string, Routed>> = Readonly<Record<string, Routed>>,
+> extends Declaration {
     /** The oldest caller release the service serves, every release when absent. */
     readonly since?: Version;
     /** The service transport. */
@@ -12,7 +15,7 @@ export interface Service<Router extends ServiceRouter = ServiceRouter> extends D
     /** The service's procedures. */
     readonly router: Router;
     /** The declarations deriving procedures, by route name. */
-    readonly objects: Readonly<Record<string, Routed>>;
+    readonly objects: Objects;
 }
 
 /** A declaration that derives procedures, such as an object type. */
@@ -22,13 +25,6 @@ export interface Routed {
     /** The procedures every declaration of its kind shares. */
     readonly shared: ServiceRouter;
 }
-
-/** The procedures each kind of routed declaration derives. */
-export interface RoutedProcedures<_Declaration> {}
-
-/** The procedures a routed declaration derives. */
-export type ProceduresOf<Declaration> =
-    RoutedProcedures<Declaration>[keyof RoutedProcedures<Declaration>];
 
 /** A service's procedures and routed declarations. */
 export type ServiceInput = {
@@ -43,23 +39,32 @@ export type ServiceRoutes<Input extends ServiceInput> = Extract<
     Omit<Input, "objects" | "since"> &
         (Input["objects"] extends Readonly<Record<string, Routed>>
             ? {
-                  readonly [Name in keyof Input["objects"]]: ProceduresOf<Input["objects"][Name]>;
+                  readonly [Name in keyof Input["objects"]]: Input["objects"][Name]["procedures"];
               } & Input["objects"][keyof Input["objects"]]["shared"]
             : unknown),
     ServiceRouter
 >;
 
-/** Declare an HTTP service. */
+/** Declare an HTTP service routing the input's procedures, each routed declaration's under its name, and the shared ones. */
 export function defineService<const Input extends ServiceInput>(
     name: string,
     input: Input,
     module?: ModuleMetadata,
-): Service<ServiceRoutes<Input>> {
+): Service<
+    ServiceRoutes<Input>,
+    Input["objects"] extends Readonly<Record<string, Routed>> ? Input["objects"] : {}
+>;
+/**
+ * Declare an HTTP service with the router routeObjects derives.
+ *
+ * @construct routeObjects routes each declaration under its own name and each object's procedures under its key, which is how ServiceRoutes maps the input.
+ */
+export function defineService(name: string, input: ServiceInput, module?: ModuleMetadata): unknown {
     // stamp the declaring package
     const owner = Package.parse(ModuleMetadata.require(module, "defineService").package);
 
     // route each declaration under its name and the shared procedures once
-    const { objects = {}, since, ...router } = input as ServiceInput;
+    const { objects = {}, since, ...router } = input;
     const derived = routeObjects(name, router, objects);
 
     return Object.freeze({
@@ -67,7 +72,7 @@ export function defineService<const Input extends ServiceInput>(
         name: DeclarationName.parse(name),
         ...(since === undefined ? {} : { since: Version.parse(since) }),
         protocol: "http",
-        router: derived as ServiceRoutes<Input>,
+        router: derived,
         objects,
     });
 }

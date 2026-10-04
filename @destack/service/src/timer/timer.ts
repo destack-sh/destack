@@ -10,7 +10,7 @@ export function wait(
 
     return new Promise((resolve, reject) => {
         // reject at once for an aborted signal
-        if (signal?.aborted) {
+        if (signal?.aborted === true) {
             reject(signal.reason);
 
             return;
@@ -31,10 +31,10 @@ export function wait(
                 }
             }, step);
         };
-        function abort() {
+        const abort = () => {
             clearTimeout(timer);
-            reject(signal!.reason);
-        }
+            reject(signal?.reason);
+        };
         signal?.addEventListener("abort", abort, { once: true });
         next();
     });
