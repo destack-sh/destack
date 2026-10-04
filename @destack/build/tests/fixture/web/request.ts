@@ -1,4 +1,4 @@
-import type { ApplicationOptions } from "@destack/view/build";
+import type { WebOptions } from "@destack/web/build";
 
 /** Browser, server, static, and mixed outputs from one application. */
 export const requests = {
@@ -16,4 +16,4 @@ export const requests = {
         ssr: { runtime: "workerd" },
         prerender: { origin: "https://example.test", routes: ["/"] },
     },
-} satisfies Record<string, ApplicationOptions>;
+} satisfies Record<string, WebOptions>;

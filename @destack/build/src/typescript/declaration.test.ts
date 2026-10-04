@@ -14,7 +14,7 @@ const packages = {
     app: { id: "package-01996ab0-0000-7000-8000-00000000000c", name: "@example/app" },
 };
 
-/** Write a workspace whose app declares a greeting, described as its own kind and the owner's. */
+/** Write a workspace whose app declares a greeting, described as a kind it declares and as the owner's kind. */
 async function writeWorkspace(directory: string, owner: string): Promise<void> {
     // write each package's constructor and the function describing a declaration by its name
     const describe =

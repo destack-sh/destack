@@ -7,8 +7,10 @@ import {
     isStringLiteral,
     type Node,
     type SourceFile,
+    type StringLiteral,
     SyntaxKind,
 } from "typescript/unstable/ast";
+import { isDeclarationPath } from "./module.ts";
 
 /** A literal directory URL in an authored module. */
 export interface DirectoryReference {
@@ -42,19 +44,7 @@ export async function collectDirectories(
 
         // require a literal relative directory based on import.meta.url
         const [path, base] = node.arguments ?? [];
-        if (
-            node.arguments?.length !== 2 ||
-            !path ||
-            !isStringLiteral(path) ||
-            !/^\.{1,2}\//.test(path.text) ||
-            !path.text.endsWith("/") ||
-            !base ||
-            !isPropertyAccessExpression(base) ||
-            base.name.text !== "url" ||
-            !isMetaProperty(base.expression) ||
-            base.expression.keywordToken !== SyntaxKind.ImportKeyword ||
-            base.expression.name.text !== "meta"
-        ) {
+        if (node.arguments?.length !== 2 || !isDirectoryPath(path) || !isModuleUrl(base)) {
             continue;
         }
 
@@ -63,12 +53,9 @@ export async function collectDirectories(
         if (!symbol || symbol.flags & SymbolFlags.Alias || (await symbol.getParent())) {
             continue;
         }
-        const declarations = await Promise.all(
-            symbol.declarations.map((entry) => entry.resolve(project)),
-        );
         if (
-            !declarations.length ||
-            !declarations.every((entry) => entry?.getSourceFile().isDeclarationFile)
+            !symbol.declarations.length ||
+            !symbol.declarations.every((entry) => isDeclarationPath(entry.path))
         ) {
             continue;
         }
@@ -77,4 +64,26 @@ export async function collectDirectories(
     }
 
     return references;
+}
+
+/** Report whether a node is a literal relative directory path, such as `./migration/`. */
+function isDirectoryPath(node: Node | undefined): node is StringLiteral {
+    return (
+        node !== undefined &&
+        isStringLiteral(node) &&
+        /^\.{1,2}\//u.test(node.text) &&
+        node.text.endsWith("/")
+    );
+}
+
+/** Report whether a node is the expression `import.meta.url`. */
+function isModuleUrl(node: Node | undefined): boolean {
+    return (
+        node !== undefined &&
+        isPropertyAccessExpression(node) &&
+        node.name.text === "url" &&
+        isMetaProperty(node.expression) &&
+        node.expression.keywordToken === SyntaxKind.ImportKeyword &&
+        node.expression.name.text === "meta"
+    );
 }

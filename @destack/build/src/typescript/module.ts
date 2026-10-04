@@ -1,24 +1,33 @@
 import { BuildError } from "../error/index.ts";
+import { found, present } from "@destack/schema";
 import { readFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, relative, sep } from "node:path";
 import { version } from "typescript";
 import {
+    type NodeHandle,
     type Project,
     type Symbol as TypeScriptSymbol,
     SymbolFlags,
 } from "typescript/unstable/async";
 import {
+    type Expression,
     isExportDeclaration,
     isImportDeclaration,
     isNoSubstitutionTemplateLiteral,
     isStringLiteral,
+    type Node,
     type SourceFile,
     SyntaxKind,
 } from "typescript/unstable/ast";
-import { DependencySymbol, ModuleDescription } from "@destack/package/code";
-import { DependencyPackage, Package, PackageDefinition } from "@destack/package";
+import {
+    DependencySymbol,
+    ModuleDescription,
+    type SymbolDescription,
+    type SymbolReference,
+} from "@destack/package/code";
+import type { SourceRange } from "@destack/package/source";
 import { SymbolInspector } from "./symbol.ts";
-import { describeFile } from "@destack/package/file";
+import { PackageFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
 import { inspectErrors } from "@destack/check/inspect";
 import { collectTests } from "./test.ts";
@@ -26,7 +35,11 @@ import { collectDeclarations, ConstructorCatalog } from "./declaration.ts";
 import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
 import { collectDirectories, type DirectoryReference } from "./directory.ts";
-import { modulePackage } from "../source/dependency.ts";
+import { compareText } from "../build/serialization.ts";
+import { relativePath } from "../source/dependency.ts";
+
+/** The identifier `meta`, which every `import.meta` expression spells without escapes. */
+const META = /(?<![\w$])meta(?![\w$])/u;
 
 /** Compiler descriptions of modules and statically identified tests. */
 export interface TypeScriptInspection {
@@ -42,177 +55,316 @@ export interface TypeScriptInspection {
     tests: TestDeclaration[];
 }
 
-/** Describe source modules and associate reexports with their defining symbols. */
+/** Describe source modules, and collect the declarations of the modules the entries import. */
 export async function describeProject(
     project: Project,
     root: string,
+    entries: readonly string[],
 ): Promise<TypeScriptInspection> {
-    // collect package descriptions and exact source bytes
-    const modules = new Map<string, ModuleDescription>();
-    const sources = new Map<string, Uint8Array<ArrayBuffer>>();
-    const tests: TestDeclaration[] = [];
-    const declarations: DeclarationExport[] = [];
+    // read the authored modules from the compiler file list
+    const inspection = new ProjectInspection(project, root);
+    const fileNames = [...(await project.program.getSourceFileNames())].toSorted();
+    const authored = await readAuthored(project, root, fileNames);
+    const runtime = await collectRuntimeFiles(project, entries, authored);
+
+    // read every source module's directory references, and the tests and declarations of authored modules
+    const collected = await Promise.all(
+        fileNames
+            .filter((file) => authored.has(file) || !isDeclarationPath(file))
+            .map((file) => inspection.collect(file, authored.get(file), runtime.has(file))),
+    );
     const directories = new Map<string, DirectoryReference[]>();
-    const catalog = new ConstructorCatalog();
+    for (const { file, references } of collected) {
+        if (references.length) {
+            directories.set(file, references);
+        }
+    }
 
-    // queue declarations reached through exports and public types
-    const pending = new Map<number, TypeScriptSymbol>();
-    const inspector = new SymbolInspector(
-        project,
-        (symbol) => describeSymbol(symbol, project, root, modules, pending),
-        (node) => ({
-            file: relative(root, node.getSourceFile().fileName).split(sep).join("/"),
-            start: node.getStart(),
-            end: node.getEnd(),
-        }),
+    // register every authored module before following references between declarations
+    for (const [file, source] of authored) {
+        await inspection.register(file, source);
+    }
+
+    // describe each module's imports, globals, errors and exports, then the declarations they queue
+    await Promise.all([...authored].map(([file, source]) => inspection.describe(file, source)));
+    await inspection.describeQueued();
+
+    // parse compiler descriptions before returning them to executable inspectors
+    const modules = [...inspection.modules.values()].map((module) =>
+        ModuleDescription.parse(module),
     );
 
-    // select authored modules from the compiler file inventory
-    const fileNames = [...(await project.program.getSourceFileNames())].sort();
-    const files = fileNames.filter(
-        (file) => contains(root, file) && !relative(root, file).split(sep).includes("node_modules"),
-    );
-    const authored = new Set(files);
-    const runtime = await collectRuntimeFiles(project, files);
-    const sourceFiles = new Map<string, SourceFile>();
+    return {
+        modules,
+        sources: inspection.sources,
+        tests: collected.flatMap((entry) => entry.tests),
+        declarations: collected.flatMap((entry) => entry.declarations),
+        directories,
+    };
+}
 
-    // read authored modules and the directory references of every source module
-    for (const file of fileNames) {
-        if (!authored.has(file) && /\.d\.[cm]?ts$/.test(file)) {
-            continue;
+/** What one source module holds besides its description: directory references, tests and declarations. */
+interface CollectedModule {
+    /** The module's absolute path. */
+    readonly file: string;
+    /** The literal directory URLs the module reads. */
+    readonly references: DirectoryReference[];
+    /** The tests an authored module declares. */
+    readonly tests: TestDeclaration[];
+    /** The declarations an authored runtime module exports. */
+    readonly declarations: DeclarationExport[];
+}
+
+/** One inspection of a compiler project: its modules, their bytes and the declarations they queue. */
+class ProjectInspection {
+    /** The compiler project. */
+    readonly project: Project;
+    /** The package directory. */
+    readonly root: string;
+    /** The inspected constructors and package identities. */
+    readonly catalog = new ConstructorCatalog();
+    /** The described modules, by package-relative path. */
+    readonly modules = new Map<string, ModuleDescription>();
+    /** The exact source bytes, by package-relative path. */
+    readonly sources = new Map<string, Uint8Array<ArrayBuffer>>();
+    /** The symbol inspector of the project's snapshot. */
+    readonly inspector: SymbolInspector;
+    /** The package's declarations queued for description, by symbol. */
+    readonly #pending = new Map<number, TypeScriptSymbol>();
+    /** The reference of each located symbol. */
+    readonly #locations = new Map<number, Promise<SymbolReference>>();
+    /** The package-relative path of each compiler file. */
+    readonly #paths = new Map<string, string>();
+
+    /** Start inspecting a project. */
+    constructor(project: Project, root: string) {
+        this.project = project;
+        this.root = root;
+        this.inspector = new SymbolInspector(
+            project,
+            (symbol) => this.reference(symbol),
+            (node) => this.#range(node),
+        );
+    }
+
+    /** Locate a symbol once, queueing the package's declarations its exports and public types name. */
+    reference(symbol: TypeScriptSymbol): Promise<SymbolReference> {
+        let result = this.#locations.get(symbol.id);
+        if (result === undefined) {
+            result = describeSymbol(
+                symbol,
+                this.inspector,
+                this.root,
+                this.catalog,
+                this.modules,
+                this.#pending,
+            );
+            this.#locations.set(symbol.id, result);
         }
-        const source = await project.program.getSourceFile(file);
-        if (authored.has(file)) {
-            if (!source) {
-                throw new BuildError("INSPECTION_FAILED", `missing compiler source: ${file}`);
-            }
-            sourceFiles.set(file, source);
-        }
+
+        return result;
+    }
+
+    /** Read a module's directory references, and the tests and runtime declarations of an authored one. */
+    async collect(
+        file: string,
+        authored: SourceFile | undefined,
+        isRuntime: boolean,
+    ): Promise<CollectedModule> {
+        // read a dependency module only when it can construct a directory URL from import.meta
+        const { project } = this;
+        const isMeta = authored === undefined && META.test(await readFile(file, "utf8"));
+        const source = isMeta ? await project.program.getSourceFile(file) : authored;
         if (!source || source.isDeclarationFile) {
-            continue;
+            return { file, references: [], tests: [], declarations: [] };
         }
 
         // retain literal directory references for package files
         const references = await collectDirectories(source, project);
-        if (references.length) {
-            directories.set(file, references);
+        if (!authored) {
+            return { file, references, tests: [], declarations: [] };
         }
 
-        // describe the package's own declarations and tests, leaving dependencies to their manifests
-        if (authored.has(file)) {
-            const owner = await catalog.locate(dirname(file));
-            const path = relative(owner.directory, file).split(sep).join("/");
-            const cases = await collectTests(source, path, project);
-            if (runtime.has(file)) {
-                declarations.push(
-                    ...(await collectDeclarations(source, path, project, owner, catalog, cases)),
-                );
-            }
-            tests.push(...cases);
-        }
+        // describe the tests of authored modules and the declarations of runtime modules
+        const owner = await this.catalog.locate(dirname(file));
+        const path = relativePath(owner.directory, file);
+        const tests = await collectTests(source, path, project);
+        const declarations = isRuntime
+            ? await collectDeclarations(source, path, this.inspector, owner, this.catalog, tests)
+            : [];
+
+        return { file, references, tests, declarations };
     }
 
-    // collect modules before resolving declarations reached through reexports
-    for (const [file, source] of sourceFiles) {
-        // retain each authored module under its package-relative path
-        const path = relative(root, file).split(sep).join("/");
-
+    /** Register an authored module under its package-relative path, requiring its bytes to match the compiler snapshot. */
+    async register(file: string, source: SourceFile): Promise<void> {
         // require source bytes to match the compiler snapshot
+        const path = relativePath(this.root, file);
         const bytes = new Uint8Array(await readFile(file));
         const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         if (text !== source.text) {
             throw new BuildError("INSPECTION_FAILED", `source changed during inspection: ${path}`);
         }
 
-        // register every module before following references between declarations
-        sources.set(path, bytes);
-        modules.set(path, {
+        // retain the module's bytes and an empty description
+        this.sources.set(path, bytes);
+        this.modules.set(path, {
             path,
             globals: [],
             errors: [],
-            source: await describeFile(path, "text/plain", bytes),
+            source: await PackageFile.describe(path, "text/plain", bytes),
             length: source.text.length,
-            imports: source.imports.map((entry) => {
-                if (!isStringLiteral(entry) && !isNoSubstitutionTemplateLiteral(entry)) {
-                    throw new BuildError("INSPECTION_FAILED", `unsupported import in ${path}`);
-                }
-
-                return entry.text;
-            }),
+            imports: [],
             symbols: [],
             exports: [],
         });
     }
 
-    // preserve the compiler's resolution of aliases and merged declarations
-    for (const [file, source] of sourceFiles) {
-        // resolve globals and errors after every authored module has been registered
-        const module = modules.get(relative(root, file).split(sep).join("/"))!;
-        module.globals = await collectGlobals(source, project, module.path, inspector.reference);
-        module.errors = await inspectErrors(source, inspector);
-        const symbol = await project.checker.getSymbolAtLocation(source);
-        if (!symbol) {
-            continue;
+    /** Describe a registered module's imports, globals, errors and exports together. */
+    async describe(file: string, source: SourceFile): Promise<void> {
+        // describe the module's imports, globals, errors and exports together
+        const module = found(this.modules, relativePath(this.root, file));
+        [module.imports, module.globals, module.errors, module.exports] = await Promise.all([
+            describeImports(source, this.inspector, this.root, this.catalog),
+            collectGlobals(source, this.project, module.path, (symbol) => this.reference(symbol)),
+            inspectErrors(source, this.inspector),
+            describeExports(source, module.path, this.inspector),
+        ]);
+    }
+
+    /** Describe the queued declarations in waves, as each wave queues the local types it names. */
+    async describeQueued(): Promise<void> {
+        // describe each wave's symbols together
+        const described = new Set<number>();
+        for (
+            let wave = [...this.#pending.values()];
+            wave.length;
+            wave = [...this.#pending.values()].filter((symbol) => !described.has(symbol.id))
+        ) {
+            for (const symbol of wave) {
+                described.add(symbol.id);
+            }
+            const descriptions = await Promise.all(
+                wave.map((symbol) => this.#describeSymbol(symbol)),
+            );
+            for (const { module, symbol } of descriptions) {
+                found(this.modules, module).symbols.push(symbol);
+            }
         }
 
-        // resolve exports to their original declarations
-        for (const exported of await project.checker.getExportsOfModule(symbol)) {
-            const original =
-                exported.flags & SymbolFlags.Alias
-                    ? await project.checker.getAliasedSymbol(exported)
-                    : exported;
+        // order symbols once every referenced symbol is described
+        for (const module of this.modules.values()) {
+            module.symbols.sort((left, right) => compareText(left.name, right.name));
+        }
+    }
+
+    /** Describe a queued declaration of one of the package's modules. */
+    async #describeSymbol(
+        symbol: TypeScriptSymbol,
+    ): Promise<{ module: string; symbol: SymbolDescription }> {
+        const located = await this.reference(symbol);
+        if (!("module" in located)) {
+            throw new BuildError("INSPECTION_FAILED", "queued an external declaration");
+        }
+
+        return {
+            module: located.module,
+            symbol: await this.inspector.describe(symbol, located.name),
+        };
+    }
+
+    /** Name a node's range by its file's package-relative path, read once per file. */
+    #range(node: Node): SourceRange {
+        // name each file once, since ranges cover every expression
+        const file = node.getSourceFile().fileName;
+        let path = this.#paths.get(file);
+        if (path === undefined) {
+            path = relativePath(this.root, file);
+            this.#paths.set(file, path);
+        }
+
+        return { file: path, start: node.getStart(), end: node.getEnd() };
+    }
+}
+
+/** Read the compiler's source of each authored module. */
+async function readAuthored(
+    project: Project,
+    root: string,
+    fileNames: readonly string[],
+): Promise<Map<string, SourceFile>> {
+    const authored = fileNames.filter((file) => isAuthored(root, file));
+    const sources = await Promise.all(
+        authored.map(async (file) => {
+            const source = await project.program.getSourceFile(file);
+            if (!source) {
+                throw new BuildError("INSPECTION_FAILED", `missing compiler source: ${file}`);
+            }
+
+            return [file, source] as const;
+        }),
+    );
+
+    return new Map(sources);
+}
+
+/** Resolve a module's exports to their original declarations, by name. */
+async function describeExports(
+    source: SourceFile,
+    path: string,
+    inspector: SymbolInspector,
+): Promise<ModuleDescription["exports"]> {
+    // read the module's exports
+    const project = inspector.project;
+    const symbol = await project.checker.getSymbolAtLocation(source);
+    if (!symbol) {
+        return [];
+    }
+    const exports = await Promise.all(
+        (await project.checker.getExportsOfModule(symbol)).map(async (exported) => {
+            // resolve the export to its original declaration
+            const original = await inspector.original(exported);
             if (await project.checker.isUnknownSymbol(original)) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `unresolved export: ${module.path}#${exported.name}`,
+                    `unresolved export: ${path}#${exported.name}`,
                 );
             }
 
             // retain the public name and whether it exists at runtime
-            const reference = await describeSymbol(original, project, root, modules, pending);
-            module.exports.push({
-                name: exported.name,
-                symbol: reference,
-                isTypeOnly: !(await isRuntimeExport(project, source, exported, new Set())),
-            });
-        }
+            const [located, isRuntime] = await Promise.all([
+                inspector.reference(original),
+                isRuntimeExport(inspector, source, exported, new Set()),
+            ]);
 
-        module.exports.sort((left, right) => compare(left.name, right.name));
-    }
+            return { name: exported.name, symbol: located, isTypeOnly: !isRuntime };
+        }),
+    );
 
-    // inspect exported declarations and local types reached through their public signatures
-    for (const symbol of pending.values()) {
-        const reference = await describeSymbol(symbol, project, root, modules, pending);
-        if (!("module" in reference)) {
-            throw new BuildError("INSPECTION_FAILED", "queued an external declaration");
-        }
-        const description = await inspector.describe(symbol, reference.name);
-        modules.get(reference.module)!.symbols.push(description);
-    }
-
-    // order symbols after all referenced symbols have been inspected
-    for (const module of modules.values()) {
-        module.symbols.sort((left, right) => compare(left.name, right.name));
-    }
-
-    // parse compiler descriptions before returning them to executable inspectors
-    const result = [...modules.values()].map((module) => ModuleDescription.parse(module));
-
-    return { modules: result, sources, tests, declarations, directories };
+    return exports.toSorted((left, right) => compareText(left.name, right.name));
 }
 
-/** Collect modules reached from authored modules through imports and reexports kept at runtime. */
+/** Collect the package's modules the entries import through imports and reexports kept at runtime. */
 async function collectRuntimeFiles(
     project: Project,
-    authored: readonly string[],
+    entries: readonly string[],
+    sourceFiles: ReadonlyMap<string, SourceFile>,
 ): Promise<Set<string>> {
-    // follow imports from the authored files
-    const reached = new Set(authored);
-    const pending = [...authored];
-    for (const file of pending) {
+    // index the package's modules by the compiler's path
+    const byPath = new Map([...sourceFiles.values()].map((source) => [source.path, source]));
+
+    // follow imports from the entry modules
+    const pending = await Promise.all(
+        entries.map(async (entry) => {
+            const source = await project.program.getSourceFile(entry);
+
+            return found(byPath, present(source, `the entry module ${entry}`).path);
+        }),
+    );
+    const visited = new Set(pending.map((source) => source.fileName));
+    for (const source of pending) {
         // skip declaration files, which contribute no runtime modules
-        const source = await project.program.getSourceFile(file);
-        if (!source || source.isDeclarationFile) {
+        if (source.isDeclarationFile) {
             continue;
         }
 
@@ -232,24 +384,24 @@ async function collectRuntimeFiles(
             continue;
         }
 
-        // follow each resolved module once
+        // follow each of the package's modules once, leaving dependencies to their builds
         const modules = await project.checker.getSymbolAtLocation(specifiers);
         for (const module of modules) {
-            const declaration = await module?.declarations[0]?.resolve(project);
-            const target = declaration?.getSourceFile().fileName;
-            if (target && !reached.has(target)) {
-                reached.add(target);
+            const path = module?.declarations[0]?.path;
+            const target = path === undefined ? undefined : byPath.get(path);
+            if (target !== undefined && !visited.has(target.fileName)) {
+                visited.add(target.fileName);
                 pending.push(target);
             }
         }
     }
 
-    return reached;
+    return visited;
 }
 
 /** Follow named and star reexports while preserving explicit type-only declarations. */
 async function isRuntimeExport(
-    project: Project,
+    inspector: SymbolInspector,
     source: SourceFile,
     exported: TypeScriptSymbol,
     visited: Set<string>,
@@ -262,39 +414,19 @@ async function isRuntimeExport(
     visited.add(key);
 
     // discard symbols that exist only in the type namespace
-    const original =
-        exported.flags & SymbolFlags.Alias
-            ? await project.checker.getAliasedSymbol(exported)
-            : exported;
+    const original = await inspector.original(exported);
     if (!(original.flags & SymbolFlags.Value)) {
         return false;
     }
 
     // inspect declarations written in this module before following star exports
     for (const handle of exported.declarations) {
-        const declaration = await handle.resolve(project);
-        if (!declaration) {
-            throw new BuildError("INSPECTION_FAILED", `unresolved export declaration: ${key}`);
-        }
-        if (declaration.getSourceFile().fileName !== source.fileName) {
-            continue;
-        }
-
-        // inspect type-only modifiers on the declaration and its ancestors
-        let node = declaration;
-        let isTypeOnly = false;
-        while (node.kind !== SyntaxKind.SourceFile) {
-            if ("isTypeOnly" in node && node.isTypeOnly === true) {
-                isTypeOnly = true;
-            }
-            node = node.parent;
-        }
-        if (!isTypeOnly) {
+        if (handle.path === source.path && !isTypeOnly(await inspector.node(handle))) {
             return true;
         }
     }
 
-    // a value must be reachable through at least one value-exporting star declaration
+    // find the value through a value-exporting star declaration
     for (const statement of source.statements) {
         if (
             !isExportDeclaration(statement) ||
@@ -305,39 +437,8 @@ async function isRuntimeExport(
             continue;
         }
 
-        // resolve the star export module
-        const target = await project.checker.getSymbolAtLocation(statement.moduleSpecifier);
-        if (!target) {
-            throw new BuildError(
-                "INSPECTION_FAILED",
-                `unresolved export module: ${statement.moduleSpecifier.getText()}`,
-            );
-        }
-
-        // follow only exports that resolve to the same original symbol
-        const candidate = (await project.checker.getExportsOfModule(target)).find(
-            (entry) => entry.name === exported.name,
-        );
-        if (!candidate) {
-            continue;
-        }
-        const resolved =
-            candidate.flags & SymbolFlags.Alias
-                ? await project.checker.getAliasedSymbol(candidate)
-                : candidate;
-        if (resolved.id !== original.id) {
-            continue;
-        }
-
-        // follow the export through its source module
-        const declaration = await target.declarations[0]?.resolve(project);
-        if (!declaration) {
-            throw new BuildError(
-                "INSPECTION_FAILED",
-                `unresolved module declaration: ${target.name}`,
-            );
-        }
-        if (await isRuntimeExport(project, declaration.getSourceFile(), candidate, visited)) {
+        // follow the export through the star export module
+        if (await isStarExport(inspector, statement.moduleSpecifier, original, visited, exported)) {
             return true;
         }
     }
@@ -345,100 +446,173 @@ async function isRuntimeExport(
     return false;
 }
 
-/** Locate a symbol in its source package and retain each declaration range. */
+/** Follow one star export to a reexport of the same original symbol that carries a value. */
+async function isStarExport(
+    inspector: SymbolInspector,
+    specifier: Expression,
+    original: TypeScriptSymbol,
+    visited: Set<string>,
+    exported: TypeScriptSymbol,
+): Promise<boolean> {
+    // resolve the star export module
+    const { checker } = inspector.project;
+    const target = await checker.getSymbolAtLocation(specifier);
+    if (!target) {
+        throw new BuildError(
+            "INSPECTION_FAILED",
+            `unresolved export module: ${specifier.getText()}`,
+        );
+    }
+
+    // follow only exports that resolve to the same original symbol
+    const candidate = (await checker.getExportsOfModule(target)).find(
+        (entry) => entry.name === exported.name,
+    );
+    if (!candidate) {
+        return false;
+    }
+    const resolved = await inspector.original(candidate);
+    if (resolved.id !== original.id) {
+        return false;
+    }
+
+    // follow the export through its source module
+    const [module] = target.declarations;
+    if (module === undefined) {
+        throw new BuildError("INSPECTION_FAILED", `unresolved module declaration: ${target.name}`);
+    }
+    const declaration = await inspector.node(module);
+
+    return isRuntimeExport(inspector, declaration.getSourceFile(), candidate, visited);
+}
+
+/** Report whether a declaration or one of its ancestors has a type-only modifier. */
+function isTypeOnly(declaration: Node): boolean {
+    for (let node = declaration; node.kind !== SyntaxKind.SourceFile; node = node.parent) {
+        if ("isTypeOnly" in node && node.isTypeOnly === true) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/** Locate a symbol in its source package, queueing the package's declarations. */
 async function describeSymbol(
     symbol: TypeScriptSymbol,
-    project: Project,
+    inspector: SymbolInspector,
     root: string,
+    catalog: ConstructorCatalog,
     modules: Map<string, ModuleDescription>,
     pending: Map<number, TypeScriptSymbol>,
-): Promise<ModuleDescription["exports"][number]["symbol"]> {
-    // resolve merged declaration locations
-    const nodes = await Promise.all(
-        symbol.declarations.map(async (handle) => {
-            const node = await handle.resolve(project);
-            if (!node) {
-                throw new BuildError(
-                    "INSPECTION_FAILED",
-                    `unresolved source declaration: ${symbol.name}`,
-                );
-            }
-
-            return node;
-        }),
-    );
-    if (!nodes.length) {
+): Promise<SymbolReference> {
+    // qualify the first declaration within its source module
+    const [declaration] = symbol.declarations;
+    if (declaration === undefined) {
         throw new BuildError(
             "INSPECTION_FAILED",
             `export has no source declaration: ${symbol.name}`,
         );
     }
+    const name = declaration.kind === SyntaxKind.SourceFile ? "*" : await declarationName(symbol);
+    const reference = await locateSymbol(declaration, name, inspector, root, catalog);
 
-    // qualify the declaration within its source module
-    const file = nodes[0].getSourceFile().fileName;
-    const name =
-        nodes[0].kind === SyntaxKind.SourceFile ? "*" : await declarationName(symbol, project);
+    // retain the original declaration once when several modules reexport it
+    if ("module" in reference) {
+        if (!modules.has(reference.module)) {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                `declaration belongs to an unknown module: ${reference.module}`,
+            );
+        }
+        pending.set(symbol.id, symbol);
+    }
 
-    // identify compiler libraries independently of the installed native executable's platform
-    if (await project.program.isSourceFileDefaultLibrary(nodes[0].getSourceFile())) {
+    return reference;
+}
+
+/** Resolve each import specifier of a module to the source module the compiler reads. */
+async function describeImports(
+    source: SourceFile,
+    inspector: SymbolInspector,
+    root: string,
+    catalog: ConstructorCatalog,
+): Promise<ModuleDescription["imports"]> {
+    // read literal specifiers, including dynamic imports
+    const specifiers = source.imports.map((entry) => {
+        if (!isStringLiteral(entry) && !isNoSubstitutionTemplateLiteral(entry)) {
+            throw new BuildError("INSPECTION_FAILED", `unsupported import in ${source.fileName}`);
+        }
+
+        return entry;
+    });
+    if (!specifiers.length) {
+        return [];
+    }
+
+    // locate each resolved source file, leaving ambient module declarations unresolved
+    const symbols = await inspector.project.checker.getSymbolAtLocation(specifiers);
+
+    return await Promise.all(
+        specifiers.map(async (entry, index) => {
+            const declaration = symbols[index]?.declarations[0];
+            if (declaration?.kind !== SyntaxKind.SourceFile) {
+                return { specifier: entry.text };
+            }
+
+            return {
+                specifier: entry.text,
+                target: await locateSymbol(declaration, "*", inspector, root, catalog),
+            };
+        }),
+    );
+}
+
+/** Locate a named declaration in the compiler libraries, a dependency or the package. */
+async function locateSymbol(
+    declaration: NodeHandle,
+    name: string,
+    inspector: SymbolInspector,
+    root: string,
+    catalog: ConstructorCatalog,
+): Promise<SymbolReference> {
+    // name compiler libraries by their lowercase file names, leaving their large sources unread
+    const metadata = await inspector.project.program.getSourceFileMetadataByPath(declaration.path);
+    if (metadata === undefined) {
+        throw new BuildError("INSPECTION_FAILED", `undeclared source file: ${declaration.path}`);
+    }
+    if (metadata.isDefaultLibrary) {
         return {
             compiler: { name: "typescript", version },
-            symbol: { module: basename(file), name },
+            symbol: { module: basename(declaration.path), name },
         };
     }
 
-    // resolve external declarations against their package metadata
-    if (!contains(root, file) || relative(root, file).split(sep).includes("node_modules")) {
-        const metadata = await modulePackage(dirname(file));
-        let definition: string | undefined;
+    // read the declaring file's name, which the compiler keys in lowercase on case-insensitive systems
+    const file = (await inspector.node(declaration)).getSourceFile().fileName;
 
-        // read optional Destack metadata once and preserve every other filesystem failure
-        try {
-            definition = await readFile(resolve(metadata.directory, "destack.json"), "utf8");
-        } catch (error) {
-            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
-                throw error;
-            }
-        }
-
-        // retain stable identity for Destack packages and registry identity for npm packages
-        const identity = { name: metadata.name, version: metadata.version };
-        const owner =
-            definition === undefined
-                ? DependencyPackage.parse(identity)
-                : Package.parse({ ...identity, id: PackageDefinition.read(definition).id });
+    // name a dependency's module within its package
+    if (!isAuthored(root, file)) {
+        const location = await catalog.locate(dirname(file));
 
         return DependencySymbol.parse({
-            package: owner,
-            symbol: {
-                module: relative(metadata.directory, file).split(sep).join("/"),
-                name,
-            },
+            package: await catalog.owner(location),
+            symbol: { module: relativePath(location.directory, file), name },
         });
     }
 
-    // retain the original declaration once when several modules reexport it
-    const path = relative(root, file).split(sep).join("/");
-    const module = modules.get(path);
-    if (!module) {
-        throw new BuildError(
-            "INSPECTION_FAILED",
-            `declaration belongs to an unknown module: ${path}`,
-        );
-    }
-    pending.set(symbol.id, symbol);
-
-    return { module: path, name };
+    // name the package's module by its package-relative path
+    return { module: relativePath(root, file), name };
 }
 
 /** Qualify a declaration through named namespaces and types within its module. */
-async function declarationName(symbol: TypeScriptSymbol, project: Project): Promise<string> {
+async function declarationName(symbol: TypeScriptSymbol): Promise<string> {
     // qualify nested declarations until the enclosing module
     const names = [symbol.name];
     let parent = await symbol.getParent();
     while (parent) {
-        const declaration = await parent.declarations[0]?.resolve(project);
-        if (!declaration) {
+        const [declaration] = parent.declarations;
+        if (declaration === undefined) {
             throw new BuildError(
                 "INSPECTION_FAILED",
                 `unresolved declaration parent: ${parent.name}`,
@@ -455,14 +629,19 @@ async function declarationName(symbol: TypeScriptSymbol, project: Project): Prom
     return names.join(".");
 }
 
-/** Check whether a source path belongs to the package directory. */
+/** Report whether a file holds declarations only, by the compiler's naming rule for `.d.ts` files. */
+export function isDeclarationPath(path: string): boolean {
+    return /\.d\.[cm]?ts$/u.test(path) || (path.endsWith(".ts") && basename(path).includes(".d."));
+}
+
+/** Report whether a compiler file is one of the package's modules. */
+export function isAuthored(root: string, file: string): boolean {
+    return contains(root, file) && !relative(root, file).split(sep).includes("node_modules");
+}
+
+/** Report whether a file lies inside a directory. */
 function contains(directory: string, file: string): boolean {
     const path = relative(directory, file);
 
     return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
-}
-
-/** Sort names by UTF-16 code units independently of the host locale. */
-function compare(left: string, right: string): number {
-    return left < right ? -1 : left > right ? 1 : 0;
 }

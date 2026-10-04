@@ -27,7 +27,7 @@ export const account = defineAccount({ environments: { development: {}, producti
 /** Configure a space without provisioning resources during compilation. */
 export const personal = defineSpace({
     resources: {
-        main: { declaration: database, retention: "retain", tags: {} },
+        main: { declaration: database, retention: { within: { days: 30 } }, tags: {} },
     },
     installations: {
         notes: install(stack, { main: "main" }),

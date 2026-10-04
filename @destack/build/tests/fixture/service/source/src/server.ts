@@ -1,10 +1,8 @@
-import { defineDatabase } from "@destack/db/declare";
+import { defineDatabase } from "@destack/db";
 import { defineSecret, defineVault } from "@destack/vault";
-import { defineSchedule } from "@destack/service/schedule";
+import { defineTrigger } from "@destack/service/trigger";
 import { defineService, defineProcedure, defineServiceBinding } from "@destack/service";
 import { implement, type ServiceImplementation } from "@destack/service/server";
-import type { Schedule } from "@destack/service/schedule";
-import type { TriggerHandler } from "@destack/service/trigger";
 import { defineWorkload } from "@destack/service/workload";
 import { schema } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
@@ -13,7 +11,7 @@ import { defineAuditAction } from "@destack/audit";
 
 /** Record a published note under its declaring package. */
 export const publishNote = defineAuditAction({
-    name: "Note.publish",
+    name: "note.publish",
     targets: schema.object({
         note: schema.object({ type: schema.literal("note"), id: schema.string() }),
     }),
@@ -63,47 +61,53 @@ export const web = defineWorkload({
     start: async () => {
         instruments.logger.emit({ body: "Workload started" });
 
-        return {
-            services: [implementService()],
-            triggers: [reminders, refresh, appointment].map(implementSchedule),
-        };
+        return { services: [implementService()] };
     },
 });
 
+/** Send the reminders that are due. */
+const remind = { method: "reminder.send", input: {}, release: "2026.9.0" };
+
 /** The daily reminder schedule. */
-export const reminders = defineSchedule({
+export const reminders = defineTrigger({
     name: "reminders",
-    timing: "cron",
-    cron: "0 9 * * *",
-    timezone: "UTC",
-    concurrency: "forbid",
-    deadline: 60000,
+    on: {
+        schedule: {
+            timing: { timing: "cron", cron: "0 9 * * *", timezone: "UTC" },
+            concurrency: "forbid",
+            deadline: 60000,
+            call: remind,
+        },
+    },
 });
 
 /** Repeat from a fixed first occurrence. */
-export const refresh = defineSchedule({
+export const refresh = defineTrigger({
     name: "refresh",
-    timing: "interval",
-    interval: 300000,
-    startsAt: 1800000000000,
-    endsAt: 1800086400000,
-    concurrency: "forbid",
-    deadline: 60000,
+    on: {
+        schedule: {
+            timing: {
+                timing: "interval",
+                interval: 300000,
+                startsAt: 1800000000000,
+                endsAt: 1800086400000,
+            },
+            concurrency: "forbid",
+            deadline: 60000,
+            call: remind,
+        },
+    },
 });
 
 /** Send a reminder at one specified time. */
-export const appointment = defineSchedule({
+export const appointment = defineTrigger({
     name: "appointment",
-    timing: "once",
-    startsAt: 1800000000000,
-    concurrency: "allow",
-    deadline: 60000,
+    on: {
+        schedule: {
+            timing: { timing: "once", startsAt: 1800000000000 },
+            concurrency: "allow",
+            deadline: 60000,
+            call: remind,
+        },
+    },
 });
-
-/** Log each occurrence of a reminder schedule. */
-function implementSchedule(schedule: Schedule): TriggerHandler<Schedule> {
-    return schedule.handle(async (_occurrence, signal) => {
-        signal.throwIfAborted();
-        instruments.logger.emit({ body: `Reminder ${schedule.name}` });
-    });
-}

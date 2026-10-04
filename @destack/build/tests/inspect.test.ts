@@ -11,9 +11,7 @@ import { Fixture } from "./fixture.ts";
 /** Retain test discovery without collecting the resources constructed by test bodies. */
 test("inspect test bodies without declaring their temporary resources", async ({ expect }) => {
     await using input = await Fixture.open("web");
-    const manifest = join(input.source, "package.json");
-    const metadata = JSON.parse(await readFile(manifest, "utf8"));
-    await writeFile(manifest, JSON.stringify({ ...metadata, exports: { ".": "./src/app.tsx" } }));
+    await exportApplication(input.source);
     await using compiler = await PackageBuilder.start(input.source);
     const before = await compiler.inspect({ runtime: "bun" });
     const description = schema.object({
@@ -67,15 +65,23 @@ const invalid = [
     },
 ];
 
-test.concurrent.for(invalid)("reject $message", async (fixture, { expect }) => {
-    await using input = await Fixture.open("web");
-    await writeFile(join(input.source, fixture.file), fixture.source);
-    const path = join(input.source, "package.json");
-    const metadata = JSON.parse(await readFile(path, "utf8"));
-    await writeFile(path, JSON.stringify({ ...metadata, exports: { ".": "./src/app.tsx" } }));
-    await using compiler = await PackageBuilder.start(input.source);
-    await expect(compiler.inspect({ runtime: "browser" })).rejects.toMatchObject({
-        code: fixture.code,
-        message: fixture.message,
-    });
-});
+test.concurrent.for(invalid)(
+    "refuse a test declaration that inspection cannot read statically: $message",
+    async (fixture, { expect }) => {
+        await using input = await Fixture.open("web");
+        await writeFile(join(input.source, fixture.file), fixture.source);
+        await exportApplication(input.source);
+        await using compiler = await PackageBuilder.start(input.source);
+        await expect(compiler.inspect({ runtime: "browser" })).rejects.toMatchObject({
+            code: fixture.code,
+            message: fixture.message,
+        });
+    },
+);
+
+/** Export the web fixture's application module as its package root. */
+async function exportApplication(source: string): Promise<void> {
+    const path = join(source, "package.json");
+    const manifest = schema.looseObject({}).parse(JSON.parse(await readFile(path, "utf8")));
+    await writeFile(path, JSON.stringify({ ...manifest, exports: { ".": "./src/app.tsx" } }));
+}

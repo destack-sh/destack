@@ -1,10 +1,6 @@
 import { dirname, join, relative } from "node:path";
 import { readFile } from "node:fs/promises";
-import {
-    type Project,
-    type Symbol as TypeScriptSymbol,
-    SymbolFlags,
-} from "typescript/unstable/async";
+import type { Symbol as TypeScriptSymbol } from "typescript/unstable/async";
 import {
     type CallExpression,
     isCallExpression,
@@ -17,16 +13,32 @@ import {
     SyntaxKind,
 } from "typescript/unstable/ast";
 import type { DeclarationDescription } from "@destack/package/inspect";
-import { type DeclarationConstructor, Package, PackageDefinition } from "@destack/package";
-import { BuildError } from "../error/index.ts";
+import {
+    type DeclarationConstructor,
+    DependencyPackage,
+    Package,
+    PackageDefinition,
+    PackageExport,
+} from "@destack/package";
+import { BuildError, isMissing } from "../error/index.ts";
+import { schema } from "@destack/schema";
 import { PackageLocator } from "@destack/package/transform";
 import { modulePackage } from "../source/dependency.ts";
 import type { TestDeclaration } from "@destack/test/inspect";
 
 import type { DeclarationExport, FunctionExport, Inspector } from "../declaration/declaration.ts";
+import type { SymbolInspector } from "./symbol.ts";
+
+/** The exports a package.json lists. */
+const ExportsManifest = schema.looseObject({
+    exports: schema.record(schema.string(), PackageExport).exactOptional(),
+});
 
 /** A package containing modules, with the name and version its package.json declares. */
 type PackageLocation = Awaited<ReturnType<typeof modulePackage>>;
+
+/** A kind a constructor's entry describes declarations as, with the functions it names. */
+type DescribedKind = NonNullable<DeclarationConstructor["describes"]>[number];
 
 /** A kind a constructor describes each declaration as, with the functions inspecting it. */
 interface ConstructorKind {
@@ -54,30 +66,47 @@ interface ResolvedConstructor {
     readonly kinds: readonly ConstructorKind[];
 }
 
-/** The packages and inspected constructors one inspection reaches, each read once per package directory. */
+/** The packages and inspected constructors one inspection finds, each read once per package directory. */
 export class ConstructorCatalog {
     /** The package containing each module directory. */
     readonly #locations = new Map<string, Promise<PackageLocation>>();
-    /** The identity of each package directory. */
-    readonly #identities = new Map<string, Promise<Package>>();
+    /** The identity of each package directory, a Destack package's or an npm package's. */
+    readonly #owners = new Map<string, Promise<Package | DependencyPackage>>();
     /** The inspected constructors of each package directory. */
     readonly #constructors = new Map<string, Promise<Map<string, InspectedConstructor>>>();
     /** The exports of each package directory, absent when its package.json lists none. */
-    readonly #exports = new Map<string, Promise<Record<string, unknown> | undefined>>();
+    readonly #exports = new Map<
+        string,
+        Promise<Readonly<Record<string, PackageExport>> | undefined>
+    >();
     /** The packages and declared constructors the inspection finds. */
     readonly #packages = new PackageLocator();
 
     /** Resolve a call target to an inspected constructor, or undefined for any other function. */
     async resolve(
         symbol: TypeScriptSymbol | undefined,
-        project: Project,
+        inspector: SymbolInspector,
     ): Promise<ResolvedConstructor | undefined> {
         // follow imported constructor aliases to a function declaration
-        if (symbol && symbol.flags & SymbolFlags.Alias) {
-            symbol = await project.checker.getAliasedSymbol(symbol);
+        const project = inspector.project;
+        if (symbol) {
+            symbol = await inspector.original(symbol);
         }
-        const declaration = await symbol?.declarations[0]?.resolve(project);
-        if (!symbol || !declaration || !isFunctionDeclaration(declaration)) {
+        const handle = symbol?.declarations[0];
+        if (!symbol || handle?.kind !== SyntaxKind.FunctionDeclaration) {
+            return undefined;
+        }
+
+        // leave compiler library functions unread, since no package declares them
+        const metadata = await project.program.getSourceFileMetadataByPath(handle.path);
+        if (metadata === undefined) {
+            throw new BuildError("INSPECTION_FAILED", `undeclared source file: ${handle.path}`);
+        }
+        if (metadata.isDefaultLibrary) {
+            return undefined;
+        }
+        const declaration = await inspector.node(handle);
+        if (!isFunctionDeclaration(declaration)) {
             return undefined;
         }
 
@@ -107,15 +136,28 @@ export class ConstructorCatalog {
         return location;
     }
 
-    /** Read a Destack package's identity from its destack.json. */
-    identify(location: PackageLocation): Promise<Package> {
-        let identity = this.#identities.get(location.directory);
-        if (identity === undefined) {
-            identity = readIdentity(location);
-            this.#identities.set(location.directory, identity);
+    /** Read a package's identity, with the stable id its destack.json declares when it has one. */
+    owner(location: PackageLocation): Promise<Package | DependencyPackage> {
+        let owner = this.#owners.get(location.directory);
+        if (owner === undefined) {
+            owner = readOwner(location);
+            this.#owners.set(location.directory, owner);
         }
 
-        return identity;
+        return owner;
+    }
+
+    /** Read a Destack package's identity, requiring its destack.json. */
+    async identify(location: PackageLocation): Promise<Package> {
+        const owner = await this.owner(location);
+        if (!("id" in owner)) {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                `${location.name} declares Destack declarations without a destack.json`,
+            );
+        }
+
+        return owner;
     }
 
     /** Read a package's inspected constructors and locate their describing functions. */
@@ -143,42 +185,10 @@ export class ConstructorCatalog {
         // read the package identity once for every constructor
         const identity = await this.identify(location);
         for (const [name, constructor] of declared) {
-            // describe each kind the constructor lists, compared and listed by the kind's own entry
+            // describe each kind the constructor lists
             const kinds: ConstructorKind[] = [];
             for (const entry of constructor.describes ?? []) {
-                const declaring =
-                    entry.package === undefined
-                        ? { package: identity, location, entry }
-                        : await this.#locateKind(entry.package, entry.kind, location);
-                if (entry.package !== undefined && (entry.compare ?? entry.vocabulary)) {
-                    throw new BuildError(
-                        "INSPECTION_FAILED",
-                        `${location.name} describes kind ${entry.kind} of ${entry.package}, which compares and lists its terms itself`,
-                    );
-                }
-                kinds.push({
-                    kind: entry.kind,
-                    package: declaring.package,
-                    inspector: {
-                        describe: await this.#locateFunction(location, entry.function),
-                        ...(declaring.entry.compare === undefined
-                            ? {}
-                            : {
-                                  compare: await this.#locateFunction(
-                                      declaring.location,
-                                      declaring.entry.compare,
-                                  ),
-                              }),
-                        ...(declaring.entry.vocabulary === undefined
-                            ? {}
-                            : {
-                                  vocabulary: await this.#locateFunction(
-                                      declaring.location,
-                                      declaring.entry.vocabulary,
-                                  ),
-                              }),
-                    },
-                });
+                kinds.push(await this.#describeKind(location, identity, entry));
             }
 
             // keep constructors the build inspects
@@ -190,7 +200,48 @@ export class ConstructorCatalog {
         return inspected;
     }
 
-    /** Find the dependency declaring a kind another package's constructor describes, with its own entry. */
+    /** Describe a kind a constructor lists, with the functions of the entry declaring the kind. */
+    async #describeKind(
+        location: PackageLocation,
+        identity: Package,
+        entry: DescribedKind,
+    ): Promise<ConstructorKind> {
+        // locate the entry declaring the kind: this one, or a dependency's
+        const declaring =
+            entry.package === undefined
+                ? { package: identity, location, entry }
+                : await this.#locateKind(entry.package, entry.kind, location);
+        const hasFunctions =
+            entry.compare !== undefined ||
+            entry.vocabulary !== undefined ||
+            entry.symbols !== undefined;
+        if (entry.package !== undefined && hasFunctions) {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                `${location.name} describes kind ${entry.kind} of ${entry.package}, which compares, lists its terms and derives its symbols itself`,
+            );
+        }
+
+        // locate the describing function here and the kind's functions at its declaration
+        const describe = await this.#locateFunction(location, entry.function);
+        const kind = declaring.entry;
+        const compare = await this.#locateOptional(declaring.location, kind.compare);
+        const vocabulary = await this.#locateOptional(declaring.location, kind.vocabulary);
+        const symbols = await this.#locateOptional(declaring.location, kind.symbols);
+
+        return {
+            kind: entry.kind,
+            package: declaring.package,
+            inspector: {
+                describe,
+                ...(compare === undefined ? {} : { compare }),
+                ...(vocabulary === undefined ? {} : { vocabulary }),
+                ...(symbols === undefined ? {} : { symbols }),
+            },
+        };
+    }
+
+    /** Find the dependency declaring a kind another package's constructor describes, with the entry declaring it. */
     async #locateKind(
         name: string,
         kind: string,
@@ -198,13 +249,13 @@ export class ConstructorCatalog {
     ): Promise<{
         package: Package;
         location: PackageLocation;
-        entry: NonNullable<DeclarationConstructor["describes"]>[number];
+        entry: DescribedKind;
     }> {
-        // require a dependency whose own constructors describe the kind
+        // require a dependency whose constructors describe the kind as theirs
         const directory = this.#packages.directory(name, location.directory);
         const entry = Object.values(this.#packages.constructors(name, location.directory))
             .flatMap((constructor) => constructor.describes ?? [])
-            .find((entry) => entry.kind === kind && entry.package === undefined);
+            .find((candidate) => candidate.kind === kind && candidate.package === undefined);
         if (directory === undefined || entry === undefined) {
             throw new BuildError(
                 "INSPECTION_FAILED",
@@ -219,7 +270,12 @@ export class ConstructorCatalog {
     /** Locate a function a package exports, such as `./inspect#describeDatabase`. */
     async #locateFunction(location: PackageLocation, reference: string): Promise<FunctionExport> {
         // require the package export of the function, which may be conditional
-        const [subpath, name] = reference.split("#") as [string, string];
+        const separator = reference.indexOf("#");
+        if (separator === -1) {
+            throw new TypeError(`function reference ${reference} names no export`);
+        }
+        const subpath = reference.slice(0, separator);
+        const name = reference.slice(separator + 1);
         const exports = await this.#exported(location);
         const target = exports?.[subpath];
         if (target === undefined) {
@@ -232,8 +288,20 @@ export class ConstructorCatalog {
         return { directory: location.directory, subpath, target, name };
     }
 
+    /** Locate a function a package exports when a reference names one. */
+    async #locateOptional(
+        location: PackageLocation,
+        reference: string | undefined,
+    ): Promise<FunctionExport | undefined> {
+        return reference === undefined
+            ? undefined
+            : await this.#locateFunction(location, reference);
+    }
+
     /** Read the exports a package's package.json lists. */
-    #exported(location: PackageLocation): Promise<Record<string, unknown> | undefined> {
+    #exported(
+        location: PackageLocation,
+    ): Promise<Readonly<Record<string, PackageExport>> | undefined> {
         let exported = this.#exports.get(location.directory);
         if (exported === undefined) {
             exported = readExports(location);
@@ -248,118 +316,51 @@ export class ConstructorCatalog {
 export async function collectDeclarations(
     source: SourceFile,
     file: string,
-    project: Project,
+    inspector: SymbolInspector,
     sourcePackage: PackageLocation,
     catalog: ConstructorCatalog,
     tests: readonly TestDeclaration[] = [],
 ): Promise<DeclarationExport[]> {
-    // collect calls before resolving constructor symbols in one request
-    const declarations: DeclarationExport[] = [];
-    const calls: CallExpression[] = [];
-    const testEnds = new Map(
-        tests.filter((test) => test.kind === "test").map((test) => [test.start, test.end]),
-    );
-    const pending: Node[] = [...source.statements];
-    for (const node of pending) {
-        // leave test case setup and bodies to the test runner
-        const testEnd = testEnds.get(node.getStart());
-        if (testEnd !== undefined && node.end <= testEnd) {
-            continue;
-        }
-
-        node.forEachChild((child) => {
-            pending.push(child);
-        });
-        if (isCallExpression(node)) {
-            calls.push(node);
-        }
-    }
-
     // resolve declaration constructors in one compiler request
+    const project = inspector.project;
+    const calls = collectCalls(source, tests);
     const symbols = await project.checker.getSymbolAtLocation(calls.map((node) => node.expression));
     const constructors = await Promise.all(
-        symbols.map((symbol) => catalog.resolve(symbol, project)),
+        symbols.map((symbol) => catalog.resolve(symbol, inspector)),
     );
     if (constructors.every((resolved) => resolved === undefined)) {
-        return declarations;
+        return [];
     }
 
     // resolve stable identity only for packages exporting Destack declarations
     const declaring = await catalog.identify(sourcePackage);
+    const exported = await exportedNames(source, inspector);
 
-    // identify exports through the compiler, including export lists and aliases
-    const module = await project.checker.getSymbolAtLocation(source);
-    const exports = module ? await project.checker.getExportsOfModule(module) : [];
-    const exported = new Map<number, string>();
-    for (const symbol of exports) {
-        const target =
-            symbol.flags & SymbolFlags.Alias
-                ? await project.checker.getAliasedSymbol(symbol)
-                : symbol;
-        exported.set(target.id, symbol.name);
-    }
-
-    // locate exported constants for evaluation
+    // locate exported constants for evaluation, each once
+    const declarations: DeclarationExport[] = [];
     for (const [index, node] of calls.entries()) {
         const resolved = constructors[index];
         if (!resolved) {
             continue;
         }
-        const { constructor, kinds } = resolved;
-
-        // require a named variable initialized by the constructor
-        const declaration = node.parent;
-        if (
-            !isVariableDeclaration(declaration) ||
-            !declaration.name ||
-            !isIdentifier(declaration.name)
-        ) {
-            throw new BuildError(
-                "INSPECTION_FAILED",
-                `${constructor.symbol.name} requires a named module declaration`,
-            );
-        }
-
-        // require an exported reference to evaluate
-        const symbol = await project.checker.getSymbolAtLocation(declaration.name);
-        const exportedName = symbol && exported.get(symbol.id);
-        if (!exportedName) {
-            throw new BuildError(
-                "INSPECTION_FAILED",
-                `export ${file}:${declaration.name.text} to inspect its declaration`,
-            );
-        }
-
-        // require an unconditional module constant
-        if (
-            !(declaration.parent.flags & NodeFlags.Const) ||
-            declaration.parent.parent.parent.kind !== SyntaxKind.SourceFile
-        ) {
-            throw new BuildError(
-                "INSPECTION_FAILED",
-                `${constructor.symbol.name} must initialize a module-level constant`,
-            );
-        }
-
-        // retain each exported declaration once
-        const symbolName = declaration.name.text;
-        if (declarations.some((entry) => entry.description.symbol.symbol.name === symbolName)) {
+        const located = await locateDeclaration(node, resolved, exported, file, inspector);
+        if (declarations.some((entry) => entry.description.symbol.symbol.name === located.name)) {
             continue;
         }
 
         // retain one description per kind at package-relative locations
         const prefix = source.text.slice(0, node.getStart());
-        for (const { kind, package: owner, inspector } of kinds) {
+        for (const { kind, package: owner, inspector: functions } of resolved.kinds) {
             declarations.push({
-                inspector,
+                inspector: functions,
                 file: source.fileName,
-                export: exportedName,
+                export: located.export,
                 description: {
                     kind,
                     package: owner,
-                    constructor,
-                    name: symbolName,
-                    symbol: { package: declaring, symbol: { module: file, name: symbolName } },
+                    constructor: resolved.constructor,
+                    name: located.name,
+                    symbol: { package: declaring, symbol: { module: file, name: located.name } },
                     source: {
                         file,
                         line: prefix.split("\n").length - 1,
@@ -373,20 +374,120 @@ export async function collectDeclarations(
     return declarations;
 }
 
-/** Read a Destack package's identity from its destack.json and package.json. */
-async function readIdentity(location: PackageLocation): Promise<Package> {
-    const definition = PackageDefinition.read(
-        await readFile(join(location.directory, "destack.json"), "utf8"),
+/** Collect a module's calls, leaving test case setup and bodies to the test runner. */
+function collectCalls(source: SourceFile, tests: readonly TestDeclaration[]): CallExpression[] {
+    // index where each test case ends
+    const calls: CallExpression[] = [];
+    const testEnds = new Map(
+        tests.filter((test) => test.kind === "test").map((test) => [test.start, test.end]),
     );
+    const pending: Node[] = [...source.statements];
+    for (const node of pending) {
+        // skip test cases
+        const testEnd = testEnds.get(node.getStart());
+        if (testEnd !== undefined && node.end <= testEnd) {
+            continue;
+        }
 
-    return Package.parse({ id: definition.id, name: location.name, version: location.version });
+        // visit the children and keep calls
+        node.forEachChild((child) => {
+            pending.push(child);
+        });
+        if (isCallExpression(node)) {
+            calls.push(node);
+        }
+    }
+
+    return calls;
+}
+
+/** Name each symbol a module exports through the compiler, including export lists and aliases, by symbol. */
+async function exportedNames(
+    source: SourceFile,
+    inspector: SymbolInspector,
+): Promise<Map<number, string>> {
+    // name each export's original symbol
+    const checker = inspector.project.checker;
+    const module = await checker.getSymbolAtLocation(source);
+    const exports = module ? await checker.getExportsOfModule(module) : [];
+    const exported = new Map<number, string>();
+    for (const symbol of exports) {
+        const target = await inspector.original(symbol);
+        exported.set(target.id, symbol.name);
+    }
+
+    return exported;
+}
+
+/** Require a constructor call to initialize an exported module constant, returning its name and export. */
+async function locateDeclaration(
+    node: CallExpression,
+    resolved: ResolvedConstructor,
+    exported: ReadonlyMap<number, string>,
+    file: string,
+    inspector: SymbolInspector,
+): Promise<{ name: string; export: string }> {
+    // require a named variable initialized by the constructor
+    const { constructor } = resolved;
+    const declaration = node.parent;
+    if (!isVariableDeclaration(declaration) || !isIdentifier(declaration.name)) {
+        throw new BuildError(
+            "INSPECTION_FAILED",
+            `${constructor.symbol.name} requires a named module declaration`,
+        );
+    }
+
+    // require an exported reference to evaluate
+    const symbol = await inspector.project.checker.getSymbolAtLocation(declaration.name);
+    const exportedName = symbol === undefined ? undefined : exported.get(symbol.id);
+    if (exportedName === undefined) {
+        throw new BuildError(
+            "INSPECTION_FAILED",
+            `export ${file}:${declaration.name.text} to inspect its declaration`,
+        );
+    }
+
+    // require an unconditional module constant
+    if (
+        !(declaration.parent.flags & NodeFlags.Const) ||
+        declaration.parent.parent.parent.kind !== SyntaxKind.SourceFile
+    ) {
+        throw new BuildError(
+            "INSPECTION_FAILED",
+            `${constructor.symbol.name} must initialize a module-level constant`,
+        );
+    }
+
+    return { name: declaration.name.text, export: exportedName };
+}
+
+/** Read a package's identity from its package.json, with the id of its optional destack.json. */
+async function readOwner(location: PackageLocation): Promise<Package | DependencyPackage> {
+    // read the optional Destack definition and preserve every other filesystem failure
+    let definition: string | undefined;
+    try {
+        definition = await readFile(join(location.directory, "destack.json"), "utf8");
+    } catch (error) {
+        if (!isMissing(error)) {
+            throw error;
+        }
+    }
+
+    // retain stable identity for Destack packages and registry identity for npm packages
+    const identity = { name: location.name, version: location.version };
+
+    return definition === undefined
+        ? DependencyPackage.parse(identity)
+        : Package.parse({ ...identity, id: PackageDefinition.read(definition).id });
 }
 
 /** Read the exports a package's package.json lists, absent when it lists none. */
 async function readExports(
     location: PackageLocation,
-): Promise<Record<string, unknown> | undefined> {
-    const manifest = JSON.parse(await readFile(join(location.directory, "package.json"), "utf8"));
+): Promise<Readonly<Record<string, PackageExport>> | undefined> {
+    const manifest = ExportsManifest.parse(
+        JSON.parse(await readFile(join(location.directory, "package.json"), "utf8")),
+    );
 
     return manifest.exports;
 }

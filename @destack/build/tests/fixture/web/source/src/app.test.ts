@@ -1,9 +1,10 @@
 import { describe, test } from "@destack/test";
 
-// fail if static collection evaluates the module
-(() => {
+/** Fail when static collection evaluates the module. */
+function refuseEvaluation(): void {
     throw new Error("static inspection must not execute tests");
-})();
+}
+refuseEvaluation();
 
 describe("application", () => {
     test("renders", () => {});

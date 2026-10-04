@@ -1,5 +1,4 @@
-import { integer, defineTable, text } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import { integer, defineTable, text, defineDatabase } from "@destack/db";
 
 /** Notes stored in the destination database. */
 export const note = defineTable("note", {

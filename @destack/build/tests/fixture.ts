@@ -1,26 +1,54 @@
 import { BuildReader } from "@destack/package/manifest";
-import { schema } from "@destack/schema";
+import { found, schema } from "@destack/schema";
 import { TestDeclaration } from "@destack/test/inspect";
 import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { Buffer } from "node:buffer";
 import { expect } from "@destack/test";
-import { buildPackage, type BuildOptions, type PackageBuild } from "../src/index.ts";
+import {
+    buildPackage,
+    readDependencies,
+    type BuildOptions,
+    type PackageBuild,
+} from "../src/index.ts";
 import { comparePath } from "../src/build/serialization.ts";
-import { readDependencies } from "../src/local/index.ts";
 import { linkDependencies } from "../src/source/index.ts";
 import { tmpdir } from "node:os";
+import type { Service } from "@destack/service";
+import type { Workload } from "@destack/service/workload";
 
-/** Compare every distributed path and byte with the fixture's expected directory. */
-export async function expectBuild(build: PackageBuild, expected: URL): Promise<void> {
-    // include the manifest alongside the exact distributed bytes
-    const files = await readBuildFiles(build);
-    files.set(
-        "manifest.json",
-        new TextEncoder().encode(`${JSON.stringify(build.manifest, null, 4)}\n`),
-    );
-    await expectDirectory(files, expected);
+/** A built library module exporting createNote. */
+export interface NoteModule {
+    /** Create a note with a title. */
+    createNote(title: string): unknown;
+}
+
+/** A built server module whose default export answers requests. */
+export interface HandlerModule {
+    /** The request handler. */
+    readonly default: { fetch(request: Request): Response | Promise<Response> };
+}
+
+/** A built service module exporting its workload and the service it serves. */
+export interface ServiceModule {
+    /** The workload starting the service. */
+    readonly web: Workload;
+    /** The service. */
+    readonly service: Service;
+}
+
+/** Read the file a build output exports at a path, refusing an output or export the build lacks. */
+export function exported(
+    output: { readonly exports: Readonly<Record<string, string>> } | undefined,
+    path: string,
+): string {
+    const file = output?.exports[path];
+    if (file === undefined) {
+        throw new TypeError(`the build output exports no ${path}`);
+    }
+
+    return file;
 }
 
 /** Compare a complete file collection with its expected directory. */
@@ -29,8 +57,8 @@ export async function expectDirectory(
     expected: URL,
 ): Promise<void> {
     const directory = fileURLToPath(expected);
-    const paths = [...files.keys()].sort();
-    const isUpdating = process.env.UPDATE_BUILD_FIXTURES === "1";
+    const paths = [...files.keys()].toSorted();
+    const isUpdating = process.env["UPDATE_BUILD_FIXTURES"] === "1";
 
     // refresh only the explicitly selected fixture output
     if (isUpdating) {
@@ -59,13 +87,13 @@ export async function expectDirectory(
         .map((entry) =>
             relative(directory, join(entry.parentPath, entry.name)).replaceAll("\\", "/"),
         )
-        .sort();
+        .toSorted();
     expect(actual).toEqual(paths);
     for (const path of paths) {
         const bytes = await readFile(join(directory, path));
-        const expected = files.get(path)!;
-        if (Buffer.compare(bytes, expected) !== 0) {
-            expect(new Uint8Array(bytes), path).toEqual(expected);
+        const written = found(files, path);
+        if (Buffer.compare(bytes, written) !== 0) {
+            expect(new Uint8Array(bytes), path).toEqual(written);
         }
     }
 }
@@ -79,7 +107,7 @@ export async function expectFiles(
     const expected = await readBuildFiles(expectedBuild);
     expect([...actual.keys()]).toEqual([...expected.keys()]);
     for (const [path, bytes] of actual) {
-        expect(Buffer.compare(bytes, expected.get(path)!), path).toBe(0);
+        expect(Buffer.compare(bytes, found(expected, path)), path).toBe(0);
     }
 }
 
@@ -88,7 +116,7 @@ export async function readBuildFiles(
     build: PackageBuild,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
-    const records = (await build.reader.inventory()).sort(comparePath);
+    const records = (await build.reader.distributed()).toSorted(comparePath);
     for (const file of records) {
         files.set(file.path, new Uint8Array(await readFile(join(build.directory, file.path))));
     }
@@ -135,7 +163,7 @@ export class Fixture implements AsyncDisposable {
         }
         const resolved = await dependencies;
 
-        // copy each case into its own editable checkout
+        // copy each case into a separate editable checkout
         const directory = await mkdtemp(join(tmpdir(), "destack-build-fixture-"));
         const source = join(directory, "source");
         try {
@@ -168,9 +196,9 @@ export class Fixture implements AsyncDisposable {
     }
 }
 
-/** Read each manifest collection independently from a relocated package. */
+/** Read each manifest list and graph file independently from a relocated package. */
 export async function expectManifest(build: PackageBuild, destination: string): Promise<void> {
-    // load each domain independently without touching code descriptions or executable files
+    // load each file independently without touching executable files
     const loaded: string[] = [];
     const reader = new BuildReader(build.manifest, async (path) => {
         loaded.push(path);
@@ -178,7 +206,7 @@ export async function expectManifest(build: PackageBuild, destination: string): 
         return new Uint8Array(await readFile(join(destination, path)));
     });
 
-    // read each inventory independently and compare its complete serialized contents
+    // read each list independently and compare its complete serialized contents
     for (const [name, read] of [
         ["dependencies", () => reader.dependencies()],
         ["files", () => reader.files()],
@@ -186,22 +214,12 @@ export async function expectManifest(build: PackageBuild, destination: string): 
     ] as const) {
         loaded.length = 0;
         const records = await read();
-        const reference = build.manifest[name];
-        const expected = JSON.parse(await readFile(join(build.directory, reference.path), "utf8"));
+        const reference = build.manifest.lists[name];
+        const expected: unknown = JSON.parse(
+            await readFile(join(build.directory, reference.path), "utf8"),
+        );
         expect(records).toEqual(expected);
         expect(loaded).toEqual([reference.path]);
-    }
-
-    // load each domain without reading inventories or unrelated domains
-    for (const [domain, collection] of Object.entries(build.manifest.descriptions)) {
-        loaded.length = 0;
-        const records = await reader.domain(domain);
-        expect(loaded).toEqual([collection.file.path]);
-        for (const output of Object.values(build.manifest.outputs)) {
-            for (const index of output.descriptions[domain] ?? []) {
-                expect(index).toBeLessThan(records.length);
-            }
-        }
     }
 
     // load the test declarations alone and bound each output's selection
@@ -216,19 +234,66 @@ export async function expectManifest(build: PackageBuild, destination: string): 
         }
     }
 
-    // load file descriptions independently through the shared inventory
+    // load the graph root alone, then each module's graph file alone by its digest
     loaded.length = 0;
-    const files = await reader.files();
-    expect(loaded).toEqual([build.manifest.files.path]);
-    for (const entry of files) {
-        for (const description of entry.descriptions ?? []) {
-            loaded.length = 0;
-            const module = await reader.module(description.file);
-            expect(module.path).toBe(entry.path);
-            expect(loaded).toEqual([description.file.path]);
-            for (const output of description.outputs) {
-                expect(Object.hasOwn(build.manifest.outputs, output)).toBe(true);
-            }
-        }
+    const root = await reader.graph();
+    expect(loaded).toEqual([build.manifest.lists.graph.path]);
+    for (const [path, digest] of Object.entries(root.modules)) {
+        loaded.length = 0;
+        const module = await reader.module(digest);
+        expect([module.path, loaded]).toEqual([path, [`graph/${digest}.json`]]);
     }
+}
+
+/** Import a module of a written build by its package path. */
+export async function importBuilt(destination: string, path: string): Promise<object> {
+    const module: unknown = await import(pathToFileURL(join(destination, path)).href);
+    if (typeof module !== "object" || module === null) {
+        throw new TypeError(`${path} is no module`);
+    }
+
+    return module;
+}
+
+/** Read a property of a built object, undefined when absent. */
+export function property(value: unknown, name: string): unknown {
+    if (typeof value !== "object" || value === null) {
+        throw new TypeError(`the built value holds no object with ${name}`);
+    }
+    const read: unknown = Reflect.get(value, name);
+
+    return read;
+}
+
+/** Report whether a module exports createNote. */
+export function isNoteModule(module: object): module is NoteModule {
+    return "createNote" in module && typeof module.createNote === "function";
+}
+
+/** Report whether a module's default export answers requests. */
+export function isHandlerModule(module: object): module is HandlerModule {
+    const handler = "default" in module ? module.default : undefined;
+
+    return (
+        typeof handler === "object" &&
+        handler !== null &&
+        "fetch" in handler &&
+        typeof handler.fetch === "function"
+    );
+}
+
+/** Report whether a module exports a workload and a service. */
+export function isServiceModule(module: object): module is ServiceModule {
+    const workload = "web" in module ? module.web : undefined;
+    const service = "service" in module ? module.service : undefined;
+
+    return (
+        typeof workload === "object" &&
+        workload !== null &&
+        "start" in workload &&
+        typeof workload.start === "function" &&
+        typeof service === "object" &&
+        service !== null &&
+        "router" in service
+    );
 }
