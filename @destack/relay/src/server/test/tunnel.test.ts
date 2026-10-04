@@ -8,6 +8,9 @@ import { Tunnel } from "../tunnel.ts";
 /** The host whose tunnel the scenarios keep. */
 const hostId = schema.identifier("host").parse("host-01996ab0-0000-7000-8000-0000000000d1");
 
+/** The name the relay routes to the host. */
+const NAME = "laptop.acme.destack.computer";
+
 /** A host's end of a tunnel joined to the relay in memory, answering with its label. */
 async function connect(tunnel: Tunnel, label: string, lapsesAt: number) {
     // join the host's session to the relay's
@@ -56,7 +59,11 @@ function forward(tunnel: Tunnel, path: string): Promise<string> {
 
 test("forward through the newest tunnel, close each tunnel once its token lapses, and set the alarm to the earliest lapse", async () => {
     const alarm = recording();
-    const tunnel = new Tunnel(hostId, { verify: async () => 0, alarm, report: fail });
+    const tunnel = new Tunnel(hostId, {
+        verify: async () => ({ lapsesAt: 0, name: NAME }),
+        alarm,
+        report: fail,
+    });
 
     // open an older and a newer tunnel
     await connect(tunnel, "older", 1000);
@@ -85,7 +92,7 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
                 throw new ServiceError("UNAUTHORIZED", { message: "invalid token" });
             }
 
-            return 5000;
+            return { lapsesAt: 5000, name: NAME };
         },
         alarm,
         report: fail,
@@ -101,7 +108,10 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
                     headers: { authorization: `Bearer ${token}` },
                 }),
             )
-            .then((response) => response.status);
+            .then(async (response) => [
+                response.status,
+                response.ok ? await response.json() : null,
+            ]);
     const renewed = [await renew("/tunnel", "fresh"), alarm.at, await renew("/other", "fresh")];
     const refused = await renew("/tunnel", "stale");
 
@@ -112,8 +122,8 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
     const isLapsed = alarm.at <= Date.now();
     await tunnel.lapse();
     expect([renewed, refused, isLapsed, tunnel.isEmpty, alarm.at]).toEqual([
-        [204, 5000, 404],
-        401,
+        [[200, { name: NAME }], 5000, [404, null]],
+        [401, null],
         true,
         true,
         undefined,
@@ -123,7 +133,7 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
 test("refuse a request beyond a host's open requests, and time out the ones the host answers no head for", async () => {
     // join a host that never answers, with a short answer timeout
     const tunnel = new Tunnel(hostId, {
-        verify: async () => 0,
+        verify: async () => ({ lapsesAt: 0, name: NAME }),
         alarm: recording(),
         report: fail,
         answerTimeout: 50,

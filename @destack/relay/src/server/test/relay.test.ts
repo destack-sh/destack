@@ -1,34 +1,27 @@
 import { afterAll, beforeAll, expect, test } from "@destack/test";
-import { directoryTables } from "@destack/directory";
-import { account } from "@destack/account/object";
-import { eq, defineDatabase } from "@destack/db";
-import { GlobalFixture, ids } from "@destack/host/test";
+import { AccountFixture, ids } from "@destack/host/test";
 import { RequestId } from "@destack/service/request";
-import { accountTables } from "@destack/account/stack";
 import { TUNNEL_PROTOCOL, TunnelProtocol } from "../../session/index.ts";
-import { freePort, RelayFixture, until } from "./fixture.ts";
+import { freePort, RelayFixture, type RelayWorkload, until } from "./fixture.ts";
 
-/** The global database of the hosts and accounts relays route to. */
-const relayDatabase = defineDatabase({
-    name: "global",
-    tier: "global",
-    tables: [...accountTables, ...directoryTables],
-});
+/** The account service with each scenario's enrolled host. */
+let accounts: AccountFixture;
 
-/** The global tier with each scenario's enrolled host. */
-let global: GlobalFixture;
+/** The relay's workload in the platform's region. */
+let workload: RelayWorkload;
 
 beforeAll(async () => {
-    global = await GlobalFixture.open(relayDatabase);
+    accounts = await AccountFixture.open();
+    workload = await RelayFixture.workload(accounts);
 });
 
 afterAll(async () => {
-    await global[Symbol.asyncDispose]();
+    await accounts[Symbol.asyncDispose]();
 });
 
 test("forward a request for a space's name through its host's tunnel, keeping its name, method and body", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
 
     // reach the host's app by the space's name
@@ -39,8 +32,8 @@ test("forward a request for a space's name through its host's tunnel, keeping it
 });
 
 test("reach a host by its name within its account through its tunnel", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
 
     // reach the host itself, and nothing by a name no standing host of the account has
@@ -50,9 +43,39 @@ test("reach a host by its name within its account through its tunnel", async () 
     ]).toEqual(["hello GET /status", "404 NOT_FOUND"]);
 });
 
+test("tell a host its name as its tunnel opens, and again at once after its rename", async () => {
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
+    await fixture.tunnel(relay, { heartbeat: 60_000 });
+    const before = await fixture.computer();
+    await until(async () => fixture.names.length > 0);
+
+    // rename the host
+    await accounts.host(fixture.identity).host.rename({
+        accountId: ids.account,
+        id: fixture.hostId,
+        requestId: RequestId.create(),
+        name: "renamed",
+    });
+
+    // call the host by its new name once the relay tells it
+    await until(async () => fixture.names.at(-1) === "renamed.acme.destack.computer");
+    expect([
+        fixture.names,
+        await fixture.request(relay, "renamed.acme.destack.computer", "/status"),
+        await fixture.request(relay, before, "/status"),
+        fixture.reports,
+    ]).toEqual([
+        [before, "renamed.acme.destack.computer"],
+        "hello GET /status",
+        "404 NOT_FOUND",
+        [],
+    ]);
+});
+
 test("refuse names that lead nowhere, and a named host that keeps no tunnel", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
 
     // refuse other handles, spaces, shapes and domains, and the host before it connects
     expect(
@@ -75,8 +98,8 @@ test("refuse names that lead nowhere, and a named host that keeps no tunnel", as
 });
 
 test("refuse a tunnel without a valid host token among its subprotocols", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
 
     // offer a forged token, a valid one only in the authorization header, and one without the tunnel protocol
     const upgrade = (headers: Record<string, string>) =>
@@ -93,8 +116,8 @@ test("refuse a tunnel without a valid host token among its subprotocols", async 
 });
 
 test("open a tunnel with the token offered as a subprotocol, answering the tunnel protocol only", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
 
     // open a WebSocket as the host, and read the protocol the relay chose
     const socket = new WebSocket(
@@ -110,8 +133,8 @@ test("open a tunnel with the token offered as a subprotocol, answering the tunne
 });
 
 test("keep the route while the host renews its tunnel's token", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
 
     // outlive several renewals without a failure
@@ -125,22 +148,22 @@ test("keep the route while the host renews its tunnel's token", async () => {
 });
 
 test("restore the route when the host reconnects after its relay restarts", async () => {
-    await using fixture = await RelayFixture.open(global);
+    await using fixture = await RelayFixture.open(accounts, workload);
     const port = await freePort();
-    const first = fixture.relay(port);
+    const first = await fixture.relay(port);
     await fixture.tunnel(first);
 
     // restart the relay on the same port, and wait for the host to dial it again
     await fixture.stop(first);
-    const second = fixture.relay(port);
+    const second = await fixture.relay(port);
     await until(
         async () => (await fixture.request(second, fixture.notes, "/again")) === "hello GET /again",
     );
 });
 
 test("route a branch to its space's host under the branch's name", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
 
     const branch = `notes.feature-x--${fixture.space}.acme.destack.space`;
@@ -151,30 +174,28 @@ test("route a branch to its space's host under the branch's name", async () => {
 });
 
 test("forward a name a region serves to the region's endpoint, keeping the host asked for", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     const cloud = `cloud-${fixture.space}`;
     await fixture.region("region");
-    await RelayFixture.place(fixture.global, cloud, ids.region);
+    await RelayFixture.place(fixture.accounts, cloud, ids.region);
+    await fixture.settle(relay);
 
     const name = `notes.${cloud}.acme.destack.space`;
     expect(await fixture.request(relay, name, "/")).toBe(`region host="${name}";proto=http`);
 });
 
 test("follow a space's move from its host to a region", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
     expect(await fixture.request(relay, fixture.notes, "/")).toBe("hello GET /");
 
     // move the zone to the region at the next epoch
     await fixture.region("region");
-    await fixture.directory.place({
-        id: fixture.spaceId,
-        scope: ids.account,
-        cell: ids.region,
-        epoch: 2,
-    });
+    const zone = { id: fixture.spaceId, scope: ids.account, cell: fixture.hostId, epoch: 1 };
+    await fixture.directory.move(zone, ids.region);
+    await fixture.directory.place({ ...zone, cell: ids.region, epoch: 2 });
 
     await until(async () =>
         (await fixture.request(relay, fixture.notes, "/")).startsWith("region "),
@@ -182,8 +203,8 @@ test("follow a space's move from its host to a region", async () => {
 });
 
 test("follow a space's rename", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
     expect(await fixture.request(relay, fixture.notes, "/")).toBe("hello GET /");
 
@@ -199,18 +220,24 @@ test("follow a space's rename", async () => {
     ]).toEqual(["404 NOT_FOUND", "hello GET /"]);
 });
 
-test("follow a handle's rename", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+test("resolve a handle from the relay's copy after the account service renames it", async () => {
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
     expect(await fixture.request(relay, fixture.notes, "/")).toBe("hello GET /");
 
-    // rename the account's handle, and rename it back afterwards for the other scenarios
-    const rename = (handle: string) =>
-        global.database
-            .update(account.table)
-            .set({ handle })
-            .where(eq(account.table.id, ids.account));
+    // rename the account's handle as its owner, and rename it back afterwards for the other scenarios
+    const owner = accounts.user(ids.owner);
+    const rename = async (handle: string) => {
+        const current = await owner.account.get({ scope: ids.owner, id: ids.account });
+        await owner.account.update({
+            scope: ids.owner,
+            requestId: RequestId.create(),
+            id: ids.account,
+            revision: current.revision,
+            handle,
+        });
+    };
     await rename("acme-renamed");
     try {
         // refuse the old handle and reach the space by the new one
@@ -227,14 +254,14 @@ test("follow a handle's rename", async () => {
 });
 
 test("follow a host's revocation", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
     const computer = await fixture.computer();
     expect(await fixture.request(relay, computer, "/")).toBe("hello GET /");
 
     // revoke the host as its owner
-    await global.user(ids.owner).host.revoke({
+    await accounts.user(ids.owner).host.revoke({
         accountId: ids.account,
         id: fixture.hostId,
         requestId: RequestId.create(),
@@ -244,11 +271,12 @@ test("follow a host's revocation", async () => {
 });
 
 test("follow a region's new endpoint", async () => {
-    await using fixture = await RelayFixture.open(global);
-    const relay = fixture.relay(await freePort());
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
     const cloud = `cloud-${fixture.space}`;
     await fixture.region("first");
-    await RelayFixture.place(fixture.global, cloud, ids.region);
+    await RelayFixture.place(fixture.accounts, cloud, ids.region);
+    await fixture.settle(relay);
     const name = `notes.${cloud}.acme.destack.space`;
     expect(await fixture.request(relay, name, "/")).toBe(`first host="${name}";proto=http`);
 

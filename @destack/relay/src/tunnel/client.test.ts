@@ -121,6 +121,7 @@ test("refuse callers waiting for a tunnel once the client closes", async () => {
         url: `http://127.0.0.1:${await freePort()}/tunnel`,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
+        name: () => {},
         retry: { initialInterval: 10, maximumInterval: 10 },
         report: () => {},
     });
@@ -144,6 +145,7 @@ test("keep dialing after the issuer grants no token, reporting each failed dial"
             throw new TypeError("the issuer is unreachable");
         },
         fetch: async () => new Response(null, { status: 204 }),
+        name: () => {},
         retry: { initialInterval: 10, maximumInterval: 10 },
         report: (error) => reports.push(error),
     });
@@ -165,6 +167,7 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
         url: relay.url,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
+        name: () => {},
         heartbeat: 20,
         retry: { initialInterval: 10, maximumInterval: 10 },
         report: (error) => reports.push(error),

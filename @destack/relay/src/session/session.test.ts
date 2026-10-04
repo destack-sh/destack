@@ -85,6 +85,32 @@ test("forward a request with its head and body, and answer with the response's h
     await until(() => relay.size === 0 && host.size === 0);
 });
 
+test("abort the host's request once the relay's caller cancels it while the host streams its answer", async () => {
+    const { relay, host, accepted } = pair();
+
+    // answer with a stream the host keeps open until its request aborts
+    const aborted = Promise.withResolvers<unknown>();
+    void until(() => accepted.length === 1).then(async () => {
+        const stream = aligned(accepted, 0);
+        const request = stream.request();
+        request.signal.addEventListener("abort", () => aborted.resolve(request.signal.reason));
+        await stream.respond(new Response(new ReadableStream({ start: () => {} })));
+    });
+
+    // cancel the forwarded request once its answer's head arrives
+    const cancelling = new AbortController();
+    const response = await relay.fetch(
+        new Request(head.url, { method: "GET", signal: cancelling.signal }),
+    );
+    cancelling.abort();
+    const reason = await aborted.promise;
+    expect([response.status, reason, host.size]).toEqual([
+        200,
+        new Error("stream 2 was reset by the peer"),
+        0,
+    ]);
+});
+
 test("stop a writer at the window until a slow reader credits it", async () => {
     const { relay, accepted, sent } = pair();
     const opened = relay.open(head);

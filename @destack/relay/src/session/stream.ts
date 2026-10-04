@@ -20,6 +20,8 @@ export class Stream {
     readonly writable: WritableStream<Uint8Array>;
     /** The head of the response the peer answers with, for a stream this side opened. */
     readonly answer: Promise<ResponseHead>;
+    /** Aborts once the stream ends early, such as when the peer resets it. */
+    readonly signal: AbortSignal;
     /** The session carrying the stream. */
     readonly #session: Session;
     /** The readable's controller. */
@@ -44,6 +46,8 @@ export class Stream {
     #isFinishSent = false;
     /** Whether the peer sent FIN. */
     #isFinishReceived = false;
+    /** Aborts the stream's signal once it ends early. */
+    readonly #ended = new AbortController();
     /** Why the stream ended early, once it did. */
     #failure: Error | undefined;
 
@@ -55,6 +59,7 @@ export class Stream {
         this.#session = session;
         this.answer = this.#answered.promise;
         this.answer.catch(() => {});
+        this.signal = this.#ended.signal;
 
         // credit the peer as readers take bytes, and reset the stream once they cancel
         this.readable = new ReadableStream<Uint8Array>(
@@ -138,15 +143,15 @@ export class Stream {
         }
     }
 
-    /** Read the peer's request, its body the stream's readable. */
-    request(signal?: AbortSignal): Request {
+    /** Read the peer's request, its body the stream's readable, aborted once the stream ends early. */
+    request(): Request {
         const hasBody = Head.hasRequestBody(this.head);
 
         return new Request(this.head.url, {
             method: this.head.method,
             headers: Head.headers(this.head),
             ...(hasBody ? { body: this.readable, duplex: "half" } : {}),
-            ...(signal === undefined ? {} : { signal }),
+            signal: this.signal,
         });
     }
 
@@ -169,15 +174,22 @@ export class Stream {
         }
         this.#failure = error;
 
-        // fail the readable, the waiting write and the answer
+        // fail the readable
         try {
             this.#controller.error(error);
         } catch {
             // the readable already closed or errored
         }
+
+        // fail the waiting write
         this.#credited?.reject(error);
         this.#credited = undefined;
+
+        // fail the answer and the request
         this.#answered.reject(error);
+        this.#ended.abort(error);
+
+        // let the session forget the stream
         this.#session.forget(this.id);
     }
 

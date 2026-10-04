@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import { RetryPolicy } from "@destack/service/timer";
 import { Session, type Stream, TunnelProtocol } from "../session/index.ts";
 
@@ -12,6 +13,12 @@ const UNSUPPORTED_DATA = 1003;
 /** How a host waits before dialing again: half a second, doubling up to 30 seconds, jittered. */
 const RETRY = RetryPolicy.of({ initialInterval: 500, maximumInterval: 30_000, jitter: "full" });
 
+/** The name the relay routes to the host, as a renewal answers it or the relay sends it once it changes. */
+const HostName = schema.object({
+    /** The name, such as `laptop.florian.destack.computer`. */
+    name: schema.string().min(1),
+});
+
 /** How a host keeps its tunnel. */
 export interface TunnelClientOptions {
     /** The relay's tunnel URL. */
@@ -20,6 +27,8 @@ export interface TunnelClientOptions {
     readonly token: () => Promise<string>;
     /** Answer a request the relay forwards. */
     readonly fetch: (request: Request) => Promise<Response>;
+    /** Learn the name the relay routes to the host, once the tunnel opens, at each renewal and once it changes. */
+    readonly name: (name: string) => void;
     /** How often to renew the tunnel's token, in milliseconds. */
     readonly heartbeat?: number;
     /** How to wait between attempts, below the policy's interval. */
@@ -106,90 +115,136 @@ export class TunnelClient {
 
     /** Dial the relay once and resolve whether the tunnel opened after it ends. */
     async #dial(): Promise<boolean> {
-        // offer the host's token as a subprotocol
-        const url = new URL(this.#options.url);
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        // connect with the host's token
         let socket: WebSocket;
         try {
-            const token = await this.#options.token();
-            socket = new WebSocket(url, TunnelProtocol.offer(token));
+            socket = await this.#connect();
         } catch (error) {
             this.#options.report(error);
 
             return false;
         }
+
+        // follow the socket and the client's close until the connection ends
+        const connection: Connection = {
+            socket,
+            following: new AbortController(),
+            ended: Promise.withResolvers<boolean>(),
+            session: undefined,
+            heartbeat: undefined,
+        };
+        this.#follow(connection);
+
+        return connection.ended.promise;
+    }
+
+    /** Open a socket to the relay that offers the host's token as a subprotocol. */
+    async #connect(): Promise<WebSocket> {
+        // address the relay's tunnel over WebSocket
+        const url = new URL(this.#options.url);
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+
+        // offer the host's token
+        const token = await this.#options.token();
+        const socket = new WebSocket(url, TunnelProtocol.offer(token));
         socket.binaryType = "arraybuffer";
 
-        // end the session once when the socket closes or the client drops it
-        const ended = Promise.withResolvers<boolean>();
-        let current: Session | undefined;
-        let heartbeat: ReturnType<typeof setInterval> | undefined;
-        const following = new AbortController();
-        const end = () => {
-            if (following.signal.aborted) {
-                return;
-            }
+        return socket;
+    }
 
-            // forget the session, noting whether the tunnel opened
-            const isOpened = this.#session === current && current !== undefined;
-            this.#session = undefined;
-
-            // stop pinging and following the client's close, then end the session's streams
-            following.abort();
-            clearInterval(heartbeat);
-            current?.terminate();
-            ended.resolve(isOpened);
-        };
-
-        // close the socket and end without waiting for the peer to answer the close
-        const drop = () => {
-            socket.close();
-            end();
-        };
+    /** Listen to the client's close and the socket's events for one connection. */
+    #follow(connection: Connection): void {
+        // drop the socket when the client closes
+        const drop = () => this.#drop(connection);
         this.#stopping.signal.addEventListener("abort", drop, {
             once: true,
-            signal: following.signal,
+            signal: connection.following.signal,
         });
         if (this.#stopping.signal.aborted) {
             drop();
         }
 
-        // open the tunnel once the relay answers the first ping
-        socket.addEventListener("open", () => {
-            // carry the session, renewing the token each heartbeat
-            const session = new Session(
-                { send: (message) => socket.send(message), close: () => socket.close() },
-                "client",
-                { accept: (stream) => void this.#answer(stream) },
-            );
-            current = session;
-            heartbeat = this.#beat(session, drop);
+        // run the session over the socket's events
+        const socket = connection.socket;
+        socket.addEventListener("open", () => this.#start(connection));
+        socket.addEventListener("message", (event) => this.#receive(connection, event));
+        socket.addEventListener("close", () => this.#end(connection));
+    }
 
-            // release the waiting callers once the relay answers
-            session.ping().then(
-                () => {
-                    this.#session = session;
-                    this.#waiting?.resolve();
-                    this.#waiting = undefined;
-                },
-                () => {},
-            );
-        });
-        socket.addEventListener("message", (event) => {
-            // read a binary frame
-            if (event.data instanceof ArrayBuffer) {
-                current?.receive(new Uint8Array(event.data));
+    /** Start a session over an opened socket and open the tunnel once the relay answers the first ping. */
+    #start(connection: Connection): void {
+        // run the session over the socket
+        const socket = connection.socket;
+        const session = new Session(
+            { send: (message) => socket.send(message), close: () => socket.close() },
+            "client",
+            { accept: (stream) => void this.#answer(stream) },
+        );
+        connection.session = session;
+
+        // renew the token each heartbeat
+        connection.heartbeat = this.#beat(session, () => this.#drop(connection));
+
+        // open the tunnel once the relay answers its first ping
+        session.ping().then(
+            () => this.#release(session),
+            () => {},
+        );
+    }
+
+    /** Open the tunnel over a session the relay answered and learn the host's name. */
+    #release(session: Session): void {
+        // release the callers
+        this.#session = session;
+        this.#waiting?.resolve();
+        this.#waiting = undefined;
+
+        // learn the host's name, reporting a refusal while the session lasts
+        this.#renew(session).catch((error: unknown) => {
+            if (!session.isClosed) {
+                this.#options.report(error);
             }
-            // refuse a text frame
-            else {
-                socket.close(UNSUPPORTED_DATA, "the relay sends binary frames only");
-            }
         });
+    }
 
-        // end the session with the socket
-        socket.addEventListener("close", end);
+    /** Pass a binary frame to the session and close the socket on a text frame. */
+    #receive(connection: Connection, event: MessageEvent): void {
+        // read a binary frame
+        if (event.data instanceof ArrayBuffer) {
+            connection.session?.receive(new Uint8Array(event.data));
+        }
+        // refuse a text frame
+        else {
+            connection.socket.close(UNSUPPORTED_DATA, "the relay sends binary frames only");
+        }
+    }
 
-        return ended.promise;
+    /** Close the socket and end the connection without waiting for the relay to answer the close. */
+    #drop(connection: Connection): void {
+        connection.socket.close();
+        this.#end(connection);
+    }
+
+    /** End the connection once and resolve whether its tunnel opened. */
+    #end(connection: Connection): void {
+        if (connection.following.signal.aborted) {
+            return;
+        }
+
+        // forget the session, noting whether the tunnel opened
+        const session = connection.session;
+        const isOpened = this.#session === session && session !== undefined;
+        this.#session = undefined;
+
+        // stop following the client's close
+        connection.following.abort();
+
+        // stop renewing the token
+        clearInterval(connection.heartbeat);
+
+        // end the session's streams
+        session?.terminate();
+        connection.ended.resolve(isOpened);
     }
 
     /** Renew the tunnel's token each heartbeat, and drop the socket when the relay stops answering. */
@@ -218,8 +273,9 @@ export class TunnelClient {
         }, interval);
     }
 
-    /** Renew the tunnel's token through a stream to the relay, refusing a failed renewal. */
+    /** Renew the tunnel's token through a stream to the relay, learning the host's name, and refuse a failed renewal. */
     async #renew(session: Session): Promise<void> {
+        // renew with the current token
         const token = await this.#options.token();
         const response = await session.fetch(
             new Request(this.#options.url, {
@@ -227,20 +283,31 @@ export class TunnelClient {
                 headers: { authorization: `Bearer ${token}` },
             }),
         );
-        if (response.status !== 204) {
+        if (!response.ok) {
             throw new Error(
                 `relay refused the renewal: ${response.status} ${await response.text()}`,
             );
         }
+
+        // learn the name the relay routes to the host
+        this.#options.name(HostName.parse(await response.json()).name);
     }
 
-    /** Answer a request the relay forwards, reporting a handler that failed without an answer. */
+    /** Answer a request the relay forwards, or take the name the relay sends to its own tunnel path, reporting a handler that failed without an answer. */
     async #answer(stream: Stream): Promise<void> {
-        // answer with the handler's response
+        // read the relay's request
         const request = stream.request();
         let response: Response;
         try {
-            response = await this.#options.fetch(request);
+            // take the name the relay sends to its own tunnel URL
+            if (request.method === "PUT" && request.url === this.#options.url) {
+                this.#options.name(HostName.parse(await request.json()).name);
+                response = new Response(null, { status: 204 });
+            }
+            // answer a forwarded request
+            else {
+                response = await this.#options.fetch(request);
+            }
         } catch (error) {
             this.#options.report(error);
             response = new Response(null, { status: BAD_GATEWAY });
@@ -252,4 +319,18 @@ export class TunnelClient {
             await request.body.cancel().catch(() => {});
         }
     }
+}
+
+/** One dial's socket and the session over it. */
+interface Connection {
+    /** The socket to the relay. */
+    readonly socket: WebSocket;
+    /** Stops following the client's close once the connection ends. */
+    readonly following: AbortController;
+    /** Resolves whether the tunnel opened once the connection ends. */
+    readonly ended: PromiseWithResolvers<boolean>;
+    /** The session over the socket, absent until the socket opens. */
+    session: Session | undefined;
+    /** The token renewal timer, absent until the socket opens. */
+    heartbeat: ReturnType<typeof setInterval> | undefined;
 }

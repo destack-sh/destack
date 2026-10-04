@@ -10,6 +10,14 @@ export const TUNNEL_PATH = "/tunnel";
 /** How long a host may take to answer a request's head by default: 100 s, as Cloudflare waits for an origin. */
 const ANSWER_TIMEOUT_MILLISECONDS = 100_000;
 
+/** A renewed tunnel token: when it lapses, and the name the relay routes to its host. */
+export interface Renewal {
+    /** When the renewed token lapses, in UTC epoch milliseconds. */
+    readonly lapsesAt: number;
+    /** The name the relay routes to the host, such as `laptop.florian.destack.computer`. */
+    readonly name: string;
+}
+
 /** One connection of a host's tunnel: its session, open until its token lapses. */
 interface Connection {
     /** The session over the connection. */
@@ -23,8 +31,8 @@ interface Connection {
 export class Tunnel {
     /** The host the tunnel reaches. */
     readonly hostId: Identifier<"host">;
-    /** Verify a renewal of a connection's token, answering when the new token lapses. */
-    readonly #verify: (request: Request) => Promise<number>;
+    /** Verify a renewal of a connection's token, answering when the new token lapses and the host's name. */
+    readonly #verify: (request: Request) => Promise<Renewal>;
     /** The wake-up closing connections as their tokens lapse. */
     readonly #alarm: Alarm;
     /** Report a failure no request answers, such as a failed alarm. */
@@ -38,8 +46,8 @@ export class Tunnel {
     constructor(
         hostId: Identifier<"host">,
         options: {
-            /** Verify a renewal of a connection's token, answering when the new token lapses. */
-            readonly verify: (request: Request) => Promise<number>;
+            /** Verify a renewal of a connection's token, answering when the new token lapses and the host's name. */
+            readonly verify: (request: Request) => Promise<Renewal>;
             /** The wake-up closing connections as their tokens lapse. */
             readonly alarm: Alarm;
             /** Report a failure no request answers. */
@@ -73,7 +81,7 @@ export class Tunnel {
         // take the host's renewals on streams it opens, and wake at the earliest lapse
         const connection: Connection = {
             session: new Session(transport, "server", {
-                accept: (stream) => void this.#renew(connection, stream),
+                accept: (stream) => void this.#renew(connection, stream).catch(this.#report),
             }),
             lapsesAt,
         };
@@ -139,25 +147,30 @@ export class Tunnel {
         }
     }
 
-    /** Renew a connection's token through a stream the host opened, answering 204 or the refusal. */
+    /** Renew a connection's token through a stream the host opened, answering the host's name or the refusal, and lapse a refused connection. */
     async #renew(connection: Connection, stream: Stream): Promise<void> {
-        // renew only through the tunnel path
+        // verify a renewal through the tunnel path, and refuse any other request
         const request = stream.request();
         const isRenewal = request.method === "PUT" && new URL(request.url).pathname === TUNNEL_PATH;
-        try {
-            if (!isRenewal) {
-                throw new ServiceError("NOT_FOUND", { message: "hosts only renew their tunnel" });
-            }
-            connection.lapsesAt = await this.#verify(request);
+        const response = isRenewal
+            ? await this.#verify(request).then(
+                  async (renewal) => {
+                      connection.lapsesAt = renewal.lapsesAt;
+                      await this.#arm();
+
+                      return Response.json({ name: renewal.name });
+                  },
+                  (error: unknown) => refusal(error),
+              )
+            : refusal(new ServiceError("NOT_FOUND", { message: "hosts only renew their tunnel" }));
+
+        // answer, leaving a stream whose session ended before the answer
+        await stream.respond(response).catch(() => {});
+
+        // lapse a connection whose host no longer stands, for the alarm to close
+        if (isRenewal && !response.ok) {
+            connection.lapsesAt = Date.now();
             await this.#arm();
-            await stream.respond(new Response(null, { status: 204 }));
-        } catch (error) {
-            // answer the refusal, and lapse a connection whose host no longer stands, for the alarm to close
-            await stream.respond(refusal(error));
-            if (isRenewal) {
-                connection.lapsesAt = Date.now();
-                await this.#arm();
-            }
         }
     }
 
