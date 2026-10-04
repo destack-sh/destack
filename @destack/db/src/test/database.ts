@@ -47,8 +47,8 @@ const SCHEMA_RETENTION_MILLISECONDS = 60 * 60 * 1000;
  */
 const EXPIRED_SCHEMA_DROPS = 2;
 
-/** The PostgreSQL server of this process's tests, opened once. */
-let testServer: Promise<TestServer> | undefined;
+/** The PostgreSQL cluster of this process's tests, opened once. */
+let testCluster: Promise<TestCluster> | undefined;
 
 /**
  * An isolated database for one test: a SQLite memory or file database, or a PostgreSQL schema.
@@ -94,15 +94,15 @@ export class TestDatabase<
             if (address === undefined || address === "") {
                 throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
             }
-            testServer ??= TestServer.open(address);
-            const server = await testServer;
+            testCluster ??= TestCluster.open(address);
+            const cluster = await testCluster;
 
             // claim a migrated schema, kept by this process across tests
             if (options.isMigrated === true) {
                 const state = declareState(declared, "postgresql", {
                     isReplica: options.isReplica ?? false,
                 });
-                const schema = await server.claim(state, tables);
+                const schema = await cluster.claim(state, tables);
                 const open: TestConnector = (connected) => schema.connect(connected);
 
                 return new TestDatabase(await open(tables), open, async () => {
@@ -112,12 +112,12 @@ export class TestDatabase<
 
             // create an empty schema
             const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
-            await server.administration.unsafe(`CREATE SCHEMA "${schema}"`);
+            await cluster.administration.unsafe(`CREATE SCHEMA "${schema}"`);
             const open: TestConnector = (connected) =>
-                postgresql.connect(server.connect(schema), connected);
+                postgresql.connect(cluster.connect(schema), connected);
 
             return new TestDatabase(await open(tables), open, async () => {
-                await server.administration.unsafe(`DROP SCHEMA "${schema}" CASCADE`);
+                await cluster.administration.unsafe(`DROP SCHEMA "${schema}" CASCADE`);
             });
         }
         // keep empty SQLite in memory
@@ -188,11 +188,11 @@ export interface TestDatabaseOptions {
 }
 
 /**
- * The PostgreSQL server of one test process, keeping the migrated schemas it claimed until the process exits.
+ * The PostgreSQL cluster of one test process, keeping the migrated schemas it claimed until the process exits.
  *
  * The administration connection takes every claim's advisory lock, so the server releases them when the process ends.
  */
-class TestServer {
+class TestCluster {
     /** The server address. */
     readonly address: string;
     /** The one connection that manages schemas and locks their claims. */
@@ -202,34 +202,34 @@ class TestServer {
     /** The adopted schemas this process locked, idle or in use. */
     readonly #schemas: TestSchema[] = [];
 
-    /** Create the server of a connection. */
+    /** Hold the cluster behind an administration connection. */
     private constructor(address: string, administration: postgres.Sql) {
         this.address = address;
         this.administration = administration;
     }
 
     /** Connect to the server, dropping a few stale unclaimed schemas. */
-    static async open(address: string): Promise<TestServer> {
+    static async open(address: string): Promise<TestCluster> {
         // skip the array type read, which scans every catalog type
-        const server = new TestServer(
+        const cluster = new TestCluster(
             address,
             postgres(address, { max: 1, fetch_types: false, onnotice: postgresql.reportNotice }),
         );
 
         // drop the oldest unclaimed schemas past retention
         const expired = Date.now() - SCHEMA_RETENTION_MILLISECONDS;
-        const schemas = await server.administration<{ name: string }[]>`
+        const schemas = await cluster.administration<{ name: string }[]>`
             SELECT nspname AS name FROM pg_namespace
             WHERE starts_with(nspname, 'test_s') AND coalesce(obj_description(oid, 'pg_namespace'), '0')::bigint < ${expired}
             ORDER BY coalesce(obj_description(oid, 'pg_namespace'), '0')::bigint
             LIMIT ${EXPIRED_SCHEMA_DROPS}`;
         for (const { name } of schemas) {
-            if (await server.#lockListed(name)) {
-                await server.#drop(name, []);
+            if (await cluster.#lockListed(name)) {
+                await cluster.#drop(name, []);
             }
         }
 
-        return server;
+        return cluster;
     }
 
     /** Open a connection pool whose queries resolve in a schema. */
@@ -444,8 +444,8 @@ class TestServer {
 
 /** A migrated schema this process keeps, with the connection pools its tests reuse. */
 class TestSchema {
-    /** The server with the schema. */
-    readonly server: TestServer;
+    /** The cluster with the schema. */
+    readonly cluster: TestCluster;
     /** The schema name. */
     readonly name: string;
     /** The relations and applied state the schema keeps across tests. */
@@ -456,9 +456,9 @@ class TestSchema {
     isIdle = false;
 
     /** Create a schema this process keeps. */
-    constructor(server: TestServer, name: string, shape: TestSchemaShape, pools: postgres.Sql[]) {
-        // bind the schema to its server
-        this.server = server;
+    constructor(cluster: TestCluster, name: string, shape: TestSchemaShape, pools: postgres.Sql[]) {
+        // bind the schema to its cluster
+        this.cluster = cluster;
         this.name = name;
 
         // keep its shape and pools
@@ -471,7 +471,7 @@ class TestSchema {
         tables: declaration.Database<Models> | readonly Table[],
     ): Promise<TestConnection<Models>> {
         return new PoolDatabase(
-            this.pools.pop() ?? this.server.connect(this.name),
+            this.pools.pop() ?? this.cluster.connect(this.name),
             tables,
             this.pools,
         );
