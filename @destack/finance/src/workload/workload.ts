@@ -16,7 +16,7 @@ export const financeConfiguration = new ResourceHandle<FinanceConfiguration>(
 /** The finance service: the billing objects and entitlements of a residency's accounts, one per residency. */
 export const financeWorkload = defineWorkload({
     name: "finance",
-    placement: ["per-residency"],
+    placement: ["residency"],
     start: (context) => {
         // serve the finance objects over their database, following the account service as its placement
         // TODO #Incomplete: open releases through the forge
