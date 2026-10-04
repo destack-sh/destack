@@ -156,7 +156,7 @@ export class ForgeServer {
             callKey: options.callKey,
             origin: { package: forgeService.package, service: forgeService.name },
             subscriber: Subscriber.of(identity.publisher(), () =>
-                this.objects.source.workloadRequests(identity.placementId),
+                this.objects.source.workloadSubscriptions(identity.placementId),
             ),
             // stream selected references to the spaces copied zones stand for
             standing: [zone],
