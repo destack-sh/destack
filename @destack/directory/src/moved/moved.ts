@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
+import { isServiceError, ServiceError } from "@destack/service/error";
 
 /** A scope that moved, and the cell it answers at now. */
 export interface Moved {
@@ -29,7 +29,7 @@ export const Moved = {
 
     /** Read the cell a MOVED failure points to, absent for other failures. */
     of(error: unknown): Moved | undefined {
-        return error instanceof ServiceError && error.code === "MOVED"
+        return isServiceError(error) && error.code === "MOVED"
             ? Moved.schema.parse(error.data)
             : undefined;
     },
