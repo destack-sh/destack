@@ -1,0 +1,39 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a10720-c4d6-7559-816b-99f193c28c3c",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./workload": {
+            "runtimes": ["bun", "workerd"]
+        }
+    },
+    "declarations": {
+        "defineFeature": {
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "feature",
+                    "function": "./inspect#describeFeature",
+                    "compare": "./inspect#compareFeature",
+                    "symbols": "./inspect#featureSymbols"
+                }
+            ]
+        },
+        "defineMeter": {
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "meter",
+                    "function": "./inspect#describeMeter"
+                }
+            ]
+        }
+    }
+}

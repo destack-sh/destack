@@ -1,0 +1,41 @@
+{
+    "name": "@destack/finance",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Sell products with features, bill accounts for subscriptions and purchases, and derive their entitlements.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./destack.json": "./destack.json",
+        "./declare": "./src/declare/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./object": "./src/object/index.ts",
+        "./service": "./src/service/index.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./workload": "./src/workload/index.ts"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/sync": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2",
+        "uuid": "14.0.2"
+    }
+}
