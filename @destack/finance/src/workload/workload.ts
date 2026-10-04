@@ -1,11 +1,11 @@
 import { workloadIdentity } from "@destack/account/client";
 import { ResourceHandle } from "@destack/resource";
 import { defineWorkload } from "@destack/service/workload";
-import { FinanceServer, type FinanceServerOptions } from "../server/index.ts";
+import { type FinanceOptions, implementFinance } from "../server/index.ts";
 import { financeDatabase } from "../stack/index.ts";
 
 /** What the process running the finance service binds: how it opens the builds declaring features and meters. */
-export type FinanceConfiguration = Pick<FinanceServerOptions, "release">;
+export type FinanceConfiguration = Pick<FinanceOptions, "release">;
 
 /** The finance service's configuration, which the process placing it binds. */
 export const financeConfiguration = new ResourceHandle<FinanceConfiguration>(
@@ -21,7 +21,7 @@ export const financeWorkload = defineWorkload({
         // serve the finance objects over their database, following the account service as its placement
         // TODO #Incomplete: open releases through the forge
         // TODO #Incomplete: charge through Stripe and receive its webhook deliveries as system calls
-        const finance = new FinanceServer({
+        const finance = implementFinance({
             ...financeConfiguration.get(context.resources),
             database: financeDatabase.get(context.resources),
             identity: workloadIdentity.get(context.resources),
@@ -29,6 +29,6 @@ export const financeWorkload = defineWorkload({
             report: (error) => context.report(error),
         });
 
-        return { services: [finance.service()] };
+        return { services: [finance] };
     },
 });

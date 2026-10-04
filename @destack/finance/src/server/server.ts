@@ -30,7 +30,7 @@ import { financeService } from "../service/index.ts";
 import { entitle, measure, type OpenRelease } from "./entitlement.ts";
 
 /** The database, workload identity and releases the finance service serves with. */
-export interface FinanceServerOptions {
+export interface FinanceOptions {
     /** The finance database, with copies of its residency's accounts and organisations. */
     readonly database: DatabaseConnection;
     /** The service's placement in its residency, which follows the account service's copies. */
@@ -43,31 +43,29 @@ export interface FinanceServerOptions {
     readonly report?: (error: unknown) => void;
 }
 
-/** Serves an account's billing objects, deriving its entitlements under a controller. */
-export class FinanceServer {
+/** The finance service with the object server executing its methods. */
+export interface FinanceImplementation extends ServiceImplementation {
     /** The object server executing the finance service's methods. */
     readonly objects: ObjectServer<ReturnType<typeof servedObjects>>;
+}
 
-    /** Serve the finance objects over a residency's database, following the account service. */
-    constructor(options: FinanceServerOptions) {
-        const { identity } = options;
-        this.objects = new ObjectServer({
-            objects: servedObjects(options.release),
-            policies: [account, organisation],
-            database: options.database,
-            callKey: options.callKey,
-            origin: { package: financeService.package, service: financeService.name },
-            subscriber: Subscriber.of(identity.publisher(), () =>
-                this.objects.source.workloadSubscriptions(identity.placementId),
-            ),
-            ...(options.report === undefined ? {} : { report: options.report }),
-        });
-    }
+/** Implement the finance service over a residency's database, following the account service and deriving entitlements under a controller. */
+export function implementFinance(options: FinanceOptions): FinanceImplementation {
+    // serve the finance objects, following the account service's copies as the placement
+    const { identity } = options;
+    const objects: ObjectServer<ReturnType<typeof servedObjects>> = new ObjectServer({
+        objects: servedObjects(options.release),
+        policies: [account, organisation],
+        database: options.database,
+        callKey: options.callKey,
+        origin: { package: financeService.package, service: financeService.name },
+        subscriber: Subscriber.of(identity.publisher(), () =>
+            objects.source.workloadSubscriptions(identity.placementId),
+        ),
+        ...(options.report === undefined ? {} : { report: options.report }),
+    });
 
-    /** Implement the finance service. */
-    service(): ServiceImplementation {
-        return this.objects.implement(financeService);
-    }
+    return { ...objects.implement(financeService), objects };
 }
 
 /** Serve the finance objects, checking grants against their features' declarations and deriving entitlements. */
