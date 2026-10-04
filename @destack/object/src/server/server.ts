@@ -31,7 +31,7 @@ import {
 import type { CallKey } from "@destack/service/request";
 
 import { aligned, present, schema, type JsonObject, type JsonValue } from "@destack/schema";
-import type { Installation } from "@destack/service/workload";
+import type { InstallationContext } from "@destack/service/workload";
 import type { Watermark } from "@destack/service/bookmark";
 import { CompactionController } from "@destack/service/database";
 import { refuseInput, ServiceError } from "@destack/service/error";
@@ -123,7 +123,7 @@ const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
     "restore",
     "purge",
     "relationships",
-    "proposals",
+    "invitations",
 ]);
 
 /** How long a request waits for its caller's watermarks, in milliseconds: 5 s, above sub-second copy lag. */
@@ -262,7 +262,7 @@ export class ObjectServer<
     /** The shapes the server serves and follows beside its objects' and its policies' own. */
     readonly shapes: readonly sync.Shape[];
     /** The installation serving the objects, which sends and receives projected rows, absent for a cell. */
-    readonly installation?: Installation;
+    readonly installation?: InstallationContext;
     /** The copied types naming the residents whose rows the served types project, absent where nothing projects. */
     readonly residence: Residence | undefined;
     /** The durable object types, served or authorized, whose rows the database keeps as copies from their home. */
@@ -317,7 +317,7 @@ export class ObjectServer<
         /** The directory with the claims of unique indexes, kept by the account service. */
         readonly directory?: Directory;
         /** The installation serving the objects, which sends and receives projected rows, absent for a cell. */
-        readonly installation?: Installation;
+        readonly installation?: InstallationContext;
         /** The memory store with the served ephemeral objects. */
         readonly ephemeral?: EphemeralStorage;
         /** The files with the served external objects. */
@@ -391,15 +391,22 @@ export class ObjectServer<
         this.#report = options.report ?? rethrow;
 
         // follow the durable objects' tables and the decision tables in one feed
-        const durable = [
-            ...this.objects,
-            ...(options.policies ?? []).filter((other) => other instanceof ObjectType),
-        ].filter((object) => object.storage === "durable");
+        const durable = ObjectServer.#durable(this.objects, options.policies ?? []);
         this.copied = durable.filter((object) => options.database.copies(object.table));
         const followed = durable.flatMap((object) => object.tables);
         this.feed = new sync.Feed(options.database, [...new Set([...followed, ...decisionTables])]);
         this.#schemas = new Map(
             this.objects.map((object) => [object.name, { object, schema: object.schema }]),
+        );
+    }
+
+    /** List the durable object types a server serves or decides. */
+    static #durable(
+        objects: readonly ObjectType[],
+        policies: readonly (Policy | ObjectType | TableMapping)[],
+    ): ObjectType[] {
+        return [...objects, ...policies.filter((other) => other instanceof ObjectType)].filter(
+            (object) => object.storage === "durable",
         );
     }
 
@@ -564,7 +571,7 @@ export class ObjectServer<
             /** Further controllers running alongside the objects'. */
             readonly controllers?: readonly Controller[];
             /** The installation serving the objects, keeping the copies of its space. */
-            readonly installation?: Installation;
+            readonly installation?: InstallationContext;
             /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
             readonly runs?: RunClient;
             /** The triggers of the served objects' package. */
@@ -601,20 +608,20 @@ export class ObjectServer<
     }
 
     /** Keep an installation's copies: its space's chain and universe rows from its cell, and the projections its residents receive from the installations keeping them. */
-    static #subscriber(installation: Installation, source: () => ObjectSource): Subscriber {
+    static #subscriber(installation: InstallationContext, source: () => ObjectSource): Subscriber {
         return {
             subscriptions: async () => [
                 ...(await source().subscriptions(installation.scope, { isHome: false })).map(
                     (subscription) => ({ subscription, publisher: installation.publisher }),
                 ),
-                ...(await source().projectionRequests(installation.scope)).map((subscription) => {
+                ...(await source().projectionSubscriptions(installation.scope)).map((subscription) => {
                     const { installation: keeping } = ProjectionParameters.parse(
                         subscription.parameters,
                     );
 
                     return {
                         subscription,
-                        publisher: installation.reach(`${keeping}.${subscription.scope}`),
+                        publisher: installation.publisherAt(`${keeping}.${subscription.scope}`),
                     };
                 }),
             ],
@@ -978,11 +985,7 @@ export class ObjectServer<
             return await this.journal.execute(planned.request, planned.fingerprint, {
                 authorize: async (transaction) => {
                     // guard the scope chain and admit the caller
-                    const chain = await Scope.chain(Snapshot.live(transaction), planned.scope);
-                    await Scope.guard(
-                        transaction,
-                        chain.map((link) => link.object.id),
-                    );
+                    const chain = await Scope.guard(transaction, planned.scope);
 
                     return this.admit(
                         transaction,
@@ -1040,7 +1043,7 @@ export class ObjectServer<
     ): Promise<unknown[]> {
         // execute the calls in order
         const stamp = await transaction.log.transaction();
-        const from = run.calls.some((call) => call.object.tracked !== undefined)
+        const from = run.calls.some((call) => call.object.lifecycle.tracked !== undefined)
             ? await transaction.log.position()
             : undefined;
         const executed: unknown[] = [];
@@ -1236,8 +1239,15 @@ export class ObjectServer<
 
         // guard the scope, then execute as the system
         const { database, scope, now } = context;
-        const authorization = await SystemAuthorization.open(this.authorizer, database, scope, now);
-        await guard(database, authorization, scope);
+        const chain = await Scope.guard(database, scope);
+        const authorization = await SystemAuthorization.open(
+            this.authorizer,
+            database,
+            scope,
+            now,
+            chain,
+        );
+        authorization.requireUnmoved();
 
         return this.#execute(
             database,
@@ -1292,7 +1302,8 @@ export class ObjectServer<
             reservation = await this.database.transaction(async (transaction) => {
                 // guard each scope chain and refuse moved scopes, as pushes do
                 for (const scope of new Set(calls.map((entry) => entry.scope))) {
-                    await guard(transaction, await system(transaction, scope), scope);
+                    const chain = await Scope.guard(transaction, scope);
+                    (await system(transaction, scope, chain)).requireUnmoved();
                 }
 
                 // execute and audit each call
@@ -1329,10 +1340,14 @@ export class ObjectServer<
     /** Open system authorizations at a time, once per database and scope. */
     #systemAuthorizations(
         now: number,
-    ): (database: DatabaseConnection, scope: string) => Promise<SystemAuthorization> {
+    ): (
+        database: DatabaseConnection,
+        scope: string,
+        links?: readonly ScopeLink[],
+    ) => Promise<SystemAuthorization> {
         const systems = new Map<string, Promise<SystemAuthorization>>();
 
-        return (database, scope) => {
+        return (database, scope, links) => {
             // reuse the authorization per database and scope
             const key = `${database === this.database ? "database" : "transaction"} ${scope}`;
             const known = systems.get(key);
@@ -1341,7 +1356,7 @@ export class ObjectServer<
             }
 
             // open one
-            const opened = SystemAuthorization.open(this.authorizer, database, scope, now);
+            const opened = SystemAuthorization.open(this.authorizer, database, scope, now, links);
             systems.set(key, opened);
 
             return opened;
@@ -1410,8 +1425,10 @@ export class ObjectServer<
     /** List the controllers the served objects need. */
     controllers(): readonly Controller[] {
         // compact the log, and pick the controllers the objects need
-        const isRecoverable = this.objects.some((object) => object.recoverable !== undefined);
-        const isExpiring = this.objects.some((object) => object.expiring !== undefined);
+        const isRecoverable = this.objects.some(
+            (object) => object.lifecycle.recoverable !== undefined,
+        );
+        const isExpiring = this.objects.some((object) => object.lifecycle.expiring !== undefined);
         const isSettled = this.objects.some((object) =>
             Object.values(object.methods).some((method) => Method.settles(method)),
         );
@@ -1754,7 +1771,7 @@ export class ObjectServer<
 
         // refuse callers' other methods on a trashed object
         const isTrashed =
-            object.recoverable !== undefined &&
+            object.lifecycle.recoverable !== undefined &&
             target !== undefined &&
             target["deletionRequestedAt"] !== null;
         if (isTrashed && !TRASH_METHODS.has(method.kind) && method.isSystem !== true) {
@@ -2159,7 +2176,7 @@ export class ObjectServer<
         from: LogPosition | undefined,
     ): Promise<void> {
         // skip untracked objects
-        const history = object.tracked;
+        const history = object.lifecycle.tracked;
         if (history === undefined) {
             return;
         }
@@ -2226,20 +2243,6 @@ function scoped(object: ObjectType, input: JsonObject, scope: string): JsonObjec
     const { field } = object.route;
 
     return field === undefined ? { ...input } : { ...input, [field]: scope };
-}
-
-/** Guard a scope chain against moves for the transaction, and refuse a moved scope. */
-async function guard(
-    transaction: DatabaseConnection,
-    authorization: Authorization,
-    scope: string,
-): Promise<void> {
-    const chain = await Scope.chain(Snapshot.live(transaction), scope);
-    await Scope.guard(
-        transaction,
-        chain.map((link) => link.object.id),
-    );
-    authorization.requireUnmoved();
 }
 
 /** Read where a resumed sync continues. */

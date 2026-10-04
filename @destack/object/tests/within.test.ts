@@ -132,7 +132,7 @@ test.each(TEST_DIALECTS)(
                         ),
                 },
                 async () => [
-                    present(copying.source.universeRequest(spaceId), "the universe request"),
+                    present(copying.source.universeSubscription(spaceId), "the universe request"),
                 ],
             ),
         );

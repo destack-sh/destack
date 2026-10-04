@@ -6,6 +6,7 @@ import {
     replica,
     Scope,
     Subject,
+    SyncError,
 } from "@destack/sync";
 import { accessRelationship, earliest, type Permission } from "@destack/access";
 import { journal } from "@destack/audit";
@@ -60,8 +61,8 @@ export class ObjectAudience implements Audience {
     readonly #isContained: boolean;
     /** The scopes below the followed one whose access decided rows. */
     readonly #below = new Set<string>();
-    /** The scope a follower outside a chain copies it via, with the rows deciding whether it may replicate that scope. */
-    readonly #via: Relay | undefined;
+    /** The scopes a follower outside the chains copies them via, with the rows deciding whether it may replicate each. */
+    readonly #via: readonly Relay[];
     /** The access rows of the scope chain and of the scopes below deciding rows, none for ephemeral and external objects. */
     watches: readonly Watch[];
 
@@ -74,7 +75,7 @@ export class ObjectAudience implements Audience {
         storage: ObjectStorage,
         decided: LogPosition | undefined,
         isContained: boolean,
-        via: Relay | undefined,
+        via: readonly Relay[],
     ) {
         // keep the inputs and watch access
         this.#server = server;
@@ -90,12 +91,7 @@ export class ObjectAudience implements Audience {
         this.watches = this.#watched();
     }
 
-    /**
-     * Resolve a reader's access to a scope's objects: a caller admitted to the scope, or a principal the copies kept for it are decided for.
-     *
-     * A contained follower keeps every row of the chains it copies, with only the guarded fields its reader may not read concealed.
-     * A follower copying a chain via a scope must replicate that scope at every decision, and its stream fails once it may not.
-     */
+    /** Resolve a reader's access to a scope's objects: an admitted caller, or a principal the kept copies are decided for. */
     static async of(
         server: Omit<ObjectServer, "router">,
         scope: string,
@@ -104,7 +100,7 @@ export class ObjectAudience implements Audience {
             readonly storage?: ObjectStorage;
             readonly isContained?: boolean;
             readonly within?: readonly ObjectReference[];
-            readonly via?: string;
+            readonly via?: readonly string[];
         } = {},
     ): Promise<ObjectAudience> {
         // decide ephemeral and external objects at the durable position
@@ -112,11 +108,11 @@ export class ObjectAudience implements Audience {
         const isContained = options.isContained ?? false;
         const decided = storage === "durable" ? undefined : await server.database.log.position();
 
-        // read the scope a follower copies a chain via
+        // read the scopes a follower copies chains via
         const via =
             options.via === undefined
-                ? undefined
-                : await ObjectAudience.#copyingVia(server, options.via, reader);
+                ? []
+                : await ObjectAudience.#relays(server, options.via, reader);
 
         // authorize the reader as a principal, a contained caller or an admitted caller
         const admit = async () => {
@@ -126,8 +122,8 @@ export class ObjectAudience implements Audience {
                   ? server.authorize(server.database, scope, reader)
                   : server.admit(server.database, scope, reader));
 
-            // require the follower to replicate the scope it copies a chain via
-            await via?.require();
+            // require the follower to replicate the scopes it copies chains via
+            await Promise.all(via.map((relay) => relay.require()));
 
             return authorization;
         };
@@ -144,29 +140,43 @@ export class ObjectAudience implements Audience {
         );
     }
 
-    /** Read the rows deciding whether a follower may replicate the scope it copies a chain via: the scope's own row and the access rows of its chain. */
-    static async #copyingVia(
+    /** Read the rows deciding whether a follower may replicate the scopes it copies chains via: each scope's own row and the access rows of its chain. */
+    static async #relays(
         server: Omit<ObjectServer, "router">,
-        via: string,
+        via: readonly string[],
         reader: ServiceContext | Subject,
-    ): Promise<Relay> {
-        // read the scope's object and chain
-        const snapshot = Snapshot.live(server.database);
-        const scope = await Scope.object(snapshot, via);
-        const chain = (await Scope.chain(snapshot, via)).map((link) => link.object.id);
+    ): Promise<Relay[]> {
+        // read the scopes' chains at once
+        const chains = await Scope.chains(Snapshot.live(server.database), via);
 
-        // watch the scope's own row where this database maps its type, and the access rows of its chain
-        const mapping = server.authorizer.mappingOf(scope);
-        const own: Watch[] =
-            mapping === undefined
-                ? []
-                : [{ table: mapping.table, scopes: [scope.scope], where: { [mapping.id]: via } }];
+        return via.map((id) => {
+            // read the scope's object, refusing an unknown scope
+            const links = chains.get(id) ?? [];
+            const scope = links[0]?.object;
+            if (scope === undefined) {
+                throw new SyncError("NOT_FOUND", `unknown scope: ${id}`);
+            }
 
-        return {
-            scope: via,
-            watches: [...own, ...server.authorizer.watch(chain)],
-            require: () => server.source.requireReplicateVia(via, reader),
-        };
+            // watch the scope's own row where this database maps its type, and the access rows of its chain
+            const mapping = server.authorizer.mappingOf(scope);
+            const own: Watch[] =
+                mapping === undefined
+                    ? []
+                    : [
+                          {
+                              table: mapping.table,
+                              scopes: [scope.scope],
+                              where: { [mapping.id]: id },
+                          },
+                      ];
+            const chain = links.map((link) => link.object.id);
+
+            return {
+                scope: id,
+                watches: [...own, ...server.authorizer.watch(chain)],
+                require: () => server.source.requireReplicateVia(id, reader),
+            };
+        });
     }
 
     /** The scope's own object, absent for a scope the database does not know. */
@@ -200,7 +210,7 @@ export class ObjectAudience implements Audience {
             scope: this.#scope,
             context: { ...this.#authorization.access.context, request: null, now: null },
             isContained: this.#isContained,
-            via: this.#via?.scope ?? null,
+            via: this.#via.map((relay) => relay.scope),
         });
 
         return this.#key;
@@ -278,19 +288,15 @@ export class ObjectAudience implements Audience {
 
     /** List the rows with access a change decides, or everything. */
     async dependents(change: Change): Promise<readonly RowKey[] | "everything"> {
-        // require the follower to replicate the scope it copies via again after a change only that decision reads
-        const via = this.#via;
-        if (
-            via !== undefined &&
-            Watch.matches(via.watches, change) &&
-            !Watch.matches(this.#deciding(), change)
-        ) {
-            await via.require();
+        // require the follower to replicate the scopes it copies via again after a change only their decisions read
+        const via = this.#via.filter((relay) => Watch.matches(relay.watches, change));
+        if (via.length > 0 && !Watch.matches(this.#deciding(), change)) {
+            await Promise.all(via.map((relay) => relay.require()));
 
             return [];
         }
 
-        // resolve access after an access change, requiring the follower to copy via its scope again
+        // resolve access after an access change, requiring the follower to copy via its scopes again
         if (this.#objects.get(change.table) === undefined && change.table !== journal) {
             await this.#authorize();
             if (change.table !== accessRelationship) {
@@ -427,9 +433,9 @@ export class ObjectAudience implements Audience {
         this.watches = this.#watched();
     }
 
-    /** List the rows whose changes decide again: the access rows deciding what the caller lists, and those deciding whether it may copy via a scope. */
+    /** List the rows whose changes decide again: the access rows deciding what the caller lists, and those deciding whether it may copy via its scopes. */
     #watched(): Watch[] {
-        return [...this.#deciding(), ...(this.#via?.watches ?? [])];
+        return [...this.#deciding(), ...this.#via.flatMap((relay) => relay.watches)];
     }
 
     /** List the access rows deciding what the caller lists: those of the chain and of the scopes below deciding rows, and the relationships of the caller's subjects in every scope. */
@@ -471,7 +477,7 @@ export class ObjectAudience implements Audience {
     }
 }
 
-/** The scope a follower outside a chain copies it via, which the follower must replicate at every decision. */
+/** A scope a follower outside its chain copies the chain via, which the follower must replicate at every decision. */
 interface Relay {
     /** The scope. */
     readonly scope: string;

@@ -5,6 +5,7 @@ import {
     accessTables,
     accessRelationship,
     accessRole,
+    Authorizer,
     none,
     principal,
     relation,
@@ -12,16 +13,16 @@ import {
 } from "@destack/access";
 import { journal } from "@destack/audit";
 import { copyOwner, copyRole, copyScope } from "@destack/access/test";
-import { asc, eq } from "@destack/db";
+import { asc, defineDatabase, eq, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import { Scope, Feed, Replica, type Subscription } from "@destack/sync";
+import { Scope, Feed, Replica, type Page, type Subscription } from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer, Subscriber } from "../src/server/index.ts";
+import { ObjectServer, Subscriber, SystemAuthorization } from "../src/server/index.ts";
 import { userContext } from "./fixture/user.ts";
 
 /** The account with the space. */
@@ -38,6 +39,14 @@ const otherSpaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-
 /** A third space of the account, which only a cell's own scope rows name. */
 const thirdSpaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000004");
 
+/** The placement of a workload copying the spaces' chains. */
+const placementId = "placement-01996ab0-0000-7000-8000-000000000005";
+
+/** Another account, holding none of the spaces. */
+const otherAccountId = schema
+    .identifier("account")
+    .parse("account-01996ab0-0000-7000-8000-000000000006");
+
 /** Accounts with members that roles bind to. */
 const account = defineObject({
     name: "account",
@@ -49,14 +58,19 @@ const account = defineObject({
     permissions: { read: relation("member") },
 });
 
-/** Spaces within accounts. */
+/** Spaces within accounts, which workloads read and replicate as granted. */
 const space = defineObject({
     name: "space",
     plural: "spaces",
     scope: account,
     isScope: true,
     fields: {},
-    permissions: { read: none() },
+    relations: {
+        reader: { subjects: [principal.workload], grantedBy: null },
+        replicator: { subjects: [principal.workload], grantedBy: null },
+    },
+    permissions: { read: relation("reader"), replicate: relation("replicator") },
+    methods: (method) => ({ list: method.list("read") }),
 });
 
 /** Documents that only roles grant. */
@@ -419,6 +433,129 @@ test("follow copies as a server serving no methods, which keeps no journal and t
         "a server serving no methods keeps no journal and takes no call key",
         "a server serving methods needs the call key of their journal",
     ]);
+});
+
+test("copy the chains of a workload's two spaces in one copy via both, requiring it to replicate each and refusing a scope outside them", async () => {
+    // keep an account with two spaces at home, and another account
+    const home = await TestDatabase.create("sqlite", [...space.tables, journal], {
+        isMigrated: true,
+    });
+    const placed = defineDatabase({
+        name: "workload",
+        tables: [...document.tables, journal],
+        copies: [space.table],
+    });
+    const workload = await TestDatabase.create("sqlite", placed, { isMigrated: true });
+    onTestFinished(async () => {
+        await Promise.all([home.close(), workload.close()]);
+    });
+    await copyScope(home.database, account.reference(Scope.universe.id, accountId));
+    await copyScope(home.database, account.reference(Scope.universe.id, otherAccountId));
+    for (const id of [spaceId, otherSpaceId]) {
+        await copyScope(home.database, space.reference(accountId, id));
+        await home.database
+            .insert(space.table)
+            .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
+    }
+
+    // let the workload read both spaces and replicate the first
+    const source = new ObjectServer({
+        objects: { space },
+        policies: [document],
+        database: home.database,
+        callKey: testCallKey,
+        origin: { package: document.package, service: "test" },
+    });
+    const system = await SystemAuthorization.open(
+        source.authorizer,
+        home.database,
+        Scope.universe.id,
+        1,
+    );
+    const subject = principal.workload.reference(Scope.universe.id, placementId);
+    const grant = (id: string, granted: "reader" | "replicator") =>
+        system.grant({ object: space.reference(accountId, id), relation: granted, subject });
+    await grant(spaceId, "reader");
+    await grant(otherSpaceId, "reader");
+    await grant(spaceId, "replicator");
+
+    // copy the universe's spaces to the workload, decided at home for it
+    const follower = { subject, parent: Scope.universe.id };
+    const copying: ObjectServer<{ document: typeof document }> = new ObjectServer({
+        objects: { document },
+        policies: [space],
+        database: workload.database,
+        subscriber: Subscriber.of(
+            {
+                stream: (asked, signal) =>
+                    source.source.replicate(asked, asked.after, follower, signal),
+            },
+            async () => [
+                present(copying.source.universeSubscription(placementId), "the universe request"),
+            ],
+        ),
+        callKey: testCallKey,
+        origin: { package: document.package, service: "test" },
+    });
+    const replica = present(
+        copying.controllers().find((each) => each.name === "replica"),
+        "the replica controller",
+    );
+
+    // follow the universe's copy until it reaches the home's head
+    const controller = new AbortController();
+    const [key] = await replica.list();
+    const following = replica.reconcile(
+        present(key, "the universe's key"),
+        reconciliation(controller.signal),
+    );
+    onTestFinished(async () => {
+        controller.abort();
+        await Promise.allSettled([following]);
+    });
+    const head = await home.database.log.position();
+    await Replica.reach(workload.database, Scope.universe.id, head, controller.signal);
+
+    // request the universe's rows, then one copy of both spaces' chains via them
+    const requests = await copying.source.workloadSubscriptions(placementId);
+    const chains = present(requests[1], "the chains' request");
+
+    // stream the first page of a request at home, refusing the second space until replicable
+    const first = async (request: Subscription): Promise<Page | undefined> => {
+        const pages = source.source.replicate(request, undefined, follower, controller.signal);
+        const page = await pages.next();
+        await pages.return(undefined);
+
+        return page.done === true ? undefined : page.value;
+    };
+    const refused = await refusal(first(chains));
+    await grant(otherSpaceId, "replicator");
+
+    // copy both chains, and refuse a scope between outside them
+    const page = present(await first(chains), "the chains' first page");
+    const outside = await refusal(
+        first({ ...chains, parameters: { ...chains.parameters, between: [otherAccountId] } }),
+    );
+    expect({
+        requests: requests.map((request) => [request.name, request.scope, request.below]),
+        parameters: [chains.parameters["via"], chains.parameters["between"]],
+        refused,
+        scopes: new Set(
+            page.changes
+                .filter((change) => change.table === Scope.table[TABLE].sqlName)
+                .map((change) => change.row["scope"]),
+        ),
+        outside,
+    }).toEqual({
+        requests: [
+            [placementId, Scope.universe.id, placementId],
+            [Authorizer.chainCopy(placementId), Scope.universe.id, placementId],
+        ],
+        parameters: [[spaceId, otherSpaceId], [accountId]],
+        refused: ["FORBIDDEN", "permission denied: replicate"],
+        scopes: new Set([accountId, spaceId, otherSpaceId]),
+        outside: ["NOT_FOUND", `${otherAccountId} contains none of the replicated scopes`],
+    });
 });
 
 /** Keep an account with a member role and two spaces at home, and serve a cell following the chains of the requested spaces from it. */

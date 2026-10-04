@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { ControlLoop } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
 import { testCallKey } from "@destack/service/test";
-import type { Installation } from "@destack/service/workload";
+import type { InstallationContext } from "@destack/service/workload";
 import { asc, defineDatabase, eq, type LogPosition } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
@@ -222,7 +222,7 @@ test("settle the address of a recipient without a user, and record it again once
     // record addresses through a directory refusing the unknown recipient
     const recorded: string[] = [];
     const waiting = new Map<number, () => void>();
-    const installation: Installation = {
+    const installation: InstallationContext = {
         id: "installation-01996ab0-0000-7000-8000-000000000003",
         scope: MEMOS,
         publisher: {
@@ -230,11 +230,11 @@ test("settle the address of a recipient without a user, and record it again once
                 throw new TypeError("the fixture streams no copies");
             },
         },
-        reach: () => {
+        publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");
         },
         directory: {
-            home: async () => undefined,
+            isHome: async () => false,
             address: async (address) => {
                 recorded.push(address);
                 waiting.get(recorded.length)?.();

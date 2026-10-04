@@ -15,7 +15,7 @@ import { Change, eq, LogPosition, Snapshot, TABLE, type Table } from "@destack/d
 
 import { aligned, Digest, Duration, found, present, schema } from "@destack/schema";
 
-import { ServiceError } from "@destack/service/error";
+import { isServiceError, ServiceError } from "@destack/service/error";
 
 import { type ServiceContext } from "@destack/service/server";
 import { withEventMeta } from "@destack/service";
@@ -397,7 +397,7 @@ export class ObjectSource {
         }
         const source = this.#projected(parameters);
         for (const recipient of parameters.recipients) {
-            if ((await installation.directory.home(recipient)) !== subscription.below) {
+            if (!(await installation.directory.isHome(recipient, subscription.below))) {
                 throw new ServiceError("FORBIDDEN", {
                     message: `${recipient} lives in no home ${subscription.below}`,
                 });
@@ -448,7 +448,7 @@ export class ObjectSource {
     }
 
     /** List the subscriptions a home follows: one per projected type and source installation its residents' addresses name. */
-    async projectionRequests(home: string): Promise<sync.Subscription[]> {
+    async projectionSubscriptions(home: string): Promise<sync.Subscription[]> {
         // project nowhere without a projected type
         const projecting = this.server.objects.flatMap((object) =>
             object.projected === undefined ? [] : [object.projected],
@@ -552,7 +552,7 @@ export class ObjectSource {
                 try {
                     await installation.directory.address(recipient);
                 } catch (error) {
-                    if (!(error instanceof ServiceError && error.code === "NOT_FOUND")) {
+                    if (!(isServiceError(error) && error.code === "NOT_FOUND")) {
                         throw error;
                     }
                 }
@@ -826,11 +826,7 @@ export class ObjectSource {
         return `${subscription.name} ${subscription.scope}`;
     }
 
-    /**
-     * Build the controller following each requested copy from its source and dropping each kept copy no request names, one key per copy.
-     *
-     * A copy's follow and drop run under the copy's one lease, so no page lands after a drop on any instance.
-     */
+    /** Build the controller following each requested copy and dropping each kept copy no request names. */
     controller(subscriber: Subscriber): Controller {
         // list the requested copies and revise the listed ones
         const listed = new Map<string, CopyEntry>();
@@ -841,6 +837,7 @@ export class ObjectSource {
             return [...copies.keys()];
         };
 
+        // reconcile each copy under its own key and lease, so no page lands after its drop
         return {
             name: "replica",
             mode: "follow",
@@ -959,16 +956,14 @@ export class ObjectSource {
         }
     }
 
-    /**
-     * List the rows of the universe a scope reads: each copied type's rows, a type living in other listed types' rows copied within them.
-     *
-     * A type living in no copied scope is copied from whichever scope its rows live in, and inherited rows travel with the chains instead.
-     */
+    /** List the rows of the universe a scope reads: each copied type's rows, nested types within their scopes. */
     universeRows(): UniverseParameters["rows"] {
-        // list the copied types of the universe first, and those living in no copied scope from every scope
+        // leave inherited rows to the chains
         const copied = this.server.copied.filter((object) => object.inherited === undefined);
         const isUnscoped = (object: ObjectType) =>
             !object.scopes.some((scope) => copied.some((type) => type.same(scope)));
+
+        // copy a type living in no copied scope from every scope its rows live in
         const listed = copied.filter(isUnscoped);
         const rows: UniverseParameters["rows"][number][] = listed.map((object) =>
             object.scopes.length === 0
@@ -998,49 +993,40 @@ export class ObjectSource {
         return rows;
     }
 
-    /**
-     * List the subscriptions of the copies a placed workload keeps: the rows of the universe it reads, then the chains of the copied scopes its served objects live in.
-     *
-     * The chains follow the scopes the copy of the universe's rows includes, so a scope leaving it drops its chain.
-     * A scope several copied scopes share is copied once, via the first of them.
-     */
-    async workloadRequests(placement: string): Promise<sync.Subscription[]> {
-        // read the copied scopes the served objects live in, as the copy of the universe's rows includes them
+    /** List the subscriptions a placed workload keeps: the universe's rows, then one copy of its scopes' chains. */
+    async workloadSubscriptions(placement: string): Promise<sync.Subscription[]> {
+        // read the copied scopes the served objects live in while the universe's copy includes them
         const living = this.server.copied.filter((scope) =>
             this.server.durable.some((object) => object.scopes.some((type) => type.same(scope))),
         );
-        const scopes = (
-            await Promise.all(
-                living.map(async (scope) =>
-                    (
-                        await this.server.database
-                            .select({ id: scope.table[TABLE].column("id") })
-                            .from(scope.table)
-                            .where(sync.Replica.includes(placement, scope.table))
-                    ).map((row) => schema.string().parse(row.id)),
-                ),
-            )
-        )
-            .flat()
-            .toSorted();
+        const scopes = await Promise.all(
+            living.map(async (scope) => {
+                const table = scope.table[TABLE];
+                const rows = await this.server.database
+                    .select({ id: table.column("id"), scope: table.column("scope") })
+                    .from(scope.table)
+                    .where(sync.Replica.includes(placement, scope.table));
 
-        // copy each scope's chain once, after the rows of the universe
-        const universe = this.universeRequest(placement);
-        const chains = new Map<string, sync.Subscription>();
-        for (const scope of scopes) {
-            const requests = await this.server.authorizer.chain(this.server.database, scope, {
-                isHome: false,
-                follower: placement,
-            });
-            for (const request of requests) {
-                const key = `${request.name} ${request.scope}`;
-                if (!chains.has(key)) {
-                    chains.set(key, request);
-                }
-            }
-        }
+                return rows.map((row): ObjectReference => ({
+                    ...scope.typeReference,
+                    scope: schema.string().parse(row.scope),
+                    id: schema.string().parse(row.id),
+                }));
+            }),
+        );
 
-        return [...(universe === undefined ? [] : [universe]), ...chains.values()];
+        // copy the scopes' chains in one copy, after the rows of the universe
+        const universe = this.universeSubscription(placement);
+        const chains = await this.server.authorizer.chainVia(
+            this.server.database,
+            placement,
+            scopes.flat(),
+        );
+
+        return [
+            ...(universe === undefined ? [] : [universe]),
+            ...(chains === undefined ? [] : [chains]),
+        ];
     }
 
     /** List the subscriptions of the copies a database keeps for a scope: its chain, and the rows of the universe it reads. */
@@ -1050,13 +1036,13 @@ export class ObjectSource {
     ): Promise<sync.Subscription[]> {
         // copy the chain, then the rows of the universe the scope reads
         const chain = await this.server.authorizer.chain(this.server.database, below, options);
-        const universe = this.universeRequest(below);
+        const universe = this.universeSubscription(below);
 
         return universe === undefined ? chain : [...chain, universe];
     }
 
-    /** Build the request of the copy of the universe's rows a scope or cell reads, absent when the server copies no type living there. */
-    universeRequest(below: string): sync.Subscription | undefined {
+    /** Build the subscription of the copy of the universe's rows a scope or cell reads, absent when the server copies no type living there. */
+    universeSubscription(below: string): sync.Subscription | undefined {
         // request nothing where no global object type is served
         const rows = this.universeRows();
         if (rows.length === 0) {
@@ -1072,12 +1058,7 @@ export class ObjectSource {
         });
     }
 
-    /**
-     * Stream a copy's pages to a database below.
-     *
-     * A chain's rows are decided by containment, with the guarded fields of the scope's own row decided for the follower.
-     * The rows of the universe are decided for their reader.
-     */
+    /** Stream a copy's pages to a database below. */
     async *replicate(
         request: sync.Subscription,
         after: LogPosition | undefined,
@@ -1085,11 +1066,13 @@ export class ObjectSource {
         signal: AbortSignal,
         drain?: AbortSignal,
     ): AsyncGenerator<sync.Page> {
-        // require the copied scope to contain the follower's for a chain, and admit the follower
+        // require the copied scope to contain the follower's for a chain
         const shape = this.#shape(request);
         if (shape.audience === "contained") {
             await this.#requireContaining(request, follower);
         }
+
+        // admit the follower to a chain by containment and to the universe's rows as their reader
         const audience = await this.#replicaAudience(shape, request, follower);
 
         // relay a copied scope only once its copy has a position
@@ -1116,26 +1099,59 @@ export class ObjectSource {
         });
     }
 
-    /**
-     * Require a chain copy's scope to contain the follower's scope, through its parent when kept elsewhere.
-     *
-     * A follower outside the chain, such as a placed workload, copies it via a scope inside it, which its audience requires it to replicate.
-     */
+    /** Require a chain copy's scope to contain the follower's scope, through its parent when kept elsewhere. */
     async #requireContaining(request: sync.Subscription, follower: ReplicaFollower): Promise<void> {
-        // read the scopes containing the follower's, or the one it copies via
-        const { via } = ChainParameters.parse(request.parameters);
+        // require a follower outside the chains, such as a placed workload, to copy them via scopes inside them
+        const { via, between } = ChainParameters.parse(request.parameters);
+        if (via !== undefined) {
+            await this.#requireVia(request.scope, via, between ?? []);
+
+            return;
+        }
+
+        // read the scopes containing the follower's
         const parent = "subject" in follower ? follower.parent : undefined;
         const chain = await Scope.chain(
             Snapshot.live(this.server.database),
-            via ?? parent ?? request.below,
+            parent ?? request.below,
         );
         const scopes = [
-            ...(via === undefined && parent !== undefined ? [request.below] : []),
+            ...(parent === undefined ? [] : [request.below]),
             ...chain.map((link) => link.object.id),
         ];
         if (!scopes.includes(request.scope)) {
             throw new ServiceError("NOT_FOUND", {
-                message: `${request.scope} does not contain ${via ?? request.below}`,
+                message: `${request.scope} does not contain ${request.below}`,
+            });
+        }
+    }
+
+    /** Require the chains of the scopes a follower copies via to hold the copied scope and each scope between, reading them at once. */
+    async #requireVia(
+        scope: string,
+        via: readonly string[],
+        between: readonly string[],
+    ): Promise<void> {
+        // require each replicated scope's chain to hold the copied scope
+        const chains = await Scope.chains(Snapshot.live(this.server.database), via);
+        const scopes = new Set<string>();
+        for (const [relay, links] of chains) {
+            const ids = links.map((link) => link.object.id);
+            if (!ids.includes(scope)) {
+                throw new ServiceError("NOT_FOUND", {
+                    message: `${scope} does not contain ${relay}`,
+                });
+            }
+            for (const id of ids) {
+                scopes.add(id);
+            }
+        }
+
+        // require each scope between to contain a replicated scope
+        const outside = between.find((id) => !scopes.has(id));
+        if (outside !== undefined) {
+            throw new ServiceError("NOT_FOUND", {
+                message: `${outside} contains none of the replicated scopes`,
             });
         }
     }
@@ -1166,7 +1182,7 @@ export class ObjectSource {
         request: sync.Subscription,
         follower: ReplicaFollower,
     ): Promise<sync.Audience> {
-        // read the scope a follower outside a chain copies it via
+        // read the scopes a follower outside the chains copies them via
         const isContained = shape.audience === "contained";
         const { via } = isContained ? ChainParameters.parse(request.parameters) : {};
         const copying = via === undefined ? {} : { via };

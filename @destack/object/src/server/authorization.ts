@@ -1,5 +1,5 @@
 import * as access from "@destack/access";
-import { Replica, Scope, type ObjectReference } from "@destack/sync";
+import { Replica, Scope, type ObjectReference, type ScopeLink } from "@destack/sync";
 import {
     AccessError,
     earliest,
@@ -284,8 +284,7 @@ export class Authorization extends access.Authorization {
             });
             if ((await select(lending)).length > 0 && (await select(lent)).length === 0) {
                 throw new ServiceError("INSUFFICIENT_GRANT", {
-                    message:
-                        "propose the missing delegation to the principal the delegate acts for",
+                    message: "invite the principal the delegate acts for to the missing delegation",
                     data: {
                         permission,
                         object: object.reference(scope, id),
@@ -559,9 +558,10 @@ export class SystemAuthorization extends Authorization {
         database: DatabaseConnection,
         scope: string,
         now: number,
+        links?: readonly ScopeLink[],
     ): Promise<SystemAuthorization> {
         const bind = (): AccessContext => ({ subjects: [], attributes: {}, now });
-        const resolved = await authorizer.resolve(Snapshot.live(database), scope, bind());
+        const resolved = await authorizer.resolve(Snapshot.live(database), scope, bind(), links);
 
         return new SystemAuthorization(authorizer, database, bind, resolved);
     }
@@ -591,6 +591,9 @@ export class SystemAuthorization extends Authorization {
 
     /** Admit every revocation, including the relations only the system grants. */
     protected override async authorizeRevoke(): Promise<void> {}
+
+    /** Admit every role change, including the roles a declaration manages. */
+    protected override async authorizeRole(): Promise<void> {}
 
     /** Admit every permission on every row. */
     override async checkRows(
