@@ -6,6 +6,110 @@ void main() {
 }
 `;
 
+/** The milliseconds between drawn frames for ambient motion: thirty a second. */
+export const ambientPace = 33;
+
+/** The pixel density factors the governor steps through, from full to coarsest. */
+const densitySteps = [1, 0.75, 0.5, 0.35];
+/** The frame intervals the governor judges at once. */
+const judgedFrames = 20;
+/** The median frame interval above which the governor coarsens, in milliseconds. */
+const slowInterval = 24;
+/** The median frame interval below which a judged window counts as smooth, in milliseconds. */
+const smoothInterval = 18;
+/** The smooth windows in a row the governor waits for before it sharpens again. */
+const smoothWindows = 4;
+
+/** Coarsen every shader's pixel density while the page's frames run long, and sharpen it again once they run smooth. */
+class Governor {
+    /** The index into `densitySteps`. */
+    step: number;
+    /** The frame time last observed, in milliseconds. */
+    observedAt: number;
+    /** The frame intervals of the window being judged. */
+    intervals: number[];
+    /** The smooth windows judged in a row. */
+    smooth: number;
+
+    /** Start at full density. */
+    constructor() {
+        // begin sharp, with no frame observed
+        this.step = 0;
+        this.observedAt = Number.NEGATIVE_INFINITY;
+        this.intervals = [];
+        this.smooth = 0;
+    }
+
+    /** The density factor every shader draws at. */
+    get density() {
+        return densitySteps[this.step] ?? 1;
+    }
+
+    /** Start at the coarsest density. */
+    coarsen() {
+        this.step = densitySteps.length - 1;
+    }
+
+    /** Record one animation frame, once per frame however many shaders draw it, and judge each full window. */
+    observe(now: number) {
+        // skip repeats within a frame, and gaps from hidden tabs or a first frame
+        if (now === this.observedAt) {
+            return;
+        }
+        const interval = now - this.observedAt;
+        this.observedAt = now;
+        if (interval > 250) {
+            return;
+        }
+
+        // judge the window by its median interval
+        this.intervals.push(interval);
+        if (this.intervals.length < judgedFrames) {
+            return;
+        }
+        const median =
+            this.intervals.toSorted((left, right) => left - right)[judgedFrames >> 1] ?? interval;
+        this.intervals = [];
+        if (median > slowInterval) {
+            this.step = Math.min(this.step + 1, densitySteps.length - 1);
+            this.smooth = 0;
+        } else if (median < smoothInterval && this.step > 0) {
+            this.smooth += 1;
+            if (this.smooth >= smoothWindows) {
+                this.step -= 1;
+                this.smooth = 0;
+            }
+        }
+    }
+}
+
+/** The one governor every shader on the page shares. */
+const governor = new Governor();
+
+/** The renderers that draw WebGL on the processor. */
+const softwareRenderers = /swiftshader|basic render|llvmpipe|softpipe/iu;
+
+/** Whether WebGL draws slowly here, decided once: undefined until asked. */
+let isWeak: boolean | undefined;
+
+/** Return whether this browser draws WebGL slowly: a software renderer, or one the browser itself warns about. */
+export function isWeakGraphics() {
+    if (isWeak === undefined) {
+        // ask for a context the browser refuses when it would be slow, then read the renderer's name
+        const probe = document.createElement("canvas");
+        const context = probe.getContext("webgl", { failIfMajorPerformanceCaveat: true });
+        const info = context?.getExtension("WEBGL_debug_renderer_info");
+        const renderer = info ? String(context?.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
+        isWeak = context === null || softwareRenderers.test(renderer);
+        context?.getExtension("WEBGL_lose_context")?.loseContext();
+        if (isWeak) {
+            governor.coarsen();
+        }
+    }
+
+    return isWeak;
+}
+
 /** A fragment shader drawn over its whole canvas with premultiplied alpha, one animation frame at a time. */
 export class Shader {
     /** The drawing context. */
@@ -56,9 +160,11 @@ export class Shader {
         this.density = density;
         this.width = canvas.clientWidth;
         this.height = canvas.clientHeight;
-        this.sizes = new ResizeObserver(([entry]) => {
-            this.width = entry.contentRect.width;
-            this.height = entry.contentRect.height;
+        this.sizes = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                this.width = entry.contentRect.width;
+                this.height = entry.contentRect.height;
+            }
         });
         this.sizes.observe(canvas);
         this.frame = undefined;
@@ -123,17 +229,18 @@ export class Shader {
 
     /** Draw one frame with the uniforms `onDraw` uploads, and schedule the next while it keeps animating. */
     render(now: number) {
-        // clear the pending frame, and skip this one when the draw asks for a slower pace
+        // clear the pending frame, record it for the governor, and skip it off the shared grid of a slower pace
         this.frame = undefined;
         const context = this.context;
-        if (now - this.drawnAt < this.pace - 2) {
+        governor.observe(now);
+        if (this.pace > 0 && Math.floor(now / this.pace) === Math.floor(this.drawnAt / this.pace)) {
             this.request();
             return;
         }
         this.drawnAt = now;
 
-        // match the backing store to the displayed size
-        const scale = Math.min(window.devicePixelRatio, this.density);
+        // match the backing store to the displayed size at the governed density
+        const scale = Math.min(window.devicePixelRatio, this.density) * governor.density;
         const width = Math.round(this.width * scale);
         const height = Math.round(this.height * scale);
         if (this.canvas.width !== width || this.canvas.height !== height) {
@@ -173,7 +280,7 @@ function createProgram(context: WebGLRenderingContext, fragmentSource: string): 
         }
         context.shaderSource(shader, source);
         context.compileShader(shader);
-        if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
+        if (context.getShaderParameter(shader, context.COMPILE_STATUS) !== true) {
             throw new Error(`shader failed: ${context.getShaderInfoLog(shader)}`);
         }
         context.attachShader(program, shader);
@@ -181,7 +288,7 @@ function createProgram(context: WebGLRenderingContext, fragmentSource: string): 
 
     // link, then blend premultiplied output over the page
     context.linkProgram(program);
-    if (!context.getProgramParameter(program, context.LINK_STATUS)) {
+    if (context.getProgramParameter(program, context.LINK_STATUS) !== true) {
         throw new Error(`program failed: ${context.getProgramInfoLog(program)}`);
     }
     context.useProgram(program);
@@ -193,7 +300,7 @@ function createProgram(context: WebGLRenderingContext, fragmentSource: string): 
 
 /** Return whether the page is drawn dark, by its chosen theme or else the system's. */
 export function isDarkPage() {
-    const theme = document.documentElement.dataset.theme;
+    const theme = document.documentElement.dataset["theme"];
 
     return (
         theme === "dark" ||

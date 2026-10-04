@@ -2,9 +2,11 @@ import * as stylex from "@destack/style";
 import { type JSX, onSettled } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
-import { isDarkPage, pageScroll, Shader } from "./gl";
+import { ambientPace, isDarkPage, isWeakGraphics, pageScroll, Shader } from "./gl";
 import { sound } from "./sound";
 import { drainAt, pageWater } from "./water";
+import { telemetry } from "@destack/telemetry";
+import { log } from "../site/telemetry.ts";
 
 /** The distance the goo field reaches past the site frame, in CSS pixels, so its rim can wobble across the frame rules. */
 const spill = 8;
@@ -30,8 +32,6 @@ const raggedDepth = 220;
 const raggedReach = 60;
 /** How softly the universe's islands merge into one another, in CSS pixels. */
 const mergeSoftness = 90;
-/** The milliseconds between frames of the goo while nothing moves, which only twinkles its stars. */
-const idlePace = 33;
 /** The seconds the goo's bulge takes to catch up with the pointer, so it drags behind like something thick. */
 const gooLag = 0.6;
 /** The seconds the tail of the bulge takes to catch up with its head, drawing the goo out into a strand while the pointer moves. */
@@ -425,16 +425,16 @@ class Field {
         // ease by the time since the last frame, so the goo is as thick at any frame rate
         const elapsed = this.lastAt === 0 ? 0 : Math.min(0.1, (now - this.lastAt) / 1000);
         this.lastAt = now;
-        const ease = (seconds: number) => 1 - Math.exp(-elapsed / seconds);
+        const follow = (lag: number) => 1 - Math.exp(-elapsed / lag);
 
         // drag the bulge after the pointer, and the strand's tail after the bulge
         const target = pagePointer.isKnown
             ? { x: pagePointer.x - bounds.left, y: pagePointer.y - bounds.top }
             : this.pointer;
-        this.pointer.x += (target.x - this.pointer.x) * ease(gooLag);
-        this.pointer.y += (target.y - this.pointer.y) * ease(gooLag);
-        this.trail.x += (this.pointer.x - this.trail.x) * ease(gooTail);
-        this.trail.y += (this.pointer.y - this.trail.y) * ease(gooTail);
+        this.pointer.x += (target.x - this.pointer.x) * follow(gooLag);
+        this.pointer.y += (target.y - this.pointer.y) * follow(gooLag);
+        this.trail.x += (this.pointer.x - this.trail.x) * follow(gooTail);
+        this.trail.y += (this.pointer.y - this.trail.y) * follow(gooTail);
 
         // swell slowly toward a pointer near or over the goo, sag back more slowly still, and heave with the pointer's speed
         const speed =
@@ -445,8 +445,8 @@ class Field {
             ? edgeAt(pagePointer.x, pagePointer.y, terrain, seconds)
             : Number.POSITIVE_INFINITY;
         const swell = outside < 0 ? 1 : Math.exp(-outside / 60) * 0.8;
-        this.pull += (swell - this.pull) * ease(swell > this.pull ? swellTime : sagTime);
-        this.stir += (Math.min(1, speed / fullStir) * swell - this.stir) * ease(stirTime);
+        this.pull += (swell - this.pull) * follow(swell > this.pull ? swellTime : sagTime);
+        this.stir += (Math.min(1, speed / fullStir) * swell - this.stir) * follow(stirTime);
         sound.ooze(this.isMoving ? this.stir : 0);
         const isOverCell =
             pagePointer.isKnown && pouredAt(pagePointer.x, pagePointer.y, terrain.islands, 0) < 0;
@@ -547,11 +547,11 @@ class Field {
             this.flare > 0.02 ||
             Math.abs(this.charge - pageCharge.target) > 0.01 ||
             (terrain.fullness > 0 && terrain.fullness < 1);
-        shader.pace = isBusy ? 0 : idlePace;
+        shader.pace = isBusy ? 0 : ambientPace;
 
         // announce the first frame to the page, so the cells let the field show through
-        if (document.documentElement.dataset.field !== "painted") {
-            document.documentElement.dataset.field = "painted";
+        if (document.documentElement.dataset["field"] !== "painted") {
+            document.documentElement.dataset["field"] = "painted";
         }
 
         return this.isMoving;
@@ -586,22 +586,26 @@ export function Goo(properties: { children?: JSX.Element; hole?: number; style?:
  */
 export function Universe(properties: { isOpen: boolean; flow: number }) {
     // hold the frame and the canvas
-    let frame!: HTMLDivElement;
-    let canvas!: HTMLCanvasElement;
+    let frame: HTMLDivElement | undefined;
+    let canvas: HTMLCanvasElement | undefined;
 
     // run the field, and release it with the page
     onSettled(() => {
+        // require the rendered frame and canvas
+        if (!frame || !canvas) {
+            throw new TypeError("the goo rendered without its frame and canvas");
+        }
+
         // hold the spread's motion, the frame's farthest reach, and the sections' schemes
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const motion = { from: 0, to: 0, at: -spreadTime };
         const schemes = new Map<HTMLElement, boolean>();
         let wasOpen = false;
         let reach = 1;
-        let sections: HTMLElement[] = [];
+        let sections: { element: HTMLElement; place: Rect }[] = [];
         let cells: HTMLElement[] = [];
         let pageIslands: Rect[] = [];
         let pageFrame: Rect = { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
-        let pageSections: Rect[] = [];
         let measuredAt = -Infinity;
 
         // measure again whenever the window or the page itself changes size, as when images load or another page opens
@@ -632,8 +636,12 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
             }
             const islands = pageIslands.map(onScreen);
             const bounds = onScreen(pageFrame);
-            const holderIndex = cells.findIndex((cell) => cell.dataset.hole !== undefined);
+            const holderIndex = cells.findIndex((cell) => cell.dataset["hole"] !== undefined);
             const holder = cells[holderIndex];
+            const holderIsland = islands[holderIndex];
+            if (holder !== undefined && holderIsland === undefined) {
+                throw new TypeError("hole cell has no measured island");
+            }
 
             // start a new spread whenever the switch flips
             const progress = isStill ? 1 : Math.min(1, (now - motion.at) / spreadTime);
@@ -645,8 +653,7 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
                     ...document.querySelectorAll<HTMLElement>(
                         '[data-universe]:not([data-universe="parts"]), [data-universe="parts"] > :not([data-universe="parts"])',
                     ),
-                ];
-                pageSections = sections.map((section) => onPage(section.getBoundingClientRect()));
+                ].map((element) => ({ element, place: onPage(element.getBoundingClientRect()) }));
                 Object.assign(motion, { from: spread, to: properties.isOpen ? reach : 0, at: now });
             }
             // blend the lattice rules toward faint cream as the universe fills the site, touching the page only on change
@@ -666,16 +673,16 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
                 spread,
                 fullness,
                 frame: bounds,
-                hole: holder
-                    ? { cell: islands[holderIndex], radius: Number(holder.dataset.hole) }
-                    : undefined,
+                hole:
+                    holder && holderIsland
+                        ? { cell: holderIsland, radius: Number(holder.dataset["hole"]) }
+                        : undefined,
             };
 
             // draw each section for space once the universe's edge has passed its centre, touching only changed ones
-            const boxes = pageSections.map(onScreen);
-            sections.forEach((section, index) => {
+            sections.forEach(({ element: section, place }) => {
                 // measure the section's centre against the universe's edge
-                const box = boxes[index];
+                const box = onScreen(place);
                 const x = (box.left + box.right) / 2;
                 const y = (box.top + box.bottom) / 2;
                 const isCovered = spread > 0 && grownAt(x, y, result, now / 1000) < -coverDepth;
@@ -707,9 +714,14 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
         // start the field, or keep the still stars when WebGL is unavailable
         let field: Field;
         try {
-            field = new Field(canvas, !isStill, terrain, () => properties.flow);
+            field = new Field(
+                canvas,
+                !isStill && !isWeakGraphics(),
+                terrain,
+                () => properties.flow,
+            );
         } catch (error) {
-            console.error("goo rendering failed", error);
+            log.error("goo.render.failed", telemetry.exceptionAttributes(error));
             return;
         }
         field.shader.request();
@@ -717,10 +729,10 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
         // fire a shooting star from a click on empty goo, away from anything clickable
         const shoot = (event: PointerEvent) => {
             // skip clicks on anything clickable or draggable, and clicks outside the goo
-            const target = event.target as Element | null;
-            const isEmpty = !target?.closest(
-                "a, button, input, summary, [role=switch], [data-card]",
-            );
+            const target = event.target;
+            const isEmpty =
+                !(target instanceof Element) ||
+                !target.closest("a, button, input, summary, [role=switch], [data-card]");
             if (
                 !isEmpty ||
                 !field.isMoving ||

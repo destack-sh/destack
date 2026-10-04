@@ -1,4 +1,4 @@
-import { Shader } from "./gl";
+import { ambientPace, Shader } from "./gl";
 
 /** The milliseconds the ice takes to shatter or reassemble. */
 const breakTime = 1200;
@@ -265,8 +265,8 @@ export class Ice {
     bobOf: (berg: number, seconds: number) => Bob;
     /** How each berg floats in the current frame. */
     bobs: Bob[];
-    /** Run after every drawn frame, so things floating beside the ice move in step with it. */
-    onFrame: () => void;
+    /** Run after every drawn frame with how each berg floats, so things floating beside the ice move in step with it. */
+    onFrame: (bobs: readonly Bob[]) => void;
 
     /** Create ice on a canvas, or throw when WebGL is unavailable. */
     constructor(
@@ -274,7 +274,7 @@ export class Ice {
         centres: readonly number[],
         isMoving: boolean,
         bobOf: (berg: number, seconds: number) => Bob,
-        onFrame: () => void,
+        onFrame: (bobs: readonly Bob[]) => void,
     ) {
         // start the shader and rest the ice whole
         this.shader = new Shader(canvas, fragmentSource, 1, (now) => this.draw(now));
@@ -338,42 +338,47 @@ export class Ice {
         // centre one berg under each board column, sized to a third of the canvas
         const width = shader.width;
         const column = width / 3;
-        const shatters = this.centres.map((_, berg) => this.shatterAt(now, berg));
-        const cracks = this.centres.map((_, berg) => this.crackAt(now, berg));
+        const seconds = now / 1000;
+        const bergs = this.centres.map((centre, berg) => ({
+            x: centre * width,
+            shatter: this.shatterAt(now, berg),
+            crack: this.crackAt(now, berg),
+            bob: this.isMoving ? this.bobOf(berg, seconds) : { lift: 0, sway: 0, tilt: 0 },
+        }));
 
         // float each berg as one body with everything riding on it, or hold it still
-        const seconds = now / 1000;
-        this.bobs = this.centres.map((_, index) =>
-            this.isMoving ? this.bobOf(index, seconds) : { lift: 0, sway: 0, tilt: 0 },
-        );
-        const [first, second, third] = this.bobs;
+        this.bobs = bergs.map((berg) => berg.bob);
+        const [left, middle, right] = bergs;
+        if (!left || !middle || !right) {
+            throw new TypeError("ice draws exactly three bergs");
+        }
         context.uniform1f(shader.uniform("time"), this.isMoving ? now / 1000 : 0);
         context.uniform1f(shader.uniform("offset"), this.offset);
         context.uniform1f(shader.uniform("waterline"), this.waterline);
-        const [left, middle, right] = this.centres.map((centre) => centre * width);
-        context.uniform3f(shader.uniform("centres"), left, middle, right);
+        context.uniform3f(shader.uniform("centres"), left.x, middle.x, right.x);
         context.uniform1f(shader.uniform("column"), column);
         context.uniform1f(shader.uniform("bulk"), this.bulk);
         context.uniform3f(
             shader.uniform("shatters"),
-            Math.min(shatters[0], 0.999),
-            Math.min(shatters[1], 0.999),
-            Math.min(shatters[2], 0.999),
+            Math.min(left.shatter, 0.999),
+            Math.min(middle.shatter, 0.999),
+            Math.min(right.shatter, 0.999),
         );
-        context.uniform3f(shader.uniform("cracks"), cracks[0], cracks[1], cracks[2]);
-        context.uniform3f(shader.uniform("bobs"), first.lift, second.lift, third.lift);
-        context.uniform3f(shader.uniform("sways"), first.sway, second.sway, third.sway);
+        context.uniform3f(shader.uniform("cracks"), left.crack, middle.crack, right.crack);
+        context.uniform3f(shader.uniform("bobs"), left.bob.lift, middle.bob.lift, right.bob.lift);
+        context.uniform3f(shader.uniform("sways"), left.bob.sway, middle.bob.sway, right.bob.sway);
         context.uniform3f(
             shader.uniform("tilts"),
-            (-first.tilt * Math.PI) / 180,
-            (-second.tilt * Math.PI) / 180,
-            (-third.tilt * Math.PI) / 180,
+            (-left.bob.tilt * Math.PI) / 180,
+            (-middle.bob.tilt * Math.PI) / 180,
+            (-right.bob.tilt * Math.PI) / 180,
         );
-        this.onFrame();
+        this.onFrame(this.bobs);
 
-        // stop once the ice is fully gone; keep bobbing while it stands
+        // draw every frame while the ice breaks, else bob at the ambient pace, then stop once it is fully gone
         const isBreaking = now - this.broke < breakTime + totalStagger;
+        shader.pace = isBreaking ? 0 : ambientPace;
 
-        return isBreaking || (this.isMoving && Math.min(...shatters) < 1);
+        return isBreaking || (this.isMoving && Math.min(...bergs.map((berg) => berg.shatter)) < 1);
     }
 }

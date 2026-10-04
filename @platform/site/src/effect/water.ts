@@ -1,4 +1,4 @@
-import { Shader } from "./gl";
+import { ambientPace, Shader } from "./gl";
 
 /** The water colors for one theme, as RGB triples in 0..1. */
 export type WaterPalette = {
@@ -352,6 +352,10 @@ export class Water {
         this.onLevel(level);
         this.pageTop ??= shader.canvas.getBoundingClientRect().top + window.scrollY;
         pageWater.top = level < shader.height ? this.pageTop + level : Number.POSITIVE_INFINITY;
+
+        // draw every frame while the waterline moves, ripples run or the searchlight shines, else at the ambient pace
+        const isStirred = ripples.some((ripple) => now / 1000 - ripple.at < rippleLife);
+        shader.pace = progress < 1 || isStirred || light.radius > 0 ? 0 : ambientPace;
 
         // keep animating while water shows or the waterline still moves
         const isDrained = level >= shader.height && progress >= 1;
