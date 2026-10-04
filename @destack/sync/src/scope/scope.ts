@@ -1,5 +1,5 @@
-import { eq, sql, type DatabaseConnection, type RowImage, type Snapshot } from "@destack/db";
-import { found } from "@destack/schema";
+import { eq, inArray, sql, Snapshot, type DatabaseConnection, type RowImage } from "@destack/db";
+import { found, schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import { SyncError } from "../error/index.ts";
 import type { ObjectReference } from "./reference.ts";
@@ -30,9 +30,6 @@ const UNIVERSE_LINK: ScopeLink = {
     movedTo: undefined,
 };
 
-/** The prefix of every scope's fence lock key. */
-const FENCE_LOCK = "destack-fence";
-
 /** A scope's chain and transfer fence, read from and written to its own row. */
 export const Scope = { table: scopeTable, universe, chain, chains, object, fence, guard, unfence };
 
@@ -47,6 +44,21 @@ export interface ScopeLink {
     /** The cell a transfer moves the scope to, while fenced. */
     readonly movedTo: string | undefined;
 }
+
+/** A scope row's parent and fence state as a write locks it. */
+const LockedScope = schema.object({
+    /** The scope. */
+    scope: schema.string(),
+    /** The containing scope. */
+    parent: schema.string(),
+    /** When the scope was suspended. */
+    suspended_at: schema.unknown(),
+    /** The cell a transfer moves the scope to. */
+    moved_to: schema.string().nullable(),
+});
+
+/** A scope row's parent and fence state as a write locks it. */
+type LockedScope = schema.Infer<typeof LockedScope>;
 
 /** Read a scope and the scopes enclosing it, nearest first. */
 async function chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
@@ -128,44 +140,63 @@ async function fence(
     cell: string,
     now: number,
 ): Promise<void> {
-    await database.transaction(async (transaction) => {
-        // wait for the writes with the guard
-        await lock(transaction, scope, "exclusive");
-
-        // mark the scope moved
-        const [fenced] = await transaction
-            .update(scopeTable)
-            .set({ fencedAt: now, movedTo: cell })
-            .where(eq(scopeTable.scope, scope))
-            .returning({ scope: scopeTable.scope });
-        if (fenced === undefined) {
-            throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
-        }
-    });
-}
-
-/** Keep a write's scopes unfenced until it commits. */
-async function guard(database: DatabaseConnection, scopes: readonly string[]): Promise<void> {
-    // lock every scope but the universe
-    for (const scope of scopes.filter((id) => id !== UNIVERSE_ID)) {
-        await lock(database, scope, "shared");
+    // mark the scope moved, waiting on its row lock for the writes guarding it
+    const [fenced] = await database
+        .update(scopeTable)
+        .set({ fencedAt: now, movedTo: cell })
+        .where(eq(scopeTable.scope, scope))
+        .returning({ scope: scopeTable.scope });
+    if (fenced === undefined) {
+        throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
     }
 }
 
-/** Take a scope's fence lock for the transaction, a no-op on SQLite's serialized writes. */
+/**
+ * Lock a write's scope chain against fences until it commits, and return the chain as locked.
+ *
+ * A write whose snapshot predates a fence committed meanwhile fails as a concurrent update on PostgreSQL.
+ */
+async function guard(database: DatabaseConnection, scope: string): Promise<ScopeLink[]> {
+    for (;;) {
+        // take the chain as read on SQLite's serialized writes
+        const links = await chain(Snapshot.live(database), scope);
+        if (database.dialect !== "postgresql") {
+            return links;
+        }
+
+        // lock the chain's rows, and read the chain again once they changed since
+        const locked = await lock(
+            database,
+            links.map((link) => link.object.id).filter((id) => id !== UNIVERSE_ID),
+        );
+        const isCurrent = links.every((link) => {
+            const row = locked.get(link.object.id);
+
+            return (
+                link.object.id === UNIVERSE_ID ||
+                (row !== undefined &&
+                    row.parent === link.parent &&
+                    (row.suspended_at !== null) === link.isSuspended &&
+                    (row.moved_to ?? undefined) === link.movedTo)
+            );
+        });
+        if (isCurrent) {
+            return links;
+        }
+    }
+}
+
+/** Share-lock scope rows for the transaction, returning their fence state as locked by scope. */
 async function lock(
     database: DatabaseConnection,
-    scope: string,
-    mode: "shared" | "exclusive",
-): Promise<void> {
-    if (database.dialect === "postgresql") {
-        const key = sql`hashtextextended(${`${FENCE_LOCK}:${scope}`}, 0)`;
-        await database.execute(
-            mode === "shared"
-                ? sql`SELECT pg_advisory_xact_lock_shared(${key})`
-                : sql`SELECT pg_advisory_xact_lock(${key})`,
-        );
-    }
+    scopes: readonly string[],
+): Promise<Map<string, LockedScope>> {
+    const rows = await database.execute(
+        sql`SELECT ${scopeTable.scope} AS scope, ${scopeTable.parent} AS parent, ${scopeTable.suspendedAt} AS suspended_at, ${scopeTable.movedTo} AS moved_to FROM ${scopeTable} WHERE ${inArray(scopeTable.scope, scopes)} ORDER BY ${scopeTable.scope} FOR SHARE`,
+        LockedScope,
+    );
+
+    return new Map(rows.map((row) => [row.scope, row]));
 }
 
 /** Lift a scope's fence on the database now keeping it. */

@@ -1,6 +1,7 @@
-import { expect, test } from "@destack/test";
-import { TEST_DIALECTS } from "@destack/db/test";
-import { Snapshot } from "@destack/db";
+import { expect, onTestFinished, test } from "@destack/test";
+import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { DatabaseError, eq, Snapshot, sql } from "@destack/db";
+import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { open } from "../test/fixture.ts";
 import { Scope } from "./scope.ts";
@@ -90,5 +91,76 @@ test.for(TEST_DIALECTS)(
             ["orphan", ["orphan"]],
             ["unknown", []],
         ]);
+    },
+);
+
+test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
+    "refuse a write waiting behind a fence once the fence commits, and show its retry the fence on postgresql",
+    async () => {
+        const storage = await TestDatabase.create("postgresql", [Scope.table], {
+            isMigrated: true,
+        });
+        const other = await storage.connect([Scope.table]);
+        onTestFinished(async () => {
+            await other.close();
+            await storage.close();
+        });
+        const row = (scope: string, parent: string, ancestors: string[]) => ({
+            scope,
+            parent,
+            ancestors,
+            packageId: PACKAGE_ID,
+            type: "folder",
+        });
+        await storage.database
+            .insert(Scope.table)
+            .values([row("account", Scope.universe.id, []), row("space", "account", ["account"])]);
+
+        // hold a fence of the account open on another connection
+        const fenced = Promise.withResolvers<void>();
+        const release = Promise.withResolvers<void>();
+        const fencing = other.transaction(async (transaction) => {
+            await Scope.fence(transaction, "account", "cell-b", 1000);
+            fenced.resolve();
+            await release.promise;
+        });
+        await fenced.promise;
+
+        // write into the space once its guard returns, waiting until the guard queues behind the fence
+        const write = async () =>
+            await storage.database.transaction(async (transaction) => {
+                const chain = await Scope.guard(transaction, "space");
+                await transaction.insert(Scope.table).values(row("note", "space", ["space"]));
+
+                return chain.map((link) => link.movedTo);
+            });
+        const writing = write().catch((error: unknown) => error);
+        await expect
+            .poll(async () => {
+                const [waiting] = await other.execute(
+                    sql`SELECT count(*)::int AS count FROM pg_locks WHERE NOT granted`,
+                    schema.object({ count: schema.number() }),
+                );
+
+                return waiting?.count ?? 0;
+            })
+            .toBeGreaterThan(0);
+        release.resolve();
+        await fencing;
+
+        // fail the waiting write as a concurrent update, and show its retry the fence
+        const refused = await writing;
+        const notes = await storage.database
+            .select({ scope: Scope.table.scope })
+            .from(Scope.table)
+            .where(eq(Scope.table.scope, "note"));
+        expect([refused, notes]).toEqual([
+            new DatabaseError(
+                "CONCURRENT_UPDATE",
+                "a concurrent transaction changed the same records",
+            ),
+            [],
+        ]);
+        expect(await write()).toEqual([undefined, "cell-b", undefined]);
     },
 );
