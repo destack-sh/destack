@@ -11,3 +11,15 @@
         --destack-contrast: 1;
     }
 }
+
+/* paint the page in the theme's background, text color and interface font */
+:root {
+    background-color: var(--destack-color-background);
+    color: var(--destack-color-foreground);
+    font-family: var(--destack-text-family);
+}
+
+/* let the theme's page fill the viewport */
+body {
+    margin: 0;
+}

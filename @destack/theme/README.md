@@ -157,19 +157,28 @@ import { transition } from "@destack/theme/motion";
 
 ## Preferences
 
-The `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings hold a person's display preferences, with overrides per package, space, installation or device, and a person's accent replaces every app's own.
+The `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings hold a person's display preferences, and `resolveDisplay` resolves them all for a selection.
 
 ```ts
-import { textSize, accent } from "@destack/theme/setting";
+import { DISPLAY_SETTINGS, resolveDisplay } from "@destack/theme/setting";
 
-const preferences = {
-    textSize: textSize.resolve(selection, rows, chain).value, // "medium" by default
-    density: null, // the theme's own density
-    contrast: "system", // follows prefers-contrast
-    motion: "system", // follows prefers-reduced-motion
-    accent: accent.resolve(selection, rows, chain).value, // null keeps the app's accent
-};
-const style = theme.variables("system", preferences);
+// the values placed for DISPLAY_SETTINGS along the person's scope chain, nearest first
+const { appearance, preferences } = resolveDisplay(
+    { scope: person, package: packageId, space, installation },
+    values,
+    chain,
+);
+const style = theme.variables(appearance, preferences); // a person's accent replaces the app's own
+```
+
+## Default theme
+
+`destackTheme` is Destack's own theme, which views of packages declaring no theme take.
+
+```ts
+import { destackTheme } from "@destack/theme/declare";
+
+destackTheme.variables("system", DEFAULT_PREFERENCES);
 ```
 
 ## License
