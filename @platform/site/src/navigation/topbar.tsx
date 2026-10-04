@@ -1,14 +1,12 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { color, text } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { useLocation } from "@destack/view/router";
 import { createMemo, createSignal, onSettled } from "@destack/view";
 import { Portal } from "@destack/view";
 
-import { commandEvents } from "../command/command";
 import { CommandPalette } from "../command/palette";
 import { DownloadCell } from "../home/download/download";
-import { charge, Goo } from "../effect/goo";
-import { sound } from "../effect/sound";
+import { Goo } from "../effect/goo";
 import { Mark } from "../site/mark";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
@@ -22,13 +20,8 @@ const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
-/** How hard the goo charges while the brand's switch is hovered, kept low so the corner stays calm. */
-const hoverCharge = 0.5;
-/** How hard the goo charges while the brand's switch is held down. */
-const heldCharge = 1.8;
-
 /** Render the global site navigation. */
-export function TopBar(properties: { stack?: boolean }) {
+export function TopBar() {
     // hold the route and the mobile menu
     const location = useLocation();
     let menu: HTMLDialogElement | undefined;
@@ -48,9 +41,6 @@ export function TopBar(properties: { stack?: boolean }) {
         return () => desktop.removeEventListener("change", closeMenu);
     });
 
-    // read whether the page's stack is destacked, on pages that have one
-    const isStackOpen = () => properties.stack === true;
-
     // select the most specific navigation destination for the current route
     const activeLink = createMemo(
         () =>
@@ -64,46 +54,10 @@ export function TopBar(properties: { stack?: boolean }) {
             <div {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
                 {/* set the brand in a cell of starry space */}
                 <Goo style={styles.brandCell}>
-                    {properties.stack === undefined ? (
-                        <SiteLink href="/" shortcut="h" style={styles.brand} title="Home (Alt+H)">
-                            <Mark />
-                            Destack
-                        </SiteLink>
-                    ) : (
-                        // destack the page from its brand, where the universe spreads out from
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-label="Destack"
-                            aria-checked={isStackOpen() ? "true" : "false"}
-                            title={isStackOpen() ? "Restack" : "Destack"}
-                            onClick={() =>
-                                document.dispatchEvent(new CustomEvent(commandEvents.switchStack))
-                            }
-                            onPointerEnter={() => charge(isStackOpen() ? 0 : hoverCharge)}
-                            onPointerLeave={() => charge(0)}
-                            onPointerDown={() => {
-                                // tick the switch down, and charge the goo harder while it is held
-                                sound.play("press");
-                                charge(isStackOpen() ? 0 : heldCharge);
-                            }}
-                            {...stylex.attrs(styles.brand, styles.brandSwitch)}
-                        >
-                            <Mark />
-                            Destack
-                            <span
-                                aria-hidden="true"
-                                {...stylex.attrs(styles.track, isStackOpen() && styles.trackOn)}
-                            >
-                                <span
-                                    {...stylex.attrs(
-                                        styles.knob,
-                                        isStackOpen() ? styles.knobOn : styles.knobNudge,
-                                    )}
-                                />
-                            </span>
-                        </button>
-                    )}
+                    <SiteLink href="/" shortcut="h" style={styles.brand} title="Home (Alt+H)">
+                        <Mark />
+                        Destack
+                    </SiteLink>
                 </Goo>
 
                 {/* give each destination one two-column cell: packages, then documentation and blog */}
@@ -296,14 +250,6 @@ export function TopBar(properties: { stack?: boolean }) {
     );
 }
 
-/** The switch's knob nudging toward Destack now and then, hinting that it wants to be switched. */
-const nudge = stylex.keyframes({
-    "0%, 80%, 100%": { translate: "0 0" },
-    "86%": { translate: "0.5rem 0" },
-    "91%": { translate: "0.125rem 0" },
-    "95%": { translate: "0.25rem 0" },
-});
-
 /** The hover colour of navigation links. */
 const hover = { color: color.primary };
 
@@ -313,7 +259,7 @@ const styles = stylex.create({
         color: color.foreground,
     },
     bar: {
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         fontSize: "var(--size-navigation)",
         height: tokens.bar,
     },
@@ -325,7 +271,7 @@ const styles = stylex.create({
         alignItems: "center",
         color: tokens.cream,
         display: "flex",
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "0.625rem",
@@ -333,47 +279,10 @@ const styles = stylex.create({
         paddingInline: tokens.inset,
         ":hover": { color: tokens.signal },
     },
-    brandSwitch: {
-        backgroundColor: "transparent",
-        borderWidth: 0,
-        cursor: "pointer",
-        width: "100%",
-    },
-    track: {
-        borderColor: "currentColor",
-        borderRadius: "999px",
-        borderStyle: "solid",
-        borderWidth: "1.5px",
-        display: "flex",
-        height: "1.25rem",
-        marginInlineStart: "auto",
-        padding: "2px",
-        transition: `background-color 300ms ease, border-color 300ms ease`,
-        width: "2.25rem",
-    },
-    trackOn: {
-        backgroundColor: tokens.signal,
-        borderColor: tokens.signal,
-    },
-    knob: {
-        backgroundColor: tokens.cream,
-        borderRadius: "50%",
-        height: "0.8125rem",
-        transition: "translate 450ms cubic-bezier(0.4, 0, 0.2, 1.3)",
-        width: "0.8125rem",
-        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
-    },
-    knobOn: {
-        backgroundColor: tokens.space,
-        translate: "1rem 0",
-    },
-    knobNudge: {
-        animationDuration: "4s",
-        animationIterationCount: "infinite",
-        animationName: nudge,
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
-    },
     navigation: {
+        borderLeftColor: tokens.rule,
+        borderLeftStyle: "solid",
+        borderLeftWidth: tokens.hairline,
         display: "grid",
         gridColumn: "span 6",
         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
@@ -428,7 +337,7 @@ const styles = stylex.create({
         borderWidth: 0,
         color: color.mutedForeground,
         cursor: "not-allowed",
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         fontSize: "var(--size-navigation)",
     },
     signIn: {
@@ -460,7 +369,7 @@ const styles = stylex.create({
         backgroundColor: color.background,
         borderWidth: 0,
         color: color.foreground,
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         height: "100dvh",
         inset: 0,
         margin: 0,

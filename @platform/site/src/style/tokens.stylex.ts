@@ -8,10 +8,8 @@ export const tokens = stylex.defineConsts({
     column: "var(--site-column)",
     /** The height of the header, footer, and toolbar rows. */
     bar: "var(--site-bar)",
-    /** The homepage row height, sized so the hero, six stage rows, and two bars fill the window. */
+    /** The homepage stack figure's row height, a fixed share of a column. */
     row: "var(--site-row)",
-    /** The homepage hero's height, fitted to its three dictionary entries. */
-    hero: "var(--site-hero)",
     /** The taller row height of the homepage stack figure. */
     stage: "var(--site-stage)",
     /** The breadboard hole pitch across: the stack figure's drawing is 88 cells over eight columns. */

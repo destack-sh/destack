@@ -20,12 +20,7 @@
         --site-width: min(1200px, calc(100vw - 48px));
         --site-column: calc(var(--site-width) / 12);
         --site-bar: 56px;
-        --site-hero: 13rem;
-        --site-row: clamp(
-            max(48px, calc(var(--site-column) * 0.5)),
-            calc((100svh - var(--site-bar) * 2 - 3px - var(--site-hero)) / 9.4),
-            calc(var(--site-column) * 0.95)
-        );
+        --site-row: calc(var(--site-column) * 0.95);
         --site-stage: calc(var(--site-row) * 9.4 / 6);
         --site-cell: calc(var(--site-column) * 8 / 88);
         --site-cell-row: calc(var(--site-stage) / 9);
@@ -37,7 +32,7 @@
         --publication-page-muted: var(--destack-color-muted);
         --publication-listing: var(--destack-color-muted);
         --publication-ink: var(--destack-color-foreground);
-        --publication-soft: var(--destack-color-mutedForeground);
+        --publication-soft: var(--destack-color-muted-foreground);
         --publication-line: var(--destack-color-border);
         --publication-accent: var(--destack-color-primary);
         --publication-rust: light-dark(#a44328, #ec9878);

@@ -18,6 +18,7 @@ export const commandEvents = {
     copyMarkdown: "destack:copy-md",
     copyText: "destack:copy-txt",
     open: "destack:search",
+    showLayer: "destack:show-layer",
     switchStack: "destack:switch-stack",
 } as const;
 
@@ -143,6 +144,7 @@ export function matchCommands(
     scope: SearchScope = "All",
 ): readonly CommandMatch[] {
     const terms = termsFor(query);
+    const [first] = terms;
 
     return commands
         .filter(
@@ -163,11 +165,11 @@ export function matchCommands(
         )
         .map((command) => ({ command, score: scoreCommand(command, terms) }))
         .filter((result) => result.score >= 0)
-        .sort((left, right) => right.score - left.score)
+        .toSorted((left, right) => right.score - left.score)
         .slice(0, limit)
         .map(({ command }) => ({
             command,
-            excerpt: terms.length === 0 ? "" : excerptFor(command.text, terms[0]),
+            excerpt: first === undefined ? "" : excerptFor(command.text, first),
             terms,
         }));
 }
@@ -196,7 +198,7 @@ export function highlightSegments(
     // match the longest terms first
     const normalizedTerms = [...new Set(terms.map((term) => term.toLowerCase()))]
         .filter(Boolean)
-        .sort((left, right) => right.length - left.length);
+        .toSorted((left, right) => right.length - left.length);
     const lower = text.toLowerCase();
     const segments: HighlightSegment[] = [];
     let start = 0;
@@ -204,7 +206,7 @@ export function highlightSegments(
 
     // split the text at each term match
     while (index < text.length) {
-        const term = normalizedTerms.find((candidate) => lower.startsWith(candidate, index));
+        const term = termAt(normalizedTerms, lower, index);
         if (term == undefined) {
             index += 1;
             continue;
@@ -259,9 +261,14 @@ function eventCommand(
     };
 }
 
+/** Find the first term starting at one position of lowercase text. */
+function termAt(terms: readonly string[], lower: string, index: number): string | undefined {
+    return terms.find((term) => lower.startsWith(term, index));
+}
+
 /** Normalize a free-form query into unique terms. */
 function termsFor(query: string) {
-    return [...new Set(query.toLowerCase().trim().split(/\s+/).filter(Boolean))];
+    return [...new Set(query.toLowerCase().trim().split(/\s+/u).filter(Boolean))];
 }
 
 /** Score one command against all normalized query terms. */
@@ -311,7 +318,7 @@ function rankFor(kind: Command["kind"]) {
 /** Extract a compact passage around one matching term. */
 function excerptFor(text: string, term: string) {
     // cut a passage around the first match
-    const normalized = text.replace(/\s+/g, " ").trim();
+    const normalized = text.replace(/\s+/gu, " ").trim();
     const match = normalized.toLowerCase().indexOf(term);
     const start = Math.max(0, match - 42);
     const end = Math.min(normalized.length, start + 132);

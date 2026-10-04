@@ -1,4 +1,4 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { color, text } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import type { JSX } from "@destack/view";
 
@@ -22,7 +22,7 @@ export function Shell(properties: { children: JSX.Element; flow?: number; univer
         <div {...stylex.attrs(styles.root)}>
             <Universe isOpen={isOpen()} flow={flow()} />
             <KeyboardShortcuts />
-            <TopBar stack={properties.universe} />
+            <TopBar />
             <main {...stylex.attrs(styles.main)}>{properties.children}</main>
             <Footer />
         </div>
@@ -34,7 +34,7 @@ const styles = stylex.create({
     root: {
         color: color.foreground,
         display: "grid",
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         gridTemplateRows: "auto minmax(0, 1fr) auto",
         isolation: "isolate",
         minHeight: "100svh",

@@ -1,12 +1,14 @@
 import { createSignal } from "@destack/view";
 
 import { travel } from "../effect/water";
-import { StackFigure } from "../home/figure";
+import { Apps } from "../home/apps";
+import { Closing } from "../home/closing";
 import { Hero } from "../home/hero";
+import { Parts } from "../home/parts";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 
-/** Render the public Destack homepage. */
+/** Render the public Destack homepage: the word in its forms, from verb to participle. */
 export function HomePage() {
     // hold the open stack, the black hole flow, and its settle timer
     const [isOpen, setIsOpen] = createSignal(false);
@@ -14,19 +16,21 @@ export function HomePage() {
     let settle: ReturnType<typeof setTimeout> | undefined;
 
     // run the water through the black hole while the figure drains or fills
-    const change = (isOpen: boolean) => {
+    const change = (isOpening: boolean) => {
         // open or close the universe with the stack
-        setIsOpen(isOpen);
+        setIsOpen(isOpening);
         clearTimeout(settle);
-        setFlow(isOpen ? 1 : -1);
+        setFlow(isOpening ? 1 : -1);
         settle = setTimeout(() => setFlow(0), travel);
     };
 
     return (
         <Shell flow={flow()} universe={isOpen()}>
             <Seo />
-            <Hero />
-            <StackFigure onChange={change} />
+            <Hero isOpen={isOpen()} onChange={change} />
+            <Parts />
+            <Apps />
+            <Closing />
         </Shell>
     );
 }

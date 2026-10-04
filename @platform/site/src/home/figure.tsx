@@ -1,9 +1,10 @@
 import { color } from "@destack/theme/tokens.stylex";
+import { present } from "@destack/schema";
 import * as stylex from "@destack/style";
 import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/view";
 
 import { Debris } from "../effect/debris";
-import { isDarkPage } from "../effect/gl";
+import { isDarkPage, isWeakGraphics } from "../effect/gl";
 import { charge } from "../effect/goo";
 import { bergStagger, type Bob, crackTime, Ice } from "../effect/ice";
 import { type Flight, sound } from "../effect/sound";
@@ -15,6 +16,7 @@ import {
     stir,
     travel,
     Water,
+    type WaterPalette,
     waterSpill,
     waveAt,
 } from "../effect/water";
@@ -33,7 +35,9 @@ import {
 } from "./board";
 import { Flotsam } from "./flotsam";
 import { orbitOf } from "../site/mark";
-import { appUses, Remix, sceneSources, scenes, slotApps, todayScenes } from "./remix";
+import { Remix, sceneSources, scenes, slotApps, todayScenes, usesOf } from "./remix";
+import { telemetry } from "@destack/telemetry";
+import { log } from "../site/telemetry.ts";
 
 /** The pitch each berg cracks at, from the left to the right, so the three breaks sound apart. */
 const bergPitches = [1.12, 1, 0.9];
@@ -72,8 +76,8 @@ type Layer = {
     claim: Record<Stack, string>;
     /** What the layer is made of. */
     detail: Record<Stack, string>;
-    /** What the layer costs you, as a line on the bill, today counted from the scene's people and vendors. */
-    item: { today: (count: Count) => string; destack: string };
+    /** What the layer costs you, as a line on the bill counted from the scene's people and vendors. */
+    item: Record<Stack, (count: Count) => string>;
 };
 
 /** The people and vendors in the scene on screen, which the bill counts. */
@@ -84,6 +88,9 @@ type Count = {
     vendors: number;
 };
 
+/** How long a shown layer stays lit, in milliseconds. */
+const litTime = 2600;
+
 /** The six layers, from the users of the stack down to where it runs. */
 const layers: readonly Layer[] = [
     {
@@ -93,7 +100,7 @@ const layers: readonly Layer[] = [
         item: {
             today: ({ people, vendors }) =>
                 `${people} people × ${vendors} logins = ${people * vendors} logins`,
-            destack: "one account each",
+            destack: ({ people }) => `${people} people × 1 account = ${people} accounts`,
         },
     },
     {
@@ -103,7 +110,7 @@ const layers: readonly Layer[] = [
         item: {
             today: ({ people, vendors }) =>
                 `${vendors} vendors × ${people} seats = ${people * vendors} licences`,
-            destack: "0 seat licences",
+            destack: () => "0 licences",
         },
     },
     {
@@ -112,7 +119,7 @@ const layers: readonly Layer[] = [
         detail: { today: "Private APIs", destack: "HTTP, OpenAPI" },
         item: {
             today: ({ vendors }) => `${vendors} separate rate-limited APIs`,
-            destack: "1 complete API",
+            destack: () => "1 API for every app",
         },
     },
     {
@@ -121,14 +128,14 @@ const layers: readonly Layer[] = [
         detail: { today: "Vendor formats", destack: "SQL, JSON, MD, S3" },
         item: {
             today: ({ vendors }) => `${vendors} separate data silos`,
-            destack: "1 unified data plane",
+            destack: () => "1 data plane",
         },
     },
     {
         name: "Source",
         claim: { today: "Trust blindly", destack: "Fork the code" },
         detail: { today: "Closed source", destack: "Git, npm" },
-        item: { today: ({ vendors }) => `${vendors} black boxes`, destack: "1 open codebase" },
+        item: { today: ({ vendors }) => `${vendors} black boxes`, destack: () => "0 black boxes" },
     },
     {
         name: "Hosts",
@@ -136,13 +143,10 @@ const layers: readonly Layer[] = [
         detail: { today: "Their cloud", destack: "Node, Docker, Workers" },
         item: {
             today: ({ vendors }) => `${vendors} extra compute planes`,
-            destack: "any machine you choose",
+            destack: () => "1 compute plane",
         },
     },
 ];
-
-/** The icons of the layers each silo keeps under water, from services down to hosts. */
-const sunkIcons = ["services", "storage", "source", "cloud"];
 
 /** The layers each vendor keeps under water, one per submerged row. */
 const locked: Readonly<Record<string, readonly Entity[]>> = {
@@ -419,7 +423,7 @@ const tapeLength = 72;
 /** How far each end of a strip of duct tape grips into its card, in pixels. */
 const tapeGrip = 13;
 /** How far below each card's middle the two ends of each strip are stuck, in pixels. */
-const tapeDrops = [
+const tapeDrops: readonly (readonly [number, number])[] = [
     [-5, 3],
     [4, -4],
 ];
@@ -448,6 +452,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const [isAdrift, setIsAdrift] = createSignal(false);
     const [today, setToday] = createSignal(0);
     const [surfacedAt, setSurfacedAt] = createSignal(0);
+    const [litLayer, setLitLayer] = createSignal<number | undefined>(undefined);
     const isOpen = createMemo(() => stack() === "destack");
     const count = createMemo((): Count => {
         // count the people and vendors in the scene on screen
@@ -461,21 +466,46 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             vendors: new Set(shown.lower.map((card) => card.id)).size,
         };
     });
-    let figure!: HTMLElement;
-    let drawing!: HTMLDivElement;
-    let canvas!: HTMLCanvasElement;
-    let iceCanvas!: HTMLCanvasElement;
-    let lens!: HTMLDivElement;
+    let figureElement: HTMLElement | undefined;
+    let drawingElement: HTMLDivElement | undefined;
+    let canvasElement: HTMLCanvasElement | undefined;
+    let iceCanvasElement: HTMLCanvasElement | undefined;
+    let lensElement: HTMLDivElement | undefined;
     let water: Water | undefined;
     let sparks: Sparks | undefined;
-    let sparkCanvas!: HTMLCanvasElement;
+    let sparkCanvasElement: HTMLCanvasElement | undefined;
     let swirling: ReturnType<typeof setInterval> | undefined;
     let ice: Ice | undefined;
     let debris: Debris | undefined;
-    let debrisCanvas!: HTMLCanvasElement;
+    let debrisCanvasElement: HTMLCanvasElement | undefined;
     let settle: ReturnType<typeof setTimeout> | undefined;
     let rising: ReturnType<typeof setTimeout> | undefined;
     let calm: ReturnType<typeof setTimeout> | undefined;
+
+    // read the rendered elements or throw when the figure lacks them
+    const elements = () => {
+        if (
+            !figureElement ||
+            !drawingElement ||
+            !canvasElement ||
+            !iceCanvasElement ||
+            !lensElement ||
+            !sparkCanvasElement ||
+            !debrisCanvasElement
+        ) {
+            throw new TypeError("the stack figure rendered without its drawing and canvases");
+        }
+
+        return {
+            figure: figureElement,
+            drawing: drawingElement,
+            canvas: canvasElement,
+            iceCanvas: iceCanvasElement,
+            lens: lensElement,
+            sparkCanvas: sparkCanvasElement,
+            debrisCanvas: debrisCanvasElement,
+        };
+    };
 
     // set things adrift after a while on still water
     const drift = () => {
@@ -490,13 +520,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const frame = { offset: 0, shift: 0, width: 0, height: 0, depth: 0 };
     const measure = () => {
         // read the drawing's offset and size within the water canvas
-        const bounds = drawing.getBoundingClientRect();
-        const origin = canvas.getBoundingClientRect();
+        const bounds = elements().drawing.getBoundingClientRect();
+        const origin = elements().canvas.getBoundingClientRect();
         frame.offset = bounds.top - origin.top;
         frame.shift = bounds.left - origin.left;
         frame.width = bounds.width;
         frame.height = bounds.height;
-        frame.depth = canvas.clientHeight;
+        frame.depth = elements().canvas.clientHeight;
     };
 
     // return the waterline of a configuration in canvas pixels
@@ -512,13 +542,18 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         light.waterline = level;
         const { offset, height } = frame;
         const row = height / layers.length;
-        for (let index = dryRows; index < layers.length; index++) {
+        const { style } = elements().figure;
+        for (const [index, previous] of reveals.entries()) {
+            // leave the dry rows above the waterline alone
+            if (index < dryRows) {
+                continue;
+            }
             const passed = (level - offset - row * index) / row;
             const reveal = Math.max(0, Math.min(1, passed));
-            figure.style.setProperty(`--reveal-${index}`, reveal.toFixed(3));
+            style.setProperty(`--reveal-${index}`, reveal.toFixed(3));
 
             // pluck a note as each band comes into view, climbing the chord
-            if (reveals[index] < 0.5 && reveal >= 0.5) {
+            if (previous < 0.5 && reveal >= 0.5) {
                 sound.pluck(index - dryRows);
             }
             reveals[index] = reveal;
@@ -529,9 +564,10 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let stirredAt: number | undefined;
     const aim = (event: PointerEvent) => {
         // aim the light at the pointer, and turn it off over controls
-        const bounds = figure.getBoundingClientRect();
+        const bounds = elements().figure.getBoundingClientRect();
         light.target = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
-        const isControl = (event.target as Element).closest("button, a") !== null;
+        const origin = event.target;
+        const isControl = origin instanceof Element && origin.closest("button, a") !== null;
         light.isOn = event.pointerType === "mouse" && event.buttons === 0 && !isControl;
 
         // stir the water when skimming it, harder the closer the pointer
@@ -555,7 +591,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     // pick points across the ice above and just below the waterline, in page pixels, where shards break off
     const shardOrigins = () => {
         // read the drawing and the bergs' size
-        const bounds = drawing.getBoundingClientRect();
+        const bounds = elements().drawing.getBoundingClientRect();
         const third = frame.width / 3;
         const waterline = (frame.height * dryRows) / layers.length;
         const peak = Math.min(third * 0.42, waterline * 0.62);
@@ -600,8 +636,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         // spray sparks where the ice breaks, and swirl motes down into the drain as the water goes
         clearInterval(swirling);
         if (next === "destack" && sparks) {
-            const bounds = drawing.getBoundingClientRect();
-            const origin = sparkCanvas.getBoundingClientRect();
+            const bounds = elements().drawing.getBoundingClientRect();
+            const origin = elements().sparkCanvas.getBoundingClientRect();
             const y = frame.offset + (frame.height * dryRows) / layers.length;
             for (const centre of columnCentres) {
                 sparks.burst(
@@ -611,13 +647,14 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 );
             }
             const began = performance.now();
+            const motes = sparks;
             swirling = setInterval(() => {
                 if (performance.now() - began > travel) {
                     clearInterval(swirling);
                 }
-                sparks!.swirl(
-                    canvas.clientWidth * 0.3,
-                    canvas.clientWidth - waterSpill * 2,
+                motes.swirl(
+                    elements().canvas.clientWidth * 0.3,
+                    elements().canvas.clientWidth - waterSpill * 2,
                     light.waterline + 10,
                     2,
                 );
@@ -628,36 +665,24 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         sound.play(next === "destack" ? "destack" : "restack");
         sound.follow(next);
 
-        // sound each shard's flight, breaking off and chiming into the ring, or falling home to the freezing ice
-        const soundFlights = (play: (flights: Flight[]) => void) => {
-            const now = performance.now();
-            play(
-                debris!.shards.map((shard) => ({
-                    leaveIn: (shard.at - now) / 1000,
-                    reachIn: (shard.at + shard.duration - now) / 1000,
-                    position: (shard.home.x - window.scrollX) / window.innerWidth,
-                })),
-            );
-        };
-
         // crack each berg in turn, then send its shards up into the planet's ring once it bursts
         clearTimeout(rising);
         if (next === "destack") {
-            columnCentres.forEach((_, berg) => {
+            for (const [berg, pitch] of bergPitches.entries()) {
                 const crackIn = (berg * bergStagger) / 1000;
-                sound.breakIce(crackIn, crackIn + crackTime / 1000, bergPitches[berg]);
-            });
+                sound.breakIce(crackIn, crackIn + crackTime / 1000, pitch);
+            }
             rising = setTimeout(() => {
                 if (debris) {
                     debris.rise(shardOrigins());
-                    soundFlights((flights) => sound.shatter(flights));
+                    soundFlights(debris, (flights) => sound.shatter(flights));
                 }
             }, crackTime);
         }
         // bring the shards home to the reforming ice
         else if (debris) {
             debris.fall();
-            soundFlights((flights) => sound.gather(flights));
+            soundFlights(debris, (flights) => sound.gather(flights));
         }
 
         // shatter the ice as the water drains, or clump it together just before it returns
@@ -680,9 +705,31 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
     // start the ice, water, and searchlight once the figure is in the page
     onSettled(() => {
+        // require the rendered drawing and canvases
+        const { figure, drawing, canvas, iceCanvas, lens, sparkCanvas, debrisCanvas } = elements();
+
         // flip the stack whenever the page's switch asks for it
         const flip = () => select(isOpen() ? "today" : "destack");
         document.addEventListener(commandEvents.switchStack, flip);
+
+        // show a layer when the page asks: destack, bring the figure into view, and light the layer's row a while
+        let unlight: ReturnType<typeof setTimeout> | undefined;
+        const show = (event: Event) => {
+            // refuse a show request that names no layer
+            if (!(event instanceof CustomEvent) || typeof event.detail !== "number") {
+                throw new TypeError("show layer requires a layer index");
+            }
+
+            // destack first, then bring the figure and the layer's row into view
+            if (!isOpen()) {
+                select("destack");
+            }
+            figure.scrollIntoView({ behavior: "smooth", block: "center" });
+            setLitLayer(event.detail);
+            clearTimeout(unlight);
+            unlight = setTimeout(() => setLitLayer(undefined), litTime);
+        };
+        document.addEventListener(commandEvents.showLayer, show);
 
         // read the motion preference and set the flotsam adrift
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -698,21 +745,32 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                   }
               }, swapTime);
 
-        // pick the water palette for the page theme
-        const palette = () => (isDarkPage() ? nightWater : paperWater);
-
         // start the ice and water, or leave the figure dry when the browser has no WebGL
         const waterline = () => (frame.height * dryRows) / layers.length;
-        const masses = columnCentres.map(() => ({ lift: 0, sway: 0, tilt: 0, at: 0 }));
+        const bergs = columnCentres.map((centre) => ({
+            centre,
+            mass: { lift: 0, sway: 0, tilt: 0, at: 0 },
+            tape: { centre: { x: 0, y: 0 }, tilt: 0 },
+        }));
+        const bergAt = (berg: number) => {
+            // reject a berg index outside the three columns
+            const found = bergs[berg];
+            if (!found) {
+                throw new TypeError(`missing berg ${berg}`);
+            }
+
+            return found;
+        };
         let riders:
             | { element: HTMLElement; berg: number; lift: number; rest: number; height: number }[]
             | undefined;
-        let sunk: { element: HTMLElement; berg: number; depth: number }[] | undefined;
+        let sunken: { element: HTMLElement; berg: number; depth: number }[] | undefined;
 
         // float a heavy berg on the waves: heave and lean a little with the water under it, and slide slowly to and fro
         const bobOf = (berg: number, seconds: number): Bob => {
             // read the waves under the berg's centre
-            const x = frame.shift + (frame.width / boardCells) * columnCentres[berg];
+            const { centre, mass: state } = bergAt(berg);
+            const x = frame.shift + (frame.width / boardCells) * centre;
             const heave = Math.sin(seconds * 0.45 + berg * 2.1) * 1.5;
             const slope = waveAt(x + 60, seconds) - waveAt(x - 60, seconds);
             const target = {
@@ -724,7 +782,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             };
 
             // ease the heavy berg toward what the water asks of it
-            const state = masses[berg];
             const step = state.at === 0 ? 1 : 1 - Math.exp(-(seconds - state.at) / bergInertia);
             state.at = seconds;
             state.lift += (target.lift - state.lift) * step;
@@ -737,35 +794,48 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         // return the bottom of a card's resting place, ignoring drag and float offsets
         const restingBottom = (element: HTMLElement) => {
             let bottom = element.offsetHeight;
-            for (let node: HTMLElement | null = element; node && node !== drawing;) {
+            for (
+                let node: Element | null = element;
+                node instanceof HTMLElement && node !== drawing;
+            ) {
                 bottom += node.offsetTop;
-                node = node.offsetParent as HTMLElement | null;
+                node = node.offsetParent;
             }
 
             return bottom;
         };
         let strips: SVGElement[] | undefined;
-        const tapeCentres: Point[] = columnCentres.map(() => ({ x: 0, y: 0 }));
-        const tapeTilts: number[] = columnCentres.map(() => 0);
 
         // stick a tape to where its cards actually are, then span, turn, and stretch it
-        const stick = (tape: SVGElement, gap: number, centres: Point[], tilts: number[]) => {
+        const stick = (tape: SVGElement, gap: number) => {
+            // read the bergs on both sides of the gap and where the tape grips them
+            const left = bergAt(gap);
+            const right = bergAt(gap + 1);
+            const drops = tapeDrops[gap];
+            if (!drops) {
+                throw new TypeError(`missing tape drops for gap ${gap}`);
+            }
+
             // find each tape end on its tilted card
             const cell = frame.width / boardCells;
             const middle = (frame.height / (rowCells * layers.length)) * rowCells * 1.5;
             const half = (cell * columnWidth) / 2 - tapeGrip;
-            const anchor = (berg: number, side: number, drop: number) => {
-                const angle = (tilts[berg] * Math.PI) / 180;
+            const anchor = (
+                berg: { tape: { centre: Point; tilt: number } },
+                side: number,
+                drop: number,
+            ) => {
+                const angle = (berg.tape.tilt * Math.PI) / 180;
                 const x = side * half;
 
                 return {
-                    x: centres[berg].x + x * Math.cos(angle) - drop * Math.sin(angle),
-                    y: centres[berg].y + x * Math.sin(angle) + drop * Math.cos(angle),
+                    x: berg.tape.centre.x + x * Math.cos(angle) - drop * Math.sin(angle),
+                    y: berg.tape.centre.y + x * Math.sin(angle) + drop * Math.cos(angle),
                 };
             };
-            const from = anchor(gap, 1, tapeDrops[gap][0]);
-            const to = anchor(gap + 1, -1, tapeDrops[gap][1]);
-            const rest = cell * (columnCentres[gap] + columnCentres[gap + 1]) * 0.5;
+            const from = anchor(left, 1, drops[0]);
+            const to = anchor(right, -1, drops[1]);
+            const rest = cell * (left.centre + right.centre) * 0.5;
             const length = Math.hypot(to.x - from.x, to.y - from.y);
             const turn = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
             tape.style.translate = `${((from.x + to.x) / 2 - rest).toFixed(2)}px ${((from.y + to.y) / 2 - middle).toFixed(2)}px`;
@@ -775,70 +845,81 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         measure();
         try {
             const centres = columnCentres.map((centre) => centre / boardCells);
-            ice = new Ice(iceCanvas, centres, !isStill, bobOf, () => {
+            ice = new Ice(iceCanvas, centres, !isStill && !isWeakGraphics(), bobOf, (bobs) => {
                 // collect the cards riding the bergs and the cards sunk inside them, once
                 riders ??= [...figure.querySelectorAll<HTMLElement>("[data-bob]")].map(
                     (element) => ({
                         element,
-                        berg: Number(element.dataset.bob),
+                        berg: Number(element.dataset["bob"]),
                         lift: 0,
                         rest: restingBottom(element),
                         height: element.offsetHeight,
                     }),
                 );
-                sunk ??= [...figure.querySelectorAll<HTMLElement>("[data-sunk]")].map(
+                sunken ??= [...figure.querySelectorAll<HTMLElement>("[data-sunk]")].map(
                     (element) => ({
                         element,
-                        berg: Number(element.dataset.sunk),
-                        depth: Number(element.dataset.depth),
+                        berg: Number(element.dataset["sunk"]),
+                        depth: Number(element.dataset["depth"]),
                     }),
                 );
-                const bobs = ice!.bobs;
                 const cell = frame.width / boardCells;
+                const bobAt = (berg: number) => {
+                    // reject a card riding a berg the ice does not float
+                    const bob = bobs[berg];
+                    if (!bob) {
+                        throw new TypeError(`missing bob for berg ${berg}`);
+                    }
+
+                    return bob;
+                };
 
                 // read where each showing silo is dragged or springing home to, less its centring, before any writes
                 const drags = riders.map((rider) => {
                     // skip hidden silos
-                    const card = rider.element.parentElement!;
+                    const card = rider.element.parentElement;
+                    if (!card) {
+                        throw new TypeError("a riding card has no silo");
+                    }
                     if (card.style.opacity === "0") {
-                        return undefined;
+                        return { rider, drag: undefined };
                     }
 
                     // read the rendered offset
                     const offset = new DOMMatrixReadOnly(getComputedStyle(card).transform);
 
-                    return { x: offset.m41, y: offset.m42 + rider.height / 2 };
+                    return { rider, drag: { x: offset.m41, y: offset.m42 + rider.height / 2 } };
                 });
 
                 // float each vendor card low above its berg, moving with it
-                for (const [index, rider] of riders.entries()) {
+                for (const { rider, drag } of drags) {
                     // move the rider with its berg
-                    const bob = bobs[rider.berg];
+                    const bob = bobAt(rider.berg);
+                    const berg = bergAt(rider.berg);
                     const sink = waterline() - rider.rest + rider.height * cardDraft;
                     rider.lift = sink + bob.lift;
-                    tapeTilts[rider.berg] = bob.tilt;
+                    berg.tape.tilt = bob.tilt;
                     rider.element.style.setProperty("--lift", `${rider.lift.toFixed(2)}px`);
                     rider.element.style.setProperty("--sway", `${bob.sway.toFixed(2)}px`);
                     rider.element.style.setProperty("--tilt", `${bob.tilt.toFixed(2)}deg`);
 
                     // hold the showing silo's tapes where it floats, dragged or not
-                    const drag = drags[index];
                     if (drag) {
-                        tapeCentres[rider.berg] = {
-                            x: cell * columnCentres[rider.berg] + bob.sway + drag.x,
+                        berg.tape.centre = {
+                            x: cell * berg.centre + bob.sway + drag.x,
                             y: rider.rest - rider.height + rider.lift + drag.y,
                         };
                     }
                 }
                 strips ??= [...figure.querySelectorAll<SVGElement>("[data-tape]")];
                 for (const tape of strips) {
-                    stick(tape, Number(tape.dataset.tape), tapeCentres, tapeTilts);
+                    stick(tape, Number(tape.dataset["tape"]));
                 }
 
                 // swing each sunk card around its berg's pivot on the waterline
                 const row = frame.height / layers.length;
-                for (const card of sunk) {
-                    const bob = bobs[card.berg];
+                for (const card of sunken) {
+                    const bob = bobAt(card.berg);
                     const angle = (bob.tilt * Math.PI) / 180;
                     const depth = row * (card.depth + 0.5);
                     const x = bob.sway - depth * Math.sin(angle);
@@ -848,7 +929,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 }
             });
             ice.place(waterline(), frame.height - waterline(), frame.shift);
-            water = new Water(canvas, palette(), waterlineOf(stack()), !isStill, follow);
+            water = new Water(
+                canvas,
+                palette(),
+                waterlineOf(stack()),
+                !isStill && !isWeakGraphics(),
+                follow,
+            );
             if (!isStill) {
                 debris = new Debris(debrisCanvas, orbitOf);
                 sparks = new Sparks(sparkCanvas);
@@ -859,7 +946,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             }
             water.shader.request();
         } catch (error) {
-            console.error("water rendering failed", error);
+            log.error("water.render.failed", telemetry.exceptionAttributes(error));
         }
 
         // repaint on theme changes and keep the ice and water on the waterline through resizes
@@ -887,16 +974,22 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
             // measure the boxes with an inside, and light up only under water or over a visible box
             const bounds = figure.getBoundingClientRect();
-            const boxes = [...figure.querySelectorAll<HTMLElement>("[data-inside]")];
-            const places = boxes.map((box) => box.parentElement!.getBoundingClientRect());
+            const boxes = [...figure.querySelectorAll<HTMLElement>("[data-inside]")].map((box) => {
+                const outside = box.parentElement;
+                if (!outside) {
+                    throw new TypeError("a box's inside has no box around it");
+                }
+
+                return { box, outside, place: outside.getBoundingClientRect() };
+            });
             const pointer = { x: light.target.x + bounds.left, y: light.target.y + bounds.top };
-            const isOverBox = places.some(
-                (place, index) =>
+            const isOverBox = boxes.some(
+                ({ outside, place }) =>
                     pointer.x >= place.left &&
                     pointer.x <= place.right &&
                     pointer.y >= place.top &&
                     pointer.y <= place.bottom &&
-                    boxes[index].parentElement!.checkVisibility({ opacityProperty: true }),
+                    outside.checkVisibility({ opacityProperty: true }),
             );
             const isUnderWater = !isOpen() && light.target.y > light.waterline;
             const goal = light.isOn && (isOverBox || isUnderWater) ? (isOpen() ? 72 : 96) : 0;
@@ -916,9 +1009,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             lens.style.width = `${radius * 2}px`;
             lens.style.height = `${radius * 2}px`;
             water?.shine(light.x + waterSpill, light.y, radius);
-            boxes.forEach((box, index) => {
+            boxes.forEach(({ box, place }) => {
                 // show only the insides the lens touches, and leave the rest out of the page's painting
-                const place = places[index];
                 const x = light.x + bounds.left;
                 const y = light.y + bounds.top;
                 const gap = Math.hypot(
@@ -938,16 +1030,18 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         };
 
         // pause the ice, water, and searchlight while the figure is off screen
-        const sight = new IntersectionObserver(([entry]) => {
-            // show or hide the effects, and restart the searchlight on screen
-            ice?.shader.show(entry.isIntersecting);
-            water?.shader.show(entry.isIntersecting);
-            if (beam !== undefined) {
-                cancelAnimationFrame(beam);
-                beam = undefined;
-            }
-            if (entry.isIntersecting) {
-                beam = requestAnimationFrame(shine);
+        const sight = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                // show or hide the effects, and restart the searchlight on screen
+                ice?.shader.show(entry.isIntersecting);
+                water?.shader.show(entry.isIntersecting);
+                if (beam !== undefined) {
+                    cancelAnimationFrame(beam);
+                    beam = undefined;
+                }
+                if (entry.isIntersecting) {
+                    beam = requestAnimationFrame(shine);
+                }
             }
         });
         sight.observe(figure);
@@ -955,6 +1049,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         return () => {
             // stop listening, and stop the observers, timers, and frames
             document.removeEventListener(commandEvents.switchStack, flip);
+            document.removeEventListener(commandEvents.showLayer, show);
+            clearTimeout(unlight);
             sight.disconnect();
             themes.disconnect();
             resize.disconnect();
@@ -975,7 +1071,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
     return (
         <figure
-            ref={figure}
+            ref={figureElement}
             aria-label="Apps today compared with Destack"
             onPointerMove={aim}
             onPointerLeave={leave}
@@ -1000,7 +1096,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                 ? {}
                                 : { opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))` }),
                         }}
-                        {...stylex.attrs(styles.claim)}
+                        {...stylex.attrs(styles.claim, litLayer() === index() && styles.claimLit)}
                     >
                         <span
                             style={numberOnWater(index())}
@@ -1035,7 +1131,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             row={index()}
                             isOpen={isOpen()}
                             today={layer.item.today(count())}
-                            destack={layer.item.destack}
+                            destack={layer.item.destack(count())}
                             style={styles.itemText}
                         />
                     </div>
@@ -1046,9 +1142,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             <Flotsam isAdrift={isAdrift()} surfacedAt={surfacedAt()} waterline="var(--waterline)" />
 
             {/* draw both configurations in the six middle columns */}
-            <div ref={drawing} {...stylex.attrs(lattice.ruleRight, styles.drawing)}>
+            <div ref={drawingElement} {...stylex.attrs(lattice.ruleRight, styles.drawing)}>
                 <canvas
-                    ref={iceCanvas}
+                    ref={iceCanvasElement}
                     aria-hidden="true"
                     {...stylex.attrs(styles.ice, !isPainted() && styles.unpainted)}
                 />
@@ -1068,18 +1164,18 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             }}
                             {...stylex.attrs(styles.column, styles.sunkSlot)}
                         >
-                            {slotApps[berg].map((id) => (
+                            {silosOf(berg).map((id) => (
                                 <div
                                     class={
                                         stylex.attrs(
                                             styles.sunkCard,
-                                            todayScenes[today()].lower[berg].id !== id &&
-                                                styles.sunkAway,
+                                            siloOn(present(todayScenes[today()], "scene"), berg) !==
+                                                id && styles.sunkAway,
                                         ).class
                                     }
                                 >
                                     <Card
-                                        entity={locked[id][index]}
+                                        entity={lockedLayer(id, index)}
                                         kind="locked"
                                         reveal={{ kind: "cipher" }}
                                         style={styles.fill}
@@ -1091,9 +1187,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 )}
                 {tapeGaps.map((index) => (
                     <DuctTape
-                        label={tapeLabel(index, todayScenes[today()])}
+                        label={tapeLabel(index, present(todayScenes[today()], "scene"))}
                         gap={index}
-                        left={`calc(${tokens.cell} * ${(columnCentres[index] + columnCentres[index + 1]) / 2})`}
+                        left={`calc(${tokens.cell} * ${(centreOf(index) + centreOf(index + 1)) / 2})`}
                         style={[styles.tape, isOpen() ? styles.tapeGone : styles.tapeBack]}
                     />
                 ))}
@@ -1111,7 +1207,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         <Band
                             entity={entity.entity}
                             items={entity.items}
-                            active={isLive() ? activeOf(scene())[index] : []}
+                            active={isLive() ? activeOf(scene(), index) : []}
                         />
                     </div>
                 ))}
@@ -1120,7 +1216,15 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     isOpen={isOpen()}
                     today={today()}
                     isLive={isLive()}
-                    revealOf={(row) => reveals[row]}
+                    revealOf={(row) => {
+                        // read how far the water has left a row
+                        const reveal = reveals[row];
+                        if (reveal === undefined) {
+                            throw new TypeError(`missing row ${row}`);
+                        }
+
+                        return reveal;
+                    }}
                     onScene={setScene}
                 />
 
@@ -1152,7 +1256,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 {...stylex.attrs(styles.pool, (isPainted() || isOpen()) && styles.poolGone)}
             />
             <canvas
-                ref={canvas}
+                ref={canvasElement}
                 aria-hidden="true"
                 style={{
                     height: `calc(100% + ${waterSpill}px)`,
@@ -1163,13 +1267,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             />
 
             {/* carry shards of ice between the bergs and the planet's ring, over the whole page */}
-            <canvas ref={debrisCanvas} aria-hidden="true" {...stylex.attrs(styles.debris)} />
+            <canvas ref={debrisCanvasElement} aria-hidden="true" {...stylex.attrs(styles.debris)} />
 
             {/* glow sparks and motes over the water */}
-            <canvas ref={sparkCanvas} aria-hidden="true" {...stylex.attrs(styles.sparks)} />
+            <canvas ref={sparkCanvasElement} aria-hidden="true" {...stylex.attrs(styles.sparks)} />
 
             {/* ring the searchlight that follows the pointer */}
-            <div ref={lens} aria-hidden="true" {...stylex.attrs(styles.lens)}>
+            <div ref={lensElement} aria-hidden="true" {...stylex.attrs(styles.lens)}>
                 <svg viewBox="0 0 100 100" {...stylex.attrs(styles.lensRing)}>
                     <circle cx="50" cy="50" r="49" />
                     <path d="M50 -6V6M50 94V106M-6 50H6M94 50H106" />
@@ -1179,14 +1283,79 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     );
 }
 
-/** Return the items each shared layer lights up in an open scene: the services its apps call, their stores, and its source step. */
-function activeOf(scene: number): readonly (readonly string[])[] {
+/** Return the items a shared layer lights up in an open scene: the services its apps call, their stores, or its source step. */
+function activeOf(scene: number, band: number): readonly string[] {
     // follow each app of the scene to its service and on to its store
-    const uses = scenes[scene].lower.flatMap((card) => appUses[card.id]);
+    const uses = present(scenes[scene], "scene").lower.flatMap((card) => usesOf(card.id));
     const services = uses.map(([service]) => service);
     const stores = uses.map(([, store]) => store);
 
-    return [services, stores, [sceneSources[scene], "Build"]];
+    // pick the items of the one band
+    const active = [services, stores, [present(sceneSources[scene], "scene source"), "Build"]][
+        band
+    ];
+    if (!active) {
+        throw new TypeError(`shared band ${band} lights nothing`);
+    }
+
+    return active;
+}
+
+/** Return the centre of a board column, in cells. */
+function centreOf(berg: number): number {
+    const centre = columnCentres[berg];
+    if (centre === undefined) {
+        throw new TypeError(`missing column ${berg}`);
+    }
+
+    return centre;
+}
+
+/** Return the silos that take turns riding a berg. */
+function silosOf(berg: number): readonly string[] {
+    const silos = slotApps[berg];
+    if (!silos) {
+        throw new TypeError(`no silos ride berg ${berg}`);
+    }
+
+    return silos;
+}
+
+/** Return the silo riding a berg in a locked scene. */
+function siloOn(scene: (typeof todayScenes)[number], berg: number): string {
+    const card = scene.lower[berg];
+    if (!card) {
+        throw new TypeError(`no silo rides berg ${berg}`);
+    }
+
+    return card.id;
+}
+
+/** Return the layer a silo keeps under water at a depth. */
+function lockedLayer(id: string, depth: number): Entity {
+    const layer = locked[id]?.[depth];
+    if (!layer) {
+        throw new TypeError(`silo ${id} keeps no layer at depth ${depth}`);
+    }
+
+    return layer;
+}
+
+/** Sound each shard's flight, breaking off and chiming into the ring, or falling home to the freezing ice. */
+function soundFlights(shattered: Debris, play: (flights: Flight[]) => void): void {
+    const now = performance.now();
+    play(
+        shattered.shards.map((shard) => ({
+            leaveIn: (shard.at - now) / 1000,
+            reachIn: (shard.at + shard.duration - now) / 1000,
+            position: (shard.home.x - window.scrollX) / window.innerWidth,
+        })),
+    );
+}
+
+/** Pick the water palette for the page theme. */
+function palette(): WaterPalette {
+    return isDarkPage() ? nightWater : paperWater;
 }
 
 /** Return the mask that grows a shared band out of the three plates sunk in its row: three windows over the plates that widen until they meet. */
@@ -1212,8 +1381,16 @@ function growOutOfPlates(reveal: string): JSX.CSSProperties {
 }
 
 /** Return the four layers a silo keeps under water, each labelled with who holds it. */
-function sunk(role: string, labels: readonly string[]): Entity[] {
-    return labels.map((label, index) => ({ label, icon: sunkIcons[index], role }));
+function sunk(
+    role: string,
+    [services, storage, source, cloud]: readonly [string, string, string, string],
+): Entity[] {
+    return [
+        { label: services, icon: "services", role },
+        { label: storage, icon: "storage", role },
+        { label: source, icon: "source", role },
+        { label: cloud, icon: "cloud", role },
+    ];
 }
 
 /** Crossfade a row's text from today to Destack as the water leaves the row. */
@@ -1230,7 +1407,7 @@ function Swap(properties: {
 
     // set a thing as one dashed plate today, and as one plate per standard once open
     const plated = (text: string, isOpen: boolean) =>
-        properties.isPlated ? (
+        properties.isPlated === true ? (
             <span {...stylex.attrs(styles.plates)}>
                 {(isOpen ? text.split(", ") : [text]).map((part) => (
                     <span {...stylex.attrs(styles.plate, !isOpen && styles.plateClosed)}>
@@ -1276,10 +1453,14 @@ function Swap(properties: {
 /** Return the label taped across a gap between two icebergs, picked by the pair of silos it joins, so any swap on either side retapes it. */
 function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     // place each silo in its iceberg's turn, and step through the labels by coprime strides
-    const left = slotApps[gap].indexOf(scene.lower[gap].id);
-    const right = slotApps[gap + 1].indexOf(scene.lower[gap + 1].id);
+    const left = silosOf(gap).indexOf(siloOn(scene, gap));
+    const right = silosOf(gap + 1).indexOf(siloOn(scene, gap + 1));
+    const label = tapeLabels[(left + right * 3 + gap * 2) % tapeLabels.length];
+    if (label === undefined) {
+        throw new TypeError(`no tape label for gap ${gap}`);
+    }
 
-    return tapeLabels[(left + right * 3 + gap * 2) % tapeLabels.length];
+    return label;
 }
 
 /** Return a layer number colour that lights up orange as the water leaves its row. */
@@ -1305,7 +1486,13 @@ const styles = stylex.create({
         margin: 0,
         position: "relative",
     },
+    claimLit: {
+        backgroundColor: "rgb(255 121 46 / 16%)",
+        boxShadow: `inset 3px 0 0 ${tokens.signal}`,
+    },
     claim: {
+        transitionDuration: "400ms",
+        transitionProperty: "background-color, box-shadow",
         display: "flex",
         flexDirection: "column",
         gap: "0.25rem",

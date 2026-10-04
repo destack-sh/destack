@@ -1,228 +1,157 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { color, text } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 
+import { commandEvents } from "../command/command";
+import { charge } from "../effect/goo";
+import { sound } from "../effect/sound";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
+import { Entry, Syllables, type Form } from "./entry";
+import { StackFigure } from "./figure";
 
-/** The media query for screens narrower than the desktop frame, where the entries stack. */
-const narrow = "@media (max-width: 1099px)";
+/** How hard the goo charges while the switch is hovered. */
+const hoverCharge = 0.5;
+/** How hard the goo charges while the switch is held down. */
+const heldCharge = 1.8;
 
-/** The longest phrase's width in ems, so all three phrases share one size that fits four columns. */
-const phraseMeasure = 15.4;
-/** The longest sense's width in ems, so every sense fits its column on one line. */
-const sensesMeasure = 23.5;
+/** The switch's word for the stack as it is today. */
+const stacked = ["stacked"];
 
-/** One sense of an entry: the words before its key words, the key words, and the words after. */
-type Sense = readonly [before: string, key: string, after: string];
+/** The switch's word for the stack destacked. */
+const destacked = ["de", "stacked"];
 
-/** The word's three entries: what you do, what it is, and what you end up with. */
-const entries: readonly {
-    headword: readonly [string, string];
-    pronunciation: string;
-    partOfSpeech: string;
-    phrase: string;
-    highlight: string;
-    senses: readonly Sense[];
-}[] = [
-    {
-        headword: ["de", "stack"],
-        pronunciation: "/diːˈstak/",
-        partOfSpeech: "verb",
-        phrase: "to unify all your apps and agents",
-        highlight: "unify",
-        senses: [
-            ["to", "remix your SaaS", "into software you own"],
-            ["to", "ship the app you need", "this afternoon"],
-            ["to", "put agents to work", "on all your apps"],
-        ],
-    },
-    {
-        headword: ["De", "stack"],
-        pronunciation: "/ˈdiːstak/",
-        partOfSpeech: "noun",
-        phrase: "a standardised software stack",
-        highlight: "standardised",
-        senses: [
-            ["a", "batteries-included", ", web-first stack"],
-            ["a", "multiplayer backend", "on SQL, OTEL and S3"],
-            ["a personal", "Git, npm and App Store", ""],
-        ],
-    },
-    {
-        headword: ["de", "stacked"],
-        pronunciation: "/diːˈstakt/",
-        partOfSpeech: "adjective",
-        phrase: "open, sovereign and portable",
-        highlight: "sovereign",
-        senses: [
-            ["", "open source", ", open standards, open data"],
-            ["", "observable and permissioned", ", bits to pixels"],
-            ["", "portable", "from your laptop to the cloud"],
-        ],
-    },
-];
+/** The verb, which titles the page. */
+const verb: Form = {
+    syllables: ["de", "stack"],
+    pronunciation: "/diːˈstak/",
+    partOfSpeech: "verb",
+    senses: [
+        {
+            definition: "to take back your software",
+            highlight: ["back"],
+            sentence:
+                "Run your apps on a standardised open software stack, with compute you control.",
+        },
+    ],
+};
 
-/** Introduce Destack as one word in three parts of speech: verb, noun and adjective. */
-export function Hero() {
-    return (
-        <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.hero)}>
-            {entries.map((entry, index) => (
-                <div
-                    data-universe
-                    data-entry={entry.partOfSpeech}
-                    {...stylex.attrs(styles.entry, index < entries.length - 1 && lattice.ruleRight)}
-                >
-                    {/* set the headword, its pronunciation and its part of speech; the verb titles the page */}
-                    <div {...stylex.attrs(styles.kicker)}>
-                        {index === 0 ? (
-                            <h1 aria-label="Destack" {...stylex.attrs(styles.headword)}>
-                                <Headword syllables={entry.headword} />
-                            </h1>
-                        ) : (
-                            <b {...stylex.attrs(styles.headword)}>
-                                <Headword syllables={entry.headword} />
-                            </b>
-                        )}
-                        <span {...stylex.attrs(styles.pronunciation)}>{entry.pronunciation}</span>
-                        <i {...stylex.attrs(styles.partOfSpeech)}>{entry.partOfSpeech}</i>
-                    </div>
-
-                    {/* state the meaning, then number the senses, each with its key words highlighted */}
-                    <p data-universe="parts" {...stylex.attrs(styles.phrase)}>
-                        {entry.phrase.split(" ").map((word, wordIndex) => (
-                            <>
-                                {wordIndex > 0 && " "}
-                                <span
-                                    data-word={word}
-                                    {...stylex.attrs(word === entry.highlight && styles.highlight)}
-                                >
-                                    {word}
-                                </span>
-                            </>
-                        ))}
-                    </p>
-                    <ol {...stylex.attrs(styles.senses)}>
-                        {entry.senses.map(([before, key, after], senseIndex) => (
-                            <li {...stylex.attrs(styles.sense)}>
-                                <span {...stylex.attrs(styles.number)}>{senseIndex + 1}</span>
-                                <span>
-                                    {before === "" ? "" : `${before} `}
-                                    <b {...stylex.attrs(styles.key)}>{key}</b>
-                                    {after === "" || after.startsWith(",") ? after : ` ${after}`}
-                                </span>
-                            </li>
-                        ))}
-                    </ol>
-                </div>
-            ))}
-        </section>
-    );
-}
-
-/** Set a headword's syllables with the dictionary dot between them. */
-function Headword(properties: { syllables: readonly string[] }) {
+/** Open the page with the verb, illustrated by the stack figure and the switch between its two states. */
+export function Hero(properties: { isOpen: boolean; onChange: (isOpen: boolean) => void }) {
     return (
         <>
-            {properties.syllables[0]}
-            <span aria-hidden="true" {...stylex.attrs(styles.interpunct)}>
-                ·
-            </span>
-            {properties.syllables[1]}
+            <section data-universe {...stylex.attrs(lattice.frame)}>
+                <Entry form={verb} isTitle />
+                <p {...stylex.attrs(styles.control)}>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-label="Destack"
+                        aria-checked={properties.isOpen ? "true" : "false"}
+                        title={properties.isOpen ? "Restack" : "Destack"}
+                        onClick={() =>
+                            document.dispatchEvent(new CustomEvent(commandEvents.switchStack))
+                        }
+                        onPointerEnter={() => charge(properties.isOpen ? 0 : hoverCharge)}
+                        onPointerLeave={() => charge(0)}
+                        onPointerDown={() => {
+                            // tick the switch and charge the goo harder while held
+                            sound.play("press");
+                            charge(properties.isOpen ? 0 : heldCharge);
+                        }}
+                        {...stylex.attrs(styles.switch)}
+                    >
+                        <b {...stylex.attrs(styles.word, !properties.isOpen && styles.active)}>
+                            <Syllables syllables={stacked} />
+                        </b>
+                        <span
+                            aria-hidden="true"
+                            {...stylex.attrs(styles.track, properties.isOpen && styles.trackOn)}
+                        >
+                            <span
+                                {...stylex.attrs(
+                                    styles.knob,
+                                    properties.isOpen ? styles.knobOn : styles.knobNudge,
+                                )}
+                            />
+                        </span>
+                        <b {...stylex.attrs(styles.word, properties.isOpen && styles.active)}>
+                            <Syllables syllables={destacked} />
+                        </b>
+                    </button>
+                </p>
+            </section>
+            <StackFigure onChange={properties.onChange} />
         </>
     );
 }
 
+/** The knob's periodic nudge toward destacked. */
+const nudge = stylex.keyframes({
+    "0%, 80%, 100%": { translate: "0 0" },
+    "86%": { translate: "0.5rem 0" },
+    "91%": { translate: "0.125rem 0" },
+    "95%": { translate: "0.25rem 0" },
+});
+
 /** The hero styles. */
 const styles = stylex.create({
-    hero: {
-        gridTemplateRows: tokens.hero,
-        [narrow]: { gridTemplateRows: "auto" },
-    },
-    entry: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.625rem",
-        gridColumn: "span 4",
-        justifyContent: "center",
-        minWidth: 0,
+    control: {
+        gridColumn: "1 / -1",
+        margin: 0,
+        paddingBottom: "1.5rem",
         paddingInline: tokens.inset,
-        paddingTop: "0.75rem",
-        [narrow]: {
-            borderBottomColor: color.border,
-            borderBottomStyle: "solid",
-            borderBottomWidth: tokens.hairline,
-            borderRightWidth: 0,
-            gridColumn: "1 / -1",
-            paddingBlock: "1.5rem",
-        },
     },
-    kicker: {
-        alignItems: "baseline",
-        display: "flex",
+    switch: {
+        alignItems: "center",
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: "inherit",
+        cursor: "pointer",
+        display: "inline-flex",
+        fontFamily: text.family,
         gap: "0.625rem",
-        height: "1.5rem",
-        whiteSpace: "nowrap",
+        padding: 0,
     },
-    headword: {
-        color: tokens.signal,
+    word: {
+        color: color.mutedForeground,
         fontSize: "1.0625rem",
         fontWeight: 700,
-        margin: 0,
+        transitionDuration: "300ms",
+        transitionProperty: "color",
     },
-    interpunct: {
-        marginInline: "0.05em",
-    },
-    pronunciation: {
-        color: color.mutedForeground,
-        fontFamily: fontFamily.default,
-        fontSize: "0.9375rem",
-    },
-    partOfSpeech: {
-        color: color.mutedForeground,
-        fontSize: "0.9375rem",
-        fontStyle: "italic",
-    },
-    phrase: {
-        fontSize: `calc((${tokens.column} * 4 - ${tokens.inset} * 2) / ${phraseMeasure})`,
-        fontWeight: 500,
-        letterSpacing: "-0.01em",
-        lineHeight: 1.2,
-        margin: 0,
-        whiteSpace: "nowrap",
-        [narrow]: { fontSize: "clamp(1.5rem, 5vw, 2rem)", whiteSpace: "normal" },
-    },
-    highlight: {
-        textDecorationColor: tokens.signal,
-        textDecorationLine: "underline",
-        textDecorationThickness: "3px",
-        textUnderlineOffset: "0.16em",
-    },
-    senses: {
-        color: color.mutedForeground,
-        display: "grid",
-        fontSize: `min(0.9375rem, calc((${tokens.column} * 4 - ${tokens.inset} * 2) / ${sensesMeasure}))`,
-        gap: "0.25rem",
-        lineHeight: 1.45,
-        listStyle: "none",
-        margin: 0,
-        marginTop: "0.25rem",
-        padding: 0,
-        [narrow]: { fontSize: "0.9375rem" },
-    },
-    sense: {
-        display: "flex",
-        gap: "0.625rem",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
-    key: {
-        color: color.foreground,
-        fontWeight: 650,
-    },
-    number: {
+    active: {
         color: tokens.signal,
-        flexShrink: 0,
-        fontWeight: 700,
+    },
+    track: {
+        borderColor: tokens.signal,
+        borderRadius: "999px",
+        borderStyle: "solid",
+        borderWidth: "1.5px",
+        display: "flex",
+        height: "1.25rem",
+        padding: "2px",
+        transition: "background-color 300ms ease",
+        width: "2.25rem",
+    },
+    trackOn: {
+        backgroundColor: tokens.signal,
+    },
+    knob: {
+        backgroundColor: tokens.signal,
+        borderRadius: "50%",
+        height: "0.8125rem",
+        transition: "translate 450ms cubic-bezier(0.4, 0, 0.2, 1.3)",
+        width: "0.8125rem",
+        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+    },
+    knobOn: {
+        backgroundColor: tokens.space,
+        translate: "1rem 0",
+    },
+    knobNudge: {
+        animationDuration: "4s",
+        animationIterationCount: "infinite",
+        animationName: nudge,
+        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
 });

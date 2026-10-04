@@ -1,4 +1,5 @@
 import { color } from "@destack/theme/tokens.stylex";
+import { present } from "@destack/schema";
 import * as stylex from "@destack/style";
 import { createMemo, createSignal, For, onSettled } from "@destack/view";
 
@@ -342,13 +343,17 @@ export const slotApps: readonly (readonly string[])[] = [
 /** The iceberg each silo rides. */
 const slots = new Map(slotApps.flatMap((apps, slot) => apps.map((id) => [id, slot] as const)));
 /** The silos, which ride the icebergs today. */
-const vendors = [...slots.keys()];
+const vendors = new Set(slots.keys());
 /** The milliseconds a silo takes to bob up after the one it replaces starts to sink. */
 const swapDelay = 1000;
 /** The milliseconds a silo waits to land on the reformed ice after the water returns. */
 const landingDelay = 2700;
 /** The open apps and remixes, which anyone can fork. */
-const apps = ids.filter((id) => entities[id].role === "App" || id in remixes);
+const apps = new Set(
+    Object.entries(entities)
+        .filter(([id, entity]) => entity.role === "App" || id in remixes)
+        .map(([id]) => id),
+);
 
 /** One arrangement of the top two layers. */
 type Scene = {
@@ -570,11 +575,17 @@ export const appUses: Readonly<Record<string, readonly (readonly [string, string
     });
 
 /** The source step each open scene shows at work, by its label: installing a set of apps, then building its remix. */
-export const sceneSources = scenes.map((scene, index) =>
-    scene.lower.some((card) => card.id in remixes)
+export const sceneSources = scenes.map((scene, index) => {
+    // build a remix, or install from each source in turn, two scenes each
+    const source = scene.lower.some((card) => card.id in remixes)
         ? "Build"
-        : ["Registry", "Repository", "Templates"][Math.floor(index / 2) % 3],
-);
+        : ["Registry", "Repository", "Templates"][Math.floor(index / 2) % 3];
+    if (source === undefined) {
+        throw new TypeError(`scene ${index} has no source step`);
+    }
+
+    return source;
+});
 
 /** How far the user row sits below the middle of its figure row, in CSS pixels, to leave room for the switch on the seam above it. */
 const userDrop = 8;
@@ -664,21 +675,24 @@ export function Remix(properties: {
     // hold the scene, the dragged card, and the elements to measure
     const [scene, setScene] = createSignal(0);
     const [drag, setDrag] = createSignal<{ id: string; x: number; y: number }>();
-    let layer!: HTMLDivElement;
-    let wires!: SVGGElement;
+    let layer: HTMLDivElement | undefined;
+    let wires: SVGGElement | undefined;
     const cards = new Map<string, HTMLDivElement>();
     const last = new Map<string, Placement>();
 
     // pick the scene on show: the locked stack today, the loop once open
-    const shown = () => (properties.isOpen ? scenes[scene()] : todayScenes[properties.today]);
+    const shown = () =>
+        properties.isOpen
+            ? present(scenes[scene()], "scene")
+            : present(todayScenes[properties.today], "scene");
 
     // place every card of the scene: cards enter and leave across the nearest board edge, vendor apps sink in place
     let wasLaidOpen = properties.isOpen;
     const layout = createMemo(() => {
         // pick the placements and note whether the stack just opened or closed
         const current = properties.isOpen
-            ? scenePlacements[scene()]
-            : todayPlacements[properties.today];
+            ? present(scenePlacements[scene()], "scene")
+            : present(todayPlacements[properties.today], "scene");
         const isToggle = properties.isOpen !== wasLaidOpen;
         wasLaidOpen = properties.isOpen;
 
@@ -690,7 +704,7 @@ export function Remix(properties: {
         for (const id of ids) {
             const placement = current.get(id);
             const previous = last.get(id);
-            const isVendor = vendors.includes(id);
+            const isVendor = vendors.has(id);
 
             // keep or move a card that shows, growing it out of the cards it replaces, and taking over only at the end of a merge
             if (placement) {
@@ -725,11 +739,11 @@ export function Remix(properties: {
                 });
             }
             // fuse a card that showed into the cards replacing it, or send it off across its nearest edge
-            else if (previous?.isShown) {
+            else if (previous?.isShown === true) {
                 const successors = [...current]
                     .filter(
                         ([other, place]) =>
-                            !before.get(other)?.isShown && overlaps(place, previous),
+                            before.get(other)?.isShown !== true && overlaps(place, previous),
                     )
                     .map(([, place]) => place);
                 // flap every open card away on its hinge as the stack closes, before the water comes back
@@ -746,10 +760,12 @@ export function Remix(properties: {
                 }
 
                 // turn a card over to show the one card that takes its slot
+                const [successor] = successors;
                 if (
                     successors.length === 1 &&
-                    sourcesOf(successors[0], before, current) === 1 &&
-                    sameSlot(successors[0], previous)
+                    successor !== undefined &&
+                    sourcesOf(successor, before, current) === 1 &&
+                    sameSlot(successor, previous)
                 ) {
                     last.set(id, {
                         ...previous,
@@ -759,9 +775,9 @@ export function Remix(properties: {
                         isLate: false,
                         turn: 90,
                     });
-                } else if (successors.length) {
+                } else if (successor !== undefined) {
                     const isMerging =
-                        successors.length === 1 && sourcesOf(successors[0], before, current) > 1;
+                        successors.length === 1 && sourcesOf(successor, before, current) > 1;
                     last.set(id, {
                         ...cover(successors),
                         step: "fuse",
@@ -782,8 +798,8 @@ export function Remix(properties: {
             else {
                 const next = upcoming(id, scene());
                 const following = properties.isOpen
-                    ? scenePlacements[(scene() + 1) % scenes.length]
-                    : scenePlacements[0];
+                    ? present(scenePlacements[(scene() + 1) % scenes.length], "scene")
+                    : present(scenePlacements[0], "scene");
                 const origins = following.has(id)
                     ? [...current]
                           .filter(
@@ -791,13 +807,15 @@ export function Remix(properties: {
                           )
                           .map(([, place]) => place)
                     : [];
-                const isSwapping = origins.length === 1 && sameSlot(origins[0], next);
+                const [origin] = origins;
+                const isSwapping =
+                    origins.length === 1 && origin !== undefined && sameSlot(origin, next);
                 last.set(id, {
                     ...(isSwapping ? next : origins.length ? cover(origins) : beyond(next)),
                     isShown: false,
                     step: "park",
                     isLate: false,
-                    turn: isSwapping ? -90 : undefined,
+                    ...(isSwapping && { turn: -90 }),
                 });
             }
         }
@@ -838,6 +856,11 @@ export function Remix(properties: {
 
     // trace the cables every frame once the cards are in the page
     onSettled(() => {
+        // require the rendered layer and wires
+        if (!layer || !wires) {
+            throw new TypeError("the remix rendered without its layer and wires");
+        }
+
         // hold the cables, the frame, the scene timing, and the motion state
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const cables = new Map<string, Cable>();
@@ -854,11 +877,11 @@ export function Remix(properties: {
         const narrowScreen = window.matchMedia("(max-width: 1099px)");
 
         // measure the boxes of the given cards within the layer, all before any cable is drawn
-        const measure = (ids: Iterable<string>) => {
+        const measure = (measured: Iterable<string>) => {
             // measure each card against the layer bounds
             const bounds = layer.getBoundingClientRect();
             const boxes = new Map<string, Box>();
-            for (const id of ids) {
+            for (const id of measured) {
                 const card = cards.get(id)?.firstElementChild?.firstElementChild;
                 if (card) {
                     const rect = card.getBoundingClientRect();
@@ -882,9 +905,18 @@ export function Remix(properties: {
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 const ends = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 const pulse = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                path.setAttribute("class", stylex.attrs(styles.cable, cableKinds[kind]).class!);
-                ends.setAttribute("class", stylex.attrs(plugKinds[kind]).class!);
-                pulse.setAttribute("class", stylex.attrs(styles.pulse).class!);
+                path.setAttribute(
+                    "class",
+                    present(stylex.attrs(styles.cable, cableKinds[kind]).class, "class names"),
+                );
+                ends.setAttribute(
+                    "class",
+                    present(stylex.attrs(plugKinds[kind]).class, "class names"),
+                );
+                pulse.setAttribute(
+                    "class",
+                    present(stylex.attrs(styles.pulse).class, "class names"),
+                );
                 pulse.setAttribute("pathLength", "1");
                 wires.append(path, pulse, ends);
                 found = {
@@ -1088,7 +1120,7 @@ export function Remix(properties: {
 
                 // list the calls into the services and the links down to the stores
                 const calls = current.lower.flatMap((card) =>
-                    [...new Set(appUses[card.id].map(([service]) => service))].map((service) => ({
+                    [...new Set(usesOf(card.id).map(([service]) => service))].map((service) => ({
                         id: card.id,
                         service,
                     })),
@@ -1096,7 +1128,7 @@ export function Remix(properties: {
                 const links = [
                     ...new Map(
                         current.lower
-                            .flatMap((card) => appUses[card.id])
+                            .flatMap((card) => usesOf(card.id))
                             .map(([service, store]) => [`${service}:${store}`, { service, store }]),
                     ).values(),
                 ];
@@ -1267,7 +1299,11 @@ export function Remix(properties: {
             // trace only while something moves: bobbing ice, dancing users, travelling cards, a drag, or a swinging cable
             const isBobbing = !properties.isOpen && !isStill;
             const isBusy =
-                isBobbing || drag() || now - changedAt < 4500 || now < wakeUntil || isStirring;
+                isBobbing ||
+                drag() !== undefined ||
+                now - changedAt < 4500 ||
+                now < wakeUntil ||
+                isStirring;
             if (isVisible && isBusy) {
                 trace(now);
             }
@@ -1283,8 +1319,10 @@ export function Remix(properties: {
             wakeUntil = performance.now() + 300;
         });
         sizes.observe(layer);
-        const sight = new IntersectionObserver(([entry]) => {
-            isVisible = entry.isIntersecting;
+        const sight = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                isVisible = entry.isIntersecting;
+            }
         });
         sight.observe(layer);
 
@@ -1314,11 +1352,18 @@ export function Remix(properties: {
             <For each={ids}>
                 {(id) => {
                     // read the card's placement, drag offset, and kind
-                    const placement = () => layout().get(id)!;
+                    const placement = () => {
+                        const found = layout().get(id);
+                        if (!found) {
+                            throw new TypeError(`card ${id} has no placement`);
+                        }
+
+                        return found;
+                    };
                     const held = () => (drag()?.id === id ? drag() : undefined);
                     const slot = slots.get(id);
                     const isVendor = slot !== undefined;
-                    const isPerson = !isVendor && !apps.includes(id);
+                    const isPerson = !isVendor && !apps.has(id);
 
                     return (
                         <div
@@ -1356,12 +1401,15 @@ export function Remix(properties: {
                                 }
                             >
                                 <Card
-                                    entity={entities[id]}
+                                    entity={entityOf(id)}
                                     kind={isVendor ? "vendor" : "plain"}
                                     reveal={
                                         properties.isOpen
                                             ? openReveals[id]
-                                            : todayReveal(id, todayScenes[properties.today])
+                                            : todayReveal(
+                                                  id,
+                                                  present(todayScenes[properties.today], "scene"),
+                                              )
                                     }
                                     style={styles.fill}
                                 />
@@ -1515,8 +1563,11 @@ function soundShifts(places: ReadonlyMap<string, Placement>) {
         }
 
         // sound each kind once per moment, where across the board it happens
-        const key = shift && `${shift.kind}:${Math.round(shift.at / 80)}`;
-        if (shift && key && !heard.has(key)) {
+        if (shift === undefined) {
+            continue;
+        }
+        const key = `${shift.kind}:${Math.round(shift.at / 80)}`;
+        if (!heard.has(key)) {
             heard.add(key);
             sound.shift(shift.kind, shift.at / 1000, (place.left + place.width / 2) / boardCells);
         }
@@ -1525,7 +1576,7 @@ function soundShifts(places: ReadonlyMap<string, Placement>) {
 
 /** Add the drag offset to a card's motion: the card follows the pointer while held and springs home when let go. */
 function follow(
-    motion: Record<string, string>,
+    entrance: Record<string, string>,
     held: { x: number; y: number } | undefined,
 ): Record<string, string> {
     // spring the offset home on its own, apart from the entrance and exit delays
@@ -1533,9 +1584,10 @@ function follow(
     const release = held ? "transform 0ms" : `transform 700ms ${spring}`;
 
     return {
-        ...motion,
+        ...entrance,
         transform: `${offset} translateY(-50%)`,
-        transition: motion.transition === "none" ? release : `${motion.transition}, ${release}`,
+        transition:
+            entrance["transition"] === "none" ? release : `${entrance["transition"]}, ${release}`,
     };
 }
 
@@ -1572,11 +1624,14 @@ function arrange(scene: Scene): Map<string, Placement> {
     let column = 0;
     for (const card of scene.lower) {
         const left = columnLefts[column];
-        const end = columnLefts[column + card.span - 1] + columnWidth;
+        const last = columnLefts[column + card.span - 1];
+        if (left === undefined || last === undefined) {
+            throw new TypeError(`card ${card.id} spans past the board columns`);
+        }
         placed.set(card.id, {
             row: 1,
             left,
-            width: end - left,
+            width: last + columnWidth - left,
             isShown: true,
             step: "stay",
             delay: 0,
@@ -1595,7 +1650,7 @@ function vendorDelay(previous: Placement | undefined, isToggle: boolean) {
         return landingDelay;
     }
     // bob up after the silo it replaces starts to sink
-    else if (!previous?.isShown) {
+    else if (previous?.isShown !== true) {
         return swapDelay;
     }
     // stay where it floats
@@ -1651,11 +1706,16 @@ function overlaps(first: Placement, second: Placement) {
 
 /** Return a hidden placement covering all the given placements on their row. */
 function cover(places: Placement[]): Placement {
+    // reject an empty cover, which has no row
+    const [first] = places;
+    if (!first) {
+        throw new TypeError("cover takes at least one placement");
+    }
     const left = Math.min(...places.map((place) => place.left));
     const right = Math.max(...places.map((place) => place.left + place.width));
 
     return {
-        row: places[0].row,
+        row: first.row,
         left,
         width: right - left,
         isShown: false,
@@ -1686,7 +1746,7 @@ function beyond(place: Placement): Placement {
 
 /** Delay each card by its turn: the lowest key goes first, then one every 180 milliseconds after a start. */
 function stagger(places: Placement[], start: number, key: (place: Placement) => number) {
-    const order = [...places].sort((first, second) => key(first) - key(second));
+    const order = places.toSorted((first, second) => key(first) - key(second));
     order.forEach((place, turn) => {
         place.delay = start + turn * 180;
     });
@@ -1696,16 +1756,16 @@ function stagger(places: Placement[], start: number, key: (place: Placement) => 
 function upcoming(id: string, from: number): Placement {
     // search the scenes that follow in order
     for (let step = 1; step <= scenes.length; step++) {
-        const placement = scenePlacements[(from + step) % scenes.length].get(id);
+        const placement = present(scenePlacements[(from + step) % scenes.length], "scene").get(id);
         if (placement) {
             return placement;
         }
     }
 
     // find the card in the locked stack
-    const locked = todayPlacements[0].get(id);
-    if (locked) {
-        return locked;
+    const today = present(todayPlacements[0], "scene").get(id);
+    if (today) {
+        return today;
     }
 
     // fail when no scene shows the card
@@ -1721,7 +1781,7 @@ function locked(
     return {
         upper,
         lower: lower.map((id) => ({ id, span: 1 })),
-        links: upper.map((id, index) => [id, targets[index]] as [string, string]),
+        links: linksOf(upper, targets),
     };
 }
 
@@ -1734,8 +1794,40 @@ function open(
     return {
         upper,
         lower: lower.map((id) => ({ id, span: remixes[id]?.length ?? 1 })),
-        links: upper.map((id, index) => [id, targets[index]] as [string, string]),
+        links: linksOf(upper, targets),
     };
+}
+
+/** Pair each person with the target at the same index, or throw when a person has none. */
+function linksOf(upper: readonly string[], targets: readonly string[]): [string, string][] {
+    return upper.map((id, index): [string, string] => {
+        const target = targets[index];
+        if (target === undefined) {
+            throw new TypeError(`person ${id} has no target`);
+        }
+
+        return [id, target];
+    });
+}
+
+/** Return the card with an id. */
+function entityOf(id: string): Entity {
+    const entity = entities[id];
+    if (!entity) {
+        throw new TypeError(`unknown card ${id}`);
+    }
+
+    return entity;
+}
+
+/** Return the services an open app calls, each with its store. */
+export function usesOf(id: string): readonly (readonly [string, string])[] {
+    const uses = appUses[id];
+    if (!uses) {
+        throw new TypeError(`app ${id} calls no services`);
+    }
+
+    return uses;
 }
 
 /** Return a code reveal: a file name and its lines. */
@@ -1749,7 +1841,15 @@ function withRemixes(
 ): Record<string, readonly (readonly [string, string])[]> {
     // join the pairs of each remix's apps, once each
     const joined = Object.entries(remixes).map(([remix, parts]) => {
-        const pairs = parts.flatMap((part) => uses[part]);
+        const pairs = parts.flatMap((part) => {
+            // reject a remix of an app without services
+            const used = uses[part];
+            if (!used) {
+                throw new TypeError(`remix ${remix} joins unknown app ${part}`);
+            }
+
+            return used;
+        });
         const unique = [...new Map(pairs.map((pair) => [pair.join(":"), pair])).values()];
 
         return [remix, unique] as const;
@@ -1765,16 +1865,24 @@ function todayReveal(id: string, scene: Scene): Reveal | undefined {
     if (access) {
         return {
             kind: "fields",
-            rows: scene.lower.map((card, index) => [
-                entities[card.id].label,
-                (id === "agent" && creditBalances[card.id]) || access[index],
-            ]),
+            rows: scene.lower.map((card, index) => {
+                // read the way in to the silo at this place on the ice
+                const way = access[index];
+                if (way === undefined) {
+                    throw new TypeError(`${id} has no way into silo ${index}`);
+                }
+
+                return [
+                    entityOf(card.id).label,
+                    (id === "agent" ? creditBalances[card.id] : undefined) ?? way,
+                ];
+            }),
         };
     }
     // rent for the homemade app, ciphertext for the silos
     else if (id === "homemade") {
         return homemadeReveal;
-    } else if (vendors.includes(id)) {
+    } else if (vendors.has(id)) {
         return { kind: "cipher" };
     }
 
