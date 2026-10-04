@@ -2,13 +2,13 @@ import { BucketChecksums, BucketFile, type BucketHttpMetadata } from "../bucket/
 import type { file } from "./stack/index.ts";
 
 /** A catalogue row describing the current file at one key. */
-export type LocalFile = typeof file.$inferSelect;
+export type CatalogueFile = typeof file.$inferSelect;
 
 /** A catalogue row describing the current file at one key. */
-export const LocalFile = { describe, encodeHttpMetadata };
+export const CatalogueFile = { describe, encodeHttpMetadata };
 
 /** Convert a catalogue row to portable file metadata. */
-function describe(entry: LocalFile): BucketFile {
+function describe(entry: CatalogueFile): BucketFile {
     const { cacheExpiry, ...headers } = entry.httpMetadata;
     const httpMetadata =
         cacheExpiry === undefined ? headers : { ...headers, cacheExpiry: new Date(cacheExpiry) };
@@ -28,7 +28,7 @@ function describe(entry: LocalFile): BucketFile {
 }
 
 /** Encode HTTP metadata for the catalogue, with the expiration as an ISO date. */
-function encodeHttpMetadata(metadata: BucketHttpMetadata): LocalFile["httpMetadata"] {
+function encodeHttpMetadata(metadata: BucketHttpMetadata): CatalogueFile["httpMetadata"] {
     const { cacheExpiry, ...headers } = metadata;
 
     return cacheExpiry === undefined

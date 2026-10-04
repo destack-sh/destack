@@ -48,7 +48,7 @@ test("retain local files across reopen and failed streamed uploads", async () =>
     }
 });
 
-test("recover the catalogue and reclaim an upload after terminating its host", async () => {
+test("recover the catalogue after terminating its host, and sweep its interrupted upload away", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-crash-"));
     const module = new URL("./index.ts", import.meta.url).href;
     const child = Bun.spawn(
@@ -94,11 +94,16 @@ test("recover the catalogue and reclaim an upload after terminating its host", a
         expect(child.signalCode).toBe("SIGKILL");
         await child.stdout.cancel();
 
-        // reopen the bucket once the operating system releases the lock, removing uncommitted contents
+        // reopen the bucket once the operating system releases the lock, keeping the interrupted write until a sweep
         await using restored = await LocalBucket.open(directory, "space-test");
         const document = present(await restored.get("document"), "document");
-        expect(await new Response(document.body).text()).toBe("committed");
-        expect(await readdir(join(directory, "files"))).toEqual([digestOf("committed")]);
+        const reopened = (await readdir(join(directory, "files"))).length;
+        expect([
+            await new Response(document.body).text(),
+            reopened,
+            await restored.sweep(),
+            await readdir(join(directory, "files")),
+        ]).toEqual(["committed", 2, true, [digestOf("committed")]]);
     } finally {
         if (!isTerminated) {
             child.kill("SIGKILL");
@@ -126,7 +131,7 @@ test("close storage immediately after consuming or cancelling a body", async () 
     }
 });
 
-test("recover multiple batches of abandoned files without deleting files or upload parts", async () => {
+test("sweep multiple batches of abandoned files without deleting files or upload parts, leaving them at open", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-recovery-"));
     try {
         let uploadId: string;
@@ -139,14 +144,19 @@ test("recover multiple batches of abandoned files without deleting files or uplo
             selected = await upload.uploadPart(1, "retained part");
         }
 
-        // leave more unreferenced blobs than one recovery query can take, and an interrupted write
+        // leave more unreferenced blobs than one sweep query can take, and an interrupted write
         for (let index = 0; index < 501; index++) {
             await writeFile(join(directory, "files", digestOf(`abandoned ${index}`)), "abandoned");
         }
         await writeFile(join(directory, "files", `.${crypto.randomUUID()}`), "interrupted");
         await using bucket = await LocalBucket.open(directory, "space-test");
-        expect(await present(await bucket.get("document"), "document").text()).toBe("retained");
-        expect((await readdir(join(directory, "files"))).length).toBe(2);
+        const reopened = (await readdir(join(directory, "files"))).length;
+        expect([
+            await present(await bucket.get("document"), "document").text(),
+            reopened,
+            await bucket.sweep(),
+            (await readdir(join(directory, "files"))).length,
+        ]).toEqual(["retained", 504, true, 2]);
         await bucket.resumeMultipartUpload("multipart", uploadId).complete([selected]);
         expect(await present(await bucket.get("multipart"), "multipart").text()).toBe(
             "retained part",

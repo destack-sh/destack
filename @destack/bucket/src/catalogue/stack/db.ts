@@ -142,4 +142,5 @@ export const part = defineTable(
 export const catalogueDatabase = defineDatabase({
     name: "catalogue",
     tables: [file, segment, upload, part],
+    copies: [],
 });

@@ -1,3 +1,4 @@
+import type { LeaseMode } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import type { Bucket } from "../bucket/index.ts";
 import type { BucketEndpoint } from "./location.ts";
@@ -14,6 +15,6 @@ export interface BucketReference {
 export interface BucketHost {
     /** Open a bucket the host keeps. */
     open(bucket: BucketReference): Promise<Bucket>;
-    /** Locate the S3 endpoint serving a bucket and the credentials presigning its transfers. */
-    locate(bucket: BucketReference): Promise<BucketEndpoint>;
+    /** Locate the S3 endpoint serving a bucket and the credentials presigning a transfer, refusing a write into a fenced bucket. */
+    locate(bucket: BucketReference, mode: LeaseMode): Promise<BucketEndpoint>;
 }

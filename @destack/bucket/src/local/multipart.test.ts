@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "@destack/db";
 import { connect } from "@destack/db/bun";
-import { catalogueDatabase, upload } from "./stack/db.ts";
+import { catalogueDatabase, upload } from "../catalogue/stack/db.ts";
 import type { UploadedPart } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
 
@@ -118,7 +118,7 @@ test("reject undersized completion and an upload part that finishes after abort"
     }
 });
 
-test("reclaim expired multipart contents when reopening a bucket", async () => {
+test("reclaim expired multipart contents once a reopened bucket sweeps", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-multipart-expire-"));
     try {
         {
@@ -138,7 +138,7 @@ test("reclaim expired multipart contents when reopening a bucket", async () => {
 
         await using bucket = await LocalBucket.open(directory, "space-test");
         const file = present(await bucket.get("document"), "document");
-        expect(await file.text()).toBe("retained");
+        expect([await file.text(), await bucket.sweep()]).toEqual(["retained", true]);
         expect(await readdir(join(directory, "files"))).toEqual([digestOf("retained")]);
     } finally {
         await rm(directory, { recursive: true });

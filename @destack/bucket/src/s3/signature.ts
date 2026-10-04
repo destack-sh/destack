@@ -73,7 +73,7 @@ interface SigningKey {
 }
 
 /** The request parts a signature covers. */
-interface SignedRequest {
+interface CanonicalRequest {
     /** The HTTP method. */
     method: string;
     /** The percent-encoded URL path. */
@@ -376,7 +376,7 @@ export class SignatureV4 {
 
     /** Compare a request's signature with the one its access key produces. */
     async #check(
-        signed: SignedRequest,
+        signed: CanonicalRequest,
         date: string,
         accessKeyId: string,
         signature: string,
@@ -442,7 +442,7 @@ export async function signString(signingKey: CryptoKey, value: string): Promise<
 
 /** Sign the canonical form of a request. */
 async function signRequest(
-    signed: SignedRequest,
+    signed: CanonicalRequest,
     date: string,
     scope: string,
     signingKey: CryptoKey,

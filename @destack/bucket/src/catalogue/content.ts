@@ -56,7 +56,7 @@ export class Content {
 
     /** Write contents into the blob store before the catalogue refers to them. */
     static async write(
-        blobs: BlobStore,
+        blobs: Pick<BlobStore, "write">,
         body: BucketBody | null,
         options: BucketPutOptions = {},
         key?: CustomerKey,

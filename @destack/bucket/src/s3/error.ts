@@ -31,6 +31,7 @@ const S3_ERROR_STATUS = {
     NotImplemented: 501,
     PreconditionFailed: 412,
     RequestTimeTooSkewed: 403,
+    ServiceUnavailable: 503,
     SignatureDoesNotMatch: 403,
     XAmzContentSHA256Mismatch: 400,
 } as const;
@@ -49,6 +50,7 @@ const STORAGE_ERROR_CODE: Partial<Record<StorageErrorCode, S3ErrorCode>> = {
     NO_SUCH_KEY: "NoSuchKey",
     NO_SUCH_UPLOAD: "NoSuchUpload",
     UNSUPPORTED: "NotImplemented",
+    FENCED: "ServiceUnavailable",
 };
 
 /** An S3 error code. */
