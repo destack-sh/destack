@@ -4,6 +4,14 @@ import { DeclarationReference } from "../declare/declaration.ts";
 import { ComputeDefinition } from "../definition/compute.ts";
 import { Capabilities, CapabilityName } from "../definition/capability.ts";
 
+/** A tier a universe places workloads in, one instance per unit: the universe, each residency, each space or each host. */
+export const Tier = defineSchema(schema.enum(["universe", "residency", "space", "host"]));
+/** A tier a universe places workloads in. */
+export type Tier = schema.Infer<typeof Tier>;
+
+/** The placements a universe's deployer chooses from for a platform workload, as its deployment shape supports them. */
+const Placement = schema.array(Tier).min(1);
+
 /** A unit of deployment, as its declaration defines it. */
 export const WorkloadDefinition = defineSchema(
     schema
@@ -14,6 +22,8 @@ export const WorkloadDefinition = defineSchema(
             compute: ComputeDefinition.exactOptional(),
             /** The package's capabilities the workload uses, every one when omitted. */
             capabilities: schema.array(CapabilityName).exactOptional(),
+            /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
+            placement: Placement.exactOptional(),
         })
         .strict(),
 );
@@ -39,6 +49,8 @@ export const WorkloadDescription = defineSchema(
         compute: ComputeDefinition,
         /** What the workload may reach beyond its sandbox, as its package declares it. */
         capabilities: Capabilities,
+        /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
+        placement: Placement.exactOptional(),
     }),
 );
 /** A workload located in a compiled output with the declarations its code reaches. */
