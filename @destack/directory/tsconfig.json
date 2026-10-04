@@ -18,18 +18,8 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "lib": [
-            "ESNext",
-            "DOM",
-            "DOM.Iterable"
-        ],
-        "types": [
-            "node"
-        ]
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "types": ["node"]
     },
-    "include": [
-        "src",
-        "tests",
-        "*.config.ts"
-    ]
+    "include": ["src", "tests", "*.config.ts"]
 }

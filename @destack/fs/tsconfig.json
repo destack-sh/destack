@@ -18,16 +18,8 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "lib": [
-            "ESNext"
-        ],
-        "types": [
-            "bun"
-        ]
+        "lib": ["ESNext"],
+        "types": ["bun"]
     },
-    "include": [
-        "src",
-        "tests",
-        "*.config.ts"
-    ]
+    "include": ["src", "tests", "*.config.ts"]
 }

@@ -10,6 +10,7 @@ import { CheckError } from "../error/index.ts";
 import { expectationOverrides, readExpectations } from "./expectation.ts";
 import { readManifest } from "./manifest.ts";
 import { Toolchain } from "./toolchain.ts";
+import { formatSource } from "./format.ts";
 
 /** Fixed source formatting shared by editors and managed commands. */
 export const formatConfiguration = {
@@ -277,33 +278,31 @@ export async function configurePackage(
 ): Promise<void> {
     // write the compiler settings of a Destack package or workspace root
     if (existsSync(resolve(directory, "destack.json"))) {
-        await writeFile(
+        await writeJson(
             resolve(directory, "tsconfig.json"),
-            `${JSON.stringify(await typescriptConfiguration(directory), null, 4)}\n`,
+            await typescriptConfiguration(directory),
         );
     }
 
     // write the lint and format settings once per workspace, which Oxc finds above each file
     if (await holdsToolSettings(directory)) {
         await Promise.all([
-            writeFile(
+            writeJson(
                 resolve(directory, ".oxlintrc.json"),
-                `${JSON.stringify(
-                    lintConfiguration(
-                        plugins,
-                        false,
-                        expectationOverrides(await readExpectations(directory), directory),
-                    ),
-                    null,
-                    4,
-                )}\n`,
+                lintConfiguration(
+                    plugins,
+                    false,
+                    expectationOverrides(await readExpectations(directory), directory),
+                ),
             ),
-            writeFile(
-                resolve(directory, ".oxfmtrc.json"),
-                `${JSON.stringify(formatConfiguration, null, 4)}\n`,
-            ),
+            writeJson(resolve(directory, ".oxfmtrc.json"), formatConfiguration),
         ]);
     }
+}
+
+/** Write a configuration as formatted JSON, as the formatter keeps package files. */
+async function writeJson(path: string, value: unknown): Promise<void> {
+    await writeFile(path, await formatSource(path, `${JSON.stringify(value)}\n`));
 }
 
 /** Reject existing tool configuration that differs from the generated settings. */
