@@ -16,7 +16,6 @@
     },
     "declarations": {
         "defineFeature": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "feature",
@@ -27,7 +26,6 @@
             ]
         },
         "defineMeter": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "meter",
@@ -35,5 +33,9 @@
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineFeature": { "module": 1 },
+        "defineMeter": { "module": 1 }
     }
 }

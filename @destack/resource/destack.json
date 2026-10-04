@@ -5,7 +5,6 @@
     "runtimes": ["browser", "bun", "workerd"],
     "declarations": {
         "defineResourceKind": {
-            "module": 2,
             "describes": [
                 {
                     "kind": "resource-kind",
@@ -13,5 +12,8 @@
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineResourceKind": { "module": 2 }
     }
 }

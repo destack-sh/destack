@@ -16,7 +16,6 @@
     },
     "declarations": {
         "defineAuditAction": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "audit-action",
@@ -25,5 +24,8 @@
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineAuditAction": { "module": 1 }
     }
 }
