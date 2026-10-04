@@ -2,5 +2,10 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0e787-4dd2-71d6-9f43-ab1eb076c56e",
     "language": "typescript",
-    "runtimes": ["bun"]
+    "runtimes": ["bun"],
+    "exports": {
+        "./cloudflare": {
+            "runtimes": ["workerd"]
+        }
+    }
 }

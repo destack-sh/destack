@@ -19,7 +19,7 @@ macbook.flotothemoon.destack.computer                 the host macbook of flotot
 ```ts
 import { RelayServer } from "@destack/relay/server";
 import { BunRelay } from "@destack/relay/bun";
-import { WorkerdRelay } from "@destack/relay/workerd";
+import { WorkerdRelay } from "@destack/relay/cloudflare";
 
 const server = RelayServer.start({
     origin: "https://relay.destack.space",

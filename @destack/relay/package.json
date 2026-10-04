@@ -9,7 +9,7 @@
         ".": "./src/index.ts",
         "./server": "./src/server/index.ts",
         "./bun": "./src/bun/index.ts",
-        "./workerd": "./src/workerd/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts",
         "./tunnel": "./src/tunnel/index.ts",
         "./stack": "./src/stack/index.ts",
         "./workload": "./src/workload/index.ts"
