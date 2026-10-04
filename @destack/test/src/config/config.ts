@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import * as vitest from "vitest/config";
 import type { UserWorkspaceConfig, ViteUserConfig } from "vitest/config";
 import type { Plugin } from "vite";
-import { modulePlugin } from "@destack/package/transform/vite";
+import { modulePlugin } from "@destack/package/vite";
 import { schema } from "@destack/schema";
 
 /** How often `expect.poll` rechecks, in milliseconds: a local sync round trip takes a few, so the default 50 only adds idle waiting. */
@@ -69,11 +69,12 @@ function definitions(): string {
         },
     ).map((file) => join(root, file));
 
-    // read the module transform's sources
-    const transform = dirname(
-        fileURLToPath(import.meta.resolve("@destack/package/transform/vite")),
-    );
-    const sources = globSync("*.ts", { cwd: transform }).map((file) => join(transform, file));
+    // read the module transform's sources and its Vite plugin
+    const transform = dirname(fileURLToPath(import.meta.resolve("@destack/package/transform")));
+    const sources = [
+        ...globSync("*.ts", { cwd: transform }).map((file) => join(transform, file)),
+        fileURLToPath(import.meta.resolve("@destack/package/vite")),
+    ];
     const files = [...packages, ...sources].toSorted();
 
     // hash each file's path and content
