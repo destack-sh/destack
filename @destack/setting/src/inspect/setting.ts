@@ -7,7 +7,7 @@ import {
     Version,
 } from "@destack/schema";
 import { Expression } from "@destack/db";
-import { Address, Plan, type Compare } from "@destack/resource";
+import { Address, Plan, type Comparator } from "@destack/resource";
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
@@ -54,7 +54,7 @@ export function describeSetting(setting: Setting): SettingDescription {
 }
 
 /** Plan a setting's value change between two releases: newer readers read earlier values, converted by a conversion of a release between them. */
-export const compareSetting: Compare = (before, after) => {
+export const compareSetting: Comparator = (before, after) => {
     // read both releases' settings and the releases declaring them
     const earlier = SettingDescription.parse(before.description);
     const later = SettingDescription.parse(after.description);
