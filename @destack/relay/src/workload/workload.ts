@@ -36,7 +36,7 @@ export const relayConfiguration = new ResourceHandle<RelayConfiguration>(
 /** The edge of Destack's names: one relay per universe, following the account service as its placement. */
 export const relayWorkload = defineWorkload({
     name: "relay",
-    placement: ["once"],
+    placement: ["universe"],
     start: (context) => {
         // follow the account service as its placement, serving names and tunnels on the runtime's WebSockets
         const configuration = relayConfiguration.get(context.resources);
