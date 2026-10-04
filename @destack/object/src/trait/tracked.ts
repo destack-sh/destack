@@ -1,14 +1,13 @@
 import { type AccessExpression, type Authorizer, type Permission } from "@destack/access";
-import { Duration } from "@destack/schema";
+import { Duration, Identifier, present, type schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { and, desc, eq, TABLE, type Insert, type Table } from "@destack/db";
-import { LogPosition } from "@destack/db/log";
-import type { schema } from "@destack/schema";
-import { v7 } from "uuid";
+import { and, desc, eq, TABLE, type Row, LogPosition } from "@destack/db";
 import type { Call } from "../method/call.ts";
+import type { ObjectTable } from "../object/table.ts";
+import type { ActivityTable } from "../object/history.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import { Step } from "../method/step.ts";
-import type { ObjectType } from "../object/object.ts";
+import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { Procedure, ReplayShape, RowSchema, TargetShape } from "../method/procedure.ts";
 import type { Gated, Trait } from "./trait.ts";
 
@@ -18,7 +17,7 @@ const SESSION: Duration = { minutes: 10 };
 /** The options of history tracking. */
 export interface TrackedDefinition<Permissions extends string = string> extends Gated<Permissions> {
     /** The activity type among the object's attachments. */
-    readonly activity: ObjectType;
+    readonly activity: ObjectOf<{ table: ActivityTable }>;
     /** How long one activity continues after its last change, 10 minutes by default. */
     readonly session?: Duration;
 }
@@ -26,7 +25,7 @@ export interface TrackedDefinition<Permissions extends string = string> extends 
 /** The methods history derives. */
 export type TrackedMethodMap<History> = History extends TrackedDefinition
     ? {
-          readonly revert: Method<"revert", History["by"], never, never, true>;
+          readonly revert: Method<{ kind: "revert"; permission: History["by"]; mutates: true }>;
       }
     : {};
 
@@ -47,9 +46,10 @@ export const tracked: Trait<TrackedDefinition> & {
     require(objects: readonly ObjectType[], authorizer: Authorizer): void;
     /** Record a served change in the caller's current or a new activity. */
     record(
+        options: TrackedDefinition,
         call: Call,
-        before: Readonly<Record<string, unknown>> | undefined,
-        after: Readonly<Record<string, unknown>>,
+        before: Row | undefined,
+        after: Row,
         from: LogPosition,
     ): Promise<void>;
 } = {
@@ -84,58 +84,60 @@ export const tracked: Trait<TrackedDefinition> & {
         // follow each tracked object's read permission
         const followed = new Set<string>();
         for (const object of objects.filter((served) => served.tracked !== undefined)) {
-            requireKept(object, object, object.reading!.name, { objects, authorizer, followed });
+            const reading = present(object.reading, `the read permission of ${object.name}`);
+            requireKept(object, object, reading.name, { objects, authorizer, followed });
         }
     },
-    async record(call, before, after, from) {
+    async record(options, call, before, after, from) {
         // find the caller's latest activity on the object
         const { object } = call;
-        const options = object.tracked!;
         const activity = options.activity;
-        const table = activity.table as Table & Record<string, never>;
-        const caller = Subject.key(call.caller!);
-        const [latest] = (await call.database
+        const table = activity.table;
+        const caller = Subject.key(call.requireCaller());
+        const [latest] = await call.database
             .select()
             .from(table)
             .where(
                 and(
                     eq(table.parentPackageId, object.policy.definition.packageId),
                     eq(table.parentType, object.name),
-                    eq(table.parentId, call.id!),
+                    eq(table.parentId, call.requireId()),
                     eq(table.caller, caller),
                 ),
             )
             .orderBy(desc(table.endedAt))
-            .limit(1)) as Record<string, unknown>[];
+            .limit(1);
 
-        // list the fields the change wrote
+        // list the fields the change wrote, comparing their JSON forms
+        const encoded = object.table[TABLE].encode(after);
+        const prior = before === undefined ? {} : object.table[TABLE].encode(before);
         const changed = Object.keys(object.fields).filter(
-            (name) => !Step.same(before?.[name], after[name]),
+            (name) => !Step.same(prior[name], encoded[name]),
         );
 
         // continue the activity within the session window
         const session = Duration.milliseconds(options.session ?? SESSION);
-        if (latest !== undefined && (latest.endedAt as number) >= call.now - session) {
-            const fields = [...new Set([...(latest.fields as string[]), ...changed])];
+        if (latest !== undefined && latest.endedAt >= call.now - session) {
+            const fields = [...new Set([...latest.fields, ...changed])];
             await call.database
                 .update(table)
                 .set({
                     endedAt: call.now,
                     fields,
-                    changes: (latest.changes as number) + 1,
-                    revision: (latest.revision as number) + 1,
+                    changes: latest.changes + 1,
+                    revision: latest.revision + 1,
                     updatedAt: call.now,
-                } as Partial<Insert<Table>>)
-                .where(eq(table.id, latest.id as string));
+                })
+                .where(eq(table.id, latest.id));
         }
         // start an activity from the position before the change
         else {
             await call.database.insert(table).values({
-                id: `${activity.identity}-${v7()}`,
+                id: Identifier.create("activity"),
                 scope: call.scope,
                 parentPackageId: object.policy.definition.packageId,
                 parentType: object.name,
-                parentId: call.id!,
+                parentId: call.requireId(),
                 caller,
                 startedAt: call.now,
                 endedAt: call.now,
@@ -144,14 +146,14 @@ export const tracked: Trait<TrackedDefinition> & {
                 changes: 1,
                 createdAt: call.now,
                 updatedAt: call.now,
-            } as Insert<Table>);
+            });
         }
     },
 };
 
 /** Revert an object's written fields to a position. */
 function revertMethod(permission: string): Method {
-    return defineMethod<Method<"revert">>({
+    return defineMethod<{ kind: "revert" }>({
         kind: "revert",
         permission,
         mutates: true,
@@ -163,17 +165,28 @@ function revertMethod(permission: string): Method {
             input: shapes.target.extend({ ...shapes.replay, at: LogPosition }),
             output: shapes.row,
         }),
-        effect: async (call) => {
-            // write back changed fields
-            const row = await earlier(call, call.object.reading!);
-            const target = call.target as Record<string, unknown>;
+        handler: async (call: Call<ObjectTable>) => {
+            // write back the changed fields the history keeps, sensitive ones being unlogged
+            const row = await earlier(
+                call,
+                present(call.object.reading, `the read permission of ${call.object.name}`),
+            );
+            const target: Row = call.requireTarget();
+            const kept = call.object.table[TABLE].encode(row);
+            const current = call.object.table[TABLE].encode(target);
             const changes = Object.fromEntries(
-                call.object.written
-                    .filter((name) => !Step.same(row[name], target[name]))
-                    .map((name) => [name, row[name]]),
+                call.object.written.flatMap((name) => {
+                    const value = row[name];
+
+                    return value === undefined || Step.same(kept[name], current[name])
+                        ? []
+                        : [[name, value] as const];
+                }),
             );
 
-            return Object.keys(changes).length === 0 ? target : call.update(changes);
+            return Object.keys(changes).length === 0
+                ? target
+                : call.update(call.object.table[TABLE].values(changes));
         },
         inverse: (step) => {
             // restore reverted fields unchanged since
@@ -188,7 +201,7 @@ function revertMethod(permission: string): Method {
                     .map((name) => [name, step.before?.[name] ?? null]),
             );
             const update = Step.call(step, "update", {
-                ...Step.target(step, step.input.id),
+                ...Step.target(step),
                 ...restored,
             });
 
@@ -200,10 +213,10 @@ function revertMethod(permission: string): Method {
 }
 
 /** Read the call's object at the input's position, where the caller may read it then and now. */
-function earlier(call: Call, permission: Permission): Promise<Record<string, unknown>> {
-    const snapshot = call.database.log.at(LogPosition.parse(call.input.at));
+function earlier(call: Call, permission: Permission): Promise<Row> {
+    const snapshot = call.database.log.at(LogPosition.parse(call.input["at"]));
 
-    return call.served().readIn(call, call.id!, snapshot, permission);
+    return call.requireAuthorization().readIn(call, call.requireId(), snapshot, permission);
 }
 
 /** Require the objects a permission reads through to keep their history. */
@@ -224,42 +237,51 @@ function requireKept(
     }
     served.followed.add(key);
 
-    // follow the expression's parts
+    // follow the expression's terms
     const types = [...served.objects, ...served.objects.flatMap((candidate) => candidate.scopes)];
-    for (const part of parts(object.policy.definition.permissions[permission])) {
+    for (const term of terms(object.policy.definition.permissions[permission])) {
         // follow another permission of the same object
-        if (part.kind === "permission") {
-            requireKept(keeper, object, part.name, served);
+        if (term.kind === "permission") {
+            requireKept(keeper, object, term.name, served);
         }
-        // require each reached type to keep history
-        else if (part.kind === "through") {
-            const subjects = served.authorizer.relation(object.policy, part.relation).subjects;
-            const reached = types.filter((candidate) =>
+        // require each related type to keep history
+        else if (term.kind === "through") {
+            const subjects = served.authorizer.relation(object.policy, term.relation).subjects;
+            const related = types.filter((candidate) =>
                 subjects.some(
                     (subject) =>
                         candidate.policy.definition.packageId === subject.packageId &&
                         candidate.policy.definition.name === subject.type,
                 ),
             );
-            for (const target of new Set(reached)) {
-                if ((target.table as Table)[TABLE].retention !== "history") {
+            for (const target of new Set(related)) {
+                if (target.table[TABLE].retention !== "history") {
                     throw new TypeError(
                         `object ${keeper.name} keeps history but reads through ${target.name}, which keeps none`,
                     );
                 }
-                requireKept(keeper, target, part.permission, served);
+                requireKept(keeper, target, term.permission, served);
             }
         }
     }
 }
 
 /** List the permissions and relations an expression reads. */
-function parts(expression: AccessExpression | undefined): AccessExpression[] {
-    return expression === undefined
-        ? []
-        : expression.kind === "union" || expression.kind === "intersection"
-          ? expression.expressions.flatMap(parts)
-          : expression.kind === "exclusion"
-            ? [...parts(expression.include), ...parts(expression.exclude)]
-            : [expression];
+function terms(expression: AccessExpression | undefined): AccessExpression[] {
+    // read nothing of an absent expression
+    if (expression === undefined) {
+        return [];
+    }
+    // read each branch of a union or intersection
+    else if (expression.kind === "union" || expression.kind === "intersection") {
+        return expression.expressions.flatMap(terms);
+    }
+    // read both sides of an exclusion
+    else if (expression.kind === "exclusion") {
+        return [...terms(expression.include), ...terms(expression.exclude)];
+    }
+    // read a term itself
+    else {
+        return [expression];
+    }
 }

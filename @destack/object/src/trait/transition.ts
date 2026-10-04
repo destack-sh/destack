@@ -1,8 +1,11 @@
-import type { schema } from "@destack/schema";
+import { TABLE } from "@destack/db";
+import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import type { Field, StateField, StateMachine } from "../field/field.ts";
+import type { StateField, StateMachine } from "../field/field.ts";
 import { Step } from "../method/step.ts";
 import { defineMethod, type Method } from "../method/method.ts";
+import type { Call } from "../method/call.ts";
+import type { ObjectTable } from "../object/table.ts";
 import {
     type Procedure,
     type ReplayShape,
@@ -25,7 +28,11 @@ type TransitionName<Fields> = {
 
 /** The methods the transitions of an object's state fields derive. */
 export type TransitionMethodMap<Fields> = {
-    readonly [Name in TransitionName<Fields>]: Method<"transition", string, never, never, true>;
+    readonly [Name in TransitionName<Fields>]: Method<{
+        kind: "transition";
+        permission: string;
+        mutates: true;
+    }>;
 };
 
 /** Transitions of state fields. */
@@ -33,9 +40,7 @@ export const transitions: Trait<StateFields> = {
     options: (definition) => {
         // collect the fields following a machine
         const fields = Object.entries(definition.fields ?? {}).flatMap(([name, declared]) =>
-            (declared as Field).machine === undefined
-                ? []
-                : [[name, (declared as Field).machine!] as const],
+            declared.machine === undefined ? [] : [[name, declared.machine] as const],
         );
 
         return fields.length === 0 ? undefined : fields;
@@ -66,7 +71,7 @@ function transitionMethod(
     name: string,
     transition: StateMachine["transitions"][string],
 ): Method {
-    return defineMethod<Method<"transition">>({
+    return defineMethod<{ kind: "transition" }>({
         kind: "transition",
         permission: transition.permission,
         mutates: true,
@@ -74,18 +79,14 @@ function transitionMethod(
         inverse: (step) => {
             // find the transition leading back
             const left = step.before?.[field];
-            const back = Object.entries(
-                step.object.methods as Readonly<Record<string, Method>>,
-            ).find(
+            const back = Object.entries(step.object.methods).find(
                 ([, declared]) =>
                     declared.transition?.field === field &&
                     declared.transition.to === left &&
                     declared.transition.from.includes(transition.to),
             );
 
-            return back === undefined
-                ? undefined
-                : [Step.record(step, back[0], Step.target(step, step.input.id))];
+            return back === undefined ? undefined : [Step.record(step, back[0], Step.target(step))];
         },
         target: true,
         result: "object",
@@ -94,17 +95,18 @@ function transitionMethod(
             input: shapes.target.extend(shapes.replay),
             output: shapes.row,
         }),
-        effect: (call) => call.update({ [field]: transition.to }),
+        handler: (call: Call<ObjectTable>) =>
+            call.update(call.object.table[TABLE].values({ [field]: transition.to })),
         async execute(call) {
             // refuse transitions from any other state
-            const state = (call.target as Record<string, unknown>)[field] as string;
+            const state = schema.string().parse(call.requireTarget()[field]);
             if (!transition.from.includes(state)) {
                 throw new ServiceError("CONFLICT", {
                     message: `${call.object.name} cannot ${name} while ${field} is ${state}`,
                 });
             }
 
-            return this.effect(call);
+            return this.handler(call);
         },
     });
 }

@@ -8,7 +8,6 @@ import {
 } from "@destack/access";
 import {
     and,
-    type Column,
     eq,
     identifier,
     integer,
@@ -18,28 +17,36 @@ import {
     sql,
     TABLE,
     text,
-    type DatabaseConnection,
-    type Insert,
+    type InsertValue,
+    type JsonOf,
     type Select,
     type SQL,
     type Table,
+    type Expression,
+    ColumnValue,
+    DatabaseError,
+    isSQLWrapper,
+    type Row,
 } from "@destack/db";
-import { type Scalar } from "@destack/db/query";
-import { type Expression } from "@destack/schema/expression";
+import { validated } from "../field/field.ts";
+import { aligned, canonicalize, schema, type JsonObject, type Version } from "@destack/schema";
 import { changesThroughLog, Dataflow, View, type ObjectReference, Subject } from "@destack/sync";
-import { canonicalize } from "@destack/schema/json";
-import { type Identifier, schema, type Version } from "@destack/schema";
-import { DatabaseError } from "@destack/db/error";
 import { conceal, ServiceError } from "@destack/service/error";
 import { Page, page } from "@destack/service/page";
-import { v7 } from "uuid";
-import { Call } from "../method/call.ts";
+import { Call, type Bivariant } from "../method/call.ts";
 import { Step } from "../method/step.ts";
 import type * as sync from "@destack/sync";
-import { defineMethod, type Method } from "../method/method.ts";
+import {
+    defineMethod,
+    type Method,
+    type MethodBuilder,
+    type MethodDefinition,
+} from "../method/method.ts";
 import {
     Empty,
     PageShape,
+    type MethodProcedure,
+    type ObjectSchema,
     RevisionShape,
     type FieldShape,
     type WrittenShape,
@@ -53,11 +60,23 @@ import {
 } from "../method/procedure.ts";
 import { kebabCase } from "../object/name.ts";
 import { Listing } from "../query/listing.ts";
-import { ListedShape, QueryShape, ViewShape, type ObjectInclude } from "../replica/replica.ts";
+import { nest } from "../query/item.ts";
+import { ListShape, QueryShape, ViewShape } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
+import type { ObjectTable } from "../object/table.ts";
+import type { RecoverableTable } from "./recoverable.ts";
 import { versioned } from "./versioned.ts";
 import { Manager } from "./declarable.ts";
 import type { Trait } from "./trait.ts";
+
+/** The count of objects a bulk update changed, after Prisma's batch payload. */
+export const BatchPayload = schema.object({ count: schema.number().int().nonnegative() });
+
+/** The query, page and view of a list's input, beside its scope fields. */
+const LIST_INPUT = schema.looseObject({ ...QueryShape, ...PageShape, ...ViewShape });
+
+/** The field values a bulk update matches objects by, by field name. */
+const MATCH = schema.record(schema.string(), schema.json());
 
 /** User-defined labels indexed by name. */
 export const TagMap = schema.record(schema.string().min(1).max(128), schema.string().max(256));
@@ -71,7 +90,7 @@ export function tags(name = "tags") {
         .default(sql`'{}'`);
 }
 
-/** Declare the columns every record holds. */
+/** Declare the columns every record has. */
 export function recordColumns<const Prefix extends string>(prefix: Prefix) {
     return {
         /** The immutable record identifier. */
@@ -91,10 +110,18 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
     };
 }
 
-/** The columns every record holds. */
-export type RecordBuilderMap<Prefix extends string = string> = ReturnType<
-    typeof recordColumns<Prefix>
->;
+/** Declare the identifier column of objects named by their natural key. */
+export function keyColumn<Key extends schema.Schema<string>>(key: Key) {
+    return validated("id", key).primaryKey();
+}
+
+/** The columns every record has, its identifier the natural key when the objects declare one. */
+export type RecordBuilderMap<Prefix extends string = string, Key = undefined> =
+    Key extends schema.Schema<string>
+        ? Omit<ReturnType<typeof recordColumns<Prefix>>, "id"> & {
+              readonly id: ReturnType<typeof keyColumn<Key>>;
+          }
+        : ReturnType<typeof recordColumns<Prefix>>;
 
 /** Declare the column naming an ephemeral object's writing client. */
 export function clientColumns() {
@@ -114,12 +141,13 @@ export const record: Trait<true> = {
     options: () => true,
     columns: (_options, object) => ({
         ...recordColumns(object.identity),
+        ...(object.key === undefined ? {} : { id: keyColumn(object.key) }),
         ...(object.storage === "ephemeral" ? clientColumns() : {}),
     }),
     constraints: () => [],
     // cascade durable objects' relationships
     table: (_options, object) =>
-        object.storage === "ephemeral"
+        object.storage !== "durable"
             ? {}
             : {
                   dependents: [
@@ -135,29 +163,38 @@ export const record: Trait<true> = {
 };
 
 /** Read one object. */
-export function get<const Permission extends string>(
+export function get<const Permission extends string, Definition extends Table = Table>(
+    this: MethodBuilder<Definition>,
     permission: Permission,
-): Method<"get", Permission, never, never, false> {
-    return defineMethod<Method<"get", Permission, never, never, false>>({
-        kind: "get",
-        permission,
-        mutates: false,
-        target: true,
-        result: "object",
-        procedure: (_name, shapes) => ({
-            route: { method: "GET", path: "/{id}" },
-            input: shapes.target.extend(ViewShape),
-            output: shapes.row,
-        }),
-        effect: async (call) => call.target,
-    });
+): Method<{ kind: "get"; permission: Permission; mutates: false; table: Definition }> {
+    return defineMethod<{ kind: "get"; permission: Permission; mutates: false; table: Definition }>(
+        {
+            kind: "get",
+            permission,
+            mutates: false,
+            target: true,
+            result: "object",
+            procedure: (_name, shapes) => ({
+                route: { method: "GET", path: "/{id}" },
+                input: shapes.target.extend(ViewShape),
+                output: shapes.row,
+            }),
+            handler: async (call) => call.target,
+        },
+    );
 }
 
 /** Read a page of a scope's objects or aggregate groups. */
-export function list<const Permission extends string>(
+export function list<const Permission extends string, Definition extends Table = Table>(
+    this: MethodBuilder<Definition>,
     permission: Permission,
-): Method<"list", Permission, never, never, false> {
-    return defineMethod<Method<"list", Permission, never, never, false>>({
+): Method<{ kind: "list"; permission: Permission; mutates: false; table: Definition }> {
+    return defineMethod<{
+        kind: "list";
+        permission: Permission;
+        mutates: false;
+        table: Definition;
+    }>({
         kind: "list",
         permission,
         mutates: false,
@@ -166,79 +203,132 @@ export function list<const Permission extends string>(
         procedure: (_name, shapes) => ({
             route: { method: "POST", path: "/query" },
             input: shapes.scope.extend({ ...QueryShape, ...PageShape, ...ViewShape }),
-            output: page(shapes.row).extend(ListedShape),
+            output: page(shapes.row).extend(ListShape),
         }),
-        effect: listObjects,
+        handler: listObjects,
     });
+}
+
+/** Derive a new object's first relationships and a new scope's owner, taking any call of the creation as a method would. */
+export type CreationOf<Definition extends Table, Input extends schema.Schema> = Bivariant<
+    (call: Call<Definition, Input>, object: ObjectReference) => Creation | Promise<Creation>
+>;
+
+/** How a creation method creates: its written fields, input, creator and prediction. */
+export interface CreateOptions<
+    Fields extends string,
+    Input extends schema.JsonObject,
+    Prepared extends schema.Schema,
+    System extends boolean,
+    Definition extends Table = Table,
+> {
+    /** Whether only the system creates, with no permission, naming the caller fields itself. */
+    readonly isSystem?: System;
+    /** The fields the caller writes, every written field when absent. */
+    readonly fields?: readonly Fields[];
+    /** The caller-supplied values beyond fields. */
+    readonly input?: Input;
+    /** The external work the creation prepares before its transaction. */
+    readonly prepared?: Prepared;
+    /** The relation the calling principal takes to the new object. */
+    readonly creator?: string;
+    /** The new object's first relationships and a new scope's owner. */
+    readonly creation?: CreationOf<Definition, NoInfer<Input>>;
+    /** Whether clients predict the creation. */
+    readonly isPredicted?: false;
+    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+}
+
+/** How an update method updates: its written fields, input and prediction. */
+export interface UpdateOptions<
+    Fields extends string,
+    Input extends schema.JsonObject,
+    Prepared extends schema.Schema,
+> {
+    /** Whether only the system updates, with no permission. */
+    readonly isSystem?: true;
+    /** The fields the caller writes, every written field when absent. */
+    readonly fields?: readonly Fields[];
+    /** The caller-supplied values beyond fields. */
+    readonly input?: Input;
+    /** The external work the update prepares before its transaction. */
+    readonly prepared?: Prepared;
+    /** Whether clients predict the update. */
+    readonly isPredicted?: false;
+    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+}
+
+/** How a bulk update matches and writes objects. */
+export interface UpdateManyOptions<Fields extends string, Match extends string> {
+    /** The fields the call writes on each matched object. */
+    readonly fields: readonly Fields[];
+    /** The fields the call matches objects by. */
+    readonly match: readonly Match[];
+    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+}
+
+/** How a deletion method deletes. */
+export interface RemoveOptions<Prepared extends schema.Schema> {
+    /** Whether only the system deletes, with no permission. */
+    readonly isSystem?: true;
+    /** The external work the deletion prepares before its transaction. */
+    readonly prepared?: Prepared;
 }
 
 /** Create an object from the fields the caller writes. */
 export function create<
     const Permission extends string | null,
     const Fields extends string = string,
-    Input extends schema.Schema = never,
+    Input extends schema.JsonObject = never,
+    Prepared extends schema.Schema = never,
+    const System extends boolean = false,
+    Definition extends Table = Table,
 >(
     permission: Permission,
-    options: {
-        /** Whether only the system creates, with no permission. */
-        readonly isSystem?: true;
-        readonly fields?: readonly Fields[];
-        readonly input?: Input;
-        /** The relation the calling principal takes to the new object. */
-        readonly creator?: string;
-        /** The new object's first relationships and a new scope's owner. */
-        readonly creation?: (call: Call, object: ObjectReference) => Creation | Promise<Creation>;
-        /** Whether clients predict the creation. */
-        readonly isPredicted?: false;
-        /** The input fields each release computes from an earlier call's input, by the release introducing them. */
-        readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
-    } = {},
-): Method<"create", Permission, NoInfer<Input>, never, true, NoInfer<Fields>> {
-    // resolve the creation
-    const { creator, creation: declaredCreation, ...declared } = options;
-    if (creator !== undefined && declaredCreation !== undefined) {
-        throw new TypeError("a creation names a creator relation or a creation, not both");
-    }
-    const creation = creator === undefined ? declaredCreation : relateCreator(creator);
+    options: CreateOptions<Fields, Input, Prepared, System, Definition> = {},
+): Method<{
+    kind: "create";
+    permission: Permission;
+    input: NoInfer<Input>;
+    prepared: NoInfer<Prepared>;
+    mutates: true;
+    fields: NoInfer<Fields>;
+    table: Definition;
+    system: NoInfer<System>;
+}> {
+    // resolve the creation from a creator relation or a declared creation
+    const { creator: _creator, creation: _creation, ...declared } = options;
+    const creation = resolveCreation(options);
 
-    return defineMethod<Method<"create", Permission, Input, never, true, Fields>>({
+    return defineMethod<{
+        kind: "create";
+        permission: Permission;
+        input: Input;
+        prepared: Prepared;
+        mutates: true;
+        fields: Fields;
+        table: Definition;
+        system: System;
+    }>({
         kind: "create",
         permission,
         mutates: true,
         ...declared,
         target: false,
         result: "object",
-        procedure: (_name, shapes) => ({
-            route: { method: "POST", path: "" },
-            input: shapes.scope.extend({
-                ...shapes.created,
-                ...shapes.parent,
-                ...shapes.replay,
-                ...shapes.written(options.fields, false),
-                ...fields(options.input),
-            }),
-            output: shapes.row,
-        }),
-        effect: createObject,
-        authorize: async (call) => {
-            // require the receiving parent and the create permission of a caller
-            if (call.method.permission === null) {
-                return;
-            }
-            const reader = await call.authorization!.reader(call.scope);
-            const parent = call.object.parent && call.parent();
-            if (parent) {
-                await call.requireReceiving(parent, reader);
-            }
-            await requireCreatable(call, reader, creation);
-        },
+        procedure: (_name, shapes) => createProcedure(shapes, options),
+        handler: createObject,
+        authorize: (call: Call<ObjectTable>) => authorizeCreate(call, creation),
         inverse: (step) => {
             // delete the created object
-            const call = Step.call(step, "delete", Step.target(step, step.after?.id));
+            const call = Step.call(step, "delete", Step.target(step));
 
             return call === undefined ? undefined : [call];
         },
-        async execute(call) {
+        async execute(call: Call<ObjectTable>) {
             // predict under the client's identifier
             if (call.isPredicted) {
                 if (call.id === undefined) {
@@ -247,23 +337,11 @@ export function create<
                     );
                 }
 
-                return this.effect(call);
+                return this.handler(call);
             }
 
-            // insert under an unused identifier
-            const authorization = call.served();
-            const { created, row } = await insertCreated(call, (inserted) => this.effect(inserted));
-
-            // record access and require guarded writes
-            const id = Call.resultId(row)!;
-            const object = call.object.reference(call.scope, id);
-            const isScope = call.object.policy.definition.scope === true;
-            if (isScope || creation !== undefined) {
-                await authorization.create(object, (await creation?.(created, object)) ?? {});
-            }
-            await authorization.requireWritable(created, id);
-
-            return row;
+            // insert under an unused identifier and record its access
+            return insertAuthorized(call, creation, (inserted) => this.handler(inserted));
         },
     });
 }
@@ -272,21 +350,31 @@ export function create<
 export function update<
     const Permission extends string | null,
     const Fields extends string = string,
-    Input extends schema.Schema = never,
+    Input extends schema.JsonObject = never,
+    Prepared extends schema.Schema = never,
+    Definition extends Table = Table,
 >(
+    this: MethodBuilder<Definition>,
     permission: Permission,
-    options: {
-        /** Whether only the system updates, with no permission. */
-        readonly isSystem?: true;
-        readonly fields?: readonly Fields[];
-        readonly input?: Input;
-        /** Whether clients predict the update. */
-        readonly isPredicted?: false;
-        /** The input fields each release computes from an earlier call's input, by the release introducing them. */
-        readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
-    } = {},
-): Method<"update", Permission, NoInfer<Input>, never, true, NoInfer<Fields>> {
-    return defineMethod<Method<"update", Permission, Input, never, true, Fields>>({
+    options: UpdateOptions<Fields, Input, Prepared> = {},
+): Method<{
+    kind: "update";
+    permission: Permission;
+    input: NoInfer<Input>;
+    prepared: NoInfer<Prepared>;
+    mutates: true;
+    fields: NoInfer<Fields>;
+    table: Definition;
+}> {
+    return defineMethod<{
+        kind: "update";
+        permission: Permission;
+        input: Input;
+        prepared: Prepared;
+        mutates: true;
+        fields: Fields;
+        table: Definition;
+    }>({
         kind: "update",
         permission,
         mutates: true,
@@ -303,35 +391,17 @@ export function update<
             }),
             output: shapes.row,
         }),
-        effect: (call) => call.update((call.object.table as Table).decode(call.input)),
-        inverse: (step) => {
-            // restore fields unchanged since
-            const current = step.current;
-            if (current === undefined) {
-                return undefined;
-            }
-            const restored = Object.fromEntries(
-                step.object.written
-                    .filter((name) => Object.hasOwn(step.input, name))
-                    .filter((name) => Step.same(current[name], step.after?.[name]))
-                    .map((name) => [name, step.before?.[name] ?? null]),
-            );
-            if (Object.keys(restored).length === 0) {
-                return undefined;
-            }
-
-            return [
-                Step.record(step, step.name, { ...Step.target(step, step.input.id), ...restored }),
-            ];
-        },
+        handler: (call: Call<ObjectTable>) =>
+            call.update(call.object.table[TABLE].decode(call.input)),
+        inverse: restoreUpdated,
         async execute(call) {
             // refuse managed objects and unwritable fields
             requireUnmanaged(call);
             if (!call.isPredicted) {
-                await call.served().requireWritable(call, call.id!);
+                await call.requireAuthorization().requireWritable(call, call.requireId());
             }
 
-            return this.effect(call);
+            return this.handler(call);
         },
     });
 }
@@ -341,20 +411,30 @@ export function updateMany<
     const Permission extends string,
     const Fields extends string = string,
     const Match extends string = string,
+    Definition extends Table = Table,
 >(
+    this: MethodBuilder<Definition>,
     permission: Permission,
-    options: {
-        /** The fields the call writes on each matched object. */
-        readonly fields: readonly Fields[];
-        /** The fields the call matches objects by. */
-        readonly match: readonly Match[];
-        /** The input fields each release computes from an earlier call's input, by the release introducing them. */
-        readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
-    },
-): Method<"updateMany", Permission, never, never, true, NoInfer<Fields>> {
-    return defineMethod<Method<"updateMany", Permission, never, never, true, Fields>>({
+    options: UpdateManyOptions<Fields, Match>,
+): Method<{
+    kind: "updateMany";
+    permission: Permission;
+    output: typeof BatchPayload;
+    mutates: true;
+    fields: NoInfer<Fields>;
+    table: Definition;
+}> {
+    return defineMethod<{
+        kind: "updateMany";
+        permission: Permission;
+        output: typeof BatchPayload;
+        mutates: true;
+        fields: Fields;
+        table: Definition;
+    }>({
         kind: "updateMany",
         permission,
+        output: BatchPayload,
         mutates: true,
         ...(options.convert === undefined ? {} : { convert: options.convert }),
         target: false,
@@ -366,100 +446,41 @@ export function updateMany<
                 where: schema.object(shapes.written(options.match, true)),
                 ...shapes.written(options.fields, true),
             }),
-            output: schema.object({ count: schema.number().int().nonnegative() }),
+            output: BatchPayload,
         }),
-        validate: (object) => {
-            // refuse tracked, declarable, versioned objects and guarded fields
-            if (
-                object.tracked !== undefined ||
-                object.declarationSchema !== undefined ||
-                object.versioned
-            ) {
-                throw new TypeError(
-                    `object ${object.name} keeps a record of each change, which many updates at once skip`,
-                );
-            }
-            const guarded = options.fields.find(
-                (name) => object.fields[name]?.access?.write !== undefined,
-            );
-            if (guarded !== undefined) {
-                throw new TypeError(
-                    `object ${object.name} guards field ${guarded}, which many updates at once skip`,
-                );
-            }
-        },
-        effect: async (call) => {
-            // decode values and matches
-            const table = call.object.table as Table & Record<string, Column>;
-            const input = call.input as Record<string, unknown> & {
-                readonly where: Record<string, unknown>;
-            };
-            const values = table.decode(
-                Object.fromEntries(
-                    options.fields.flatMap((name) =>
-                        Object.hasOwn(input, name) ? [[name, input[name]]] : [],
-                    ),
-                ),
-            );
-            const matched = table.decode(input.where);
-            const hasGeneration = Object.hasOwn(table[TABLE].columns, "generation");
-
-            // match by the given values
-            const matching = and(
-                call.object.inScope(call.scope),
-                ...Object.entries(matched).map(([name, value]) =>
-                    value === null ? isNull(table[name]!) : eq(table[name]!, value),
-                ),
-            );
-
-            // restrict served calls to permitted objects, then update
-            let held: SQL | undefined;
-            if (!call.isPredicted) {
-                const served = call.served();
-                const permission = call.object.permission(call.method.permission!);
-                const listable = served.listable(call.object, permission);
-                if (listable === "memory") {
-                    const rows = (await call.database
-                        .select()
-                        .from(table)
-                        .where(matching)) as Record<string, unknown>[];
-                    const kept = await served.keep(rows, permission);
-                    held = inArray(
-                        table.id!,
-                        kept.map((row) => row.id),
-                    );
-                } else {
-                    held = listable;
-                }
-            }
-            const changed = (await call.database
-                .update(table)
-                .set({
-                    ...values,
-                    revision: sql`${table.revision!} + 1`,
-                    ...(hasGeneration ? { generation: sql`${table.generation!} + 1` } : {}),
-                    updatedAt: call.now,
-                    updatedBy: call.caller === undefined ? null : Subject.key(call.caller),
-                } as Partial<Insert<Table>>)
-                .where(and(matching, held))
-                .returning({ id: table.id! })) as unknown[];
-
-            return { count: changed.length };
-        },
+        validate: (object) => requireUnrecorded(object, options.fields),
+        handler: (call: Call<ObjectTable>) => updateMatching(call, options.fields),
     });
 }
 
 /** Delete an object. */
-export function remove<const Permission extends string | null>(
+export function remove<
+    const Permission extends string | null,
+    Prepared extends schema.Schema = never,
+    Definition extends Table = Table,
+>(
+    this: MethodBuilder<Definition>,
     permission: Permission,
-    options: {
-        /** Whether only the system deletes, with no permission. */
-        readonly isSystem?: true;
-    } = {},
-): Method<"delete", Permission, never, never, true> {
-    return defineMethod<Method<"delete", Permission, never, never, true>>({
+    options: RemoveOptions<Prepared> = {},
+): Method<{
+    kind: "delete";
+    permission: Permission;
+    output: typeof Empty;
+    prepared: NoInfer<Prepared>;
+    mutates: true;
+    table: Definition;
+}> {
+    return defineMethod<{
+        kind: "delete";
+        permission: Permission;
+        output: typeof Empty;
+        prepared: Prepared;
+        mutates: true;
+        table: Definition;
+    }>({
         kind: "delete",
         permission,
+        output: Empty,
         mutates: true,
         ...options,
         target: true,
@@ -469,41 +490,42 @@ export function remove<const Permission extends string | null>(
             input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
             output: Empty,
         }),
-        effect: deleteObject,
+        handler: deleteObject,
         inverse: (step) => {
             // restore from the trash
             const call =
                 step.object.recoverable === undefined
                     ? undefined
-                    : Step.call(step, "restore", Step.target(step, step.input.id));
+                    : Step.call(step, "restore", Step.target(step));
 
             return call === undefined ? undefined : [call];
         },
         async execute(call) {
             requireUnmanaged(call);
 
-            return this.effect(call);
+            return this.handler(call);
         },
     });
 }
 
-/** Declare a custom method on one object, mutating by default. */
-export function custom<
-    const Permission extends string | null,
-    Input extends schema.Schema = never,
-    Output extends schema.Schema = never,
-    const Mutates extends boolean = true,
->(definition: {
+/** A custom method's permission, input, output and inverse. */
+export interface CustomDefinition<
+    Permission extends string | null,
+    Input extends schema.JsonObject,
+    Output extends schema.Schema,
+    Prepared extends schema.Schema,
+    System extends boolean = false,
+> {
     /** The permission the caller needs on the target, null for none. */
     readonly permission: Permission;
     /** Whether only the system calls the method. */
-    readonly isSystem?: true;
+    readonly isSystem?: System;
     /** The caller-supplied fields. */
     readonly input?: Input;
     /** The result, the updated object when absent. */
     readonly output?: Output;
-    /** Whether the method changes state. */
-    readonly mutates?: Mutates;
+    /** The external work the method prepares before its transaction. */
+    readonly prepared?: Prepared;
     /** Whether each reading call is audited. */
     readonly audited?: true;
     /** The fields of the result an audited read's event names. */
@@ -512,11 +534,97 @@ export function custom<
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
     /** The input fields each release computes from an earlier call's input, by the release introducing them. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
-}): Method<"custom", Permission, Input, Output, NoInfer<Mutates>> {
-    const mutates = (definition.mutates ?? true) as Mutates;
+}
+
+/** Declare a method reading one object, as tRPC's `query`. */
+export function query<
+    const Permission extends string | null,
+    Input extends schema.JsonObject = never,
+    Output extends schema.Schema = never,
+    Prepared extends schema.Schema = never,
+    const System extends boolean = false,
+    Definition extends Table = Table,
+>(
+    this: MethodBuilder<Definition>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+): Method<{
+    kind: "custom";
+    permission: Permission;
+    input: Input;
+    output: Output;
+    prepared: Prepared;
+    mutates: false;
+    table: Definition;
+    system: System;
+}> {
+    return defineMethod<{
+        kind: "custom";
+        permission: Permission;
+        input: Input;
+        output: Output;
+        prepared: Prepared;
+        mutates: false;
+        table: Definition;
+        system: System;
+    }>(custom(definition, false));
+}
+
+/** Declare a method changing one object, as tRPC's `mutation`. */
+export function mutation<
+    const Permission extends string | null,
+    Input extends schema.JsonObject = never,
+    Output extends schema.Schema = never,
+    Prepared extends schema.Schema = never,
+    const System extends boolean = false,
+    Definition extends Table = Table,
+>(
+    this: MethodBuilder<Definition>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+): Method<{
+    kind: "custom";
+    permission: Permission;
+    input: Input;
+    output: Output;
+    prepared: Prepared;
+    mutates: true;
+    table: Definition;
+    system: System;
+}> {
+    return defineMethod<{
+        kind: "custom";
+        permission: Permission;
+        input: Input;
+        output: Output;
+        prepared: Prepared;
+        mutates: true;
+        table: Definition;
+        system: System;
+    }>(custom(definition, true));
+}
+
+/** Describe a custom method on one object, reading or changing it. */
+function custom<
+    const Permission extends string | null,
+    Input extends schema.JsonObject,
+    Output extends schema.Schema,
+    Prepared extends schema.Schema,
+    const Mutates extends boolean,
+    const System extends boolean,
+>(
+    definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+    mutates: Mutates,
+): MethodDefinition<{
+    kind: "custom";
+    permission: Permission;
+    input: Input;
+    output: Output;
+    prepared: Prepared;
+    mutates: Mutates;
+    system: System;
+}> {
     const { inverse, ...declared } = definition;
 
-    return defineMethod<Method<"custom", Permission, Input, Output, Mutates>>({
+    return {
         kind: "custom",
         ...declared,
         ...(inverse === undefined
@@ -539,37 +647,240 @@ export function custom<
             }),
             output: definition.output ?? shapes.row,
         }),
-        effect: missingHandler,
-    });
+        handler: missingHandler,
+    };
 }
 
 /** Read a method's own input fields. */
-function fields(input: schema.Schema | undefined): Record<string, schema.Schema> {
-    return (input as schema.Object<Record<string, schema.Schema>> | undefined)?.shape ?? {};
+function fields(input: schema.JsonObject | undefined): schema.JsonObject["shape"] {
+    return input?.shape ?? {};
+}
+
+/** Derive a creation's procedure: the scope, the chosen identifier, the parent and the written fields. */
+function createProcedure(
+    shapes: ObjectSchema,
+    options: Pick<
+        CreateOptions<string, schema.JsonObject, schema.Schema, boolean>,
+        "fields" | "isSystem" | "input"
+    >,
+): MethodProcedure {
+    return {
+        route: { method: "POST", path: "" },
+        input: shapes.scope.extend({
+            ...shapes.created,
+            ...shapes.parent,
+            ...shapes.replay,
+            ...shapes.written(options.fields, false),
+            ...(options.isSystem === true ? shapes.callers : {}),
+            ...fields(options.input),
+        }),
+        output: shapes.row,
+    };
+}
+
+/** Resolve a creation from a creator relation or a declared creation, refusing both. */
+function resolveCreation(
+    options: Pick<
+        CreateOptions<string, schema.JsonObject, schema.Schema, boolean>,
+        "creator" | "creation"
+    >,
+): CreateOptions<string, schema.JsonObject, schema.Schema, boolean>["creation"] {
+    // refuse a creator relation beside a creation
+    const { creator, creation } = options;
+    if (creator !== undefined && creation !== undefined) {
+        throw new TypeError("a creation names a creator relation or a creation, not both");
+    }
+
+    return creator === undefined ? creation : relateCreator(creator);
+}
+
+/** Require the receiving parent and the create permission of a caller. */
+async function authorizeCreate(
+    call: Call<ObjectTable>,
+    creation: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
+): Promise<void> {
+    // skip a creation needing no permission
+    if (call.method.permission === null) {
+        return;
+    }
+
+    // require the receiving parent and the creation
+    const reader = await call.requireAuthorization().reader(call.scope);
+    const parent = call.object.parent && call.parent();
+    if (parent) {
+        await call.requireReceiving(parent, reader);
+    }
+    await requireCreatable(call, reader, creationOf(call, creation));
+}
+
+/** Insert a created object under an unused identifier, record its access and require guarded writes. */
+async function insertAuthorized(
+    call: Call<ObjectTable>,
+    creation: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
+    insert: (created: Call<ObjectTable>) => Promise<unknown>,
+): Promise<unknown> {
+    // insert under an unused identifier
+    const authorization = call.requireAuthorization();
+    const { id, created, row } = await insertCreated(call, insert);
+
+    // record access and require guarded writes
+    const object = call.object.reference(call.scope, id);
+    const isScope = call.object.policy.definition.scope === true;
+    const creating = creationOf(call, creation);
+    if (isScope || creating !== undefined) {
+        await authorization.create(object, (await creating?.(created, object)) ?? {});
+    }
+    await authorization.requireWritable(created, id);
+
+    return row;
+}
+
+/** Restore the updated fields a step wrote that stayed unchanged since. */
+function restoreUpdated(step: Step): readonly sync.Call[] | undefined {
+    // restore nothing for a deleted object
+    const current = step.current;
+    if (current === undefined) {
+        return undefined;
+    }
+
+    // restore the fields unchanged since
+    const restored = Object.fromEntries(
+        step.object.written
+            .filter((name) => Object.hasOwn(step.input, name))
+            .filter((name) => Step.same(current[name], step.after?.[name]))
+            .map((name) => [name, step.before?.[name] ?? null]),
+    );
+    if (Object.keys(restored).length === 0) {
+        return undefined;
+    }
+
+    return [
+        Step.record(step, step.name, {
+            ...Step.target(step),
+            ...restored,
+        }),
+    ];
+}
+
+/** Refuse tracked, declarable and versioned objects and guarded fields, whose changes many updates at once skip. */
+function requireUnrecorded(object: ObjectType, written: readonly string[]): void {
+    // refuse objects keeping a record of each change
+    if (
+        object.tracked !== undefined ||
+        object.declarationSchema !== undefined ||
+        object.versioned
+    ) {
+        throw new TypeError(
+            `object ${object.name} keeps a record of each change, which many updates at once skip`,
+        );
+    }
+
+    // refuse guarded fields
+    const guarded = written.find((name) => object.fields[name]?.access?.write !== undefined);
+    if (guarded !== undefined) {
+        throw new TypeError(
+            `object ${object.name} guards field ${guarded}, which many updates at once skip`,
+        );
+    }
+}
+
+/** Update every matching object the caller may change, returning the count. */
+async function updateMatching(
+    call: Call<ObjectTable>,
+    written: readonly string[],
+): Promise<{ count: number }> {
+    // decode values and matches
+    const table = call.object.table;
+    const definition = table[TABLE];
+    const input: JsonObject = call.input;
+    const values = definition.decode(
+        Object.fromEntries(
+            written.flatMap((name) => {
+                const value = input[name];
+
+                return value === undefined ? [] : [[name, value]];
+            }),
+        ),
+    );
+    const matched = definition.decode(MATCH.parse(input["where"]));
+    const hasGeneration = Object.hasOwn(definition.columns, "generation");
+
+    // match by the given values, restricted to permitted objects
+    const matching = and(
+        call.object.inScope(call.scope),
+        ...Object.entries(matched).map(([name, value]) =>
+            value === null ? isNull(definition.column(name)) : eq(definition.column(name), value),
+        ),
+    );
+    const permitted = call.isPredicted ? undefined : await permittedMatches(call, matching);
+
+    // update the permitted matches
+    const columns: Table = table;
+    const changed = await call.database
+        .update(columns)
+        .set({
+            ...values,
+            revision: sql`${table.revision} + 1`,
+            ...(hasGeneration ? { generation: sql`${definition.column("generation")} + 1` } : {}),
+            updatedAt: call.now,
+            updatedBy: call.caller === undefined ? null : Subject.key(call.caller),
+        })
+        .where(and(matching, permitted))
+        .returning({ id: table.id });
+
+    return { count: changed.length };
+}
+
+/** Restrict a served call's matches to the objects the caller may change. */
+async function permittedMatches(
+    call: Call<ObjectTable>,
+    matching: SQL | undefined,
+): Promise<SQL | undefined> {
+    // decide in SQL where the permission compiles
+    const served = call.requireAuthorization();
+    const required = call.permission();
+    const listable = served.listable(call.object, required);
+    if (listable !== "memory") {
+        return listable;
+    }
+
+    // keep the matched rows decided in memory
+    const table = call.object.table;
+    const rows = await call.database.select().from(table).where(matching);
+    const kept = await served.keep(rows, required);
+
+    return inArray(
+        table.id,
+        kept.map((row) => row.id),
+    );
 }
 
 /** Insert a created object. */
-async function createObject(call: Call): Promise<Record<string, unknown>> {
-    const table = call.object.table as Table & Record<string, never>;
-    const [row] = (await call.database
-        .insert(table)
-        .values((await createdValues(call)) as Insert<Table>)
-        .returning()) as Record<string, unknown>[];
+async function createObject(call: Call<ObjectTable>): Promise<Select<Table>> {
+    // insert the created columns
+    const columns: Table = call.object.table;
+    const [row] = await call.database
+        .insert(columns)
+        .values(await createdValues(call))
+        .returning();
+    if (row === undefined) {
+        throw new TypeError(`the insert of ${call.object.name} returned no row`);
+    }
 
-    return row!;
+    return row;
 }
 
 /** Build the columns a created object is inserted with. */
-async function createdValues(call: Call): Promise<Record<string, unknown>> {
-    // require a caller of the declared kinds
+async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table>> {
+    // fill caller fields with a calling principal of the declared kinds
     const { object, caller } = call;
     const isSystem = call.method.isSystem === true;
-    const callers = Object.entries(object.fields).filter(
-        ([, declared]) => declared.isCaller && !isSystem,
-    );
-    for (const [, declared] of callers) {
+    const callers: Record<string, string> = {};
+    for (const [name, declared] of Object.entries(object.fields)) {
         const kinds = declared.principals;
-        if (
+        if (!declared.isCallerFilled || isSystem) {
+            continue;
+        } else if (
             caller === undefined ||
             !(kinds === undefined ? isPrincipal(caller) : kinds.some((kind) => kind.is(caller)))
         ) {
@@ -578,11 +889,12 @@ async function createdValues(call: Call): Promise<Record<string, unknown>> {
                 message: `${object.name} is created by a ${named}`,
             });
         }
+        callers[name] = declared.type === "subject" ? Subject.key(caller) : caller.id;
     }
 
     // number versions within their parent
     const version = object.versioned
-        ? await versioned.next(object, call.parent()!.id, call.database)
+        ? await versioned.next(object, call.requireParent().id, call.database)
         : undefined;
 
     // require the writing client
@@ -591,21 +903,14 @@ async function createdValues(call: Call): Promise<Record<string, unknown>> {
     }
 
     // assemble the columns
-    const table = object.table as Table & Record<string, never>;
-
     return {
-        ...table.decode(call.input),
+        ...object.table[TABLE].decode(call.input),
         ...(object.parent === undefined ? {} : call.parentColumns()),
         id: call.id,
         scope: call.scope,
         ...(version === undefined ? {} : { number: version }),
         ...(object.storage === "ephemeral" ? { client: call.client } : {}),
-        ...Object.fromEntries(
-            callers.map(([name, declared]) => [
-                name,
-                declared.type === "subject" ? Subject.key(caller!) : caller!.id,
-            ]),
-        ),
+        ...callers,
         createdAt: call.now,
         createdBy: caller === undefined ? null : Subject.key(caller),
         updatedAt: call.now,
@@ -615,14 +920,15 @@ async function createdValues(call: Call): Promise<Record<string, unknown>> {
 
 /** Insert a created object under an unused identifier within a savepoint. */
 async function insertCreated(
-    call: Call,
-    effect: (created: Call) => Promise<unknown>,
-): Promise<{ readonly created: Call; readonly row: unknown }> {
+    call: Call<ObjectTable>,
+    insert: (created: Call<ObjectTable>) => Promise<unknown>,
+): Promise<{ readonly id: string; readonly created: Call<ObjectTable>; readonly row: unknown }> {
     // insert a prediction directly
     if (call.isPredicted) {
-        const created = call.with({ id: await createdId(call) });
+        const id = await createdId(call);
+        const created = call.with({ id });
 
-        return { created, row: await effect(created) };
+        return { id, created, row: await insert(created) };
     }
 
     // insert within a savepoint
@@ -630,56 +936,67 @@ async function insertCreated(
         return await call.database.transaction(async (transaction) => {
             // insert under an unused identifier
             const inserting = call.with({ database: transaction });
-            const created = inserting.with({ id: await createdId(inserting) });
-            const row = await effect(created);
+            const id = await createdId(inserting);
+            const row = await insert(inserting.with({ id }));
 
-            return { created: created.with({ database: call.database }), row };
+            return { id, created: call.with({ id }), row };
         });
     } catch (error) {
-        // report conflicts only to admitted callers
+        // report conflicts only to admitted callers and the system
         const isConflict =
             (error instanceof ServiceError && error.code === "CONFLICT") ||
             (error instanceof DatabaseError &&
                 (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE"));
-        if (isConflict && call.method.permission !== null) {
+        if (
+            isConflict &&
+            call.method.permission !== null &&
+            !call.requireAuthorization().isSystem
+        ) {
             await requireCreatable(call);
         }
         throw error;
     }
 }
 
+/** Read a created object's column values as a decision reads them before the row is written, leaving out values only the database computes. */
+function createdRow(table: Table, values: InsertValue<Table>): Row {
+    const row: Record<string, ColumnValue> = {};
+    for (const [name, column] of Object.entries(table[TABLE].columns)) {
+        // take the written value, else the column's default
+        const written: unknown = Object.hasOwn(values, name) ? values[name] : undefined;
+        const value = written === undefined ? column.definition.default : written;
+
+        // keep a value, and leave out a missing one or one the database computes
+        if (value === null) {
+            row[name] = null;
+        } else if (value !== undefined && !isSQLWrapper(value)) {
+            row[name] = ColumnValue.parse(column.definition.schema.parse(value));
+        }
+    }
+
+    return row;
+}
+
 /** Require the create permission on the object as written. */
 async function requireCreatable(
-    call: Call,
+    call: Call<ObjectTable>,
     reader?: GrantReader,
     creation?: (call: Call, object: ObjectReference) => Creation | Promise<Creation>,
 ): Promise<void> {
-    // build the row with column defaults
-    const table = call.object.table as Table;
-    const columns = table[TABLE].columns;
-    const values = await createdValues(
-        call.with({ id: call.id ?? `${call.object.identity}-${v7()}` }),
-    );
-    const defaults = Object.entries(columns).flatMap(([name, column]) => {
-        const value = column.definition.default;
-        const isExpression = typeof value === "object" && value !== null && "getSQL" in value;
-
-        return Object.hasOwn(values, name) || value === undefined || isExpression
-            ? []
-            : [[name, value]];
-    });
-    const row = { ...Object.fromEntries(defaults), ...values };
+    // build the row as it will be written, with column defaults
+    const id = call.id ?? call.object.generateId();
+    const row = createdRow(call.object.table, await createdValues(call.with({ id })));
 
     // check the permission on the row
-    const authorization = call.authorization!;
+    const authorization = call.requireAuthorization();
     const { authorizer, snapshot } = authorization;
     const grants = reader ?? (await authorization.reader(call.scope));
-    const created = call.object.reference(call.scope, String(row.id));
-    const initial = (await creation?.(call.with({ id: String(row.id) }), created)) ?? {};
+    const created = call.object.reference(call.scope, id);
+    const initial = (await creation?.(call.with({ id }), created)) ?? {};
     grants.creating(created, authorizer.initialRelationships(created, initial, call.now));
-    const permission = call.object.permission(call.method.permission!);
+    const permission = call.permission();
     const admits = async (access: Access) =>
-        (await authorizer.checkRows(snapshot, permission, access, [row], grants)).held.has(0);
+        (await authorizer.checkRows(snapshot, permission, access, [row], grants)).permitted.has(0);
     const access = await authorization.in(call.scope);
     if (await admits(access)) {
         return;
@@ -699,7 +1016,7 @@ async function requireCreatable(
     const reading = call.object.reading;
     const isReadable =
         reading !== undefined &&
-        (await authorizer.checkRows(snapshot, reading, access, [row])).held.has(0);
+        (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0);
 
     // refuse a reader, and hide the object from others
     const denial = new ServiceError("FORBIDDEN", {
@@ -709,18 +1026,18 @@ async function requireCreatable(
 }
 
 /** Delete an object, or request deletion when a trash or controller finishes it. */
-async function deleteObject(call: Call): Promise<Record<string, never>> {
+async function deleteObject(call: Call<ObjectTable>): Promise<Record<string, never>> {
     // refuse deleting an object twice
     const { object } = call;
-    const table = object.table as Table & Record<string, never>;
-    const target = call.target as Record<string, unknown>;
-    if (target.deletionRequestedAt !== undefined && target.deletionRequestedAt !== null) {
+    const target: Row = call.requireTarget();
+    if (target["deletionRequestedAt"] !== undefined && target["deletionRequestedAt"] !== null) {
         throw new ServiceError("CONFLICT", { message: `${object.name} is already deleted` });
     }
 
     // request deletion when a trash or controller finishes it
-    if (Object.hasOwn(table[TABLE].columns, "deletionRequestedAt")) {
-        await call.update({
+    const deleting = deletingCall(call);
+    if (deleting !== undefined) {
+        await deleting.update({
             deletionRequestedAt: call.now,
             deletedBy: call.caller === undefined ? null : Subject.key(call.caller),
         });
@@ -734,42 +1051,42 @@ async function deleteObject(call: Call): Promise<Record<string, never>> {
     return {};
 }
 
-/** Accept a caller's unused identifier for a created object, or mint one. */
-async function createdId(call: Call): Promise<string> {
-    // mint a missing identifier
-    const { object } = call;
-    const chosen = call.id as Identifier<string> | undefined;
+/** Read a call by the deletion columns its object's table keeps, absent for an object deleting at once. */
+function deletingCall(call: Call<ObjectTable>): Call<RecoverableTable> | undefined;
+/**
+ * Read a call by its table's deletion columns, for objects a trash or a controller finishes deleting.
+ *
+ * @construct defineObject derives the deletion columns into the table of every object whose definition sets `recoverable` or `controlled`.
+ */
+function deletingCall(call: Call<ObjectTable>): Call | undefined {
+    return call.object.recoverable === undefined && !call.object.isControlled ? undefined : call;
+}
+
+/** Accept a caller's unused identifier for a created object, or generate one. */
+async function createdId(call: Call<ObjectTable>): Promise<string> {
+    // generate a missing identifier
+    const { object, id: chosen } = call;
     if (chosen === undefined) {
-        return `${object.identity}-${v7()}`;
+        return object.generateId();
     }
 
-    // check rows and relationships for the identifier
-    const table = object.table as Table & Record<string, never>;
+    // find a row with the identifier, or a relationship a deleted object left under it
+    const table = object.table;
     const { packageId, name } = object.policy.definition;
-    const related = sql`EXISTS (
-        SELECT 1 FROM ${accessRelationship}
-        WHERE ${and(
-            eq(accessRelationship.packageId, packageId),
-            eq(accessRelationship.type, name),
-            eq(accessRelationship.objectId, chosen),
-        )}
-    )`;
-    const held = sql`EXISTS (SELECT 1 FROM ${table} WHERE ${eq(table.id, chosen)})`;
-    const isTaken = async (database: DatabaseConnection, exists: SQL) => {
-        const [row] = await database.execute<{ isTaken: number | boolean }>(
-            sql`SELECT ${exists} AS "isTaken"`,
-        );
-
-        return Boolean(row!.isTaken);
-    };
+    const rows = sql`SELECT 1 FROM ${table} WHERE ${eq(table[TABLE].column("id"), chosen)}`;
+    const relationships = sql`SELECT 1 FROM ${accessRelationship} WHERE ${and(
+        eq(accessRelationship.packageId, packageId),
+        eq(accessRelationship.type, name),
+        eq(accessRelationship.objectId, chosen),
+    )}`;
+    const isTaken =
+        object.storage === "durable"
+            ? await call.database.exists(sql`${rows} UNION ALL ${relationships}`)
+            : (await call.database.exists(rows)) ||
+              (await call.requireAuthorization().database.exists(relationships));
 
     // refuse a taken identifier
-    const taken =
-        object.storage === "durable"
-            ? await isTaken(call.database, sql`(${held} OR ${related})`)
-            : (await isTaken(call.database, held)) ||
-              (await isTaken(call.authorization!.database, related));
-    if (taken) {
+    if (isTaken) {
         throw new ServiceError("CONFLICT", { message: `${object.name} identifier is taken` });
     }
 
@@ -777,33 +1094,51 @@ async function createdId(call: Call): Promise<string> {
 }
 
 /** Read a page of a query's rows or its aggregate groups. */
-async function listObjects(call: Call) {
+export async function listObjects(call: Call) {
     // bind the cursor to the query
-    const {
-        cursor,
-        limit,
-        at: _at,
-        branch: _branch,
-        ...shape
-    } = call.input as ObjectInclude & {
-        readonly cursor?: string;
-        readonly limit?: number;
-        readonly at?: unknown;
-        readonly branch?: unknown;
-    };
+    const { cursor, limit, at: _at, branch: _branch, ...options } = LIST_INPUT.parse(call.input);
     const listing = new Page(
         { ...(cursor === undefined ? {} : { cursor }), ...(limit === undefined ? {} : { limit }) },
-        [call.object.name, call.scope, canonicalize(shape)],
+        [call.object.name, call.scope, canonicalize(options)],
         schema.record(schema.string(), schema.json()),
     );
 
     // compile the query with one extra row
-    const compiled = call.object.query(
-        shape.aggregate === undefined ? { ...shape, limit: listing.limit + 1 } : shape,
-        call.objects,
+    const compiled = {
+        ...call.object.query(
+            options.aggregate === undefined ? { ...options, limit: listing.limit + 1 } : options,
+            call.objects,
+        ),
+        scopes: call.object.scopesOf(call.chain),
+    };
+    const dataflow = listingDataflow(call, compiled);
+    const node = aligned(dataflow.roots, 0);
+
+    // read groups at the latest position, or rows
+    const position = call.snapshot?.position;
+    const after = listing.after === undefined ? undefined : node.table[TABLE].decode(listing.after);
+    await dataflow.load(await View.of(call.database, call.snapshot), after);
+    if (node.aggregate !== undefined && position !== undefined) {
+        throw new ServiceError("BAD_REQUEST", {
+            message: "aggregates read the latest position, whose access decides them",
+        });
+    } else if (node.aggregate !== undefined) {
+        return { items: [], cursor: null, groups: await dataflow.results("list") };
+    }
+
+    // keep the items the caller could read and split includes and computed values
+    const kept = await keepReadable(call, await dataflow.read("list"));
+    const listed = listing.result(kept, (item) =>
+        node.table[TABLE].encode(node.positionOf(item.row)),
     );
-    const dataflow = new Dataflow(
-        { list: { ...compiled, scopes: call.object.scopesOf(call.chain) } },
+
+    return { ...listed, ...splitListed(listed.items, node, compiled) };
+}
+
+/** Build the dataflow listing a call's query, materialized for the call's audience. */
+function listingDataflow(call: Call, compiled: sync.Query): Dataflow {
+    return new Dataflow(
+        { list: compiled },
         {
             audience: new Listing(call),
             database: call.database,
@@ -811,72 +1146,66 @@ async function listObjects(call: Call) {
             isMaterialized: true,
         },
     );
-    const node = dataflow.roots[0]!;
+}
 
-    // read groups at the latest position, or rows
-    const position = call.snapshot?.position;
-    const after = listing.after === undefined ? undefined : node.table.decode(listing.after);
-    await dataflow.fill(await View.of(call.database, call.snapshot), after);
-    if (node.aggregate !== undefined && position !== undefined) {
-        throw new ServiceError("BAD_REQUEST", {
-            message: "aggregates read the latest position, whose access decides them",
-        });
-    } else if (node.aggregate !== undefined) {
-        return { items: [], cursor: null, groups: await dataflow.read("list") };
+/** Keep the items whose rows the caller could read at the snapshot position. */
+async function keepReadable(call: Call, read: readonly sync.Item[]): Promise<readonly sync.Item[]> {
+    // keep every item at the latest position
+    const { snapshot } = call;
+    if (snapshot?.position === undefined) {
+        return read;
     }
 
-    // keep, at a position, the rows the caller could also read then
-    const read = await dataflow.read("list");
-    const rows =
-        position === undefined
-            ? read
-            : await call
-                  .served()
-                  .keepAt(
-                      read,
-                      call.object.permission(call.method.permission!),
-                      call.snapshot!,
-                      call.scope,
-                  );
-    const ordered = node.order.flatMap((key) => node.columnsOf(key.column));
-    const listed = listing.result(rows, (row) =>
-        node.table.encode(Object.fromEntries(ordered.map((name) => [name, row[name]]))),
+    // keep the items whose rows access permits at the snapshot position
+    const permitted = new Set(
+        await call.requireAuthorization().keepAt(
+            read.map((item) => item.row),
+            call.permission(),
+            snapshot,
+            call.scope,
+        ),
     );
 
-    // split includes and computed values
+    return read.filter((item) => permitted.has(item.row));
+}
+
+/** Split listed items into their rows, their included rows and their computed values. */
+function splitListed(listed: readonly sync.Item[], node: sync.Node, compiled: sync.Query) {
+    // list the included relations and the computed values
     const names = node.children
         .filter((child) => child.kind === "include")
         .map((child) => child.name.slice(node.name.length + 1));
-    const computed = Object.keys(node.computed);
+    const extras = Object.keys(node.extras);
     const values = Object.fromEntries(
-        listed.items.map((row) => [
-            String(row.id),
-            Object.fromEntries(
-                computed.map((name) => [name, node.json(name, row[name]) as Scalar]),
-            ),
+        listed.map(({ row }) => [
+            schema.string().parse(row["id"]),
+            Object.fromEntries(extras.map((name) => [name, node.scalar(name, row[name])])),
         ]),
     );
+
+    // index the included rows by relation and item
+    const nestedRows = listed.map((item) => nest(item, compiled));
     const included = Object.fromEntries(
         names.map((name) => [
             name,
             Object.fromEntries(
-                listed.items.map((row) => [String(row.id), schema.json().parse(row[name])]),
+                nestedRows.map((row) => [
+                    schema.string().parse(row["id"]),
+                    schema.json().parse(row[name]),
+                ]),
             ),
         ]),
     );
-    const items = listed.items.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).filter(
-                ([name]) => !names.includes(name) && !computed.includes(name),
-            ),
-        ),
+
+    // strip the computed values from the rows
+    const items = listed.map(({ row }) =>
+        Object.fromEntries(Object.entries(row).filter(([name]) => !extras.includes(name))),
     );
 
     return {
-        ...listed,
         items,
         ...(names.length === 0 ? {} : { included }),
-        ...(computed.length === 0 ? {} : { computed: values }),
+        ...(extras.length === 0 ? {} : { extras: values }),
     };
 }
 
@@ -884,7 +1213,6 @@ async function listObjects(call: Call) {
 function requireUnmanaged(call: Call): void {
     if (Manager.isManaging(call.target)) {
         throw new ServiceError("MANAGED", {
-            status: 409,
             message: `${call.object.name} is managed by its stack; detach it before changing it`,
         });
     }
@@ -900,13 +1228,13 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
     get: Procedure<schema.Object<TargetShape<Object> & typeof ViewShape>, RowSchema<Object>>;
     list: Procedure<
         schema.Object<ScopeShape<Object> & typeof QueryShape & typeof PageShape & typeof ViewShape>,
-        schema.Object<ReturnType<typeof page<RowSchema<Object>>>["shape"] & typeof ListedShape>
+        schema.Object<ReturnType<typeof page<RowSchema<Object>>>["shape"] & typeof ListShape>
     >;
     create: Procedure<
         schema.Object<
             ScopeShape<Object> &
-                CreatedShape<Object> &
-                ParentShape<Object, false> &
+                CreationShape<Object> &
+                ParentShape<Object> &
                 ReplayShape<Object> &
                 WrittenShape<Object, Declared, false> &
                 FieldShape<Declared>
@@ -950,31 +1278,36 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
     >;
 };
 
-/** The values a call matches objects by. */
-type MatchShape<Object extends ObjectType> = {
-    [Name in keyof Select<Object["table"]> & string]: schema.Optional<
-        schema.Schema<Select<Object["table"]>[Name]>
-    >;
-};
+/** The written values a call matches objects by, in their JSON form. */
+type MatchShape<Object extends ObjectType> = WrittenShape<Object, Method, true>;
 
 /** The identifier a caller may choose for a created object. */
-type CreatedShape<Object extends ObjectType> = {
-    id: schema.Optional<
-        schema.Schema<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>
+type CreationShape<Object extends ObjectType> = {
+    id: schema.ExactOptional<
+        schema.Schema<JsonOf<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>>
     >;
 };
 
-/** Relate the calling principal to a new object. */
+/** Read how a call creates its object's first relationships: as declared, else relating the creator as owner of a scope shared through the roles. */
+function creationOf(
+    call: Call,
+    declared: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
+): ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined {
+    const isOwnedScope =
+        call.object.roles !== undefined && call.object.policy.definition.scope === true;
+
+    return declared ?? (isOwnedScope ? relateCreator("owner") : undefined);
+}
+
+/** Relate the calling principal to a new object, and a new scope's owner role to the relation's holders. */
 function relateCreator(relation: string): (call: Call, object: ObjectReference) => Creation {
     return (call, object) => {
         // require a creator
-        if (call.caller === undefined) {
-            throw new ServiceError("FORBIDDEN", { message: `${call.object.name} needs a creator` });
-        }
+        const caller = call.requireCaller();
         const isScope = call.object.policy.definition.scope === true;
 
         return {
-            relationships: [{ relation, subject: call.caller }],
+            relationships: [{ relation, subject: caller }],
             ...(isScope ? { owner: { ...object, relation } } : {}),
         };
     };

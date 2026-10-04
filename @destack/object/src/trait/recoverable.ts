@@ -1,8 +1,8 @@
 import { earliest } from "@destack/access";
-import { Duration } from "@destack/schema";
+import { Duration, present, type schema } from "@destack/schema";
 import {
+    Change,
     and,
-    type Column,
     type ColumnBuilder,
     type DatabaseConnection,
     integer,
@@ -10,13 +10,15 @@ import {
     isNull,
     lte,
     min,
-    type Table,
+    type Row,
     text,
+    type Select,
+    TABLE,
 } from "@destack/db";
-import type { schema } from "@destack/schema";
+import type { FieldColumn } from "../field/field.ts";
 import { ServiceError } from "@destack/service/error";
 import type { Call } from "../method/call.ts";
-import { defineMethod, method, type Method } from "../method/method.ts";
+import { defineMethod, method, type Method, type MethodBuilder } from "../method/method.ts";
 import { Step } from "../method/step.ts";
 import {
     Empty,
@@ -25,11 +27,11 @@ import {
     type RowSchema,
     type TargetShape,
 } from "../method/procedure.ts";
-import type { ObjectType } from "../object/object.ts";
+import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { Controller } from "@destack/service/control";
 import { type ObjectServer, SystemCall } from "../server/server.ts";
-import { remove } from "./record.ts";
 import type { Trait } from "./trait.ts";
+import type { ObjectTable } from "../object/table.ts";
 
 /** The most rows one purge removes per transaction: about a millisecond of deletes. */
 const PURGE_ROWS = 100;
@@ -44,28 +46,61 @@ export type RecoverableDefinition<Permissions extends string = string> = {
     readonly purge?: Permissions;
     /** What a purge keeps, the record or nothing. */
     readonly keep?: "record";
+    /** The external work a purge prepares before its transaction, such as releasing storage. */
+    readonly prepared?: schema.Schema;
 };
+
+/** The table of recoverable objects: the record columns and the deletion request. */
+export type RecoverableTable = ObjectTable<
+    string,
+    unknown,
+    {},
+    { readonly recoverable: RecoverableDefinition }
+>;
+
+/** The table of recoverable objects whose purge keeps the record. */
+export type KeptTable = ObjectTable<
+    string,
+    unknown,
+    {},
+    { readonly recoverable: RecoverableDefinition & { readonly keep: "record" } }
+>;
+
+/** The method declarations of recoverable objects whose purge keeps the record. */
+const keptMethod: MethodBuilder<KeptTable> = method;
 
 /** The columns recording the deletion request and the purge of a kept record's content. */
 export type DeletionBuilderMap<Deletion> = Deletion extends RecoverableDefinition
     ? {
-          deletionRequestedAt: ColumnBuilder<number, false, false>;
-          deletedBy: ColumnBuilder<string, false, false>;
+          deletionRequestedAt: ColumnBuilder<FieldColumn<number, false, false>>;
+          deletedBy: ColumnBuilder<FieldColumn<string, false, false>>;
       } & (Deletion extends {
           readonly keep: "record";
       }
-          ? { purgedAt: ColumnBuilder<number, false, false> }
+          ? { purgedAt: ColumnBuilder<FieldColumn<number, false, false>> }
           : {})
     : {};
 
 /** The methods recoverable deletion derives. */
 export type RecoverableMethodMap<Deletion> = Deletion extends RecoverableDefinition
     ? {
-          readonly delete: Method<"delete", Deletion["by"], never, never, true>;
-          readonly restore: Method<"restore", Deletion["by"], never, never, true>;
-          readonly purge: Method<"purge", PurgePermission<Deletion>, never, never, true>;
+          readonly delete: Method<{ kind: "delete"; permission: Deletion["by"]; mutates: true }>;
+          readonly restore: Method<{ kind: "restore"; permission: Deletion["by"]; mutates: true }>;
+          readonly purge: Method<{
+              kind: "purge";
+              permission: PurgePermission<Deletion>;
+              prepared: PurgePrepared<Deletion>;
+              mutates: true;
+          }>;
       } & (Deletion extends { readonly keep: "record" }
-          ? { readonly discard: Method<"custom", null, never, typeof Empty, true> }
+          ? {
+                readonly discard: Method<{
+                    kind: "custom";
+                    permission: null;
+                    output: typeof Empty;
+                    mutates: true;
+                }>;
+            }
           : {})
     : {};
 
@@ -75,6 +110,13 @@ type PurgePermission<Deletion extends RecoverableDefinition> = Deletion extends 
 }
     ? Purge
     : Deletion["by"];
+
+/** The external work a purge prepares: the schema `prepared` names, else none. */
+type PurgePrepared<Deletion extends RecoverableDefinition> = Deletion extends {
+    readonly prepared: infer Prepared extends schema.Schema;
+}
+    ? Prepared
+    : never;
 
 /** Declare the time a record's deletion was requested. */
 export function deletionColumns() {
@@ -112,14 +154,14 @@ export const recoverable: Trait<RecoverableDefinition> & {
     }),
     constraints: () => [],
     methods: (options) => ({
-        delete: remove(options.by),
-        restore: restoration("restore", options.by, true),
-        purge: restoration("purge", options.purge ?? options.by, options.keep !== "record"),
+        delete: method.delete(options.by),
+        restore: restoration("restore", options.by, options),
+        purge: restoration("purge", options.purge ?? options.by, options),
         ...(options.keep === "record" ? { discard } : {}),
     }),
     validate: (options, object, definition) => {
         // refuse controlled objects
-        if (definition.controlled) {
+        if (definition.controlled !== undefined) {
             throw new TypeError(
                 `object ${object.name} is controlled, so its controller finishes its deletion`,
             );
@@ -150,13 +192,10 @@ export const recoverable: Trait<RecoverableDefinition> & {
     async purge(server, now) {
         // purge each type in batches until one comes back short
         let purged = 0;
-        for (const object of server.objects) {
-            for (
-                let batch = PURGE_ROWS;
-                object.recoverable !== undefined && batch === PURGE_ROWS;
-            ) {
+        for (const { object, options } of recoverables(server.objects)) {
+            for (let batch = PURGE_ROWS; batch === PURGE_ROWS;) {
                 // purge one batch
-                const rows = await expired(server.database, object, now);
+                const rows = await expired(server.database, object, options, now);
                 if (rows.length > 0) {
                     await server.executeAsSystem(
                         object,
@@ -174,18 +213,19 @@ export const recoverable: Trait<RecoverableDefinition> & {
     },
     controller(server) {
         // watch recoverable objects
-        const types = server.objects.filter((object) => object.recoverable !== undefined);
+        const types = recoverables(server.objects);
 
         return {
             name: "purge",
-            watches: types.map((object) => object.table as Table),
+            watches: types.map(({ object }) => object.table),
             keys: (change) => {
                 // look again when a row enters the trash
-                const after = change.after as { deletionRequestedAt?: number | null } | undefined;
-                const before = change.before as { deletionRequestedAt?: number | null } | undefined;
-                const deleted = after?.deletionRequestedAt ?? null;
+                const deleted = Change.after(change)?.["deletionRequestedAt"] ?? null;
 
-                return deleted !== null && before?.deletionRequestedAt !== deleted ? ["trash"] : [];
+                return deleted !== null &&
+                    Change.before(change)?.["deletionRequestedAt"] !== deleted
+                    ? ["trash"]
+                    : [];
             },
             list: async () => ["trash"],
             reconcile: async () => {
@@ -193,7 +233,7 @@ export const recoverable: Trait<RecoverableDefinition> & {
                 const now = Date.now();
                 await recoverable.purge(server, now);
                 const ends = await Promise.all(
-                    types.map((object) => ending(server.database, object)),
+                    types.map(({ object, options }) => ending(server.database, object, options)),
                 );
                 const next = earliest(ends);
 
@@ -203,86 +243,138 @@ export const recoverable: Trait<RecoverableDefinition> & {
     },
 };
 
+/** Read a call as its object's kept table types it, absent for an object purging its whole record. */
+export function keptCall(call: Call<RecoverableTable>): Call<KeptTable> | undefined;
+/**
+ * Read a call as its object's kept table types it, by the trait's option.
+ *
+ * @construct defineObject derives the purge column into the table of every object whose recovery keeps the record.
+ */
+export function keptCall(call: Call<RecoverableTable>): Call | undefined {
+    return call.object.recoverable?.keep === "record" ? call : undefined;
+}
+
+/** Read an object type as its recoverable table types it, absent for a type without the trait. */
+export function recoverableType(
+    object: ObjectType,
+): ObjectOf<{ table: RecoverableTable }> | undefined;
+/**
+ * Read an object type as its recoverable table types it, by the trait's option.
+ *
+ * @construct defineObject derives the trait's deletion columns into the table of every object whose definition sets `recoverable`.
+ */
+export function recoverableType(object: ObjectType): ObjectType | undefined {
+    return object.recoverable === undefined ? undefined : object;
+}
+
 /** Read a batch of a type's expired, unpurged deleted rows. */
 async function expired(
     database: DatabaseConnection,
-    object: ObjectType,
+    object: ObjectOf<{ table: RecoverableTable }>,
+    options: RecoverableDefinition,
     now: number,
-): Promise<Record<string, unknown>[]> {
-    // read expired rows
-    const table = object.table as Table & Record<string, Column>;
-    const window = Duration.milliseconds(object.recoverable!.within);
-    const isKept = object.recoverable!.keep === "record";
+): Promise<Select<RecoverableTable>[]> {
+    // read expired rows, unpurged where the type keeps purged records
+    const table = object.table;
+    const window = Duration.milliseconds(options.within);
+    const unpurged =
+        options.keep === "record" ? isNull(table[TABLE].column("purgedAt")) : undefined;
 
-    return (await database
+    return database
         .select()
         .from(table)
-        .where(
-            and(
-                lte(table.deletionRequestedAt!, now - window),
-                isKept ? isNull(table.purgedAt!) : undefined,
-            ),
-        )
-        .limit(PURGE_ROWS)) as Record<string, unknown>[];
+        .where(and(lte(table.deletionRequestedAt, now - window), unpurged))
+        .limit(PURGE_ROWS);
 }
 
 /** Read when a type's earliest pending deletion leaves its window. */
 async function ending(
     database: DatabaseConnection,
-    object: ObjectType,
+    object: ObjectOf<{ table: RecoverableTable }>,
+    options: RecoverableDefinition,
 ): Promise<number | undefined> {
     // read the earliest unpurged deletion request
-    const table = object.table as Table & Record<string, Column>;
-    const isKept = object.recoverable!.keep === "record";
+    const table = object.table;
+    const unpurged =
+        options.keep === "record" ? isNull(table[TABLE].column("purgedAt")) : undefined;
     const [row] = await database
-        .select({ requestedAt: min(table.deletionRequestedAt!) })
+        .select({ requestedAt: min(table.deletionRequestedAt) })
         .from(table)
-        .where(
-            and(
-                isNotNull(table.deletionRequestedAt!),
-                isKept ? isNull(table.purgedAt!) : undefined,
-            ),
-        );
-    const requestedAt = row?.requestedAt as number | null | undefined;
+        .where(and(isNotNull(table.deletionRequestedAt), unpurged));
+    if (row === undefined) {
+        throw new TypeError(`the earliest deletion of ${object.name} read no row`);
+    }
+    const requestedAt = row.requestedAt;
 
-    return requestedAt == null
-        ? undefined
-        : requestedAt + Duration.milliseconds(object.recoverable!.within);
+    return requestedAt === null ? undefined : requestedAt + Duration.milliseconds(options.within);
+}
+
+/** Select the recoverable object types among the served ones, with their recovery options. */
+function recoverables(objects: readonly ObjectType[]): {
+    readonly object: ObjectOf<{ table: RecoverableTable }>;
+    readonly options: RecoverableDefinition;
+}[] {
+    return objects.flatMap((object) => {
+        const typed = recoverableType(object);
+
+        return typed === undefined || object.recoverable === undefined
+            ? []
+            : [{ object: typed, options: object.recoverable }];
+    });
+}
+
+/** Read the recovery a call's served object type keeps, which its host may set. */
+function recoveryOf(call: Call): RecoverableDefinition {
+    return present(call.object.recoverable, `the recovery of ${call.object.name}`);
 }
 
 /** Name the purge method a recoverable type takes. */
 function purgeMethod(object: ObjectType): string {
-    return Object.entries(object.methods as Readonly<Record<string, Method>>).find(
-        ([, declared]) => declared.kind === "purge",
-    )![0];
+    const [name] = present(
+        Object.entries(object.methods).find(([, declared]) => declared.kind === "purge"),
+        `the purge method of ${object.name}`,
+    );
+
+    return name;
 }
 
 /** Restore a deleted object, or purge it for good. */
 function restoration(
     kind: "restore" | "purge",
     permission: string,
-    isPredicted: boolean,
-): Method<"restore" | "purge", string, never, never, true> {
+    options: RecoverableDefinition,
+): Method<{
+    kind: "restore" | "purge";
+    permission: string;
+    prepared: schema.Schema;
+    mutates: true;
+}> {
     const isRestore = kind === "restore";
 
-    return defineMethod<Method<"restore" | "purge", string, never, never, true>>({
+    return defineMethod<{
+        kind: "restore" | "purge";
+        permission: string;
+        prepared: schema.Schema;
+        mutates: true;
+    }>({
         kind,
         permission,
         mutates: true,
-        isPredicted,
+        isPredicted: isRestore || options.keep !== "record",
         target: true,
         result: isRestore ? "object" : "value",
+        ...(isRestore || options.prepared === undefined ? {} : { prepared: options.prepared }),
         procedure: (_name, shapes) => ({
             route: { method: "POST", path: `/{id}/${kind}` },
             input: shapes.target.extend(shapes.replay),
             output: isRestore ? shapes.row : Empty,
         }),
-        effect: isRestore ? restore : purge,
+        handler: isRestore ? restore : purge,
         ...(isRestore
             ? {
                   inverse: (step: Step) => {
                       // delete the restored object to its trash again
-                      const call = Step.call(step, "delete", Step.target(step, step.input.id));
+                      const call = Step.call(step, "delete", Step.target(step));
 
                       return call === undefined ? undefined : [call];
                   },
@@ -290,29 +382,29 @@ function restoration(
             : {
                   async execute(this: Method, call: Call) {
                       // require a purge handler for kept records
-                      if (call.object.recoverable!.keep === "record" && this.effect === purge) {
+                      if (recoveryOf(call).keep === "record" && this.handler === purge) {
                           throw new TypeError(
                               `object ${call.object.name} keeps purged records, so a purge handler of its own destroys their content`,
                           );
                       }
 
-                      return this.effect(call);
+                      return this.handler(call);
                   },
               }),
     });
 }
 
 /** Clear a deletion that is still recoverable. */
-async function restore(call: Call): Promise<Record<string, unknown>> {
+async function restore(call: Call<RecoverableTable>): Promise<Select<RecoverableTable>> {
     // require an unpurged deletion within its window
     const { object } = call;
-    const target = call.target as Record<string, unknown>;
-    const requested = target.deletionRequestedAt as number | null;
+    const target = call.requireTarget();
+    const requested = target.deletionRequestedAt;
     if (requested === null) {
         throw new ServiceError("CONFLICT", { message: `${object.name} is not deleted` });
     } else if (isPurged(target)) {
         throw new ServiceError("CONFLICT", { message: `${object.name} is purged` });
-    } else if (call.now - requested >= Duration.milliseconds(object.recoverable!.within)) {
+    } else if (call.now - requested >= Duration.milliseconds(recoveryOf(call).within)) {
         throw new ServiceError("CONFLICT", {
             message: `${object.name} is past its recovery window`,
         });
@@ -322,10 +414,10 @@ async function restore(call: Call): Promise<Record<string, unknown>> {
 }
 
 /** Purge an object in the trash: mark a kept record purged, else remove it. */
-async function purge(call: Call): Promise<Record<string, never>> {
+async function purge(call: Call<RecoverableTable>): Promise<Record<string, never>> {
     // purge only objects in the trash, once
     const { object } = call;
-    const target = call.target as Record<string, unknown>;
+    const target = call.requireTarget();
     if (target.deletionRequestedAt === null) {
         throw new ServiceError("CONFLICT", { message: `${object.name} is not deleted` });
     } else if (isPurged(target)) {
@@ -333,8 +425,9 @@ async function purge(call: Call): Promise<Record<string, never>> {
     }
 
     // mark a kept record purged
-    if (object.recoverable!.keep === "record") {
-        await call.update({ purgedAt: call.now });
+    const kept = keptCall(call);
+    if (kept !== undefined) {
+        await kept.update({ purgedAt: call.now });
     }
     // remove the object at the loaded revision
     else {
@@ -345,21 +438,23 @@ async function purge(call: Call): Promise<Record<string, never>> {
 }
 
 /** Remove a purged record the type keeps, at the loaded revision. */
-const discard = method({ permission: null, isSystem: true, output: Empty }).handle(async (call) => {
-    // require a purged record
-    if (!isPurged(call.target as Readonly<Record<string, unknown>>)) {
-        throw new ServiceError("CONFLICT", { message: `${call.object.name} is not purged` });
-    }
+const discard = keptMethod
+    .mutation({ permission: null, isSystem: true, output: Empty })
+    .handle(async (call) => {
+        // require a purged record
+        if (!isPurged(call.target)) {
+            throw new ServiceError("CONFLICT", { message: `${call.object.name} is not purged` });
+        }
 
-    // delete it at the loaded revision
-    await call.remove();
+        // delete it at the loaded revision
+        await call.remove();
 
-    return {};
-});
+        return {};
+    });
 
 /** Decide whether a purge already destroyed a kept record's content. */
-function isPurged(row: Readonly<Record<string, unknown>>): boolean {
-    return row.purgedAt !== undefined && row.purgedAt !== null;
+function isPurged(row: Row): boolean {
+    return row["purgedAt"] !== undefined && row["purgedAt"] !== null;
 }
 
 /** The procedures recoverable deletion derives besides deleting. */

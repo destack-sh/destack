@@ -8,7 +8,7 @@ export const chunk = defineTable(
     {
         /** The chunk's identifier. */
         id: identifier("id", "chunk").primaryKey(),
-        /** The scope holding the owner. */
+        /** The scope with the owner. */
         scope: text("scope").notNull(),
         /** The package declaring the owner's type. */
         parentPackageId: identifier("parent_package_id", "package").notNull(),
@@ -25,27 +25,27 @@ export const chunk = defineTable(
     },
     {
         log: {},
-        constraints: (held) => [
+        constraints: (columns) => [
             index("chunk_parent").on(
-                held.parentPackageId,
-                held.parentType,
-                held.parentId,
-                held.field,
-                held.position,
+                columns.parentPackageId,
+                columns.parentType,
+                columns.parentId,
+                columns.field,
+                columns.position,
             ),
         ],
     },
 );
 
-/** The server's index of which chunk holds each run's elements, unsynced. */
+/** The server's index of which chunk contains each run's elements, unsynced. */
 export const chunkRun = defineTable(
     "chunk_run",
     {
-        /** The chunk holding the elements. */
+        /** The chunk with the elements. */
         chunk: identifier("chunk", "chunk")
             .notNull()
             .references(() => chunk.id, { onDelete: "cascade" }),
-        /** The scope holding the owner. */
+        /** The scope with the owner. */
         scope: text("scope").notNull(),
         /** The package declaring the owner's type. */
         parentPackageId: identifier("parent_package_id", "package").notNull(),
@@ -63,15 +63,15 @@ export const chunkRun = defineTable(
         end: integer("end").notNull(),
     },
     {
-        constraints: (held) => [
+        constraints: (columns) => [
             index("chunk_run_parent").on(
-                held.parentPackageId,
-                held.parentType,
-                held.parentId,
-                held.field,
-                held.run,
+                columns.parentPackageId,
+                columns.parentType,
+                columns.parentId,
+                columns.field,
+                columns.run,
             ),
-            index("chunk_run_chunk").on(held.chunk),
+            index("chunk_run_chunk").on(columns.chunk),
         ],
     },
 );

@@ -2,10 +2,26 @@ export {
     defineMethod,
     method,
     type Method,
+    type MethodBuilder,
     type MethodDefinition,
     type MethodKind,
 } from "./method.ts";
-export { Call, type Handler, type Phases } from "./call.ts";
-export { type ObjectProcedures, type RowSchema } from "./procedure.ts";
+export {
+    Call,
+    type CallOf,
+    type Handler,
+    type Invoke,
+    type Invoker,
+    type NextOf,
+    type Lifecycle,
+    type PreparedCallOf,
+    type ResultOf,
+} from "./call.ts";
+export {
+    type CallableName,
+    type CallOutput,
+    type ObjectProcedures,
+    type RowSchema,
+} from "./procedure.ts";
 export { Step } from "./step.ts";
-export { settlement } from "./settlement.ts";
+export { settlement, SettlementCall } from "./settlement.ts";

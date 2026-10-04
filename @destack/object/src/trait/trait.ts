@@ -1,4 +1,5 @@
 import type { AccessExpression, Policy, RelationInput, TableMapping } from "@destack/access";
+import type { schema } from "@destack/schema";
 import type { Column, ColumnBuilder, Table, TableConstraint, TableOptions } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import type { Method } from "../method/method.ts";
@@ -21,6 +22,8 @@ export interface TraitObject {
     readonly table: () => Table;
     /** Where the objects live. */
     readonly storage: ObjectStorage;
+    /** The objects' natural key, absent for generated identifiers. */
+    readonly key: schema.Schema<string> | undefined;
 }
 
 /** The table options a trait adds. */
@@ -30,7 +33,7 @@ export type TraitTable = Pick<TableOptions<never>, "dependents" | "aggregates" |
 export interface TraitPolicy {
     /** The attributes of the trait's columns that policy conditions read. */
     readonly attributes?: Readonly<Record<string, "string" | "number" | "boolean">>;
-    /** The relations the trait's columns hold. */
+    /** The relations the trait's columns keep. */
     readonly relations?: Readonly<Record<string, RelationInput>>;
     /** The permissions the trait derives. */
     readonly permissions?: Readonly<Record<string, AccessExpression>>;
@@ -52,6 +55,10 @@ export interface Gated<Permission extends string = string> {
 export type GateOf<Definition> =
     Definition extends Gated<infer Permission> ? Permission : undefined;
 
+/** A definition whose trait rewrote some of its members, each then typed as any definition's. */
+export type Erasure<Definition, Keys extends keyof ObjectDefinition> = Omit<Definition, Keys> &
+    Pick<ObjectDefinition, Keys>;
+
 /** A capability object types opt into. */
 export interface Trait<Options> {
     /** The definition key naming the trait, absent for implied traits. */
@@ -59,12 +66,11 @@ export interface Trait<Options> {
     /** Whether only durable objects take the trait. */
     readonly isDurable?: true;
     /** Read the trait's options from an object definition. */
-    options(definition: ObjectDefinition): Options | undefined;
-    /** Add the columns an object with the trait holds. */
-    columns(
-        options: Options,
-        object: TraitObject,
-    ): Record<string, ColumnBuilder<any, boolean, boolean>>;
+    options(
+        definition: ObjectDefinition<unknown, string, Readonly<Record<string, Method>>>,
+    ): Options | undefined;
+    /** Add the columns an object with the trait has. */
+    columns(options: Options, object: TraitObject): Record<string, ColumnBuilder>;
     /** Constrain the object's derived columns. */
     constraints(
         options: Options,

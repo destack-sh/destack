@@ -1,5 +1,6 @@
+import { present } from "@destack/schema";
 import { permission, type AccessExpression } from "@destack/access";
-import type { Table } from "@destack/db";
+
 import type { Attachment } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
@@ -24,19 +25,20 @@ export const attachments: Trait<readonly Attachment[]> = {
                 Object.entries(attachment.object.aggregates)
                     .filter(([, aggregate]) => aggregate.via === undefined)
                     .map(([name, aggregate]) => ({
-                        from: () => attachment.object.table as Table,
+                        from: () => attachment.object.table,
                         column: name,
                         key: "parentId",
-                        function: aggregate.function,
-                        ...(aggregate.value === undefined ? {} : { value: aggregate.value }),
+                        ...(aggregate.function === "count"
+                            ? { function: aggregate.function }
+                            : { function: aggregate.function, value: aggregate.value }),
                         where: { ...aggregate.where, ...hosted },
                     })),
             ),
             dependents: durable.map((attachment) => ({
-                from: () => attachment.object.table as Table,
+                from: () => attachment.object.table,
                 key: "parentId",
                 where: hosted,
-                onDelete: attachment.object.parent!.delete,
+                onDelete: present(attachment.object.parent, "an attachment's nesting").delete,
             })),
         };
     },
@@ -44,7 +46,7 @@ export const attachments: Trait<readonly Attachment[]> = {
         // derive each attachment's receive permission
         const attaching: Record<string, AccessExpression> = {};
         for (const attachment of options) {
-            const receive = attachment.object.parent!.receive;
+            const receive = present(attachment.object.parent, "an attachment's nesting").receive;
             const plural = attachment.object.plural;
             // refuse a permission the host lacks
             if (!permissions.includes(attachment.by)) {

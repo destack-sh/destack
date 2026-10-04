@@ -1,12 +1,14 @@
+import { present, schema } from "@destack/schema";
 import {
     type ColumnBuilder,
     type DatabaseConnection,
     desc,
     eq,
     integer,
-    type Table,
     unique,
+    TABLE,
 } from "@destack/db";
+import type { FieldColumn } from "../field/field.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
@@ -15,7 +17,7 @@ export type VersionsDefinition = true;
 
 /** The column numbering versions within their parent. */
 export type VersionBuilderMap<Versions> = Versions extends VersionsDefinition
-    ? { number: ColumnBuilder<number, true, false> }
+    ? { number: ColumnBuilder<FieldColumn<number, true, false>> }
     : {};
 
 /** Immutable versions of a parent, numbered within it. */
@@ -30,7 +32,10 @@ export const versioned: Trait<VersionsDefinition> & {
         number: integer("number").notNull(),
     }),
     constraints: (_options, table, columns) => [
-        unique(`${table}_number`).on(columns.parentId!, columns.number!),
+        unique(`${table}_number`).on(
+            present(columns["parentId"], "the parent column"),
+            present(columns["number"], "the number column"),
+        ),
     ],
     methods: () => ({}),
     validate: (_options, object, definition) => {
@@ -50,14 +55,14 @@ export const versioned: Trait<VersionsDefinition> & {
         database: DatabaseConnection,
     ): Promise<number> {
         // read the parent's highest number and count on from it
-        const table = object.table as Table & Record<string, never>;
-        const [latest] = (await database
-            .select({ number: table.number })
+        const table = object.table;
+        const [latest] = await database
+            .select({ number: table[TABLE].column("number") })
             .from(table)
-            .where(eq(table.parentId, parentId))
-            .orderBy(desc(table.number))
-            .limit(1)) as { number: number }[];
+            .where(eq(table[TABLE].column("parentId"), parentId))
+            .orderBy(desc(table[TABLE].column("number")))
+            .limit(1);
 
-        return latest === undefined ? 1 : latest.number + 1;
+        return latest === undefined ? 1 : schema.number().parse(latest.number) + 1;
     },
 };

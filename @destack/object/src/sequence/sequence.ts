@@ -1,3 +1,4 @@
+import { aligned, found, present } from "@destack/schema";
 import type { Anchor } from "./anchor.ts";
 import type { Annotation, Span } from "./annotation.ts";
 import type { Element, Run } from "./element.ts";
@@ -8,7 +9,7 @@ export class Sequence {
     /** The runs in sequence order. */
     readonly runs: readonly Run[];
 
-    /** Hold runs in sequence order. */
+    /** Keep runs in sequence order. */
     constructor(runs: readonly Run[] = []) {
         this.runs = runs;
     }
@@ -70,8 +71,14 @@ export class Sequence {
                 ? [
                       {
                           delete: {
-                              from: this.element(change.from)!,
-                              to: this.element(change.to - 1)!,
+                              from: present(
+                                  this.element(change.from),
+                                  `the element at offset ${change.from}`,
+                              ),
+                              to: present(
+                                  this.element(change.to - 1),
+                                  `the element at offset ${change.to - 1}`,
+                              ),
                           },
                       },
                   ]
@@ -114,11 +121,12 @@ export class Sequence {
             }
         }
 
-        return "delete" in edit
-            ? cursor > from
-                ? [{ from, to: cursor, insert: "" }]
-                : []
-            : changes;
+        // delete the covered text, or apply the changes
+        if (!("delete" in edit)) {
+            return changes;
+        }
+
+        return cursor > from ? [{ from, to: cursor, insert: "" }] : [];
     }
 
     /** Split the visible text into stretches each covered by one set of annotations. */
@@ -138,7 +146,7 @@ export class Sequence {
             const at = order.get(`${anchor.element.run}:${anchor.element.offset}`);
             if (at === undefined) {
                 throw new RangeError(
-                    `sequence holds no element ${anchor.element.run}:${anchor.element.offset}`,
+                    `sequence has no element ${anchor.element.run}:${anchor.element.offset}`,
                 );
             }
 
@@ -158,15 +166,16 @@ export class Sequence {
             }
             const text = piece.text;
             for (let index = 0; index < text.length; index++) {
-                const position = 2 * order.get(`${piece.run}:${piece.start + index}`)! + 1;
+                const position = 2 * found(order, `${piece.run}:${piece.start + index}`) + 1;
                 const covering = ranges
                     .filter((range) => range.start < position && position < range.end)
                     .map((range) => range.annotation);
                 const last = spans.at(-1);
+                const character = text.charAt(index);
                 if (last !== undefined && Sequence.#same(last.annotations, covering)) {
-                    last.text += text[index];
+                    last.text += character;
                 } else {
-                    spans.push({ text: text[index]!, annotations: covering });
+                    spans.push({ text: character, annotations: covering });
                 }
             }
         }
@@ -194,7 +203,7 @@ export class Sequence {
     /** Find the text offset right after an element. */
     #after(element: Element): number {
         const index = this.#find(element);
-        const piece = this.runs[index]!;
+        const piece = aligned(this.runs, index);
 
         return this.offset(element) + (typeof piece.text === "number" ? 0 : 1);
     }
@@ -215,10 +224,10 @@ export class Sequence {
                 before += length;
             }
         }
-        throw new RangeError(`sequence holds no element ${element.run}:${element.offset}`);
+        throw new RangeError(`sequence has no element ${element.run}:${element.offset}`);
     }
 
-    /** Insert a run's characters right after an element, splitting the piece holding it. */
+    /** Insert a run's characters right after an element, splitting the piece containing it. */
     #insert(text: string, run: string, after: Element | undefined): Sequence {
         // insert at the start
         const inserted: Run = { run, start: 0, text };
@@ -228,7 +237,7 @@ export class Sequence {
 
         // split after the anchor and insert between
         const index = this.#find(after);
-        const piece = this.runs[index]!;
+        const piece = aligned(this.runs, index);
         const cut = after.offset - piece.start + 1;
         const [head, tail] = Sequence.split(piece, cut);
 
@@ -286,11 +295,11 @@ export class Sequence {
         return new Sequence(Sequence.#merge(marked));
     }
 
-    /** Split the piece holding an element at one of its edges. */
+    /** Split the piece with an element at one of its edges. */
     #cut(element: Element, edge: "before" | "after"): Sequence {
         // cut the piece before the element, or after it
         const index = this.#find(element);
-        const piece = this.runs[index]!;
+        const piece = aligned(this.runs, index);
         const count = element.offset - piece.start + (edge === "after" ? 1 : 0);
         const [head, tail] = Sequence.split(piece, count);
 
@@ -304,7 +313,7 @@ export class Sequence {
               ]);
     }
 
-    /** Find the index of the piece holding an element. */
+    /** Find the index of the piece with an element. */
     #find(element: Element): number {
         const index = this.runs.findIndex(
             (piece) =>
@@ -313,7 +322,7 @@ export class Sequence {
                 element.offset < piece.start + Sequence.length(piece),
         );
         if (index === -1) {
-            throw new RangeError(`sequence holds no element ${element.run}:${element.offset}`);
+            throw new RangeError(`sequence has no element ${element.run}:${element.offset}`);
         }
 
         return index;
@@ -348,16 +357,19 @@ export class Sequence {
             const isContinued =
                 previous !== undefined &&
                 previous.run === piece.run &&
-                previous.start + Sequence.length(previous) === piece.start &&
-                typeof previous.text === typeof piece.text;
-            if (isContinued) {
-                merged[merged.length - 1] = {
-                    ...previous,
-                    text:
-                        typeof previous.text === "number"
-                            ? previous.text + (piece.text as number)
-                            : previous.text + (piece.text as string),
-                };
+                previous.start + Sequence.length(previous) === piece.start;
+            if (
+                isContinued &&
+                typeof previous.text === "number" &&
+                typeof piece.text === "number"
+            ) {
+                merged[merged.length - 1] = { ...previous, text: previous.text + piece.text };
+            } else if (
+                isContinued &&
+                typeof previous.text === "string" &&
+                typeof piece.text === "string"
+            ) {
+                merged[merged.length - 1] = { ...previous, text: previous.text + piece.text };
             } else {
                 merged.push(piece);
             }
@@ -367,10 +379,7 @@ export class Sequence {
     }
 
     /** Decide whether two lists refer to the same annotations in the same order. */
-    static #same(
-        left: readonly Annotation<unknown>[],
-        right: readonly Annotation<unknown>[],
-    ): boolean {
+    static #same(left: readonly Annotation[], right: readonly Annotation[]): boolean {
         return (
             left.length === right.length &&
             left.every((annotation, index) => annotation === right[index])

@@ -1,16 +1,8 @@
 import { ObjectReference } from "@destack/sync";
-import { defineSchema, type Identifier, schema } from "@destack/schema";
-import {
-    type Column,
-    type ColumnBuilder,
-    and,
-    eq,
-    identifier,
-    index,
-    TABLE,
-    type Table,
-    text,
-} from "@destack/db";
+import type * as sync from "@destack/sync";
+import { validated } from "../field/field.ts";
+import { defineSchema, type Identifier, present, schema } from "@destack/schema";
+import { type ColumnBuilder, and, eq, identifier, index, TABLE, text } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { ServiceError } from "@destack/service/error";
 import type { Call } from "../method/call.ts";
@@ -26,8 +18,13 @@ import {
     type TargetShape,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
-import type { IdentifierOf } from "../field/field.ts";
+import { keyColumn } from "../field/field.ts";
+import type { FieldColumn } from "../field/field.ts";
+import type { ObjectTable } from "../object/table.ts";
 import type { Trait } from "./trait.ts";
+
+/** The parent a tree node names, null for a root. */
+const PARENT = schema.string().nullable();
 
 /** A parent of any type, in the scope of the object naming it. */
 export const ParentReference = defineSchema(ObjectReference.omit({ scope: true }));
@@ -49,37 +46,44 @@ export type NestedDefinition = {
 };
 
 /** The columns referencing the parent. */
-export type ParentBuilderMap<Name extends string, Parent> = Parent extends NestedDefinition
+export type ParentBuilderMap<Name extends string, Parent> = Parent extends {
+    readonly in: string;
+    readonly optional?: boolean;
+}
     ? Parent["in"] extends "any"
         ? {
-              parentPackageId: ColumnBuilder<PackageId, IsRequired<Parent>, false>;
-              parentType: ColumnBuilder<string, IsRequired<Parent>, false>;
-              parentId: ColumnBuilder<string, IsRequired<Parent>, false>;
+              parentPackageId: ColumnBuilder<FieldColumn<PackageId, IsRequired<Parent>, false>>;
+              parentType: ColumnBuilder<FieldColumn<string, IsRequired<Parent>, false>>;
+              parentId: ColumnBuilder<FieldColumn<string, IsRequired<Parent>, false>>;
           }
         : {
               parentId: ColumnBuilder<
-                  Parent["in"] extends ObjectType ? IdentifierOf<Parent["in"]> : Identifier<Name>,
-                  IsRequired<Parent>,
-                  false
+                  FieldColumn<
+                      Parent["in"] extends "self" ? Identifier<Name> : Identifier<Parent["in"]>,
+                      IsRequired<Parent>,
+                      false
+                  >
               >;
           }
     : {};
 
 /** Whether every object needs a parent. */
-type IsRequired<Parent extends NestedDefinition> = Parent["optional"] extends true ? false : true;
+type IsRequired<Parent extends { readonly optional?: boolean }> = Parent["optional"] extends true
+    ? false
+    : true;
 
 /** The method moving objects between parents. */
 export type NestedMethodMap<Parent> = Parent extends {
     readonly move: infer Permission extends string;
 }
-    ? { readonly move: Method<"move", Permission, never, never, true> }
+    ? { readonly move: Method<{ kind: "move"; permission: Permission; mutates: true }> }
     : {};
 
 /** Objects nested under a parent, or under an object of their type in a tree. */
 export const nested: Trait<NestedDefinition> = {
     key: "nested",
     options: (definition) => definition.nested,
-    columns: (options, object): Record<string, ColumnBuilder<any, boolean, boolean>> => {
+    columns: (options, object): Record<string, ColumnBuilder> => {
         // refer to a parent of any type by package, type and identifier
         if (options.in === "any") {
             const columns = {
@@ -88,7 +92,7 @@ export const nested: Trait<NestedDefinition> = {
                 parentId: text("parent_id"),
             };
 
-            return options.optional
+            return options.optional === true
                 ? columns
                 : {
                       parentPackageId: columns.parentPackageId.notNull(),
@@ -99,31 +103,30 @@ export const nested: Trait<NestedDefinition> = {
 
         // reference the owning object, or the table itself for trees
         const owner = options.in === "self" ? undefined : options.in;
-        const column = identifier("parent_id", owner?.identity ?? object.identity).references(
-            () =>
-                ((owner?.table ?? object.table()) as Table)[TABLE].columns.id as Column<
-                    Identifier<string>
-                >,
-            { onDelete: options.delete ?? "cascade" },
-        );
+        const keyed = owner?.keyed ?? (owner === undefined ? object.key : undefined);
+        const column = (
+            keyed === undefined
+                ? identifier("parent_id", owner?.identity ?? object.identity)
+                : validated("parent_id", keyed)
+        ).references(() => keyColumn(owner?.table ?? object.table()), {
+            onDelete: options.delete ?? "cascade",
+        });
 
-        return { parentId: options.optional ? column : column.notNull() };
+        return { parentId: options.optional === true ? column : column.notNull() };
     },
     constraints: (options, table, columns) =>
         options.in === "any"
             ? [
                   index(`${table}_parent`).on(
-                      columns.parentPackageId!,
-                      columns.parentType!,
-                      columns.parentId!,
+                      present(columns["parentPackageId"], "the parent package column"),
+                      present(columns["parentType"], "the parent type column"),
+                      present(columns["parentId"], "the parent column"),
                   ),
               ]
             : [],
     // index the ancestry of trees
     table: (options) =>
-        options.in === "self"
-            ? { tree: { id: "id" as never, scope: "scope" as never, parent: "parentId" as never } }
-            : {},
+        options.in === "self" ? { tree: { id: "id", scope: "scope", parent: "parentId" } } : {},
     policy: (options, object) => {
         // relate objects to a parent of any type through an open relation
         if (options.in === "any") {
@@ -165,7 +168,7 @@ export const nested: Trait<NestedDefinition> = {
         };
     },
     methods: (options): Record<string, Method> =>
-        options.move === undefined ? {} : { move: move(options.move) },
+        options.move === undefined ? {} : { move: move(options.move, options) },
     validate: (options, object) => {
         // require ephemeral objects to attach to any type
         if (object.storage === "ephemeral" && options.in !== "any") {
@@ -175,7 +178,7 @@ export const nested: Trait<NestedDefinition> = {
         }
 
         // require trees to have roots
-        if (options.in === "self" && !options.optional) {
+        if (options.in === "self" && options.optional !== true) {
             throw new TypeError(`${object.name} is a tree, so its parent must be optional`);
         }
 
@@ -192,8 +195,9 @@ export const nested: Trait<NestedDefinition> = {
 /** Move objects to another parent and keep trees acyclic. */
 function move<const Permission extends string>(
     permission: Permission,
-): Method<"move", Permission, never, never, true> {
-    return defineMethod<Method<"move", Permission, never, never, true>>({
+    nesting: NestedDefinition,
+): Method<{ kind: "move"; permission: Permission; mutates: true }> {
+    return defineMethod<{ kind: "move"; permission: Permission; mutates: true }>({
         kind: "move",
         permission,
         mutates: true,
@@ -208,53 +212,63 @@ function move<const Permission extends string>(
             }),
             output: shapes.row,
         }),
-        effect: (call) => call.update(call.parentColumns()),
-        inverse: (step) => {
-            // move back under the former parent
-            const before = step.before;
-            if (before === undefined) {
-                return undefined;
-            }
-            const destination =
-                step.object.parent!.object !== "any"
-                    ? { parentId: before.parentId ?? null }
-                    : {
-                          parent:
-                              before.parentId === null || before.parentId === undefined
-                                  ? null
-                                  : {
-                                        packageId: before.parentPackageId,
-                                        type: before.parentType,
-                                        id: before.parentId,
-                                    },
-                      };
-
-            return [
-                Step.record(step, step.name, {
-                    ...Step.target(step, step.input.id),
-                    ...destination,
-                }),
-            ];
-        },
+        handler: (call: Call<ObjectTable>) =>
+            call.update(call.object.table[TABLE].values(call.parentColumns())),
+        inverse: (step) => moveBack(step, nesting),
         async execute(call) {
-            // require a parent unless optional
-            const { object } = call;
-            const parent = call.parent();
-            if (parent === undefined && !object.parent!.optional) {
-                throw new ServiceError("BAD_REQUEST", { message: `${object.name} needs a parent` });
-            }
+            // require a valid destination, then move
+            await requireDestination(call, nesting);
 
-            // require a receiving parent outside the subtree
-            if (parent !== undefined) {
-                if (!call.isPredicted) {
-                    await call.requireReceiving(parent);
-                }
-                await requireOutside(call, parent.id);
-            }
-
-            return this.effect(call);
+            return this.handler(call);
         },
     });
+}
+
+/** Move an object back under its former parent. */
+function moveBack(step: Step, nesting: NestedDefinition): readonly sync.Call[] | undefined {
+    // name the former parent, of one type or any
+    const before = step.before;
+    if (before === undefined) {
+        return undefined;
+    }
+    const destination =
+        nesting.in !== "any"
+            ? { parentId: before["parentId"] ?? null }
+            : {
+                  parent:
+                      before["parentId"] === null || before["parentId"] === undefined
+                          ? null
+                          : ParentReference.parse({
+                                packageId: before["parentPackageId"],
+                                type: before["parentType"],
+                                id: before["parentId"],
+                            }),
+              };
+
+    return [
+        Step.record(step, step.name, {
+            ...Step.target(step),
+            ...destination,
+        }),
+    ];
+}
+
+/** Require a valid parent to move an object under. */
+async function requireDestination(call: Call, nesting: NestedDefinition): Promise<void> {
+    // require a parent unless optional
+    const { object } = call;
+    const parent = call.parent();
+    if (parent === undefined && nesting.optional !== true) {
+        throw new ServiceError("BAD_REQUEST", { message: `${object.name} needs a parent` });
+    }
+
+    // require a receiving parent outside the subtree
+    if (parent !== undefined) {
+        if (!call.isPredicted) {
+            await call.requireReceiving(parent);
+        }
+        await requireOutside(call, parent.id);
+    }
 }
 
 /** Refuse moving a node of a tree into its own subtree. */
@@ -265,7 +279,7 @@ async function requireOutside(call: Call, parentId: string): Promise<void> {
     }
 
     // check the ancestor index on the server
-    const moved = String(call.target!.id);
+    const moved = call.requireId();
     if (!call.isPredicted) {
         const ancestors = call.object.tree.ancestors;
         const [below] = await call.database
@@ -288,7 +302,7 @@ async function requireOutside(call: Call, parentId: string): Promise<void> {
     }
 
     // climb from the new parent on a client
-    const table = call.object.table as Table & Record<string, never>;
+    const table = call.object.table;
     const visited = new Set<string>();
     for (let node: string | null = parentId; node !== null && !visited.has(node);) {
         if (node === moved) {
@@ -297,11 +311,11 @@ async function requireOutside(call: Call, parentId: string): Promise<void> {
             });
         }
         visited.add(node);
-        const [row] = (await call.database
-            .select({ parentId: table.parentId })
+        const [row] = await call.database
+            .select({ parentId: table[TABLE].column("parentId") })
             .from(table)
-            .where(eq(table.id, node))) as { parentId: string | null }[];
-        node = row?.parentId ?? null;
+            .where(eq(table[TABLE].column("id"), node));
+        node = PARENT.parse(row?.parentId ?? null);
     }
 }
 

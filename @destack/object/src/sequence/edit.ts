@@ -32,7 +32,7 @@ export const SequenceEdit: schema.Schema<SequenceEdit> = schema.union([
         /** The new run's identifier. */
         run: schema.string().min(1),
         /** The element the run follows, absent at the start. */
-        after: Element.optional(),
+        after: Element.exactOptional(),
     }),
     schema.object({
         /** Delete the elements from one element through another, in sequence order. */
@@ -65,7 +65,7 @@ export const TextChange = {
             start += 1;
         }
 
-        // keep the common end, never overlapping the start
+        // keep the common end after the start
         let end = 0;
         while (
             end < shorter - start &&

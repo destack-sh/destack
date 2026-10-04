@@ -1,10 +1,11 @@
-import { defineSchema, schema } from "@destack/schema";
-import * as identifiers from "@destack/schema/identifier";
+import { defineSchema, present, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { managerChecks } from "@destack/access";
-import { identifier, integer, text, type Column } from "@destack/db";
+import { identifier, integer, text, type Column, type Row } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import { defineMethod, type Method } from "../method/method.ts";
+import type { Call } from "../method/call.ts";
+import type { ObjectTable } from "../object/table.ts";
 import {
     type Procedure,
     RevisionShape,
@@ -20,11 +21,11 @@ import type { Gated, Trait } from "./trait.ts";
 const ManagerSchema = defineSchema(
     schema.object({
         /** The installation that applied the declaration. */
-        installationId: identifiers.identifier("installation"),
+        installationId: schema.identifier("installation"),
         /** The immutable identity of the declaring package. */
         packageId: PackageId,
         /** The declaration's path within the package, such as installations/notes. */
-        name: schema.string().regex(/^[a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*$/),
+        name: schema.string().regex(/^[a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*$/u),
     }),
 );
 /** The stack declaration managing a record. */
@@ -54,11 +55,11 @@ export const Manager = {
     },
 
     /** Decide whether a declaration still manages a record. */
-    isManaging(row: Readonly<Record<string, unknown>> | undefined): boolean {
+    isManaging(row: Row | undefined): boolean {
         return (
-            row?.managerInstallationId !== undefined &&
-            row.managerInstallationId !== null &&
-            row.detachedAt === null
+            row?.["managerInstallationId"] !== undefined &&
+            row["managerInstallationId"] !== null &&
+            row["detachedAt"] === null
         );
     },
 
@@ -86,6 +87,14 @@ export function managedColumns() {
     };
 }
 
+/** The table of declarable objects: the record columns and the manager's. */
+export type DeclarableTable = ObjectTable<
+    string,
+    unknown,
+    {},
+    { readonly declarable: DeclarableDefinition }
+>;
+
 /** The columns naming a record's manager. */
 export interface ManagedColumnMap {
     /** The installation that applied the declaration. */
@@ -106,7 +115,7 @@ export interface DeclarableDefinition<Declared = unknown> {
 
 /** The methods detachable records take. */
 export type DetachableMethodMap<Detach> = [Detach] extends [string]
-    ? { readonly detach: Method<"detach", Detach, never, never, true> }
+    ? { readonly detach: Method<{ kind: "detach"; permission: Detach; mutates: true }> }
     : {};
 
 /** Records that stacks declare, managed by their declaration until detached. */
@@ -115,7 +124,13 @@ export const declarable: Trait<DeclarableDefinition> = {
     isDurable: true,
     options: (definition) => definition.declarable,
     columns: () => managedColumns(),
-    constraints: (_options, table, columns) => managerChecks(table, columns as never),
+    constraints: (_options, table, columns) =>
+        managerChecks(table, {
+            managerInstallationId: present(columns["managerInstallationId"], "the manager column"),
+            managerPackageId: present(columns["managerPackageId"], "the manager package column"),
+            managerName: present(columns["managerName"], "the manager name column"),
+            detachedAt: present(columns["detachedAt"], "the detachment column"),
+        }),
     methods: () => ({}),
 };
 
@@ -142,8 +157,8 @@ export const detachable: Trait<Gated> & {
 /** Detach an object from its stack declaration. */
 export function detach<const Permission extends string>(
     permission: Permission,
-): Method<"detach", Permission, never, never, true> {
-    return defineMethod<Method<"detach", Permission, never, never, true>>({
+): Method<{ kind: "detach"; permission: Permission; mutates: true }> {
+    return defineMethod<{ kind: "detach"; permission: Permission; mutates: true }>({
         kind: "detach",
         permission,
         mutates: true,
@@ -154,7 +169,7 @@ export function detach<const Permission extends string>(
             input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
             output: shapes.row,
         }),
-        effect: (call) => call.update({ detachedAt: call.now }),
+        handler: (call: Call<DeclarableTable>) => call.update({ detachedAt: call.now }),
         async execute(call) {
             // require an object its declaration still manages
             if (!Manager.isManaging(call.target)) {
@@ -163,7 +178,7 @@ export function detach<const Permission extends string>(
                 });
             }
 
-            return this.effect(call);
+            return this.handler(call);
         },
     });
 }

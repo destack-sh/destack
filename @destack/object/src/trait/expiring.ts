@@ -1,18 +1,21 @@
 import { earliest } from "@destack/access";
 import { Duration } from "@destack/schema";
 import {
+    Change,
     and,
-    type Column,
     type DatabaseConnection,
     isNotNull,
     lte,
     min,
+    type Row,
+    type Select,
     TABLE,
     type Table,
+    Condition,
 } from "@destack/db";
-import { Condition } from "@destack/db/query";
 import type { Controller } from "@destack/service/control";
 import type { Call } from "../method/call.ts";
+import type { ObjectTable } from "../object/table.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import { Empty } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -94,12 +97,12 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
 
         return {
             name: "expiry",
-            watches: types.map((object) => object.table as Table),
+            watches: types.map((object) => object.table),
             keys: (change) => {
                 // look again when a rule's time field changes
                 const object = types.find((type) => type.table === change.table);
-                const after = change.after as Record<string, unknown> | undefined;
-                const before = change.before as Record<string, unknown> | undefined;
+                const after: Row | null = Change.after(change);
+                const before: Row | null = Change.before(change);
                 const isTimed = (object?.expiring ?? []).some(
                     (rule) =>
                         after?.[rule.from] !== undefined &&
@@ -116,7 +119,9 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
                 await expiring.expire(server, now);
                 const passes = await Promise.all(
                     types.flatMap((object) =>
-                        object.expiring!.map((rule) => passing(server.database, object, rule)),
+                        (object.expiring ?? []).map((rule) =>
+                            passing(server.database, object, rule),
+                        ),
                     ),
                 );
                 const next = earliest(passes);
@@ -128,15 +133,19 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
 };
 
 /** Remove an expired object at any revision, bypassing the trash. */
-const expiry: Method = defineMethod<Method<"delete", null, never, never, true>>({
+const expiry: Method = defineMethod<{ kind: "delete"; permission: null; mutates: true }>({
     kind: "delete",
     permission: null,
     isSystem: true,
     mutates: true,
     target: true,
     result: "value",
-    procedure: () => ({ route: { method: "DELETE", path: "/{id}" }, input: Empty, output: Empty }),
-    effect: async (call: Call) => {
+    procedure: (_name, shapes) => ({
+        route: { method: "DELETE", path: "/{id}" },
+        input: shapes.target.extend(shapes.replay),
+        output: Empty,
+    }),
+    handler: async (call: Call<ObjectTable>) => {
         await call.remove();
 
         return {};
@@ -151,7 +160,7 @@ function requireRules(object: ObjectType, rules: readonly ExpiryRule[]): void {
     }
 
     // refuse invalid windows and unknown fields
-    const columns = (object.table as Table)[TABLE].columns;
+    const columns = object.table[TABLE].columns;
     for (const rule of rules) {
         Duration.require(rule.after, `expiry window of ${object.name}`);
         if (!Object.hasOwn(columns, rule.from)) {
@@ -166,19 +175,19 @@ async function expired(
     object: ObjectType,
     rule: ExpiryRule,
     now: number,
-): Promise<Record<string, unknown>[]> {
-    const table = object.table as Table & Record<string, Column>;
+): Promise<Select<Table>[]> {
+    const table = object.table;
 
-    return (await database
+    return database
         .select()
         .from(table)
         .where(
             and(
-                lte(table[rule.from]!, now - Duration.milliseconds(rule.after)),
+                lte(table[TABLE].column(rule.from), now - Duration.milliseconds(rule.after)),
                 matching(table, rule),
             ),
         )
-        .limit(EXPIRE_ROWS)) as Record<string, unknown>[];
+        .limit(EXPIRE_ROWS);
 }
 
 /** Read when a rule's window next passes for a type. */
@@ -188,19 +197,28 @@ async function passing(
     rule: ExpiryRule,
 ): Promise<number | undefined> {
     // read the earliest time
-    const table = object.table as Table & Record<string, Column>;
+    const table = object.table;
+    const column = table[TABLE].column(rule.from);
     const [row] = await database
-        .select({ from: min(table[rule.from]!) })
+        .select({ from: min(column) })
         .from(table)
-        .where(and(isNotNull(table[rule.from]!), matching(table, rule)));
-    const from = row?.from as number | null | undefined;
+        .where(and(isNotNull(column), matching(table, rule)));
+    if (row === undefined) {
+        throw new TypeError(`the earliest ${rule.from} of ${object.name} read no row`);
+    }
 
-    return from == null ? undefined : from + Duration.milliseconds(rule.after);
+    // require a time in UTC epoch milliseconds
+    const from = row.from;
+    if (from === null) {
+        return undefined;
+    } else if (typeof from !== "number") {
+        throw new TypeError(`${object.name}.${rule.from} is no time`);
+    }
+
+    return from + Duration.milliseconds(rule.after);
 }
 
 /** Render a rule's condition on its table. */
 function matching(table: Table, rule: ExpiryRule) {
-    return rule.where === undefined
-        ? undefined
-        : Condition.render(rule.where, Condition.bind(table));
+    return rule.where === undefined ? undefined : Condition.render(rule.where, table);
 }

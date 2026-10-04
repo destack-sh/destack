@@ -1,14 +1,16 @@
-import { check, integer, json, sql, type Column, type Table } from "@destack/db";
+import { check, integer, json, sql, text, type Column, TABLE } from "@destack/db";
+import { Plan } from "@destack/resource";
 import { ServiceError } from "@destack/service/error";
-import { defineSchema, Instant, schema } from "@destack/schema";
-import { method } from "../method/method.ts";
+import { defineSchema, Digest, Instant, present, schema } from "@destack/schema";
+import { method, type MethodBuilder } from "../method/method.ts";
+import type { ObjectTable } from "../object/table.ts";
 import { deletionColumns } from "./recoverable.ts";
 import type { Trait } from "./trait.ts";
 
 /** A controller's observation of a record. */
 export const StatusCondition = defineSchema(
     schema.object({
-        /** Whether the condition holds, or has not been established. */
+        /** Whether the condition is true, or has not been established. */
         status: schema.enum(["true", "false", "unknown"]),
         /** The desired generation the controller evaluated. */
         observedGeneration: schema.number().int().min(1),
@@ -37,62 +39,102 @@ export const Observation = defineSchema(
             StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true }),
         ),
         /** The observed fields the controller writes. */
-        fields: schema.record(schema.string(), schema.json()).optional(),
+        fields: schema.record(schema.string(), schema.json()).exactOptional(),
     }),
 );
 /** A controller's report on one record. */
 export type Observation = schema.Infer<typeof Observation>;
 
+/** The method declarations of controlled objects. */
+const controlledMethod: MethodBuilder<ControlledTable> = method;
+
+/** The method declarations of controlled objects whose risky plans wait for approval. */
+const approvalMethod: MethodBuilder<ApprovalTable> = method;
+
 /** Record a controller's observation of its target at its generation. */
-const observe = method({ permission: null, isSystem: true, input: Observation }).handle(
-    async (call) => {
+const observe = controlledMethod
+    .mutation({ permission: null, isSystem: true, input: Observation })
+    .handle(async (call) => {
         // merge the conditions and keep transition times while their status stays
-        const target = call.target as {
-            readonly conditions: Readonly<Record<string, StatusCondition>>;
-        };
-        const { observedGeneration, conditions, fields } = call.input as Observation;
+        const { observedGeneration, conditions, fields } = call.input;
+        const current = call.target.conditions;
         const merged = Object.fromEntries(
             Object.entries(conditions).map(([name, condition]) => [
                 name,
-                controlled.observe(
-                    target.conditions[name],
-                    { ...condition, observedGeneration },
-                    call.now,
-                ),
+                controlled.observe(current[name], { ...condition, observedGeneration }, call.now),
             ]),
         );
 
         // write the observed state
         return call.updateStatus({
-            ...(call.object.table as Table).decode(fields ?? {}),
+            ...call.object.table[TABLE].decode(fields ?? {}),
             observedGeneration,
-            conditions: { ...target.conditions, ...merged },
+            conditions: { ...current, ...merged },
         });
-    },
-);
+    });
 
 /** Remove a record with a requested deletion after its controller finishes. */
-const finalize = method({
-    permission: null,
-    isSystem: true,
-    output: schema.object({}),
-}).handle(async (call) => {
-    // require a requested deletion
-    const target = call.target as { readonly deletionRequestedAt: number | null };
-    if (target.deletionRequestedAt === null) {
-        throw new ServiceError("CONFLICT", { message: `${call.object.name} is not being deleted` });
-    }
+const finalize = controlledMethod
+    .mutation({
+        permission: null,
+        isSystem: true,
+        output: schema.object({}),
+    })
+    .handle(async (call) => {
+        // require a requested deletion
+        if (call.target.deletionRequestedAt === null) {
+            throw new ServiceError("CONFLICT", {
+                message: `${call.object.name} is not being deleted`,
+            });
+        }
 
-    // delete at the loaded revision
-    await call.remove();
+        // delete at the loaded revision
+        await call.remove();
 
-    return {};
-});
+        return {};
+    });
+
+/** Accept a plan digest for the controller to apply once it plans the same steps again. */
+const approvePlan = approvalMethod
+    .mutation({
+        permission: null,
+        isSystem: true,
+        input: schema.object({
+            /** The digest of the approved plan. */
+            plan: Digest,
+        }),
+    })
+    .handle((call) => call.update({ approvedPlan: call.input.plan }));
+
+/** The table of controlled objects: the record columns, the controller's status and the deletion request. */
+export type ControlledTable = ObjectTable<string, unknown, {}, { readonly controlled: true }>;
+
+/** The table of controlled objects whose risky plans wait for approval. */
+export type ApprovalTable = ObjectTable<
+    string,
+    unknown,
+    {},
+    { readonly controlled: { readonly approval: true } }
+>;
+
+/** How a controller reconciles records: alone, or applying risky plans only once approved. */
+export type ControlledDefinition =
+    | true
+    | {
+          /** Whether plans reaching the space's approval risk wait for an approver to accept them. */
+          readonly approval: true;
+      };
 
 /** The system methods a controlled object's controller calls. */
-export type ControlledMethodMap<Controlled> = Controlled extends true
-    ? { readonly observe: typeof observe; readonly finalize: typeof finalize }
-    : {};
+export type ControlledMethodMap<Controlled> = Controlled extends { readonly approval: true }
+    ? {
+          readonly observe: typeof observe;
+          readonly finalize: typeof finalize;
+          readonly approvePlan: typeof approvePlan;
+      }
+    : Controlled extends true
+      ? { readonly observe: typeof observe; readonly finalize: typeof finalize }
+      : {};
 
 /** Declare the desired generation and a controller's observations. */
 export function controlledColumns() {
@@ -108,9 +150,19 @@ export function controlledColumns() {
     };
 }
 
+/** Declare the plan waiting for approval and the digest an approver accepted. */
+export function approvalColumns() {
+    return {
+        /** The plan waiting for approval, absent once applied. */
+        plan: json("plan", Plan),
+        /** The digest of the plan an approver accepted, applied once the controller plans it again. */
+        approvedPlan: text("approved_plan"),
+    };
+}
+
 /** Records a controller reconciles. */
-export const controlled: Trait<true> & {
-    /** Record a controller's observation and keep the last transition time while the status holds. */
+export const controlled: Trait<ControlledDefinition> & {
+    /** Record a controller's observation and keep the last transition time while the status stays. */
     observe(
         previous: StatusCondition | undefined,
         observation: Omit<StatusCondition, "lastTransitionAt">,
@@ -119,10 +171,19 @@ export const controlled: Trait<true> & {
 } = {
     key: "controlled",
     isDurable: true,
-    options: (definition) => (definition.controlled ? true : undefined),
-    columns: () => ({ ...controlledColumns(), ...deletionColumns() }),
-    constraints: (_options, table, columns) => controlledChecks(table, columns as never),
-    methods: () => ({ observe, finalize }),
+    options: (definition) => definition.controlled,
+    columns: (options) => ({
+        ...controlledColumns(),
+        ...deletionColumns(),
+        ...(options === true ? {} : approvalColumns()),
+    }),
+    constraints: (_options, table, columns) =>
+        controlledChecks(table, {
+            revision: present(columns["revision"], "the revision column"),
+            generation: present(columns["generation"], "the generation column"),
+            observedGeneration: present(columns["observedGeneration"], "the observed column"),
+        }),
+    methods: (options) => ({ observe, finalize, ...(options === true ? {} : { approvePlan }) }),
     observe: (previous, observation, now) => ({
         ...observation,
         lastTransitionAt: previous?.status === observation.status ? previous.lastTransitionAt : now,

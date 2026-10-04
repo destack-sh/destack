@@ -1,11 +1,19 @@
-import { type Insert, type Select, TABLE } from "@destack/db";
-import { Scope } from "@destack/sync";
+import { type Insert, type JsonOf, type Select, TABLE } from "@destack/db";
 import type * as sync from "@destack/sync";
-import { identifier, schema, type Identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { defineProcedure } from "@destack/service/procedure";
 import { RequestId } from "@destack/service/request";
 import { ParentReference } from "../trait/nested.ts";
-import type { ObjectType } from "../object/object.ts";
+import type {
+    CallerField,
+    GuardedField,
+    ObjectScope,
+    ObjectType,
+    SensitiveField,
+    TextFieldName,
+    WrittenField,
+} from "../object/object.ts";
+import type { MethodKind } from "./kind.ts";
 import { kebabCase } from "../object/name.ts";
 import { ClientId } from "../replica/replica.ts";
 import type { Method } from "./method.ts";
@@ -23,22 +31,21 @@ export interface ObjectSchema {
     /** The object as callers see it. */
     readonly row: schema.Object<Record<string, schema.Schema>>;
     /** The fields selecting the scope. */
-    readonly scope: schema.Object<Record<string, schema.Schema>>;
+    readonly scope: schema.JsonObject;
     /** The fields selecting one object. */
-    readonly target: schema.Object<Record<string, schema.Schema>>;
+    readonly target: schema.JsonObject;
     /** The identifier a caller may choose for a created object. */
-    readonly created: Record<string, schema.Schema>;
+    readonly created: schema.JsonObject["shape"];
     /** The parent a created object belongs to. */
-    readonly parent: Record<string, schema.Schema>;
+    readonly parent: schema.JsonObject["shape"];
     /** The parent a moved object moves to. */
-    readonly destination: Record<string, schema.Schema>;
+    readonly destination: schema.JsonObject["shape"];
     /** The field naming a mutation: its request identifier or client. */
-    readonly replay: Record<string, schema.Schema>;
+    readonly replay: schema.JsonObject["shape"];
+    /** The columns a system creation writes for the calling principal it names. */
+    readonly callers: schema.JsonObject["shape"];
     /** Read the columns a write takes. */
-    written(
-        names: readonly string[] | undefined,
-        isPartial: boolean,
-    ): Record<string, schema.Schema>;
+    written(names: readonly string[] | undefined, isPartial: boolean): schema.JsonObject["shape"];
 }
 
 /** An HTTP method and a path below an object's collection. */
@@ -53,8 +60,8 @@ export interface Route {
 export interface MethodProcedure {
     /** The route below the object's collection. */
     readonly route: Route;
-    /** The complete input. */
-    readonly input: schema.Schema;
+    /** The complete input, an object of fields. */
+    readonly input: schema.JsonObject;
     /** The output: a value or a stream of values. */
     readonly output: ProcedureOutput;
 }
@@ -62,13 +69,13 @@ export interface MethodProcedure {
 /** The fields paging a list. */
 export const PageShape = {
     /** The continuation from the previous page. */
-    cursor: schema.string().min(1).optional(),
+    cursor: schema.string().min(1).exactOptional(),
     /** The largest page to return. */
-    limit: schema.number().int().min(1).max(1000).optional(),
+    limit: schema.number().int().min(1).max(1000).exactOptional(),
 };
 
 /** The revision a change requires. */
-export const RevisionShape = { revision: schema.number().int().positive().optional() };
+export const RevisionShape = { revision: schema.number().int().positive().exactOptional() };
 
 /** The empty result of methods returning nothing. */
 export const Empty = schema.object({});
@@ -76,16 +83,29 @@ export const Empty = schema.object({});
 /** Derive one procedure per method of an object type. */
 export function objectProcedures<Object extends ObjectType>(
     object: Object,
-): ObjectProcedures<Object> {
+): ObjectProcedures<Object>;
+/**
+ * Derive one procedure per method of an object type.
+ *
+ * @construct each method gets the procedure of its own kind, input and output, which is how ObjectProcedures maps the methods.
+ */
+export function objectProcedures(object: ObjectType): Readonly<Record<string, unknown>> {
+    return callableProcedures(object);
+}
+
+/** Derive one procedure per callable method of an object type, each parsing its input to JSON. */
+export function callableProcedures(
+    object: ObjectType,
+): Readonly<Record<string, Procedure<schema.JsonObject, ProcedureOutput>>> {
     // build the shapes
     const scope = scopeRoute(object);
-    const collection = `${scope.prefix}/${kebabCase(object.plural)}`;
+    const collection: `/${string}` = `${scope.prefix}/${kebabCase(object.plural)}`;
     const shapes = objectSchema(object);
 
     // derive each method's procedure
-    const procedures: Record<string, unknown> = {};
-    for (const [name, method] of Object.entries(object.methods) as [string, Method][]) {
-        if (method.isSystem) {
+    const procedures: Record<string, Procedure<schema.JsonObject, ProcedureOutput>> = {};
+    for (const [name, method] of Object.entries(object.methods)) {
+        if (method.isSystem === true) {
             continue;
         }
         const { route, input, output } = method.procedure(name, shapes);
@@ -96,119 +116,135 @@ export function objectProcedures<Object extends ObjectType>(
                 audit: false,
                 convert: object.conversions(name),
             }),
-            { method: route.method, path: `${collection}${route.path}` as `/${string}` },
+            { method: route.method, path: `${collection}${route.path}` },
             input,
             output,
         );
     }
 
-    return procedures as ObjectProcedures<Object>;
+    return procedures;
 }
 
 /** Build the schemas an object's procedures compose. */
 export function objectSchema(object: ObjectType): ObjectSchema {
-    // read the identifier and row schemas
-    const idColumn = object.table[TABLE].columns.id;
-    if (idColumn === undefined) {
-        throw new TypeError(`object ${object.name} is held in a table without an id column`);
-    }
-    const id = idColumn.definition.schema;
-    const columns = object.table.selectSchema("json");
-    const selected = schema.object(
-        Object.fromEntries(
-            Object.entries(columns.shape as Record<string, schema.Schema>).filter(
-                ([name]) => !object.sensitive.includes(name),
-            ),
-        ),
+    // read the identifier and the fields selecting the scope
+    const id = object.table[TABLE].column("id").definition.json;
+    const scopeField = scopeRoute(object).field;
+    const selection = schema.object(
+        scopeField === undefined ? {} : { [scopeField]: schema.string().min(1) },
     );
-    const parent = object.parent && parentSchema(object.parent.object);
-    const field = scopeRoute(object).field;
-    const selection = schema.object(field === undefined ? {} : { [field]: schema.string().min(1) });
 
-    // make guarded fields optional and read text fields as strings
-    const row = selected.extend({
-        ...Object.fromEntries(
-            object.guarded.map((name) => [name, selected.shape[name]!.optional()]),
-        ),
-        ...Object.fromEntries(object.text.map((name) => [name, schema.string()])),
-    });
-
-    // read the written columns' JSON schemas
-    const inserted = object.table.insertSchema("json").shape as Record<string, schema.Schema>;
+    // read the written columns, and the caller columns a system creation writes
+    const written = writtenSchema(object);
+    const callers = Object.entries(object.fields)
+        .filter(([, declared]) => declared.isCallerFilled)
+        .map(([name]) => name);
 
     return {
-        row,
-        written: (names, isPartial) =>
-            Object.fromEntries(
-                (names ?? object.written).map((name) => {
-                    // take each written column's schema
-                    const field = object.fields[name];
-                    const column = object.table[TABLE].columns[name]?.definition;
-                    const value = column === undefined ? undefined : (column.json ?? column.schema);
-                    const isRequired = field?.required === true && field.access?.read !== undefined;
-
-                    // require a guarded field its nullable column would leave optional
-                    const declared = !isRequired
-                        ? inserted[name]
-                        : field.initial === undefined
-                          ? value
-                          : value?.optional();
-                    if (declared === undefined) {
-                        throw new TypeError(`${object.name} writes no column ${name}`);
-                    }
-
-                    return [name, isPartial ? declared.optional() : declared];
-                }),
-            ),
+        row: rowSchema(object),
+        written,
+        callers: written(callers, false),
         scope: selection,
         target: selection.extend({ id }),
-        created: { id: id.optional() },
-        parent: Object.fromEntries(
-            Object.entries(parent ?? {}).map(([name, column]) => [
-                name,
-                object.parent!.optional ? column.optional() : column,
-            ]),
-        ),
-        destination: Object.fromEntries(
-            Object.entries(parent ?? {}).map(([name, column]) => [
-                name,
-                object.parent!.optional ? column.nullable() : column,
-            ]),
-        ),
+        created: { id: id.exactOptional() },
+        ...parentShapes(object),
         replay:
             object.storage === "ephemeral" ? { client: ClientId } : { requestId: RequestId.schema },
     };
 }
 
+/** Build an object's row as callers see it: guarded fields optional and text fields as strings. */
+function rowSchema(object: ObjectType): ObjectSchema["row"] {
+    // leave out the sensitive columns
+    const columns = object.table[TABLE].selectSchema("json");
+    const readable = Object.entries(columns.shape).filter(
+        ([name]) => !object.sensitive.includes(name),
+    );
+
+    // make guarded fields optional and read text fields as strings
+    return schema.object({
+        ...Object.fromEntries(
+            readable.map(([name, column]) => [
+                name,
+                object.guarded.includes(name) ? column.exactOptional() : column,
+            ]),
+        ),
+        ...Object.fromEntries(object.text.map((name) => [name, schema.string()])),
+    });
+}
+
+/** Build the reader of the written columns' schemas. */
+function writtenSchema(object: ObjectType): ObjectSchema["written"] {
+    // read the written columns' JSON schemas
+    const inserted = object.table[TABLE].insertSchema("json").shape;
+
+    return (names, isPartial) =>
+        Object.fromEntries(
+            (names ?? object.written).map((name) => {
+                // take each written column's schema
+                const field = object.fields[name];
+                const value = object.table[TABLE].columns[name]?.definition.json;
+                const isRequired = field?.required === true && field.access?.read !== undefined;
+
+                // require a guarded field its nullable column would leave optional
+                const required = field?.initial === undefined ? value : value?.exactOptional();
+                const declared = isRequired ? required : inserted[name];
+                if (declared === undefined) {
+                    throw new TypeError(`${object.name} writes no column ${name}`);
+                }
+
+                return [name, isPartial ? declared.exactOptional() : declared];
+            }),
+        );
+}
+
+/** Build the parent a created object belongs to and the parent a moved object moves to. */
+function parentShapes(object: ObjectType): Pick<ObjectSchema, "parent" | "destination"> {
+    // read the parent columns of a nested object
+    const nesting = object.parent;
+    const parent = nesting && parentSchema(nesting.object);
+
+    return {
+        parent: Object.fromEntries(
+            Object.entries(parent ?? {}).map(([name, column]) => [
+                name,
+                nesting?.optional === true ? column.exactOptional() : column,
+            ]),
+        ),
+        destination: Object.fromEntries(
+            Object.entries(parent ?? {}).map(([name, column]) => [
+                name,
+                nesting?.optional === true ? column.nullable() : column,
+            ]),
+        ),
+    };
+}
+
 /** Build the schema naming an object's parent. */
-function parentSchema(parent: ObjectType | "any"): Record<string, schema.Schema> {
-    return parent === "any"
-        ? { parent: ParentReference }
-        : { parentId: identifier(parent.identity) };
+function parentSchema(parent: ObjectType | "any"): schema.JsonObject["shape"] {
+    return parent === "any" ? { parent: ParentReference } : { parentId: parent.idSchema };
 }
 
 /** The route prefix and input field selecting an object's scope. */
 export interface ScopeRoute {
     /** The path prefix, such as /spaces/{spaceId}. */
     readonly prefix: "" | `/${string}`;
-    /** The input field holding the scope identifier. */
+    /** The input field with the scope identifier. */
     readonly field?: string;
 }
 
 /** Derive an object's scope route. */
 export function scopeRoute(object: ObjectType): ScopeRoute {
-    // route global objects without a scope
-    const scope = object.scope;
-    if (scope === Scope.universe.id) {
+    // name the scope in a field for objects in several, and route global objects without one
+    const declared: readonly ObjectScope[] = [object.scope].flat();
+    const [single] = object.scopes;
+    if (declared.length > 1) {
+        return { prefix: "", field: "scope" };
+    } else if (single === undefined) {
         return { prefix: "" };
     }
-    // carry the scope in a field for objects in several
-    else if (Array.isArray(scope)) {
-        return { prefix: "", field: "scope" };
-    }
 
-    // carry the scope in its type's route and identifier field
-    const single = scope as ObjectType;
+    // name the scope in its type's route and identifier field
 
     return {
         prefix: `/${kebabCase(single.plural)}/{${single.identity}Id}`,
@@ -234,38 +270,55 @@ export type Procedure<Input extends schema.Schema, Output extends ProcedureOutpu
     typeof procedure<Input, Output>
 >;
 
-/** The procedures derived from an object type's methods. */
-export type ObjectProcedures<Object extends ObjectType> = {
-    readonly [Name in CallableName<Object>]: MethodProcedureOf<
+/** The procedures an object type's methods derive, by method name. */
+export type MethodProcedures<Object extends ObjectType> = {
+    readonly [Name in MethodName<Object>]: MethodProcedureOf<
         Object,
         Object["methods"][Name] & Method
     >;
 };
 
+/** The procedures callers call: those of an object type's non-system methods, by method name. */
+export type ObjectProcedures<Object extends ObjectType> = Pick<
+    MethodProcedures<Object>,
+    CallableName<Object>
+>;
+
+/** The names of an object type's methods. */
+export type MethodName<Object extends ObjectType> = keyof Object["methods"] & string;
+
 /** The names of an object type's non-system methods. */
 export type CallableName<Object extends ObjectType> = {
-    [Name in keyof Object["methods"] & string]: Object["methods"][Name] extends {
-        readonly isSystem: true;
-    }
+    [Name in keyof Object["methods"] & string]: [
+        NonNullable<Object["methods"][Name]["isSystem"]>,
+    ] extends [true]
         ? never
         : Name;
 }[keyof Object["methods"] & string];
 
-/** The procedure one method derives, by its kind. */
-type MethodProcedureOf<Object extends ObjectType, Declared extends Method> = (RecordProcedures<
-    Object,
-    Declared
-> &
-    RecoverableProcedures<Object> &
-    TransitionProcedures<Object> &
-    NestedProcedures<Object> &
-    ShareableProcedures<Object> &
-    DetachableProcedures<Object> &
-    TrackedProcedures<Object> &
-    TextProcedures<Object>)[Declared["kind"]];
+/** The procedure of a method whose kind is unknown: any input and output. */
+type AnyProcedure = Procedure<
+    schema.Object<Readonly<Record<string, schema.Schema>>>,
+    ProcedureOutput
+>;
+
+/** The procedure one method derives, by its kind, any procedure for a method of unknown kind. */
+type MethodProcedureOf<
+    Object extends ObjectType,
+    Declared extends Method,
+> = MethodKind extends Declared["kind"]
+    ? AnyProcedure
+    : (RecordProcedures<Object, Declared> &
+          RecoverableProcedures<Object> &
+          TransitionProcedures<Object> &
+          NestedProcedures<Object> &
+          ShareableProcedures<Object> &
+          DetachableProcedures<Object> &
+          TrackedProcedures<Object> &
+          TextProcedures<Object>)[Declared["kind"]];
 
 /** The names of an object type's mutating methods. */
-export type MutatingName<Object extends ObjectType> = {
+export type MutationName<Object extends ObjectType> = {
     [Name in CallableName<Object>]: Object["methods"][Name] extends { mutates: true }
         ? Name
         : never;
@@ -273,39 +326,41 @@ export type MutatingName<Object extends ObjectType> = {
 
 /** The calls of an object type's mutating methods, recorded to run later. */
 export type Calls<Object extends ObjectType> = {
-    readonly [Name in MutatingName<Object>]: (input: CallInput<Object, Name>) => sync.Call;
+    readonly [Name in MutationName<Object>]: (input: CallInput<Object, Name>) => sync.Call;
 };
 
 /** The procedure one method derives. */
 type ProcedureOf<
     Object extends ObjectType,
-    Name extends CallableName<Object>,
-> = ObjectProcedures<Object>[Name] & {
+    Name extends MethodName<Object>,
+> = MethodProcedures<Object>[Name] & {
     readonly "~orpc": { readonly inputSchema: schema.Schema; readonly outputSchema: schema.Schema };
 };
 
 /** The input a caller passes to a method, without the scope it calls in. */
-export type CallInput<Object extends ObjectType, Name extends CallableName<Object>> = Omit<
-    schema.Input<ProcedureOf<Object, Name>["~orpc"]["inputSchema"]>,
-    "requestId" | (Object["storage"] extends "ephemeral" ? "client" : never) | ScopeField<Object>
->;
+export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
+    string extends MethodName<Object>
+        ? Readonly<Record<string, unknown>>
+        : Omit<
+              schema.Input<ProcedureOf<Object, Name>["~orpc"]["inputSchema"]>,
+              | "requestId"
+              | (Object["storage"] extends "ephemeral" ? "client" : never)
+              | ScopeField<Object>
+          >;
 
 /** The result a method returns. */
-export type CallOutput<Object extends ObjectType, Name extends CallableName<Object>> = schema.Infer<
+export type CallOutput<Object extends ObjectType, Name extends MethodName<Object>> = schema.Infer<
     ProcedureOf<Object, Name>["~orpc"]["outputSchema"]
 >;
 
 /** The input field of an object's scope identifier. */
-export type ScopeField<Object extends ObjectType> = Object["scope"] extends "universe"
-    ? never
-    : Object["scope"] extends ObjectType
-      ? `${ScopeIdentity<Object["scope"]>}Id`
-      : "scope";
-
-/** The prefix of a scope type's identifiers. */
-export type ScopeIdentity<Scope extends ObjectType> =
-    Select<Scope["table"]>["id" & keyof Select<Scope["table"]>] extends Identifier<infer Prefix>
-        ? Prefix
+export type ScopeField<Object extends ObjectType> =
+    Object extends ObjectType<infer Configuration>
+        ? Configuration["scope"] extends "universe"
+            ? never
+            : string extends Configuration["scope"]
+              ? "scope"
+              : `${Configuration["scope"]}Id`
         : never;
 
 /** The fields selecting an object's scope. */
@@ -315,7 +370,7 @@ export type ScopeShape<Object extends ObjectType> = {
 
 /** The fields selecting one object. */
 export type TargetShape<Object extends ObjectType> = ScopeShape<Object> & {
-    id: schema.Schema<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>;
+    id: schema.Schema<JsonOf<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>>;
 };
 
 /** The input field naming the parent. */
@@ -335,16 +390,13 @@ type IsOrphanable<Object extends ObjectType> = null extends Select<Object["table
     : false;
 
 /** A child's parent-selecting field. */
-export type ParentShape<
-    Object extends ObjectType,
-    Filter extends boolean,
-> = "parentId" extends keyof Select<Object["table"]>
+export type ParentShape<Object extends ObjectType> = "parentId" extends keyof Select<
+    Object["table"]
+>
     ? {
-          [Field in ParentField<Object>]: Filter extends true
-              ? schema.Optional<schema.Schema<ParentValue<Object>>>
-              : IsOrphanable<Object> extends true
-                ? schema.Optional<schema.Schema<ParentValue<Object>>>
-                : schema.Schema<ParentValue<Object>>;
+          [Field in ParentField<Object>]: IsOrphanable<Object> extends true
+              ? schema.ExactOptional<schema.Schema<ParentValue<Object>>>
+              : schema.Schema<ParentValue<Object>>;
       }
     : {};
 
@@ -366,7 +418,7 @@ export type ReplayShape<Object extends ObjectType = ObjectType> =
         : { requestId: typeof RequestId.schema };
 
 /** The revision a change requires. */
-export type RevisionField = { revision: schema.Optional<schema.Schema<number, number>> };
+export type RevisionField = typeof RevisionShape;
 
 /** The keys a record may omit. */
 type OptionalKeys<Record> = {
@@ -374,20 +426,15 @@ type OptionalKeys<Record> = {
 }[keyof Record];
 
 /** The columns a creation or update writes. */
-type WrittenName<Object extends ObjectType, Declared extends Method> = string extends NonNullable<
-    Declared["fields"]
->[number]
-    ? Object["written"][number]
-    : NonNullable<Declared["fields"]>[number];
-
-/** A value in its JSON form. */
-type JsonForm<Value> = Value extends Date
-    ? number
-    : Value extends bigint
-      ? string
-      : Value extends Uint8Array
-        ? string
-        : Value;
+type WrittenName<Object extends ObjectType, Declared extends Method> =
+    | (string extends NonNullable<Declared["fields"]>[number]
+          ? WrittenField<Object["fields"]>
+          : NonNullable<Declared["fields"]>[number])
+    | (Declared extends { readonly kind: "create" }
+          ? true extends NonNullable<Declared["isSystem"]>
+              ? CallerField<Object["fields"]>
+              : never
+          : never);
 
 /** The JSON validators of the columns a creation or update writes. */
 export type WrittenShape<
@@ -399,11 +446,13 @@ export type WrittenShape<
 > = {
     [
         Key in Name as IsPartial extends true ? never : Key extends OptionalKeys<Row> ? never : Key
-    ]: schema.Schema<JsonForm<Row[Key]>>;
+    ]: schema.Schema<JsonOf<Row[Key]>, JsonOf<Row[Key]>>;
 } & {
     [
         Key in Name as IsPartial extends true ? Key : Key extends OptionalKeys<Row> ? Key : never
-    ]: schema.Optional<schema.Schema<JsonForm<Exclude<Row[Key], undefined>>>>;
+    ]: schema.ExactOptional<
+        schema.Schema<JsonOf<Exclude<Row[Key], undefined>>, JsonOf<Exclude<Row[Key], undefined>>>
+    >;
 };
 
 /** A method's own input fields. */
@@ -416,17 +465,17 @@ export type FieldShape<Declared extends Method> = [NonNullable<Declared["input"]
 /** One object as callers see it, in its JSON form. */
 export type RowSchema<Object extends ObjectType> = schema.Object<
     RowShape<
-        JsonRow<Omit<Select<Object["table"]>, Object["sensitive"][number]>>,
-        Object["guarded"][number]
-    > & { [Name in Object["text"][number]]: schema.Schema<string> }
+        JsonFields<Omit<Select<Object["table"]>, SensitiveField<Object["fields"]>>>,
+        GuardedField<Object["fields"]>
+    > & { [Name in TextFieldName<Object["fields"]>]: schema.Schema<string> }
 >;
 
-/** A row with each field in its JSON form. */
-type JsonRow<Row> = { [Name in keyof Row]: JsonForm<Row[Name]> };
+/** Fields, each in its JSON form. */
+type JsonFields<Row> = { [Name in keyof Row]: JsonOf<Row[Name]> };
 
 /** The validators of a row's fields, the guarded ones accepting omission. */
 type RowShape<Row, Guarded> = {
     [Name in Exclude<keyof Row, Guarded>]: schema.Schema<Row[Name]>;
 } & {
-    [Name in Extract<keyof Row, Guarded>]: schema.Optional<schema.Schema<Row[Name]>>;
+    [Name in Extract<keyof Row, Guarded>]: schema.ExactOptional<schema.Schema<Row[Name]>>;
 };

@@ -13,31 +13,36 @@ export class Listing implements Audience {
     /** The call listing the objects. */
     readonly #call: Call;
     /** The object types the call lists, by table. */
-    readonly #objects: ListedObjects;
+    readonly #objects: ObjectTypeIndex;
 
     /** List objects as a call's caller may list them. */
     constructor(call: Call) {
         this.#call = call;
-        this.#objects = new ListedObjects(call.objects);
+        this.#objects = new ObjectTypeIndex(call.objects);
     }
 
     /** Match the rows the caller may list. */
     where(table: Table): SQL | "memory" {
+        // list every row of a prediction
         const { object, permission } = this.#objects.listed(table);
+        if (this.#call.isPredicted) {
+            return sql`true`;
+        }
 
-        return this.#call.isPredicted
-            ? sql`true`
-            : this.#call.served().listable(object, permission);
+        return this.#call.requireAuthorization().listable(object, permission);
     }
 
     /** Decide which rows of a table the caller may list, at once. */
     async admits(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
+        // admit every row of a prediction
         const { object, permission } = this.#objects.listed(table);
+        if (this.#call.isPredicted) {
+            return new Set(rows.keys());
+        }
+        const authorization = this.#call.requireAuthorization();
+        const admitted = await authorization.admitRows(object, permission, this.#call.scope, rows);
 
-        return this.#call.isPredicted
-            ? new Set(rows.keys())
-            : (await this.#call.served().admitRows(object, permission, this.#call.scope, rows))
-                  .held;
+        return admitted.permitted;
     }
 
     /** List an object type's guarded fields. */
@@ -47,10 +52,14 @@ export class Listing implements Audience {
 
     /** List the guarded fields the caller may not read on each row. */
     async conceals(table: Table, rows: readonly Row[]): Promise<readonly (readonly string[])[]> {
+        // conceal nothing from a prediction
         const { object } = this.#objects.listed(table);
-        return this.#call.isPredicted
-            ? rows.map(() => [])
-            : (await this.#call.served().concealed(object, rows)).hidden;
+        if (this.#call.isPredicted) {
+            return rows.map(() => []);
+        }
+        const concealed = await this.#call.requireAuthorization().concealed(object, rows);
+
+        return concealed.hidden;
     }
 
     /** Read no expiry. */
@@ -68,16 +77,16 @@ export class Listing implements Audience {
 }
 
 /** Object types by their tables. */
-export class ListedObjects {
+export class ObjectTypeIndex {
     /** The object types, by table. */
     readonly #objects: ReadonlyMap<Table, ObjectType>;
 
     /** Index object types by their tables. */
     constructor(objects: readonly ObjectType[]) {
-        this.#objects = new Map(objects.map((object) => [object.table as Table, object]));
+        this.#objects = new Map(objects.map((object) => [object.table, object]));
     }
 
-    /** Read the object type holding a table, absent for another table. */
+    /** Read the object type of a table, absent for another table. */
     get(table: Table): ObjectType | undefined {
         return this.#objects.get(table);
     }

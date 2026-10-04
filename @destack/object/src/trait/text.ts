@@ -1,20 +1,20 @@
-import { schema } from "@destack/schema";
-import type { Field, TextField } from "../field/field.ts";
+import { present, schema } from "@destack/schema";
+import type { TextField } from "../field/field.ts";
 import { Step } from "../method/step.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import type { Procedure, ReplayShape, TargetShape } from "../method/procedure.ts";
-import type { ObjectType } from "../object/object.ts";
+import type { ObjectType, TextFieldName } from "../object/object.ts";
 import { SequenceEdit } from "../sequence/index.ts";
 import { permission } from "@destack/access";
 import { ServiceError } from "@destack/service/error";
-import { Chunk, Edited, TEXT_READ } from "../text/chunk.ts";
+import { Chunk, Undo, TEXT_READ } from "../text/chunk.ts";
 import { chunk } from "../text/table.ts";
 import type { Trait } from "./trait.ts";
 
 /** The text fields of an object and the permission editing them. */
 export interface TextDefinition {
     /** The text fields, by name. */
-    readonly fields: readonly string[];
+    readonly fields: readonly [string, ...string[]];
     /** The permission edits need. */
     readonly permission: string | undefined;
     /** The permission reading the text. */
@@ -26,7 +26,14 @@ export type TextMethodMap<Fields> = {
     [Property in keyof Fields]: Fields[Property] extends TextField ? Property : never;
 }[keyof Fields] extends never
     ? {}
-    : { readonly edit: Method<"edit", string, never, typeof Edited, true> };
+    : {
+          readonly edit: Method<{
+              kind: "edit";
+              permission: string;
+              output: typeof Undo;
+              mutates: true;
+          }>;
+      };
 
 /** The procedure of the edit method. */
 export type TextProcedures<Object extends ObjectType> = {
@@ -34,31 +41,29 @@ export type TextProcedures<Object extends ObjectType> = {
         schema.Object<
             TargetShape<Object> &
                 ReplayShape<Object> & {
-                    field: schema.Schema<Object["text"][number]>;
+                    field: schema.Schema<TextFieldName<Object["fields"]>>;
                     edits: schema.Schema<SequenceEdit[]>;
                 }
         >,
-        typeof Edited
+        typeof Undo
     >;
 };
 
-/** Text fields held in chunks and changed only by edits. */
+/** Text fields kept in chunks and changed only by edits. */
 export const text: Trait<TextDefinition> = {
     options: (definition) => {
         // collect the text fields and the update and reading permissions
-        const fields = Object.entries(definition.fields ?? {})
-            .filter(([, declared]) => (declared as Field).type === "text")
+        const [first, ...others] = Object.entries(definition.fields ?? {})
+            .filter(([, declared]) => declared.type === "text")
             .map(([name]) => name);
-        const methods = Object.values(
-            (definition.methods ?? {}) as Readonly<Record<string, Method>>,
-        );
+        const methods = Object.values(definition.methods ?? {});
         const permissionOf = (kind: string) =>
             methods.find((declared) => declared.kind === kind)?.permission ?? undefined;
 
-        return fields.length === 0
+        return first === undefined
             ? undefined
             : {
-                  fields,
+                  fields: [first, ...others],
                   permission: permissionOf("update"),
                   reading: permissionOf("list") ?? permissionOf("get"),
               };
@@ -93,19 +98,17 @@ export const text: Trait<TextDefinition> = {
     validate: (options, object) => {
         // require durable objects with an update permission
         if (object.storage === "ephemeral") {
-            throw new TypeError(`ephemeral object ${object.name} holds no text`);
+            throw new TypeError(`ephemeral object ${object.name} has no text`);
         } else if (options.permission === undefined) {
             throw new TypeError(`object ${object.name} holds text but no update method to edit it`);
         } else if (options.reading === undefined) {
             throw new TypeError(
-                `object ${object.name} holds text but no get or list method reads it`,
+                `object ${object.name} has text but no get or list method reads it`,
             );
         }
 
         // refuse methods writing text fields
-        for (const [name, declared] of Object.entries(
-            object.methods as Readonly<Record<string, Method>>,
-        )) {
+        for (const [name, declared] of Object.entries(object.methods)) {
             const written = declared.fields?.find((field) => options.fields.includes(field));
             if (written !== undefined) {
                 throw new TypeError(
@@ -118,12 +121,12 @@ export const text: Trait<TextDefinition> = {
 
 /** Edit one text field of an object. */
 function edit(
-    permission: string,
-    fields: readonly string[],
-): Method<"edit", string, never, typeof Edited, true> {
-    return defineMethod<Method<"edit", string, never, typeof Edited, true>>({
+    required: string,
+    fields: readonly [string, ...string[]],
+): Method<{ kind: "edit"; permission: string; output: typeof Undo; mutates: true }> {
+    return defineMethod<{ kind: "edit"; permission: string; output: typeof Undo; mutates: true }>({
         kind: "edit",
-        permission,
+        permission: required,
         mutates: true,
         target: true,
         result: "value",
@@ -131,44 +134,48 @@ function edit(
             route: { method: "POST", path: "/{id}/edit" },
             input: shapes.target.extend({
                 ...shapes.replay,
-                field: schema.enum(fields as [string, ...string[]]),
+                field: schema.enum(fields),
                 edits: schema.array(SequenceEdit).min(1),
             }),
-            output: Edited,
+            output: Undo,
         }),
-        effect: (call) => Chunk.edit(call),
+        handler: (call) => Chunk.edit(call),
         inverse: (step) => {
             // apply the recorded inverse edits
-            const result = step.result as Edited | undefined;
-            if (result === undefined) {
+            if (step.result === undefined) {
                 return undefined;
             }
+            const result = Undo.parse(step.result);
 
             return result.inverse.length === 0
                 ? []
                 : [
                       Step.record(step, step.name, {
-                          ...Step.target(step, step.input.id),
-                          field: step.input.field,
+                          ...Step.target(step),
+                          field: schema.string().parse(step.input["field"]),
                           edits: result.inverse,
                       }),
                   ];
         },
         async execute(call) {
             // require the field's write permission when it guards writes
-            const guard = call.object.fields[String(call.input.field)]!.access?.write;
+            const field = schema.string().parse(call.input["field"]);
+            const guard = present(
+                call.object.fields[field],
+                `the text field ${field} of ${call.object.name}`,
+            ).access?.write;
             if (!call.isPredicted && guard !== undefined) {
                 const decision = await call
-                    .served()
+                    .requireAuthorization()
                     .check(call.object.permission(guard), call.reference());
                 if (!decision.isAllowed) {
                     throw new ServiceError("FORBIDDEN", {
-                        message: `field ${String(call.input.field)} is not writable`,
+                        message: `field ${field} is not writable`,
                     });
                 }
             }
 
-            return this.effect(call);
+            return this.handler(call);
         },
     });
 }

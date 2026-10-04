@@ -1,12 +1,11 @@
-import type { Method } from "../method/method.ts";
-import { custom } from "./record.ts";
+import { method, type Method } from "../method/method.ts";
 import type { Gated, Trait } from "./trait.ts";
 
 /** The methods suspendable scope objects take. */
 export type SuspendableMethodMap<Suspend> = [Suspend] extends [string]
     ? {
-          readonly suspend: Method<"custom", Suspend, never, never, true>;
-          readonly resume: Method<"custom", Suspend, never, never, true>;
+          readonly suspend: Method<{ kind: "custom"; permission: Suspend; mutates: true }>;
+          readonly resume: Method<{ kind: "custom"; permission: Suspend; mutates: true }>;
       }
     : {};
 
@@ -15,11 +14,11 @@ export const suspendable: Trait<Gated> & {
     /** Declare the method suspending a scope object. */
     suspend<const Permission extends string>(
         permission: Permission,
-    ): Method<"custom", Permission, never, never, true>;
+    ): Method<{ kind: "custom"; permission: Permission; mutates: true }>;
     /** Declare the method resuming a suspended scope object. */
     resume<const Permission extends string>(
         permission: Permission,
-    ): Method<"custom", Permission, never, never, true>;
+    ): Method<{ kind: "custom"; permission: Permission; mutates: true }>;
 } = {
     key: "suspendable",
     isDurable: true,
@@ -43,11 +42,11 @@ export const suspendable: Trait<Gated> & {
 /** Suspend or resume a scope object on the server. */
 function change<const Permission extends string>(
     permission: Permission,
-    change: "suspend" | "resume",
+    action: "suspend" | "resume",
     inverse: "suspend" | "resume",
-): Method<"custom", Permission, never, never, true> {
-    const handled = custom({ permission, inverse }).handle(async (call) => {
-        await call.served()[change](call.reference());
+): Method<{ kind: "custom"; permission: Permission; mutates: true }> {
+    const handled = method.mutation({ permission, inverse }).handle(async (call) => {
+        await call.requireAuthorization()[action](call.reference());
 
         return call.target;
     });
