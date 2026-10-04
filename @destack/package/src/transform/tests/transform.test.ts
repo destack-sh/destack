@@ -58,27 +58,58 @@ test("stamp declaration constructors and metadata reads with the calling module"
     ).toBeUndefined();
 });
 
+test("pass the calling module to stamped tags and to members of named and namespace imports", () => {
+    const code = [
+        'import { Note, note } from "./declare.ts";',
+        'import * as notes from "./declare.ts";',
+        "export const greeting = note`Hello ${name}`;",
+        'export const title = Note.titled("heading")`Trips`;',
+        'export const other = notes.Note.titled("heading")`Work`;',
+        "export const plain = notes.note`Plain`;",
+        'export const owned = Note.titled("heading", import.meta.destack)`Owned`;',
+    ].join("\n");
+
+    // call bare tags with the module, and append it to calls building tags
+    const metadata = JSON.stringify(owner.metadata);
+    const transformed = transformModule(code, NOTE_PATH, owner, new PackageLocator());
+    expect(transformed?.code.split("\n")).toEqual([
+        `const __destackModule = Object.freeze(${metadata});`,
+        'import { Note, note } from "./declare.ts";',
+        'import * as notes from "./declare.ts";',
+        "export const greeting = note(__destackModule)`Hello ${name}`;",
+        'export const title = Note.titled("heading", __destackModule)`Trips`;',
+        'export const other = notes.Note.titled("heading", __destackModule)`Work`;',
+        "export const plain = notes.note(__destackModule)`Plain`;",
+        'export const owned = Note.titled("heading", __destackModule)`Owned`;',
+    ]);
+});
+
 test("read a package's constructors once per locator, and its changed ones in the next", async () => {
     // declare one constructor in a package of a temporary directory
     const directory = await mkdtemp(join(tmpdir(), "destack-constructors-"));
     onTestFinished(() => rm(directory, { recursive: true }));
-    const declare = (declarations: Readonly<Record<string, { module: number }>>) =>
+    const declare = (names: readonly string[]) =>
         writeFile(
             join(directory, "destack.json"),
             JSON.stringify({
                 $schema: "https://destack.app/schemas/2026.9.0/destack.json",
                 id: owner.metadata.package.id,
                 language: "typescript",
-                declarations,
+                declarations: Object.fromEntries(
+                    names.map((name) => [
+                        name,
+                        { describes: [{ kind: "note", function: "./inspect#describe" }] },
+                    ]),
+                ),
             }),
         );
     await writeFile(join(directory, "package.json"), JSON.stringify({ name: "@example/fresh" }));
-    await declare({ defineNote: { module: 1 } });
+    await declare(["defineNote"]);
     const build = new PackageLocator();
     const before = build.constructors("@example/fresh", directory);
 
     // keep the first build's answer after the change, and read the change in the next build
-    await declare({ defineNote: { module: 1 }, defineTag: { module: 2 } });
+    await declare(["defineNote", "defineTag"]);
     const cached = build.constructors("@example/fresh", directory);
     const next = new PackageLocator().constructors("@example/fresh", directory);
     expect([before, cached, next].map((constructors) => Object.keys(constructors))).toEqual([

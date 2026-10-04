@@ -3,7 +3,7 @@ import { Language } from "./language.ts";
 import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
-import { DeclarationConstructorMap, FunctionReference } from "./constructor.ts";
+import { DeclarationConstructorMap, FunctionReference, StampMap } from "./constructor.ts";
 import { Publication } from "./publication.ts";
 import { Capabilities } from "./capability.ts";
 import { PackageError } from "../error/index.ts";
@@ -58,8 +58,10 @@ const definition = defineSchema(
         runtimes: schema.array(Runtime).min(1).exactOptional(),
         /** What the package's workloads and views may reach, each consented to at installation. */
         capabilities: Capabilities.exactOptional(),
-        /** The declaration constructors the package exports, by name. */
+        /** The declaration constructors the build describes, by name. */
         declarations: DeclarationConstructorMap.exactOptional(),
+        /** The exported functions, template tags and declaration constructors the transform passes the calling module to, by export path. */
+        stamps: StampMap.exactOptional(),
         /** The extension building the packages that use this one, such as `./build#viewExtension`. */
         build: FunctionReference.exactOptional(),
         /** How the registry publishes the package. */

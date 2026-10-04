@@ -2,7 +2,9 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01996ab0-0000-7000-8000-000000000001",
     "language": "typescript",
-    "declarations": {
-        "defineNote": { "module": 2 }
+    "stamps": {
+        "defineNote": { "module": 2 },
+        "note": { "module": 0 },
+        "Note.titled": { "module": 1 }
     }
 }

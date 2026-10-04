@@ -8,10 +8,10 @@ export const FunctionReference = defineSchema(
 /** A function a package exports, as export and name. */
 export type FunctionReference = schema.Infer<typeof FunctionReference>;
 
-/** A declaration constructor as its package declares it in destack.json. */
+/** A declaration constructor the build describes, as its package declares it in destack.json. */
 export const DeclarationConstructor = defineSchema(
     schema.object({
-        /** The descriptions the build writes for each declaration, absent when it writes none. */
+        /** The descriptions the build writes for each declaration. */
         describes: schema
             .array(
                 schema.object({
@@ -29,18 +29,35 @@ export const DeclarationConstructor = defineSchema(
                     symbols: FunctionReference.exactOptional(),
                 }),
             )
-            .min(1)
-            .exactOptional(),
-        /** The parameter position where the transform passes the calling module, if any. */
-        module: schema.number().int().nonnegative().exactOptional(),
+            .min(1),
     }),
 );
-/** A declaration constructor as its package declares it in destack.json. */
+/** A declaration constructor the build describes. */
 export type DeclarationConstructor = schema.Infer<typeof DeclarationConstructor>;
 
-/** The declaration constructors a package declares, by name. */
+/** The declaration constructors a package's build describes, by name. */
 export const DeclarationConstructorMap = defineSchema(
     schema.record(schema.string().regex(/^define[A-Z][A-Za-z0-9]*$/u), DeclarationConstructor),
 );
-/** The declaration constructors a package declares, by name. */
+/** The declaration constructors a package's build describes, by name. */
 export type DeclarationConstructorMap = schema.Infer<typeof DeclarationConstructorMap>;
+
+/** A function, template tag or declaration constructor the module transform passes the calling module to, as its package declares it in destack.json. */
+export const Stamp = defineSchema(
+    schema.object({
+        /** The parameter position where the transform passes the calling module. */
+        module: schema.number().int().nonnegative(),
+    }),
+);
+/** A function the module transform passes the calling module to. */
+export type Stamp = schema.Infer<typeof Stamp>;
+
+/** The functions a package's callers receive the calling module in, by export path such as `Message.context`. */
+export const StampMap = defineSchema(
+    schema.record(
+        schema.string().regex(/^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*$/u),
+        Stamp,
+    ),
+);
+/** The functions a package's callers receive the calling module in, by export path. */
+export type StampMap = schema.Infer<typeof StampMap>;

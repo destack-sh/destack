@@ -2,7 +2,7 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { DeclarationConstructorMap } from "../definition/constructor.ts";
-import { Definition } from "../definition/definition.ts";
+import { Definition, type PackageDefinition } from "../definition/definition.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DependencyName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
@@ -22,7 +22,7 @@ export interface ModulePackage {
     readonly metadata: ModuleMetadata;
 }
 
-/** The packages and declaration constructors one build finds, read once per build. */
+/** The packages and stamped functions one build finds, read once per build. */
 export class PackageLocator {
     /** The Destack package above each directory, pending or found. */
     readonly #owners = new Map<string, Promise<ModulePackage | undefined>>();
@@ -30,9 +30,9 @@ export class PackageLocator {
     readonly #directories = new Map<string, string | undefined>();
     /** The name each directory's package.json declares. */
     readonly #names = new Map<string, string | undefined>();
-    /** The declaration constructors of each package directory. */
-    readonly #constructors = new Map<string, DeclarationConstructorMap>();
-    /** The module parameter positions of each package's constructors, by package name and directory. */
+    /** The definition of each package directory, absent without a package definition. */
+    readonly #definitions = new Map<string, PackageDefinition | undefined>();
+    /** The module parameter positions of each package's stamped functions, by package name and directory. */
     readonly #imported = new Map<string, ReadonlyMap<string, number>>();
 
     /** Find the Destack package containing a module, or nothing outside Destack packages. */
@@ -69,29 +69,12 @@ export class PackageLocator {
         return root;
     }
 
-    /** Read the declaration constructors a package declares, resolving it by name from a directory. */
+    /** Read the declaration constructors a package's build describes, resolving it by name from a directory. */
     constructors(name: string, from: string): DeclarationConstructorMap {
-        // find the package itself or its installation above the directory
-        const root = this.directory(name, from);
-        if (root === undefined) {
-            return {};
-        }
-
-        // read the constructors its destack.json declares once
-        let declared = this.#constructors.get(root);
-        if (!declared) {
-            const path = join(root, "destack.json");
-            const definition = existsSync(path)
-                ? Definition.package(Definition.read(readFileSync(path, "utf8")))
-                : undefined;
-            declared = definition?.declarations ?? {};
-            this.#constructors.set(root, declared);
-        }
-
-        return declared;
+        return this.#definition(name, from)?.declarations ?? {};
     }
 
-    /** Map the stamped constructors a module's import specifier provides to their module parameters. */
+    /** Map the functions a module's import specifier provides to the module parameters the transform fills, by export path. */
     imported(
         specifier: string,
         path: string,
@@ -102,21 +85,41 @@ export class PackageLocator {
             ? metadata.package.name
             : DependencyName.of(specifier);
         const key = `${owner}\0${dirname(path)}`;
-        let constructors = this.#imported.get(key);
-        if (constructors !== undefined) {
-            return constructors;
+        let stamps = this.#imported.get(key);
+        if (stamps !== undefined) {
+            return stamps;
         }
 
-        // keep the constructors taking a module, by parameter position
-        constructors = new Map(
-            Object.entries(this.constructors(owner, dirname(path))).flatMap(
-                ([name, constructor]) =>
-                    constructor.module === undefined ? [] : [[name, constructor.module]],
-            ),
+        // keep the stamped functions by parameter position
+        const definition = this.#definition(owner, dirname(path));
+        stamps = new Map(
+            Object.entries(definition?.stamps ?? {}).map(([name, stamp]) => [name, stamp.module]),
         );
-        this.#imported.set(key, constructors);
+        this.#imported.set(key, stamps);
 
-        return constructors;
+        return stamps;
+    }
+
+    /** Read a package's destack.json once, resolving it by name from a directory, or nothing without one. */
+    #definition(name: string, from: string): PackageDefinition | undefined {
+        // find the package itself or its installation above the directory
+        const root = this.directory(name, from);
+        if (root === undefined) {
+            return undefined;
+        }
+
+        // read its definition once
+        if (!this.#definitions.has(root)) {
+            const path = join(root, "destack.json");
+            this.#definitions.set(
+                root,
+                existsSync(path)
+                    ? Definition.package(Definition.read(readFileSync(path, "utf8")))
+                    : undefined,
+            );
+        }
+
+        return this.#definitions.get(root);
     }
 
     /** Share one lookup of the package above a directory across concurrent module loads. */

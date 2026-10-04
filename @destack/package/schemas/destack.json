@@ -14,10 +14,7 @@
                 },
                 "language": {
                     "type": "string",
-                    "enum": [
-                        "typescript",
-                        "typescript++"
-                    ]
+                    "enum": ["typescript", "typescript++"]
                 },
                 "template": {
                     "type": "object",
@@ -39,9 +36,7 @@
                             }
                         }
                     },
-                    "required": [
-                        "files"
-                    ],
+                    "required": ["files"],
                     "additionalProperties": false
                 },
                 "runtimes": {
@@ -49,11 +44,7 @@
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "enum": [
-                            "browser",
-                            "bun",
-                            "workerd"
-                        ]
+                        "enum": ["browser", "bun", "workerd"]
                     }
                 },
                 "capabilities": {
@@ -67,9 +58,7 @@
                                     "minLength": 1
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "network": {
@@ -91,10 +80,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "connect",
-                                "reason"
-                            ],
+                            "required": ["connect", "reason"],
                             "additionalProperties": false
                         },
                         "listen": {
@@ -108,9 +94,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "fs": {
@@ -118,10 +102,7 @@
                             "properties": {
                                 "access": {
                                     "type": "string",
-                                    "enum": [
-                                        "read",
-                                        "write"
-                                    ]
+                                    "enum": ["read", "write"]
                                 },
                                 "reason": {
                                     "type": "string",
@@ -131,10 +112,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "access",
-                                "reason"
-                            ],
+                            "required": ["access", "reason"],
                             "additionalProperties": false
                         },
                         "env": {
@@ -156,10 +134,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "names",
-                                "reason"
-                            ],
+                            "required": ["names", "reason"],
                             "additionalProperties": false
                         },
                         "run": {
@@ -181,10 +156,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "commands",
-                                "reason"
-                            ],
+                            "required": ["commands", "reason"],
                             "additionalProperties": false
                         },
                         "camera": {
@@ -198,9 +170,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "microphone": {
@@ -214,9 +184,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "geolocation": {
@@ -230,9 +198,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "display-capture": {
@@ -246,9 +212,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "clipboard-read": {
@@ -262,9 +226,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "clipboard-write": {
@@ -278,9 +240,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "fullscreen": {
@@ -294,9 +254,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "midi": {
@@ -310,9 +268,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "usb": {
@@ -326,9 +282,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "hid": {
@@ -342,9 +296,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "serial": {
@@ -358,9 +310,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "bluetooth": {
@@ -374,9 +324,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "screen-wake-lock": {
@@ -390,9 +338,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "idle-detection": {
@@ -406,9 +352,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "local-fonts": {
@@ -422,9 +366,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "window-management": {
@@ -438,9 +380,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         },
                         "xr-spatial-tracking": {
@@ -454,9 +394,7 @@
                                     "type": "boolean"
                                 }
                             },
-                            "required": [
-                                "reason"
-                            ],
+                            "required": ["reason"],
                             "additionalProperties": false
                         }
                     },
@@ -503,19 +441,31 @@
                                             "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
                                         }
                                     },
-                                    "required": [
-                                        "kind",
-                                        "function"
-                                    ],
+                                    "required": ["kind", "function"],
                                     "additionalProperties": false
                                 }
-                            },
+                            }
+                        },
+                        "required": ["describes"],
+                        "additionalProperties": false
+                    }
+                },
+                "stamps": {
+                    "type": "object",
+                    "propertyNames": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*(?:\\.[A-Za-z][A-Za-z0-9]*)*$"
+                    },
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
                             "module": {
                                 "type": "integer",
                                 "minimum": 0,
                                 "maximum": 9007199254740991
                             }
                         },
+                        "required": ["module"],
                         "additionalProperties": false
                     }
                 },
@@ -537,16 +487,10 @@
                                 "properties": {
                                     "runtime": {
                                         "type": "string",
-                                        "enum": [
-                                            "browser",
-                                            "bun",
-                                            "workerd"
-                                        ]
+                                        "enum": ["browser", "bun", "workerd"]
                                     }
                                 },
-                                "required": [
-                                    "runtime"
-                                ],
+                                "required": ["runtime"],
                                 "additionalProperties": false
                             }
                         },
@@ -562,10 +506,7 @@
                             }
                         }
                     },
-                    "required": [
-                        "outputs",
-                        "conditions"
-                    ],
+                    "required": ["outputs", "conditions"],
                     "additionalProperties": false
                 },
                 "check": {
@@ -598,18 +539,12 @@
                                         "minLength": 1
                                     }
                                 },
-                                "required": [
-                                    "files",
-                                    "rules",
-                                    "reason"
-                                ],
+                                "required": ["files", "rules", "reason"],
                                 "additionalProperties": false
                             }
                         }
                     },
-                    "required": [
-                        "expect"
-                    ],
+                    "required": ["expect"],
                     "additionalProperties": false
                 },
                 "workspace": {
@@ -645,18 +580,12 @@
                                                 "minLength": 1
                                             }
                                         },
-                                        "required": [
-                                            "files",
-                                            "rules",
-                                            "reason"
-                                        ],
+                                        "required": ["files", "rules", "reason"],
                                         "additionalProperties": false
                                     }
                                 }
                             },
-                            "required": [
-                                "expect"
-                            ],
+                            "required": ["expect"],
                             "additionalProperties": false
                         }
                     },
@@ -675,26 +604,16 @@
                                 "type": "array",
                                 "items": {
                                     "type": "string",
-                                    "enum": [
-                                        "browser",
-                                        "bun",
-                                        "workerd"
-                                    ]
+                                    "enum": ["browser", "bun", "workerd"]
                                 }
                             }
                         },
-                        "required": [
-                            "runtimes"
-                        ],
+                        "required": ["runtimes"],
                         "additionalProperties": false
                     }
                 }
             },
-            "required": [
-                "$schema",
-                "id",
-                "language"
-            ],
+            "required": ["$schema", "id", "language"],
             "additionalProperties": false
         },
         {
@@ -737,28 +656,19 @@
                                                 "minLength": 1
                                             }
                                         },
-                                        "required": [
-                                            "files",
-                                            "rules",
-                                            "reason"
-                                        ],
+                                        "required": ["files", "rules", "reason"],
                                         "additionalProperties": false
                                     }
                                 }
                             },
-                            "required": [
-                                "expect"
-                            ],
+                            "required": ["expect"],
                             "additionalProperties": false
                         }
                     },
                     "additionalProperties": false
                 }
             },
-            "required": [
-                "$schema",
-                "workspace"
-            ],
+            "required": ["$schema", "workspace"],
             "additionalProperties": false
         }
     ]

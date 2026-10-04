@@ -17,7 +17,7 @@ test("require the module metadata the transform passes to declaration constructo
     expect(() => ModuleMetadata.require(undefined, "defineVault")).toThrow(
         new PackageError(
             "INVALID_DEFINITION",
-            "defineVault requires the Destack module transform to supply its package",
+            "no module passed by the Destack module transform to: defineVault",
         ),
     );
 });

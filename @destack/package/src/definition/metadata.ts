@@ -19,13 +19,13 @@ export type ModuleMetadata = {
 
 /** Build metadata supplied to a module through import.meta.destack. */
 export const ModuleMetadata = Object.assign(moduleMetadataSchema, {
-    /** Require the module metadata the Destack module transform passes to a declaration constructor. */
-    require(module: ModuleMetadata | undefined, constructor: string): ModuleMetadata {
+    /** Require the module metadata the Destack module transform passes to a stamped function, named for the error. */
+    require(module: ModuleMetadata | undefined, name: string): ModuleMetadata {
         // require the argument appended by the module transform
         if (!module) {
             throw new PackageError(
                 "INVALID_DEFINITION",
-                `${constructor} requires the Destack module transform to supply its package`,
+                `no module passed by the Destack module transform to: ${name}`,
             );
         }
 

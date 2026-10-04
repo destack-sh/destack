@@ -3,10 +3,8 @@
     "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
-    "declarations": {
-        "definePackage": {
-            "module": 1
-        }
+    "stamps": {
+        "definePackage": { "module": 1 }
     },
     "check": {
         "expect": [
