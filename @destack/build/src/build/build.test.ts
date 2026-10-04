@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { readOutputs } from "./build.ts";
 
 test("read one module per runtime each export declares", async () => {
-    // declare packages with every runtime, with an export's own runtimes and without runtimes
+    // declare packages with every runtime, with runtimes per export and without runtimes
     const directory = await mkdtemp(join(tmpdir(), "destack-outputs-"));
     const read = async (exports: object, definition: object) => {
         await writeFile(
@@ -22,7 +22,11 @@ test("read one module per runtime each export declares", async () => {
         try {
             return await readOutputs(directory);
         } catch (error) {
-            return (error as Error).message;
+            if (!(error instanceof Error)) {
+                throw error;
+            }
+
+            return error.message;
         }
     };
     const id = "package-01996ab0-0000-7000-8000-00000000000c";

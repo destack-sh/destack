@@ -2,13 +2,19 @@ import { mkdtemp, realpath, rm, stat, writeFile, readFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join, resolve, isAbsolute } from "node:path";
 import { type InspectOptions } from "../inspect/inspection.ts";
-import { runtimeConditions } from "@destack/package/build";
+import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import { linkDependencies } from "./dependency.ts";
 import { PackageError } from "@destack/package/error";
-import { PackageDefinition, PackageDescription, Publication } from "@destack/package";
-import { schema } from "@destack/schema";
+import {
+    PackageDefinition,
+    PackageDescription,
+    type PackageExport,
+    Publication,
+} from "@destack/package";
+import { type JsonValue, schema } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
+import { isMissing } from "../error/index.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
 export interface PackageSource extends AsyncDisposable {
@@ -24,6 +30,8 @@ export interface PackageSource extends AsyncDisposable {
     types: Record<string, string>;
     /** The runtime used for conditional dependency resolution and compilation. */
     runtime: Runtime;
+    /** The modules the configuration roots: exports, type declarations and extra modules. */
+    entries: readonly string[];
 }
 
 /** Open package inputs and prepare one compiler configuration for inspection and compilation. */
@@ -48,57 +56,29 @@ export async function openSource(
     try {
         await stat(authored);
     } catch (error) {
-        if (
-            options.configuration !== undefined ||
-            !(error instanceof Error && "code" in error && error.code === "ENOENT")
-        ) {
+        if (options.configuration !== undefined || !isMissing(error)) {
             throw error;
         }
         hasConfiguration = false;
     }
 
-    // apply runtime resolution to authored configurations and generated defaults alike
+    // root the configuration at the selected exports, type declarations and extra modules
     const temporary = await mkdtemp(join(tmpdir(), "destack-project-"));
     const configuration = join(temporary, "tsconfig.json");
+    const extra = (options.files ?? []).map((path) =>
+        resolve(definition.directory, PackagePath.parse(path)),
+    );
+    const roots = [
+        ...Object.values(definition.exports),
+        ...Object.values(definition.types),
+        ...extra,
+    ];
+    const files = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
     try {
         // resolve explicit type packages from the same installation as authored modules
         await linkDependencies(definition.directory, temporary);
-        const files = [
-            ...Object.values(definition.exports),
-            ...Object.values(definition.types),
-            ...(options.files ?? []).map((path) =>
-                resolve(definition.directory, PackagePath.parse(path)),
-            ),
-        ].filter((path) => /\.[cm]?[jt]sx?$/.test(path));
-        const conditions = runtimeConditions(definition.runtime);
-        const settings = hasConfiguration
-            ? {
-                  extends: await realpath(authored),
-                  compilerOptions: { customConditions: conditions },
-                  files: [...new Set(files)],
-              }
-            : {
-                  compilerOptions: {
-                      target: "ESNext",
-                      module: "ESNext",
-                      moduleResolution: "bundler",
-                      allowImportingTsExtensions: true,
-                      noEmit: true,
-                      strict: true,
-                      skipLibCheck: true,
-                      jsx: "preserve",
-                      jsxImportSource: "@destack/view",
-                      customConditions: conditions,
-                  },
-                  files: [...new Set(files)],
-                  include: [
-                      resolve(definition.directory, "src/**/*.ts"),
-                      resolve(definition.directory, "src/**/*.tsx"),
-                      resolve(definition.directory, "test/**/*.test.ts"),
-                      resolve(definition.directory, "tests/**/*.test.ts"),
-                  ],
-              };
-
+        const extended = hasConfiguration ? await realpath(authored) : undefined;
+        const settings = compilerSettings(definition, files, extended);
         await writeFile(configuration, JSON.stringify(settings), { flag: "wx" });
     } catch (error) {
         await rm(temporary, { recursive: true });
@@ -108,10 +88,47 @@ export async function openSource(
     return {
         ...definition,
         configuration,
+        entries: files,
         async [Symbol.asyncDispose]() {
             await rm(temporary, { recursive: true });
         },
     };
+}
+
+/** Apply runtime resolution and the standard type checks to an authored configuration, or to generated defaults without one. */
+function compilerSettings(
+    definition: Pick<PackageSource, "directory" | "runtime">,
+    files: readonly string[],
+    authored: string | undefined,
+): object {
+    const conditions = runtimeConditions(definition.runtime);
+
+    // extend the authored configuration with the standard type checks
+    if (authored !== undefined) {
+        return {
+            extends: authored,
+            compilerOptions: { ...TYPE_CHECKS, customConditions: conditions },
+            files,
+        };
+    }
+    // check the package's sources and tests with the default options
+    else {
+        return {
+            compilerOptions: {
+                ...TYPESCRIPT_OPTIONS,
+                jsx: "preserve",
+                jsxImportSource: "@destack/view",
+                customConditions: conditions,
+            },
+            files,
+            include: [
+                resolve(definition.directory, "src/**/*.ts"),
+                resolve(definition.directory, "src/**/*.tsx"),
+                resolve(definition.directory, "test/**/*.test.ts"),
+                resolve(definition.directory, "tests/**/*.test.ts"),
+            ],
+        };
+    }
 }
 
 /** Read package manifests and select exports for one runtime. */
@@ -119,7 +136,7 @@ async function readPackageDeclaration(
     directory: string,
     runtime: Runtime,
     entries?: Readonly<Record<string, string>>,
-): Promise<Omit<PackageSource, "configuration" | typeof Symbol.asyncDispose>> {
+): Promise<Omit<PackageSource, "configuration" | "entries" | typeof Symbol.asyncDispose>> {
     // read the package's manifests
     directory = await realpath(directory);
     const declaration = await readPackageDescription(directory);
@@ -136,40 +153,19 @@ async function readPackageDeclaration(
     const exports: Record<string, string> = {};
     const types: Record<string, string> = {};
     for (const [name, entry] of Object.entries(authoredEntries)) {
-        if (!entries && name !== "." && !name.startsWith("./")) {
-            throw new PackageError("INVALID_DEFINITION", `invalid export: ${name}`);
-        }
-        if (name.includes("*")) {
-            throw new PackageError(
-                "INVALID_DEFINITION",
-                `build exports must name concrete modules: ${name}`,
-            );
-        }
-        if (!PackageDefinition.runtimes(definition, name).includes(runtime)) {
-            if (entries) {
-                throw new PackageError(
-                    "UNSUPPORTED_TARGET",
-                    `unsupported entry runtime: ${name} -> ${runtime}`,
-                );
-            }
+        // compile concrete exports the runtime supports
+        if (!isCompiled(name, definition, runtime, entries !== undefined)) {
             continue;
         }
-        const type = selectExport(entry, typeConditions);
-        if (type !== undefined && type !== null && /\.[cm]?[jt]sx?$/.test(type)) {
-            if (!type.startsWith("./")) {
-                throw new PackageError("INVALID_DEFINITION", `invalid type export path: ${type}`);
-            }
-            types[name] = resolve(directory, PackagePath.parse(type.slice(2)));
+
+        // select the export's type declaration and runtime module
+        const type = selectType(entry, typeConditions);
+        if (type !== undefined) {
+            types[name] = resolve(directory, type);
         }
-        const path = selectExport(entry, conditions);
-        if (path === undefined || path === null) {
-            continue;
-        }
-        if (!path.startsWith("./") || isAbsolute(path)) {
-            throw new PackageError("INVALID_DEFINITION", `invalid export path: ${path}`);
-        }
-        if (!/\.d\.[cm]?ts$/.test(path)) {
-            exports[name] = resolve(directory, PackagePath.parse(path.slice(2)));
+        const module = selectModule(entry, conditions);
+        if (module !== undefined) {
+            exports[name] = resolve(directory, module);
         }
     }
 
@@ -187,6 +183,64 @@ async function readPackageDeclaration(
     };
 }
 
+/** Decide whether an output compiles an export, refusing invalid names and selected entries the runtime lacks. */
+function isCompiled(
+    name: string,
+    definition: PackageDefinition,
+    runtime: Runtime,
+    isSelected: boolean,
+): boolean {
+    // require a subpath export naming a concrete module
+    if (!isSelected && name !== "." && !name.startsWith("./")) {
+        throw new PackageError("INVALID_DEFINITION", `invalid export: ${name}`);
+    }
+    if (name.includes("*")) {
+        throw new PackageError(
+            "INVALID_DEFINITION",
+            `build exports must name concrete modules: ${name}`,
+        );
+    }
+
+    // skip exports of other runtimes, refusing a selected entry of another runtime
+    const isSupported = PackageDefinition.runtimes(definition, name).includes(runtime);
+    if (!isSupported && isSelected) {
+        throw new PackageError(
+            "UNSUPPORTED_TARGET",
+            `unsupported entry runtime: ${name} -> ${runtime}`,
+        );
+    }
+
+    return isSupported;
+}
+
+/** Select an export's type declaration module by package path, absent without a script one. */
+function selectType(entry: PackageExport, conditions: ReadonlySet<string>): string | undefined {
+    // select a script declaration with a relative path
+    const type = selectExport(entry, conditions);
+    if (type === undefined || type === null || !/\.[cm]?[jt]sx?$/u.test(type)) {
+        return undefined;
+    }
+    if (!type.startsWith("./")) {
+        throw new PackageError("INVALID_DEFINITION", `invalid type export path: ${type}`);
+    }
+
+    return PackagePath.parse(type.slice(2));
+}
+
+/** Select an export's runtime module by package path, absent for no target or a declaration file. */
+function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): string | undefined {
+    // select a relative target, leaving declaration files to the types
+    const path = selectExport(entry, conditions);
+    if (path === undefined || path === null) {
+        return undefined;
+    }
+    if (!path.startsWith("./") || isAbsolute(path)) {
+        throw new PackageError("INVALID_DEFINITION", `invalid export path: ${path}`);
+    }
+
+    return /\.d\.[cm]?ts$/u.test(path) ? undefined : PackagePath.parse(path.slice(2));
+}
+
 /** Read a package's manifests into its description. */
 export async function readPackageDescription(directory: string): Promise<PackageDescription> {
     // read package.json and destack.json
@@ -197,16 +251,14 @@ export async function readPackageDescription(directory: string): Promise<Package
         await readFile(resolve(directory, "destack.json"), "utf8"),
     );
     const declaration = PackageDescription.parse({
-        package: { id: configuration.id, name: metadata.name, version: metadata.version },
+        package: { id: configuration.id, name: metadata["name"], version: metadata["version"] },
         definition: configuration,
-        exports: metadata.exports,
-        dependencies: metadata.dependencies === undefined ? {} : metadata.dependencies,
-        peerDependencies: metadata.peerDependencies === undefined ? {} : metadata.peerDependencies,
-        peerDependenciesMeta:
-            metadata.peerDependenciesMeta === undefined ? {} : metadata.peerDependenciesMeta,
-        optionalDependencies:
-            metadata.optionalDependencies === undefined ? {} : metadata.optionalDependencies,
-        devDependencies: metadata.devDependencies === undefined ? {} : metadata.devDependencies,
+        ...(metadata["exports"] === undefined ? {} : { exports: metadata["exports"] }),
+        dependencies: field(metadata, "dependencies"),
+        peerDependencies: field(metadata, "peerDependencies"),
+        peerDependenciesMeta: field(metadata, "peerDependenciesMeta"),
+        optionalDependencies: field(metadata, "optionalDependencies"),
+        devDependencies: field(metadata, "devDependencies"),
     });
     const definition = declaration.definition;
 
@@ -231,8 +283,15 @@ export async function readPackageDescription(directory: string): Promise<Package
     return declaration;
 }
 
+/** Read a package.json field, an empty object when absent. */
+function field(metadata: Readonly<Record<string, JsonValue>>, name: string): JsonValue {
+    return metadata[name] === undefined ? {} : metadata[name];
+}
+
 /** Key a package's exports by export name, such as `.` and `./server`. */
-export function mapExports(declaration: PackageDescription): Readonly<Record<string, unknown>> {
+export function mapExports(
+    declaration: PackageDescription,
+): Readonly<Record<string, PackageExport>> {
     // require exports
     const authored = declaration.exports;
     if (authored === undefined) {
@@ -241,38 +300,45 @@ export function mapExports(declaration: PackageDescription): Readonly<Record<str
             "a package build requires package.json exports",
         );
     }
-    const isMap =
+
+    // key a conditions map by its subpaths, and a single target as the root export
+    if (
         typeof authored === "object" &&
         authored !== null &&
         !Array.isArray(authored) &&
-        Object.keys(authored).some((name) => name.startsWith("."));
+        Object.keys(authored).some((name) => name.startsWith("."))
+    ) {
+        return authored;
+    }
 
-    return isMap ? authored : { ".": authored };
+    return { ".": authored };
 }
 
 /** Select a package export using declaration-order conditional resolution. */
-export function selectExport(value: unknown, conditions: Set<string>): string | null | undefined {
+export function selectExport(
+    value: PackageExport | undefined,
+    conditions: ReadonlySet<string>,
+): string | null | undefined {
+    // return a target as it is
     if (typeof value === "string" || value === null) {
         return value;
     }
-    if (Array.isArray(value)) {
-        for (const entry of value) {
-            const selected = selectExport(entry, conditions);
-            if (selected !== undefined) {
-                return selected;
-            }
-        }
-    } else if (typeof value === "object" && value !== null) {
-        for (const [condition, entry] of Object.entries(value)) {
-            if (conditions.has(condition)) {
-                const selected = selectExport(entry, conditions);
-                if (selected !== undefined) {
-                    return selected;
-                }
-            }
-        }
-    } else {
+    // refuse an absent definition
+    else if (value === undefined) {
         throw new PackageError("INVALID_DEFINITION", "invalid package export definition");
+    }
+
+    // try a fallback list's alternatives, or the matching conditions in declaration order
+    const candidates = Array.isArray(value)
+        ? value
+        : Object.entries(value).flatMap(([condition, entry]) =>
+              conditions.has(condition) ? [entry] : [],
+          );
+    for (const candidate of candidates) {
+        const selected = selectExport(candidate, conditions);
+        if (selected !== undefined) {
+            return selected;
+        }
     }
 
     return undefined;

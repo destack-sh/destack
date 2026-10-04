@@ -22,8 +22,9 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
 
     // reject objects with serialization behavior and cyclic references
     const isArray = Array.isArray(value);
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== (isArray ? Array.prototype : Object.prototype) && prototype !== null) {
+    const prototype: unknown = Object.getPrototypeOf(value);
+    const plain: unknown = isArray ? Array.prototype : Object.prototype;
+    if (prototype !== plain && prototype !== null) {
         throw new BuildError("INSPECTION_FAILED", `non-JSON inspection object at ${path}`);
     }
     if (ancestors.has(value)) {
@@ -33,29 +34,18 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
 
     // examine descriptors without invoking getters or toJSON methods
     const properties = Object.getOwnPropertyDescriptors(value);
-    for (const key of Reflect.ownKeys(properties)) {
-        if (isArray && key === "length") {
-            continue;
-        }
-        const property = properties[key as string];
-        const location = `${path}[${JSON.stringify(String(key))}]`;
-        // leave non-enumerable object metadata outside the JSON document
-        if (!isArray && !property.enumerable && key !== "toJSON") {
-            continue;
-        }
-        if (typeof key !== "string" || !("value" in property)) {
+    for (const [key, property] of Object.entries(properties)) {
+        checkProperty(key, property, isArray ? value : undefined, path, ancestors);
+    }
+
+    // reject symbol keys, leaving non-enumerable object metadata outside the JSON document
+    for (const key of Object.getOwnPropertySymbols(value)) {
+        if (isArray || Object.prototype.propertyIsEnumerable.call(value, key)) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `non-JSON inspection property at ${location}`,
+                `non-JSON inspection property at ${path}[${JSON.stringify(String(key))}]`,
             );
         }
-        if (isArray && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length)) {
-            throw new BuildError("INSPECTION_FAILED", `non-JSON array property at ${location}`);
-        }
-        if (!isArray && property.value === undefined) {
-            continue;
-        }
-        checkValue(property.value, location, ancestors);
     }
 
     // reject array holes, which JSON would replace with null
@@ -65,10 +55,56 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
     ancestors.delete(value);
 }
 
+/** Check one own property of an inspection object or array, skipping absent optional fields. */
+function checkProperty(
+    key: string,
+    property: PropertyDescriptor,
+    array: readonly unknown[] | undefined,
+    path: string,
+    ancestors: Set<object>,
+): void {
+    // skip an array's length and an object's non-enumerable metadata
+    const location = `${path}[${JSON.stringify(key)}]`;
+    if (array !== undefined && key === "length") {
+        return;
+    } else if (array === undefined && property.enumerable !== true && key !== "toJSON") {
+        return;
+    }
+
+    // require a data property at an array index
+    if (!("value" in property)) {
+        throw new BuildError("INSPECTION_FAILED", `non-JSON inspection property at ${location}`);
+    }
+    if (array !== undefined && (!/^(0|[1-9][0-9]*)$/u.test(key) || Number(key) >= array.length)) {
+        throw new BuildError("INSPECTION_FAILED", `non-JSON array property at ${location}`);
+    }
+
+    // check a present value
+    if (array !== undefined || property.value !== undefined) {
+        checkValue(property.value, location, ancestors);
+    }
+}
+
+/** Order two strings by UTF-16 code units, independent of the host locale. */
+export function compareText(left: string, right: string): number {
+    // order the lesser string first
+    if (left < right) {
+        return -1;
+    }
+    // order the greater string last
+    else if (left > right) {
+        return 1;
+    }
+    // keep equal strings in place
+    else {
+        return 0;
+    }
+}
+
 /** Order two files by package path, equal paths as equal. */
 export function comparePath(
     left: { readonly path: string },
     right: { readonly path: string },
 ): number {
-    return left.path < right.path ? -1 : left.path > right.path ? 1 : 0;
+    return compareText(left.path, right.path);
 }

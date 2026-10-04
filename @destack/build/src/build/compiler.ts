@@ -1,7 +1,9 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, realpath, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type DependencyResolution, type Package } from "@destack/package";
+import { type DependencyResolution, graph, type Package } from "@destack/package";
+import type { ModuleDescription } from "@destack/package/code";
+import { aligned, type Commit, Digest, found, type JsonValue, present } from "@destack/schema";
 import type {
     BuildExtension,
     ExpandedOutput,
@@ -9,12 +11,16 @@ import type {
     OutputRequest,
 } from "@destack/package/build";
 import { type BuildDescription, type DeclarationDescription } from "@destack/package/inspect";
-import { describeFile } from "@destack/package/file";
+import { PackageFile } from "@destack/package/file";
 import { type PackageOutput, type PackageManifest } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/transform";
-import { checkPackage, formatPackage } from "@destack/check";
-import { type TypeScriptInspection, TypeScriptCompiler } from "../typescript/index.ts";
+import { checkPackage, formatPackage, Toolchain } from "@destack/check";
+import {
+    type ProgramImports,
+    type TypeScriptInspection,
+    TypeScriptCompiler,
+} from "../typescript/index.ts";
 import { inspectModules, type InspectOptions } from "../inspect/inspection.ts";
 import { Upgrade, type History } from "@destack/resource";
 import {
@@ -24,25 +30,33 @@ import {
     type Evaluation,
 } from "../declaration/index.ts";
 import { type PackageSource, openSource, readPackageDescription } from "../source/index.ts";
+import { OutputCompilation, type CompiledFiles } from "../compile/compilation.ts";
+import { type LoadedExtension, loadExtensions } from "../compile/extension.ts";
 import {
-    OutputCompilation,
-    type CompiledFiles,
-    type ModuleOptions,
-} from "../compile/compilation.ts";
-import { loadExtensions } from "../compile/extension.ts";
+    type BuildKeys,
+    type CachedOutput,
+    deriveModuleKeys,
+    Identities,
+    identifyToolchain,
+    importClosure,
+} from "../cache/index.ts";
 import { OutputPass } from "../compile/pass.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
-import { BuildError } from "../error/index.ts";
-import { PackageBuild, type BuildOptions } from "./build.ts";
-import { BuildFiles } from "./files.ts";
+import { BuildError, isMissing } from "../error/index.ts";
+import { PackageBuild, type BuildOptions, type ModuleOptions } from "./build.ts";
+import { BuildFiles } from "./file.ts";
 import { comparePath, stringifyInspection } from "./serialization.ts";
+import { describeGraph } from "../graph/module.ts";
 import {
     encodeDescription,
-    MANIFEST_INVENTORIES,
-    serializeDescriptions,
+    MANIFEST_LISTS,
+    serializeTests,
     type ManifestDescription,
 } from "./manifest.ts";
+
+/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** An output a build compiles: a module output, or one output of a kind's pass. */
 interface PlannedOutput {
@@ -50,7 +64,7 @@ interface PlannedOutput {
     readonly options: ModuleOptions;
     /** Package-relative modules inspected beside the entries. */
     readonly files: readonly string[];
-    /** The kind's request compiling the output in a pass of its own. */
+    /** The kind's request compiling the output in a separate pass. */
     readonly pass?: {
         /** The requested output's name, shared by the outputs the kind expands it into. */
         readonly name: string;
@@ -59,6 +73,14 @@ interface PlannedOutput {
         /** The request with the kind's settings. */
         readonly request: OutputRequest;
     };
+}
+
+/** A program's imports and the keys of its modules. */
+interface ProgramKeys {
+    /** The program's imports. */
+    readonly imports: ProgramImports;
+    /** The key of each of the package's modules, by absolute path. */
+    readonly keys: ReadonlyMap<string, Digest>;
 }
 
 /** An output's opened package source and inspection. */
@@ -79,10 +101,14 @@ export class BuildCompiler implements AsyncDisposable {
     readonly runtimes = new RuntimeCompiler();
     /** The source package directory. */
     readonly directory: string;
-    /** The Destack packages the build tool's own dependencies resolve to. */
+    /** The Destack packages the build tool's dependencies resolve to. */
     readonly #packages = new PackageLocator();
     /** Configurations indexed by output settings. */
     readonly #sources = new Map<string, { declaration: string; source: PackageSource }>();
+    /** The identity of the toolchain this process runs, read once. */
+    #toolchain: Promise<Digest> | undefined;
+    /** The identity of each loaded extension's package, read once, since the process keeps the code it first imported. */
+    readonly #extensions = new Map<string, Promise<Digest>>();
 
     /** Start the compiler for one source checkout. */
     constructor(directory: string) {
@@ -96,6 +122,7 @@ export class BuildCompiler implements AsyncDisposable {
         const project = await this.open(options);
         const { modules, tests, declarations } = await this.typescript.inspect(
             project.configuration,
+            project.entries,
         );
 
         // evaluate the collected domain declarations
@@ -104,31 +131,110 @@ export class BuildCompiler implements AsyncDisposable {
         return inspectModules(project.declaration.package, modules, tests, evaluation.declarations);
     }
 
-    /** Inspect a source package and compile its requested outputs. */
-    async build(options: BuildOptions, destination: string): Promise<PackageBuild> {
+    /** Derive the cache keys of a build without checking, evaluating or compiling it. */
+    async plan(options: BuildOptions): Promise<BuildKeys> {
         // plan the outputs with the extensions of the package's dependencies
         const declaration = await readPackageDescription(options.directory);
-        const extensions = await loadExtensions(options.directory, declaration);
+        const loaded = await loadExtensions(options.directory, declaration);
+        const planned = expand(
+            options.outputs,
+            loaded.map((entry) => entry.extension),
+        );
+
+        // identify the toolchain, the extensions and the package's manifests
+        const identities = new Identities();
+        this.#toolchain ??= identifyToolchain(new Identities());
+        const toolchain = await this.#toolchain;
+        const extensions = await Promise.all(loaded.map((entry) => this.#identify(entry)));
+        const manifests = await Promise.all(
+            ["package.json", "destack.json"].map((path) =>
+                identities.file(join(options.directory, path)),
+            ),
+        );
+
+        // key each requested output by its request, its toolchain and the modules it imports
+        const { modules, outputs } = await this.#keyModules(
+            options,
+            planned,
+            toolchain,
+            identities,
+        );
+        const keys: Record<string, Digest> = {};
+        for (const [request, imported] of outputs) {
+            keys[request] = await Digest.json({
+                toolchain,
+                extensions,
+                manifests,
+                request: present(options.outputs[request], `the requested output ${request}`),
+                configuration: options.configuration ?? null,
+                modules: [...imported].toSorted(),
+            });
+        }
+
+        // digest the template a template package publishes
+        const template = declaration.definition.template
+            ? await digestTemplate(options.directory)
+            : null;
+
+        // key the build by every input that changes it
+        const build = await Digest.json({
+            toolchain,
+            extensions,
+            manifests,
+            outputs: keys,
+            modules: modules.toSorted(),
+            dependencies: options.dependencies,
+            history: options.history ?? null,
+            commit: options.commit ?? null,
+            template,
+        });
+
+        return { build, outputs: keys };
+    }
+
+    /** Inspect a source package and compile its requested outputs, reusing the cached ones. */
+    async build(
+        options: BuildOptions,
+        reuse: Readonly<Record<string, CachedOutput>>,
+        destination: string,
+    ): Promise<{ build: PackageBuild; outputs: Record<string, CachedOutput> }> {
+        // plan the outputs with the extensions of the package's dependencies
+        const declaration = await readPackageDescription(options.directory);
+        const extensions = (await loadExtensions(options.directory, declaration)).map(
+            (entry) => entry.extension,
+        );
         const planned = expand(options.outputs, extensions);
 
-        // inspect, check and evaluate every output's sources, then retain them before compiling any
+        // inspect, check, evaluate and retain every output's sources before compiling any
         const inspected = await this.#inspect(options, planned);
         const files = new BuildFiles(destination);
         await retain(inspected, files);
 
-        // compile the outputs, then describe the declarations each selects
-        const compiled = await this.#compile(options, planned, inspected, extensions, files);
+        // compile the outputs the cache lacks
+        const compiled = await this.#compile(options, planned, inspected, extensions, files, reuse);
+
+        // describe the declarations each output selects
         const description = await this.#describe(planned, inspected, compiled);
 
         // plan the upgrade from what the package has published
-        const source = inspected.values().next().value!.project.declaration.package;
+        const source = sourcePackage(inspected);
         const upgrade =
             options.history === undefined
                 ? undefined
                 : planUpgrade(options.history, source, description.manifest, inspected);
 
         // write the manifest
-        return await writeManifest(source, compiled, description, upgrade, files, this.#packages);
+        const build = await writeManifest(
+            source,
+            options.commit,
+            compiled,
+            description,
+            upgrade,
+            files,
+            this.#packages,
+        );
+
+        return { build, outputs: compiled.cached };
     }
 
     /** Reuse a configuration until its package declarations change. */
@@ -141,17 +247,9 @@ export class BuildCompiler implements AsyncDisposable {
         );
 
         // include authored compiler settings in configuration invalidation
-        let configuration: string | undefined;
-        try {
-            configuration = await readFile(
-                resolve(this.directory, options.configuration ?? "tsconfig.json"),
-                "utf8",
-            );
-        } catch (error) {
-            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
-                throw error;
-            }
-        }
+        const configuration = await readOptional(
+            resolve(this.directory, options.configuration ?? "tsconfig.json"),
+        );
 
         // reuse the configuration while its inputs remain unchanged
         const declaration = JSON.stringify([manifests, configuration]);
@@ -181,7 +279,7 @@ export class BuildCompiler implements AsyncDisposable {
             // report every compiler shutdown failure
             const failures = results
                 .filter((result) => result.status === "rejected")
-                .map((result) => result.reason);
+                .map((result): unknown => result.reason);
             if (failures.length) {
                 throw new AggregateError(failures, "compiler shutdown failed");
             }
@@ -190,6 +288,79 @@ export class BuildCompiler implements AsyncDisposable {
                 [...this.#sources.values()].map(({ source }) => source[Symbol.asyncDispose]()),
             );
         }
+    }
+
+    /** Open the package with an output's entries and its kind's extra modules as roots. */
+    #project(options: BuildOptions, output: PlannedOutput): Promise<PackageSource> {
+        return this.open({
+            directory: options.directory,
+            ...(options.configuration === undefined
+                ? {}
+                : { configuration: options.configuration }),
+            runtime: output.options.runtime,
+            ...(output.options.entries === undefined ? {} : { entries: output.options.entries }),
+            files: output.files,
+        });
+    }
+
+    /** Key the modules of each distinct program once, and collect the keys of the modules each requested output imports. */
+    async #keyModules(
+        options: BuildOptions,
+        planned: ReadonlyMap<string, PlannedOutput>,
+        toolchain: Digest,
+        identities: Identities,
+    ): Promise<{ modules: Digest[]; outputs: Map<string, Set<Digest>> }> {
+        // collect the keys of every module and of each output's modules
+        const programs = new Map<string, Promise<ProgramKeys>>();
+        const modules = new Map<string, Digest>();
+        const outputs = new Map<string, Set<Digest>>();
+        for (const [name, output] of planned) {
+            // key each program's modules once
+            const project = await this.#project(options, output);
+            let program = programs.get(project.configuration);
+            if (program === undefined) {
+                program = this.#keys(project, toolchain, identities);
+                programs.set(project.configuration, program);
+            }
+            const { imports, keys } = await program;
+            for (const [file, key] of keys) {
+                modules.set(`${project.configuration}\0${file}`, key);
+            }
+
+            // collect the keys of the modules each requested output imports
+            const request = output.pass?.name ?? name;
+            const imported = outputs.get(request) ?? new Set();
+            const entries = await Promise.all(project.entries.map((entry) => realpath(entry)));
+            for (const file of importClosure(imports, entries)) {
+                imported.add(found(keys, file));
+            }
+            outputs.set(request, imported);
+        }
+
+        return { modules: [...modules.values()], outputs };
+    }
+
+    /** Read a program's imports and key its modules. */
+    async #keys(
+        project: PackageSource,
+        toolchain: Digest,
+        identities: Identities,
+    ): Promise<ProgramKeys> {
+        const imports = await this.typescript.imports(project.configuration);
+        const keys = await deriveModuleKeys(imports, project.directory, toolchain, identities);
+
+        return { imports, keys };
+    }
+
+    /** Identify an extension's package once, as this process keeps the extension it first imported. */
+    #identify(loaded: LoadedExtension): Promise<Digest> {
+        let identity = this.#extensions.get(loaded.directory);
+        if (identity === undefined) {
+            identity = new Identities().package(loaded.directory);
+            this.#extensions.set(loaded.directory, identity);
+        }
+
+        return identity;
     }
 
     /** Open and inspect each output, check every source, then evaluate each distinct inspection once. */
@@ -203,22 +374,11 @@ export class BuildCompiler implements AsyncDisposable {
         let source: Package | undefined;
         for (const [name, output] of planned) {
             // open the package with the output's entries and the kind's extra modules as roots
-            const project = await this.open({
-                directory: options.directory,
-                configuration: options.configuration,
-                runtime: output.options.runtime,
-                entries: output.options.entries,
-                files: output.files,
-            });
+            const project = await this.#project(options, output);
 
             // refuse a package that changes identity while the build runs
             const identity = project.declaration.package;
-            if (
-                source &&
-                (source.id !== identity.id ||
-                    source.name !== identity.name ||
-                    source.version !== identity.version)
-            ) {
+            if (source !== undefined && !isSamePackage(source, identity)) {
                 throw new BuildError("BUILD_FAILED", "package changed during build");
             }
             source = identity;
@@ -226,7 +386,7 @@ export class BuildCompiler implements AsyncDisposable {
             // reuse identical inspections within this build
             let inspection = inspections.get(project.configuration);
             if (!inspection) {
-                inspection = await this.typescript.inspect(project.configuration);
+                inspection = await this.typescript.inspect(project.configuration, project.entries);
                 inspections.set(project.configuration, inspection);
             }
             opened.set(name, { project, inspection });
@@ -250,54 +410,95 @@ export class BuildCompiler implements AsyncDisposable {
         return inspected;
     }
 
-    /** Compile module outputs one by one, and each kind's outputs in one pass. */
+    /** Compile each requested output the cache lacks, a kind's outputs in one pass, and reuse the others. */
     async #compile(
         options: BuildOptions,
         planned: ReadonlyMap<string, PlannedOutput>,
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
         files: BuildFiles,
+        reuse: Readonly<Record<string, CachedOutput>>,
     ): Promise<{
         outputs: Map<string, Pick<CompiledFiles, "output" | "inspection">>;
         sourceMaps: SourceMapReference[];
+        cached: Record<string, CachedOutput>;
     }> {
-        // collect each output's description and every source map
-        const outputs = new Map<string, Pick<CompiledFiles, "output" | "inspection">>();
-        const sourceMaps: SourceMapReference[] = [];
+        // record the reused files the caller wrote before any compilation writes its files
+        await recordReused(reuse, files);
+
+        // compile each request the cache lacks once, in planned order
+        const requests = new Map<string, CachedOutput>();
+        const cached: Record<string, CachedOutput> = {};
         for (const [name, output] of planned) {
-            // compile a module output with the extensions' plugins
-            if (output.pass === undefined) {
-                const compilation = createCompilation(name, output, inspected, extensions);
-                const compiled = await compilation.compile(
-                    options.dependencies,
-                    files.retained,
-                    files.directory,
-                );
-                await keep(compiled.files, compiled.paths, files);
-                sourceMaps.push(...compiled.sourceMaps);
-                outputs.set(name, { output: compiled.output, inspection: compiled.inspection });
+            const request = output.pass?.name ?? name;
+            const reused = Object.hasOwn(reuse, request) ? reuse[request] : undefined;
+
+            // keep a request compiled or reused before
+            if (requests.has(request)) {
+                continue;
             }
-            // compile a kind's outputs together at its first output
-            else if (!outputs.has(name)) {
-                const pass = await this.#pass(
-                    output.pass,
-                    options,
-                    planned,
-                    inspected,
-                    extensions,
-                    files,
-                );
-                sourceMaps.push(...pass.sourceMaps);
-                for (const [member, described] of pass.outputs) {
-                    outputs.set(member, described);
-                }
+            // reuse a cached request
+            else if (reused !== undefined) {
+                requests.set(request, reused);
+            }
+            // compile a module output, or the outputs of a kind's pass
+            else {
+                const compiled =
+                    output.pass === undefined
+                        ? await this.#module(name, output, options, inspected, extensions, files)
+                        : await this.#pass(
+                              output.pass,
+                              options,
+                              planned,
+                              inspected,
+                              extensions,
+                              files,
+                          );
+                requests.set(request, compiled);
+                cached[request] = compiled;
             }
         }
 
-        return { outputs, sourceMaps };
+        // collect each output's description and every source map
+        const outputs = new Map<string, Pick<CompiledFiles, "output" | "inspection">>();
+        for (const [name, output] of planned) {
+            const described = found(requests, output.pass?.name ?? name).outputs[name];
+            if (described === undefined) {
+                throw new BuildError("BUILD_FAILED", `no compilation described output ${name}`);
+            }
+            outputs.set(name, { output: described.output, inspection: described.description });
+        }
+        const sourceMaps = [...requests.values()].flatMap((entry) => entry.sourceMaps);
+
+        return { outputs, sourceMaps, cached };
     }
 
-    /** Compile the outputs of one kind's request in its own pass. */
+    /** Compile a module output with the extensions' plugins and keep its files. */
+    async #module(
+        name: string,
+        output: PlannedOutput,
+        options: BuildOptions,
+        inspected: ReadonlyMap<string, InspectedOutput>,
+        extensions: readonly BuildExtension[],
+        files: BuildFiles,
+    ): Promise<CachedOutput> {
+        // compile the output and keep its files
+        const compilation = createCompilation(name, output, inspected, extensions);
+        const compiled = await compilation.compile(
+            options.dependencies,
+            files.retained,
+            files.directory,
+        );
+        await keep(compiled.files, compiled.paths, files);
+
+        return {
+            outputs: { [name]: { output: compiled.output, description: compiled.inspection } },
+            sourceMaps: compiled.sourceMaps,
+            files: [...compiled.files.keys(), ...compiled.paths].map((path) => files.file(path)),
+        };
+    }
+
+    /** Compile the outputs of one kind's request in a separate pass and keep their files. */
     async #pass(
         request: NonNullable<PlannedOutput["pass"]>,
         options: BuildOptions,
@@ -305,22 +506,18 @@ export class BuildCompiler implements AsyncDisposable {
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
         files: BuildFiles,
-    ): Promise<{
-        outputs: Map<string, Pick<CompiledFiles, "output" | "inspection">>;
-        sourceMaps: SourceMapReference[];
-    }> {
-        // lend the kind the build's parts for the outputs its request expanded into
-        const members = [...planned.keys()].filter(
-            (member) => planned.get(member)!.pass?.name === request.name,
-        );
+    ): Promise<CachedOutput> {
+        // lend the kind the build's inputs for the outputs its request expanded into
+        const plans = [...planned].filter(([, plan]) => plan.pass?.name === request.name);
+        const members = plans.map(([member]) => member);
         const compilations = Object.fromEntries(
-            members.map((member) => [
+            plans.map(([member, plan]) => [
                 member,
-                createCompilation(member, planned.get(member)!, inspected, extensions),
+                createCompilation(member, plan, inspected, extensions),
             ]),
         );
         const pass = new OutputPass(
-            inspected.get(members[0]!)!.project,
+            found(inspected, aligned(members, 0)).project,
             options.dependencies,
             files.retained,
             files.directory,
@@ -343,16 +540,20 @@ export class BuildCompiler implements AsyncDisposable {
         await keep(pass.files, pass.paths, files);
 
         // describe each output by the kind's manifest output and the pass's module graph
-        const outputs = new Map<string, Pick<CompiledFiles, "output" | "inspection">>();
+        const outputs: CachedOutput["outputs"] = {};
         for (const member of members) {
             const output = described[member];
             if (output === undefined) {
                 throw new BuildError("BUILD_FAILED", `the pass described no output ${member}`);
             }
-            outputs.set(member, { output, inspection: pass.inspection(member) });
+            outputs[member] = { output, description: pass.inspection(member) };
         }
 
-        return { outputs, sourceMaps: pass.sourceMaps };
+        return {
+            outputs,
+            sourceMaps: pass.sourceMaps,
+            files: [...pass.files.keys(), ...pass.paths].map((path) => files.file(path)),
+        };
     }
 
     /** Check each module output against its runtime, and collect the declarations each selects. */
@@ -361,48 +562,128 @@ export class BuildCompiler implements AsyncDisposable {
         inspected: ReadonlyMap<string, InspectedOutput>,
         compiled: { outputs: ReadonlyMap<string, Pick<CompiledFiles, "output" | "inspection">> },
     ): Promise<{ manifest: ManifestDescription; resolved: Record<string, DependencyResolution> }> {
-        // share equal descriptions while retaining target-specific variants
-        const modules = new SharedValues<ManifestDescription["modules"][number]>();
-        const declarations = new SharedValues<DeclarationDescription>();
+        // share equal tests across outputs
+        const modules = new Map<string, ModuleDescription>();
+        const evaluated = new Set<DeclarationDescription>();
         const tests = new SharedValues<ManifestDescription["tests"][number]>();
         const selections: ManifestDescription["selections"] = new Map();
         const resolved: Record<string, DependencyResolution> = {};
         for (const [name, { output, inspection: description }] of compiled.outputs) {
-            // require every dependency declaration at its exact resolved version
-            const { project, inspection, evaluation } = inspected.get(name)!;
-            const source = project.declaration.package;
-            const selected = selectDeclarations(evaluation.declarations, source, description);
-            for (const declaration of selected) {
-                requirePresent(declaration, source, description, output);
-            }
-
-            // check module outputs against their runtime, kinds checking their own
-            if (planned.get(name)!.pass === undefined) {
-                await checkRuntime(description, inspection.modules, project.runtime, this.runtimes);
-            }
+            // check the output's dependency declarations and runtime
+            const entry = found(inspected, name);
+            await this.#checkOutput(entry, found(planned, name), output, description);
 
             // retain exact dependency resolutions once, joining the files outputs read of a source
             for (const [key, dependency] of Object.entries(description.packages)) {
                 resolved[key] = joinResolutions(key, resolved[key], dependency);
             }
-            selections.set(name, {
-                modules: inspection.modules.map((value) => modules.retain(value)),
-                declarations: selected.map((value) => declarations.retain(value)),
-                tests: inspection.tests.map((value) => tests.retain(value)),
-            });
+
+            // keep each module's first description and every evaluated declaration for the graph
+            retainGraphInputs(entry, modules, evaluated);
+
+            // select the output's tests by their shared index
+            selections.set(
+                name,
+                entry.inspection.tests.map((value) => tests.retain(value)),
+            );
         }
+
+        // describe the package's graph from its modules and every evaluated declaration
+        const described = describeGraph(
+            sourcePackage(inspected),
+            [...modules.values()],
+            [...evaluated],
+        );
 
         return {
             manifest: {
-                modules: modules.values,
-                declarations: declarations.values,
+                graph: described,
                 tests: tests.values,
-                modulePackage: await findPackage("@destack/package", this.#packages),
                 testPackage: await findPackage("@destack/test", this.#packages),
                 selections,
             },
             resolved,
         };
+    }
+
+    /** Require an output's dependency declarations at their resolved versions and check its runtime. */
+    async #checkOutput(
+        inspected: InspectedOutput,
+        planned: PlannedOutput,
+        output: PackageOutput,
+        description: BuildDescription,
+    ): Promise<void> {
+        // require every dependency declaration at its exact resolved version
+        const { project, inspection, evaluation } = inspected;
+        const source = project.declaration.package;
+        for (const declaration of selectDeclarations(
+            evaluation.declarations,
+            source,
+            description,
+        )) {
+            requirePresent(declaration, source, description, output);
+        }
+
+        // check module outputs against their runtime, leaving kinds to check theirs
+        if (planned.pass === undefined) {
+            await checkRuntime(description, inspection.modules, project.runtime, this.runtimes);
+        }
+    }
+}
+
+/** Keep each module's first description and every evaluated declaration of an output. */
+function retainGraphInputs(
+    inspected: InspectedOutput,
+    modules: Map<string, ModuleDescription>,
+    evaluated: Set<DeclarationDescription>,
+): void {
+    // NOTE #Incomplete: a module checked differently per runtime keeps the first output's graph
+    for (const module of inspected.inspection.modules) {
+        if (!modules.has(module.path)) {
+            modules.set(module.path, module);
+        }
+    }
+    for (const declaration of inspected.evaluation.declarations) {
+        evaluated.add(declaration);
+    }
+}
+
+/** Read the package every inspected output opens. */
+function sourcePackage(inspected: ReadonlyMap<string, InspectedOutput>): Package {
+    return present(inspected.values().next().value, "an inspected output").project.declaration
+        .package;
+}
+
+/** Report whether two identities name the same package release. */
+function isSamePackage(left: Package, right: Package): boolean {
+    return left.id === right.id && left.name === right.name && left.version === right.version;
+}
+
+/** Read a file's text, absent for a missing file. */
+async function readOptional(path: string): Promise<string | undefined> {
+    try {
+        return await readFile(path, "utf8");
+    } catch (error) {
+        if (!isMissing(error)) {
+            throw error;
+        }
+
+        return undefined;
+    }
+}
+
+/** Record the files of reused outputs the caller wrote, refusing one that changed. */
+async function recordReused(
+    reuse: Readonly<Record<string, CachedOutput>>,
+    files: BuildFiles,
+): Promise<void> {
+    for (const entry of Object.values(reuse)) {
+        for (const file of entry.files) {
+            await files.record(file.path);
+            if (files.file(file.path).digest !== file.digest) {
+                throw new BuildError("BUILD_FAILED", `a cached file changed: ${file.path}`);
+            }
+        }
     }
 }
 
@@ -436,38 +717,28 @@ function expand(
     requests: BuildOptions["outputs"],
     extensions: readonly BuildExtension[],
 ): Map<string, PlannedOutput> {
-    // refuse an invalid or taken output name
+    // plan each requested output
     const planned = new Map<string, PlannedOutput>();
-    const add = (name: string, output: PlannedOutput) => {
-        if (!/^[a-z][a-z0-9-]*$/.test(name)) {
-            throw new BuildError("BUILD_FAILED", `invalid output name: ${name}`);
-        }
-        if (planned.has(name)) {
-            throw new BuildError("BUILD_FAILED", `duplicate output name: ${name}`);
-        }
-        planned.set(name, output);
-    };
     for (const [name, request] of Object.entries(requests)) {
         // plan a module output
-        if (request.kind === "module") {
-            add(name, { options: request as ModuleOptions, files: [] });
+        if (isModuleRequest(request)) {
+            addOutput(planned, name, { options: request, files: [] });
         }
         // plan the outputs a kind expands its request into
         else {
             const kind = kindOf(request.kind, extensions);
-            const requested = request as OutputRequest;
             let expanded: Readonly<Record<string, ExpandedOutput>>;
             try {
-                expanded = kind.expand(name, requested);
+                expanded = kind.expand(name, request);
             } catch (cause) {
                 throw BuildError.from(cause);
             }
             for (const [member, output] of Object.entries(expanded)) {
                 const { files, ...settings } = output;
-                add(member, {
+                addOutput(planned, member, {
                     options: { kind: "module", ...settings },
                     files,
-                    pass: { name, kind, request: requested },
+                    pass: { name, kind, request },
                 });
             }
         }
@@ -479,6 +750,22 @@ function expand(
     }
 
     return planned;
+}
+
+/** Plan an output, refusing an invalid or taken name. */
+function addOutput(planned: Map<string, PlannedOutput>, name: string, output: PlannedOutput): void {
+    if (!/^[a-z][a-z0-9-]*$/u.test(name)) {
+        throw new BuildError("BUILD_FAILED", `invalid output name: ${name}`);
+    }
+    if (planned.has(name)) {
+        throw new BuildError("BUILD_FAILED", `duplicate output name: ${name}`);
+    }
+    planned.set(name, output);
+}
+
+/** Report whether an output request compiles package modules rather than a kind's output. */
+function isModuleRequest(request: ModuleOptions | OutputRequest): request is ModuleOptions {
+    return request.kind === "module";
 }
 
 /** Find the extension compiling an output kind. */
@@ -498,7 +785,7 @@ function createCompilation(
     inspected: ReadonlyMap<string, InspectedOutput>,
     extensions: readonly BuildExtension[],
 ): OutputCompilation {
-    const { project, inspection, evaluation } = inspected.get(name)!;
+    const { project, inspection, evaluation } = found(inspected, name);
 
     return new OutputCompilation(
         name,
@@ -527,7 +814,7 @@ async function check(
                 [...inspected.values()].flatMap(({ inspection }) => [...inspection.sources.keys()]),
             ),
         ],
-        signal: options.signal,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
     };
     const checked = await checkPackage(request);
     if (checked.diagnostics.length) {
@@ -591,7 +878,7 @@ function requirePresent(
     description: BuildDescription,
     output: PackageOutput,
 ): void {
-    // accept the package's own declarations
+    // accept the package's declarations
     const owner = declaration.symbol.package;
     if (owner.id === source.id && owner.version === source.version) {
         return;
@@ -620,9 +907,10 @@ function requirePresent(
     }
 }
 
-/** Serialize the descriptions and inventories, then write the manifest referring to them. */
+/** Serialize the descriptions and lists, then write the manifest referring to them. */
 async function writeManifest(
     source: Package,
+    commit: Commit | undefined,
     compiled: {
         outputs: ReadonlyMap<string, Pick<CompiledFiles, "output" | "inspection">>;
         sourceMaps: SourceMapReference[];
@@ -632,72 +920,99 @@ async function writeManifest(
     files: BuildFiles,
     locator: PackageLocator,
 ): Promise<PackageBuild> {
-    // serialize shared descriptions by domain and module
+    // serialize the tests each output selects
     const outputs = Object.fromEntries(
         [...compiled.outputs].map(([name, { output }]) => [name, output]),
     );
-    const manifest = await serializeDescriptions(description.manifest, outputs);
+    const manifest = await serializeTests(description.manifest, outputs);
 
-    // write the retained sources and describe the distributed files with their modules
+    // write the retained sources and each module's graph file by its digest
     await files.flush();
-    const described = files.list().map((file) => {
-        const inspected = manifest.modules.get(file.path);
+    const root = await writeGraph(description.manifest.graph, files);
+    const described = files.list();
 
-        return inspected ? { ...file, descriptions: inspected } : file;
-    });
-
-    // require every inspected path to identify a distributed file
-    for (const path of manifest.modules.keys()) {
-        if (!files.has(path)) {
-            throw new BuildError("BUILD_FAILED", `inspected file is absent from build: ${path}`);
-        }
-    }
-
-    // publish inventories separately from source and executable files
-    const inventories = {
-        dependencies: description.resolved,
-        files: described,
-        sourceMaps: compiled.sourceMaps,
+    // publish lists separately from source and executable files
+    const references = {
+        dependencies: await writeList(files, "dependencies", description.resolved),
+        files: await writeList(files, "files", described),
+        sourceMaps: await writeList(files, "sourceMaps", compiled.sourceMaps),
+        graph: await writeList(files, "graph", root),
     };
-    const references = {} as Pick<PackageManifest, "dependencies" | "files" | "sourceMaps">;
-    for (const name of MANIFEST_INVENTORIES) {
-        const path = `manifest/${name}.json`;
-        const bytes = encodeDescription(inventories[name]);
-        references[name] = await describeFile(path, "application/json", bytes);
-        await files.write(path, bytes);
-    }
     for (const [path, bytes] of manifest.files) {
         await files.write(path, bytes);
     }
 
-    // keep the upgrade from the published release in its own file
-    let upgraded: PackageManifest["upgrade"];
-    if (upgrade !== undefined) {
-        const path = "manifest/upgrade.json";
-        const bytes = encodeDescription(upgrade);
-        upgraded = {
-            package: await findPackage("@destack/resource", locator),
-            file: await describeFile(path, "application/json", bytes),
-        };
-        await files.write(path, bytes);
-    }
+    // keep the upgrade from the published release in a file of its kind
+    const upgraded =
+        upgrade === undefined ? undefined : await writeUpgrade(upgrade, files, locator);
 
     // assemble the manifest
     const result: PackageManifest = {
         formatVersion: 1,
         package: source,
         language: "typescript",
-        dependencies: references.dependencies,
-        descriptions: manifest.descriptions,
-        tests: manifest.tests,
-        upgrade: upgraded,
+        ...(commit === undefined ? {} : { commit }),
+        lists: references,
+        ...(manifest.tests === undefined ? {} : { tests: manifest.tests }),
+        ...(upgraded === undefined ? {} : { upgrade: upgraded }),
         outputs,
-        files: references.files,
-        sourceMaps: references.sourceMaps,
     };
     await writeFile(join(files.directory, "manifest.json"), JSON.stringify(result), { flag: "wx" });
 
     return new PackageBuild(result, files.directory, "retained");
+}
+
+/** Write each module's graph file by its digest, returning the graph's root. */
+async function writeGraph(
+    modules: readonly graph.Module[],
+    files: BuildFiles,
+): Promise<graph.Root> {
+    const root: graph.Root = { modules: {} };
+    for (const module of modules) {
+        if (!files.has(module.path)) {
+            throw new BuildError(
+                "BUILD_FAILED",
+                `inspected file is absent from build: ${module.path}`,
+            );
+        }
+        const encoded = await graph.Module.file(module);
+        await files.write(`graph/${encoded.digest}.json`, encoded.bytes);
+        root.modules[module.path] = encoded.digest;
+    }
+
+    return root;
+}
+
+/** Write one of a manifest's lists and describe its file. */
+async function writeList(
+    files: BuildFiles,
+    name: (typeof MANIFEST_LISTS)[number],
+    value: JsonValue,
+): Promise<PackageFile> {
+    // write the list's file
+    const path = `manifest/${name}.json`;
+    const bytes = encodeDescription(value);
+    await files.write(path, bytes);
+
+    return await PackageFile.describe(path, "application/json", bytes);
+}
+
+/** Write the upgrade from the published release and refer to it with the package describing it. */
+async function writeUpgrade(
+    upgrade: Upgrade,
+    files: BuildFiles,
+    locator: PackageLocator,
+): Promise<NonNullable<PackageManifest["upgrade"]>> {
+    // describe the upgrade's file before writing it
+    const path = "manifest/upgrade.json";
+    const bytes = encodeDescription(upgrade);
+    const reference = {
+        package: await findPackage("@destack/resource", locator),
+        file: await PackageFile.describe(path, "application/json", bytes),
+    };
+    await files.write(path, bytes);
+
+    return reference;
 }
 
 /** Plan the upgrade from what the package has published. */
@@ -707,15 +1022,17 @@ function planUpgrade(
     manifest: ManifestDescription,
     inspected: ReadonlyMap<string, InspectedOutput>,
 ): Upgrade {
-    // compare the package's own declarations
+    // compare the package's declarations by their kinds' comparisons
     const compare = new Map(
         [...inspected.values()].flatMap((output) => [...output.evaluation.compare]),
     );
-    const declarations = manifest.declarations.filter(
-        (declaration) => declaration.symbol.package.id === source.id,
-    );
+    const declarations = manifest.graph
+        .flatMap((module) => module.declarations)
+        .filter((declaration) => !graph.Declaration.isMember(declaration));
 
-    return Upgrade.plan(history, declarations, (declaration) => compare.get(kindKey(declaration)));
+    return Upgrade.plan(history, source, declarations, (declaration) =>
+        compare.get(kindKey(declaration)),
+    );
 }
 
 /** Join two outputs' resolutions of one dependency, uniting the files they read of a source package. */
@@ -750,16 +1067,28 @@ function joinResolutions(
         }
         files.set(file.path, file);
     }
-    const ordered = [...files.values()].sort(comparePath);
+    const ordered = [...files.values()].toSorted(comparePath);
 
     return { ...next, files: ordered };
 }
 
-/** Read the identity of a Destack package resolved from the build tool's dependencies. */
-async function findPackage(specifier: string, locator: PackageLocator): Promise<Package> {
-    const owner = await locator.find(fileURLToPath(import.meta.resolve(specifier)));
+/** Digest a template package's files by path. */
+async function digestTemplate(directory: string): Promise<[string, Digest][]> {
+    const template = await Template.read(directory);
+
+    return await Promise.all(
+        [...template.files].map(async ([path, bytes]): Promise<[string, Digest]> => [
+            path,
+            await Digest.of(new Uint8Array(bytes)),
+        ]),
+    );
+}
+
+/** Read the identity of a Destack package among the build tool's dependencies. */
+async function findPackage(name: string, locator: PackageLocator): Promise<Package> {
+    const owner = await locator.find(join(Toolchain.locate([name], PACKAGE), "package.json"));
     if (!owner) {
-        throw new BuildError("BUILD_FAILED", `missing Destack package: ${specifier}`);
+        throw new BuildError("BUILD_FAILED", `missing Destack package: ${name}`);
     }
 
     return owner.metadata.package;

@@ -2,11 +2,7 @@ import { type Package } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { type ModuleDescription, ModuleGraph } from "@destack/package/code";
-import {
-    createPackageInspection,
-    DeclarationDescription,
-    type PackageInspection,
-} from "@destack/package/inspect";
+import { DeclarationDescription, PackageInspection } from "@destack/package/inspect";
 import { TestDeclaration } from "@destack/test/inspect";
 
 /** Source and resolution settings for package inspection. */
@@ -15,7 +11,7 @@ export interface InspectOptions {
     directory: string;
     /** The runtime the source is inspected for. */
     runtime: Runtime;
-    /** The TypeScript configuration; omit to use package defaults. */
+    /** The TypeScript configuration, absent for the package defaults. */
     configuration?: string;
 }
 
@@ -36,7 +32,7 @@ export function inspectModules(
     tests: TestDeclaration[],
     declarations: DeclarationDescription[],
 ): PackageInspection {
-    return createPackageInspection(
+    return PackageInspection.create(
         source.name,
         new ModuleGraph(modules),
         schema.object({

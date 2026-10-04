@@ -1,108 +1,169 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Sandbox } from "@destack/sandbox";
+import { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
+import { locateWorkspace } from "../source/dependency.ts";
+import { present } from "@destack/schema";
+import type { PackageFile } from "@destack/package/file";
+import type { PackageManifest } from "@destack/package/manifest";
+import type { BuildKeys, CacheEntry, CachedOutput } from "../cache/index.ts";
+import type { PackageStore } from "../store/index.ts";
 import type { BuildOptions } from "./build.ts";
 import { PackageBuild } from "./build.ts";
 import {
+    BuildResponse,
     readMessages,
     writeMessage,
     type BuildRequest,
-    type BuildResponse,
     type BuildResult,
+    type RequestedBuild,
 } from "./message.ts";
 import type { InspectOptions } from "../inspect/inspection.ts";
 import type { PackageInspection } from "@destack/package/inspect";
 
-/** Environment variables required by the local toolchain. */
-const TOOLCHAIN_ENVIRONMENT = [
-    "PATH",
-    "HOME",
-    "USERPROFILE",
-    "SYSTEMROOT",
-    "WINDIR",
-    "COMSPEC",
-    "PATHEXT",
-    "BUN_INSTALL_CACHE_DIR",
-    "XDG_CACHE_HOME",
-] as const;
+/** The compiler executable beside a standalone Destack executable. */
+const EXECUTABLE = "destack-build";
 
-/** An isolated compiler retained across builds of one source checkout. */
+/** The most diagnostics a compiler retains, 1 MiB. */
+const MAX_DIAGNOSTICS = 1_048_576;
+
+/** How a host starts the compiler: its command, and the directories with the tools it reads. */
+export interface Compiler {
+    /** The executable starting the compiler. */
+    readonly executable: string;
+    /** The arguments before the package directory. */
+    readonly arguments: readonly string[];
+    /** The directories with the compiler and its tools. */
+    readonly read: readonly string[];
+}
+
+/** The compilers a host starts: a release's beside its executables, or a workspace's from source. */
+export const Compiler = {
+    /** Name the released compiler beside an executable: `destack-build` reading the toolchain directory beside it. */
+    beside(executable: string): Compiler {
+        const compiler = join(dirname(executable), EXECUTABLE);
+
+        return {
+            executable: compiler,
+            arguments: [],
+            read: [compiler, Toolchain.beside(executable)],
+        };
+    },
+
+    /** Find the compiler this process starts: the released one beside a standalone executable, else Bun running this package's entry from its workspace. */
+    async current(): Promise<Compiler> {
+        // start the release's compiler from a standalone executable
+        if (Bun.isStandaloneExecutable) {
+            return Compiler.beside(process.execPath);
+        }
+
+        // run the entry with Bun, reading the workspace that installed the tools
+        const entry = fileURLToPath(new URL("../main.ts", import.meta.url));
+        const workspace = await locateWorkspace(fileURLToPath(new URL("../..", import.meta.url)));
+
+        return {
+            executable: process.execPath,
+            arguments: ["run", "--no-env-file", entry],
+            read: [workspace],
+        };
+    },
+};
+
+/** A sandboxed compiler retained across builds of one source checkout. */
 export class PackageBuilder implements AsyncDisposable {
     /** The source package directory. */
     readonly directory: string;
-    /** Temporary compiler files removed on shutdown. */
+    /** The compiler's files, its temporary files and the builds it writes, removed on shutdown. */
     readonly #temporary: string;
-    /** The isolated production compiler process, started again after a failed one. */
-    #child!: ChildProcessWithoutNullStreams;
-    /** Process completion, including native compiler shutdown. */
-    #closed!: Promise<void>;
+    /** The directories the compiler reads: the package's workspace with its installed dependencies, and the compiler's tools. */
+    readonly #read: readonly string[];
+    /** How the compiler starts. */
+    readonly #compiler: Compiler;
+    /** The sandboxed compiler, started again after a failed one. */
+    #sandbox: Sandbox;
+    /** Compiler completion, including native compiler shutdown. */
+    #closed: Promise<void>;
     /** The build currently awaiting a response. */
-    #pending?: { resolve: (result: BuildResponse) => void; reject: (error: unknown) => void };
-    /** The failure that stopped the current compiler process. */
+    #pending:
+        | { resolve: (result: BuildResponse) => void; reject: (error: unknown) => void }
+        | undefined;
+    /** The failure that stopped the current compiler. */
     #failure: Error | undefined;
-    /** Whether process-tree termination has already been requested. */
+    /** Whether the compiler's termination has already been requested. */
     #stopping = false;
     /** Whether the caller has closed this compiler. */
     #disposed = false;
     /** Shared shutdown, including removal of temporary files. */
     #closing?: Promise<void>;
-    /** Exit status reported by the compiler process. */
+    /** Exit status reported by the compiler. */
     #exitCode: number | null = null;
-    /** Compiler diagnostics retained until process exit. */
+    /** Compiler diagnostics retained until exit. */
     #stderr = "";
+    /** The builds the compiler wrote, naming the directory of the next. */
+    #builds = 0;
 
-    /** Start the isolated process and receive build results. */
-    private constructor(directory: string, temporary: string) {
-        this.directory = resolve(directory);
+    /** Retain the package directory, the compiler's files, what it reads, how it starts and the started compiler. */
+    private constructor(
+        directory: string,
+        temporary: string,
+        read: readonly string[],
+        compiler: Compiler,
+        sandbox: Sandbox,
+    ) {
+        // keep the package and the compiler's files
+        this.directory = directory;
         this.#temporary = temporary;
-        this.#start();
+        this.#read = read;
+        this.#compiler = compiler;
+
+        // watch the started compiler
+        this.#sandbox = sandbox;
+        this.#closed = this.#watch(sandbox);
     }
 
-    /** Start a compiler process, the first or the one replacing a failed process. */
-    #start(): void {
-        // start the compiler process with a production environment
-        const temporary = this.#temporary;
-        const environment: Record<string, string> = {
-            NODE_ENV: "production",
-            TMPDIR: temporary,
-            TMP: temporary,
-            TEMP: temporary,
-            NO_COLOR: "1",
-        };
-        for (const key of TOOLCHAIN_ENVIRONMENT) {
-            if (process.env[key] !== undefined) {
-                environment[key] = process.env[key];
-            }
-        }
+    /** Start a reusable compiler for one source package, the one this process starts unless given another. */
+    static async start(directory: string, compiler?: Compiler): Promise<PackageBuilder> {
+        // read the package's workspace with its installed dependencies, and the compiler's tools
+        directory = await realpath(resolve(directory));
+        const started = compiler ?? (await Compiler.current());
+        const workspace = await locateWorkspace(directory);
+        const paths = await Promise.all([workspace, ...started.read].map((path) => realpath(path)));
+        const read = [...new Set(paths)];
 
-        // retain one production environment across sequential build requests
+        // start the compiler with a temporary directory
+        const temporary = await realpath(await mkdtemp(join(tmpdir(), "destack-compile-")));
+        try {
+            const sandbox = await spawn(directory, temporary, read, started);
+
+            return new PackageBuilder(directory, temporary, read, started, sandbox);
+        } catch (error) {
+            await rm(temporary, { recursive: true });
+            throw error;
+        }
+    }
+
+    /** Start the compiler again after a failed one. */
+    async #restart(): Promise<void> {
+        // reset the failure and diagnostics of the stopped compiler
         this.#failure = undefined;
         this.#stopping = false;
         this.#exitCode = null;
         this.#stderr = "";
-        const child = spawn(
-            process.execPath,
-            [
-                "run",
-                "--preload",
-                fileURLToPath(import.meta.resolve("@destack/package/transform/preload")),
-                "--no-env-file",
-                fileURLToPath(new URL("./worker.ts", import.meta.url)),
-                this.directory,
-            ],
-            {
-                env: environment,
-                detached: process.platform !== "win32",
-                stdio: ["pipe", "pipe", "pipe"],
-            },
-        );
-        this.#child = child;
-        this.#closed = new Promise((resolve) => {
-            child.once("close", (code) => {
-                // record the exit and fail unexpected exits
+
+        // start and watch the next compiler
+        const sandbox = await spawn(this.directory, this.#temporary, this.#read, this.#compiler);
+        this.#sandbox = sandbox;
+        this.#closed = this.#watch(sandbox);
+    }
+
+    /** Watch a started compiler's exit, diagnostics and responses, returning its completion. */
+    #watch(sandbox: Sandbox): Promise<void> {
+        // fail the pending build of a compiler that exits unexpectedly or whose sandbox fails
+        const closed = sandbox.exited.then(
+            ({ code }) => {
                 this.#exitCode = code;
                 if (code !== 0 || !this.#disposed) {
                     this.#failure ??= new BuildError(
@@ -111,70 +172,152 @@ export class PackageBuilder implements AsyncDisposable {
                     );
                 }
                 this.#pending?.reject(this.#failure);
-                resolve();
-            });
-        });
+            },
+            (cause: unknown) => {
+                this.#failure ??= new BuildError("BUILD_FAILED", "the compiler's sandbox failed", {
+                    cause,
+                });
+                this.#pending?.reject(this.#failure);
+            },
+        );
+
+        // leave a later compiler alone once this one was replaced
         const fail = (error: Error) => {
-            // leave a later process alone once this one was replaced
-            if (this.#child === child) {
+            if (this.#sandbox === sandbox) {
                 this.#fail(error);
             }
         };
-        child.on("error", fail);
-        child.stdin.on("error", fail);
+        sandbox.stdin.on("error", fail);
 
         // bound diagnostics retained from compiler tools
-        child.stderr.setEncoding("utf8");
-        child.stderr.on("data", (chunk: string) => {
+        sandbox.stderr.setEncoding("utf8");
+        sandbox.stderr.on("data", (chunk: string) => {
             this.#stderr += chunk;
-            if (this.#stderr.length > 1_048_576) {
+            if (this.#stderr.length > MAX_DIAGNOSTICS) {
                 fail(new BuildError("BUILD_FAILED", "build diagnostics exceeded 1 MiB"));
             }
         });
-        void (async () => {
-            for await (const response of readMessages(child.stdout)) {
-                if (!this.#pending) {
-                    throw new BuildError("BUILD_FAILED", "unexpected compiler response");
-                }
-                this.#pending.resolve(response as BuildResponse);
-            }
-        })().catch(fail);
+
+        // deliver each response to the pending build
+        void this.#deliver(sandbox).catch(fail);
+
+        return closed;
     }
 
-    /** Start a reusable compiler for one source package. */
-    static async start(directory: string): Promise<PackageBuilder> {
-        const temporary = await mkdtemp(join(tmpdir(), "destack-compile-"));
-
-        try {
-            return new PackageBuilder(directory, temporary);
-        } catch (error) {
-            await rm(temporary, { recursive: true });
-            throw error;
+    /** Deliver each compiler response to the build awaiting it. */
+    async #deliver(sandbox: Sandbox): Promise<void> {
+        for await (const response of readMessages(sandbox.stdout, BuildResponse)) {
+            if (!this.#pending) {
+                throw new BuildError("BUILD_FAILED", "unexpected compiler response");
+            }
+            this.#pending.resolve(response);
         }
     }
 
-    /** Build current source using retained compiler state. */
+    /** Build current source using retained compiler state, reusing and filling the store's cache when given one. */
     async build(options: Omit<BuildOptions, "directory">): Promise<PackageBuild> {
-        const { signal, timeout, ...request } = options;
+        // write into the compiler's temporary files, moving the build to the destination once complete
+        const { signal, timeout, store, ...request } = options;
         const destination = await mkdtemp(join(tmpdir(), "destack-build-"));
+        const written = join(this.#temporary, "builds", String(this.#builds++));
         try {
-            const response = await this.#request(
-                { kind: "build", destination, options: request },
-                signal,
-                timeout,
-            );
-            if (response.kind !== "build") {
-                throw new BuildError("BUILD_FAILED", "unexpected compiler result");
-            }
+            // build without a cache
+            if (store === undefined) {
+                const response = await this.#compile(request, {}, written, signal, timeout);
+                await rename(written, destination);
 
-            return new PackageBuild(response.manifest, destination, "temporary");
+                return new PackageBuild(response.manifest, destination, "temporary");
+            }
+            // build through the store's cache
+            else {
+                const call = { request, written, destination, signal, timeout };
+
+                return await this.#buildCached(store, call);
+            }
         } catch (error) {
             if (this.#stopping) {
                 await this.#closed;
             }
+            await rm(written, { recursive: true, force: true });
             await rm(destination, { recursive: true, force: true });
             throw error;
         }
+    }
+
+    /** Restore a whole build the cache names, else compile the outputs it lacks and fill it. */
+    async #buildCached(
+        store: PackageStore,
+        call: {
+            readonly request: RequestedBuild;
+            readonly written: string;
+            readonly destination: string;
+            readonly signal: AbortSignal | undefined;
+            readonly timeout: number | undefined;
+        },
+    ): Promise<PackageBuild> {
+        // restore a whole build the cache names
+        const { request, written, destination, signal, timeout } = call;
+        const keys = await this.#plan(request, signal, timeout);
+        const whole = await store.cached(keys.build);
+        if (whole !== undefined) {
+            const manifest = await restore(store, cachedManifest(whole), destination);
+            const reused = Object.keys(keys.outputs);
+
+            return new PackageBuild(manifest, destination, "temporary", reused);
+        }
+
+        // write the files of each output the cache names, then compile the others
+        const reuse = await reuseOutputs(store, keys, written);
+        const response = await this.#compile(request, reuse, written, signal, timeout);
+        await rename(written, destination);
+        const reused = Object.keys(reuse);
+        const build = new PackageBuild(response.manifest, destination, "temporary", reused);
+
+        // store the build, then name it and each compiled output by its key
+        const manifest = await store.put(build, signal);
+        for (const [name, output] of Object.entries(response.outputs)) {
+            const key = present(keys.outputs[name], `the key of output ${name}`);
+            await store.cache(key, { kind: "output", output });
+        }
+        await store.cache(keys.build, { kind: "build", manifest });
+
+        return build;
+    }
+
+    /** Derive a build's cache keys inside the compiler. */
+    async #plan(
+        options: RequestedBuild,
+        signal: AbortSignal | undefined,
+        timeout: number | undefined,
+    ): Promise<BuildKeys> {
+        const planned = await this.#request({ kind: "plan", options }, signal, timeout);
+        if (planned.kind !== "plan") {
+            throw new BuildError("BUILD_FAILED", "unexpected compiler result");
+        }
+
+        return planned.keys;
+    }
+
+    /** Compile current source into a directory among the compiler's temporary files, holding the files of the reused outputs. */
+    async #compile(
+        options: RequestedBuild,
+        reuse: Readonly<Record<string, CachedOutput>>,
+        destination: string,
+        signal: AbortSignal | undefined,
+        timeout: number | undefined,
+    ): Promise<Extract<BuildResult, { kind: "build" }>> {
+        // send the build with its destination and the reused outputs
+        await mkdir(destination, { recursive: true });
+        const response = await this.#request(
+            { kind: "build", destination, options, reuse },
+            signal,
+            timeout,
+        );
+        if (response.kind !== "build") {
+            throw new BuildError("BUILD_FAILED", "unexpected compiler result");
+        }
+
+        return response;
     }
 
     /** Inspect source inside the isolated compiler process. */
@@ -206,14 +349,14 @@ export class PackageBuilder implements AsyncDisposable {
         if (this.#pending) {
             throw new BuildError("BUILD_FAILED", "a build is already running");
         }
-        if (signal?.aborted) {
+        if (signal?.aborted === true) {
             throw new BuildError("BUILD_FAILED", "build cancelled", { cause: signal.reason });
         }
 
         // start a compiler again once a cancelled, late or crashed one has stopped
         if (this.#failure) {
             await this.#closed;
-            this.#start();
+            await this.#restart();
         }
         const abort = () =>
             this.#fail(
@@ -227,27 +370,28 @@ export class PackageBuilder implements AsyncDisposable {
 
         // send the request and wait for its response
         try {
-            this.#stderr = "";
-            const response = await new Promise<BuildResponse>((resolve, reject) => {
-                this.#pending = { resolve, reject };
-                void writeMessage(this.#child.stdin, request).catch((error) => this.#fail(error));
-            });
-            if (response.error) {
-                const failure = new BuildError(response.error.code, response.error.message, {
-                    cause: response.error.cause,
-                });
-                if (response.error.stack) {
-                    failure.stack = response.error.stack;
-                }
-                throw failure;
-            }
-
-            return response.result;
+            return resultOf(await this.#send(request));
         } finally {
             clearTimeout(timer);
             signal?.removeEventListener("abort", abort);
             this.#pending = undefined;
         }
+    }
+
+    /** Send a request to the compiler and await its response. */
+    #send(request: BuildRequest): Promise<BuildResponse> {
+        this.#stderr = "";
+
+        return new Promise<BuildResponse>((deliver, reject) => {
+            this.#pending = { resolve: deliver, reject };
+            void writeMessage(this.#sandbox.stdin, request).catch((error: unknown) =>
+                this.#fail(
+                    new BuildError("BUILD_FAILED", "cannot send the compiler request", {
+                        cause: error,
+                    }),
+                ),
+            );
+        });
     }
 
     /** Stop the compiler and remove its temporary files. */
@@ -262,7 +406,7 @@ export class PackageBuilder implements AsyncDisposable {
         if (this.#pending) {
             this.#fail(new BuildError("BUILD_FAILED", "compiler closed during a build"));
         }
-        this.#child.stdin.end();
+        this.#sandbox.stdin.end();
         let timeout: BuildError | undefined;
         const timer = setTimeout(() => {
             timeout = new BuildError("BUILD_FAILED", "compiler shutdown timed out");
@@ -274,7 +418,7 @@ export class PackageBuilder implements AsyncDisposable {
                 throw timeout;
             }
             if (this.#exitCode !== 0 && !this.#stopping) {
-                throw this.#failure;
+                throw present(this.#failure, "the failure of the exited compiler");
             }
         } finally {
             clearTimeout(timer);
@@ -282,35 +426,122 @@ export class PackageBuilder implements AsyncDisposable {
         }
     }
 
-    /** Terminate the compiler and its native children after a terminal failure. */
+    /** Stop the compiler and its native children after a terminal failure. */
     #fail(error: Error): void {
-        // reject the pending build once and stop the compiler
+        // reject the pending build once and stop the compiler once
         this.#failure ??= error;
         this.#pending?.reject(this.#failure);
         if (this.#stopping) {
             return;
         }
-        const pid = this.#child.pid;
-        if (pid === undefined || this.#child.exitCode !== null || this.#child.signalCode !== null) {
-            return;
-        }
         this.#stopping = true;
 
-        // kill the process tree
-        if (process.platform === "win32") {
-            const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"]);
-            killer.on("error", (failure) => {
-                this.#failure = failure;
-            });
-        } else {
-            try {
-                process.kill(-pid, "SIGKILL");
-            } catch (failure) {
-                if (!(failure instanceof Error && "code" in failure && failure.code === "ESRCH")) {
-                    throw failure;
-                }
-            }
+        // stop the compiler's process group at once
+        void this.#sandbox.stop(0).catch((cause: unknown) => {
+            this.#failure ??= new BuildError("BUILD_FAILED", "cannot stop the compiler", { cause });
+        });
+    }
+}
+
+/** Start a sandboxed compiler without network or host environment, writing only its temporary files. */
+function spawn(
+    directory: string,
+    temporary: string,
+    read: readonly string[],
+    compiler: Compiler,
+): Promise<Sandbox> {
+    return Sandbox.start({
+        executable: compiler.executable,
+        arguments: [...compiler.arguments, directory],
+        directory,
+        environment: {
+            NODE_ENV: "production",
+            HOME: temporary,
+            TMPDIR: temporary,
+            NO_COLOR: "1",
+        },
+        read: [...read],
+        write: [temporary],
+        network: [],
+    });
+}
+
+/** Read a compiler response's result, rethrowing the failure it reports. */
+function resultOf(response: BuildResponse): BuildResult {
+    if (response.error !== undefined) {
+        const failure = new BuildError(response.error.code, response.error.message, {
+            cause: response.error.cause,
+        });
+        if (response.error.stack !== undefined) {
+            failure.stack = response.error.stack;
         }
+        throw failure;
+    }
+
+    return response.result;
+}
+
+/** Write the files of each output the cache names into a build directory, returning the outputs to reuse. */
+async function reuseOutputs(
+    store: PackageStore,
+    keys: BuildKeys,
+    destination: string,
+): Promise<Record<string, CachedOutput>> {
+    const reuse: Record<string, CachedOutput> = {};
+    for (const [name, key] of Object.entries(keys.outputs)) {
+        const entry = await store.cached(key);
+        if (entry !== undefined) {
+            const output = cachedOutput(entry);
+            await place(store, output.files, destination);
+            reuse[name] = output;
+        }
+    }
+
+    return reuse;
+}
+
+/** Read the manifest a cached build names, refusing an entry of another kind. */
+function cachedManifest(entry: CacheEntry): string {
+    if (entry.kind !== "build") {
+        throw new BuildError("BUILD_FAILED", "a build's cache key names an output");
+    }
+
+    return entry.manifest;
+}
+
+/** Read the output a cached output names, refusing an entry of another kind. */
+function cachedOutput(entry: CacheEntry): CachedOutput {
+    if (entry.kind !== "output") {
+        throw new BuildError("BUILD_FAILED", "an output's cache key names a build");
+    }
+
+    return entry.output;
+}
+
+/** Write a stored build's files and manifest into a directory, returning the manifest. */
+async function restore(
+    store: PackageStore,
+    digest: string,
+    destination: string,
+): Promise<PackageManifest> {
+    // write the files, then the manifest naming them
+    const { manifest, reader } = await store.contents(digest);
+    await place(store, await reader.distributed(), destination);
+    await writeFile(join(destination, "manifest.json"), JSON.stringify(manifest), { flag: "wx" });
+
+    return manifest;
+}
+
+/** Write stored files into a directory at their paths. */
+async function place(
+    store: PackageStore,
+    files: readonly PackageFile[],
+    destination: string,
+): Promise<void> {
+    for (const file of files) {
+        const path = join(destination, file.path);
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, await store.file(file), { flag: "wx" });
     }
 }
 

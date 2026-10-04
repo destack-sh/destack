@@ -1,7 +1,20 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { build, type Plugin } from "vite";
-import { DependencyRelease, type DependencyResolution, type Package } from "@destack/package";
+import { build, type InlineConfig, type Plugin, type PluginOption } from "vite";
+import type {
+    LogLevel,
+    LogOrStringHandler,
+    OutputAsset,
+    OutputChunk,
+    RolldownOptions,
+    RolldownLog,
+} from "rolldown";
+import {
+    DependencyName,
+    DependencyRelease,
+    type DependencyResolution,
+    type Package,
+} from "@destack/package";
 import {
     type BuildExtension,
     type Compilation,
@@ -13,6 +26,7 @@ import {
     runtimeConditions,
 } from "@destack/package/build";
 import type { ModuleDescription } from "@destack/package/code";
+import type { Capabilities } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import type { BuildDescription, DeclarationDescription } from "@destack/package/inspect";
 import { type PackageOutput } from "@destack/package/manifest";
@@ -20,27 +34,13 @@ import { type SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/transform/vite";
 import { type Runtime } from "@destack/package/runtime";
 import { type PackageSource } from "../source/index.ts";
+import { relativePath } from "../source/dependency.ts";
 import { type DirectoryReference } from "../typescript/index.ts";
+import { type ModuleOptions } from "../build/build.ts";
 import { BuildError } from "../error/index.ts";
 import { sourcePlugin, mapSource } from "./source.ts";
-import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
+import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
 import { directoryPlugin } from "./asset.ts";
-
-/** Compilation settings for a named package output. */
-export interface ModuleOptions {
-    /** Compile package modules. */
-    kind: "module";
-    /** The runtime the output is compiled for. */
-    runtime: Runtime;
-    /** Package-relative module or HTML entries; omit to compile package exports. */
-    entries?: Readonly<Record<string, string>>;
-    /** Bundle dependencies; disabled for separately installed library dependencies. */
-    bundle?: boolean;
-    /** Minify generated code with Vite's minifier. */
-    minify?: boolean;
-    /** Public URL prefix used by browser assets. */
-    base?: string;
-}
 
 /** The files and descriptions one compiled output adds to its build. */
 export interface CompiledFiles {
@@ -54,6 +54,18 @@ export interface CompiledFiles {
     paths: string[];
     /** Maps for generated JavaScript. */
     sourceMaps: SourceMapReference[];
+}
+
+/** The resolved dependencies, sources, destination and entries one compilation reads. */
+interface CompileInput {
+    /** The resolved dependencies, by name. */
+    readonly dependencies: Readonly<Record<string, DependencyResolution>>;
+    /** The source bytes the build snapshots, by absolute path. */
+    readonly sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+    /** The directory the build writes under. */
+    readonly destinationRoot: string;
+    /** The absolute source modules the output compiles. */
+    readonly entries: readonly string[];
 }
 
 /** One module output a build compiles with the extensions of the package's dependencies. */
@@ -111,12 +123,22 @@ export class OutputCompilation implements Compilation {
         return this.project.directory;
     }
 
+    /** The absolute source modules the output compiles, by export path. */
+    get exports(): Readonly<Record<string, string>> {
+        return this.project.exports;
+    }
+
     /** The runtime the output runs on. */
     get runtime(): Runtime {
         return this.project.runtime;
     }
 
-    /** Locate the module and export of one of the package's own declarations. */
+    /** What the package's workloads and views may access. */
+    get capabilities(): Capabilities {
+        return this.project.declaration.definition.capabilities ?? {};
+    }
+
+    /** Locate the module and export of one of the package's declarations. */
     locate(declaration: DeclarationDescription): DeclarationModule {
         // match the declaring module's export resolving to the declared constant
         const { module, name } = declaration.symbol.symbol;
@@ -162,58 +184,105 @@ export class OutputCompilation implements Compilation {
         sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         destinationRoot: string,
     ): Promise<CompiledFiles> {
-        // collect output paths and files under the output directory
-        const { options, project } = this;
-        const directory = `output/${this.name}`;
-        const destination = resolve(destinationRoot, directory);
-        const paths: string[] = [];
-        const files = new Map<string, Uint8Array<ArrayBuffer>>();
-        const exports: Record<string, string> = {};
-        const facades = new Map<string, string>();
-        const external: Record<string, DependencyRelease> = {};
-        const inspection: BuildDescription = { packages: {}, inputs: {}, outputs: {} };
-        const locations = new Map<string, ModuleSource>();
-        const assets = new Map<string, Uint8Array<ArrayBuffer>>();
-        const sourceMaps: SourceMapReference[] = [];
-        const isBrowser = project.runtime === "browser";
-
         // collect the extensions' plugins and entries before compiling
-        const plugins = this.extensions.flatMap((extension) => {
+        const { project } = this;
+        const compiled = this.#createFiles();
+        const plugins = this.#plugins();
+        const entries = Object.values(project.exports);
+        if (!entries.length && !this.#entries.size) {
+            return compiled;
+        }
+        if (entries.some((entry) => entry.endsWith(".html")) && project.runtime !== "browser") {
+            throw new BuildError("BUILD_FAILED", "entries in HTML require the browser runtime");
+        }
+
+        // retain HTML before Vite rewrites its module and asset references
+        await retainPages(project.directory, entries, compiled.files);
+
+        // delegate JSX, CSS, assets, and minification to the extensions and standard plugins
+        const facades = new Map<string, string>();
+        const configuration = this.#configuration(compiled, facades, plugins, {
+            dependencies,
+            sources,
+            destinationRoot,
+            entries,
+        });
+        const generated = await runVite(configuration);
+
+        // map authored and emitted entries to generated files
+        this.#collect(generated, compiled, facades);
+        this.#exportEntries(generated, compiled.output.exports, facades);
+
+        // let each extension describe the compiled output's workloads and views
+        this.#describeOutput(compiled, facades);
+
+        return compiled;
+    }
+
+    /** Create the empty files and descriptions of the output under its output directory. */
+    #createFiles(): CompiledFiles {
+        const output: PackageOutput = {
+            runtime: this.project.runtime,
+            emit: true,
+            workloads: {},
+            views: {},
+            tests: [],
+            directory: `output/${this.name}`,
+            exports: {},
+            dependencies: {},
+        };
+
+        return {
+            inspection: { packages: {}, inputs: {}, outputs: {} },
+            output,
+            files: new Map(),
+            paths: [],
+            sourceMaps: [],
+        };
+    }
+
+    /** Let each extension describe the compiled output's workloads and views. */
+    #describeOutput(compiled: CompiledFiles, facades: ReadonlyMap<string, string>): void {
+        // expose the exports and the declarations of each entrypoint
+        const { inspection, output } = compiled;
+        const exports = output.exports;
+        const described: CompiledOutput = {
+            exports,
+            declarations: (entrypoint) =>
+                this.#declarationsOf(entrypoint, exports, facades, inspection),
+        };
+
+        // merge each extension's description into the output
+        for (const extension of this.extensions) {
+            merge(output, describe(extension, this, described));
+        }
+    }
+
+    /** Collect the extensions' plugins, reporting an extension's failure as a build failure. */
+    #plugins(): PluginOption[] {
+        return this.extensions.flatMap((extension) => {
             try {
                 return extension.compile?.(this) ?? [];
             } catch (cause) {
                 throw BuildError.from(cause);
             }
         });
-        const entries = Object.values(project.exports);
-        const output: PackageOutput = {
-            runtime: project.runtime,
-            emit: true,
-            workloads: {},
-            views: {},
-            descriptions: {},
-            tests: [],
-            directory,
-            exports,
-            dependencies: external,
-        };
-        if (!entries.length && !this.#entries.size) {
-            return { inspection, files, paths, sourceMaps, output };
-        }
-        if (entries.some((entry) => entry.endsWith(".html")) && !isBrowser) {
-            throw new BuildError("BUILD_FAILED", "entries in HTML require the browser runtime");
-        }
+    }
 
-        // retain HTML before Vite rewrites its module and asset references
-        for (const entry of entries.filter((entry) => entry.endsWith(".html"))) {
-            files.set(
-                relative(project.directory, entry).split(sep).join("/"),
-                new Uint8Array(await readFile(entry)),
-            );
-        }
+    /** Configure Vite to compile the output's entries into the build directory. */
+    #configuration(
+        compiled: CompiledFiles,
+        facades: Map<string, string>,
+        plugins: readonly PluginOption[],
+        input: CompileInput,
+    ): InlineConfig {
+        // read the output's settings and the runtime's resolution
+        const { options, project } = this;
+        const destination = resolve(input.destinationRoot, compiled.output.directory);
+        const locations = new Map<string, ModuleSource>();
+        const conditions = runtimeConditions(project.runtime);
 
-        // delegate JSX, CSS, assets, and minification to the extensions and standard plugins
-        const generated = await build({
+        return {
             root: project.directory,
             configFile: false,
             envDir: false,
@@ -221,27 +290,14 @@ export class OutputCompilation implements Compilation {
             base: options.base ?? "./",
             logLevel: "silent",
             define: { "process.env.NODE_ENV": JSON.stringify("production") },
-            resolve: {
-                conditions: runtimeConditions(project.runtime),
-            },
+            resolve: { conditions },
             ssr: {
                 noExternal: true,
                 target: project.runtime === "workerd" ? "webworker" : "node",
-                resolve: { conditions: runtimeConditions(project.runtime) },
+                resolve: { conditions },
             },
             plugins: [
-                directoryPlugin(project.directory, files, this.directories, assets),
-                sourcePlugin(project.directory, files, sources, destinationRoot, paths),
-                dependencyPlugin(
-                    project,
-                    dependencies,
-                    inspection,
-                    directory,
-                    undefined,
-                    locations,
-                    assets,
-                ),
-                this.#entryPlugin(facades),
+                ...this.#packagePlugins(compiled, facades, input, locations),
                 ...plugins,
                 modulePlugin(),
             ],
@@ -250,103 +306,151 @@ export class OutputCompilation implements Compilation {
                 write: true,
                 outDir: destination,
                 emptyOutDir: false,
-                ssr: !isBrowser,
+                ssr: project.runtime !== "browser",
                 minify: options.minify ?? false,
                 sourcemap: true,
                 copyPublicDir: false,
-                rolldownOptions: {
-                    platform: project.runtime === "bun" ? "node" : "browser",
-                    resolve: {
-                        mainFields:
-                            project.runtime === "bun"
-                                ? ["module", "main"]
-                                : ["browser", "module", "main"],
-                        conditionNames: runtimeConditions(project.runtime),
-                    },
-                    cwd: project.directory,
-                    experimental: { attachDebugInfo: "none" },
-                    input: entries,
-                    preserveEntrySignatures: "strict",
-                    // ignore plugin timings
-                    checks: { pluginTimings: false },
-                    onwarn(warning) {
-                        throw new BuildError("BUILD_FAILED", warning.message);
-                    },
-                    external: (specifier, importer) =>
-                        this.#isExternal(specifier, importer, dependencies, external),
-                    output: {
-                        format: "esm",
-                        entryFileNames: "[name]-[hash].js",
-                        chunkFileNames: "[name]-[hash].js",
-                        assetFileNames: "asset/[name]-[hash][extname]",
-                        sourcemapPathTransform(source, map) {
-                            const output = `${directory}/${relative(destination, map).split(sep).join("/")}`;
+                rolldownOptions: this.#rolldownOptions(compiled, input, destination, locations),
+            },
+        };
+    }
 
-                            return mapSource(source, map, output, locations);
-                        },
-                    },
+    /** Create the plugins for the package's directories, sources, dependencies and entries. */
+    #packagePlugins(
+        compiled: CompiledFiles,
+        facades: Map<string, string>,
+        input: CompileInput,
+        locations: Map<string, ModuleSource>,
+    ): Plugin[] {
+        // share captured assets between the directory and dependency plugins
+        const { project } = this;
+        const assets = new Map<string, Uint8Array<ArrayBuffer>>();
+
+        return [
+            directoryPlugin(project.directory, compiled.files, this.directories, assets),
+            sourcePlugin(
+                project.directory,
+                compiled.files,
+                input.sources,
+                input.destinationRoot,
+                compiled.paths,
+            ),
+            dependencyPlugin(
+                project,
+                input.dependencies,
+                compiled.inspection,
+                compiled.output.directory,
+                undefined,
+                locations,
+                assets,
+            ),
+            this.#entryPlugin(facades),
+        ];
+    }
+
+    /** Configure Rolldown's resolution, inputs, externals and generated file names. */
+    #rolldownOptions(
+        compiled: CompiledFiles,
+        input: CompileInput,
+        destination: string,
+        locations: ReadonlyMap<string, ModuleSource>,
+    ): RolldownOptions {
+        // resolve for the runtime's platform
+        const { project } = this;
+        const directory = compiled.output.directory;
+        const isBun = project.runtime === "bun";
+
+        return {
+            platform: isBun ? "node" : "browser",
+            resolve: {
+                mainFields: isBun ? ["module", "main"] : ["browser", "module", "main"],
+                conditionNames: runtimeConditions(project.runtime),
+            },
+            cwd: project.directory,
+            experimental: { attachDebugInfo: "none" },
+            input: [...input.entries],
+            preserveEntrySignatures: "strict",
+            // ignore plugin timings
+            checks: { pluginTimings: false },
+            onLog: failOnWarning,
+            external: (specifier, importer) =>
+                this.#isExternal(specifier, importer, input.dependencies, compiled.output),
+            output: {
+                format: "esm",
+                entryFileNames: "[name]-[hash].js",
+                chunkFileNames: "[name]-[hash].js",
+                assetFileNames: "asset/[name]-[hash][extname]",
+                sourcemapPathTransform(source, map) {
+                    const generatedMap = `${directory}/${relativePath(destination, map)}`;
+
+                    return mapSource(source, map, generatedMap, locations);
                 },
             },
-        }).catch((error: unknown) => {
-            throw BuildError.fromBundle(error);
-        });
+        };
+    }
 
-        // retain generated paths and map authored entries to generated files
-        if (!("output" in generated)) {
-            throw new BuildError("BUILD_FAILED", "expected one Vite output");
-        }
-        for (const entry of generated.output) {
+    /** Retain generated paths and source maps, and map the package's exports to generated files. */
+    #collect(
+        generated: readonly (OutputChunk | OutputAsset)[],
+        compiled: CompiledFiles,
+        facades: Map<string, string>,
+    ): void {
+        const { project } = this;
+        const directory = compiled.output.directory;
+        for (const entry of generated) {
+            // retain the generated path
             const path = PackagePath.parse(`${directory}/${entry.fileName}`);
-            paths.push(path);
+            compiled.paths.push(path);
+
+            // export a module entry's chunk and an HTML entry's page
             for (const [name, source] of Object.entries(project.exports)) {
                 if (entry.type === "chunk" && entry.facadeModuleId === source) {
-                    exports[name] = path;
+                    compiled.output.exports[name] = path;
                     facades.set(name, source);
                 }
                 if (
                     entry.type === "asset" &&
                     source.endsWith(".html") &&
-                    entry.fileName === relative(project.directory, source).split(sep).join("/")
+                    entry.fileName === relativePath(project.directory, source)
                 ) {
-                    exports[name] = path;
+                    compiled.output.exports[name] = path;
                 }
             }
-            if (entry.type === "chunk" && entry.sourcemapFileName) {
-                sourceMaps.push({
+
+            // keep a chunk's source map
+            if (entry.type === "chunk" && entry.sourcemapFileName !== null) {
+                compiled.sourceMaps.push({
                     generated: path,
                     map: `${directory}/${entry.sourcemapFileName}`,
                 });
             }
         }
+    }
 
+    /** Export each emitted entry's chunk under its entrypoint, requiring every export to be generated. */
+    #exportEntries(
+        generated: readonly (OutputChunk | OutputAsset)[],
+        exports: Record<string, string>,
+        facades: ReadonlyMap<string, string>,
+    ): void {
         // export each entry's emitted chunk under its entrypoint
         for (const entrypoint of this.#entries.keys()) {
             const facade = facades.get(entrypoint);
-            const chunk = generated.output.find(
+            const chunk = generated.find(
                 (entry) => entry.type === "chunk" && entry.facadeModuleId === facade,
             );
             if (chunk === undefined) {
                 throw new BuildError("BUILD_FAILED", `missing generated entry: ${entrypoint}`);
             }
-            exports[entrypoint] = PackagePath.parse(`${directory}/${chunk.fileName}`);
+            exports[entrypoint] = PackagePath.parse(`output/${this.name}/${chunk.fileName}`);
         }
-        for (const name of Object.keys(project.exports)) {
-            if (!exports[name]) {
+
+        // require every package export to be generated
+        for (const name of Object.keys(this.project.exports)) {
+            if (exports[name] === undefined) {
                 throw new BuildError("BUILD_FAILED", `missing generated entry: ${name}`);
             }
         }
-
-        // let each extension describe the compiled output's workloads and views
-        const compiled: CompiledOutput = {
-            exports,
-            reach: (entrypoint) => this.#reach(entrypoint, exports, facades, inspection),
-        };
-        for (const extension of this.extensions) {
-            const described = describe(extension, this, compiled);
-            merge(output, described);
-        }
-
-        return { inspection, output, files, paths, sourceMaps };
     }
 
     /** Emit a chunk per entry and remember the module each chunk starts from. */
@@ -359,7 +463,7 @@ export class OutputCompilation implements Compilation {
             buildStart() {
                 // emit each entry as a chunk with its entrypoint as name
                 for (const [entrypoint, module] of entries) {
-                    const name = entrypoint.replace(/^\.\//, "").replaceAll("/", "-");
+                    const name = entrypoint.replace(/^\.\//u, "").replaceAll("/", "-");
                     const reference = this.emitFile({
                         type: "chunk",
                         id: module,
@@ -386,10 +490,10 @@ export class OutputCompilation implements Compilation {
         specifier: string,
         importer: string | undefined,
         dependencies: Readonly<Record<string, DependencyResolution>>,
-        external: Record<string, DependencyRelease>,
+        output: PackageOutput,
     ): boolean {
         // keep host modules the runtime supplies, refusing the rest before Vite emits browser stubs
-        const { options, project } = this;
+        const { project } = this;
         if (isHostModule(specifier)) {
             if (!isRuntimeModule(specifier, project.runtime)) {
                 throw new BuildError(
@@ -401,45 +505,57 @@ export class OutputCompilation implements Compilation {
             return true;
         }
 
+        // bundle local modules and what bundled dependencies import
+        if (this.#isBundled(specifier, importer)) {
+            return false;
+        }
+
+        // bundle a declared dependency, or keep its registry release external
+        return this.#isExternalRelease(DependencyName.of(specifier), dependencies, output);
+    }
+
+    /** Check whether a specifier names a local module or one a bundled dependency imports. */
+    #isBundled(specifier: string, importer: string | undefined): boolean {
         // bundle relative, absolute, virtual and package-internal modules
+        const { options, project } = this;
         if (
             specifier.startsWith(".") ||
             specifier.startsWith("/") ||
             specifier.startsWith("\0") ||
-            specifier.startsWith("#")
+            specifier.startsWith("#") ||
+            DependencyName.of(specifier) === project.declaration.package.name
         ) {
-            return false;
-        }
-        const dependency = specifier.startsWith("@")
-            ? specifier.split("/").slice(0, 2).join("/")
-            : specifier.split("/")[0]!;
-        if (dependency === project.declaration.package.name) {
-            return false;
+            return true;
         }
 
         // bundle what bundled dependencies import
-        if (
-            options.bundle &&
-            importer &&
+        return (
+            options.bundle === true &&
+            importer !== undefined &&
             (importer.split(sep).includes("node_modules") ||
                 relative(project.directory, importer).startsWith(`..${sep}`))
-        ) {
-            return false;
-        }
+        );
+    }
 
+    /** Require a declared dependency, keeping its registry release external unless bundled. */
+    #isExternalRelease(
+        dependency: string,
+        dependencies: Readonly<Record<string, DependencyResolution>>,
+        output: PackageOutput,
+    ): boolean {
         // require a declared dependency
-        if (
-            ![
-                project.declaration.dependencies,
-                project.declaration.peerDependencies,
-                project.declaration.optionalDependencies,
-            ].some((requirements) => Object.hasOwn(requirements, dependency))
-        ) {
+        const { declaration } = this.project;
+        const groups = [
+            declaration.dependencies,
+            declaration.peerDependencies,
+            declaration.optionalDependencies,
+        ];
+        if (!groups.some((requirements) => Object.hasOwn(requirements, dependency))) {
             throw new BuildError("BUILD_FAILED", `undeclared runtime dependency: ${dependency}`);
         }
 
         // bundle it, or keep its registry release external
-        if (options.bundle) {
+        if (this.options.bundle === true) {
             return false;
         }
         const selected = dependencies[dependency];
@@ -452,29 +568,55 @@ export class OutputCompilation implements Compilation {
                 `runtime dependency requires a registry release: ${dependency}`,
             );
         }
-        external[dependency] = DependencyRelease.parse(selected);
+        output.dependencies[dependency] = DependencyRelease.parse(selected);
 
         return true;
     }
 
     /** Select the declarations an entrypoint's modules declare, including declarations shaken out of its chunks. */
-    #reach(
+    #declarationsOf(
         entrypoint: string,
         exports: Readonly<Record<string, string>>,
         facades: ReadonlyMap<string, string>,
         inspection: BuildDescription,
     ): DeclarationDescription[] {
-        // require an emitted entrypoint
+        // require an emitted entrypoint whose chunks import only what the runtime supplies
         const emitted = exports[entrypoint];
         const facade = facades.get(entrypoint);
         if (emitted === undefined || facade === undefined) {
             throw new BuildError("BUILD_FAILED", `no emitted entrypoint: ${entrypoint}`);
         }
+        this.#checkChunks(entrypoint, emitted, inspection);
 
-        // refuse external imports of the entry's chunks the runtime lacks
+        // start from the entry's module as the dependency plugin records it
+        const root = isAbsolute(facade)
+            ? relativePath(this.directory, facade)
+            : facade.replaceAll(this.directory, ".");
+        const sources = Object.entries(inspection.inputs)
+            .filter(([, input]) => input.package === undefined && modulePath(input.path) === root)
+            .map(([id]) => id);
+        if (!sources.length) {
+            throw new BuildError("BUILD_FAILED", `missing input of entrypoint: ${entrypoint}`);
+        }
+
+        // select the declarations the files of the entry's modules declare
+        const paths = this.#readFiles(sources, inspection);
+
+        return this.declarations.filter((declaration) => {
+            const owner = declaration.symbol.package;
+
+            return (
+                paths.get(`${owner.name}@${owner.version}`)?.has(declaration.source.file) === true
+            );
+        });
+    }
+
+    /** Refuse external imports of an entry's chunks that the runtime lacks. */
+    #checkChunks(entrypoint: string, emitted: string, inspection: BuildDescription): void {
         const chunks = [emitted];
         const visited = new Set<string>();
         for (const path of chunks) {
+            // visit each chunk once
             if (visited.has(path)) {
                 continue;
             }
@@ -483,6 +625,8 @@ export class OutputCompilation implements Compilation {
             if (!chunk) {
                 throw new BuildError("BUILD_FAILED", `unknown emitted chunk: ${path}`);
             }
+
+            // follow internal imports and check external ones against the runtime
             for (const imported of chunk.imports) {
                 if (!imported.external) {
                     chunks.push(imported.path);
@@ -494,40 +638,38 @@ export class OutputCompilation implements Compilation {
                 }
             }
         }
+    }
 
-        // start from the entry's module as the dependency plugin records it
-        const root = isAbsolute(facade)
-            ? relative(this.directory, facade).split(sep).join("/")
-            : facade.replaceAll(this.directory, ".");
-        const sources = Object.entries(inspection.inputs)
-            .filter(([, input]) => !input.package && input.path.split("?")[0] === root)
-            .map(([id]) => id);
-        if (!sources.length) {
-            throw new BuildError("BUILD_FAILED", `missing input of entrypoint: ${entrypoint}`);
-        }
-
-        // index the source files each package's reachable modules read
-        const reachable = new Set<string>();
+    /** Index the source files each package's modules read, following imports from some inputs. */
+    #readFiles(sources: string[], inspection: BuildDescription): Map<string, Set<string>> {
+        // walk the inputs breadth first
+        const visited = new Set<string>();
         const paths = new Map<string, Set<string>>();
         for (const id of sources) {
-            if (reachable.has(id)) {
+            // visit each input once
+            if (visited.has(id)) {
                 continue;
             }
-            reachable.add(id);
+            visited.add(id);
             const input = inspection.inputs[id];
             if (!input) {
                 throw new BuildError("BUILD_FAILED", `unknown source module: ${id}`);
             }
-            const owner = input.package
-                ? inspection.packages[input.package]?.package
-                : this.package;
-            if (!owner) {
+
+            // index the input's file under its package
+            const owner =
+                input.package === undefined
+                    ? this.package
+                    : inspection.packages[input.package]?.package;
+            if (owner === undefined) {
                 throw new BuildError("BUILD_FAILED", `unknown source package: ${input.package}`);
             }
             const key = `${owner.name}@${owner.version}`;
             const files = paths.get(key) ?? new Set<string>();
-            files.add(input.path.split("?")[0]!);
+            files.add(modulePath(input.path));
             paths.set(key, files);
+
+            // follow the input's internal imports
             for (const imported of input.imports) {
                 if (!imported.external) {
                     sources.push(imported.path);
@@ -535,15 +677,40 @@ export class OutputCompilation implements Compilation {
             }
         }
 
-        // select the declarations the reachable files declare
-        return this.declarations.filter((declaration) => {
-            const owner = declaration.symbol.package;
-
-            return (
-                paths.get(`${owner.name}@${owner.version}`)?.has(declaration.source.file) === true
-            );
-        });
+        return paths;
     }
+}
+
+/** Retain each HTML entry's authored bytes under its package path. */
+async function retainPages(
+    directory: string,
+    entries: readonly string[],
+    files: Map<string, Uint8Array<ArrayBuffer>>,
+): Promise<void> {
+    for (const entry of entries.filter((path) => path.endsWith(".html"))) {
+        files.set(relativePath(directory, entry), new Uint8Array(await readFile(entry)));
+    }
+}
+
+/** Run Vite and return the chunks and assets of its one output. */
+async function runVite(configuration: InlineConfig): Promise<(OutputChunk | OutputAsset)[]> {
+    // report a bundler failure as a build failure
+    const generated = await build(configuration).catch((error: unknown) => {
+        throw BuildError.fromBundle(error);
+    });
+    if (!("output" in generated)) {
+        throw new BuildError("BUILD_FAILED", "expected one Vite output");
+    }
+
+    return generated.output;
+}
+
+/** Fail on Rolldown warnings and pass other logs on. */
+function failOnWarning(level: LogLevel, log: RolldownLog, handler: LogOrStringHandler): void {
+    if (level === "warn") {
+        throw new BuildError("BUILD_FAILED", log.message);
+    }
+    handler(level, log);
 }
 
 /** Ask an extension to describe a compiled output, reporting its failure as a build failure. */
@@ -561,15 +728,20 @@ function describe(
 
 /** Add an extension's workloads and views to an output, refusing a name described twice. */
 function merge(output: PackageOutput, described: OutputDescription): void {
-    for (const [section, entries] of [
-        ["workloads", described.workloads],
-        ["views", described.views],
-    ] as const) {
-        for (const [name, description] of Object.entries(entries ?? {})) {
-            if (Object.hasOwn(output[section], name)) {
-                throw new BuildError("BUILD_FAILED", `duplicate ${section} entry: ${name}`);
-            }
-            (output[section] as Record<string, unknown>)[name] = description;
+    mergeSection("workloads", output.workloads, described.workloads);
+    mergeSection("views", output.views, described.views);
+}
+
+/** Add an extension's entries of one section to an output's, refusing a name described twice. */
+function mergeSection<Entry>(
+    section: string,
+    target: Record<string, Entry>,
+    entries: Readonly<Record<string, Entry>> | undefined,
+): void {
+    for (const [name, description] of Object.entries(entries ?? {})) {
+        if (Object.hasOwn(target, name)) {
+            throw new BuildError("BUILD_FAILED", `duplicate ${section} entry: ${name}`);
         }
+        target[name] = description;
     }
 }

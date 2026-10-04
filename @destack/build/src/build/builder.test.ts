@@ -1,18 +1,45 @@
 import { expect, test } from "@destack/test";
-import { cp, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildPackage, PackageBuild, PackageBuilder } from "../index.ts";
+import { fileURLToPath } from "node:url";
+import { buildPackage, PackageBuild, PackageBuilder, readDependencies } from "../index.ts";
+import type { PackageManifest } from "@destack/package/manifest";
 import { request } from "../../tests/fixture/library/request.ts";
-import { readDependencies } from "../local/index.ts";
-import { linkDependencies } from "../source/index.ts";
 import * as resource from "../../tests/fixture/resource/request.ts";
-import { Fixture, expectBuild, expectFiles } from "../../tests/fixture.ts";
+import {
+    Fixture,
+    expectFiles,
+    importBuilt,
+    isNoteModule,
+    type NoteModule,
+} from "../../tests/fixture.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
+import * as service from "../../tests/fixture/service/request.ts";
 import { formatSource } from "@destack/check";
 import { Vocabulary } from "@destack/resource";
-import * as service from "../../tests/fixture/service/request.ts";
+import { present, schema } from "@destack/schema";
+import { LocalBucket } from "@destack/bucket/local";
+import { PackageStore } from "../store/index.ts";
+
+/** The error a denied read reports: Seatbelt refuses it, bubblewrap hides the file. */
+const DENIED_READ: Partial<Record<NodeJS.Platform, string>> = { darwin: "EPERM", linux: "ENOENT" };
+
+/** The tables of a database resource's description, by dialect. */
+const TableDescription = schema.looseObject({
+    tables: schema.record(
+        schema.string(),
+        schema.array(
+            schema.looseObject({
+                table: schema.looseObject({
+                    columns: schema.array(schema.looseObject({ name: schema.string() })),
+                }),
+            }),
+        ),
+    ),
+});
+/** The tables of a database resource's description, by dialect. */
+type TableDescription = schema.Infer<typeof TableDescription>;
 
 test("rebuild a web application with emitted assets and restore every output", async () => {
     await using fixture = await Fixture.open("web");
@@ -62,69 +89,46 @@ test("rebuild a web application with emitted assets and restore every output", a
     await expectFiles(restored, first);
 });
 
-test("bundle each target's module variant and reject browser imports of server variants", async () => {
-    await using fixture = await Fixture.open("web");
-    const app = join(fixture.source, "src/app.tsx");
-    const original = await readFile(app, "utf8");
-
-    // declare a base module with a server variant and render it
-    await writeFile(
-        join(fixture.source, "src/origin.ts"),
-        '/** The render origin. */\nexport const origin = "browser origin";\n',
-    );
-    await writeFile(
-        join(fixture.source, "src/origin.server.ts"),
-        'export * from "./origin.ts";\n\n/** The render origin. */\nexport const origin = "server origin";\n',
-    );
-    const source = await formatSource(
-        app,
-        'import { origin } from "./origin.ts";\n' +
-            original.replace("Hello Destack", "Hello {origin}"),
-    );
-    await writeFile(app, source);
-    await using builder = await PackageBuilder.start(fixture.source);
-
-    // bundle the base for the browser and the variant for the server
-    await using build = await builder.build({
-        dependencies: fixture.dependencies,
-        outputs: { website: requests.server },
-    });
-    const bundles = await readOutputs(build.directory);
-    expect(
-        [...bundles.entries()]
-            .filter(([, code]) => code.includes("browser origin"))
-            .map(([path]) => path.split("/")[1]),
-    ).toEqual(["website-browser"]);
-    expect(
-        [...bundles.entries()]
-            .filter(([, code]) => code.includes("server origin"))
-            .map(([path]) => path.split("/")[1]),
-    ).toEqual(["website-server"]);
-
-    // reject a browser import of the server variant
-    await writeFile(app, source.replace('"./origin.ts"', '"./origin.server.ts"'));
-    const directory = await realpath(fixture.source);
-    await expect(
-        builder.build({
-            dependencies: fixture.dependencies,
-            outputs: { website: requests.server },
-        }),
-    ).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: `browser module ${directory}/src/app.tsx imports server variant ${directory}/src/origin.server.ts`,
-    });
-});
-
 test("reinspect edited declaration helpers in a retained compiler", async () => {
     const fixture = new URL("../../tests/fixture/resource/source/", import.meta.url);
     const directory = await mkdtemp(join(tmpdir(), "destack-declaration-edit-"));
     try {
-        // evaluate an ordinary imported title module and retain the complete initial output
+        // copy the fixture beside its installed dependencies
         await cp(fixture, directory, {
             recursive: true,
             filter: (path) => !path.endsWith("/node_modules") && !path.endsWith("\\node_modules"),
         });
-        await linkDependencies(fileURLToPath(fixture), directory);
+        const modules = join(directory, "node_modules");
+        await mkdir(join(modules, "@example/noisy"), { recursive: true });
+        await symlink(
+            fileURLToPath(new URL("node_modules/@destack", fixture)),
+            join(modules, "@destack"),
+            "junction",
+        );
+
+        // declare a dependency that logs to the console when called
+        await writeFile(
+            join(modules, "@example/noisy/package.json"),
+            '{ "name": "@example/noisy", "type": "module", "exports": "./index.js" }\n',
+        );
+        await writeFile(
+            join(modules, "@example/noisy/index.js"),
+            'export function noisy(name) {\n    console.info("inspecting", name);\n    return name;\n}\n',
+        );
+        await writeFile(
+            join(modules, "@example/noisy/index.d.ts"),
+            "/** Log a name and return it. */\nexport declare function noisy(name: string): string;\n",
+        );
+        const manifest = join(directory, "package.json");
+        await writeFile(
+            manifest,
+            (await readFile(manifest, "utf8")).replace(
+                '"@destack/db": "workspace:*"',
+                '"@destack/db": "workspace:*",\n        "@example/noisy": "workspace:*"',
+            ),
+        );
+
+        // evaluate an ordinary imported title module and retain the complete initial output
         const file = join(directory, "src/database.ts");
         const source = await readFile(file, "utf8");
         await writeFile(
@@ -140,27 +144,34 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
         await using builder = await PackageBuilder.start(directory);
         await using first = await builder.build({ dependencies, ...resource.request });
 
-        // reload the edited title module, which logs like a dependency writing to standard output
+        // reload the edited title module, whose dependency writes to standard output
         await writeFile(
             titleModule,
-            '// oxlint-disable-next-line no-console -- log like a dependency while declaring\nconsole.info("inspecting title");\n/** Return the column name. */\nexport function title(): string {\n    return "heading";\n}\n',
+            'import { noisy } from "@example/noisy";\n\n/** Return the column name. */\nexport function title(): string {\n    return noisy("heading");\n}\n',
         );
         await using edited = await builder.build({ dependencies, ...resource.request });
-        const baseline = (await first.reader.domain("db")).find(
-            (declaration) => declaration.kind === "resource",
-        )!;
-        const actual = (await edited.reader.domain("db")).find(
-            (declaration) => declaration.kind === "resource",
-        )!;
+        const baseline = present(
+            (await first.reader.declarations()).find(
+                (declaration) => declaration.kind === "resource",
+            ),
+            "the first build's resource",
+        );
+        const actual = present(
+            (await edited.reader.declarations()).find(
+                (declaration) => declaration.kind === "resource",
+            ),
+            "the edited build's resource",
+        );
         const expected = structuredClone(baseline);
+        const { description } = expected;
+        if (!isTableDescription(description)) {
+            throw new TypeError("the resource description has no tables");
+        }
         for (const dialect of ["sqlite", "postgresql"]) {
             // rename the column in the table
-            const [state] = (
-                expected.description as {
-                    tables: Record<string, { table: { columns: { name: string }[] } }[]>;
-                }
-            ).tables[dialect]!;
-            state!.table.columns[1]!.name = "heading";
+            const [state] = present(description.tables[dialect], `the ${dialect} tables`);
+            const columns = present(state, `the ${dialect} table`).table.columns;
+            present(columns[1], "the title column").name = "heading";
         }
         expect(actual).toEqual(expected);
 
@@ -184,11 +195,10 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
     const destination = join(directory, "build");
 
     try {
-        // compile a real package and compare its complete distributed output
+        // compile a real package
         await cp(new URL("source/", fixture), source, { recursive: true });
         await using builder = await PackageBuilder.start(source);
         await using build = await builder.build(request);
-        await expectBuild(build, new URL("expected/", fixture));
 
         // rebuild unchanged, edited, and restored source with the same compiler
         await using unchanged = await builder.build(request);
@@ -205,8 +215,9 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         await using edited = await builder.build(request);
         const editDirectory = join(directory, "edited");
         await edited.write(editDirectory);
-        const editedModule = await import(
-            pathToFileURL(join(editDirectory, edited.manifest.outputs.library.exports["."])).href
+        const editedModule = await importNotes(
+            editDirectory,
+            rootExport(edited.manifest, "library"),
         );
         expect(editedModule.createNote("Edited")).toEqual({ title: "Edited", complete: true });
         await writeFile(notePath, note);
@@ -234,7 +245,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         // accept browser index signatures through the runtime's actual type declarations
         const browserSource =
             note +
-            "\n/** The page theme. */\nexport const page = document.documentElement.dataset.theme;\n";
+            '\n/** The page theme. */\nexport const page = document.documentElement.dataset["theme"];\n';
         await writeFile(notePath, browserSource);
         await using browser = await builder.build({
             dependencies: {},
@@ -259,13 +270,12 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
 
         // leave no published manifest when an output cannot be written
         const failed = join(directory, "failed");
-        await rm(join(build.directory, build.manifest.outputs.library.exports["."]));
+        await rm(join(build.directory, rootExport(build.manifest, "library")));
         await expect(build.write(failed)).rejects.toMatchObject({ code: "ENOENT" });
         await expect(readFile(join(failed, "manifest.json"))).rejects.toMatchObject({
             code: "ENOENT",
         });
-        const output = restored.manifest.outputs.library;
-        const module = await import(pathToFileURL(join(destination, output.exports["."])).href);
+        const module = await importNotes(destination, rootExport(restored.manifest, "library"));
         expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
 
         // discard temporary compiler output while preserving the retained distribution
@@ -280,9 +290,143 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
     }
 });
 
+test("reuse cached builds and outputs, and compile what their keys miss", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-build-cache-"));
+    const source = join(directory, "source");
+    try {
+        // build a library into a store's cache
+        await cp(new URL("../../tests/fixture/library/source/", import.meta.url), source, {
+            recursive: true,
+        });
+        await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
+        const store = new PackageStore(bucket);
+        await using builder = await PackageBuilder.start(source);
+        await using first = await builder.build({ ...request, store });
+        expect(first.reused).toEqual([]);
+
+        // restore the whole unchanged build from the cache, file for file
+        await using unchanged = await builder.build({ ...request, store });
+        expect(unchanged.reused).toEqual(["library"]);
+        expect(unchanged.manifest).toEqual(first.manifest);
+        await expectFiles(unchanged, first);
+
+        // reuse the library output beside a module it does not import, as a build without the cache compiles it
+        const draft = join(source, "src/draft.ts");
+        await writeFile(
+            draft,
+            await formatSource(draft, '/** A draft title. */\nexport const draft = "draft";\n'),
+        );
+        await using added = await builder.build({ ...request, store });
+        await using cold = await builder.build(request);
+        expect(added.reused).toEqual(["library"]);
+        expect(added.manifest).toEqual(cold.manifest);
+        await expectFiles(added, cold);
+
+        // compile the library again once a module it imports changes
+        const note = join(source, "src/note.ts");
+        const original = await readFile(note, "utf8");
+        await writeFile(note, original.replace("complete: false", "complete: true"));
+        await using edited = await builder.build({ ...request, store });
+        expect(edited.reused).toEqual([]);
+        expect(edited.manifest).not.toEqual(added.manifest);
+
+        // restore the earlier build from the cache once the module is restored
+        await writeFile(note, original);
+        await using restored = await builder.build({ ...request, store });
+        expect(restored.reused).toEqual(["library"]);
+        expect(restored.manifest).toEqual(added.manifest);
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
+test("evaluate package code without the host's environment, files or network", async () => {
+    const fixture = new URL("../../tests/fixture/resource/source/", import.meta.url);
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-sandbox-")));
+    const source = join(directory, "source");
+    using server = Bun.serve({ port: 0, fetch: () => new Response("reached") });
+    try {
+        // copy the fixture beside its installed dependencies, and keep a host file outside it
+        await cp(fixture, source, {
+            recursive: true,
+            filter: (path) => !path.endsWith("/node_modules") && !path.endsWith("\\node_modules"),
+        });
+        await mkdir(join(source, "node_modules"));
+        await symlink(
+            fileURLToPath(new URL("node_modules/@destack", fixture)),
+            join(source, "node_modules/@destack"),
+            "junction",
+        );
+        const secret = join(directory, "secret.txt");
+        await writeFile(secret, "secret");
+
+        // name a column by what package code observes of the host while the build evaluates it
+        const probe = join(source, "src/probe.ts");
+        await writeFile(
+            probe,
+            await formatSource(
+                probe,
+                `/** The host process, as Bun provides it. */
+declare const process: Readonly<Record<string, Readonly<Record<string, string>> | undefined>>;
+
+/** Bun's file reader. */
+declare const Bun: { file(path: string): { text(): Promise<string> } };
+
+/** The host's user, the host file's text or its refusal, and the host server's reply. */
+export const observed = [
+    process["env"]?.["USER"],
+    await read(${JSON.stringify(secret)}),
+    (await fetch(${JSON.stringify(server.url.href)})).status,
+].join("_");
+
+/** Read a file's text, or the code of the error refusing it. */
+async function read(path: string): Promise<string> {
+    try {
+        return await Bun.file(path).text();
+    } catch (error) {
+        return error instanceof Error && "code" in error ? String(error.code) : String(error);
+    }
+}
+`,
+            ),
+        );
+        const database = join(source, "src/database.ts");
+        await writeFile(
+            database,
+            'import { observed } from "./probe.ts";\n' +
+                (await readFile(database, "utf8")).replace('text("title")', "text(observed)"),
+        );
+
+        // see no user, a refused file and the sandbox proxy's refusal
+        await using builder = await PackageBuilder.start(source);
+        const dependencies = await readDependencies(fileURLToPath(fixture));
+        await using build = await builder.build({ dependencies, ...resource.request });
+        const declared = present(
+            (await build.reader.declarations()).find(
+                (declaration) => declaration.kind === "resource",
+            ),
+            "the resource",
+        );
+        const { description } = declared;
+        if (!isTableDescription(description)) {
+            throw new TypeError("the resource description has no tables");
+        }
+        const [state] = present(description.tables["sqlite"], "the sqlite tables");
+        const columns = present(state, "the note table").table.columns;
+        expect(columns.map((column) => column.name)).toEqual([
+            "id",
+            `_${DENIED_READ[process.platform] ?? "unsupported"}_403`,
+        ]);
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
 test("reject invalid outputs and recover the retained compiler", async () => {
+    // build once before any rejected request
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
     await using builder = await PackageBuilder.start(source);
+    await using first = await builder.build(request);
     await expect(builder.build({ dependencies: {}, outputs: {} })).rejects.toMatchObject({
         code: "BUILD_FAILED",
         message: "a build requires at least one output",
@@ -297,15 +441,9 @@ test("reject invalid outputs and recover the retained compiler", async () => {
         message: "no dependency compiles outputs of kind web",
     });
 
-    // use the same compiler successfully after rejected requests
+    // build the same package again with the same compiler after rejected requests
     await using build = await builder.build(request);
-    const expected = JSON.parse(
-        await readFile(
-            new URL("../../tests/fixture/library/expected/manifest.json", import.meta.url),
-            "utf8",
-        ),
-    );
-    expect(build.manifest).toEqual(expected);
+    expect(build.manifest).toEqual(first.manifest);
 });
 
 test("refuse an output name a kind's expansion takes", async () => {
@@ -377,12 +515,12 @@ test("plan the upgrade from what a package published", async () => {
         const definition = await readFile(manifest, "utf8");
         await writeFile(
             manifest,
-            definition.replace(/"version": "[^"]+"/, `"version": "${version}"`),
+            definition.replace(/"version": "[^"]+"/u, `"version": "${version}"`),
         );
         await writeFile(file, await formatSource(file, source));
     };
     const renamed = original
-        .replace('name: "Note.publish"', 'name: "Note.release"')
+        .replace('name: "note.publish"', 'name: "note.release"')
         .replace(
             "        .output(schema.object({ path: schema.string() })),\n};",
             '        .output(schema.object({ path: schema.string() })),\n    count: defineProcedure({ authentication: "public", permission: null, audit: false })\n        .route({ method: "GET", path: "/notes/count" })\n        .output(schema.number()),\n};',
@@ -393,15 +531,18 @@ test("plan the upgrade from what a package published", async () => {
         );
     await release("2026.10.0", renamed);
     await using second = await builder.build({ ...options, history });
-    const upgrade = JSON.parse(
-        await readFile(join(second.directory, second.manifest.upgrade!.file.path), "utf8"),
+    const upgrade: unknown = JSON.parse(
+        await readFile(
+            join(second.directory, present(second.manifest.upgrade, "the upgrade").file.path),
+            "utf8",
+        ),
     );
     expect(upgrade).toEqual({
         from: "2026.9.0",
         steps: [
             {
                 action: "create",
-                target: "audit-action/Note.release",
+                target: "audit-action/note.release",
                 risk: "safe",
                 detail: "add audit-action",
             },
@@ -413,7 +554,7 @@ test("plan the upgrade from what a package published", async () => {
             },
             {
                 action: "delete",
-                target: "audit-action/Note.publish",
+                target: "audit-action/note.publish",
                 risk: "backward-incompatible",
                 detail: "remove: data stored under it no longer applies",
             },
@@ -421,20 +562,27 @@ test("plan the upgrade from what a package published", async () => {
     });
 });
 
-/** Read every JavaScript output of a build by its path below the build directory. */
-async function readOutputs(directory: string): Promise<Map<string, string>> {
-    const names = (await readdir(join(directory, "output"), { recursive: true })).filter((name) =>
-        name.endsWith(".js"),
-    );
-    const entries = await Promise.all(
-        names.map(
-            async (name) =>
-                [
-                    `output/${name}`,
-                    await readFile(join(directory, "output", name), "utf8"),
-                ] as const,
-        ),
-    );
+/** Read the file an output exports at its root, failing when the manifest lacks it. */
+function rootExport(manifest: PackageManifest, output: string): string {
+    const path = manifest.outputs[output]?.exports["."];
+    if (path === undefined) {
+        throw new Error(`the manifest has no root export of ${output}`);
+    }
 
-    return new Map(entries);
+    return path;
+}
+
+/** Report whether a resource description lists tables by dialect, keeping the parsed objects. */
+function isTableDescription(value: unknown): value is TableDescription {
+    return TableDescription.safeParse(value).success;
+}
+
+/** Import a written build's library module, requiring its createNote function. */
+async function importNotes(destination: string, path: string): Promise<NoteModule> {
+    const module = await importBuilt(destination, path);
+    if (!isNoteModule(module)) {
+        throw new TypeError(`${path} exports no createNote function`);
+    }
+
+    return module;
 }

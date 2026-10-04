@@ -4,7 +4,7 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Template } from "../template/index.ts";
+import { Template } from "./template.ts";
 import { PackageId } from "@destack/package";
 import { expectDirectory } from "../../tests/fixture.ts";
 

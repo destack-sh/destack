@@ -1,7 +1,7 @@
-import { defineConfig } from "@destack/test/config";
+import { defineConfiguration } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
-export default defineConfig({
+export default defineConfiguration({
     root: fileURLToPath(new URL(".", import.meta.url)),
     test: {
         include: ["tests/*.test.ts", "src/**/*.test.ts"],

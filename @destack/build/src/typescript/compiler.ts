@@ -1,9 +1,15 @@
 import { realpathSync } from "node:fs";
 import { realpath } from "node:fs/promises";
-import { resolve } from "node:path";
-import { API } from "typescript/unstable/async";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { API, type Project } from "typescript/unstable/async";
+import { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
-import { describeProject, type TypeScriptInspection } from "./module.ts";
+import { collectImports, type ProgramImports } from "./program.ts";
+import { describeProject, isAuthored, type TypeScriptInspection } from "./module.ts";
+
+/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Retain TypeScript compiler state across inspections of one package. */
 export class TypeScriptCompiler implements AsyncDisposable {
@@ -17,11 +23,56 @@ export class TypeScriptCompiler implements AsyncDisposable {
         this.directory = realpathSync(directory);
         this.#api = new API({
             cwd: this.directory,
+            tsserverPath: TypeScriptCompiler.executable(),
         });
     }
 
-    /** Inspect a configuration after notifying the compiler of changed files. */
-    async inspect(configuration: string): Promise<TypeScriptInspection> {
+    /** Find this platform's native TypeScript compiler among the tools. */
+    static executable(): string {
+        const platform = `@typescript/typescript-${process.platform}-${process.arch}`;
+
+        return join(Toolchain.locate(["typescript", platform], PACKAGE), "lib", "tsc");
+    }
+
+    /** Inspect a configuration, collecting the declarations of the modules its entries import. */
+    inspect(configuration: string, entries: readonly string[]): Promise<TypeScriptInspection> {
+        return this.#read(configuration, async (project) => {
+            // check the configuration and the package's modules
+            const authored = (await project.program.getSourceFileNames()).filter((file) =>
+                isAuthored(this.directory, file),
+            );
+            const diagnostics = (
+                await Promise.all([
+                    project.program.getConfigFileParsingDiagnostics(),
+                    project.program.getProgramDiagnostics(),
+                    ...authored.flatMap((file) => [
+                        project.program.getSyntacticDiagnostics(file),
+                        project.program.getBindDiagnostics(file),
+                        project.program.getSemanticDiagnostics(file),
+                    ]),
+                ])
+            ).flat();
+            if (diagnostics.length) {
+                throw new BuildError(
+                    "INSPECTION_FAILED",
+                    `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
+                );
+            }
+
+            return await describeProject(project, this.directory, entries);
+        });
+    }
+
+    /** Read what the package's modules import, without checking them. */
+    imports(configuration: string): Promise<ProgramImports> {
+        return this.#read(configuration, (project) => collectImports(project, this.directory));
+    }
+
+    /** Read a configuration's project from a fresh snapshot, then release the snapshot. */
+    async #read<Result>(
+        configuration: string,
+        read: (project: Project) => Promise<Result>,
+    ): Promise<Result> {
         // refresh the selected configuration
         configuration = await realpath(resolve(this.directory, configuration));
 
@@ -32,15 +83,14 @@ export class TypeScriptCompiler implements AsyncDisposable {
         });
         await invalidated.dispose();
 
-        // reread configured include patterns so added and removed modules change the inventory
+        // reread configured include patterns so added and removed modules change the list
         const snapshot = await this.#api.updateSnapshot({
             openProjects: [configuration],
             fileChanges: { changed: [configuration] },
         });
 
-        // inspect the project and release the snapshot
+        // read the requested compiler project and release the snapshot
         try {
-            // require the requested compiler project
             const project = snapshot.getProject(configuration);
             if (!project) {
                 throw new BuildError(
@@ -49,25 +99,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
                 );
             }
 
-            // collect configuration, source, and type diagnostics together
-            const diagnostics = (
-                await Promise.all([
-                    project.program.getConfigFileParsingDiagnostics(),
-                    project.program.getSyntacticDiagnostics(),
-                    project.program.getBindDiagnostics(),
-                    project.program.getProgramDiagnostics(),
-                    project.program.getGlobalDiagnostics(),
-                    project.program.getSemanticDiagnostics(),
-                ])
-            ).flat();
-            if (diagnostics.length) {
-                throw new BuildError(
-                    "INSPECTION_FAILED",
-                    `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
-                );
-            }
-
-            return await describeProject(project, this.directory);
+            return await read(project);
         } finally {
             await snapshot.dispose();
         }

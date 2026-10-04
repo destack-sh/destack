@@ -1,9 +1,27 @@
 import { readFile, stat, symlink } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
-import { BuildError } from "../error/index.ts";
+import { dirname, join, relative, resolve, sep } from "node:path";
+import { BuildError, isMissing } from "../error/index.ts";
 import { DependencyName, DependencyResolution } from "@destack/package";
 import { JSONC } from "bun";
 import { schema } from "@destack/schema";
+
+/** The dependencies a package.json declares. */
+const DependencyManifest = schema.looseObject({
+    dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    optionalDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+});
+
+/** The release an installed package.json names, which an unreleased workspace package lacks. */
+const InstalledPackage = schema.looseObject({
+    name: schema.string(),
+    version: schema.string().exactOptional(),
+});
+/** The release an installed package.json names. */
+type InstalledPackage = schema.Infer<typeof InstalledPackage>;
+
+/** The release a package.json names, absent from a subpath manifest that only configures modules. */
+const ReleasedPackage = schema.looseObject({ name: schema.string(), version: schema.string() });
 
 /** Bun's versioned package resolution records. */
 const BunLockfile = schema
@@ -13,40 +31,26 @@ const BunLockfile = schema
             schema.string(),
             schema.tuple([
                 schema.string(),
-                schema.string().optional(),
-                schema.json().optional(),
-                schema.string().optional(),
+                schema.string().exactOptional(),
+                schema.json().exactOptional(),
+                schema.string().exactOptional(),
             ]),
         ),
     })
     .strip();
+/** The fields of a Bun lockfile that dependency resolution reads. */
+type BunLockfile = schema.Infer<typeof BunLockfile>;
 
 /** Link the nearest installed dependency directory into an isolated compiler directory. */
 export async function linkDependencies(source: string, destination: string): Promise<void> {
-    let directory = source;
-    while (true) {
-        // preserve the package manager's installed dependency tree
+    // link the nearest installed dependency tree above the package
+    for (const directory of ancestors(source)) {
         const path = join(directory, "node_modules");
-        let isDirectory = false;
-        try {
-            isDirectory = (await stat(path)).isDirectory();
-        } catch (error) {
-            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
-                throw error;
-            }
-        }
-        if (isDirectory) {
+        if (await isDirectory(path)) {
             await symlink(path, join(destination, "node_modules"), "junction");
 
             return;
         }
-
-        // search the enclosing workspace when the package has no local installation
-        const parent = dirname(directory);
-        if (parent === directory) {
-            return;
-        }
-        directory = parent;
     }
 }
 
@@ -54,24 +58,15 @@ export async function linkDependencies(source: string, destination: string): Pro
 export async function modulePackage(
     directory: string,
 ): Promise<{ directory: string; name: string; version: string }> {
-    while (true) {
-        try {
-            const metadata = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
-            // subpath manifests configure module scopes without identifying a package release
-            if (typeof metadata.name === "string" && typeof metadata.version === "string") {
-                return { directory, name: metadata.name, version: metadata.version };
-            }
-        } catch (error) {
-            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
-                throw error;
-            }
+    // find the nearest manifest naming a release, passing subpath manifests that configure module scopes
+    for (const current of ancestors(directory)) {
+        const metadata = ReleasedPackage.safeParse(await readJson(join(current, "package.json")));
+        if (metadata.success) {
+            return { directory: current, name: metadata.data.name, version: metadata.data.version };
         }
-        const parent = dirname(directory);
-        if (parent === directory) {
-            throw new BuildError("BUILD_FAILED", `no package declaration for module: ${directory}`);
-        }
-        directory = parent;
     }
+
+    throw new BuildError("BUILD_FAILED", `no package declaration for module: ${directory}`);
 }
 
 /** Read installed npm releases from Bun's lockfile. */
@@ -80,7 +75,9 @@ export async function readDependencies(
 ): Promise<Record<string, DependencyResolution>> {
     // read the authored dependency names, and resolve none for a package that declares none
     directory = resolve(directory);
-    const declaration = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
+    const declaration = DependencyManifest.parse(
+        JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
+    );
     const names = new Set(
         Object.keys({
             ...declaration.dependencies,
@@ -98,34 +95,11 @@ export async function readDependencies(
 
     // combine registry locations with locked release integrity
     for (const [id, entry] of Object.entries(lock.packages)) {
-        const [release, location, , integrity] = entry;
-        const separator = release.indexOf("@", 1);
-        const name = release.slice(0, separator);
-        const version = release.slice(separator + 1);
-        if (version.startsWith("workspace:")) {
+        const resolution = readLockedRelease(id, entry);
+        if (resolution === undefined) {
             continue;
         }
-        if (separator < 1 || !integrity) {
-            throw new BuildError("BUILD_FAILED", `unsupported locked dependency: ${id}`);
-        }
-
-        // read the registry from the full tarball URL that Bun stores for other registries
-        const suffix = `/${name}/-/`;
-        let registry = "https://registry.npmjs.org/";
-        if (location) {
-            const position = location.indexOf(suffix);
-            if (position < 0) {
-                throw new BuildError("BUILD_FAILED", `unsupported registry location: ${location}`);
-            }
-            registry = location.slice(0, position + 1);
-        }
-        const key = `${name}@${version}`;
-        const resolution = DependencyResolution.parse({
-            kind: "npm",
-            package: { name, version },
-            registry,
-            integrity,
-        });
+        const key = `${resolution.package.name}@${resolution.package.version}`;
         const existing = dependencies[key];
         if (existing && JSON.stringify(existing) !== JSON.stringify(resolution)) {
             throw new BuildError("BUILD_FAILED", `conflicting locked dependency: ${key}`);
@@ -137,7 +111,7 @@ export async function readDependencies(
     for (const name of names) {
         DependencyName.parse(name);
         const installed = await readInstalledPackage(name, directory);
-        if (!installed) {
+        if (installed?.version === undefined) {
             continue;
         }
         const release = dependencies[`${installed.name}@${installed.version}`];
@@ -149,54 +123,142 @@ export async function readDependencies(
     return dependencies;
 }
 
+/** Read a locked registry release, absent for a workspace package. */
+function readLockedRelease(
+    id: string,
+    entry: BunLockfile["packages"][string],
+): DependencyResolution | undefined {
+    // name the release, leaving workspace packages to their sources
+    const [release, location, , integrity] = entry;
+    const separator = release.indexOf("@", 1);
+    const name = release.slice(0, separator);
+    const version = release.slice(separator + 1);
+    if (version.startsWith("workspace:")) {
+        return undefined;
+    }
+    if (separator < 1 || integrity === undefined || integrity === "") {
+        throw new BuildError("BUILD_FAILED", `unsupported locked dependency: ${id}`);
+    }
+
+    // read the registry from the full tarball URL that Bun stores for other registries
+    const suffix = `/${name}/-/`;
+    let registry = "https://registry.npmjs.org/";
+    if (location !== undefined && location !== "") {
+        const position = location.indexOf(suffix);
+        if (position < 0) {
+            throw new BuildError("BUILD_FAILED", `unsupported registry location: ${location}`);
+        }
+        registry = location.slice(0, position + 1);
+    }
+
+    return DependencyResolution.parse({
+        kind: "npm",
+        package: { name, version },
+        registry,
+        integrity,
+    });
+}
+
 /** Locate an installed dependency using Node's ancestor-directory lookup. */
 async function readInstalledPackage(
     name: string,
     directory: string,
-): Promise<
-    | {
-          name: string;
-          version: string;
-      }
-    | undefined
-> {
-    while (true) {
-        try {
-            return JSON.parse(
-                await readFile(join(directory, "node_modules", name, "package.json"), "utf8"),
-            );
-        } catch (error) {
-            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
-                throw error;
-            }
-            const parent = dirname(directory);
-            if (parent === directory) {
-                return undefined;
-            }
-            directory = parent;
+): Promise<InstalledPackage | undefined> {
+    // read the nearest installed manifest of the dependency
+    for (const current of ancestors(directory)) {
+        const manifest = await readJson(join(current, "node_modules", name, "package.json"));
+        if (manifest !== undefined) {
+            return InstalledPackage.parse(manifest);
+        }
+    }
+
+    return undefined;
+}
+
+/** Find the workspace a directory belongs to: the nearest directory with a Bun lockfile, the directory itself without one. */
+export async function locateWorkspace(directory: string): Promise<string> {
+    // accept the nearest directory holding the lockfile
+    for (const current of ancestors(directory)) {
+        if (await exists(join(current, "bun.lock"))) {
+            return current;
+        }
+    }
+
+    return resolve(directory);
+}
+
+/** Name a file by its path below a directory, with forward slashes. */
+export function relativePath(directory: string, file: string): string {
+    return relative(directory, file).split(sep).join("/");
+}
+
+/** Read the nearest Bun lockfile used by the source package. */
+async function readLockfile(directory: string): Promise<BunLockfile> {
+    // read the nearest lockfile
+    for (const current of ancestors(directory)) {
+        const text = await readText(join(current, "bun.lock"));
+        if (text !== undefined) {
+            return BunLockfile.parse(JSONC.parse(text));
+        }
+    }
+
+    throw new BuildError("BUILD_FAILED", "no Bun lockfile");
+}
+
+/** List a directory and each directory above it, up to the filesystem root. */
+function* ancestors(directory: string): Generator<string> {
+    for (let current = resolve(directory); ; current = dirname(current)) {
+        yield current;
+        if (dirname(current) === current) {
+            return;
         }
     }
 }
 
-/** Read the nearest Bun lockfile used by the source package. */
-async function readLockfile(directory: string): Promise<{
-    packages: Record<string, [string, string?, unknown?, string?]>;
-}> {
-    while (true) {
-        let text: string;
-        try {
-            text = await readFile(join(directory, "bun.lock"), "utf8");
-        } catch (error) {
-            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
-                throw error;
-            }
-            const parent = dirname(directory);
-            if (parent === directory) {
-                throw new BuildError("BUILD_FAILED", "no Bun lockfile");
-            }
-            directory = parent;
-            continue;
+/** Read a file's text, absent for a missing file. */
+async function readText(path: string): Promise<string | undefined> {
+    try {
+        return await readFile(path, "utf8");
+    } catch (error) {
+        if (!isMissing(error)) {
+            throw error;
         }
-        return BunLockfile.parse(JSONC.parse(text));
+
+        return undefined;
+    }
+}
+
+/** Read a JSON file, absent for a missing file. */
+async function readJson(path: string): Promise<unknown> {
+    const text = await readText(path);
+
+    return text === undefined ? undefined : JSON.parse(text);
+}
+
+/** Report whether a path exists. */
+async function exists(path: string): Promise<boolean> {
+    try {
+        await stat(path);
+
+        return true;
+    } catch (error) {
+        if (!isMissing(error)) {
+            throw error;
+        }
+
+        return false;
+    }
+}
+
+/** Report whether a path is an existing directory. */
+async function isDirectory(path: string): Promise<boolean> {
+    try {
+        return (await stat(path)).isDirectory();
+    } catch (error) {
+        if (!isMissing(error)) {
+            throw error;
+        }
+
+        return false;
     }
 }

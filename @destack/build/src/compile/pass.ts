@@ -24,7 +24,7 @@ import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
 import { checkRuntime, type RuntimeCompiler } from "./runtime.ts";
 import { mapSource, sourcePlugin } from "./source.ts";
 
-/** One pass of an output kind compiling several outputs, and the build's parts it lends the kind. */
+/** One pass of an output kind compiling several outputs, with the build's sources, dependencies and files it lends the kind. */
 export class OutputPass implements Pass {
     /** The opened package source. */
     readonly project: PackageSource;
@@ -55,7 +55,7 @@ export class OutputPass implements Pass {
     /** The assets read beside modules, by path. */
     readonly #assets = new Map<string, Uint8Array<ArrayBuffer>>();
 
-    /** Create one pass from the build's parts. */
+    /** Create one pass from the build's sources, dependencies and compilations. */
     constructor(
         project: PackageSource,
         dependencies: Readonly<Record<string, DependencyResolution>>,
@@ -71,7 +71,7 @@ export class OutputPass implements Pass {
         >,
         runtimes: RuntimeCompiler,
     ) {
-        // keep the build's parts and one inspection per output
+        // keep the build's inputs and one inspection per output
         this.project = project;
         this.dependencies = dependencies;
         this.sources = sources;
@@ -142,8 +142,8 @@ export class OutputPass implements Pass {
     }
 
     /** Describe a Vite asset manifest by package paths instead of paths below a root. */
-    describeAssets(manifest: unknown, root: string): Manifest {
-        return describeAssets(manifest as Manifest, root, this.#locations);
+    describeAssets(manifest: Manifest, root: string): Manifest {
+        return describeAssets(manifest, root, this.#locations);
     }
 
     /** Check the modules of an output against its runtime, all of them unless paths select some. */

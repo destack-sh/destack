@@ -4,15 +4,6 @@
     "language": "typescript",
     "runtimes": ["bun"],
     "exports": {
-        "./client": {
-            "runtimes": ["browser", "bun", "workerd"]
-        },
-        "./service": {
-            "runtimes": ["browser", "bun", "workerd"]
-        },
-        "./access": {
-            "runtimes": ["browser", "bun", "workerd"]
-        },
         "./browser": {
             "runtimes": ["browser"]
         }

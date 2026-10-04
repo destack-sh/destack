@@ -1,12 +1,22 @@
 import { lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { formatSource } from "@destack/check";
 import { dirname, join, resolve } from "node:path";
-import { PackageDefinition } from "@destack/package";
-import { Package } from "@destack/package";
+import { DependencyName, Package, PackageDefinition } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { TemplateInput } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
 import { type ESTree, parseSync, Visitor } from "rolldown/utils";
+import { schema } from "@destack/schema";
+import { compareText } from "../build/serialization.ts";
+
+/** The fields of a template's package.json that an instance reads and rewrites. */
+const TemplateManifest = schema.looseObject({
+    name: schema.string(),
+    version: schema.string(),
+    dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+});
+/** The fields of a template's package.json that an instance reads and rewrites. */
+type TemplateManifest = schema.Infer<typeof TemplateManifest>;
 
 /** Source files copied and renamed when creating a package. */
 export class Template {
@@ -40,34 +50,8 @@ export class Template {
         }
 
         // traverse declared paths while checking every parent for symbolic links
-        const pending = [...definition.template.files];
-        const visited = new Set<string>();
-        while (pending.length > 0) {
-            const path = pending.pop()!;
-            if (visited.has(path)) {
-                continue;
-            }
-            visited.add(path);
-            const segments = path.split("/");
-            for (let count = 1; count < segments.length; count++) {
-                if (!(await lstat(join(root, ...segments.slice(0, count)))).isDirectory()) {
-                    throw new PackageError(
-                        "INVALID_FILE",
-                        `template parent is not a directory: ${path}`,
-                    );
-                }
-            }
-            const absolute = join(root, path);
-            const entry = await lstat(absolute);
-            if (entry.isDirectory()) {
-                for (const name of await readdir(absolute)) {
-                    pending.push(path + "/" + name);
-                }
-            } else if (entry.isFile()) {
-                files.set(path, new Uint8Array(await readFile(absolute)));
-            } else {
-                throw new PackageError("INVALID_FILE", `unsupported template file: ${path}`);
-            }
+        for (const [path, bytes] of await readDeclared(root, definition.template.files)) {
+            files.set(path, bytes);
         }
 
         return new Template(files);
@@ -75,20 +59,13 @@ export class Template {
 
     /** Copy source and replace declared dependencies without executing package code. */
     async instantiate(parameters: TemplateInput): Promise<Map<string, Uint8Array>> {
-        // read the template files
-        const source = this.files;
-
         // read declarations from the selected source package
-        const decoder = new TextDecoder("utf-8", { fatal: true });
-        const manifest = JSON.parse(decoder.decode(requiredFile(source, "package.json")));
-        const definition = PackageDefinition.read(
-            decoder.decode(requiredFile(source, "destack.json")),
-        );
+        const source = this.files;
+        const { manifest, definition } = this.#readDeclarations();
         const template = definition.template;
         if (!template) {
             throw new PackageError("INVALID_DEFINITION", "package has no template declaration");
         }
-        Package.parse({ id: definition.id, name: manifest.name, version: manifest.version });
         parameters = TemplateInput.parse(parameters);
 
         // assign a distinct identity to the new package
@@ -99,43 +76,14 @@ export class Template {
             );
         }
 
-        // require all declared selections and reject unrelated overrides
-        const expected = [...(template.dependencies ?? [])].sort();
-        const selected = Object.keys(parameters.dependencies).sort();
+        // replace the declared dependency selections
         if (definition.language !== "typescript") {
             throw new PackageError(
                 "UNSUPPORTED_LANGUAGE",
                 "template generation requires TypeScript",
             );
         }
-        if (JSON.stringify(expected) !== JSON.stringify(selected)) {
-            throw new PackageError(
-                "INVALID_DEPENDENCY",
-                "template dependencies do not match the declared selections",
-            );
-        }
-        for (const original of expected) {
-            if (typeof manifest.dependencies?.[original] !== "string") {
-                throw new PackageError(
-                    "INVALID_DEPENDENCY",
-                    `missing template dependency: ${original}`,
-                );
-            }
-            delete manifest.dependencies[original];
-        }
-        for (const replacement of Object.values(parameters.dependencies)) {
-            const existing = manifest.dependencies[replacement.name];
-            if (
-                replacement.name === parameters.name ||
-                (existing && existing !== replacement.version)
-            ) {
-                throw new PackageError(
-                    "INVALID_DEPENDENCY",
-                    `conflicting template dependency: ${replacement.name}`,
-                );
-            }
-            manifest.dependencies[replacement.name] = replacement.version;
-        }
+        replaceDependencies(manifest, template.dependencies ?? [], parameters);
         const imports = {
             ...parameters.dependencies,
             [manifest.name]: {
@@ -146,29 +94,10 @@ export class Template {
         };
 
         // copy declared bytes and edit only parsed module specifiers
-        const encoder = new TextEncoder();
-        const files = new Map<string, Uint8Array>();
-        for (const [path, bytes] of [...source].sort(([left], [right]) =>
-            left < right ? -1 : left > right ? 1 : 0,
-        )) {
-            PackagePath.parse(path);
-            if (!template.files.some((entry) => path === entry || path.startsWith(entry + "/"))) {
-                continue;
-            }
-            const contents = /\.[cm]?[jt]sx?$/.test(path)
-                ? encoder.encode(replaceImports(path, decoder.decode(bytes), imports))
-                : bytes.slice();
-            files.set(path, contents);
-        }
-        for (const entry of template.files) {
-            if (![...files.keys()].some((path) => path === entry || path.startsWith(entry + "/"))) {
-                throw new PackageError("INVALID_FILE", `missing template source: ${entry}`);
-            }
-        }
-        requiredFile(files, "package.json");
-        requiredFile(files, "destack.json");
+        const files = copyFiles(source, template.files, imports);
 
         // generate an ordinary package without retaining template classification
+        const encoder = new TextEncoder();
         manifest.name = parameters.name;
         definition.id = parameters.id;
         delete definition.template;
@@ -176,13 +105,29 @@ export class Template {
         files.set("destack.json", encoder.encode(JSON.stringify(definition, null, 4) + "\n"));
 
         // format generated and copied text so new packages start formatted
-        for (const [path, bytes] of files) {
-            if (/\.(?:[cm]?[jt]sx?|json|css|md|html)$/.test(path)) {
-                files.set(path, encoder.encode(await formatSource(path, decoder.decode(bytes))));
-            }
-        }
+        await formatFiles(files);
 
         return files;
+    }
+
+    /** Read the template's package manifest and definition, requiring a valid package identity. */
+    #readDeclarations(): { manifest: TemplateManifest; definition: PackageDefinition } {
+        // read the package manifest
+        const decoder = new TextDecoder("utf-8", { fatal: true });
+        const manifest: unknown = JSON.parse(
+            decoder.decode(requiredFile(this.files, "package.json")),
+        );
+        if (!isTemplateManifest(manifest)) {
+            throw new PackageError("INVALID_DEFINITION", "template package.json is invalid");
+        }
+
+        // read the definition and check the package identity
+        const definition = PackageDefinition.read(
+            decoder.decode(requiredFile(this.files, "destack.json")),
+        );
+        Package.parse({ id: definition.id, name: manifest.name, version: manifest.version });
+
+        return { manifest, definition };
     }
 
     /** Instantiate a package into a new directory. */
@@ -203,6 +148,145 @@ export class Template {
             await writeFile(target, bytes, { flag: "wx" });
         }
     }
+}
+
+/** Read the files of declared template paths, refusing symbolic links and parents that are not directories. */
+async function readDeclared(
+    root: string,
+    declared: readonly string[],
+): Promise<Map<string, Uint8Array>> {
+    // walk the declared paths depth first
+    const files = new Map<string, Uint8Array>();
+    const pending = [...declared];
+    const visited = new Set<string>();
+    for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
+        // visit each path once
+        if (visited.has(path)) {
+            continue;
+        }
+        visited.add(path);
+
+        // require every parent to be a directory
+        const segments = path.split("/");
+        for (let count = 1; count < segments.length; count++) {
+            if (!(await lstat(join(root, ...segments.slice(0, count)))).isDirectory()) {
+                throw new PackageError(
+                    "INVALID_FILE",
+                    `template parent is not a directory: ${path}`,
+                );
+            }
+        }
+
+        // descend into a directory, or read a regular file
+        const absolute = join(root, path);
+        const entry = await lstat(absolute);
+        if (entry.isDirectory()) {
+            for (const name of await readdir(absolute)) {
+                pending.push(path + "/" + name);
+            }
+        } else if (entry.isFile()) {
+            files.set(path, new Uint8Array(await readFile(absolute)));
+        } else {
+            throw new PackageError("INVALID_FILE", `unsupported template file: ${path}`);
+        }
+    }
+
+    return files;
+}
+
+/** Replace a template manifest's declared dependency selections with the chosen packages. */
+function replaceDependencies(
+    manifest: TemplateManifest,
+    declared: readonly string[],
+    parameters: TemplateInput,
+): void {
+    // require all declared selections and reject unrelated overrides
+    const expected = [...declared].toSorted();
+    const selected = Object.keys(parameters.dependencies).toSorted();
+    if (JSON.stringify(expected) !== JSON.stringify(selected)) {
+        throw new PackageError(
+            "INVALID_DEPENDENCY",
+            "template dependencies do not match the declared selections",
+        );
+    }
+
+    // remove each declared selection
+    const dependencies = manifest.dependencies ?? {};
+    for (const original of expected) {
+        if (typeof dependencies[original] !== "string") {
+            throw new PackageError(
+                "INVALID_DEPENDENCY",
+                `missing template dependency: ${original}`,
+            );
+        }
+        delete dependencies[original];
+    }
+
+    // add each chosen package, refusing a conflicting requirement
+    for (const replacement of Object.values(parameters.dependencies)) {
+        const existing = dependencies[replacement.name];
+        if (
+            replacement.name === parameters.name ||
+            (existing !== undefined && existing !== replacement.version)
+        ) {
+            throw new PackageError(
+                "INVALID_DEPENDENCY",
+                `conflicting template dependency: ${replacement.name}`,
+            );
+        }
+        dependencies[replacement.name] = replacement.version;
+    }
+}
+
+/** Copy the template's declared files in path order, rewriting module specifiers in scripts. */
+function copyFiles(
+    source: ReadonlyMap<string, Uint8Array>,
+    declared: readonly string[],
+    imports: Readonly<Record<string, Package>>,
+): Map<string, Uint8Array> {
+    // copy each declared file
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    const encoder = new TextEncoder();
+    const files = new Map<string, Uint8Array>();
+    for (const [path, bytes] of [...source].toSorted(([left], [right]) =>
+        compareText(left, right),
+    )) {
+        PackagePath.parse(path);
+        if (!declared.some((entry) => isWithin(path, entry))) {
+            continue;
+        }
+        const contents = /\.[cm]?[jt]sx?$/u.test(path)
+            ? encoder.encode(replaceImports(path, decoder.decode(bytes), imports))
+            : bytes.slice();
+        files.set(path, contents);
+    }
+
+    // require every declared path and both manifests
+    for (const entry of declared) {
+        if (![...files.keys()].some((path) => isWithin(path, entry))) {
+            throw new PackageError("INVALID_FILE", `missing template source: ${entry}`);
+        }
+    }
+    requiredFile(files, "package.json");
+    requiredFile(files, "destack.json");
+
+    return files;
+}
+
+/** Format each text file of a new package in place. */
+async function formatFiles(files: Map<string, Uint8Array>): Promise<void> {
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    for (const [path, bytes] of files) {
+        if (/\.(?:[cm]?[jt]sx?|json|css|md|html)$/u.test(path)) {
+            files.set(path, encoder.encode(await formatSource(path, decoder.decode(bytes))));
+        }
+    }
+}
+
+/** Report whether a path is a declared template path or lies below it. */
+function isWithin(path: string, entry: string): boolean {
+    return path === entry || path.startsWith(entry + "/");
 }
 
 /** Read a required source file. */
@@ -256,10 +340,8 @@ export function replaceImports(
     visitor.visit(parsed.program);
 
     // apply edits from the end to keep parser offsets valid
-    for (const reference of references.sort((left, right) => right.start - left.start)) {
-        const name = reference.value.startsWith("@")
-            ? reference.value.split("/").slice(0, 2).join("/")
-            : reference.value.split("/")[0];
+    for (const reference of references.toSorted((left, right) => right.start - left.start)) {
+        const name = DependencyName.of(reference.value);
         const replacement = dependencies[name];
         if (!replacement) {
             continue;
@@ -270,4 +352,9 @@ export function replaceImports(
     }
 
     return source;
+}
+
+/** Report whether a parsed package.json has a template's fields, keeping the parsed object and its key order. */
+function isTemplateManifest(value: unknown): value is TemplateManifest {
+    return TemplateManifest.safeParse(value).success;
 }

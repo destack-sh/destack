@@ -1,4 +1,5 @@
-import type { Package } from "@destack/package";
+import { modulePath } from "../compile/dependency.ts";
+import type { Package, PackageExport } from "@destack/package";
 import type { DeclarationDescription, BuildDescription } from "@destack/package/inspect";
 
 /** A function a package exports, located for evaluation. */
@@ -8,7 +9,7 @@ export interface FunctionExport {
     /** The package export of the function, such as `./inspect`. */
     readonly subpath: string;
     /** The export's package.json target, which may select a module by runtime condition. */
-    readonly target: unknown;
+    readonly target: PackageExport;
     /** The function's export name. */
     readonly name: string;
 }
@@ -21,6 +22,8 @@ export interface Inspector {
     readonly compare?: FunctionExport;
     /** The function listing a description's terms, exported by the kind's package. */
     readonly vocabulary?: FunctionExport;
+    /** The function listing the symbols a description derives, exported by the kind's package. */
+    readonly symbols?: FunctionExport;
 }
 
 /** An exported declaration located by the compiler. */
@@ -44,11 +47,11 @@ export function selectDeclarations(
     // index dependency source files, including declarations removed during tree shaking
     const paths = new Map<string, Set<string>>();
     for (const input of Object.values(build.inputs)) {
-        if (!input.package) {
+        if (input.package === undefined) {
             continue;
         }
         const files = paths.get(input.package) ?? new Set<string>();
-        files.add(input.path.split("?")[0]);
+        files.add(modulePath(input.path));
         paths.set(input.package, files);
     }
 

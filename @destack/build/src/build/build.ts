@@ -1,14 +1,16 @@
 import { type DependencyResolution, PackageDefinition } from "@destack/package";
 import type { History } from "@destack/resource";
+import type { PackageStore } from "../store/index.ts";
 import { mapExports, readPackageDescription } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
-import { type ModuleOptions } from "../compile/compilation.ts";
+import { Runtime } from "@destack/package/runtime";
+import { type Commit, schema } from "@destack/schema";
 import { mkdir, readFile, writeFile, copyFile, rm } from "node:fs/promises";
 import { createReadStream } from "node:fs";
-import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
-import { PackageManifest, BuildReader, type PackageDistribution } from "@destack/package/manifest";
-import { PackagePath } from "@destack/package/file";
+import { BuildReader, PackageManifest, type PackageDistribution } from "@destack/package/manifest";
+import { type PackageFile, PackagePath } from "@destack/package/file";
+import { digestFile } from "./file.ts";
 import { PackageError } from "@destack/package/error";
 
 /** A package manifest and its file-backed distribution. */
@@ -21,28 +23,34 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
     readonly ownership: "temporary" | "retained";
     /** Selective access to the build's description files. */
     readonly reader: BuildReader;
-    /** Immutable inventory paths used by streamed reads. */
+    /** The requested outputs the build reused from a cache instead of compiling them. */
+    readonly reused: readonly string[];
+    /** Immutable list paths used by streamed reads. */
     #paths?: Promise<Set<string>>;
 
     /** Associate compiler output or imported files with their manifest. */
-    constructor(manifest: PackageManifest, directory: string, ownership: "temporary" | "retained") {
-        // retain the manifest, directory and reader
+    constructor(
+        manifest: PackageManifest,
+        directory: string,
+        ownership: "temporary" | "retained",
+        reused: readonly string[] = [],
+    ) {
+        // retain the manifest and the directory with its reused outputs
         this.manifest = manifest;
         this.directory = directory;
         this.ownership = ownership;
-        this.reader = new BuildReader(
-            manifest,
-            async (path) =>
-                new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path)))),
-        );
+        this.reused = reused;
+
+        // open the reader of the build's files
+        this.reader = openReader(manifest, directory);
     }
 
-    /** Stream a file selected from this build's inventory. */
+    /** Stream a file this build's file list names. */
     async open(path: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-        // require a path from the build inventory
+        // require a path the file list names
         PackagePath.parse(path);
         this.#paths ??= this.reader
-            .inventory()
+            .distributed()
             .then((files) => new Set(files.map((file) => file.path)));
         if (!(await this.#paths).has(path)) {
             throw new PackageError("INVALID_FILE", `unknown build file: ${path}`);
@@ -58,8 +66,10 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
                 const next = await chunks.next();
                 if (next.done === true) {
                     controller.close();
+                } else if (next.value instanceof Uint8Array) {
+                    controller.enqueue(next.value);
                 } else {
-                    controller.enqueue(next.value as Uint8Array);
+                    throw new TypeError(`file stream of ${path} yielded no bytes`);
                 }
             },
             cancel: async () => {
@@ -77,102 +87,22 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
 
     /** Read only the root manifest and load each description when requested. */
     static async open(directory: string): Promise<BuildReader> {
-        const manifest = PackageManifest.parse(
-            JSON.parse(await readFile(resolve(directory, "manifest.json"), "utf8")),
-        );
-
-        return new BuildReader(
-            manifest,
-            async (path) =>
-                new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path)))),
-        );
+        return openReader(await readManifest(directory), directory);
     }
 
     /** Read a distributed build and verify its files. */
     static async read(directory: string): Promise<PackageBuild> {
-        // read the manifest
-        const manifest = PackageManifest.parse(
-            JSON.parse(await readFile(resolve(directory, "manifest.json"), "utf8")),
-        );
-
         // follow verified file references without retaining source or executable contents
-        const reader = new BuildReader(manifest, async (path) => {
-            return new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path))));
-        });
-        const inventory = await reader.inventory();
+        const manifest = await readManifest(directory);
+        const reader = openReader(manifest, directory);
+        const list = await reader.distributed();
 
-        // reject ambiguous paths before opening source and executable files
-        const paths = new Set<string>();
-        for (const file of inventory) {
-            if (file.path === "manifest.json" || file.path.startsWith("manifest.json/")) {
-                throw new PackageError("INVALID_FILE", `reserved build path: ${file.path}`);
-            }
-            if (paths.has(file.path)) {
-                throw new PackageError("INVALID_FILE", `duplicate file: ${file.path}`);
-            }
-            paths.add(file.path);
-        }
-        for (const path of paths) {
-            for (
-                let separator = path.indexOf("/");
-                separator !== -1;
-                separator = path.indexOf("/", separator + 1)
-            ) {
-                const parent = path.slice(0, separator);
-                if (paths.has(parent)) {
-                    throw new PackageError("INVALID_FILE", `file is also a directory: ${parent}`);
-                }
-            }
-        }
-
-        // keep deployed outputs separate and resolve their public files
-        const directories = new Set<string>();
-        for (const output of Object.values(manifest.outputs)) {
-            if (directories.has(output.directory)) {
-                throw new PackageError(
-                    "INVALID_FILE",
-                    `duplicate output directory: ${output.directory}`,
-                );
-            }
-            directories.add(output.directory);
-        }
-        for (const directory of directories) {
-            const segments = directory.split("/");
-            for (let count = 1; count <= segments.length; count++) {
-                const path = segments.slice(0, count).join("/");
-                if (paths.has(path)) {
-                    throw new PackageError("INVALID_FILE", `output directory is a file: ${path}`);
-                }
-                if (path !== directory && directories.has(path)) {
-                    throw new PackageError(
-                        "INVALID_FILE",
-                        `overlapping output directories: ${path}, ${directory}`,
-                    );
-                }
-            }
-        }
-        const references = Object.values(manifest.descriptions).map(
-            (collection) => collection.file.path,
+        // reject ambiguous paths and outputs before opening source and executable files
+        const paths = requireDistinctPaths(list);
+        requireSeparateOutputs(manifest, paths);
+        const references = Object.values(manifest.outputs).flatMap((output) =>
+            exportedPaths(manifest, output),
         );
-        for (const output of Object.values(manifest.outputs)) {
-            for (const path of Object.values(output.exports)) {
-                if (!path.startsWith(`${output.directory}/`)) {
-                    throw new PackageError("INVALID_FILE", `export is outside its output: ${path}`);
-                }
-                references.push(path);
-            }
-            for (const domain of Object.keys(output.descriptions)) {
-                if (!manifest.descriptions[domain]) {
-                    throw new PackageError(
-                        "INVALID_FILE",
-                        `unknown description collection: ${domain}`,
-                    );
-                }
-            }
-            if (output.tests.length && !manifest.tests) {
-                throw new PackageError("INVALID_FILE", "output selects absent test declarations");
-            }
-        }
         for (const source of await reader.sourceMaps()) {
             references.push(source.generated, source.map);
         }
@@ -183,14 +113,9 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
         }
 
         // verify distributed bytes without retaining complete files in memory
-        for (const file of inventory) {
-            const hash = createHash("sha256");
-            let size = 0;
-            for await (const bytes of createReadStream(resolve(directory, file.path))) {
-                hash.update(bytes);
-                size += bytes.length;
-            }
-            if (size !== file.size || hash.digest("hex") !== file.digest) {
+        for (const file of list) {
+            const { digest, size } = await digestFile(resolve(directory, file.path));
+            if (size !== file.size || digest !== file.digest) {
                 throw new PackageError("INVALID_FILE", `file contents differ: ${file.path}`);
             }
         }
@@ -202,7 +127,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
     async write(directory: string): Promise<void> {
         // require a new directory so a failed write cannot damage an existing build
         await mkdir(directory);
-        for (const file of await this.reader.inventory()) {
+        for (const file of await this.reader.distributed()) {
             const destination = resolve(directory, file.path);
             await mkdir(dirname(destination), { recursive: true });
             await copyFile(resolve(this.directory, file.path), destination);
@@ -215,6 +140,128 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
     }
 }
 
+/** Read a build directory's manifest. */
+async function readManifest(directory: string): Promise<PackageManifest> {
+    return PackageManifest.parse(
+        JSON.parse(await readFile(resolve(directory, "manifest.json"), "utf8")),
+    );
+}
+
+/** Read a build's description files from its directory. */
+function openReader(manifest: PackageManifest, directory: string): BuildReader {
+    return new BuildReader(
+        manifest,
+        async (path) => new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path)))),
+    );
+}
+
+/** Refuse a file list naming the reserved manifest path, one path twice or a file below another, returning the paths. */
+function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
+    // refuse reserved and duplicate paths
+    const paths = new Set<string>();
+    for (const file of list) {
+        if (file.path === "manifest.json" || file.path.startsWith("manifest.json/")) {
+            throw new PackageError("INVALID_FILE", `reserved build path: ${file.path}`);
+        }
+        if (paths.has(file.path)) {
+            throw new PackageError("INVALID_FILE", `duplicate file: ${file.path}`);
+        }
+        paths.add(file.path);
+    }
+
+    // refuse a file whose parent directory is also a file
+    for (const path of paths) {
+        for (const parent of parents(path)) {
+            if (paths.has(parent)) {
+                throw new PackageError("INVALID_FILE", `file is also a directory: ${parent}`);
+            }
+        }
+    }
+
+    return paths;
+}
+
+/** Refuse outputs sharing or nesting directories, or a directory that is a file. */
+function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<string>): void {
+    // refuse two outputs in one directory
+    const directories = new Set<string>();
+    for (const output of Object.values(manifest.outputs)) {
+        if (directories.has(output.directory)) {
+            throw new PackageError(
+                "INVALID_FILE",
+                `duplicate output directory: ${output.directory}`,
+            );
+        }
+        directories.add(output.directory);
+    }
+
+    // refuse an output directory below a file or below another output's directory
+    for (const directory of directories) {
+        for (const path of [...parents(directory), directory]) {
+            if (paths.has(path)) {
+                throw new PackageError("INVALID_FILE", `output directory is a file: ${path}`);
+            }
+            if (path !== directory && directories.has(path)) {
+                throw new PackageError(
+                    "INVALID_FILE",
+                    `overlapping output directories: ${path}, ${directory}`,
+                );
+            }
+        }
+    }
+}
+
+/** List an output's exported files, refusing one outside its directory or tests the build lacks. */
+function exportedPaths(
+    manifest: PackageManifest,
+    output: PackageManifest["outputs"][string],
+): string[] {
+    // refuse exports outside the output's directory
+    const exported = Object.values(output.exports);
+    for (const path of exported) {
+        if (!path.startsWith(`${output.directory}/`)) {
+            throw new PackageError("INVALID_FILE", `export is outside its output: ${path}`);
+        }
+    }
+
+    // refuse selected tests without test declarations
+    if (output.tests.length && !manifest.tests) {
+        throw new PackageError("INVALID_FILE", "output selects absent test declarations");
+    }
+
+    return exported;
+}
+
+/** List the directories above a package path, outermost first. */
+function parents(path: string): string[] {
+    // join each leading run of segments
+    const segments = path.split("/");
+    const found: string[] = [];
+    for (let count = 1; count < segments.length; count++) {
+        found.push(segments.slice(0, count).join("/"));
+    }
+
+    return found;
+}
+
+/** Compilation settings for a named package output. */
+export const ModuleOptions = schema.object({
+    /** Compile package modules. */
+    kind: schema.literal("module"),
+    /** The runtime the output is compiled for. */
+    runtime: Runtime,
+    /** Package-relative module or HTML entries, absent to compile the package exports. */
+    entries: schema.record(schema.string(), schema.string()).readonly().exactOptional(),
+    /** Bundle dependencies, off for library dependencies installed separately. */
+    bundle: schema.boolean().exactOptional(),
+    /** Minify generated code with Vite's minifier. */
+    minify: schema.boolean().exactOptional(),
+    /** Public URL prefix used by browser assets. */
+    base: schema.string().exactOptional(),
+});
+/** Compilation settings for a named package output. */
+export type ModuleOptions = schema.Infer<typeof ModuleOptions>;
+
 /** Inputs to a package build. */
 export interface BuildOptions {
     /** The source package directory, kept unchanged for the duration of this build. */
@@ -223,7 +270,7 @@ export interface BuildOptions {
     outputs: Readonly<Record<string, ModuleOptions | OutputRequest>>;
     /** Exact dependency releases selected by the package resolver. */
     dependencies: Readonly<Record<string, DependencyResolution>>;
-    /** The TypeScript configuration; omit to use package defaults. */
+    /** The TypeScript configuration, absent for the package defaults. */
     configuration?: string;
     /** Cancel compilation and terminate its subprocesses. */
     signal?: AbortSignal;
@@ -231,10 +278,16 @@ export interface BuildOptions {
     timeout?: number;
     /** What the package has published, to plan the upgrade from. */
     history?: History;
+    /** The commit the source directory holds, absent for a working tree with uncommitted changes. */
+    commit?: Commit;
+    /** The store whose cache the build reuses and fills, absent to build without a cache. */
+    store?: PackageStore;
 }
 
 /** Read the outputs a package's exports imply: a browser module and one server module per server runtime. */
-export async function readOutputs(directory: string): Promise<BuildOptions["outputs"]> {
+export async function readOutputs(
+    directory: string,
+): Promise<Readonly<Record<string, ModuleOptions>>> {
     // read the package's declaration
     const declaration = await readPackageDescription(directory);
     const definition = declaration.definition;

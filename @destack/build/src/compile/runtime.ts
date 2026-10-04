@@ -1,15 +1,19 @@
 import type { BuildDescription } from "@destack/package/inspect";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { createRequire } from "node:module";
-import { API } from "typescript/unstable/async";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Toolchain } from "@destack/check/toolchain";
+import { API, type Program } from "typescript/unstable/async";
 import type { GlobalReference, ModuleDescription } from "@destack/package/code";
 import type { Runtime } from "@destack/package/runtime";
+import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import { BuildError } from "../error/index.ts";
+import { modulePath } from "./dependency.ts";
+import { TypeScriptCompiler } from "../typescript/compiler.ts";
 
-/** Resolve installed runtime declarations from the compiler package. */
-const REQUIRE = createRequire(import.meta.url);
+/** This package's directory, whose dependencies hold the runtime declarations when running from a workspace. */
+const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Runtime type environments retained across builds of one package. */
 export class RuntimeCompiler implements AsyncDisposable {
@@ -25,81 +29,47 @@ export class RuntimeCompiler implements AsyncDisposable {
             return;
         }
 
-        // deduplicate accessed globals and reject dynamic property access
-        const expressions = new Map<string, GlobalReference>();
-        for (const reference of references) {
-            const name = reference.name === "globalThis" ? reference.members[0] : reference.name;
-            if (
-                reference.dynamic ||
-                (runtime === "workerd" && (name === "eval" || name === "Function"))
-            ) {
-                throw unsupported(reference, runtime);
-            }
-
-            const expression = `void (${reference.name})!${reference.members
-                .map((member) => `[${JSON.stringify(member)}]!`)
-                .join("")};`;
-            expressions.set(expression, reference);
-        }
-
-        // let the compiler resolve named members, index signatures, and inherited properties
+        // write one access per distinct global for the compiler to resolve
+        const expressions = accessExpressions(references, runtime);
         const lines = [...expressions.keys()];
         const source = lines.join("\n") + "\nexport {};\n";
-        const environment = await this.#open(runtime);
-        const { directory, api, configuration } = environment;
-        {
-            // create an empty module for subsequent global checks
-            const entry = join(directory, "runtime.ts");
-            await writeFile(entry, source);
-            api.clearSourceFileCache();
+        const { directory, api, configuration } = await this.#open(runtime);
+        const entry = join(directory, "runtime.ts");
+        await writeFile(entry, source);
+        api.clearSourceFileCache();
 
-            // resolve each used global and member through the runtime's own type environment
-            const snapshot = await api.updateSnapshot({
-                openProjects: [configuration],
-                fileChanges: { invalidateAll: true },
-            });
-            try {
-                const project = snapshot.getProject(configuration);
-                if (!project) {
-                    throw new BuildError("BUILD_FAILED", `missing ${runtime} type environment`);
-                }
+        // resolve each used global and member through the runtime's type environment
+        const snapshot = await api.updateSnapshot({
+            openProjects: [configuration],
+            fileChanges: { invalidateAll: true },
+        });
+        try {
+            const project = snapshot.getProject(configuration);
+            if (!project) {
+                throw new BuildError("BUILD_FAILED", `missing ${runtime} type environment`);
+            }
+            await checkEnvironment(project.program, runtime);
 
-                // check the isolated runtime configuration
-                const diagnostics = [
-                    ...(await project.program.getConfigFileParsingDiagnostics()),
-                    ...(await project.program.getSyntacticDiagnostics()),
-                    ...(await project.program.getGlobalDiagnostics()),
-                ];
-                if (diagnostics.length) {
+            // report rejected APIs at their original source locations
+            const failures = await project.program.getSemanticDiagnostics();
+            for (const failure of failures) {
+                if (failure.fileName !== entry) {
                     throw new BuildError("BUILD_FAILED", `invalid ${runtime} type environment`, {
-                        cause: diagnostics,
+                        cause: failures,
                     });
                 }
 
-                // report rejected APIs at their original source locations
-                const failures = await project.program.getSemanticDiagnostics();
-                for (const failure of failures) {
-                    if (failure.fileName !== entry) {
-                        throw new BuildError(
-                            "BUILD_FAILED",
-                            `invalid ${runtime} type environment`,
-                            {
-                                cause: failures,
-                            },
-                        );
-                    }
-
-                    // translate the generated location back to the authored access
-                    const line = source.slice(0, failure.pos).split("\n").length - 1;
-                    const reference = expressions.get(lines[line]);
-                    if (!reference) {
-                        throw new BuildError("BUILD_FAILED", failure.text, { cause: failure });
-                    }
-                    throw unsupported(reference, runtime);
+                // translate the generated location back to the authored access
+                const line = source.slice(0, failure.pos).split("\n").length - 1;
+                const generated = lines[line];
+                const reference = generated === undefined ? undefined : expressions.get(generated);
+                if (!reference) {
+                    throw new BuildError("BUILD_FAILED", failure.text, { cause: failure });
                 }
-            } finally {
-                await snapshot.dispose();
+                throw unsupported(reference, runtime);
             }
+        } finally {
+            await snapshot.dispose();
         }
     }
 
@@ -115,39 +85,22 @@ export class RuntimeCompiler implements AsyncDisposable {
         const directory = await mkdtemp(join(tmpdir(), "destack-runtime-"));
         try {
             // load runtime APIs independently of application declarations and dependency typings
-            const files: string[] = [];
-            if (runtime === "workerd") {
-                files.push(
-                    join(
-                        dirname(REQUIRE.resolve("@cloudflare/workers-types/package.json")),
-                        "index.d.ts",
-                    ),
-                );
-            } else if (runtime === "bun") {
-                files.push(REQUIRE.resolve("@types/bun/index.d.ts"));
-            }
             const entry = join(directory, "runtime.ts");
             await writeFile(entry, "export {};\n");
             const configuration = join(directory, "tsconfig.json");
+            const libraries =
+                runtime === "browser" ? ["ESNext", "DOM", "DOM.Iterable"] : ["ESNext"];
             await writeFile(
                 configuration,
                 JSON.stringify({
-                    compilerOptions: {
-                        target: "ESNext",
-                        module: "ESNext",
-                        moduleResolution: "Bundler",
-                        types: [],
-                        lib: runtime === "browser" ? ["ESNext", "DOM", "DOM.Iterable"] : ["ESNext"],
-                        skipLibCheck: true,
-                        strict: true,
-                        noEmit: true,
-                    },
-                    files: [entry, ...files],
+                    compilerOptions: { ...TYPESCRIPT_OPTIONS, types: [], lib: libraries },
+                    files: [entry, ...declarationFiles(runtime)],
                 }),
             );
 
             // retain the compiler with its temporary configuration
-            const environment = { directory, configuration, api: new API({ cwd: directory }) };
+            const api = new API({ cwd: directory, tsserverPath: TypeScriptCompiler.executable() });
+            const environment = { directory, configuration, api };
             this.#environments.set(runtime, environment);
 
             return environment;
@@ -174,10 +127,69 @@ export class RuntimeCompiler implements AsyncDisposable {
         this.#environments.clear();
         const failures = results
             .filter((result) => result.status === "rejected")
-            .map((result) => result.reason);
+            .map((result): unknown => result.reason);
         if (failures.length) {
             throw new AggregateError(failures, "runtime compiler shutdown failed");
         }
+    }
+}
+
+/** Write one access expression per distinct global, refusing dynamic access and code evaluation on workerd. */
+function accessExpressions(
+    references: readonly GlobalReference[],
+    runtime: Runtime,
+): Map<string, GlobalReference> {
+    const expressions = new Map<string, GlobalReference>();
+    for (const reference of references) {
+        // refuse dynamic property access and code evaluation on workerd
+        const name = reference.name === "globalThis" ? reference.members[0] : reference.name;
+        const isEvaluation = name === "eval" || name === "Function";
+        if (reference.dynamic || (runtime === "workerd" && isEvaluation)) {
+            throw unsupported(reference, runtime);
+        }
+
+        // access each member without narrowing on the way
+        const members = reference.members.map((member) => `[${JSON.stringify(member)}]!`);
+        expressions.set(`void (${reference.name})!${members.join("")};`, reference);
+    }
+
+    return expressions;
+}
+
+/** Require the runtime configuration to parse and its declarations to check. */
+async function checkEnvironment(program: Program, runtime: Runtime): Promise<void> {
+    const diagnostics = [
+        ...(await program.getConfigFileParsingDiagnostics()),
+        ...(await program.getSyntacticDiagnostics()),
+        ...(await program.getGlobalDiagnostics()),
+    ];
+    if (diagnostics.length) {
+        const messages = diagnostics.map(
+            (diagnostic) => `${diagnostic.fileName ?? runtime}: ${diagnostic.text}`,
+        );
+        throw new BuildError(
+            "BUILD_FAILED",
+            `invalid ${runtime} type environment:\n${messages.join("\n")}`,
+            {
+                cause: diagnostics,
+            },
+        );
+    }
+}
+
+/** List the declaration files of a runtime's global APIs, none for the browser's built-in ones. */
+function declarationFiles(runtime: Runtime): string[] {
+    // load the Workers types
+    if (runtime === "workerd") {
+        return [join(Toolchain.locate(["@cloudflare/workers-types"], PACKAGE), "index.d.ts")];
+    }
+    // load the Bun types
+    else if (runtime === "bun") {
+        return [join(Toolchain.locate(["@types/bun"], PACKAGE), "index.d.ts")];
+    }
+    // load nothing beyond the libraries
+    else {
+        return [];
     }
 }
 
@@ -215,13 +227,13 @@ export async function checkRuntime(
                 `unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
             );
         }
-        if (input.unresolvedImports?.length) {
+        if (input.unresolvedImports !== undefined && input.unresolvedImports.length > 0) {
             throw new BuildError("BUILD_FAILED", `unresolved runtime imports: ${input.path}`);
         }
 
-        // dependency source declarations remain in the compiler inventory under their package
-        if (!input.package) {
-            globals.push(...(source.get(input.path.split("?")[0])?.globals ?? []));
+        // dependency source declarations remain in the compiler list under their package
+        if (input.package === undefined) {
+            globals.push(...(source.get(modulePath(input.path))?.globals ?? []));
         }
     }
 

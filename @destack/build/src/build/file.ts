@@ -1,8 +1,8 @@
-import { createReadStream } from "node:fs";
+import { openAsBlob } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
-import { describeFile, type PackageFile } from "@destack/package/file";
+import { PackageFile } from "@destack/package/file";
 import { BuildError } from "../error/index.ts";
 import { comparePath } from "./serialization.ts";
 
@@ -37,12 +37,12 @@ export class BuildFiles {
 
     /** Retain a source file, refusing different bytes at the same path. */
     retain(path: string, bytes: Uint8Array<ArrayBuffer>): void {
+        // refuse different bytes at a retained path
         const previous = this.#retained.get(path);
-        if (
-            previous &&
-            (previous.length !== bytes.length ||
-                previous.some((value, index) => value !== bytes[index]))
-        ) {
+        const isEqual =
+            previous?.length === bytes.length &&
+            previous.every((value, index) => value === bytes[index]);
+        if (previous && !isEqual) {
             throw new BuildError("BUILD_FAILED", `conflicting build file: ${path}`);
         }
         this.#retained.set(path, bytes);
@@ -51,7 +51,7 @@ export class BuildFiles {
     /** Write a file once, accepting a second write of equal bytes. */
     async write(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         // accept an equal file written before
-        const file = await describeFile(path, mediaType(path), bytes);
+        const file = await PackageFile.describe(path, mediaType(path), bytes);
         const previous = this.#records.get(path);
         if (previous) {
             if (previous.digest !== file.digest) {
@@ -71,13 +71,7 @@ export class BuildFiles {
     /** Record a file a compiler wrote, hashing it without reading it whole into memory. */
     async record(path: string): Promise<void> {
         // hash and measure the file
-        const hash = createHash("sha256");
-        let size = 0;
-        for await (const bytes of createReadStream(join(this.directory, path))) {
-            hash.update(bytes);
-            size += bytes.length;
-        }
-        const digest = hash.digest("hex");
+        const { digest, size } = await digestFile(join(this.directory, path));
 
         // refuse a different file at the same path
         const previous = this.#records.get(path);
@@ -95,6 +89,16 @@ export class BuildFiles {
         this.#retained.clear();
     }
 
+    /** Read the description of a written file. */
+    file(path: string): PackageFile {
+        const file = this.#records.get(path);
+        if (file === undefined) {
+            throw new BuildError("BUILD_FAILED", `unwritten build file: ${path}`);
+        }
+
+        return file;
+    }
+
     /** Report whether a file was written. */
     has(path: string): boolean {
         return this.#records.has(path);
@@ -102,11 +106,25 @@ export class BuildFiles {
 
     /** List the written files by path. */
     list(): PackageFile[] {
-        return [...this.#records.values()].sort(comparePath);
+        return [...this.#records.values()].toSorted(comparePath);
     }
+}
+
+/** Digest and measure a file without reading it whole into memory. */
+export async function digestFile(path: string): Promise<{ digest: string; size: number }> {
+    // hash the file's chunks as they stream
+    const hash = createHash("sha256");
+    let size = 0;
+    const file = await openAsBlob(path);
+    for await (const bytes of file.stream()) {
+        hash.update(bytes);
+        size += bytes.length;
+    }
+
+    return { digest: hash.digest("hex"), size };
 }
 
 /** Select the distributed media type from a generated path. */
 function mediaType(path: string): string {
-    return MEDIA_TYPES[path.split(".").at(-1)!] ?? "application/octet-stream";
+    return MEDIA_TYPES[path.slice(path.lastIndexOf(".") + 1)] ?? "application/octet-stream";
 }
