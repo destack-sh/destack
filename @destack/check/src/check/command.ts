@@ -3,6 +3,7 @@ import { checkPackage, fixPackage } from "./check.ts";
 import { formatPackage } from "./format.ts";
 import { configurePackage } from "./configuration.ts";
 import { CheckError } from "../error/index.ts";
+import { listAffected } from "../workspace/index.ts";
 
 /** Run the shared package commands. */
 export async function main(): Promise<void> {
@@ -24,6 +25,20 @@ export async function main(): Promise<void> {
     const options = { directory: process.cwd(), ...(files.length ? { files } : {}) };
     if (command === "configure") {
         await configurePackage(options.directory);
+        return;
+    }
+
+    // print the member directories the changes since a base commit affect
+    if (command === "affected") {
+        const [base] = files;
+        if (base === undefined) {
+            throw new CheckError("configuration", "affected needs a base commit");
+        }
+        const directories = await listAffected(options.directory, base);
+        process.stdout.write(
+            directories === undefined ? "*\n" : directories.map((path) => `${path}\n`).join(""),
+        );
+
         return;
     }
 

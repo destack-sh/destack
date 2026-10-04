@@ -13,7 +13,8 @@
         "./lint": "./src/lint/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./error": "./src/error/index.ts",
-        "./toolchain": "./src/check/toolchain.ts"
+        "./toolchain": "./src/check/toolchain.ts",
+        "./workspace": "./src/workspace/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
