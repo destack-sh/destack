@@ -1,9 +1,45 @@
-import { ORPCError } from "@orpc/client";
+import {
+    fallbackORPCErrorStatus,
+    ORPCError,
+    type ORPCErrorCode,
+    type ORPCErrorOptions,
+} from "@orpc/client";
+import { type MaybeOptionalOptions, resolveMaybeOptionalOptions } from "@orpc/shared";
+import { ValidationError, type SchemaIssue } from "@orpc/contract";
+import type { JsonValue } from "@destack/schema";
+import type { Failure } from "@destack/sync";
 
 /** The client failures worth attempting again: a request timeout, a request too early, and a throttle (RFC 9110, 8470, 6585). */
 export const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
 
-export { ORPCError as ServiceError };
+/** The statuses of Destack's own error codes, beside the common codes oRPC declares (RFC 9110). */
+const SERVICE_STATUSES: Readonly<Record<string, number>> = {
+    INSUFFICIENT_GRANT: 403,
+    MANAGED: 409,
+    GONE: 410,
+    STALE_EPOCH: 410,
+    MOVED: 421,
+    UNAVAILABLE: 503,
+};
+
+/** A service failure: its code, the status the code declares, a message and details. */
+export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Code, Data> {
+    /** Create a failure with the status its code declares. */
+    constructor(code: Code, ...rest: MaybeOptionalOptions<ORPCErrorOptions<Data>>) {
+        const options = resolveMaybeOptionalOptions(rest);
+        super(code, { ...options, status: options.status ?? ServiceError.status(code) });
+    }
+
+    /** Read the status a code declares: Destack's own codes first, then oRPC's common codes, else 500. */
+    static status(code: ORPCErrorCode): number {
+        return SERVICE_STATUSES[code] ?? fallbackORPCErrorStatus(code, undefined);
+    }
+}
+
+/** Report whether a value is a service error, of any code and data. */
+export function isServiceError(value: unknown): value is ORPCError<string, unknown> {
+    return value instanceof ORPCError;
+}
 
 /** Hide a denial from the caller as a missing resource and keep the denial as the cause for audit. */
 export function conceal(
@@ -13,15 +49,38 @@ export function conceal(
     return new ORPCError("NOT_FOUND", { message, cause: denial });
 }
 
-/** Read the denial a failure carries: itself for a 401 or 403, the cause of a concealed one. */
+/** Refuse input its schema rejects, as a procedure refuses invalid input. */
+export function refuseInput(
+    input: unknown,
+    issues: readonly SchemaIssue[],
+): ORPCError<"BAD_REQUEST", { readonly issues: readonly SchemaIssue[] }> {
+    const message = "Input validation failed";
+
+    return new ORPCError("BAD_REQUEST", {
+        message,
+        data: { issues },
+        cause: new ValidationError({ message, issues, data: input }),
+    });
+}
+
+/** Rebuild the service error a failure records, with its code, status, message and details. */
+export function errorOf(failure: Failure): ORPCError<string, JsonValue | undefined> {
+    return new ORPCError<string, JsonValue | undefined>(failure.code, {
+        status: failure.status,
+        message: failure.message,
+        ...(failure.data === undefined ? {} : { data: failure.data }),
+    });
+}
+
+/** Read the denial of a failure: itself for a 401 or 403, the cause of a concealed one. */
 export function denialOf(
     failure: ORPCError<string, unknown>,
 ): ORPCError<string, unknown> | undefined {
     // take a refusal of access, or the refusal a missing resource conceals
     if (failure.status === 401 || failure.status === 403) {
         return failure;
-    } else if (failure.status === 404 && failure.cause instanceof ORPCError) {
-        return denialOf(failure.cause as ORPCError<string, unknown>);
+    } else if (failure.status === 404 && isServiceError(failure.cause)) {
+        return denialOf(failure.cause);
     }
 
     return undefined;

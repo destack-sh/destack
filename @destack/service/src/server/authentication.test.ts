@@ -1,12 +1,13 @@
 import { copyScope } from "@destack/access/test";
-import type { Subject } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { Scope, Subject } from "@destack/sync";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
     accessTables,
     Authorizer,
+    contained,
     Policy,
     resource,
     relation,
@@ -18,7 +19,12 @@ import {
 import { boolean, defineTable, eq, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { Authentication, TokenIssuer, TokenVerifier } from "../authentication/index.ts";
+import {
+    Authentication,
+    Represented,
+    TokenIssuer,
+    TokenVerifier,
+} from "../authentication/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { defineProcedure, eventIterator } from "../service/index.ts";
@@ -321,5 +327,175 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         "denied",
         "denied",
         "denied",
+    ]);
+});
+
+test("decide a host's call as a space its cell represents, with the host as the actor, and refuse every other representation", async () => {
+    // declare zones standing for spaces their cells represent, and notes the principals inside an account read
+    const packageId = PackageId.parse("package-019f7480-0000-7000-8000-000000000003");
+    const module = { id: packageId, name: "@example/zones", version: "2026.9.0" };
+    const accountId = "account-019f7480-0000-7000-8000-000000000004";
+    const zone = new Policy(module, {
+        name: "zone",
+        relations: {
+            space: { subjects: [principal.space] },
+            cell: { subjects: [principal.cell] },
+        },
+        permissions: { represent: union(relation("space"), relation("cell")) },
+    });
+    const account = new Policy(module, { name: "account", permissions: {}, scope: true });
+    const note = new Policy(module, {
+        name: "note",
+        relations: {},
+        permissions: { read: contained(principal.space) },
+    });
+    const zoneTable = defineTable("zone", {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        cell: text("cell").notNull(),
+    });
+    const noteTable = defineTable("note", {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+    });
+    const authorizer = new Authorizer(
+        [zone, account, note],
+        [
+            {
+                policy: zone,
+                table: zoneTable,
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: {
+                    space: { column: "id", scope: Scope.universe.id },
+                    cell: { column: "cell", scope: Scope.universe.id },
+                },
+            },
+            {
+                policy: note,
+                table: noteTable,
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: {},
+            },
+        ],
+    );
+
+    // keep a zone placing a space of the account on the first host's cell, and a note in the account
+    const storage = await TestDatabase.create("sqlite", [zoneTable, noteTable, ...accessTables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const accountScope = account.reference(Scope.universe.id, accountId);
+    await copyScope(database, accountScope);
+    const spaceId = "space-019f7480-0000-7000-8000-000000000005";
+    await database
+        .insert(zoneTable)
+        .values({ id: spaceId, scope: Scope.universe.id, cell: "host-a" });
+    await database.insert(noteTable).values({ id: "one", scope: accountId });
+    const space = principal.space.reference(Scope.universe.id, spaceId);
+
+    // serve the caller's subject and actors and the note to hosts by their names
+    const definition = {
+        me: defineProcedure({ authentication: "identity", permission: null, audit: false })
+            .route({ method: "GET", path: "/me" })
+            .output(schema.array(schema.string())),
+        read: defineProcedure({
+            authentication: "identity",
+            permission: note.permission("read"),
+            audit: false,
+        })
+            .route({ method: "GET", path: "/note" })
+            .output(schema.string()),
+    };
+    const implementation = implement(definition).$context<ServiceContext>();
+    await using server = Server.start({
+        service: hosting.service,
+        audience: packageId,
+        resources: new ResourceContext(),
+        health: new Health("zones"),
+        drainTimeout: 100,
+        authorizeHost: async () => {},
+        authenticate: async (request) => {
+            // authenticate a named host of the account
+            const name = request.headers.get("authorization");
+            if (name === null) {
+                return null;
+            }
+            const host = principal.host.reference(accountId, name);
+            const now = Date.now();
+
+            return new Authentication({
+                subject: host,
+                subjects: [host],
+                credential: { kind: "host-key", id: name },
+                audience: packageId,
+                verifiedAt: now,
+                expiresAt: now + 60000,
+            });
+        },
+        router: implementation.router({
+            me: implementation.me.handler(({ context }) => {
+                // read the subject the call is decided for, then each actor
+                const { claims } = context.requireAuthentication();
+
+                return [
+                    Subject.key(claims.subject),
+                    ...(claims.delegates ?? []).map(
+                        (delegate) => `${Subject.key(delegate.subject)} ${delegate.authority}`,
+                    ),
+                ];
+            }),
+            read: implementation.read.handler(async () => "note"),
+        }),
+        access: {
+            authorizer,
+            database,
+            target: async () => note.reference(accountId, "one"),
+            standing: async (subject) =>
+                Subject.same(subject, space)
+                    ? {
+                          permission: zone.permission("represent"),
+                          object: zone.reference(Scope.universe.id, spaceId),
+                          subject: space,
+                          within: [accountScope],
+                      }
+                    : undefined,
+        },
+    });
+
+    // call as a host, naming a principal it acts as or none
+    const connect = (host: string | undefined, represented?: Subject) => {
+        const fetch = (request: Request) => server.fetch(request);
+
+        return createClient(defineService("fixture", definition), {
+            url: "https://zones.example",
+            headers: host === undefined ? {} : { authorization: host },
+            fetch: represented === undefined ? fetch : Represented.fetch(fetch, represented),
+        });
+    };
+    const other = principal.space.reference(
+        Scope.universe.id,
+        "space-019f7480-0000-7000-8000-000000000006",
+    );
+
+    // decide the serving host as the space and refuse the host itself, other cells and spaces, and anyone anonymous
+    expect([
+        await connect("host-a", space).me(),
+        await connect("host-a", space).read(),
+        await refusal(connect("host-a").read()),
+        await refusal(connect("host-b", space).me()),
+        await refusal(connect("host-a", other).me()),
+        await refusal(connect(undefined, space).me()),
+    ]).toEqual([
+        [Subject.key(space), `${Subject.key(principal.host.reference(accountId, "host-a"))} full`],
+        "note",
+        ["FORBIDDEN", "permission denied: read"],
+        ["FORBIDDEN", "permission denied: represent"],
+        ["FORBIDDEN", `nothing here stands for ${Subject.key(other)}`],
+        ["UNAUTHORIZED", "an anonymous caller represents no principal"],
     ]);
 });

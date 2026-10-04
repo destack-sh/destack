@@ -3,10 +3,10 @@ import type { Subject } from "@destack/sync";
 import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
-import { Authentication } from "./authentication.ts";
+import { Authentication, INSTALLATION_KEY } from "./authentication.ts";
 import { principal, Restriction, Caller } from "@destack/access";
 import { PackageId } from "@destack/package";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** Verify signed identity and reject cross-service, cross-space and stale authority. */
 test("verify scoped tokens and reject invalid claims and signatures", async () => {
@@ -168,9 +168,9 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
 
     // keep workload identity and delegates through signing and verification
     const actor: Subject = principal.installation.reference(spaceId, "software-example");
-    const deploymentId = identifier("deployment").parse(
-        "deployment-019f7480-0000-7000-8000-000000000004",
-    );
+    const deploymentId = schema
+        .identifier("deployment")
+        .parse("deployment-019f7480-0000-7000-8000-000000000004");
     const read = { packageId: PackageId.parse(audience), type: "note", name: "read" };
     const selection = { ...read, scope: spaceId, objectId: "note-one" };
     const delegated = new Authentication({
@@ -179,7 +179,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         delegates: [{ subject: actor, authority: "lent" }],
         permissions: [selection],
         assurance: { level: 2, authenticatedAt: issuedAt * 1000 },
-        identifiers: ["email:alice@example.com"],
+        contacts: [{ medium: "email", address: "alice@example.com" }],
     });
     const signing = {
         authority: { kind: "universe" as const },
@@ -201,9 +201,9 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     expect(represented.claims.deployments).toEqual([{ subject: actor, id: deploymentId }]);
     expect(represented.claims.delegates).toEqual([{ subject: actor, authority: "lent" }]);
     const access = represented.context(audience, issuedAt * 1000, spaceId);
-    expect([access.assurance, access.identifiers]).toEqual([
+    expect([access.assurance, access.contacts]).toEqual([
         { level: 2, authenticatedAt: issuedAt * 1000 },
-        ["email:alice@example.com"],
+        [{ medium: "email", address: "alice@example.com" }],
     ]);
     expect(Caller.delegation(access)).toEqual([
         { delegate: actor, delegator: subject, authority: "lent" },
@@ -214,9 +214,9 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
 
     // keep a deployment for each workload in a delegation chain
     const secondActor = { ...actor, id: "second-software" };
-    const secondDeployment = identifier("deployment").parse(
-        "deployment-019f7480-0000-7000-8000-000000000005",
-    );
+    const secondDeployment = schema
+        .identifier("deployment")
+        .parse("deployment-019f7480-0000-7000-8000-000000000005");
     const chain = new Authentication({
         ...delegated.claims,
         deployments: [
@@ -313,10 +313,36 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     );
     expect(received.claims.subject).toEqual(actor);
     expect(received.claims.deployments).toEqual([{ subject: actor, id: deploymentId }]);
+    const { deployments: _deployments, ...withoutDeployments } = workload.claims;
+    await expect(
+        local.issue(new Authentication(withoutDeployments), issuedAt * 1000),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+    // accept the installation its own key authenticated without a deployment, and no deployment for it
+    const keyed = new Authentication({
+        ...withoutDeployments,
+        credential: { kind: INSTALLATION_KEY, id: "installation-key-example" },
+    });
+    const keyedToken = await local.issue(keyed, issuedAt * 1000);
+    const keyedCaller = await localVerifier.authenticate(
+        new Request(request, { headers: { authorization: `Bearer ${keyedToken.accessToken}` } }),
+        spaceId,
+        issuedAt * 1000,
+    );
+    expect([keyedCaller.claims.subject, keyedCaller.claims.deployments]).toEqual([
+        actor,
+        undefined,
+    ]);
     await expect(
         local.issue(
-            new Authentication({ ...workload.claims, deployments: undefined }),
+            new Authentication({
+                ...keyed.claims,
+                deployments: [{ subject: actor, id: deploymentId }],
+            }),
             issuedAt * 1000,
         ),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    ).rejects.toMatchObject({
+        code: "UNAUTHORIZED",
+        message: "unexpected workload token identity",
+    });
 });

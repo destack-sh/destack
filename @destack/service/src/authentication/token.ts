@@ -8,7 +8,7 @@ import {
     jwtVerify,
     type JSONWebKeySet,
 } from "jose";
-import { schema, identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import {
     Authentication,
     AuthenticationClaims,
@@ -30,8 +30,28 @@ export const TokenAuthentication = AuthenticationClaims.omit({
     expiresAt: true,
 }).extend({
     /** The space, absent for a call to a universe service. */
-    spaceId: identifier("space").optional(),
+    spaceId: schema.identifier("space").exactOptional(),
 });
+
+/** The claims of a verified access token, in their RFC 7519 names. */
+const AccessTokenClaims = schema
+    .object({
+        /** The signed caller. */
+        caller: TokenAuthentication,
+        /** The token's use, always an access token. */
+        token_use: schema.literal("access"),
+        /** The caller's subject. */
+        sub: schema.string(),
+        /** The receiving package. */
+        aud: schema.string(),
+        /** The token's unique identifier. */
+        jti: schema.string().min(1),
+        /** The issue time, in UTC epoch seconds. */
+        iat: schema.number().int(),
+        /** The expiry time, in UTC epoch seconds. */
+        exp: schema.number().int(),
+    })
+    .loose();
 
 /** Verify space-scoped access tokens. */
 export class TokenVerifier {
@@ -66,27 +86,64 @@ export class TokenVerifier {
                       cacheMaxAge: KEY_CACHE_MILLISECONDS,
                       cooldownDuration: KEY_TIMEOUT_MILLISECONDS,
                       timeoutDuration: KEY_TIMEOUT_MILLISECONDS,
-                      [customFetch]: options.fetch,
+                      ...(options.fetch === undefined ? {} : { [customFetch]: options.fetch }),
                   })
                 : createLocalJWKSet(options.keys);
     }
 
-    /** Verify a bearer token, optionally for one space. */
+    /** Verify a request's bearer token, optionally for one space. */
     async authenticate(
         request: Request,
         spaceId?: string,
         now = Date.now(),
     ): Promise<Authentication<schema.Infer<typeof TokenAuthentication>["credential"]>> {
-        // require one bearer token
-        const token = Bearer.read(request.headers);
-        if (token === undefined) {
-            throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer credential" });
+        return this.verify(Bearer.require(request.headers), spaceId, now);
+    }
+
+    /** Verify an access token, optionally for one space. */
+    async verify(
+        token: string,
+        spaceId?: string,
+        now = Date.now(),
+    ): Promise<Authentication<schema.Infer<typeof TokenAuthentication>["credential"]>> {
+        // verify the signature and registered claims
+        const payload = await this.#verifySignature(token, now);
+
+        // parse the caller claims and check the space
+        const result = AccessTokenClaims.safeParse(payload);
+        if (
+            !result.success ||
+            (spaceId !== undefined && result.data.caller.spaceId !== spaceId) ||
+            result.data.sub !== result.data.caller.subject.id ||
+            result.data.aud !== this.options.audience ||
+            result.data.exp <= result.data.iat ||
+            (result.data.exp - result.data.iat) * 1000 > AUTHENTICATION_LIFETIME_MILLISECONDS
+        ) {
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid access token claims" });
         }
 
-        // verify the signature and registered claims
-        let payload;
+        // build the caller in the space it calls
+        const claims = result.data;
+        const { spaceId: scope, ...identity } = claims.caller;
+        const caller = new Authentication({
+            ...identity,
+            ...(scope === undefined ? {} : { scope }),
+            audience: this.options.audience,
+            verifiedAt: claims.iat * 1000,
+            expiresAt: claims.exp * 1000,
+        });
+
+        // require a current caller within the issuer's authority
+        caller.requireCurrent(this.options.audience, now, scope);
+        caller.requireAuthority(this.options.authority);
+
+        return caller;
+    }
+
+    /** Verify a token's signature and registered claims, returning its payload. */
+    async #verifySignature(token: string, now: number): Promise<unknown> {
         try {
-            ({ payload } = await jwtVerify(token, this.keys, {
+            const { payload } = await jwtVerify(token, this.keys, {
                 issuer: this.options.issuer,
                 audience: this.options.audience,
                 algorithms: ["ES256"],
@@ -94,7 +151,9 @@ export class TokenVerifier {
                 maxTokenAge: AUTHENTICATION_LIFETIME_MILLISECONDS / 1000,
                 clockTolerance: AUTHENTICATION_CLOCK_TOLERANCE_MILLISECONDS / 1000,
                 currentDate: new Date(now),
-            }));
+            });
+
+            return payload;
         } catch (error) {
             // report a failed verification as unauthorized
             if (
@@ -119,37 +178,6 @@ export class TokenVerifier {
                 cause: error,
             });
         }
-
-        // parse the caller claims and check the space
-        const parsed = TokenAuthentication.safeParse(payload.caller);
-        if (
-            !parsed.success ||
-            payload.token_use !== "access" ||
-            (spaceId !== undefined && parsed.data.spaceId !== spaceId) ||
-            payload.sub !== parsed.data.subject.id ||
-            payload.aud !== this.options.audience ||
-            typeof payload.jti !== "string" ||
-            payload.jti.length === 0 ||
-            !Number.isInteger(payload.iat) ||
-            !Number.isInteger(payload.exp) ||
-            payload.exp! <= payload.iat! ||
-            (payload.exp! - payload.iat!) * 1000 > AUTHENTICATION_LIFETIME_MILLISECONDS
-        ) {
-            throw new ServiceError("UNAUTHORIZED", { message: "invalid access token claims" });
-        }
-
-        // build the caller and check it
-        const caller = new Authentication({
-            ...parsed.data,
-            scope: parsed.data.spaceId,
-            audience: this.options.audience,
-            verifiedAt: payload.iat! * 1000,
-            expiresAt: payload.exp! * 1000,
-        });
-        caller.requireCurrent(this.options.audience, now, parsed.data.spaceId);
-        caller.requireAuthority(this.options.authority);
-
-        return caller;
     }
 }
 

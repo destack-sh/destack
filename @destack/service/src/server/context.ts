@@ -1,6 +1,12 @@
-import { type ObjectReference } from "@destack/sync";
+import { type ObjectReference, type Subject } from "@destack/sync";
 import type { PackageId } from "@destack/package";
-import { Authorization, AccessContext, type Authorizer, Caller } from "@destack/access";
+import {
+    Authorization,
+    AccessContext,
+    type Authorizer,
+    Caller,
+    type Standing,
+} from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
 import type { Authentication } from "../authentication/index.ts";
@@ -170,4 +176,6 @@ export interface ServiceAccess {
     readonly database: DatabaseConnection;
     /** Name the object or scope a call acts on. */
     target?(call: ProcedureCall<ServiceContext>): Promise<ObjectReference>;
+    /** Find the object standing for a principal callers act as, absent when none stands for it here. */
+    standing?(subject: Subject): Promise<Standing | undefined>;
 }

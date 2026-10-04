@@ -3,9 +3,10 @@ import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { LinkSecret, Caller } from "@destack/access";
+import { AccessContext, Authorization, Caller, LinkSecret } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
-import type { Authentication } from "../authentication/index.ts";
+import { Subject } from "@destack/sync";
+import { type Authentication, Represented } from "../authentication/index.ts";
 import type { ServiceRouter } from "../service/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
@@ -99,9 +100,9 @@ export class Server implements AsyncDisposable {
         }
     }
 
-    /** Settle once no controller key is due now or reconciling. */
-    idle(): Promise<void> {
-        return this.#loop === undefined ? Promise.resolve() : this.#loop.idle();
+    /** Settle once no controller key is due now or reconciling, or at a deadline. */
+    idle(deadline?: number): Promise<void> {
+        return this.#loop === undefined ? Promise.resolve() : this.#loop.idle(deadline);
     }
 
     /** Start the server. */
@@ -212,6 +213,17 @@ export class Server implements AsyncDisposable {
                       });
         }
 
+        // act as the principal the request names
+        const represented = Represented.read(request);
+        if (represented !== undefined) {
+            authentication = await Server.#represent(
+                authentication,
+                authenticationError,
+                represented,
+                options,
+            );
+        }
+
         // digest the presented link secrets
         const presented = (request.headers.get(LINK_SECRET_HEADER) ?? "")
             .split(",")
@@ -239,6 +251,43 @@ export class Server implements AsyncDisposable {
             linkSecrets,
             ...(options.clock === undefined ? {} : { clock: options.clock }),
         });
+    }
+
+    /** Act as a principal the caller represents: one an object here stands for, whose `represent` permission the caller holds as the cells it is. */
+    static async #represent(
+        authentication: Authentication | null,
+        authenticationError: Error | undefined,
+        subject: Subject,
+        options: ServerOptions,
+    ): Promise<Authentication> {
+        // require an authenticated caller
+        if (authenticationError !== undefined) {
+            throw authenticationError;
+        } else if (authentication === null) {
+            throw new ServiceError("UNAUTHORIZED", {
+                message: "an anonymous caller represents no principal",
+            });
+        }
+
+        // find the object standing for the principal
+        const { access } = options;
+        const standing = await access?.standing?.(subject);
+        if (access === undefined || standing === undefined) {
+            throw new ServiceError("FORBIDDEN", {
+                message: `nothing here stands for ${Subject.key(subject)}`,
+            });
+        }
+
+        // require the caller to represent it, as the cells its hosts and regions are
+        const clock = options.clock ?? Date.now;
+        const caller = new Authorization(access.authorizer, access.database, (scope) =>
+            AccessContext.withCells(
+                authentication.context(options.audience, authentication.within(clock()), scope),
+            ),
+        );
+        await caller.require(standing.permission, standing.object);
+
+        return authentication.represent(standing);
     }
 
     /** Authorize a call. */
@@ -312,43 +361,7 @@ export class Server implements AsyncDisposable {
         }
 
         // release the request when the stream settles
-        const body = new ReadableStream<Uint8Array>({
-            async pull(stream) {
-                try {
-                    // read the next chunk
-                    const next = await reader.read();
-
-                    // fail with the error a cancellation raised
-                    if (responseError !== undefined) {
-                        finish();
-                        stream.error(responseError);
-
-                        return;
-                    }
-
-                    // stop on cancellation
-                    signal.throwIfAborted();
-
-                    // close or forward the next chunk
-                    if (next.done) {
-                        finish();
-                        stream.close();
-                    } else {
-                        stream.enqueue(next.value);
-                    }
-                } catch (error) {
-                    finish();
-                    stream.error(error);
-                }
-            },
-            async cancel(reason) {
-                try {
-                    await reader.cancel(reason);
-                } finally {
-                    finish();
-                }
-            },
-        });
+        const body = relayBody(reader, signal, finish, () => responseError);
 
         return new Response(body, {
             status: response.status,
@@ -488,5 +501,52 @@ function attachBookmark(response: Response, observed: Bookmark): Response {
         status: response.status,
         statusText: response.statusText,
         headers,
+    });
+}
+
+/** Relay a response body chunk by chunk, finishing once it settles and failing with a cancellation's error. */
+function relayBody(
+    reader: Pick<ReadableStreamDefaultReader<Uint8Array>, "read" | "cancel">,
+    signal: AbortSignal,
+    finish: () => void,
+    cancellationError: () => unknown,
+): ReadableStream<Uint8Array> {
+    return new ReadableStream<Uint8Array>({
+        async pull(stream) {
+            try {
+                // read the next chunk
+                const next = await reader.read();
+
+                // fail with the error a cancellation raised
+                const error = cancellationError();
+                if (error !== undefined) {
+                    finish();
+                    stream.error(error);
+
+                    return;
+                }
+
+                // stop on cancellation
+                signal.throwIfAborted();
+
+                // close or forward the next chunk
+                if (next.done) {
+                    finish();
+                    stream.close();
+                } else {
+                    stream.enqueue(next.value);
+                }
+            } catch (error) {
+                finish();
+                stream.error(error);
+            }
+        },
+        async cancel(reason) {
+            try {
+                await reader.cancel(reason);
+            } finally {
+                finish();
+            }
+        },
     });
 }

@@ -1,6 +1,13 @@
 import { PackageId } from "@destack/package";
 import { Subject } from "@destack/sync";
-import { type AccessContext, Attribute, Caller, isPrincipal, principal } from "@destack/access";
+import {
+    type AccessContext,
+    Attribute,
+    Caller,
+    isPrincipal,
+    principal,
+    type Standing,
+} from "@destack/access";
 import { type Identifier, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 import type { TokenIssuerAuthority } from "./token.ts";
@@ -9,6 +16,8 @@ import type { TokenIssuerAuthority } from "./token.ts";
 export const AUTHENTICATION_LIFETIME_MILLISECONDS = 60000;
 /** The maximum clock difference between the authority and the receiving service. */
 export const AUTHENTICATION_CLOCK_TOLERANCE_MILLISECONDS = 5000;
+/** The credential kind of an installation's key, which code running outside Destack signs with as its installation. */
+export const INSTALLATION_KEY = "installation-key";
 
 /** A workload identity authenticated within one deployment. */
 export const DeploymentClaim = schema.object({
@@ -49,6 +58,32 @@ export const AuthenticationClaims = Caller.schema.extend({
 
 /** The header with the authentication a host forwards to a runner. */
 export const AUTHENTICATION_HEADER = "x-destack-authentication";
+
+/** A request naming a principal its caller acts as, which the service lets it once the caller may `represent` it (RFC 8693's actor form). */
+export const Represented = {
+    /** The header naming the represented principal by its subject key. */
+    header: "destack-represent",
+
+    /** Wrap a fetch to send each request as a principal its caller represents. */
+    fetch(
+        fetch: (request: Request) => Promise<Response>,
+        subject: Subject,
+    ): (request: Request) => Promise<Response> {
+        return (request) => {
+            const named = new Request(request);
+            named.headers.set(Represented.header, Subject.key(subject));
+
+            return fetch(named);
+        };
+    },
+
+    /** Read the principal a request names, absent for none. */
+    read(request: Request): Subject | undefined {
+        const named = request.headers.get(Represented.header);
+
+        return named === null ? undefined : Subject.read(named);
+    },
+};
 
 /** A host-verified authentication of a caller, with its credential and lifetime. */
 export class Authentication<Credential extends CredentialReference = CredentialReference> {
@@ -153,30 +188,70 @@ export class Authentication<Credential extends CredentialReference = CredentialR
         };
     }
 
+    /** Act as the principal an object stands for, with this caller as its actor, keeping the credential and its lifetime. */
+    represent(standing: Standing): Authentication {
+        // act as the principal, with this caller as the actor
+        const { subjects, delegates = [], permissions } = Caller.represent(this.claims, standing);
+        const { credential, audience, verifiedAt, expiresAt, scope, attributes } = this.claims;
+
+        return new Authentication({
+            subject: standing.subject,
+            subjects: [...subjects],
+            delegates: [...delegates],
+            credential,
+            audience,
+            verifiedAt,
+            expiresAt,
+            ...(scope === undefined ? {} : { scope }),
+            ...(attributes === undefined ? {} : { attributes }),
+            ...(permissions === undefined ? {} : { permissions: [...permissions] }),
+        });
+    }
+
     /** Require identity claims within an issuer's authority. */
     requireAuthority(authority: TokenIssuerAuthority): void {
-        // collect every asserted identity
-        const claims = this.claims;
-        const subjects = [claims.subject, ...claims.subjects];
-
         // allow a space key to assert only installations of its space, calling any space
-        if (
-            authority.kind === "space" &&
-            ((claims.contacts ?? []).length > 0 ||
-                (claims.delegates ?? []).length > 0 ||
-                subjects.some(
-                    (subject) =>
-                        !principal.installation.is(subject) || subject.scope !== authority.spaceId,
-                ))
-        ) {
-            throw new ServiceError("UNAUTHORIZED", { message: "token exceeds issuer authority" });
+        const subjects = [this.claims.subject, ...this.claims.subjects];
+        if (authority.kind === "space") {
+            this.#requireSpaceInstallations(authority.spaceId, subjects);
         }
 
         // bind each asserted installation to one deployment
+        this.#requireDeployments(subjects);
+
+        // require an acyclic chain of single principals
+        this.#requireDelegation();
+    }
+
+    /** Require a space key's claims to assert installations of its space alone, with no contacts or delegates. */
+    #requireSpaceInstallations(spaceId: string, subjects: readonly Subject[]): void {
+        const claims = this.claims;
+        if (
+            (claims.contacts ?? []).length > 0 ||
+            (claims.delegates ?? []).length > 0 ||
+            subjects.some(
+                (subject) => !principal.installation.is(subject) || subject.scope !== spaceId,
+            )
+        ) {
+            throw new ServiceError("UNAUTHORIZED", { message: "token exceeds issuer authority" });
+        }
+    }
+
+    /** Require one deployment per asserted installation, except the subject its own key authenticated, and no other. */
+    #requireDeployments(subjects: readonly Subject[]): void {
+        // list the asserted installations a deployment binds
+        const claims = this.claims;
+        const isKeyed = claims.credential.kind === INSTALLATION_KEY;
         const workloads = [
             ...subjects,
             ...(claims.delegates ?? []).map((delegate) => delegate.subject),
-        ].filter((subject) => principal.installation.is(subject));
+        ].filter(
+            (subject) =>
+                principal.installation.is(subject) &&
+                !(isKeyed && Subject.same(subject, claims.subject)),
+        );
+
+        // bind each one to exactly one deployment
         const deployments = claims.deployments ?? [];
         for (const subject of workloads) {
             const matching = deployments.filter((deployment) =>
@@ -200,10 +275,12 @@ export class Authentication<Credential extends CredentialReference = CredentialR
                 message: "unexpected workload token identity",
             });
         }
+    }
 
-        // require an acyclic chain of single principals
-        const delegates = claims.delegates ?? [];
-        const chain = [claims.subject, ...delegates.map((delegate) => delegate.subject)];
+    /** Require an acyclic delegation chain of single principals, lending full authority only from its first user. */
+    #requireDelegation(): void {
+        const delegates = this.claims.delegates ?? [];
+        const chain = [this.claims.subject, ...delegates.map((delegate) => delegate.subject)];
         if (
             delegates.some(
                 (delegate, position) =>
