@@ -6,7 +6,7 @@ export const scopeTable = defineTable(
     "scope",
     {
         /** The scope of the record and the scope object's identifier. */
-        scope: text("scope").primaryKey().notNull(),
+        scope: text("scope").primaryKey(),
         /** The scope containing this one, the universe for users and organisations. */
         parent: text("parent").notNull(),
         /** The enclosing scopes nearest first, as far as this row's own database knew them when recording it. */

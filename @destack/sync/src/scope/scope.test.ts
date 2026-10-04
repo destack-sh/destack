@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { Snapshot } from "@destack/db/log";
+import { Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { open } from "../test/fixture.ts";
 import { Scope } from "./scope.ts";

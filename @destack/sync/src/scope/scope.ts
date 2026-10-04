@@ -1,7 +1,5 @@
-import { eq, sql, type DatabaseConnection } from "@destack/db";
-import type { Snapshot } from "@destack/db/log";
+import { eq, sql, type DatabaseConnection, type RowImage, type Snapshot } from "@destack/db";
 import type {} from "@destack/package/import-meta";
-import type { Identifier } from "@destack/schema";
 import { SyncError } from "../error/index.ts";
 import type { ObjectReference } from "./reference.ts";
 import { scopeTable } from "./table.ts";
@@ -52,13 +50,13 @@ export interface ScopeLink {
 /** Read a scope and the scopes enclosing it, nearest first. */
 async function chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
     // read the scope's row, then its ancestors' rows by key
-    const rows = new Map<string, ScopeRow>();
+    const rows = new Map<string, RowImage<typeof scopeTable>>();
     for (let wanted = [scope]; wanted.length > 0;) {
-        const read = (await snapshot.select(
+        const read = await snapshot.select(
             scopeTable,
             ["scope"],
             wanted.map((id) => [id]),
-        )) as ScopeRow[];
+        );
         for (const row of read) {
             rows.set(row.scope, row);
         }
@@ -70,8 +68,9 @@ async function chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
     // order them from the scope up
     const links: ScopeLink[] = [];
     for (let current = rows.get(scope); current !== undefined;) {
-        if (links.some((link) => link.object.id === current!.scope)) {
-            throw new SyncError("INVALID_SCOPE", `cyclic scope: ${current.scope}`);
+        const id = current.scope;
+        if (links.some((link) => link.object.id === id)) {
+            throw new SyncError("INVALID_SCOPE", `cyclic scope: ${id}`);
         }
         links.push({
             object: {
@@ -103,7 +102,7 @@ async function object(snapshot: Snapshot, id: string): Promise<ObjectReference> 
     return link.object;
 }
 
-/** Send a scope's writes to another cell once the writes guarding it commit; the scopes below it follow. */
+/** Send a scope and the scopes below it to another cell once the writes guarding it commit. */
 async function fence(
     database: DatabaseConnection,
     scope: string,
@@ -111,7 +110,7 @@ async function fence(
     now: number,
 ): Promise<void> {
     await database.transaction(async (transaction) => {
-        // wait for the writes holding the guard
+        // wait for the writes with the guard
         await lock(transaction, scope, "exclusive");
 
         // mark the scope moved
@@ -128,13 +127,13 @@ async function fence(
 
 /** Keep a write's scopes unfenced until it commits. */
 async function guard(database: DatabaseConnection, scopes: readonly string[]): Promise<void> {
-    // lock every scope but the universe, which never moves
+    // lock every scope but the universe
     for (const scope of scopes.filter((id) => id !== UNIVERSE_ID)) {
         await lock(database, scope, "shared");
     }
 }
 
-/** Take a scope's fence lock for the transaction; SQLite serializes writes already. */
+/** Take a scope's fence lock for the transaction, a no-op on SQLite's serialized writes. */
 async function lock(
     database: DatabaseConnection,
     scope: string,
@@ -150,28 +149,10 @@ async function lock(
     }
 }
 
-/** Lift a scope's fence on the database now holding it. */
+/** Lift a scope's fence on the database now keeping it. */
 async function unfence(database: DatabaseConnection, scope: string): Promise<void> {
     await database
         .update(scopeTable)
         .set({ fencedAt: null, movedTo: null })
         .where(eq(scopeTable.scope, scope));
 }
-
-/** A scope row as a snapshot reads it. */
-type ScopeRow = {
-    /** The scope. */
-    readonly scope: string;
-    /** The containing scope. */
-    readonly parent: string;
-    /** The containing scopes the row lists, nearest first. */
-    readonly ancestors: readonly string[];
-    /** The package declaring the scope object's type. */
-    readonly packageId: Identifier<"package">;
-    /** The scope object's type. */
-    readonly type: string;
-    /** When the scope was suspended. */
-    readonly suspendedAt: number | string | null;
-    /** The cell a fenced scope's database moves to. */
-    readonly movedTo: string | null;
-};

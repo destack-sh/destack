@@ -1,14 +1,32 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { asc, binary, blob, defineTable, eq, TABLE, text, type Row, type Table } from "@destack/db";
+import {
+    and,
+    asc,
+    binary,
+    blob,
+    defineTable,
+    eq,
+    inArray,
+    integer,
+    Key,
+    TABLE,
+    text,
+    uniqueIndex,
+    type Row,
+    type Table,
+    type LogPosition,
+} from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
+import type { BlobStore } from "@destack/db/blob";
 import { LocalBlobStore } from "@destack/db/blob/local";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
-import { replicaTables, Replica, replica } from "./replica.ts";
+import { schema } from "@destack/schema";
+import { replicaTables, Replica, replica, type Projector } from "./replica.ts";
 import {
     asset,
     first,
@@ -16,13 +34,14 @@ import {
     open,
     openCopy,
     project,
+    relations,
     replicate,
     tag,
     task,
+    TABLES,
 } from "../test/fixture.ts";
-import type { Query } from "../query/query.ts";
-import type { QueryPage } from "../query/page.ts";
-import type { LogPosition } from "@destack/db/log";
+import type { AggregateRow, Query } from "../query/query.ts";
+import type { Page } from "../query/page.ts";
 import { PAGE_ROWS } from "../dataflow/selection.ts";
 import { SyncError } from "../error/error.ts";
 
@@ -42,11 +61,11 @@ test.for(TEST_DIALECTS)(
         await source.insert(note).values([first, { ...first, id: "b", scope: "archive" }]);
         await copy.insert(note).values({ ...first, id: "stale" });
 
-        // follow until the copy holds the renamed note
+        // follow until the copy has the renamed note
         const controller = new AbortController();
         const following = notes.follow(
             copy,
-            (after, signal) => feed.subscribe(notes.queries, after, signal),
+            (from, signal) => feed.subscribe(notes.queries, from.after, signal),
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
@@ -57,7 +76,7 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await following;
 
-        // hold the renamed rows and prune the rest
+        // keep the renamed rows and prune the rest
         expect((await copy.select().from(note)).map((row) => [row.id, row.title])).toEqual([
             ["a", "Renamed"],
         ]);
@@ -76,7 +95,7 @@ test.for(TEST_DIALECTS)(
     "copy a whole database: follow its logged rows, then capture every column once its source stops writing, on %s",
     async (dialect) => {
         // keep entries of several scopes with sensitive and binary columns, an unlogged cache and a host-bound key
-        const tables = [entry, cache, heldKey, ...replicaTables];
+        const tables = [entry, cache, hostKey, ...replicaTables];
         const source = (await TestDatabase.create(dialect, tables, { isMigrated: true })).database;
         const target = (
             await TestDatabase.create(dialect, tables, { isMigrated: true, isReplica: true })
@@ -85,21 +104,21 @@ test.for(TEST_DIALECTS)(
             await source.close();
             await target.close();
         });
-        const copied = [entry, cache, heldKey];
+        const copied = [entry, cache, hostKey];
         const copy = new Replica({
             name: "database",
             scope: "database",
             tables: copied,
             everywhere: new Set(copied),
         });
-        const feed = new Feed(source, [entry, heldKey, replica]);
+        const feed = new Feed(source, [entry, hostKey, replica]);
         const data = new Uint8Array([1, 2, 3]);
         const stores = await mkdtemp(join(tmpdir(), "destack-replica-blobs-"));
         onTestFinished(() => rm(stores, { recursive: true, force: true }));
         const sourceBlobs = await LocalBlobStore.open(join(stores, "source"));
         const targetBlobs = await LocalBlobStore.open(join(stores, "target"));
         const digest = await sourceBlobs.write(bytesOf("the first entry's content"));
-        const blobs = { store: targetBlobs, source: sourceBlobs };
+        const blobs = { store: recorded(targetBlobs).store, source: sourceBlobs };
         await source.insert(entry).values({
             id: "a",
             scope: "inbox",
@@ -113,7 +132,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = copy.follow(
             target,
-            (after, signal) => feed.subscribe(copy.queries, after, signal),
+            (from, signal) => feed.subscribe(copy.queries, from.after, signal),
             controller.signal,
             { blobs },
         );
@@ -125,7 +144,7 @@ test.for(TEST_DIALECTS)(
             .insert(entry)
             .values({ id: "b", scope: "archive", title: "Second", secret: "s2", data });
         await source.insert(cache).values({ id: "c", value: "cached" });
-        await source.insert(heldKey).values({ id: "k", scope: "inbox", wrapped: "source:k" });
+        await source.insert(hostKey).values({ id: "k", scope: "inbox", wrapped: "source:k" });
         expect(await Replica.reach(target, "database", await source.log.position(), signal)).toBe(
             true,
         );
@@ -133,28 +152,23 @@ test.for(TEST_DIALECTS)(
         await following;
 
         // capture every column once the source stops writing, rewrapping the key for the target
-        const wrap = async (table: Table, row: Row) =>
-            table === heldKey
-                ? { ...row, wrapped: String(row.wrapped).replace("source:", "moving:") }
-                : row;
+        const wrap = async (table: Table, row: Row) => rewrapped(table, row, "source:", "moving:");
         const unwrap = async (table: Table, row: Row) =>
-            table === heldKey
-                ? { ...row, wrapped: String(row.wrapped).replace("moving:", "target:") }
-                : row;
-        for await (const _page of copy.apply(
-            target,
-            feed.capture(copy.captured, signal, { rewrap: wrap }),
-            { unwrap, blobs },
-        )) {
+            rewrapped(table, row, "moving:", "target:");
+        const applied = copy.apply(target, feed.capture(copy.captured, signal, { rewrap: wrap }), {
+            unwrap,
+            blobs,
+        });
+        while ((await applied.next()).done !== true) {
             // apply each captured page
         }
         await copy.promote(target);
 
-        // hold exactly the source's rows, the key rewrapped for the target
+        // keep exactly the source's rows with the key rewrapped for the target
         const read = async (database: typeof source) => [
             await database.select().from(entry).orderBy(asc(entry.id)),
             await database.select().from(cache),
-            await database.select().from(heldKey),
+            await database.select().from(hostKey),
         ];
         expect(await read(target)).toEqual([
             (await read(source))[0],
@@ -185,7 +199,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = projects.follow(
             copy,
-            (after, signal) => feed.subscribe(projects.queries, after, signal),
+            (from, signal) => feed.subscribe(projects.queries, from.after, signal),
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
@@ -194,7 +208,7 @@ test.for(TEST_DIALECTS)(
         await following;
         const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
 
-        // hold a position per shape
+        // keep a position per shape
         expect([await projects.position(copy), await work.position(copy)]).toEqual([
             await source.log.position(),
             undefined,
@@ -203,7 +217,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "reach a position only through a copy that holds it on %s",
+    "reach a position only through a copy that has it on %s",
     async (dialect) => {
         const copy = await openCopy(dialect);
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
@@ -246,26 +260,21 @@ test.for(TEST_DIALECTS)(
         const copy = await openCopy(dialect);
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const epoch = "01996ab0-0000-7000-8000-000000000001";
-        const insert = (id: string) => ({
-            table: note[TABLE].sqlName,
-            operation: "insert" as const,
-            row: note.encode({ ...first, id }),
-        });
-        const snapshot: QueryPage[] = [
+        const snapshot: Page[] = [
             {
                 reset: true,
                 complete: false,
-                changes: [insert("a")],
+                changes: [insertOf("a")],
                 position: { epoch, sequence: 3 },
             },
             {
                 reset: false,
                 complete: true,
-                changes: [insert("b")],
+                changes: [insertOf("b")],
                 position: { epoch, sequence: 4 },
             },
         ];
-        const held = async () => [
+        const state = async () => [
             (await copy.select({ id: note.id }).from(note).orderBy(asc(note.id))).map(
                 (row) => row.id,
             ),
@@ -279,7 +288,7 @@ test.for(TEST_DIALECTS)(
         // keep the copy while a run is staged
         const stream = notes.apply(copy, snapshot);
         await stream.next();
-        expect(await held()).toEqual([["b", "stale"], undefined]);
+        expect(await state()).toEqual([["b", "stale"], undefined]);
 
         // drop a broken stream's staged run
         await stream.return(undefined);
@@ -287,52 +296,41 @@ test.for(TEST_DIALECTS)(
             {
                 reset: false,
                 complete: true,
-                changes: [insert("c")],
+                changes: [insertOf("c")],
                 position: { epoch, sequence: 2 },
             },
         ]);
-        expect(await held()).toEqual([["b", "c", "stale"], { epoch, sequence: 2 }]);
+        expect(await state()).toEqual([["b", "c", "stale"], { epoch, sequence: 2 }]);
 
         // apply the snapshot and prune the left out rows
         await replicate(notes, copy, snapshot);
-        expect(await held()).toEqual([["a", "b"], { epoch, sequence: 4 }]);
+        expect(await state()).toEqual([["a", "b"], { epoch, sequence: 4 }]);
     },
 );
 
 test.for(TEST_DIALECTS)(
-    "nest each held row's measures, whole or per group, in the rows a copy reads on %s",
+    "nest each kept row's measures, whole or per group, in the rows a copy reads on %s",
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
         const feed = new Feed(source, [project, task, replica]);
         const projects = new Replica({ name: "projects", scope: "inbox", tables: [project, task] });
-        const tasks = (projectId: string, state: string, rank: number) => ({
-            id: `${projectId}-${state}-${rank}`,
-            scope: "inbox",
-            projectId,
-            state,
-            rank,
-            points: rank * 2,
-            title: null,
-            isSecret: false,
-        });
         await source.insert(project).values([
             { id: "p", scope: "inbox", name: "Plans" },
             { id: "q", scope: "inbox", name: "Quiet" },
         ]);
         await source
             .insert(task)
-            .values([tasks("p", "open", 1), tasks("p", "open", 4), tasks("p", "done", 2)]);
+            .values([taskOf("p", "open", 1), taskOf("p", "open", 4), taskOf("p", "done", 2)]);
 
         // count tasks per project and state
         const query: Query = {
             table: project,
             scopes: ["inbox"],
-            order: [{ column: "name", direction: "asc" }],
-            include: {
+            relations,
+            orderBy: { name: "asc" },
+            with: {
                 size: {
-                    table: task,
-                    on: { kind: "key", column: "projectId", parent: "id" },
                     aggregate: {
                         values: {
                             tasks: { function: "count" },
@@ -341,8 +339,6 @@ test.for(TEST_DIALECTS)(
                     },
                 },
                 states: {
-                    table: task,
-                    on: { kind: "key", column: "projectId", parent: "id" },
                     aggregate: {
                         groupBy: ["state"],
                         values: { points: { function: "sum", column: "points" } },
@@ -353,7 +349,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = projects.follow(
             copy,
-            (after, signal) => feed.subscribe({ projects: query }, after, signal),
+            (from, signal) => feed.subscribe({ projects: query }, from.after, signal),
             controller.signal,
         );
         expect(
@@ -371,42 +367,40 @@ test.for(TEST_DIALECTS)(
         const { scopes: _routes, ...local } = query;
         const read = await projects.rows(copy, "projects", local);
         expect(
-            read.map((row) => [
-                row.name,
-                row.size,
-                (row.states as { group: unknown }[]).toSorted((left, right) =>
-                    JSON.stringify(left.group) < JSON.stringify(right.group) ? -1 : 1,
-                ),
+            read.map((item) => [
+                item.row["name"],
+                item.measures["size"],
+                byGroup(item.measures["states"] ?? []),
             ]),
         ).toEqual([
             [
                 "Plans",
-                { tasks: 3, top: 4 },
+                [{ group: {}, values: { tasks: 3, top: 4 } }],
                 [
                     { group: { state: "done" }, values: { points: 4 } },
                     { group: { state: "open" }, values: { points: 10 } },
                 ],
             ],
-            ["Quiet", { tasks: 0, top: null }, []],
+            ["Quiet", [{ group: {}, values: { tasks: 0, top: null } }], []],
         ]);
     },
 );
 
 test.for(TEST_DIALECTS)(
-    "copy a table whose required column the log leaves out, holding nothing for it, on %s",
+    "copy a table's binary column and keep nothing for a required column the log leaves out, on %s",
     async (dialect) => {
-        // follow an asset with binary content outside the log
+        // follow an asset with binary content and a secret outside the log
         const source = await open(dialect, [asset, ...replicaTables]);
         const copy = await openCopy(dialect, [asset, ...replicaTables]);
         const feed = new Feed(source, [asset, replica]);
         const assets = new Replica({ name: "assets", scope: "inbox", tables: [asset] });
         await source
             .insert(asset)
-            .values({ id: "a", scope: "inbox", content: new Uint8Array([1]) });
+            .values({ id: "a", scope: "inbox", content: new Uint8Array([1]), secret: "key" });
         const controller = new AbortController();
         const following = assets.follow(
             copy,
-            (after, signal) => feed.subscribe(assets.queries, after, signal),
+            (from, signal) => feed.subscribe(assets.queries, from.after, signal),
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
@@ -414,9 +408,9 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await following;
 
-        // hold the row without its content
+        // keep the row with its content and without its secret
         expect(await copy.select().from(asset)).toEqual([
-            { id: "a", scope: "inbox", content: null },
+            { id: "a", scope: "inbox", content: new Uint8Array([1]), secret: null },
         ]);
     },
 );
@@ -436,7 +430,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = notes.follow(
             copy,
-            async function* (after, signal) {
+            async function* ({ after }, signal) {
                 requested.push(after);
                 const isEnding = requested.length <= 2;
                 if (requested.length === 3) {
@@ -461,7 +455,7 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await following;
 
-        // resume from the snapshot's position and hold the renamed note
+        // resume from the snapshot's position and keep the renamed note
         expect({
             requested,
             notes: (await copy.select().from(note)).map((row) => [row.id, row.title]),
@@ -523,7 +517,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = notes.follow(
             copy,
-            async function* (after, signal) {
+            async function* ({ after }, signal) {
                 requested.push(after);
                 const stream = requested.length;
                 const drain = new AbortController();
@@ -568,16 +562,11 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const copy = await openCopy(dialect);
         const epoch = "01996ab0-0000-7000-8000-000000000001";
-        const insert = (id: string) => ({
-            table: note[TABLE].sqlName,
-            operation: "insert" as const,
-            row: note.encode({ ...first, id }),
-        });
-        const snapshot = (sequence: number, ids: readonly string[]): QueryPage[] => [
+        const snapshot = (sequence: number, ids: readonly string[]): Page[] => [
             {
                 reset: true,
                 complete: true,
-                changes: ids.map(insert),
+                changes: ids.map((id) => insertOf(id)),
                 position: { epoch, sequence },
             },
         ];
@@ -615,6 +604,44 @@ test.for(TEST_DIALECTS)(
             ["a", "shared", "z"],
             ["a", "z"],
         ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "drop a copy: delete the rows no other copy includes, retract its projections and forget its record, on %s",
+    async (dialect) => {
+        const copy = await openCopy(dialect, [...TABLES, reading]);
+        const epoch = "01996ab0-0000-7000-8000-000000000001";
+        const snapshot = (ids: readonly string[]): Page[] => [
+            {
+                reset: true,
+                complete: true,
+                changes: ids.map((id) => insertOf(id)),
+                position: { epoch, sequence: 1 },
+            },
+        ];
+        // keep a shared row in two copies and project the left copy's notes
+        const left = new Replica({
+            name: "left",
+            scope: "inbox",
+            tables: [note],
+            projectors: [projectNotes("reading")],
+        });
+        const right = new Replica({ name: "right", scope: "inbox", tables: [note] });
+        await left.register(copy, subscriptionOf("left"));
+        await right.register(copy, subscriptionOf("right"));
+        await replicate(left, copy, snapshot(["a", "shared"]));
+        await replicate(right, copy, snapshot(["shared", "z"]));
+
+        // drop the left copy and keep the right copy's rows and record
+        await left.drop(copy);
+        expect([
+            (await copy.select({ id: note.id }).from(note).orderBy(asc(note.id))).map(
+                (row) => row.id,
+            ),
+            await copy.select({ id: reading.id }).from(reading),
+            await Replica.subscriptions(copy),
+        ]).toEqual([["shared", "z"], [], [subscriptionOf("right")]]);
     },
 );
 
@@ -663,9 +690,8 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = work.follow(
             copy,
-            (after, stream) => feed.subscribe(work.queries, after, stream),
+            (from, stream) => feed.subscribe(work.queries, from.after, stream),
             controller.signal,
-            { request: 1 },
         );
         expect(await tags()).toEqual([
             ["g1", "p1"],
@@ -697,9 +723,8 @@ test.for(TEST_DIALECTS)(
         const again = new AbortController();
         const snapshotting = work.follow(
             copy,
-            (after, stream) => feed.subscribe(work.queries, after, stream),
+            (_from, stream) => feed.subscribe(work.queries, undefined, stream),
             again.signal,
-            { request: 2 },
         );
         expect(await tags()).toEqual([
             ["g5", "p2"],
@@ -719,7 +744,7 @@ test.for(TEST_DIALECTS)(
             sequence: number,
             summary: string | null,
             concealed: string[],
-        ): QueryPage[] => [
+        ): Page[] => [
             {
                 reset: true,
                 complete: true,
@@ -727,34 +752,100 @@ test.for(TEST_DIALECTS)(
                     {
                         table: note[TABLE].sqlName,
                         operation: "insert" as const,
-                        row: note.encode({ ...first, summary }),
+                        row: note[TABLE].encode({ ...first, summary }),
                         ...(concealed.length === 0 ? {} : { concealed }),
                     },
                 ],
                 position: { epoch, sequence },
             },
         ];
-        const empty = (sequence: number): QueryPage[] => [
+        const empty = (sequence: number): Page[] => [
             { reset: true, complete: true, changes: [], position: { epoch, sequence } },
         ];
         const summary = async () =>
             (await copy.select({ summary: note.summary }).from(note)).map((row) => row.summary);
-        const open = new Replica({ name: "open", scope: "inbox", tables: [note] });
+        const shown = new Replica({ name: "open", scope: "inbox", tables: [note] });
         const closed = new Replica({ name: "closed", scope: "inbox", tables: [note] });
 
         // show the summary through one copy, and keep it as the other hides it
         const stored = [];
         await replicate(closed, copy, snapshot(1, null, ["summary"]));
         stored.push(await summary());
-        await replicate(open, copy, snapshot(1, "Plan", []));
+        await replicate(shown, copy, snapshot(1, "Plan", []));
         stored.push(await summary());
         await replicate(closed, copy, snapshot(2, null, ["summary"]));
         stored.push(await summary());
 
         // clear the summary once the copy showing it leaves the row to the one hiding it
-        await replicate(open, copy, empty(2));
+        await replicate(shown, copy, empty(2));
         stored.push(await summary());
         expect(stored).toEqual([[null], ["Plan"], ["Plan"], [null]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "retire the blobs of the rows a copy deletes, replaces or drops, holding fetched blobs until their rows commit, on %s",
+    async (dialect) => {
+        // keep two entries with content in the source
+        const tables = [entry, ...replicaTables];
+        const source = (await TestDatabase.create(dialect, tables, { isMigrated: true })).database;
+        const target = (
+            await TestDatabase.create(dialect, tables, { isMigrated: true, isReplica: true })
+        ).database;
+        onTestFinished(async () => {
+            await source.close();
+            await target.close();
+        });
+        const copy = new Replica({
+            name: "database",
+            scope: "database",
+            tables: [entry],
+            everywhere: new Set([entry]),
+        });
+        const feed = new Feed(source, [entry, replica]);
+        const stores = await mkdtemp(join(tmpdir(), "destack-replica-retire-"));
+        onTestFinished(() => rm(stores, { recursive: true, force: true }));
+        const sourceBlobs = await LocalBlobStore.open(join(stores, "source"));
+        const kept = recorded(await LocalBlobStore.open(join(stores, "target")));
+        const blobs = { store: kept.store, source: sourceBlobs };
+        const [firstContent, secondContent, thirdContent] = await Promise.all(
+            ["first", "second", "third"].map((content) => sourceBlobs.write(bytesOf(content))),
+        );
+        const row = { scope: "inbox", title: "Entry", secret: null, data: null };
+        await source.insert(entry).values([
+            { ...row, id: "a", content: firstContent },
+            { ...row, id: "b", content: secondContent },
+        ]);
+        const capture = async () => {
+            const signal = AbortSignal.timeout(5000);
+            await Array.fromAsync(
+                copy.apply(target, feed.capture(copy.captured, signal), { blobs }),
+            );
+        };
+
+        // copy both entries before replacing one's content and deleting the other
+        await capture();
+        const copied = kept.retired.length;
+        await source.update(entry).set({ content: thirdContent }).where(eq(entry.id, "a"));
+        await source.delete(entry).where(eq(entry.id, "b"));
+        await capture();
+        const changed = kept.retired.splice(0);
+
+        // drop the copy with its remaining entry
+        await copy.drop(target, kept.store);
+        expect({
+            copied,
+            changed,
+            dropped: kept.retired,
+            fetched: [...new Set(kept.holds)],
+            released: kept.held(),
+        }).toEqual({
+            copied: 0,
+            changed: [firstContent, secondContent],
+            dropped: [thirdContent],
+            fetched: [1],
+            released: 0,
+        });
     },
 );
 
@@ -778,9 +869,9 @@ const cache = defineTable("cache", {
     value: text("value").notNull(),
 });
 
-/** A key wrapped under the holding host's root key. */
-const heldKey = defineTable(
-    "held_key",
+/** A key wrapped under the root key of the host that keeps it. */
+const hostKey = defineTable(
+    "host_key",
     {
         id: text("id").primaryKey(),
         scope: text("scope").notNull(),
@@ -789,7 +880,280 @@ const heldKey = defineTable(
     { log: {} },
 );
 
-/** Stream a text's bytes. */
-async function* bytesOf(text: string): AsyncIterable<Uint8Array> {
-    yield new TextEncoder().encode(text);
+/** Keep blobs in a directory as a collected store, recording its holds at each fetch and the blobs writers retire, deleting none. */
+function recorded(blobs: LocalBlobStore) {
+    const retired: string[] = [];
+    const holds: number[] = [];
+    let held = 0;
+    const store: BlobStore = {
+        missing: (digests) => blobs.missing(digests),
+        read: (digest) => blobs.read(digest),
+        write: (body, expected) => blobs.write(body, expected),
+        fetch: (digests, source) => {
+            holds.push(held);
+
+            return blobs.fetch(digests, source);
+        },
+        hold: async () => {
+            held += 1;
+
+            return {
+                [Symbol.asyncDispose]: async () => {
+                    held -= 1;
+                },
+            };
+        },
+        retire: async (digests) => {
+            retired.push(...digests);
+        },
+    };
+
+    return { store, retired, holds, held: () => held };
 }
+
+/** Stream a text's bytes. */
+async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
+    yield new TextEncoder().encode(content);
+}
+
+/** Rewrap a host key row's wrapped value from one host to another. */
+function rewrapped(table: Table, row: Row, from: string, to: string): Row {
+    // leave rows of other tables
+    if (table !== hostKey) {
+        return row;
+    }
+
+    // replace the host prefix of the wrapped value
+    const wrapped = row["wrapped"];
+    if (typeof wrapped !== "string") {
+        throw new TypeError("a host key row has no wrapped value");
+    }
+
+    return { ...row, wrapped: wrapped.replace(from, to) };
+}
+
+/** Build the change inserting a note. */
+function insertOf(id: string) {
+    return {
+        table: note[TABLE].sqlName,
+        operation: "insert" as const,
+        row: note[TABLE].encode({ ...first, id }),
+    };
+}
+
+/** Build the subscription a named copy of the inbox follows. */
+function subscriptionOf(name: string) {
+    return { name, shape: "notes", scope: "inbox", below: "reader", parameters: {} };
+}
+
+/** Build a task of a project in a state. */
+function taskOf(projectId: string, state: string, rank: number) {
+    return {
+        id: `${projectId}-${state}-${rank}`,
+        scope: "inbox",
+        projectId,
+        state,
+        rank,
+        points: rank * 2,
+        title: null,
+        isSecret: false,
+    };
+}
+
+/** Sort an item's groups by their group values. */
+function byGroup(groups: readonly AggregateRow[]): AggregateRow[] {
+    return groups.toSorted((left, right) =>
+        JSON.stringify(left.group) < JSON.stringify(right.group) ? -1 : 1,
+    );
+}
+
+test("resume a subscription from the copy's position, reshape one of other parameters from those the copy reflects, and snapshot another", async () => {
+    const copy = await openCopy("sqlite");
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const subscription = {
+        name: "notes",
+        shape: "queries",
+        scope: "inbox",
+        below: "inbox",
+        parameters: { queries: { open: { object: "note" } } },
+    };
+    const position = { epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
+
+    // complete a snapshot of the subscription
+    await notes.register(copy);
+    const snapshot: Page = { reset: true, complete: true, changes: [], position };
+    await Array.fromAsync(notes.apply(copy, [snapshot], { subscription }));
+
+    // resume it, reshape it under other parameters, and snapshot another shape or name
+    const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
+    expect([
+        await notes.resume(copy, { ...subscription, after: { ...position, sequence: 1 } }),
+        await notes.resume(copy, reshaped),
+        await notes.resume(copy, { ...subscription, shape: "chain" }),
+        await notes.resume(copy),
+    ]).toEqual([
+        { after: position },
+        { after: position, previous: subscription.parameters },
+        {},
+        { after: position },
+    ]);
+});
+
+/** Each note's entry in a reader's list, its own row projected from the note it names. */
+const reading = defineTable(
+    "reading",
+    {
+        /** The entry's own identity. */
+        id: text("id").primaryKey(),
+        /** The list keeping the reading. */
+        scope: text("scope").notNull(),
+        /** The scope of the projected note. */
+        sourceScope: text("source_scope").notNull(),
+        /** The projected note. */
+        sourceId: text("source_id").notNull(),
+        /** The note's title when last projected. */
+        title: text("title").notNull(),
+        /** When the reader read the note, the entry's own state. */
+        readAt: integer("read_at"),
+    },
+    {
+        constraints: (row) => [
+            uniqueIndex("reading_source").on(row.scope, row.sourceScope, row.sourceId),
+        ],
+    },
+);
+
+/** The note columns a projection reads. */
+const NoteProjection = schema.looseObject({
+    id: schema.string(),
+    scope: schema.string(),
+    title: schema.string(),
+});
+
+/** Project the notes of a scope into a reader's list, keeping each entry's own identity and state. */
+function projectNotes(list: string): Projector {
+    // match the entries of the list's projected notes
+    const named = (rows: readonly Row[]) =>
+        and(
+            eq(reading.scope, list),
+            inArray(
+                reading.sourceId,
+                rows.map((row) => schema.string().parse(row["id"])),
+            ),
+        );
+
+    return {
+        source: note,
+        write: async (transaction, _scope, kept, removed) => {
+            for (const row of kept) {
+                const { id, scope, title } = NoteProjection.parse(row);
+                await transaction
+                    .insert(reading)
+                    .values({
+                        id: `entry-${id}`,
+                        scope: list,
+                        sourceScope: scope,
+                        sourceId: id,
+                        title,
+                        readAt: null,
+                    })
+                    .onConflictDoUpdate({
+                        target: [reading.scope, reading.sourceScope, reading.sourceId],
+                        set: { title },
+                    });
+            }
+            if (removed.length > 0) {
+                await transaction.delete(reading).where(named(removed));
+            }
+        },
+        prune: async (transaction, scope, delivered) => {
+            const entries = await transaction
+                .select()
+                .from(reading)
+                .where(and(eq(reading.scope, list), eq(reading.sourceScope, scope)));
+            const stale = entries.filter(
+                (row) => !delivered.has(Key.name(note, { id: row.sourceId })),
+            );
+            if (stale.length > 0) {
+                await transaction.delete(reading).where(
+                    inArray(
+                        reading.id,
+                        stale.map((row) => row.id),
+                    ),
+                );
+            }
+        },
+    };
+}
+
+test.for(TEST_DIALECTS)(
+    "project a scope's notes into a reader's list, keeping each entry's own state, retracting a deleted note's entry and those a later snapshot leaves out, on %s",
+    async (dialect) => {
+        const source = await open(dialect);
+        const copy = await openCopy(dialect, [...TABLES, reading]);
+        const feed = new Feed(source, [note, replica]);
+        const notes = new Replica({
+            name: "notes",
+            scope: "inbox",
+            tables: [],
+            projectors: [projectNotes("reading")],
+        });
+        await source.insert(note).values([first, { ...first, id: "b", title: "Second" }]);
+        const entries = async () =>
+            (await copy.select().from(reading).orderBy(asc(reading.sourceId))).map((row) => [
+                row.id,
+                row.sourceId,
+                row.title,
+                row.readAt,
+            ]);
+        const follow = (from: (resumed: LogPosition | undefined) => LogPosition | undefined) => {
+            const controller = new AbortController();
+            const following = notes.follow(
+                copy,
+                ({ after }, signal) =>
+                    feed.subscribe(
+                        { ...notes.queries, note: { table: note, scopes: ["inbox"] } },
+                        from(after),
+                        signal,
+                    ),
+                controller.signal,
+            );
+
+            return { stop: async () => (controller.abort(), await following) };
+        };
+        const reach = async () =>
+            expect(
+                await Replica.reach(
+                    copy,
+                    "inbox",
+                    await source.log.position(),
+                    AbortSignal.timeout(5000),
+                ),
+            ).toBe(true);
+
+        // project both notes and keep the entry's state across a retitle
+        const following = follow((after) => after);
+        await reach();
+        await copy.update(reading).set({ readAt: 7 }).where(eq(reading.sourceId, "a"));
+        await source.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+        await reach();
+        expect(await entries()).toEqual([
+            ["entry-a", "a", "Renamed", 7],
+            ["entry-b", "b", "Second", null],
+        ]);
+
+        // retract a deleted note's entry
+        await source.delete(note).where(eq(note.id, "b"));
+        await reach();
+        expect(await entries()).toEqual([["entry-a", "a", "Renamed", 7]]);
+        await following.stop();
+
+        // retract the entries a later snapshot leaves out
+        await source.delete(note).where(eq(note.id, "a"));
+        await source.insert(note).values({ ...first, id: "c", title: "Third" });
+        const snapshotting = follow(() => undefined);
+        await reach();
+        expect(await entries()).toEqual([["entry-c", "c", "Third", null]]);
+        await snapshotting.stop();
+    },
+);
