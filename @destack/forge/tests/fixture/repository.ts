@@ -12,7 +12,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { aligned, type Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { Scope } from "@destack/sync";
-import { Authentication, Representation } from "@destack/service/authentication";
+import { Authentication, Represented } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
 import { connect } from "../../src/client/index.ts";
@@ -226,7 +226,7 @@ export class RepositoryFixture {
         return connect({
             url: ORIGIN,
             headers: { "x-host": host },
-            fetch: Representation.fetch(
+            fetch: Represented.fetch(
                 (request) => this.http.fetch(request),
                 principal.space.reference(Scope.universe.id, space),
             ),
