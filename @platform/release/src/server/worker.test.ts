@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-test("serve isolated release feeds through the actual Worker and reject public writes", async () => {
+test("serve isolated release feeds through the actual Worker, root files from nightly until stable has them, and reject public writes", async () => {
     // compile the deployed entrypoint for the real local Workers runtime
     const directory = await mkdtemp(join(tmpdir(), "destack-download-"));
     const result = await Bun.build({
@@ -44,6 +44,11 @@ test("serve isolated release feeds through the actual Worker and reject public w
         const preview = await runtime.dispatchFetch("https://download.destack.sh/nightly/install");
         expect([preview.status, await preview.text()]).toEqual([200, "nightly installer"]);
 
+        // serve the nightly catalog at the root while stable has none
+        await nightly.put("nightly/downloads.json", "nightly catalog");
+        const catalog = await runtime.dispatchFetch("https://download.destack.sh/downloads.json");
+        expect([catalog.status, await catalog.text()]).toEqual([200, "nightly catalog"]);
+
         // stream complete artifacts and expose matching metadata without sending a HEAD body
         const artifact = await runtime.dispatchFetch(
             `https://download.destack.sh/${path}?verify=1`,
@@ -77,7 +82,7 @@ test("serve isolated release feeds through the actual Worker and reject public w
             "method not allowed",
             "GET, HEAD",
         ]);
-        expect(await (await stable.get(path))!.text()).toBe("complete artifact");
+        expect(await (await stable.get(path))?.text()).toBe("complete artifact");
     } finally {
         await runtime.dispose();
         await rm(directory, { recursive: true, force: true });

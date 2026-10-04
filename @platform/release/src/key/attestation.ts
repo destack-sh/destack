@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "../distribution/command.ts";
+import { print } from "../output/index.ts";
 
 /** Verify an enrolled public key against Yubico's published PIV certificate authority. */
 async function verifyAttestation(directory: string): Promise<void> {
@@ -26,7 +27,7 @@ async function verifyAttestation(directory: string): Promise<void> {
     if (!actual.equals(expected) || certificate.subject !== "CN=YubiKey PIV Attestation 9c") {
         throw new Error("manufacturer attestation does not identify the enrolled signature key");
     }
-    console.log(`verified manufacturer attestation for ${directory}`);
+    print(`verified manufacturer attestation for ${directory}`);
 }
 
 // require explicit public enrollment records without accessing hardware or credentials

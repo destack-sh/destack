@@ -3,10 +3,10 @@ import { Metadata, MetadataKind, Snapshot, Timestamp } from "@tufjs/models";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createRoot } from "../key/root.ts";
-import { SigningKey } from "../key/key.ts";
-import { createRepository, encode, renewMetadata } from "../repository/repository.ts";
 import { Renewal } from "./renewal.ts";
+import { parseDocument } from "../repository/document.ts";
+import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
+import { COMMIT } from "@destack/update/test";
 
 test("renew signed freshness without permitting target replacement or rollback", async () => {
     // generate independent authorization and a complete disposable repository
@@ -17,7 +17,7 @@ test("renew signed freshness without permitting target replacement or rollback",
         snapshot: SigningKey.generate(),
         timestamp: SigningKey.generate(),
     };
-    const root = createRoot(
+    const root = TrustedRoot.create(
         1,
         roots.map((key) => key.public),
         {
@@ -35,15 +35,15 @@ test("renew signed freshness without permitting target replacement or rollback",
         // retain exact current targets and timestamp as read from authoritative storage
         const archive = join(directory, "archive");
         await writeFile(archive, "release contents");
-        await createRepository(directory, 1, root, keys, [
-            { target: "x86_64-unknown-linux-gnu", version: "2026.9.1", archive },
+        await SignedRepository.create(directory, 1, root, keys, [
+            { target: "x86_64-unknown-linux-gnu", version: "2026.9.1", commit: COMMIT, archive },
         ]);
         const targets = await readFile(join(directory, "metadata/1.targets.json"));
         const previous = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            JSON.parse(await readFile(join(directory, "metadata/timestamp.json"), "utf8")),
+            parseDocument(await readFile(join(directory, "metadata/timestamp.json"), "utf8")),
         );
-        await renewMetadata(directory, 2, root, keys, targets);
+        await SignedRepository.renew(directory, 2, root, keys, targets);
         const snapshot = await readFile(join(directory, "metadata/2.snapshot.json"));
         const timestamp = await readFile(join(directory, "metadata/timestamp.json"));
 
@@ -53,7 +53,10 @@ test("renew signed freshness without permitting target replacement or rollback",
             snapshot,
             timestamp,
         });
-        const current = Metadata.fromJSON(MetadataKind.Timestamp, JSON.parse(timestamp.toString()));
+        const current = Metadata.fromJSON(
+            MetadataKind.Timestamp,
+            parseDocument(timestamp.toString()),
+        );
         expect(() => new Renewal(snapshot, timestamp, targets, current, root)).toThrow(
             "renewal revisions must increase",
         );
@@ -62,9 +65,16 @@ test("renew signed freshness without permitting target replacement or rollback",
         const unauthorized = new Metadata(Timestamp.fromJSON(current.signed.toJSON()));
         const stranger = SigningKey.generate();
         unauthorized.sign((bytes) => stranger.sign(bytes));
-        expect(() => new Renewal(snapshot, encode(unauthorized), targets, previous, root)).toThrow(
-            "timestamp was signed by 0/1 keys",
-        );
+        expect(
+            () =>
+                new Renewal(
+                    snapshot,
+                    SignedRepository.encode(unauthorized),
+                    targets,
+                    previous,
+                    root,
+                ),
+        ).toThrow("timestamp was signed by 0/1 keys");
 
         // permit freshness recovery from expired authoritative state without trusting expired targets
         const expired = new Metadata(
@@ -83,7 +93,10 @@ test("renew signed freshness without permitting target replacement or rollback",
         // reject a legitimately signed attempt to select another targets revision
         const changed = new Metadata(
             Snapshot.fromJSON({
-                ...JSON.parse(snapshot.toString()).signed,
+                ...Metadata.fromJSON(
+                    MetadataKind.Snapshot,
+                    parseDocument(snapshot.toString()),
+                ).signed.toJSON(),
                 meta: {
                     "targets.json": {
                         version: 42,
@@ -94,9 +107,9 @@ test("renew signed freshness without permitting target replacement or rollback",
             }),
         );
         changed.sign((bytes) => keys.snapshot.sign(bytes));
-        expect(() => new Renewal(encode(changed), timestamp, targets, previous, root)).toThrow(
-            "renewal must preserve the current targets document",
-        );
+        expect(
+            () => new Renewal(SignedRepository.encode(changed), timestamp, targets, previous, root),
+        ).toThrow("renewal must preserve the current targets document");
 
         // reject excessive validity even when the timestamp signing key authorizes it
         const extended = new Metadata(
@@ -106,9 +119,9 @@ test("renew signed freshness without permitting target replacement or rollback",
             }),
         );
         extended.sign((bytes) => keys.timestamp.sign(bytes));
-        expect(() => new Renewal(snapshot, encode(extended), targets, previous, root)).toThrow(
-            "renewal expiration exceeds its permitted lifetime",
-        );
+        expect(
+            () => new Renewal(snapshot, SignedRepository.encode(extended), targets, previous, root),
+        ).toThrow("renewal expiration exceeds its permitted lifetime");
     } finally {
         await rm(directory, { recursive: true, force: true });
     }

@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Key, Signature } from "@tufjs/models";
+import { schema } from "@destack/schema";
 import { Bitwarden } from "./bitwarden.ts";
 import { invokePiv } from "./piv.ts";
 
@@ -17,7 +18,7 @@ export class HardwareKey {
 
     /** Select an enrolled hardware key without accepting its PIN in application code. */
     constructor(key: Key, serial: string, module: string) {
-        if (key.keyType !== "rsa" || key.scheme !== "rsassa-pss-sha256" || !/^\d+$/.test(serial)) {
+        if (key.keyType !== "rsa" || key.scheme !== "rsassa-pss-sha256" || !/^\d+$/u.test(serial)) {
             throw new Error("hardware signing requires an RSA-PSS key and YubiKey serial number");
         }
         this.public = key;
@@ -33,27 +34,48 @@ export class HardwareKey {
         }
 
         // use the terminal's unlocked vault without printing or copying the signing PIN
-        if (process.env.BW_SESSION) {
-            const credential = Bitwarden.get(this.serial);
-            if (!credential) {
-                throw new Error("missing Bitwarden credentials for the selected YubiKey");
-            }
-            const result = invokePiv<{ signature: string }>({
+        const session = process.env["BW_SESSION"];
+        if (session !== undefined && session !== "") {
+            return this.signWithVault(bytes);
+        }
+        // retain interactive PIN entry for custodians who do not use Bitwarden
+        else {
+            return this.signWithPrompt(bytes);
+        }
+    }
+
+    /** Sign with the PIN of the key's Bitwarden credentials. */
+    private signWithVault(bytes: Buffer): Signature {
+        // read the PIN from the unlocked vault
+        const credential = Bitwarden.get(this.serial);
+        if (!credential) {
+            throw new Error("missing Bitwarden credentials for the selected YubiKey");
+        }
+
+        // pass it to the PIV tool through its private pipe
+        const result = invokePiv(
+            {
                 command: "sign",
                 serial: this.serial,
                 credential: { pin: credential.pin },
                 message: bytes.toString("base64"),
-            });
+            },
+            schema.object({ signature: schema.string() }),
+        );
 
-            return new Signature({ keyID: this.public.keyID, sig: result.signature });
-        }
+        return new Signature({ keyID: this.public.keyID, sig: result.signature });
+    }
 
-        // retain interactive PIN entry for custodians who do not use Bitwarden
+    /** Sign through pkcs11-tool, which prompts for the PIN in the terminal. */
+    private signWithPrompt(bytes: Buffer): Signature {
+        // write the message into a private temporary directory
         const directory = mkdtempSync(join(tmpdir(), "destack-root-sign-"));
         try {
             const input = join(directory, "root");
             const output = join(directory, "signature");
             writeFileSync(input, bytes, { mode: 0o600, flag: "wx" });
+
+            // sign with RSA-PSS in the PIV signature slot
             const result = spawnSync(
                 "pkcs11-tool",
                 [

@@ -15,9 +15,14 @@ export class ReleaseBucket {
     /** Require the selected environment's bucket-scoped S3 credentials. */
     constructor(configuration: RepositoryConfiguration) {
         // keep publication credentials separate from Cloudflare administration tokens
-        const accessKeyId = process.env.CLOUDFLARE_RELEASE_ACCESS_KEY_ID;
-        const secretAccessKey = process.env.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY;
-        if (!accessKeyId || !secretAccessKey) {
+        const accessKeyId = process.env["CLOUDFLARE_RELEASE_ACCESS_KEY_ID"];
+        const secretAccessKey = process.env["CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY"];
+        if (
+            accessKeyId === undefined ||
+            accessKeyId === "" ||
+            secretAccessKey === undefined ||
+            secretAccessKey === ""
+        ) {
             throw new Error("release bucket access key and secret access key are required");
         }
         this.client = new S3Client({
@@ -52,11 +57,12 @@ export class ReleaseBucket {
         if (response.status === 404) {
             return undefined;
         }
-        if (!response.ok || !response.headers.get("etag")) {
+        const etag = response.headers.get("etag");
+        if (!response.ok || etag === null || etag === "") {
             throw new Error(`cannot read release object revision: ${path} (${response.status})`);
         }
 
-        return response.headers.get("etag")!;
+        return etag;
     }
 
     /** Stream a file into a new object or replace the exact previously observed revision. */
@@ -72,7 +78,7 @@ export class ReleaseBucket {
             "content-type": type,
             "cache-control": immutable ? "public, max-age=31536000, immutable" : "no-store",
         });
-        headers.set(revision ? "if-match" : "if-none-match", revision ?? "*");
+        headers.set(revision === undefined ? "if-none-match" : "if-match", revision ?? "*");
         const url = this.client.presign(`${this.prefix}${path}`, { method: "PUT", expiresIn: 900 });
         const response = await fetch(url, {
             method: "PUT",

@@ -1,11 +1,17 @@
 import { readFile } from "node:fs/promises";
+import { ReleaseChannel } from "@destack/daemon/process";
 import { Metadata, MetadataKind, type Root } from "@tufjs/models";
-import { authenticateRoot } from "../key/root.ts";
+import { TrustedRoot } from "@destack/update/publish";
+import { CHANNELS, type Channel } from "@destack/update/release";
+import { parseDocument } from "./document.ts";
+
+/** The host names of loopback rehearsal servers, which may serve plain HTTP. */
+const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /** A selected publication destination and its embedded initial trust. */
 export class RepositoryConfiguration {
-    /** Stable or nightly release feed. */
-    readonly channel: "stable" | "nightly";
+    /** The channel whose repository this configuration selects. */
+    readonly channel: Channel;
     /** Public repository URL, including its feed directory. */
     readonly url: URL;
     /** Cloudflare account containing the release bucket. */
@@ -15,48 +21,29 @@ export class RepositoryConfiguration {
     /** S3 endpoint used for conditional uploads and authoritative reads. */
     readonly endpoint: URL;
 
-    /** Read the explicit feed and optional test publication destination. */
-    constructor() {
-        // require a feed for every signing and publication operation
-        const channel = process.env.DESTACK_RELEASE_CHANNEL;
-        if (channel !== "stable" && channel !== "nightly") {
+    /** Select a channel's repository, by default the environment's channel. */
+    constructor(name = process.env["DESTACK_RELEASE_CHANNEL"]) {
+        // require a channel for every signing and publication operation
+        const channel = CHANNELS.find((candidate) => candidate === name);
+        if (channel === undefined) {
             throw new Error("set DESTACK_RELEASE_CHANNEL to stable or nightly");
         }
         this.channel = channel;
-        this.url = new URL(
-            process.env.DESTACK_RELEASE_URL ?? `https://download.destack.sh/${channel}/`,
-        );
-        this.account = process.env.CLOUDFLARE_ACCOUNT_ID ?? "27c0d00fb3a27a4ccbf46a3cceab9301";
-        this.bucket = process.env.DESTACK_RELEASE_BUCKET ?? `destack-releases-${channel}`;
+        const origin = process.env["DESTACK_RELEASE_ORIGIN"];
+        this.url =
+            origin === undefined ? ReleaseChannel.of(channel).feed : new URL(`${channel}/`, origin);
+        this.account = process.env["CLOUDFLARE_ACCOUNT_ID"] ?? "27c0d00fb3a27a4ccbf46a3cceab9301";
+        this.bucket = process.env["DESTACK_RELEASE_BUCKET"] ?? `destack-releases-${channel}`;
         this.endpoint = new URL(
-            process.env.DESTACK_RELEASE_S3_URL ??
+            process.env["DESTACK_RELEASE_S3_URL"] ??
                 `https://${this.account}.r2.cloudflarestorage.com`,
         );
 
-        // allow loopback rehearsal servers while requiring encrypted remote storage
-        const isLocalStorage = ["localhost", "127.0.0.1", "[::1]"].includes(this.endpoint.hostname);
-        if (
-            (this.endpoint.protocol !== "https:" &&
-                !(isLocalStorage && this.endpoint.protocol === "http:")) ||
-            this.endpoint.username ||
-            this.endpoint.password ||
-            this.endpoint.search ||
-            this.endpoint.hash ||
-            this.endpoint.pathname !== "/"
-        ) {
+        // require encrypted remote storage and an unambiguous repository directory
+        if (!isClean(this.endpoint) || this.endpoint.pathname !== "/") {
             throw new Error("release storage requires a clean HTTPS origin");
         }
-
-        // reject ambiguous URL concatenation and insecure remote repositories
-        const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(this.url.hostname);
-        if (
-            (this.url.protocol !== "https:" && !(isLocal && this.url.protocol === "http:")) ||
-            !this.url.pathname.endsWith("/") ||
-            this.url.search ||
-            this.url.hash ||
-            this.url.username ||
-            this.url.password
-        ) {
+        if (!isClean(this.url) || !this.url.pathname.endsWith("/")) {
             throw new Error("release repository requires a clean HTTPS directory URL");
         }
     }
@@ -66,11 +53,28 @@ export class RepositoryConfiguration {
         // verify the complete initial quorum before using any online key
         const filename = this.channel === "stable" ? "root.json" : "nightly.json";
         const path =
-            process.env.DESTACK_RELEASE_ROOT ??
+            process.env["DESTACK_RELEASE_ROOT"] ??
             new URL(`../../../../@destack/cli/src/update/${filename}`, import.meta.url);
-        const root = Metadata.fromJSON(MetadataKind.Root, JSON.parse(await readFile(path, "utf8")));
-        authenticateRoot(root);
+        const root = Metadata.fromJSON(
+            MetadataKind.Root,
+            parseDocument(await readFile(path, "utf8")),
+        );
+        TrustedRoot.authenticate(root);
 
         return root;
     }
+}
+
+/** Report whether a URL uses HTTPS, or HTTP on loopback, without credentials, query or fragment. */
+function isClean(url: URL): boolean {
+    const isLoopback = LOOPBACK_HOSTS.has(url.hostname);
+    const isSecure = url.protocol === "https:" || (isLoopback && url.protocol === "http:");
+
+    return (
+        isSecure &&
+        url.username === "" &&
+        url.password === "" &&
+        url.search === "" &&
+        url.hash === ""
+    );
 }

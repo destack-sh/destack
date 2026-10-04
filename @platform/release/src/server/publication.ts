@@ -1,21 +1,48 @@
-import type { R2Bucket, R2ObjectBody } from "@cloudflare/workers-types";
 import { Metadata, MetadataKind, type Root } from "@tufjs/models";
 import { Renewal } from "./renewal.ts";
+import { parseDocument } from "../repository/document.ts";
 
 /** Maximum signed metadata document size, in bytes. */
 const METADATA_SIZE = 1024 * 1024;
 
+/** A stored metadata document as a publication reads it. */
+export interface StoredDocument {
+    /** The document's size in bytes. */
+    readonly size: number;
+    /** The document's entity tag. */
+    readonly etag: string;
+    /** Read the document's bytes. */
+    arrayBuffer(): Promise<ArrayBuffer>;
+    /** Read the document as text. */
+    text(): Promise<string>;
+}
+
+/** The bucket operations a publication needs: bounded reads and conditional writes, as R2 offers them. */
+export interface PublicationBucket {
+    /** Read a stored document, null when absent. */
+    get(key: string): Promise<StoredDocument | null>;
+    /** Write a document when its condition holds, null when it does not. */
+    put(
+        key: string,
+        value: Uint8Array,
+        options: {
+            readonly onlyIf: { readonly etagDoesNotMatch?: string; readonly etagMatches?: string };
+            readonly httpMetadata: { readonly contentType: string; readonly cacheControl: string };
+        },
+    ): Promise<object | null>;
+}
+
 /** Publication operations restricted to one release repository. */
 export class Publication {
     /** Bucket containing this repository's public objects. */
-    readonly bucket: R2Bucket;
+    readonly bucket: PublicationBucket;
     /** Object prefix matching the public release URL. */
     readonly prefix: string;
     /** Embedded initial root authorized by the offline quorum. */
     readonly root: Metadata<Root>;
 
     /** Select a repository without loading any signing credential. */
-    constructor(bucket: R2Bucket, prefix: string, root: Metadata<Root>) {
+    constructor(bucket: PublicationBucket, prefix: string, root: Metadata<Root>) {
         this.bucket = bucket;
         this.prefix = prefix;
         this.root = root;
@@ -28,7 +55,7 @@ export class Publication {
         const currentBytes = Buffer.from(await current.arrayBuffer());
         const previous = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            JSON.parse(currentBytes.toString()),
+            parseDocument(currentBytes.toString()),
         );
         const snapshotObject = await this.read(
             `metadata/${previous.signed.snapshotMeta.version}.snapshot.json`,
@@ -37,7 +64,7 @@ export class Publication {
         previous.signed.snapshotMeta.verify(snapshotBytes);
         const stored = Metadata.fromJSON(
             MetadataKind.Snapshot,
-            JSON.parse(snapshotBytes.toString()),
+            parseDocument(snapshotBytes.toString()),
         );
         const reference = stored.signed.meta["targets.json"];
         if (!reference || stored.signed.version !== previous.signed.snapshotMeta.version) {
@@ -50,7 +77,7 @@ export class Publication {
         reference.verify(targetBytes);
         const authorization = Metadata.fromJSON(
             MetadataKind.Targets,
-            JSON.parse(targetBytes.toString()),
+            parseDocument(targetBytes.toString()),
         );
         if (authorization.signed.version !== reference.version) {
             throw new Error("stored targets do not match the current snapshot");
@@ -64,7 +91,14 @@ export class Publication {
         }
         const renewal = new Renewal(snapshot, timestamp, targetBytes, previous, root);
 
-        // create an immutable snapshot without allowing conflicting content at the same revision
+        // create the immutable snapshot before selecting it through the timestamp
+        await this.createSnapshot(renewal);
+        await this.replaceTimestamp(renewal, current.etag);
+    }
+
+    /** Create the renewal's immutable snapshot without allowing conflicting content at the same revision. */
+    private async createSnapshot(renewal: Renewal): Promise<void> {
+        // write only when the revision is absent
         const snapshotKey = `${this.prefix}metadata/${renewal.revision}.snapshot.json`;
         const created = await this.bucket.put(snapshotKey, renewal.snapshot, {
             onlyIf: { etagDoesNotMatch: "*" },
@@ -73,19 +107,23 @@ export class Publication {
                 cacheControl: "public, max-age=31536000, immutable",
             },
         });
+
+        // accept an existing revision only with identical content
         if (!created) {
             const existing = await this.read(`metadata/${renewal.revision}.snapshot.json`);
             if (!Buffer.from(await existing.arrayBuffer()).equals(renewal.snapshot)) {
                 throw new Error("snapshot revision already contains different content");
             }
         }
+    }
 
-        // select the new snapshot only if no release or renewal replaced the timestamp concurrently
+    /** Select the new snapshot only if no release or renewal replaced the timestamp concurrently. */
+    private async replaceTimestamp(renewal: Renewal, etag: string): Promise<void> {
         const published = await this.bucket.put(
             `${this.prefix}metadata/timestamp.json`,
             renewal.timestamp,
             {
-                onlyIf: { etagMatches: current.etag },
+                onlyIf: { etagMatches: etag },
                 httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
             },
         );
@@ -97,7 +135,7 @@ export class Publication {
     }
 
     /** Load a bounded metadata document from authoritative storage. */
-    private async read(path: string): Promise<R2ObjectBody> {
+    private async read(path: string): Promise<StoredDocument> {
         const object = await this.bucket.get(`${this.prefix}${path}`);
         if (!object || object.size > METADATA_SIZE) {
             throw new Error(`missing or oversized release metadata: ${path}`);
@@ -121,7 +159,7 @@ export class Publication {
             if (object.size > METADATA_SIZE) {
                 throw new Error("oversized release root");
             }
-            const next = Metadata.fromJSON(MetadataKind.Root, JSON.parse(await object.text()));
+            const next = Metadata.fromJSON(MetadataKind.Root, parseDocument(await object.text()));
             if (next.signed.version !== root.signed.version + 1) {
                 throw new Error("release root version must increase consecutively");
             }

@@ -3,28 +3,39 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { schema } from "@destack/schema";
 import { Bitwarden } from "./bitwarden.ts";
+
+/** The name and hidden fields of the vault item the fixture stores. */
+const StoredItem = schema
+    .object({
+        name: schema.string(),
+        fields: schema.array(
+            schema.object({ name: schema.string(), value: schema.string(), type: schema.number() }),
+        ),
+    })
+    .strip();
 
 test("persist and verify hardware credentials through private CLI input", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bitwarden-test-"));
     const previous = {
-        PATH: process.env.PATH,
-        BW_SESSION: process.env.BW_SESSION,
-        DESTACK_VAULT_FIXTURE: process.env.DESTACK_VAULT_FIXTURE,
-        DESTACK_BITWARDEN_RECORDS: process.env.DESTACK_BITWARDEN_RECORDS,
+        PATH: process.env["PATH"],
+        BW_SESSION: process.env["BW_SESSION"],
+        DESTACK_VAULT_FIXTURE: process.env["DESTACK_VAULT_FIXTURE"],
+        DESTACK_BITWARDEN_RECORDS: process.env["DESTACK_BITWARDEN_RECORDS"],
     };
     try {
-        // replace only this process's CLI with a fixture that records its public arguments
+        // replace only this process's CLI with a fixture that records its public arguments, outside the workspace preload
         const source = fileURLToPath(new URL("./tests/bitwarden.ts", import.meta.url));
         await writeFile(
             join(directory, "bw"),
-            `#!${process.execPath}\nimport ${JSON.stringify(source)};\n`,
+            `#!${process.execPath} --config=/dev/null\nimport ${JSON.stringify(source)};\n`,
             { mode: 0o700 },
         );
-        process.env.PATH = directory + ":" + previous.PATH;
-        process.env.BW_SESSION = "fixture-session";
-        process.env.DESTACK_VAULT_FIXTURE = directory;
-        process.env.DESTACK_BITWARDEN_RECORDS = join(directory, "records.json");
+        process.env["PATH"] = directory + ":" + previous.PATH;
+        process.env["BW_SESSION"] = "fixture-session";
+        process.env["DESTACK_VAULT_FIXTURE"] = directory;
+        process.env["DESTACK_BITWARDEN_RECORDS"] = join(directory, "records.json");
         Bitwarden.sync();
         expect(Bitwarden.get("23503038")).toBeUndefined();
 
@@ -40,7 +51,7 @@ test("persist and verify hardware credentials through private CLI input", async 
         const commands = (await readFile(join(directory, "commands"), "utf8"))
             .trim()
             .split("\n")
-            .map((line) => JSON.parse(line));
+            .map((line): unknown => JSON.parse(line));
         expect(commands).toEqual([
             ["status"],
             ["sync"],
@@ -50,7 +61,9 @@ test("persist and verify hardware credentials through private CLI input", async 
             ["get", "item", "fixture-item"],
             ["list", "items", "--search", "Destack release root / YubiKey 23503038"],
         ]);
-        const stored = JSON.parse(await readFile(join(directory, "item"), "utf8"));
+        const stored = StoredItem.parse(
+            JSON.parse(await readFile(join(directory, "item"), "utf8")),
+        );
         expect(stored.fields).toEqual([
             { name: "pin", value: credential.pin, type: 1 },
             { name: "puk", value: credential.puk, type: 1 },
@@ -61,7 +74,9 @@ test("persist and verify hardware credentials through private CLI input", async 
         const recoveryName = "Destack release backup / fixture.age";
         const identity = "disposable recovery identity";
         Bitwarden.saveRecovery(recoveryName, identity);
-        const recovery = JSON.parse(await readFile(join(directory, "item"), "utf8"));
+        const recovery = StoredItem.parse(
+            JSON.parse(await readFile(join(directory, "item"), "utf8")),
+        );
         expect(recovery.name).toBe(recoveryName);
         expect(recovery.fields).toEqual([{ name: "identity", value: identity, type: 1 }]);
         expect(Bitwarden.readRecovery(recoveryName)).toBe(identity);
@@ -80,12 +95,16 @@ test("persist and verify hardware credentials through private CLI input", async 
         );
         await writeFile(
             join(directory, "item"),
-            JSON.stringify({ ...recovery, name: "renamed recovery" }),
+            JSON.stringify({
+                id: "fixture-item",
+                name: "renamed recovery",
+                fields: recovery.fields,
+            }),
         );
         expect(Bitwarden.readRecovery(recoveryName)).toBe(identity);
         await writeFile(
             join(directory, "item"),
-            JSON.stringify({ ...stored, name: "renamed hardware" }),
+            JSON.stringify({ id: "fixture-item", name: "renamed hardware", fields: stored.fields }),
         );
         expect(Bitwarden.get("23503038")).toEqual(credential);
     } finally {

@@ -41,8 +41,8 @@ export function readBackup(directory: string): Buffer {
 function run(command: string, arguments_: string[], input: string | Buffer | undefined): Buffer {
     // keep the Bitwarden session out of unrelated child processes
     const environment = { ...process.env };
-    delete environment.BW_SESSION;
-    delete environment.BW_PASSWORD;
+    delete environment["BW_SESSION"];
+    delete environment["BW_PASSWORD"];
     const result = spawnSync(command, arguments_, {
         input,
         env: environment,

@@ -3,9 +3,12 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
 import { readReleaseKeys, readRenewalKeys } from "../key/key.ts";
-import { encode, renewMetadata, writeMetadata } from "./repository.ts";
 import { RepositoryConfiguration } from "./configuration.ts";
 import { RepositoryRenewal } from "./renewal.ts";
+import { writeBootstrap } from "./bootstrap.ts";
+import { SignedRepository } from "@destack/update/publish";
+import { parseDocument } from "./document.ts";
+import { present } from "@destack/schema";
 
 /** Source checkout used to publish refreshed metadata. */
 const directory = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -18,23 +21,39 @@ if (operation !== "freshness" && operation !== "targets") {
 }
 
 /** Authenticated repository state, including potentially expired freshness documents. */
-const renewal = await RepositoryRenewal.read(configuration.url, await configuration.root());
+const renewal = present(
+    await RepositoryRenewal.read(configuration.url, await configuration.root()),
+    `a published ${configuration.channel} release`,
+);
 /** Directory containing renewed metadata for publication. */
 const output = join(directory, "dist/refresh");
 
 // require protected release credentials to authorize a new targets expiration
 if (operation === "targets") {
     const keys = await readReleaseKeys();
-    const targets = Metadata.fromJSON(MetadataKind.Targets, JSON.parse(renewal.targets.toString()));
-    await writeMetadata(output, renewal.revision, renewal.root, keys, targets, configuration.url);
+    const targets = Metadata.fromJSON(
+        MetadataKind.Targets,
+        parseDocument(renewal.targets.toString()),
+    );
+    const signed = await SignedRepository.write(
+        output,
+        renewal.revision,
+        renewal.root,
+        keys,
+        targets,
+    );
+    await writeBootstrap(output, signed, configuration.url);
 }
 // retain target signatures and require the publication service to compare authoritative storage
 else {
     const keys = await readRenewalKeys();
-    await renewMetadata(output, renewal.revision, renewal.root, keys, renewal.targets);
+    await SignedRepository.renew(output, renewal.revision, renewal.root, keys, renewal.targets);
 }
 
 // retain the complete rotation history for publication verification and older clients
 for (const root of renewal.history) {
-    await writeFile(join(output, "metadata", `${root.signed.version}.root.json`), encode(root));
+    await writeFile(
+        join(output, "metadata", `${root.signed.version}.root.json`),
+        SignedRepository.encode(root),
+    );
 }

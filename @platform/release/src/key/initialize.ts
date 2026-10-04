@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import { SigningKey } from "./key.ts";
+import { SigningKey } from "@destack/update/publish";
 
 /** Generate independent online keys in a new private directory without creating root keys. */
 export async function initialize(directory: string): Promise<void> {

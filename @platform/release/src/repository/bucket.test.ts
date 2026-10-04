@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -5,10 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ReleaseBucket } from "./bucket.ts";
 import { RepositoryConfiguration } from "./configuration.ts";
-import { SigningKey } from "../key/key.ts";
-import { createRoot } from "../key/root.ts";
-import { createRepository, encode } from "./repository.ts";
 import { publish } from "./publish.ts";
+import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
+import { COMMIT } from "@destack/update/test";
 
 test("publish exact bytes and reject stale replacements through conditional S3 requests", async () => {
     // receive real signed HTTP requests and enforce object revisions at the storage endpoint
@@ -32,7 +32,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
                 }
                 const condition = request.headers.get("if-match");
                 if (
-                    (condition && condition !== current?.revision) ||
+                    (condition !== null && condition !== current?.revision) ||
                     (request.headers.get("if-none-match") === "*" && current)
                 ) {
                     return new Response(null, { status: 412 });
@@ -57,7 +57,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
         DESTACK_RELEASE_CHANNEL: "stable",
         DESTACK_RELEASE_BUCKET: "rehearsal",
         DESTACK_RELEASE_S3_URL: server.url.href,
-        DESTACK_RELEASE_URL: new URL("stable/", server.url).href,
+        DESTACK_RELEASE_ORIGIN: server.url.href,
         DESTACK_RELEASE_ROOT: join(directory, "root.json"),
         CLOUDFLARE_RELEASE_ACCESS_KEY_ID: "rehearsal",
         CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: "disposable-rehearsal-secret",
@@ -87,7 +87,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
             bucket.put("metadata/timestamp.json", first, "application/json", false, revision),
         ).rejects.toThrow("release upload failed: metadata/timestamp.json (412)");
         expect(await (await bucket.get("metadata/timestamp.json")).text()).toBe("second release");
-        expect([...objects.keys()].sort()).toEqual([
+        expect([...objects.keys()].toSorted()).toEqual([
             "/rehearsal/stable/metadata/timestamp.json",
             "/rehearsal/stable/targets/artifact",
         ]);
@@ -100,7 +100,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
             snapshot: SigningKey.generate(),
             timestamp: SigningKey.generate(),
         };
-        const root = createRoot(
+        const root = TrustedRoot.create(
             1,
             roots.map((key) => key.public),
             {
@@ -110,12 +110,12 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
             },
             new Date(Date.now() + 365 * 86_400_000).toISOString(),
         );
-        root.sign((bytes) => roots[0]!.sign(bytes));
-        root.sign((bytes) => roots[1]!.sign(bytes));
-        await writeFile(environment.DESTACK_RELEASE_ROOT, encode(root));
+        root.sign((bytes) => present(roots[0], "the first root key").sign(bytes));
+        root.sign((bytes) => present(roots[1], "the second root key").sign(bytes));
+        await writeFile(environment.DESTACK_RELEASE_ROOT, SignedRepository.encode(root));
         const repository = join(directory, "repository");
-        await createRepository(repository, 2, root, keys, [
-            { target: "aarch64-apple-darwin", version: "2026.9.1", archive: first },
+        await SignedRepository.create(repository, 2, root, keys, [
+            { target: "aarch64-apple-darwin", version: "2026.9.1", commit: COMMIT, archive: first },
         ]);
         const catalog = JSON.stringify({ version: "2026.9.1" });
         await writeFile(join(repository, "downloads.json"), catalog);
@@ -135,10 +135,15 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
         ).toEqual(await readFile(join(repository, "metadata/timestamp.json")));
 
         // reject older revisions and conflicting signatures at the current revision before writing
-        for (const revision of [1, 2]) {
-            const conflicting = join(directory, `conflicting-${revision}`);
-            await createRepository(conflicting, revision, root, keys, [
-                { target: "aarch64-apple-darwin", version: "2026.9.2", archive: second },
+        for (const metadataRevision of [1, 2]) {
+            const conflicting = join(directory, `conflicting-${metadataRevision}`);
+            await SignedRepository.create(conflicting, metadataRevision, root, keys, [
+                {
+                    target: "aarch64-apple-darwin",
+                    version: "2026.9.2",
+                    commit: COMMIT,
+                    archive: second,
+                },
             ]);
             await expect(publish(conflicting)).rejects.toThrow(
                 "metadata revision must increase or retain the exact signed timestamp",

@@ -1,15 +1,17 @@
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { schema } from "@destack/schema";
 
 /** Call the installed Yubico library with private input and sanitized diagnostics. */
-export function invokePiv<Result>(request: object): Result {
+export function invokePiv<Result>(request: object, response: schema.Schema<Result>): Result {
     // use the Python environment maintained by the installed YubiKey Manager
     const executable = Bun.which("ykman");
-    if (!executable) {
+    if (executable === null) {
         throw new Error("install YubiKey Manager before enrollment");
     }
-    const interpreter = readFileSync(executable, "utf8").split("\n")[0]!.slice(2).trim();
+    const [shebang = ""] = readFileSync(executable, "utf8").split("\n");
+    const interpreter = shebang.slice(2).trim();
     if (!interpreter.startsWith("/") || interpreter.includes(" ")) {
         throw new Error(
             "expected a YubiKey Manager installation with an absolute Python interpreter",
@@ -18,8 +20,8 @@ export function invokePiv<Result>(request: object): Result {
 
     // pass secrets through a private pipe, without forwarding the Bitwarden session
     const environment = { ...process.env };
-    delete environment.BW_SESSION;
-    delete environment.BW_PASSWORD;
+    delete environment["BW_SESSION"];
+    delete environment["BW_PASSWORD"];
     const result = spawnSync(
         interpreter,
         ["-B", fileURLToPath(new URL("./piv.py", import.meta.url))],
@@ -32,11 +34,11 @@ export function invokePiv<Result>(request: object): Result {
         },
     );
     if (result.error || result.status !== 0) {
-        const category = result.stderr.match(/^PIV operation failed: ([A-Za-z]+)$/m)?.[1];
+        const category = result.stderr.match(/^PIV operation failed: ([A-Za-z]+)$/mu)?.[1];
         throw new Error(
-            `PIV operation failed${category ? ` (${category})` : ""}; retain the Bitwarden record and inspect the device before retrying`,
+            `PIV operation failed${category === undefined ? "" : ` (${category})`}; retain the Bitwarden record and inspect the device before retrying`,
         );
     }
 
-    return JSON.parse(result.stdout) as Result;
+    return response.parse(JSON.parse(result.stdout));
 }

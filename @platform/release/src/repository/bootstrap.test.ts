@@ -3,7 +3,8 @@ import { Metadata, TargetFile, Targets } from "@tufjs/models";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { writeCatalog } from "./catalog.ts";
+import { writeBootstrap } from "./bootstrap.ts";
+import { COMMIT } from "@destack/update/test";
 
 test("publish platform archives and the universal macOS installer in the download catalog", async () => {
     // describe the same macOS release in its two independently authenticated formats
@@ -18,7 +19,7 @@ test("publish platform archives and the universal macOS installer in the downloa
             path: "aarch64-apple-darwin.tar.gz",
             length: 100,
             hashes: { sha256: archive },
-            unrecognizedFields: { custom: { version: "2026.9.1" } },
+            unrecognizedFields: { custom: { version: "2026.9.1", commit: COMMIT } },
         }),
     );
     targets.signed.addTarget(
@@ -26,12 +27,12 @@ test("publish platform archives and the universal macOS installer in the downloa
             path: "universal-apple-darwin.dmg",
             length: 200,
             hashes: { sha256: installer },
-            unrecognizedFields: { custom: { version: "2026.9.1" } },
+            unrecognizedFields: { custom: { version: "2026.9.1", commit: COMMIT } },
         }),
     );
     try {
         // preserve both file identities without letting insertion order replace either format
-        await writeCatalog(directory, targets, new URL("https://download.destack.sh/stable/"));
+        await writeBootstrap(directory, targets, new URL("https://download.destack.sh/stable/"));
         expect(JSON.parse(await readFile(join(directory, "downloads.json"), "utf8"))).toEqual({
             version: "2026.9.1",
             channel: "stable",
@@ -57,11 +58,16 @@ test("publish platform archives and the universal macOS installer in the downloa
                 },
             },
         });
+        // write the archive's case into the installer in place of its marker
         const script = await readFile(join(directory, "install"), "utf8");
-        expect(script).toContain(
-            `https://download.destack.sh/stable/targets/${archive}.aarch64-apple-darwin.tar.gz`,
+        const shell = await readFile(new URL("../installer/install.sh", import.meta.url), "utf8");
+        const url = `https://download.destack.sh/stable/targets/${archive}.aarch64-apple-darwin.tar.gz`;
+        expect(script).toEqual(
+            shell.replace(
+                "# __DISTRIBUTIONS__",
+                `    aarch64-apple-darwin/tar.gz) url='${url}'; sha256='${archive}' ;;`,
+            ),
         );
-        expect(script).not.toContain("# __DISTRIBUTIONS__");
     } finally {
         await rm(directory, { recursive: true, force: true });
     }

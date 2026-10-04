@@ -1,9 +1,9 @@
-import { Metadata, MetadataKind, type Root, type Timestamp } from "@tufjs/models";
+import { Metadata, MetadataKind, type MetaFile, type Root, type Timestamp } from "@tufjs/models";
+import { LIFETIME_DAYS } from "@destack/update/publish";
+import { parseDocument } from "../repository/document.ts";
 
-/** Maximum snapshot lifetime accepted by the publication service, in milliseconds. */
-const SNAPSHOT_LIFETIME_MS = 7 * 86_400_000;
-/** Maximum timestamp lifetime accepted by the publication service, in milliseconds. */
-const TIMESTAMP_LIFETIME_MS = 2 * 86_400_000;
+/** The milliseconds in one day. */
+const DAY_MS = 86_400_000;
 
 /** Authenticated freshness metadata that preserves the currently published targets. */
 export class Renewal {
@@ -26,15 +26,15 @@ export class Renewal {
         // authenticate both new roles and the exact existing targets authorization
         const nextSnapshot = Metadata.fromJSON(
             MetadataKind.Snapshot,
-            JSON.parse(snapshot.toString()),
+            parseDocument(snapshot.toString()),
         );
         const nextTimestamp = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            JSON.parse(timestamp.toString()),
+            parseDocument(timestamp.toString()),
         );
         const currentTargets = Metadata.fromJSON(
             MetadataKind.Targets,
-            JSON.parse(targets.toString()),
+            parseDocument(targets.toString()),
         );
         root.verifyDelegate("timestamp", nextTimestamp);
         root.verifyDelegate("snapshot", nextSnapshot);
@@ -44,19 +44,8 @@ export class Renewal {
         if (root.signed.isExpired(now) || currentTargets.signed.isExpired(now)) {
             throw new Error("root and targets must be renewed before freshness metadata");
         }
-        for (const [metadata, lifetime] of [
-            [nextSnapshot, SNAPSHOT_LIFETIME_MS],
-            [nextTimestamp, TIMESTAMP_LIFETIME_MS],
-        ] as const) {
-            const expires = Date.parse(metadata.signed.expires);
-            if (
-                !Number.isFinite(expires) ||
-                expires <= now.getTime() ||
-                expires > now.getTime() + lifetime
-            ) {
-                throw new Error("renewal expiration exceeds its permitted lifetime");
-            }
-        }
+        requireLifetime(nextSnapshot.signed.expires, LIFETIME_DAYS.snapshot * DAY_MS, now);
+        requireLifetime(nextTimestamp.signed.expires, LIFETIME_DAYS.timestamp * DAY_MS, now);
 
         // reject rollback and preserve the only targets document selected by trusted storage
         if (
@@ -76,17 +65,26 @@ export class Renewal {
         }
 
         // require exact SHA-256 references before making either document available for publication
-        for (const [metadataReference, bytes] of [
-            [reference, targets],
-            [nextTimestamp.signed.snapshotMeta, snapshot],
-        ] as const) {
-            if (metadataReference.length !== bytes.length || !metadataReference.hashes?.sha256) {
-                throw new Error("renewal requires exact metadata length and SHA-256");
-            }
-            metadataReference.verify(bytes);
-        }
+        requireExactReference(reference, targets);
+        requireExactReference(nextTimestamp.signed.snapshotMeta, snapshot);
         this.snapshot = snapshot;
         this.timestamp = timestamp;
         this.revision = nextSnapshot.signed.version;
     }
+}
+
+/** Require an expiry in the future and within a role's permitted lifetime. */
+function requireLifetime(expires: string, lifetime: number, now: Date): void {
+    const time = Date.parse(expires);
+    if (!Number.isFinite(time) || time <= now.getTime() || time > now.getTime() + lifetime) {
+        throw new Error("renewal expiration exceeds its permitted lifetime");
+    }
+}
+
+/** Require a metadata reference to state the exact length and SHA-256 of a document. */
+function requireExactReference(reference: MetaFile, bytes: Buffer): void {
+    if (reference.length !== bytes.length || reference.hashes?.["sha256"] === undefined) {
+        throw new Error("renewal requires exact metadata length and SHA-256");
+    }
+    reference.verify(bytes);
 }

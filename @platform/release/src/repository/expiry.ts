@@ -3,14 +3,24 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RepositoryConfiguration } from "./configuration.ts";
+import { schema } from "@destack/schema";
+import { print } from "../output/index.ts";
 
-/** Minimum remaining lifetime for each authenticated metadata role, in milliseconds. */
-const MINIMUM_LIFETIME_MS = {
-    root: 90 * 86400000,
-    targets: 30 * 86400000,
-    snapshot: 3 * 86400000,
-    timestamp: 86400000,
-};
+/** The expiry a signed metadata document carries. */
+const Expiring = schema
+    .object({ signed: schema.object({ expires: schema.string() }).strip() })
+    .strip();
+
+/** The milliseconds in one day. */
+const DAY_MS = 86_400_000;
+
+/**
+ * The days each role must stay valid before the check fails.
+ *
+ * Root and targets leave time for an offline ceremony or a stable release.
+ * Snapshot and timestamp leave three days to repair the nightly that re-signs them.
+ */
+const MINIMUM_LIFETIME_DAYS = { root: 90, targets: 30, snapshot: 3, timestamp: 3 };
 
 /** Verify public update trust and report approaching renewal deadlines without signing credentials. */
 async function checkExpiry(): Promise<void> {
@@ -33,13 +43,15 @@ async function checkExpiry(): Promise<void> {
         // report every approaching deadline after verifying the complete signed metadata chain
         const failures: string[] = [];
         const now = Date.now();
-        for (const [role, minimum] of Object.entries(MINIMUM_LIFETIME_MS)) {
-            const document = JSON.parse(await readFile(join(directory, `${role}.json`), "utf8"));
+        for (const [role, days] of Object.entries(MINIMUM_LIFETIME_DAYS)) {
+            const document = Expiring.parse(
+                JSON.parse(await readFile(join(directory, `${role}.json`), "utf8")),
+            );
             const expiration = Date.parse(document.signed.expires);
-            if (!Number.isFinite(expiration) || expiration - now <= minimum) {
+            if (!Number.isFinite(expiration) || expiration - now <= days * DAY_MS) {
                 failures.push(`${role} expires at ${document.signed.expires}`);
             }
-            console.log(`${role}: ${document.signed.expires}`);
+            print(`${role}: ${document.signed.expires}`);
         }
         if (failures.length) {
             throw new Error(`release metadata needs renewal: ${failures.join(", ")}`);
