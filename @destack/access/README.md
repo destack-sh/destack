@@ -196,7 +196,7 @@ const pending = await authorization.invitations({ object: page }, { limit: 20 })
 
 ## Roles
 
-`createRole` creates a role granting named permissions, refusing permissions the caller lacks.
+`createRole` creates a role granting named permissions the caller has, and system code keeps roles through the system's authorization like any caller.
 
 ```ts
 const role = await authorization.createRole(space, {
@@ -204,6 +204,28 @@ const role = await authorization.createRole(space, {
     description: "Read and share every note",
     permissions: [note.permission("read"), note.permission("share")],
 });
+
+// keep a role by name with exactly these permissions, writing nothing when it matches
+const operator = await system.keepRole(Scope.universe, OPERATOR_ROLE);
+
+// bind it to one subject alone, revoking its other bindings
+await system.assign(Scope.universe, operator.id, owners);
+
+// read roles
+await Role.read(database, scope, role.id);
+await Role.permissions(database, role.id);
+```
+
+## Declared access
+
+A stack declaration's roles and relationships carry its `Manager`, which only the system changes, and `keepRole` and `keepRelationships` keep exactly what it declares, unchanged ones under their identifiers.
+
+```ts
+const manager = Manager.schema.parse({ installationId, packageId, name: "roles/reader" });
+await system.keepRole(space, { name: "reader", description: "Reads notes", permissions }, manager);
+await system.keepRelationships({ scope: space.id, manager }, [
+    { object: space, role: reader.id, subject: carol },
+]);
 ```
 
 ## Storage
@@ -234,7 +256,7 @@ for (const request of await authorizer.chain(database, spaceId, { isHome: true }
 const request = await authorizer.chainVia(database, placementId, accountIds);
 ```
 
-## Representation
+## Represented
 
 `Caller.represent` lets a caller act as the principal an object stands for, with the caller as its actor, and `AccessContext.withCells` lets hosts act for the cells they are.
 

@@ -66,7 +66,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         const guarded = Promise.withResolvers<void>();
         const release = Promise.withResolvers<void>();
         const writing = storage.database.transaction(async (transaction) => {
-            await Scope.guard(transaction, ["account-a"]);
+            await Scope.guard(transaction, "account-a");
             guarded.resolve();
             await release.promise;
             events.push("committed");

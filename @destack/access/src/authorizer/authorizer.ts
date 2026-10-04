@@ -30,6 +30,7 @@ import {
     Subject,
 } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
+import { Manager } from "../manager/manager.ts";
 import { relationsOf, PermissionReference, type Policy } from "../policy/policy.ts";
 import type { AccessExpression, AttributeType, ConditionExpression } from "../policy/expression.ts";
 import { accepts, type RelationDefinition, type SubjectType } from "../policy/subject.ts";
@@ -1018,9 +1019,7 @@ export class Authorizer {
             return {
                 ...Relationship.encode(relationship, scope),
                 revision: 1,
-                managerInstallationId: null,
-                managerPackageId: null,
-                managerName: null,
+                ...Manager.values(null),
                 detachedAt: null,
             };
         });

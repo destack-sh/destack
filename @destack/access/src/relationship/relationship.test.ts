@@ -1,5 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Subject } from "@destack/sync";
+import { type ObjectReference, Subject } from "@destack/sync";
+import { aligned } from "@destack/schema";
 import { Snapshot, asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
@@ -10,9 +11,10 @@ import {
     Authorizer,
     principal,
     invitation,
-    Relationship,
+    Manager,
     relationship,
     type AccessContext,
+    type RelationshipRequest,
 } from "../index.ts";
 import { mappings, node, policies } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
@@ -141,7 +143,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "replace a subject's relationships through a relation with exactly the wanted objects on %s",
+    "keep a subject's relationships through a relation to exactly the wanted objects as a grantor, refusing anyone else, on %s",
     async (dialect) => {
         // open the fixture, where bob edits node b
         const fixture = await openFixture(dialect);
@@ -156,6 +158,9 @@ test.for(TEST_DIALECTS)(
         const first = node.reference("personal", "a");
         const second = node.reference("personal", "b");
         const third = node.reference("personal", "c");
+        const owner = new Authorization(fixture.authorizer, fixture.database, () => fixture.alice);
+        const wanting = (...objects: ObjectReference[]) =>
+            objects.map((object) => ({ object, relation: "editor", subject: worker }));
         const related = async () =>
             (
                 await fixture.database
@@ -169,7 +174,7 @@ test.for(TEST_DIALECTS)(
             ).map((row) => `${row.objectId}:${row.subjectId}`);
 
         // relate the worker to a and b next to bob's grant
-        await Relationship.replace(fixture.database, selection, [first, second], 1000);
+        await owner.keepRelationships(selection, wanting(first, second));
         expect(await related()).toEqual(["a:worker", "b:bob", "b:worker"]);
 
         // move the worker from a to c without touching b's relationship or bob's grant
@@ -183,7 +188,7 @@ test.for(TEST_DIALECTS)(
         if (kept === undefined) {
             throw new Error("node b keeps no worker relationship");
         }
-        await Relationship.replace(fixture.database, selection, [second, third], 2000);
+        await owner.keepRelationships(selection, wanting(second, third));
         const [unchanged] = await fixture.database
             .select({ id: accessRelationship.id })
             .from(accessRelationship)
@@ -191,7 +196,67 @@ test.for(TEST_DIALECTS)(
         expect([await related(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], kept]);
 
         // remove every relationship of the worker
-        await Relationship.replace(fixture.database, selection, [], 3000);
+        await owner.keepRelationships(selection, wanting());
         expect(await related()).toEqual(["b:bob"]);
+
+        // refuse bob, who edits b without sharing it
+        await expect(
+            new Authorization(
+                fixture.authorizer,
+                fixture.database,
+                () => fixture.bob,
+            ).keepRelationships(selection, wanting(second)),
+        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "keep the relationships a declaration manages under stable identifiers, and refuse a caller changing or revoking them, on %s",
+    async (dialect) => {
+        // open the fixture, where alice owns every node
+        const fixture = await openFixture(dialect);
+        onTestFinished(() => fixture.close());
+        const owner = new Authorization(fixture.authorizer, fixture.database, () => fixture.alice);
+        const manager = Manager.schema.parse({
+            installationId: "installation-01996ab0-0000-7000-8000-000000000001",
+            packageId: "package-01996ab0-0000-7000-8000-000000000002",
+            name: "editor",
+        });
+        const selection = { scope: "personal", manager };
+        const managed = async () =>
+            (
+                await fixture.database
+                    .select({ id: accessRelationship.id, objectId: accessRelationship.objectId })
+                    .from(accessRelationship)
+                    .where(eq(accessRelationship.managerName, "editor"))
+            ).map((row) => [row.objectId, row.id]);
+
+        // keep carol's managed grant on a twice under the same identifier
+        await owner.keepRelationships(selection, [carolEditing("a")]);
+        const first = await managed();
+        await owner.keepRelationships(selection, [carolEditing("a")]);
+        expect([first.length, aligned(first, 0)[0], await managed()]).toEqual([1, "a", first]);
+
+        // refuse alice moving or revoking the managed grant herself
+        const refusal = {
+            code: "CONFLICT",
+            message: "record is managed by its source declaration",
+        };
+        const id = aligned(aligned(first, 0), 1);
+        await expect(owner.keepRelationships(selection, [carolEditing("c")])).rejects.toMatchObject(
+            refusal,
+        );
+        await expect(owner.revoke(node.reference("personal", "a"), id)).rejects.toMatchObject(
+            refusal,
+        );
+    },
+);
+
+/** Request carol's editing of one personal node. */
+function carolEditing(id: string): RelationshipRequest {
+    return {
+        object: node.reference("personal", id),
+        relation: "editor",
+        subject: principal.user.reference("universe", "carol"),
+    };
+}

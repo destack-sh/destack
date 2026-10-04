@@ -3,6 +3,7 @@ import { and, asc, eq, type DatabaseConnection, type Select } from "@destack/db"
 import { defineSchema, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
+import { Manager } from "../manager/manager.ts";
 import { PermissionReference } from "../policy/policy.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
@@ -38,25 +39,26 @@ const roleSchema = defineSchema(
 export type Role = schema.Infer<typeof roleSchema>;
 
 /** The name, purpose and permissions of a role to define or change. */
-export interface RoleRequest {
-    /** The name, unique within the scope. */
-    readonly name: string;
-    /** The purpose shown when granting the role. */
-    readonly description: string;
-    /** The permissions the role grants. */
-    readonly permissions: readonly PermissionReference[];
-}
+export const RoleRequest = defineSchema(
+    schema.object({
+        /** The name, unique within the scope. */
+        name: schema.string().min(1).max(200),
+        /** The purpose shown when granting the role. */
+        description: schema.string().max(1000),
+        /** The permissions the role grants. */
+        permissions: schema.array(PermissionReference),
+    }),
+);
+/** The name, purpose and permissions of a role to define or change. */
+export type RoleRequest = schema.Infer<typeof RoleRequest>;
 
-/** A role: its schema, its rows and a scope's owners. */
+/** A role: its schema and the reads of its rows; writes go through `Authorization`. */
 export const Role = {
     /** The schema of a role. */
     schema: roleSchema,
     read,
     permissions,
-    permit,
-    replace,
     describe,
-    own,
     close,
 };
 
@@ -100,8 +102,39 @@ async function permissions(
     return rows.map(referenceOf);
 }
 
+/** Define a role under a name free in its scope with its permissions and manager, absent when another role holds the name. */
+export async function define(
+    database: DatabaseConnection,
+    scope: string,
+    request: RoleRequest,
+    now: number,
+    manager?: Manager,
+): Promise<Select<typeof accessRole> | undefined> {
+    // insert the role under a name free in the scope
+    const [record] = await database
+        .insert(accessRole)
+        .values({
+            id: schema.identifier("role").parse(`role-${v7()}`),
+            createdAt: now,
+            updatedAt: now,
+            scope,
+            name: request.name,
+            description: request.description,
+            ...Manager.values(manager ?? null),
+        })
+        .onConflictDoNothing()
+        .returning();
+
+    // record its permissions
+    if (record !== undefined) {
+        await permit(database, record.id, scope, request.permissions);
+    }
+
+    return record;
+}
+
 /** Record the permissions a role grants. */
-async function permit(
+export async function permit(
     database: DatabaseConnection,
     roleId: Select<typeof accessRole>["id"],
     scope: string,
@@ -122,7 +155,7 @@ async function permit(
 }
 
 /** Replace the permissions a role grants with a declared set. */
-async function replace(
+export async function replace(
     database: DatabaseConnection,
     roleId: Select<typeof accessRole>["id"],
     scope: string,
@@ -149,7 +182,7 @@ function describe(
 }
 
 /** Define a scope's owner role and bind it to an owner on the scope's object, returning the role. */
-async function own(
+export async function own(
     database: DatabaseConnection,
     scope: ObjectReference,
     owner: Subject,

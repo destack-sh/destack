@@ -2,7 +2,6 @@ import { ObjectReference, type ObjectTypeReference, AccessName, Subject } from "
 import {
     and,
     eq,
-    inArray,
     isNull,
     or,
     sql,
@@ -13,7 +12,7 @@ import {
     type Snapshot,
 } from "@destack/db";
 import { defineSchema, Instant, schema } from "@destack/schema";
-import { v7 } from "uuid";
+import type { Manager } from "../manager/manager.ts";
 import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
 
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
@@ -96,20 +95,26 @@ export const Relationship = {
     subjectColumns,
     via,
     viaColumns,
-    replace,
 };
 
-/** The relationships one subject has through one relation on objects of some types in a scope. */
-export interface RelationshipSelection {
+/** The relationships of a scope a keep covers: one subject's through one relation on objects of some types, or those one declaration manages. */
+export type RelationshipSelection = {
     /** The scope the relationships live in. */
     readonly scope: string;
-    /** The object types the selection covers. */
-    readonly objects: readonly ObjectTypeReference[];
-    /** The declared relation. */
-    readonly relation: string;
-    /** The subject of the relationships. */
-    readonly subject: Subject;
-}
+} & (
+    | {
+          /** The object types the selection covers. */
+          readonly objects: readonly ObjectTypeReference[];
+          /** The declared relation. */
+          readonly relation: string;
+          /** The subject of the relationships. */
+          readonly subject: Subject;
+      }
+    | {
+          /** The declaration managing the relationships. */
+          readonly manager: Manager;
+      }
+);
 
 /** Write a relationship as a row in the scope it decides access for. */
 function encode(relationship: Relationship, scope: string) {
@@ -269,103 +274,55 @@ function on(
     )`;
 }
 
-/** Relate a subject through a relation to exactly the wanted objects of the selected types, as the system. */
-async function replace(
-    database: DatabaseConnection,
-    selection: RelationshipSelection,
-    wanted: readonly ObjectReference[],
-    now: number,
-): Promise<void> {
-    // read the relationships the subject has through the relation on the selected types
-    const related = await readSelected(database, selection);
-
-    // remove the relationships to objects no longer wanted
-    const missing = new Map(wanted.map((object) => [ObjectReference.key(object), object]));
-    const stale = related.filter(
-        (row) =>
-            !missing.delete(
-                ObjectReference.key({
-                    scope: row.objectScope,
-                    packageId: row.packageId,
-                    type: row.type,
-                    id: row.objectId,
-                }),
-            ),
-    );
-    if (stale.length > 0) {
-        await database.delete(accessRelationship).where(
-            inArray(
-                accessRelationship.id,
-                stale.map((row) => row.id),
-            ),
-        );
-    }
-
-    // relate the subject to the wanted objects it lacks
-    if (missing.size > 0) {
-        await relateAll(database, selection, [...missing.values()], now);
-    }
-}
-
 /** Read the relationships a selection's subject has through its relation on the selected types. */
-function readSelected(database: DatabaseConnection, selection: RelationshipSelection) {
-    const columns = subjectColumns(selection.subject);
-
+export function readSelected(database: DatabaseConnection, selection: RelationshipSelection) {
     return database
-        .select({
-            id: accessRelationship.id,
-            objectScope: accessRelationship.objectScope,
-            packageId: accessRelationship.packageId,
-            type: accessRelationship.type,
-            objectId: accessRelationship.objectId,
-        })
+        .select()
         .from(accessRelationship)
         .where(
             and(
                 eq(accessRelationship.scope, selection.scope),
-                selection.objects.length === 0
-                    ? sql`false`
-                    : or(
-                          ...selection.objects.map((object) =>
-                              and(
-                                  eq(accessRelationship.packageId, object.packageId),
-                                  eq(accessRelationship.type, object.type),
-                              ),
-                          ),
-                      ),
-                eq(accessRelationship.relation, selection.relation),
-                eq(accessRelationship.subjectPackageId, columns.subjectPackageId),
-                eq(accessRelationship.subjectType, columns.subjectType),
-                eq(accessRelationship.subjectScope, columns.subjectScope),
-                eq(accessRelationship.subjectId, columns.subjectId),
-                columns.subjectRelation === null
-                    ? isNull(accessRelationship.subjectRelation)
-                    : eq(accessRelationship.subjectRelation, columns.subjectRelation),
+                "manager" in selection ? managedBy(selection.manager) : heldThrough(selection),
             ),
         );
 }
 
-/** Relate a selection's subject through its relation to some objects, as the system. */
-async function relateAll(
-    database: DatabaseConnection,
-    selection: RelationshipSelection,
-    objects: readonly ObjectReference[],
-    now: number,
-): Promise<void> {
-    await database.insert(accessRelationship).values(
-        objects.map((object) =>
-            encode(
-                {
-                    id: `relationship-${v7()}`,
-                    object,
-                    relation: selection.relation,
-                    subject: selection.subject,
-                    createdAt: now,
-                    expiresAt: null,
-                },
-                selection.scope,
-            ),
-        ),
+/** Match the relationships one declaration manages. */
+function managedBy(manager: Manager): SQL | undefined {
+    return and(
+        eq(accessRelationship.managerInstallationId, manager.installationId),
+        eq(accessRelationship.managerPackageId, manager.packageId),
+        eq(accessRelationship.managerName, manager.name),
+    );
+}
+
+/** Match the relationships a subject has through a relation on objects of some types. */
+function heldThrough(selection: {
+    readonly objects: readonly ObjectTypeReference[];
+    readonly relation: string;
+    readonly subject: Subject;
+}): SQL | undefined {
+    const columns = subjectColumns(selection.subject);
+
+    return and(
+        selection.objects.length === 0
+            ? sql`false`
+            : or(
+                  ...selection.objects.map((object) =>
+                      and(
+                          eq(accessRelationship.packageId, object.packageId),
+                          eq(accessRelationship.type, object.type),
+                      ),
+                  ),
+              ),
+        eq(accessRelationship.relation, selection.relation),
+        eq(accessRelationship.subjectPackageId, columns.subjectPackageId),
+        eq(accessRelationship.subjectType, columns.subjectType),
+        eq(accessRelationship.subjectScope, columns.subjectScope),
+        eq(accessRelationship.subjectId, columns.subjectId),
+        columns.subjectRelation === null
+            ? isNull(accessRelationship.subjectRelation)
+            : eq(accessRelationship.subjectRelation, columns.subjectRelation),
     );
 }
 

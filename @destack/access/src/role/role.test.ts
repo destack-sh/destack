@@ -502,15 +502,100 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
     });
 });
 
-test("replace the permissions a role grants with a declared set", async () => {
-    const { database, defineRole } = await openRoleFixture();
+/** Open the role fixture with carol owning the personal space in its home database. */
+async function openOwnedSpace() {
+    const fixture = await openRoleFixture();
+    const home = new Authorizer(policies, homeMappings);
+    const place = space.reference("universe", "personal");
+    await fixture.database.insert(spaceTable).values({ id: "personal", account: "universe" });
+    await new Authorization(home, fixture.database, () => carol).create(place, {
+        owner: aligned(carol.subjects, 0),
+    });
+
+    // authorize carol at a time
+    const owner = (now: number) =>
+        new Authorization(home, fixture.database, () => ({ ...carol, now }));
+
+    return { ...fixture, home, place, owner };
+}
+
+test("keep a role by name, replace its purpose and permissions, then keep it identically without a write", async () => {
+    const { database, place, owner } = await openOwnedSpace();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
-    const id = schema.identifier("role").parse(await defineRole(1, [read]));
 
-    // replace read with update, then with nothing
-    await Role.replace(database, id, "personal", [update]);
-    const replaced = await Role.permissions(database, id);
-    await Role.replace(database, id, "personal", []);
-    expect([replaced, await Role.permissions(database, id)]).toEqual([[update], []]);
+    // keep the role, keep it again under the same name with other permissions, then once more alike
+    const created = await owner(1000).keepRole(place, {
+        name: "editor",
+        description: "Read nodes",
+        permissions: [read],
+    });
+    const changed = { name: "editor", description: "Update nodes", permissions: [update] };
+    await owner(2000).keepRole(place, changed);
+    const kept = await owner(3000).keepRole(place, changed);
+
+    // expect one role at its second revision, last written at the change, granting only the kept permissions
+    const record = await Role.read(database, "personal", kept.id);
+    const expected = {
+        ...created,
+        description: "Update nodes",
+        permissions: [update],
+        revision: 2,
+    };
+    expect([
+        kept,
+        Role.describe(record, await Role.permissions(database, kept.id)),
+        record.updatedAt,
+    ]).toEqual([expected, expected, 2000]);
+});
+
+test("assign a role to one subject alone, revoking the previous subject and keeping an identical binding", async () => {
+    const { database, place, owner } = await openOwnedSpace();
+    const reader = await owner(1000).keepRole(place, {
+        name: "reader",
+        description: "Read nodes",
+        permissions: [],
+    });
+
+    // assign the role to carol, then to dave, then to dave again
+    const dave = principal.user.reference("universe", "dave");
+    await owner(1000).assign(place, reader.id, aligned(carol.subjects, 0));
+    const assigned = await owner(2000).assign(place, reader.id, dave);
+    const kept = await owner(3000).assign(place, reader.id, dave);
+
+    // expect only dave's first binding on the scope's object
+    const rows = await database
+        .select()
+        .from(accessRelationship)
+        .where(eq(accessRelationship.roleId, schema.identifier("role").parse(reader.id)));
+    const binding = {
+        id: assigned.id,
+        object: place,
+        role: reader.id,
+        subject: dave,
+        createdAt: 2000,
+        expiresAt: null,
+    };
+    expect([kept, rows.map(Relationship.decode)]).toEqual([binding, [binding]]);
+});
+
+test("refuse keeping and assigning roles to a caller without the permissions", async () => {
+    const { place, home, database, alice, owner } = await openOwnedSpace();
+    const reader = await owner(1000).keepRole(place, {
+        name: "reader",
+        description: "Read the space",
+        permissions: [space.permission("read")],
+    });
+
+    // refuse alice defining, changing and assigning a role in carol's space
+    const outsider = new Authorization(home, database, () => alice);
+    await expect(
+        outsider.keepRole(place, { name: "sharer", description: "Share", permissions: [] }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: create" });
+    await expect(
+        outsider.keepRole(place, { name: "reader", description: "Read", permissions: [] }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: update" });
+    await expect(
+        outsider.assign(place, reader.id, aligned(alice.subjects, 0)),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
 });

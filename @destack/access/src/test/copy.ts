@@ -5,7 +5,7 @@ import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
-import { Role, type RoleRequest } from "../role/role.ts";
+import { own, permit, type RoleRequest } from "../role/role.ts";
 import { accessRole } from "../role/table.ts";
 
 /** Record a scope object below the scopes containing it, as a copy of its home's access keeps it. */
@@ -42,7 +42,7 @@ export function copyOwner(
     owner: Subject,
     now = Date.now(),
 ): Promise<string> {
-    return Role.own(database, scope, owner, now);
+    return own(database, scope, owner, now);
 }
 
 /** Define a role in a copied scope and bind it to a subject on the scope's object, returning the role. */
@@ -63,7 +63,7 @@ export async function copyRole(
         name: role.name,
         description: role.description,
     });
-    await Role.permit(database, id, scope.id, role.permissions);
+    await permit(database, id, scope.id, role.permissions);
 
     // bind it on the scope's object
     await database.insert(accessRelationship).values(

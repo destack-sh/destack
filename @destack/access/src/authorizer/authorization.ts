@@ -8,17 +8,20 @@ import {
     type Select,
     Snapshot,
 } from "@destack/db";
-import { Scope, type ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { aligned, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
-import type { PermissionReference } from "../policy/policy.ts";
+import { PermissionReference } from "../policy/policy.ts";
 import * as policies from "../policy/principal.ts";
 import { anyone, isPrincipal } from "../policy/principal.ts";
 import { AccessContext, Caller } from "../context/context.ts";
+import { HIGHEST_ASSURANCE } from "../context/elevation.ts";
 import {
+    readSelected,
     Relationship,
     type RelationshipCondition,
+    type RelationshipSelection,
     type RelationshipRequest,
 } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
@@ -30,8 +33,9 @@ import {
     type InvitationRequest,
 } from "../invitation/invitation.ts";
 import { accessInvitation } from "../invitation/table.ts";
-import { Role, type RoleRequest } from "../role/role.ts";
-import { accessRole, accessRolePermission } from "../role/table.ts";
+import { Manager } from "../manager/manager.ts";
+import { define, own, replace, Role, type RoleRequest } from "../role/role.ts";
+import { accessRole } from "../role/table.ts";
 import type { Access } from "./access.ts";
 import type { Admission, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
@@ -117,17 +121,6 @@ export class Authorization {
     renew(): void {
         this.#resolved.clear();
         this.#below.clear();
-    }
-
-    /** Require the caller to have permissions on a scope as a transaction shows its access, resolved afresh. */
-    async #requireFresh(
-        transaction: DatabaseConnection,
-        scope: ObjectReference,
-        permissions: readonly PermissionReference[],
-    ): Promise<void> {
-        const snapshot = Snapshot.live(transaction);
-        const access = await this.authorizer.resolve(snapshot, scope.id, this.context(scope.id));
-        await this.authorizer.require(snapshot, permissions, scope, access);
     }
 
     /** Decide whether the caller has a permission on one object and until when. */
@@ -259,7 +252,7 @@ export class Authorization {
 
         // define a scope's owner role and bind it to its owner
         if (creation.owner !== undefined) {
-            await Role.own(this.database, object, creation.owner, context.now);
+            await own(this.database, object, creation.owner, context.now);
         }
         this.renew();
     }
@@ -274,13 +267,13 @@ export class Authorization {
         await this.#suspension(object, null);
     }
 
-    /** Relate a subject to an object through a relation or a bound role, as the caller may grant. */
-    async grant(request: RelationshipRequest): Promise<Relationship> {
+    /** Relate a subject to an object through a relation or a bound role, under its manager if any, as the caller may grant. */
+    async grant(request: RelationshipRequest, manager?: Manager): Promise<Relationship> {
         const relationship = await this.database.transaction(async (transaction) => {
             const authorization = this.within(transaction);
             await authorization.authorizeGrant(request);
 
-            return authorization.#insert(request);
+            return authorization.#insert(request, manager);
         });
         this.renew();
 
@@ -302,10 +295,8 @@ export class Authorization {
             }
 
             // require permission to revoke what it grants, and keep an owner
-            await this.authorizer.requireLocal(transaction, object);
-            requireUnmanaged(row);
             const relationship = Relationship.decode(row);
-            await authorization.authorizeRevoke(relationship);
+            await authorization.authorizeRevoke(relationship, row);
             await requireRemainingOwner(transaction, row);
             await transaction.delete(accessRelationship).where(eq(accessRelationship.id, key));
             this.renew();
@@ -454,7 +445,7 @@ export class Authorization {
         });
     }
 
-    /** Require an offer's inviting principal to still grant its relationship, the system's offers standing as made. */
+    /** Require an offer's inviting principal to still hold the grant, the system's offers standing as made. */
     async #requireInviter(
         transaction: DatabaseConnection,
         invitation: Invitation,
@@ -465,12 +456,13 @@ export class Authorization {
             return;
         }
 
-        // decide the grant as the inviting principal now
+        // decide the grant as the inviting principal at the authentication it met to send the offer
         const inviter = invitation.inviter;
         const authorization = new Authorization(this.authorizer, transaction, () => ({
             subjects: [inviter],
             now,
             attributes: {},
+            assurance: { level: HIGHEST_ASSURANCE, authenticatedAt: now },
         }));
         await authorization.authorizeGrant(invitation.relationship);
     }
@@ -537,36 +529,9 @@ export class Authorization {
 
     /** Define a role in a scope, granting only permissions the caller has there. */
     async createRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
-        return this.database.transaction(async (transaction) => {
-            // require permission to define roles and every permission the role grants
-            await this.authorizer.requireLocal(transaction, scope);
-            const context = this.context(scope.id);
-            await this.#requireFresh(transaction, scope, [
-                policies.role.permission("create"),
-                ...request.permissions,
-            ]);
-
-            // insert the role under a name free in the scope, then its permissions
-            const [record] = await transaction
-                .insert(accessRole)
-                .values({
-                    id: schema.identifier("role").parse(`role-${v7()}`),
-                    createdAt: context.now,
-                    updatedAt: context.now,
-                    scope: scope.id,
-                    name: request.name,
-                    description: request.description,
-                })
-                .onConflictDoNothing()
-                .returning();
-            if (!record) {
-                throw new AccessError("CONFLICT", "role name is already in use");
-            }
-            await Role.permit(transaction, record.id, scope.id, request.permissions);
-            this.renew();
-
-            return Role.describe(record, request.permissions);
-        });
+        return this.database.transaction(async (transaction) =>
+            this.#defineRole(transaction, scope, request, undefined),
+        );
     }
 
     /** Change a role's name, purpose or permissions at a revision within the caller's permissions. */
@@ -577,17 +542,17 @@ export class Authorization {
     ): Promise<Role> {
         return this.database.transaction(async (transaction) => {
             // require an editable role at the revision, permission to change roles, and every permission granted
-            await this.authorizer.requireLocal(transaction, scope);
             const context = this.context(scope.id);
             const record = await Role.read(transaction, scope.id, id);
-            requireUnmanaged(record);
             if (record.revision !== changes.revision) {
                 throw new AccessError("CONFLICT", "role revision has changed");
             }
-            await this.#requireFresh(transaction, scope, [
-                policies.role.permission("update"),
-                ...(changes.permissions ?? []),
-            ]);
+            await this.authorizeRole(
+                transaction,
+                scope,
+                [policies.role.permission("update"), ...(changes.permissions ?? [])],
+                record,
+            );
 
             // apply the changes and replace the permissions when given
             const [updated] = await transaction
@@ -606,10 +571,7 @@ export class Authorization {
                 throw new AccessError("CONFLICT", "role revision has changed");
             }
             if (changes.permissions !== undefined) {
-                await transaction
-                    .delete(accessRolePermission)
-                    .where(eq(accessRolePermission.roleId, record.id));
-                await Role.permit(transaction, record.id, scope.id, changes.permissions);
+                await replace(transaction, record.id, scope.id, changes.permissions);
             }
             this.renew();
 
@@ -624,13 +586,16 @@ export class Authorization {
     async deleteRole(scope: ObjectReference, id: string, revision: number): Promise<Role> {
         return this.database.transaction(async (transaction) => {
             // require an editable role at the revision and permission to delete roles
-            await this.authorizer.requireLocal(transaction, scope);
             const record = await Role.read(transaction, scope.id, id);
-            requireUnmanaged(record);
             if (record.revision !== revision) {
                 throw new AccessError("CONFLICT", "role revision has changed");
             }
-            await this.#requireFresh(transaction, scope, [policies.role.permission("delete")]);
+            await this.authorizeRole(
+                transaction,
+                scope,
+                [policies.role.permission("delete")],
+                record,
+            );
 
             // refuse deleting a role that is still bound or included
             const [binding] = await transaction
@@ -659,6 +624,168 @@ export class Authorization {
 
             return Role.describe(record, permissions);
         });
+    }
+
+    /** Keep a role by name in a scope with exactly the requested purpose and permissions, under its manager if any, writing only a difference, and return it. */
+    async keepRole(scope: ObjectReference, request: RoleRequest, manager?: Manager): Promise<Role> {
+        return this.database.transaction(async (transaction) => {
+            // read the role holding the name, defining it when none does
+            const now = this.context(scope.id).now;
+            const [kept] = await transaction
+                .select()
+                .from(accessRole)
+                .where(and(eq(accessRole.scope, scope.id), eq(accessRole.name, request.name)));
+            if (kept === undefined) {
+                return this.#defineRole(transaction, scope, request, manager);
+            }
+
+            // keep only a role under the same manager, leaving one granting exactly the request as it is
+            await this.authorizeRole(
+                transaction,
+                scope,
+                [policies.role.permission("update"), ...request.permissions],
+                kept,
+            );
+            if (!isManagedBy(kept, manager)) {
+                throw new AccessError("CONFLICT", "role name is already in use");
+            }
+            const granted = await Role.permissions(transaction, kept.id);
+            const isGranted = isSamePermissions(granted, request.permissions);
+            if (kept.description === request.description && isGranted) {
+                return Role.describe(kept, granted);
+            }
+
+            // describe it anew at its next revision, replacing differing permissions
+            const [updated] = await transaction
+                .update(accessRole)
+                .set({
+                    description: request.description,
+                    updatedAt: now,
+                    revision: kept.revision + 1,
+                })
+                .where(and(eq(accessRole.id, kept.id), eq(accessRole.revision, kept.revision)))
+                .returning();
+            if (updated === undefined) {
+                throw new AccessError("CONFLICT", "role revision has changed");
+            }
+            if (!isGranted) {
+                await replace(transaction, kept.id, scope.id, request.permissions);
+            }
+            this.renew();
+
+            return Role.describe(updated, request.permissions);
+        });
+    }
+
+    /** Define a role under a free name and its manager if any, as the caller may. */
+    async #defineRole(
+        transaction: DatabaseConnection,
+        scope: ObjectReference,
+        request: RoleRequest,
+        manager: Manager | undefined,
+    ): Promise<Role> {
+        // require permission to define roles and every permission the role grants
+        await this.authorizeRole(transaction, scope, [
+            policies.role.permission("create"),
+            ...request.permissions,
+        ]);
+
+        // define the role under a name free in the scope
+        const now = this.context(scope.id).now;
+        const record = await define(transaction, scope.id, request, now, manager);
+        if (record === undefined) {
+            throw new AccessError("CONFLICT", "role name is already in use");
+        }
+        this.renew();
+
+        return Role.describe(record, request.permissions);
+    }
+
+    /** Bind a role on an object to one subject alone as the caller may, revoking its other bindings and writing nothing when bound so already. */
+    async assign(object: ObjectReference, role: string, subject: Subject): Promise<Relationship> {
+        const relationship = await this.database.transaction(async (transaction) => {
+            // read the role's bindings
+            const authorization = this.within(transaction);
+            const request = { object, role, subject };
+            const id = schema.identifier("role").parse(role);
+            const rows = await transaction
+                .select()
+                .from(accessRelationship)
+                .where(eq(accessRelationship.roleId, id));
+            const bound = rows.map((row) => Relationship.decode(row));
+
+            // leave a role bound to the subject alone as it is
+            const [only] = bound;
+            if (bound.length === 1 && only !== undefined && isBinding(only, request)) {
+                return only;
+            }
+
+            // revoke its other bindings and bind it to the subject, as the caller may
+            await authorization.authorizeGrant(request);
+            for (const [index, row] of rows.entries()) {
+                await authorization.authorizeRevoke(aligned(bound, index), row);
+            }
+            await transaction.delete(accessRelationship).where(eq(accessRelationship.roleId, id));
+
+            return authorization.#insert(request);
+        });
+        this.renew();
+
+        return relationship;
+    }
+
+    /** Keep exactly the wanted relationships among those a selection covers as the caller may, leaving the ones still wanted and granting new ones under the selection's manager if any. */
+    async keepRelationships(
+        selection: RelationshipSelection,
+        wanted: readonly RelationshipRequest[],
+    ): Promise<void> {
+        await this.database.transaction(async (transaction) => {
+            // read the relationships the selection covers
+            const authorization = this.within(transaction);
+            const related = (await readSelected(transaction, selection)).map((row) => ({
+                row,
+                relationship: Relationship.decode(row),
+            }));
+
+            // revoke the relationships no longer wanted
+            const missing = new Map(wanted.map((request) => [identityOf(request), request]));
+            const stale = related.filter(
+                ({ relationship }) => !missing.delete(identityOf(relationship)),
+            );
+            for (const { row, relationship } of stale) {
+                await authorization.authorizeRevoke(relationship, row);
+                await transaction
+                    .delete(accessRelationship)
+                    .where(eq(accessRelationship.id, row.id));
+            }
+
+            // grant the wanted relationships missing
+            const manager = "manager" in selection ? selection.manager : undefined;
+            for (const request of missing.values()) {
+                await authorization.authorizeGrant(request);
+                await authorization.#insert(request, manager);
+            }
+        });
+        this.renew();
+    }
+
+    /** Require permissions to change roles in a scope this database keeps as a transaction shows the caller's access afresh, refusing a role a declaration manages. */
+    protected async authorizeRole(
+        transaction: DatabaseConnection,
+        scope: ObjectReference,
+        permissions: readonly PermissionReference[],
+        record?: Select<typeof accessRole>,
+    ): Promise<void> {
+        // write only the roles of a scope this database keeps, refusing a managed role until it is detached
+        await this.authorizer.requireLocal(transaction, scope);
+        if (record !== undefined) {
+            requireUnmanaged(record);
+        }
+
+        // require every permission in the scope
+        const snapshot = Snapshot.live(transaction);
+        const access = await this.authorizer.resolve(snapshot, scope.id, this.context(scope.id));
+        await this.authorizer.require(snapshot, permissions, scope, access);
     }
 
     /** Require the grant permission and every permission a granted role grants, or only the lender for a delegation. */
@@ -710,8 +837,17 @@ export class Authorization {
         }
     }
 
-    /** Require the permission granting what a relationship grants, unless the caller lent it. */
-    protected async authorizeRevoke(request: RelationshipFields): Promise<void> {
+    /** Require an object this database keeps and the permission granting what a relationship grants, unless the caller lent it, refusing a relationship a declaration manages. */
+    protected async authorizeRevoke(
+        request: RelationshipFields,
+        record?: Select<typeof accessRelationship>,
+    ): Promise<void> {
+        // write only the access of an object this database keeps, refusing a managed relationship until it is detached
+        await this.authorizer.requireLocal(this.database, request.object);
+        if (record !== undefined) {
+            requireUnmanaged(record);
+        }
+
         // let a lender manage its own delegations
         if (!this.#lends(request)) {
             await this.#requireGrant(request.object, relationOf(request));
@@ -730,8 +866,8 @@ export class Authorization {
         );
     }
 
-    /** Insert a valid relationship under a new identifier and refuse a duplicate. */
-    async #insert(request: RelationshipRequest): Promise<Relationship> {
+    /** Insert a valid relationship under a new identifier and its manager if any, and refuse a duplicate. */
+    async #insert(request: RelationshipRequest, manager?: Manager): Promise<Relationship> {
         // build the relationship
         const scope = this.authorizer.governingScope(request.object);
         const context = this.context(scope);
@@ -749,7 +885,10 @@ export class Authorization {
         // insert it unless the same relationship exists
         const [inserted] = await this.database
             .insert(accessRelationship)
-            .values(Relationship.encode(relationship, scope))
+            .values({
+                ...Relationship.encode(relationship, scope),
+                ...Manager.values(manager ?? null),
+            })
             .onConflictDoNothing()
             .returning({ id: accessRelationship.id });
         if (!inserted) {
@@ -838,6 +977,57 @@ async function requireRemainingOwner(
     if (owners.length === 1 && aligned(owners, 0).id === row.id) {
         throw new AccessError("CONFLICT", "the last owner cannot be removed");
     }
+}
+
+/** Report whether a relationship binds a role on an object to a subject, unconditionally and without expiry. */
+function isBinding(
+    relationship: Relationship,
+    request: { readonly object: ObjectReference; readonly role: string; readonly subject: Subject },
+): boolean {
+    return (
+        "role" in relationship &&
+        relationship.role === request.role &&
+        Subject.same(relationship.object, request.object) &&
+        Subject.same(relationship.subject, request.subject) &&
+        relationship.expiresAt === null &&
+        relationship.conditions === undefined
+    );
+}
+
+/** Report whether a role is under a manager, or under none when absent. */
+function isManagedBy(record: Select<typeof accessRole>, manager: Manager | undefined): boolean {
+    const columns = Manager.values(manager ?? null);
+
+    return (
+        record.managerInstallationId === columns.managerInstallationId &&
+        record.managerPackageId === columns.managerPackageId &&
+        record.managerName === columns.managerName
+    );
+}
+
+/** Name a relationship by what it grants: its object, relation or role, subject, expiry and conditions. */
+function identityOf(relationship: RelationshipRequest | Relationship): string {
+    return JSON.stringify([
+        ObjectReference.key(relationship.object),
+        Relationship.viaColumns(relationship),
+        Subject.key(relationship.subject),
+        relationship.expiresAt ?? null,
+        Object.entries(relationship.conditions ?? {}).toSorted(([left], [right]) =>
+            left.localeCompare(right),
+        ),
+    ]);
+}
+
+/** Report whether two lists of permissions grant the same set. */
+function isSamePermissions(
+    left: readonly PermissionReference[],
+    right: readonly PermissionReference[],
+): boolean {
+    // compare the sets of their keys
+    const lefts = new Set(left.map((permission) => PermissionReference.key(permission)));
+    const rights = new Set(right.map((permission) => PermissionReference.key(permission)));
+
+    return lefts.size === rights.size && [...lefts].every((key) => rights.has(key));
 }
 
 /** Read the relation a relationship relates through, absent for a role binding. */
