@@ -1,4 +1,4 @@
-import { defineSchema, Digest, Instant, schema } from "@destack/schema";
+import { Commit, defineSchema, Digest, Instant, schema } from "@destack/schema";
 import { DeclarationName, Language, Package } from "../definition/index.ts";
 import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
@@ -14,13 +14,6 @@ export const DescriptionReference = defineSchema(
 );
 /** A description file qualified by its defining package. */
 export type DescriptionReference = schema.Infer<typeof DescriptionReference>;
-
-/** A committed Git object identifier: a SHA-1 or SHA-256 digest in hexadecimal. */
-export const Commit = defineSchema(
-    schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$(?![\s\S])/u),
-);
-/** A committed Git object identifier. */
-export type Commit = schema.Infer<typeof Commit>;
 
 /** The list files of a build, each read on demand and verified by its digest. */
 export const ManifestLists = defineSchema(

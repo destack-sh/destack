@@ -45,7 +45,7 @@ An entry in `describes` names up to four functions for one kind: `function`, `co
     // which terms stored values hold, such as object/note/relation/editor, read by the build, the registry and spaces
     "vocabulary": "./inspect#noteVocabulary",
     // which symbols a declaration derives and which declarations they name, read by the build into the graph
-    "symbols": "./inspect#noteSymbols"
+    "symbols": "./inspect#noteSymbols",
 }
 ```
 

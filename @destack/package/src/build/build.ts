@@ -99,7 +99,7 @@ export interface CompiledOutput {
     /** The emitted chunk of each package entrypoint. */
     readonly exports: Readonly<Record<string, string>>;
     /** Select the declarations an entrypoint's modules hold, refusing imports its runtime lacks. */
-    reach(entrypoint: string): DeclarationDescription[];
+    declarations(entrypoint: string): DeclarationDescription[];
 }
 
 /** The workloads and views an extension describes in one output. */
