@@ -13,11 +13,28 @@ const elevationSchema = defineSchema(
         maxAge: schema.number().int().positive(),
     }),
 );
+
 /** The authentication a sensitive permission requires: an assurance level reached recently enough. */
 export type Elevation = schema.Infer<typeof elevationSchema>;
 
+/** The schema of a step-up challenge: the assurance level, and the elevation's age when a permission sets one (RFC 9470). */
+const stepUpSchema = defineSchema(
+    schema.object({
+        /** The lowest assurance level: 1 for one factor, 2 for several, 3 for phishing-resistant factors. */
+        assurance: schema.number().int().min(1).max(HIGHEST_ASSURANCE),
+        /** The longest time since the caller authenticated at that level, in milliseconds. */
+        maxAge: schema.number().int().positive().exactOptional(),
+    }),
+);
+
 /** The authentication a step-up challenge asks of a refused caller: the assurance level and elevation age. */
-export type StepUp = Pick<Elevation, "assurance"> & Partial<Pick<Elevation, "maxAge">>;
+export type StepUp = schema.Infer<typeof stepUpSchema>;
+
+/** The authentication a step-up challenge asks of a refused caller. */
+export const StepUp = {
+    /** The schema of a step-up challenge. */
+    schema: stepUpSchema,
+};
 
 /** The authentication a sensitive permission requires, like OpenID Connect's `acr_values` and `max_age`. */
 export const Elevation = {
