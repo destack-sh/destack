@@ -14,19 +14,21 @@
         "./view": "./src/view/index.ts"
     },
     "dependencies": {
-        "@destack/audit": "workspace:*",
-        "@destack/space": "workspace:*",
         "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/icon": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/account": "workspace:*",
+        "@destack/space": "workspace:*",
         "@destack/style": "workspace:*",
+        "@destack/sync": "workspace:*",
         "@destack/theme": "workspace:*",
-        "@destack/view": "workspace:*",
-        "@destack/sync": "workspace:*"
+        "@destack/ui": "workspace:*",
+        "@destack/view": "workspace:*"
     },
     "devDependencies": {
         "@destack/resource": "workspace:*",

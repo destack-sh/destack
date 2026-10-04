@@ -1,7 +1,41 @@
 import * as style from "@destack/style";
-import { createTheme } from "@destack/theme";
-import { color } from "@destack/theme/tokens.stylex";
-import "@destack/theme/theme.css";
+import { text } from "@destack/theme/text";
+import { space } from "@destack/theme/tokens.stylex";
+import { Icon } from "@destack/icon";
+import { Badge } from "@destack/ui/badge";
+import { Button } from "@destack/ui/button";
+import {
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+} from "@destack/ui/empty";
+import {
+    InputGroup,
+    InputGroupAddon,
+    InputGroupButton,
+    InputGroupInput,
+} from "@destack/ui/input-group";
+import { ItemContent, ItemTitle, itemStyle } from "@destack/ui/item";
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarInset,
+    SidebarMenu,
+    SidebarMenuBadge,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarProvider,
+    SidebarTrigger,
+} from "@destack/ui/sidebar";
+import { Textarea } from "@destack/ui/textarea";
 import {
     createMemo,
     createSignal,
@@ -12,56 +46,125 @@ import {
     useSpace,
     useText,
 } from "@destack/view";
+import { Field } from "@destack/view/form";
 import type { Identifier } from "@destack/schema";
 import { note, notebook } from "../object/index.ts";
 
-/** The notes layout: notebooks, their notes, and the open note. */
+/** The notes layout: the note list beside the open note. */
 const styles = style.create({
-    page: {
+    inset: {
         display: "grid",
-        gridTemplateColumns: "14rem 16rem 1fr",
+        gridTemplateRows: "auto 1fr",
         minHeight: "100vh",
-        backgroundColor: color.background,
-        color: color.foreground,
-        fontFamily: "system-ui",
     },
-    workspace: { display: "contents" },
-    column: { display: "grid", alignContent: "start", gap: "0.5rem", padding: "1rem" },
-    body: { minHeight: "60vh", font: "inherit", resize: "vertical" },
+    header: {
+        display: "flex",
+        alignItems: "center",
+        gap: space[2],
+        paddingInline: space[4],
+        paddingBlock: space[2],
+    },
+    workspace: {
+        display: "grid",
+        gridTemplateColumns: "18rem 1fr",
+        minHeight: 0,
+    },
+    list: {
+        display: "flex",
+        flexDirection: "column",
+        gap: space[1],
+        padding: space[3],
+        overflowY: "auto",
+    },
+    note: {
+        width: "100%",
+        textAlign: "start",
+        cursor: "pointer",
+    },
+    editor: {
+        display: "flex",
+        flexDirection: "column",
+        gap: space[4],
+        padding: space[5],
+    },
+    body: {
+        flex: 1,
+        minHeight: "60vh",
+        resize: "vertical",
+    },
 });
 
 /** Show the space's notebooks and notes, editing the open note together. */
 export default function Notes() {
     return (
-        <main
-            {...style.attrs(styles.page)}
-            {...createTheme({ gray: "sand", accent: "orange", appearance: "system" })}
-        >
-            <Loading>
-                <Workspace />
-            </Loading>
-        </main>
+        <Loading>
+            <Workspace />
+        </Loading>
     );
 }
 
 /** List notebooks and notes, and edit the open note. */
 function Workspace() {
-    // follow the notebooks, remounting the notes whenever another notebook is chosen
+    // follow the open note and the chosen notebook to remount the notes on each choice
     const [open, setOpen] = createSignal<Identifier<"note">>();
     const [chosen, setChosen] = createSignal<Identifier<"notebook">>();
-    const space = useSpace({ notebook, note });
-    const notebooks = useQuery(space.query.notebook.findMany({ orderBy: { name: "asc" } }));
+    const objects = useSpace({ notebook, note });
     const selection = createMemo(() => ({ notebook: chosen() }));
 
     /** Undo and redo with the platform's shortcuts. */
     function shortcut(event: KeyboardEvent) {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
             event.preventDefault();
-            void (event.shiftKey ? space.redo() : space.undo());
+            void (event.shiftKey ? objects.redo() : objects.undo());
         }
     }
 
-    /** Create a notebook named by the form. */
+    /** Create an empty note in the chosen notebook and open it. */
+    async function createNote() {
+        const created = await objects.mutate.note.create({
+            title: "Untitled",
+            ...(chosen() === undefined ? {} : { parentId: chosen() }),
+        }).predicted;
+        setOpen(created.id);
+    }
+
+    return (
+        <SidebarProvider onKeyDown={shortcut}>
+            <Notebooks chosen={chosen()} choose={setChosen} />
+            <SidebarInset style={styles.inset}>
+                <header {...style.attrs(styles.header)}>
+                    <SidebarTrigger />
+                </header>
+                <div {...style.attrs(styles.workspace)}>
+                    <Show when={selection()} keyed>
+                        {(selected) => (
+                            <NoteList
+                                notebook={selected.notebook}
+                                open={open()}
+                                choose={setOpen}
+                                create={() => void createNote()}
+                            />
+                        )}
+                    </Show>
+                    <Show when={open()}>{(id) => <Editor id={id()} />}</Show>
+                </div>
+            </SidebarInset>
+        </SidebarProvider>
+    );
+}
+
+/** List the space's notebooks and the loose notes to choose from, and create a notebook named by the form. */
+function Notebooks(properties: {
+    /** The chosen notebook, absent for the loose notes. */
+    chosen: Identifier<"notebook"> | undefined;
+    /** Choose a notebook, or the loose notes. */
+    choose: (id: Identifier<"notebook"> | undefined) => void;
+}) {
+    // follow the notebooks by name
+    const objects = useSpace({ notebook });
+    const notebooks = useQuery(objects.query.notebook.findMany({ orderBy: { name: "asc" } }));
+
+    /** Create a notebook named by the form and choose it. */
     async function createNotebook(
         event: SubmitEvent & { readonly currentTarget: HTMLFormElement },
     ) {
@@ -73,101 +176,193 @@ function Workspace() {
         // create the notebook and choose it
         if (typeof name === "string" && name.trim() !== "") {
             form.reset();
-            const created = await space.mutate.notebook.create({ name }).predicted;
-            setChosen(created.id);
+            const created = await objects.mutate.notebook.create({ name }).predicted;
+            properties.choose(created.id);
         }
     }
 
-    /** Create an empty note in the chosen notebook and open it. */
-    async function createNote() {
-        const created = await space.mutate.note.create({
-            title: "Untitled",
-            ...(chosen() === undefined ? {} : { parentId: chosen() }),
-        }).predicted;
-        setOpen(created.id);
-    }
-
     return (
-        <div {...style.attrs(styles.workspace)} onKeyDown={shortcut}>
-            {/* Notebooks */}
-            <nav {...style.attrs(styles.column)} aria-label="Notebooks">
-                <button onClick={() => setChosen(undefined)}>All loose notes</button>
-                <For each={notebooks()}>
-                    {(row) => <button onClick={() => setChosen(row.id)}>{row.name}</button>}
-                </For>
+        <Sidebar collapsible="icon">
+            <SidebarHeader>
+                <span {...style.attrs(text.headline)}>Notes</span>
+            </SidebarHeader>
+            <SidebarContent>
+                <SidebarGroup>
+                    <SidebarGroupLabel>Notebooks</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    isActive={properties.chosen === undefined}
+                                    tooltip="Loose notes"
+                                    onClick={() => properties.choose(undefined)}
+                                >
+                                    <Icon name="note" />
+                                    Loose notes
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <For each={notebooks()}>
+                                {(row) => (
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            isActive={properties.chosen === row.id}
+                                            tooltip={row.name}
+                                            onClick={() => properties.choose(row.id)}
+                                        >
+                                            <Icon name="notebook" />
+                                            {row.name}
+                                        </SidebarMenuButton>
+                                        <SidebarMenuBadge>{row.noteCount}</SidebarMenuBadge>
+                                    </SidebarMenuItem>
+                                )}
+                            </For>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+            </SidebarContent>
+            <SidebarFooter>
                 <form onSubmit={(event) => void createNotebook(event)}>
-                    <input name="name" aria-label="Notebook name" placeholder="New notebook" />
+                    <InputGroup>
+                        <InputGroupInput
+                            name="name"
+                            aria-label="Notebook name"
+                            placeholder="New notebook"
+                        />
+                        <InputGroupAddon align="inline-end">
+                            <InputGroupButton
+                                type="submit"
+                                size="icon-xs"
+                                aria-label="Create notebook"
+                            >
+                                <Icon name="plus" />
+                            </InputGroupButton>
+                        </InputGroupAddon>
+                    </InputGroup>
                 </form>
-            </nav>
-
-            {/* Notes of the chosen notebook */}
-            <section {...style.attrs(styles.column)} aria-label="Notes">
-                <button onClick={() => void createNote()}>New note</button>
-                <Show when={selection()} keyed>
-                    {(selected) => <Notebook notebook={selected.notebook} open={setOpen} />}
-                </Show>
-            </section>
-
-            {/* The open note */}
-            <Show when={open()}>{(id) => <Editor id={id()} />}</Show>
-        </div>
+            </SidebarFooter>
+        </Sidebar>
     );
 }
 
-/** List the notes of a notebook, or the loose notes, opening the one clicked. */
-function Notebook(properties: {
+/** List the notes of a notebook, or the loose notes, opening the one chosen. */
+function NoteList(properties: {
     /** The notebook, absent for the loose notes. */
     notebook: Identifier<"notebook"> | undefined;
+    /** The open note. */
+    open: Identifier<"note"> | undefined;
     /** Open a note. */
-    open: (id: Identifier<"note">) => void;
+    choose: (id: Identifier<"note">) => void;
+    /** Create a note and open it. */
+    create: () => void;
 }) {
-    // follow the notebook's notes
-    const space = useSpace({ note });
+    // follow the notebook's notes with pinned ones first
+    const objects = useSpace({ note });
     const notes = useQuery(() =>
-        space.query.note.findMany({
+        objects.query.note.findMany({
             where:
                 properties.notebook === undefined
                     ? { parentId: { isNull: true } }
                     : { parentId: properties.notebook },
-            orderBy: { title: "asc" },
+            orderBy: { pinned: "desc", title: "asc" },
         }),
     );
 
     return (
-        <For each={notes()}>
-            {(row) => <button onClick={() => properties.open(row.id)}>{row.title}</button>}
-        </For>
+        <section {...style.attrs(styles.list)} aria-label="Notes">
+            <Button variant="outline" onClick={() => properties.create()}>
+                <Icon name="plus" />
+                New note
+            </Button>
+            <For
+                each={notes()}
+                fallback={
+                    <Empty>
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <Icon name="note" />
+                            </EmptyMedia>
+                            <EmptyTitle>No notes yet</EmptyTitle>
+                            <EmptyDescription>
+                                Notes you write here stay in this notebook.
+                            </EmptyDescription>
+                        </EmptyHeader>
+                        <EmptyContent>
+                            <Button onClick={() => properties.create()}>New note</Button>
+                        </EmptyContent>
+                    </Empty>
+                }
+            >
+                {(row) => (
+                    <button
+                        type="button"
+                        aria-current={properties.open === row.id ? "true" : undefined}
+                        onClick={() => properties.choose(row.id)}
+                        {...style.attrs(
+                            itemStyle({
+                                variant: properties.open === row.id ? "muted" : "default",
+                                size: "sm",
+                            }),
+                            styles.note,
+                        )}
+                    >
+                        <ItemContent>
+                            <ItemTitle>
+                                {row.title}
+                                <Show when={row.pinned}>
+                                    <Badge variant="secondary">Pinned</Badge>
+                                </Show>
+                            </ItemTitle>
+                        </ItemContent>
+                    </button>
+                )}
+            </For>
+        </section>
     );
 }
 
-/** Edit one note's title and text, sharing every keystroke live. */
+/** Edit one note's title, pin and text, sharing every keystroke live. */
 function Editor(properties: {
     /** The open note. */
     id: Identifier<"note">;
 }) {
     // follow the note's row and its text
-    const space = useSpace({ note });
-    const current = useQuery(() => space.query.note.findFirst({ where: { id: properties.id } }));
+    const objects = useSpace({ note });
+    const current = useQuery(() => objects.query.note.findFirst({ where: { id: properties.id } }));
     const body = useText(note, properties.id, "body");
 
     return (
-        <article {...style.attrs(styles.column)} aria-label="Note">
-            <input
-                aria-label="Title"
-                value={current()?.title ?? ""}
-                onChange={(event) =>
-                    void space.mutate.note.update({
-                        id: properties.id,
-                        title: event.currentTarget.value,
-                    })
-                }
-            />
-            <textarea
-                {...style.attrs(styles.body)}
-                aria-label="Text"
-                value={body.text()}
-                onInput={(event) => void body.replace(event.currentTarget.value)}
-            />
-        </article>
+        <Show when={current()}>
+            {(row) => (
+                <article {...style.attrs(styles.editor)} aria-label="Note">
+                    <Field
+                        label="Title"
+                        for={{
+                            object: note,
+                            field: "title",
+                            value: row().title,
+                            write: (title) =>
+                                objects.mutate.note.update({ id: properties.id, title }),
+                        }}
+                    />
+                    <Field
+                        label="Pinned"
+                        orientation="horizontal"
+                        for={{
+                            object: note,
+                            field: "pinned",
+                            value: row().pinned,
+                            write: (pinned) =>
+                                objects.mutate.note.update({ id: properties.id, pinned }),
+                        }}
+                    />
+                    <Textarea
+                        aria-label="Text"
+                        value={body.text()}
+                        onInput={(event) => void body.replace(event.currentTarget.value)}
+                        style={styles.body}
+                    />
+                </article>
+            )}
+        </Show>
     );
 }
