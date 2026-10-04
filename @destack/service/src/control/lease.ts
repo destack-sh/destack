@@ -5,40 +5,27 @@ import {
     integer,
     lt,
     or,
-    primaryKey,
     sql,
     text,
     type DatabaseConnection,
 } from "@destack/db";
 
-/**
- * The default lease duration, in milliseconds.
- *
- * Kubernetes leases last 15 seconds and renew at a third of that.
- */
+/** The default lease duration in milliseconds, as Kubernetes leases last 15 seconds and renew at a third of that. */
 export const LEASE_MILLISECONDS = 15_000;
 
 /** The instance reconciling a controller's key, and until when. */
-export const controllerLease = defineTable(
-    "controller_lease",
-    {
-        /** The controller's name. */
-        controller: text("controller").notNull(),
-        /** The key. */
-        key: text("key").notNull(),
-        /** The instance holding the lease. */
-        holder: text("holder").notNull(),
-        /** The count of takeovers that fences writes. */
-        epoch: integer("epoch").notNull(),
-        /** The lapse time, in UTC epoch milliseconds. */
-        expiresAt: integer("expires_at").notNull(),
-    },
-    {
-        constraints: (lease) => [
-            primaryKey({ name: "controller_lease_key", columns: [lease.controller, lease.key] }),
-        ],
-    },
-);
+export const controllerLease = defineTable("controller_lease", {
+    /** The controller's name. */
+    controller: text("controller").primaryKey(),
+    /** The key. */
+    key: text("key").primaryKey(),
+    /** The instance with the lease. */
+    holder: text("holder").notNull(),
+    /** The count of takeovers that fences writes. */
+    epoch: integer("epoch").notNull(),
+    /** The lapse time, in UTC epoch milliseconds. */
+    expiresAt: integer("expires_at").notNull(),
+});
 
 /** The leases of instances over one database. */
 export const Leases = {
@@ -50,9 +37,9 @@ export const Leases = {
         holder: string,
         duration: number,
     ): Promise<{ readonly epoch: number } | { readonly lapsesAt: number }> {
-        // take the lease when free, lapsed or held
+        // take the lease when free, lapsed or already ours
         const now = Date.now();
-        const [held] = await database
+        const [taken] = await database
             .insert(controllerLease)
             .values({ controller, key, holder, epoch: 1, expiresAt: now + duration })
             .onConflictDoUpdate({
@@ -68,8 +55,8 @@ export const Leases = {
                 ),
             })
             .returning({ epoch: controllerLease.epoch });
-        if (held !== undefined) {
-            return { epoch: held.epoch };
+        if (taken !== undefined) {
+            return { epoch: taken.epoch };
         }
 
         // read the other holder's lapse time

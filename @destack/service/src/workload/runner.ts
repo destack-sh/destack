@@ -1,4 +1,4 @@
-import { type ReplicaSource } from "@destack/sync";
+import { type Publisher } from "@destack/sync";
 import type { ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { telemetry } from "@destack/telemetry";
@@ -16,7 +16,7 @@ import type { PackageId } from "@destack/package";
 import { WebhookOn, Trigger, type RunClient } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
-import type { AuditHistory, Workload } from "./workload.ts";
+import type { AuditHistory, CellDirectory, InstallationContext, Workload } from "./workload.ts";
 import { CallKey } from "../request/index.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
@@ -42,11 +42,13 @@ export interface RunnerOptions {
     readonly resources: Readonly<Record<string, ResourceDeclaration<unknown>>>;
     /** Connect to an audit service through the host's egress with the runner's secret. */
     history(url: string, secret: string): AuditHistory;
-    /** Connect to the source of an installation's copies, its space's cell, through the host's egress with the runner's secret. */
-    replicas(url: string, secret: string): ReplicaSource;
+    /** Connect to a publisher of an installation's copies, its space's cell or another installation of its package, through the host's egress with the runner's secret. */
+    publisher(url: string, secret: string): Publisher;
+    /** Connect to the directory through the space's cell, at the host's egress with the runner's secret. */
+    directory(url: string, secret: string): CellDirectory;
     /** Connect to the cell recording the installation's runs, through the host's egress with the runner's secret. */
     runs(url: string, start: WorkloadStart): RunClient;
-    // TODO #Incomplete: pass the Durable Object's storage as the alarm from a workerd entry, awaiting `idle()` in its alarm handler
+    // TODO #Incomplete: pass the Durable Object's storage as the alarm from a workerd entry, calling `alarm(deadline)` in its alarm handler
     /** Keep a wake-up for the workload's earliest due controller key, such as the Durable Object's alarm running it. */
     readonly alarm?: Alarm;
 }
@@ -63,27 +65,31 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly #packageId: PackageId;
     /** The installation's resources, which webhooks read their secrets from. */
     readonly #resources: ResourceContext;
+    /** The bound resources' clients, disposed once the instance drains. */
+    readonly #connections: AsyncDisposableStack;
     /** The cell recording the installation's runs. */
     readonly #runs: RunClient;
-    /** The telemetry exporting to the space's monitor. */
-    readonly #telemetry: Telemetry;
-    /** Hold a started instance and its telemetry. */
+    /** The telemetry exporting to the space's monitor, which the runner only stops. */
+    readonly #telemetry: Pick<Telemetry, "shutdown">;
+    /** Keep a started instance and its telemetry. */
     private constructor(
         start: WorkloadStart,
         instance: WorkloadInstance,
         service: Service,
-        running: Telemetry,
+        running: Pick<Telemetry, "shutdown">,
         packageId: PackageId,
         resources: ResourceContext,
+        connections: AsyncDisposableStack,
         runs: RunClient,
     ) {
-        // hold the instance and what it runs with
+        // keep the instance and what it runs with
         this.start = start;
         this.instance = instance;
         this.#service = service;
         this.#packageId = packageId;
         this.#telemetry = running;
         this.#resources = resources;
+        this.#connections = connections;
         this.#runs = runs;
     }
 
@@ -91,33 +97,25 @@ export class WorkloadRunner implements AsyncDisposable {
     static async start(
         runner: RunnerOptions,
         start: WorkloadStart,
-        startTelemetry: (options: TelemetryOptions) => Promise<Telemetry>,
+        startTelemetry: (options: TelemetryOptions) => Promise<Pick<Telemetry, "shutdown">>,
         report: (error: unknown) => void,
     ): Promise<WorkloadRunner> {
-        // export the package's telemetry to its space's monitor through the host's egress
-        const bearer = () => `Bearer ${start.secret}`;
-        const monitor = Egress.url(start.egress, MONITOR_ADDRESS);
-        const exporter = OtlpExporter.http(monitor, bearer, report);
+        // export the package's telemetry to its space's monitor
         const running = await startTelemetry(
-            exporter.options(runner.workload.package, {
-                attributes: { "service.instance.id": start.instance },
-                ratio: start.sampling,
-            }),
+            WorkloadRunner.#telemetryOptions(runner, start, report),
         );
 
-        // start the instance on the bound resources, stopping telemetry when it fails
+        // start the instance on the bound resources, closing them and telemetry when it fails
+        const connections = new AsyncDisposableStack();
         try {
-            const resources = await WorkloadRunner.#connect(runner, start);
+            const resources = await WorkloadRunner.#connect(runner, start, connections);
             const callKey = CallKey.import(Uint8Array.fromHex(start.callKey));
             const space = Egress.url(start.egress, SPACE_ADDRESS);
             const runs = runner.runs(space, start);
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 history: runner.history(Egress.url(start.egress, AUDIT_ADDRESS), start.secret),
-                replicas: {
-                    scope: start.scope,
-                    source: runner.replicas(space, start.secret),
-                },
+                installation: WorkloadRunner.#installation(runner, start, space),
                 runs,
                 callKey: () => callKey,
                 report,
@@ -126,16 +124,9 @@ export class WorkloadRunner implements AsyncDisposable {
             });
 
             // require the package's one service
-            const [service, ...others] = instance.services;
-            if (service === undefined || others.length > 0) {
-                await instance.close();
-                const found = instance.services.length;
-                throw new ServiceError("PRECONDITION_FAILED", {
-                    message: `a runner serves one service per package, found ${found}`,
-                });
-            }
+            const service = await WorkloadRunner.#requireService(instance);
 
-            // hold the instance
+            // keep the instance
             log.info("workload.started", {
                 workload: runner.workload.name,
                 instance: start.instance,
@@ -148,12 +139,64 @@ export class WorkloadRunner implements AsyncDisposable {
                 running,
                 runner.workload.package.id,
                 resources,
+                connections,
                 runs,
             );
         } catch (error) {
+            await connections.disposeAsync();
             await running.shutdown();
             throw error;
         }
+    }
+
+    /** Export a workload's telemetry to its space's monitor through the host's egress, naming the build it runs. */
+    static #telemetryOptions(
+        runner: RunnerOptions,
+        start: WorkloadStart,
+        report: (error: unknown) => void,
+    ): TelemetryOptions {
+        // export to the monitor's address under the host's secret
+        const bearer = () => `Bearer ${start.secret}`;
+        const monitor = Egress.url(start.egress, MONITOR_ADDRESS);
+        const exporter = OtlpExporter.http(monitor, bearer, report);
+
+        return exporter.options(runner.workload.package, {
+            attributes: { "service.instance.id": start.instance },
+            ratio: start.sampling,
+            ...(start.manifest === undefined ? {} : { manifest: start.manifest }),
+        });
+    }
+
+    /** Require an instance to serve its package's one service, closing it otherwise. */
+    static async #requireService(
+        instance: WorkloadInstance,
+    ): Promise<WorkloadInstance["services"][number]> {
+        const [service, ...others] = instance.services;
+        if (service === undefined || others.length > 0) {
+            await instance.close();
+            const count = instance.services.length;
+            throw new ServiceError("PRECONDITION_FAILED", {
+                message: `a runner serves one service per package, found ${count}`,
+            });
+        }
+
+        return service;
+    }
+
+    /** Describe a started workload's installation: its space's cell, and other installations through the host's egress. */
+    static #installation(
+        runner: RunnerOptions,
+        start: WorkloadStart,
+        space: string,
+    ): InstallationContext {
+        return {
+            id: start.installation,
+            scope: start.scope,
+            publisher: runner.publisher(space, start.secret),
+            publisherAt: (address) =>
+                runner.publisher(Egress.url(start.egress, address), start.secret),
+            directory: runner.directory(space, start.secret),
+        };
     }
 
     /** Aborts once the instance shuts down. */
@@ -190,9 +233,9 @@ export class WorkloadRunner implements AsyncDisposable {
         this.instance.shutdown();
     }
 
-    /** Settle once no controller key is due now or reconciling, as an alarm's handler waits before its instance may be evicted. */
-    idle(): Promise<void> {
-        return this.instance.idle();
+    /** Run the controllers at the host's wake-up until no key is due now or reconciling, or until a deadline. */
+    alarm(deadline: number): Promise<void> {
+        return this.instance.alarm(deadline);
     }
 
     /** Verify a request to one of the package's webhook triggers, and record the call its delivery runs once. */
@@ -232,10 +275,11 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
-    /** Drain the instance, then export the telemetry left and stop it. */
+    /** Drain the instance, close its resources, then export the telemetry left and stop it. */
     async close(): Promise<void> {
         try {
             await this.instance.close();
+            await this.#connections.disposeAsync();
         } finally {
             await this.#telemetry.shutdown();
         }
@@ -246,8 +290,12 @@ export class WorkloadRunner implements AsyncDisposable {
         await this.close();
     }
 
-    /** Connect each bound resource through its declaration's connector for the resource's provider. */
-    static async #connect(runner: RunnerOptions, start: WorkloadStart): Promise<ResourceContext> {
+    /** Connect each bound resource through its declaration's connector for the resource's provider, keeping each client to dispose. */
+    static async #connect(
+        runner: RunnerOptions,
+        start: WorkloadStart,
+        connections: AsyncDisposableStack,
+    ): Promise<ResourceContext> {
         const resources = new ResourceContext();
         for (const [name, binding] of Object.entries(start.bindings)) {
             // require the declaration of the binding's kind and its connector for the provider
@@ -264,7 +312,8 @@ export class WorkloadRunner implements AsyncDisposable {
             }
 
             // connect to the bound resource
-            resources.bind(declaration, (await connector.connect(binding, declaration)) as never);
+            const client = connections.use(await connector.connect(binding, declaration));
+            resources.bind(declaration, client);
         }
 
         return resources;

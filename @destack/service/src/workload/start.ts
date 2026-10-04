@@ -1,6 +1,6 @@
 import { DeclarationName } from "@destack/package";
 import { ResourceBinding } from "@destack/resource";
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { defineSchema, Digest, schema } from "@destack/schema";
 
 /** The path below which an installation's origin receives webhook requests, and a host forwards them to a runner. */
 export const WEBHOOK_PATH = "/.destack/webhook";
@@ -9,11 +9,13 @@ export const WEBHOOK_PATH = "/.destack/webhook";
 export const WorkloadStart = defineSchema(
     schema.object({
         /** The instance, the holder name of its leases. */
-        instance: identifier("instance"),
+        instance: schema.identifier("instance"),
         /** The space the installation serves. */
-        scope: identifier("space"),
+        scope: schema.identifier("space"),
         /** The installation the workload runs. */
-        installation: identifier("installation"),
+        installation: schema.identifier("installation"),
+        /** The digest of the manifest of the build the workload runs, absent for a release no host resolved. */
+        manifest: Digest.exactOptional(),
         /** The resources the installation binds, by the package's resource name. */
         bindings: schema.record(DeclarationName, ResourceBinding),
         /** The secret the host and the runner prove each other's requests with. */
@@ -23,7 +25,7 @@ export const WorkloadStart = defineSchema(
         /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
         sampling: schema.number().min(0).max(1),
         /** The installation's journal key, 32 bytes as hexadecimal, which the host derives for it. */
-        callKey: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/)),
+        callKey: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/u)),
     }),
 );
 /** The first line a host writes to a runner's input. */

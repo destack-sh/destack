@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, eq, integer, text } from "@destack/db";
+import { Change, defineTable, eq, integer, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
+import { aligned, found } from "@destack/schema";
 import { ControlLoop, type Controller, Reconciliation } from "./control.ts";
 import { controllerLease } from "./lease.ts";
 
@@ -10,13 +11,25 @@ const job = defineTable(
     {
         /** The job's name. */
         id: text("id").primaryKey(),
-        /** The space holding the job. */
+        /** The space with the job. */
         scope: text("scope").notNull(),
         /** The desired number of runs. */
         runs: integer("runs").notNull(),
     },
     { log: {} },
 );
+
+/** Read a reported failure's message, refusing a failure that is no error. */
+function message(error: unknown): string {
+    if (!(error instanceof Error)) {
+        throw new TypeError("a reconciliation failed with a value that is no error");
+    }
+
+    return error.message;
+}
+
+/** Ignore a failed reconciliation. */
+function ignore(): void {}
 
 test("reconcile listed keys, keys changes name, keys due again, and failed keys after a backoff", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
@@ -31,7 +44,7 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
     const controller: Controller = {
         name: "job",
         watches: [job],
-        keys: (change) => [String((change.after ?? change.before)!.id)],
+        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
         list: async () => ["listed"],
         reconcile: async (key) => {
             reconciled.push(key);
@@ -47,7 +60,7 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(database, [controller], {
-        report: (_controller, key, error) => reported.push(`${key}: ${(error as Error).message}`),
+        report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         retry: { initialInterval: 5 },
     });
     const running = loop.run(stopping.signal);
@@ -63,7 +76,7 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
         { id: "flaky", scope: "space", runs: 1 },
     ]);
     await expect
-        .poll(() => [...reconciled].sort(), { timeout: 5000 })
+        .poll(() => reconciled.toSorted(), { timeout: 5000 })
         .toEqual(["flaky", "flaky", "listed", "timed", "timed"]);
     expect(reported).toEqual(["flaky: unavailable"]);
 });
@@ -72,7 +85,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
-    // hold each reconciliation until released
+    // block each reconciliation until released
     const releases = new Map<string, () => void>();
     let running = 0;
     let most = 0;
@@ -87,7 +100,9 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
             started.push(key);
             running += 1;
             most = Math.max(most, running);
-            await new Promise<void>((release) => releases.set(key, release));
+            await new Promise<void>((release) => {
+                releases.set(key, release);
+            });
             running -= 1;
 
             return undefined;
@@ -104,14 +119,18 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
 
     // name the first key again while it runs and finish the second
     await expect.poll(() => started.length).toBe(2);
-    const [first, second] = started as [string, string];
-    const third = ["a", "b", "c"].find((key) => !started.includes(key))!;
+    const first = aligned(started, 0);
+    const second = aligned(started, 1);
+    const third = aligned(
+        ["a", "b", "c"].filter((key) => !started.includes(key)),
+        0,
+    );
     loop.enqueue(controller, first);
-    releases.get(second)!();
+    found(releases, second)();
     await expect.poll(() => started).toEqual([first, second, third]);
 
     // reconcile the first again after it finishes
-    releases.get(first)!();
+    found(releases, first)();
     await expect.poll(() => started).toEqual([first, second, third, first]);
     expect(most).toBe(2);
 });
@@ -131,21 +150,20 @@ test("lease each key to one instance of several sharing a database, handing it o
         keys: () => [],
         list: async () => ["shared"],
         reconcile: async (_key, reconciliation) => {
-            reconciled.push(`${reconciliation!.epoch}`);
+            reconciled.push(`${reconciliation.epoch}`);
 
             return undefined;
         },
     };
     const first = new AbortController();
     const second = new AbortController();
-    const report = () => {};
     const running = [
         new ControlLoop(storage.database, [controller], {
-            report,
+            report: ignore,
             lease: { holder: "first", duration: 200 },
         }).run(first.signal),
         new ControlLoop(storage.database, [controller], {
-            report,
+            report: ignore,
             lease: { holder: "second", duration: 200 },
         }).run(second.signal),
     ];
@@ -159,10 +177,10 @@ test("lease each key to one instance of several sharing a database, handing it o
     await expect.poll(() => reconciled.length).toBe(1);
 
     // stop the holder and let the other instance take the key
-    const [held] = await storage.database
+    const leases = await storage.database
         .select({ holder: controllerLease.holder })
         .from(controllerLease);
-    (held!.holder === "first" ? first : second).abort();
+    (aligned(leases, 0).holder === "first" ? first : second).abort();
     await expect.poll(() => reconciled, { timeout: 2000 }).toEqual(["1", "1"]);
 });
 
@@ -187,9 +205,9 @@ test("follow each listed key until its list drops it or the loop stops", async (
         concurrency: 8,
         reconcile: async (key, { signal }) => {
             started.push(key);
-            await new Promise<void>((resolve) =>
-                signal.addEventListener("abort", () => resolve(), { once: true }),
-            );
+            await new Promise<void>((resolve) => {
+                signal.addEventListener("abort", () => resolve(), { once: true });
+            });
             stopped.push(key);
             throw signal.reason;
         },
@@ -201,16 +219,16 @@ test("follow each listed key until its list drops it or the loop stops", async (
     const running = loop.run(stopping.signal);
 
     // start both, then stop the one the list drops and start the one it adds
-    await expect.poll(() => [...started].sort()).toEqual(["dropped", "kept"]);
+    await expect.poll(() => started.toSorted()).toEqual(["dropped", "kept"]);
     await database.delete(job).where(eq(job.id, "dropped"));
     await database.insert(job).values({ id: "added", scope: "space", runs: 1 });
     await expect.poll(() => stopped).toEqual(["dropped"]);
-    await expect.poll(() => [...started].sort()).toEqual(["added", "dropped", "kept"]);
+    await expect.poll(() => started.toSorted()).toEqual(["added", "dropped", "kept"]);
 
     // stop the rest with the loop, reporting no failure
     stopping.abort();
     await running;
-    expect([...stopped].sort()).toEqual(["added", "dropped", "kept"]);
+    expect(stopped.toSorted()).toEqual(["added", "dropped", "kept"]);
     expect(reported).toEqual([]);
 });
 
@@ -236,7 +254,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(database, [controller], {
-        report: (_controller, key, error) => reported.push(`${key}: ${(error as Error).message}`),
+        report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         retry: { initialInterval: 50 },
     });
     const running = loop.run(stopping.signal);
@@ -246,7 +264,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     stopping.abort();
     await running;
     const failure = "brief: brief stopped following brief unasked";
-    expect({ isBackedOff: started[1]! - started[0]! >= 50, reported }).toEqual({
+    expect({ isBackedOff: aligned(started, 1) - aligned(started, 0) >= 50, reported }).toEqual({
         isBackedOff: true,
         reported: [failure, failure],
     });
@@ -271,9 +289,9 @@ test("follow a key again once its list names it after it failed and was dropped"
             if (started.length === 1) {
                 throw new Error("the first follow fails");
             }
-            await new Promise<void>((resolve) =>
-                signal.addEventListener("abort", () => resolve(), { once: true }),
-            );
+            await new Promise<void>((resolve) => {
+                signal.addEventListener("abort", () => resolve(), { once: true });
+            });
             throw signal.reason;
         },
     };
@@ -296,7 +314,7 @@ test("follow a key again once its list names it after it failed and was dropped"
     await expect.poll(() => started).toEqual(["flaky", "flaky", "other", "flaky"]);
 });
 
-test("keep the host's alarm at the earliest due or held key, clear it once nothing is due, and settle idle waiters, also after the loop stopped", async () => {
+test("keep the host's alarm at the earliest due or skipped key, clear it once nothing is due, and settle idle waiters, also after the loop stopped", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
@@ -331,19 +349,91 @@ test("keep the host's alarm at the earliest due or held key, clear it once nothi
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
 
-    // settle once both keys ran: the alarm held for "soon" while "later" ran, then waking the instance for "later"
+    // settle once both keys ran: the alarm stayed at "soon" while "later" ran, then waking the instance for "later"
     await loop.idle();
-    const settled = [[...reconciled].sort(), alarms.length];
+    const settled = [reconciled.toSorted(), alarms.length];
 
     // clear the alarm once "later" ran again and nothing is due
     await expect.poll(() => alarms.at(-1), { interval: 5 }).toBeNull();
     stopping.abort();
     await running;
     expect([settled, reconciled.length, alarms.length]).toEqual([[["later", "soon"], 2], 3, 3]);
-    expect([alarms[0]! - started < 50, alarms[1]! - started >= 50]).toEqual([true, true]);
+    const firstAlarm = aligned(alarms, 0);
+    const secondAlarm = aligned(alarms, 1);
+    expect([
+        firstAlarm !== null && firstAlarm - started < 50,
+        secondAlarm !== null && secondAlarm - started >= 50,
+    ]).toEqual([true, true]);
 
     // settle a waiter at once after the loop stopped
     await expect(loop.idle()).resolves.toBeUndefined();
+});
+
+test("settle an alarm at its deadline while a follow runs, keep the alarm due, and resume the follow from its recorded position after eviction", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(job).values({ id: "copy", scope: "space", runs: 0 });
+
+    // follow a growing source, recording the position reached in the job's row as a replica records its copy's
+    const source = ["first", "second"];
+    const applied: string[] = [];
+    let follows = 0;
+    const controller: Controller = {
+        name: "copy",
+        mode: "follow",
+        list: async () => ["copy"],
+        reconcile: async (key, { signal }) => {
+            follows++;
+            // apply the events after the recorded position, then follow until stopped
+            const row = await database.select().from(job).where(eq(job.id, key)).get();
+            applied.push(...source.slice(row?.runs ?? 0));
+            await database.update(job).set({ runs: source.length }).where(eq(job.id, key));
+            await new Promise<void>((resolve) => {
+                signal.addEventListener("abort", () => resolve(), { once: true });
+            });
+            throw signal.reason;
+        },
+    };
+
+    // run the follow in a loop on the object's alarm, recording where the alarm is due
+    const alarms: number[] = [];
+    const alarm = {
+        setAlarm: async (at: number) => {
+            alarms.push(at);
+        },
+        deleteAlarm: async () => {
+            throw new Error("a running follow keeps the alarm due");
+        },
+    };
+    const start = () => {
+        const stopping = new AbortController();
+        const loop = new ControlLoop(database, [controller], { report: ignore, alarm });
+
+        return { loop, stopping, running: loop.run(stopping.signal) };
+    };
+    const evicted = start();
+
+    // settle the alarm at its deadline with the follow running, its wake-up due at once
+    await evicted.loop.idle(Date.now() + 20);
+    const settled = Date.now();
+    const isDue = alarms.length === 1 && aligned(alarms, 0) <= settled;
+
+    // evict the object
+    evicted.stopping.abort();
+    await evicted.running;
+
+    // receive another event and resume in a new loop from the recorded position
+    source.push("third");
+    const resumed = start();
+    await expect.poll(() => applied.length).toBe(3);
+    resumed.stopping.abort();
+    await resumed.running;
+    expect({ isDue, applied, follows }).toEqual({
+        isDue: true,
+        applied: ["first", "second", "third"],
+        follows: 2,
+    });
 });
 
 test("run work until a change shows it ended elsewhere, and settle unchanged work as it finishes", async () => {
@@ -351,7 +441,10 @@ test("run work until a change shows it ended elsewhere, and settle unchanged wor
     const changes: (() => void)[] = [];
     const reconciliation = {
         signal: new AbortController().signal,
-        changed: () => new Promise<void>((resolve) => changes.push(resolve)),
+        changed: () =>
+            new Promise<void>((resolve) => {
+                changes.push(resolve);
+            }),
     };
     const change = () => changes.splice(0).forEach((resolve) => resolve());
 
@@ -361,12 +454,14 @@ test("run work until a change shows it ended elsewhere, and settle unchanged wor
         reconciliation,
         async () => (isCancelled ? new Error("cancelled") : undefined),
         (signal) =>
-            new Promise<unknown>((resolve) =>
-                signal.addEventListener("abort", () => resolve(signal.reason), { once: true }),
-            ),
+            new Promise<unknown>((resolve) => {
+                signal.addEventListener("abort", () => resolve(signal.reason), { once: true });
+            }),
     );
     change();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+    });
     isCancelled = true;
     change();
 

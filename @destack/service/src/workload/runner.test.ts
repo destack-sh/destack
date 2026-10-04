@@ -1,50 +1,109 @@
-import { type ReplicaSource } from "@destack/sync";
+import { type Publisher } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
-import { identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Authentication } from "../authentication/index.ts";
 import { defineService } from "../declare/service.ts";
 import { ServiceMount } from "../service/mount.ts";
 import { startTelemetry } from "@destack/telemetry/host";
 import { WorkloadRunner } from "./runner.ts";
 import type { WorkloadStart } from "./start.ts";
-import { defineWorkload } from "./workload.ts";
+import { defineWorkload, type CellDirectory } from "./workload.ts";
 import { WEBHOOK_PATH } from "./start.ts";
 import { defineTrigger, WEBHOOK_SIGNATURES, type WebhookParameters } from "../trigger/index.ts";
 import type { RunRequest } from "../trigger/index.ts";
+
+/** The OTLP logs export the monitor receives, down to its resource and each record's event name. */
+const LogsExport = schema
+    .object({
+        /** The logs by resource. */
+        resourceLogs: schema
+            .array(
+                schema
+                    .object({
+                        /** The resource of the logs, read for its string attributes. */
+                        resource: schema
+                            .object({
+                                attributes: schema.array(
+                                    schema
+                                        .object({
+                                            key: schema.string(),
+                                            value: schema
+                                                .object({ stringValue: schema.string() })
+                                                .loose(),
+                                        })
+                                        .loose(),
+                                ),
+                            })
+                            .loose(),
+                        /** The logs by instrumentation scope. */
+                        scopeLogs: schema.array(
+                            schema
+                                .object({
+                                    /** The records. */
+                                    logRecords: schema.array(
+                                        schema
+                                            .object({
+                                                /** The record's event name. */
+                                                eventName: schema.string().exactOptional(),
+                                            })
+                                            .loose(),
+                                    ),
+                                })
+                                .loose(),
+                        ),
+                    })
+                    .loose(),
+            )
+            .exactOptional(),
+    })
+    .loose();
 
 /** The runner's one service. */
 const notes = defineService("notes", {});
 
 /** The space the installation serves. */
-const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
+const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 /** The host's start message. */
 const start: WorkloadStart = {
     callKey: "00".repeat(32),
-    instance: identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
+    instance: schema.identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
     scope: spaceId,
-    installation: identifier("installation").parse(
-        "installation-01996ab0-0000-7000-8000-000000000003",
-    ),
+    installation: schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-000000000003"),
     bindings: {},
     secret: "forwarding",
     egress: "http://host.test/.destack/egress",
     sampling: 1,
+    manifest: "c".repeat(64),
 };
 
-test("serve a forwarded caller below the package's mount, and export telemetry through the host's egress with the runner's secret", async () => {
+test("serve a forwarded caller below the package's mount, and export telemetry naming its release through the host's egress with the runner's secret", async () => {
     // capture the telemetry the runner exports to the monitor
-    const exported: { url: string; authorization: string | null; events: string[] }[] = [];
+    const exported: {
+        url: string;
+        authorization: string | null;
+        release: Record<string, string>[];
+        events: string[];
+    }[] = [];
     const fetch = globalThis.fetch;
-    globalThis.fetch = (async (input: RequestInfo | URL, options?: RequestInit) => {
+    const exporting = async (input: RequestInfo | URL, options?: RequestInit) => {
         const request = new Request(input, options);
-        const body = (await request.json()) as {
-            resourceLogs?: { scopeLogs: { logRecords: { eventName?: string }[] }[] }[];
-        };
+        const body = LogsExport.parse(await request.json());
         exported.push({
             url: request.url,
             authorization: request.headers.get("authorization"),
+            release: (body.resourceLogs ?? []).map((group) =>
+                Object.fromEntries(
+                    group.resource.attributes
+                        .filter(
+                            ({ key }) => key.startsWith("service.") || key.startsWith("destack."),
+                        )
+                        .map(({ key, value }) => [key, value.stringValue]),
+                ),
+            ),
             events: (body.resourceLogs ?? []).flatMap((group) =>
                 group.scopeLogs.flatMap((scope) =>
                     scope.logRecords.map((record) => record.eventName ?? ""),
@@ -53,15 +112,18 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
         });
 
         return Response.json({});
-    }) as typeof fetch;
+    };
+
+    // fake the runtime's fetch, which needs no connection ahead of a request
+    globalThis.fetch = Object.assign(exporting, { preconnect: () => {} });
     onTestFinished(() => {
         globalThis.fetch = fetch;
     });
 
     // start a workload with a service that answers with the path and the caller
-    const source: ReplicaSource = {
+    const publisher: Publisher = {
         stream: () => {
-            throw new Error("the fixture source streams no copies");
+            throw new Error("the fixture publisher streams no copies");
         },
     };
     const runner = await WorkloadRunner.start(
@@ -87,7 +149,8 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
             ),
             resources: {},
             history: () => ({ ingest: async () => ({ events: 0 }) }),
-            replicas: () => source,
+            publisher: () => publisher,
+            directory: () => directory,
             runs: () => ({
                 send: async () => {
                     throw new Error("the fixture records no runs");
@@ -104,7 +167,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
     // refuse a request without the host's secret, serve a forwarded caller, and refuse another mount
     const mount = `http://runner.test${ServiceMount.path(notes.package.id)}`;
     const unauthorized = await runner.fetch(new Request(`${mount}/notes`));
-    const refusal = await unauthorized.json();
+    const refusal: unknown = await unauthorized.json();
     const now = Date.now();
     const alice = principal.user.reference("universe", "alice");
     const headers = new Headers({ authorization: "Bearer forwarding" });
@@ -117,7 +180,9 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
         verifiedAt: now,
         expiresAt: now + 60_000,
     }).forward(headers);
-    const served = await (await runner.fetch(new Request(`${mount}/notes`, { headers }))).json();
+    const served: unknown = await (
+        await runner.fetch(new Request(`${mount}/notes`, { headers }))
+    ).json();
     const other = await runner.fetch(
         new Request("http://runner.test/service/other/notes", { headers }),
     );
@@ -141,6 +206,14 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
             {
                 url: "http://host.test/.destack/egress/@destack/monitor/v1/logs",
                 authorization: "Bearer forwarding",
+                release: [
+                    {
+                        "service.name": notes.package.name,
+                        "service.version": notes.package.version,
+                        "service.instance.id": start.instance,
+                        "destack.build.manifest": "c".repeat(64),
+                    },
+                ],
                 events: ["workload.started"],
             },
         ],
@@ -148,7 +221,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
 });
 
 test("verify a webhook trigger's deliveries with each route's secret and record each delivery's call once as a run", async () => {
-    // start a workload receiving pushes, whose secrets its resources hold per repository
+    // start a workload receiving pushes, whose secrets its resources keep per repository
     const pushes = defineTrigger(
         {
             name: "pushes",
@@ -159,11 +232,19 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
                     secret: async ({ repository }: WebhookParameters) => `secret-${repository}`,
                 },
             },
-            call: (delivery) => ({
-                method: "repository.push",
-                input: { repository: delivery.parameters.repository!, payload: delivery.payload },
-                release: "2026.9.0",
-            }),
+            call: (delivery) => {
+                // require the route's repository
+                const repository = delivery.parameters["repository"];
+                if (repository === undefined) {
+                    throw new TypeError("a push delivery's route has a repository");
+                }
+
+                return {
+                    method: "repository.push",
+                    input: { repository, payload: delivery.payload },
+                    release: "2026.9.0",
+                };
+            },
         },
         { package: notes.package },
     );
@@ -182,11 +263,12 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
             ),
             resources: {},
             history: () => ({ ingest: async () => ({ events: 0 }) }),
-            replicas: () => ({
+            publisher: () => ({
                 stream: () => {
-                    throw new Error("the fixture source streams no copies");
+                    throw new Error("the fixture publisher streams no copies");
                 },
             }),
+            directory: () => directory,
             runs: () => ({
                 send: async (request) => {
                     recorded.push(request);
@@ -194,7 +276,7 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
             }),
         },
         start,
-        async () => ({ shutdown: async () => {} }) as never,
+        async () => ({ shutdown: async () => {} }),
         (error) => {
             throw error;
         },
@@ -216,7 +298,9 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
             }),
         );
 
-        return [response.status, response.status === 202 ? null : await response.json()];
+        const refused: unknown = response.status === 202 ? null : await response.json();
+
+        return [response.status, refused];
     };
     const authorized = new Headers(signed);
     authorized.set("authorization", "Bearer forwarding");
@@ -251,7 +335,11 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
             { defined: false, code: "UNAUTHORIZED", status: 401, message: "invalid host secret" },
         ],
     ]);
-    const digest = signed.get("x-hub-signature-256")!.slice("sha256=".length);
+    const signature = signed.get("x-hub-signature-256");
+    if (signature === null) {
+        throw new TypeError("a GitHub delivery carries a signature");
+    }
+    const digest = signature.slice("sha256=".length);
     expect(recorded).toEqual([
         {
             call: {
@@ -264,3 +352,9 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
         },
     ]);
 });
+
+/** The directory as the fixture's workloads see it: no homes and no addresses. */
+const directory: CellDirectory = {
+    isHome: async () => false,
+    address: async () => {},
+};

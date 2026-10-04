@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { AlarmClock } from "./alarm.ts";
 
-test("hold one host alarm at the earliest time any loop sharing it needs, and clear it once none does", async () => {
+test("keep one host alarm at the earliest time any loop sharing it needs, and clear it once none does", async () => {
     const alarms: (number | null)[] = [];
     const clock = new AlarmClock({
         setAlarm: async (at) => {

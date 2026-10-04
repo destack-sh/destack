@@ -12,8 +12,8 @@ export class AlarmClock {
     readonly #alarm: Alarm;
     /** The time each alarm rings at. */
     readonly #due = new Map<object, number>();
-    /** The time the host's wake-up holds, absent for none. */
-    #held?: number;
+    /** The time the host's wake-up is set to, absent for none. */
+    #current: number | undefined;
 
     /** Keep alarms on a host's wake-up. */
     constructor(alarm: Alarm) {
@@ -28,26 +28,32 @@ export class AlarmClock {
             setAlarm: (at) => {
                 this.#due.set(alarm, at);
 
-                return this.#hold();
+                return this.#update();
             },
             deleteAlarm: () => {
                 this.#due.delete(alarm);
 
-                return this.#hold();
+                return this.#update();
             },
         };
     }
 
-    /** Hold the host's wake-up at the earliest alarm. */
-    async #hold(): Promise<void> {
+    /** Set the host's wake-up again at the earliest alarm, since a ringing wake-up clears itself. */
+    async rang(): Promise<void> {
+        this.#current = undefined;
+        await this.#update();
+    }
+
+    /** Move the host's wake-up to the earliest alarm. */
+    async #update(): Promise<void> {
         // leave an unchanged wake-up
         const earliest = this.#due.size === 0 ? undefined : Math.min(...this.#due.values());
-        if (earliest === this.#held) {
+        if (earliest === this.#current) {
             return;
         }
 
         // move the wake-up, or clear it once no alarm is set
-        this.#held = earliest;
+        this.#current = earliest;
         await (earliest === undefined ? this.#alarm.deleteAlarm() : this.#alarm.setAlarm(earliest));
     }
 }

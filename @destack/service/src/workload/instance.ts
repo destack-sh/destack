@@ -1,4 +1,3 @@
-import { type ReplicaSource } from "@destack/sync";
 import type { ResourceContext } from "@destack/resource/context";
 import { DeclarationReference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
@@ -7,7 +6,7 @@ import type { RunClient, Trigger } from "../trigger/index.ts";
 import { type Alarm, AlarmClock } from "../control/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
-import type { AuditHistory, Workload } from "./workload.ts";
+import type { AuditHistory, InstallationContext, Workload } from "./workload.ts";
 import { type CallKey } from "../request/index.ts";
 
 /** A running workload instance. */
@@ -22,6 +21,13 @@ export class WorkloadInstance implements AsyncDisposable {
     readonly #cleanup = new AsyncDisposableStack();
     /** The shutdown. */
     #closing?: Promise<void>;
+    /** The clock keeping the services' alarms on the host's one wake-up, absent without one. */
+    readonly #clock: AlarmClock | undefined;
+
+    /** Keep the clock of the host's wake-up. */
+    private constructor(clock: AlarmClock | undefined) {
+        this.#clock = clock;
+    }
 
     /** Start a workload. */
     static async start(
@@ -29,48 +35,30 @@ export class WorkloadInstance implements AsyncDisposable {
         options: WorkloadInstanceOptions,
     ): Promise<WorkloadInstance> {
         // clean up a failed start, keeping the services' alarms on the host's one wake-up
-        const instance = new WorkloadInstance();
         const clock = options.alarm === undefined ? undefined : new AlarmClock(options.alarm);
+        const instance = new WorkloadInstance(clock);
         try {
             // start the workload
             const implementation = await workload.start({
                 resources: options.resources,
-                history: options.history,
-                ...(options.replicas === undefined ? {} : { replicas: options.replicas }),
-                runs: options.runs,
+                ...(options.history === undefined ? {} : { history: options.history }),
+                ...(options.installation === undefined
+                    ? {}
+                    : { installation: options.installation }),
+                ...(options.runs === undefined ? {} : { runs: options.runs }),
                 callKey: options.callKey,
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
-                report: options.report,
+                report: (error) => options.report(error),
                 defer: (dispose) => instance.#cleanup.defer(dispose),
             });
 
-            // start each service
+            // start each service and register the triggers
             for (const service of implementation.services) {
-                instance.signal.throwIfAborted();
-                const key = keyOf(service.service);
-                if (instance.#services.has(key)) {
-                    throw new TypeError(`duplicate workload service: ${key}`);
-                }
-
-                // start the server
-                const server = Server.start({
-                    ...service,
-                    ...options.service(service.service),
-                    health: new Health(service.service.name),
-                    resources: options.resources,
-                    ...(clock === undefined ? {} : { alarm: clock.alarm() }),
-                });
-                instance.#services.set(key, { service: service.service, server });
+                instance.#serve(service, options, clock);
             }
-
-            // register the triggers
             for (const trigger of implementation.triggers ?? []) {
-                const key = keyOf(trigger);
-                if (instance.#triggers.has(key)) {
-                    throw new TypeError(`duplicate workload trigger: ${key}`);
-                }
-                instance.#triggers.set(key, trigger);
+                instance.#register(trigger);
             }
 
             // reject a cancelled start
@@ -80,12 +68,47 @@ export class WorkloadInstance implements AsyncDisposable {
             try {
                 await instance.close();
             } catch (cleanup) {
-                throw new AggregateError([error, cleanup], "workload startup and cleanup failed");
+                throw new AggregateError([error, cleanup], "workload startup and cleanup failed", {
+                    cause: cleanup,
+                });
             }
             throw error;
         }
 
         return instance;
+    }
+
+    /** Start the server of one implemented service, refusing a duplicate. */
+    #serve(
+        service: ServiceImplementation,
+        options: WorkloadInstanceOptions,
+        clock: AlarmClock | undefined,
+    ): void {
+        // refuse a cancelled start and a duplicate service
+        this.signal.throwIfAborted();
+        const key = keyOf(service.service);
+        if (this.#services.has(key)) {
+            throw new TypeError(`duplicate workload service: ${key}`);
+        }
+
+        // start the server
+        const server = Server.start({
+            ...service,
+            ...options.service(service.service),
+            health: new Health(service.service.name),
+            resources: options.resources,
+            ...(clock === undefined ? {} : { alarm: clock.alarm() }),
+        });
+        this.#services.set(key, { service: service.service, server });
+    }
+
+    /** Register one trigger of the workload's package, refusing a duplicate. */
+    #register(trigger: Trigger): void {
+        const key = keyOf(trigger);
+        if (this.#triggers.has(key)) {
+            throw new TypeError(`duplicate workload trigger: ${key}`);
+        }
+        this.#triggers.set(key, trigger);
     }
 
     /** The shutdown signal. */
@@ -118,9 +141,13 @@ export class WorkloadInstance implements AsyncDisposable {
         this.#controller.abort();
     }
 
-    /** Settle once no service's controller key is due now or reconciling. */
-    async idle(): Promise<void> {
-        await Promise.all([...this.#services.values()].map((served) => served.server.idle()));
+    /** Run the controllers at the host's wake-up until no key is due now or reconciling, or until a deadline. */
+    async alarm(deadline: number): Promise<void> {
+        // set the wake-up again, which the host cleared as it rang
+        await this.#clock?.rang();
+        await Promise.all(
+            [...this.#services.values()].map((served) => served.server.idle(deadline)),
+        );
     }
 
     /** Dispatch a request to a service. */
@@ -154,7 +181,7 @@ export class WorkloadInstance implements AsyncDisposable {
         // drain each service
         const servers = [...this.#services.values()].map((served) => served.server);
         const results = await Promise.allSettled(servers.map((server) => server.close()));
-        const errors = results.flatMap((result) =>
+        const errors = results.flatMap((result): unknown[] =>
             result.status === "rejected" ? [result.reason] : [],
         );
 
@@ -179,12 +206,12 @@ export class WorkloadInstance implements AsyncDisposable {
 export interface WorkloadInstanceOptions {
     /** The installation's resources. */
     readonly resources: ResourceContext;
-    /** The audit history the workload's outboxes deliver to. */
-    readonly history: AuditHistory;
-    /** The source of the copies of the installation's space: its chain, and the global rows it reads. */
-    readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
-    /** The cell recording the installation's runs. */
-    readonly runs: RunClient;
+    /** The audit history the workload's outboxes deliver to, absent for a workload journaling only in its own database. */
+    readonly history?: AuditHistory;
+    /** The installation the workload runs as, absent outside a space. */
+    readonly installation?: InstallationContext;
+    /** The cell recording the installation's runs, absent outside a space. */
+    readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */

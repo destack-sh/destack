@@ -1,33 +1,45 @@
-import { type ReplicaSource } from "@destack/sync";
+import { type Publisher } from "@destack/sync";
+import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { defineWorkload } from "./workload.ts";
+import { defineWorkload, type InstallationContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { defineService } from "../declare/service.ts";
 import { defineTrigger } from "../trigger/index.ts";
 import type { RunClient } from "../trigger/index.ts";
-import { hosting } from "../server/tests/fixture.ts";
+import { hosting } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
 
 /** The first declared fixture service. */
 const first = defineService("first", {});
 /** The second declared fixture service. */
 const second = defineService("second", {});
+/** The batches the audit history received. */
+const batches: unknown[] = [];
 /** An audit history keeping the batches it receives. */
 const history = {
-    batches: [] as unknown[],
+    batches,
     async ingest(batch: { readonly calls: readonly unknown[] }) {
         history.batches.push(batch);
     },
 };
 
-/** The copies of a space, from a source streaming none to fixture workloads. */
-const replicas = {
+/** A publisher streaming no copies. */
+const publisher = {
+    stream: () => {
+        throw new Error("the fixture publisher streams no copies");
+    },
+} satisfies Publisher;
+
+/** The fixture's installation, with publishers streaming none and a directory with no recipients. */
+const installation: InstallationContext = {
+    id: "installation-01996ab0-0000-7000-8000-000000000002",
     scope: "space-01996ab0-0000-7000-8000-000000000001",
-    source: {
-        stream: () => {
-            throw new Error("the fixture source streams no copies");
-        },
-    } satisfies ReplicaSource,
+    publisher,
+    publisherAt: () => publisher,
+    directory: {
+        isHome: async () => false,
+        address: async () => {},
+    },
 };
 
 /** A cell the fixture workloads record no runs in. */
@@ -72,7 +84,7 @@ test("release startup resources when the workload shuts down during startup", as
                 },
                 resources: hosting.resources,
                 history,
-                replicas,
+                installation,
                 runs,
                 service: () => ({ ...hosting, drainTimeout: 100 }),
             },
@@ -118,7 +130,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
             },
             resources: hosting.resources,
             history,
-            replicas,
+            installation,
             runs,
             service: () => ({ ...hosting, drainTimeout: 1000 }),
         },
@@ -133,7 +145,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
     expect(instance.close()).toBe(closing);
     expect(events).toEqual(["shutdown"]);
 
-    // hold resources until the response is consumed
+    // keep resources until the response is consumed
     released.resolve();
     const response = await request;
     expect(await response.text()).toBe("complete");
@@ -179,7 +191,7 @@ test("retain shared resources until an overdue request observes cancellation", a
             },
             resources: hosting.resources,
             history,
-            replicas,
+            installation,
             runs,
             service: () => ({ ...hosting, drainTimeout: 5 }),
         },
@@ -228,7 +240,7 @@ test("reject a service implemented twice and release startup resources", async (
                 },
                 resources: hosting.resources,
                 history,
-                replicas,
+                installation,
                 runs,
                 service: () => ({ ...hosting, drainTimeout: 1000 }),
             },
@@ -247,7 +259,7 @@ test("list the triggers a workload receives and find each by its package and nam
             },
             resources: hosting.resources,
             history,
-            replicas,
+            installation,
             runs,
             service: () => ({ ...hosting, drainTimeout: 1000 }),
         },
@@ -281,7 +293,7 @@ test("reject a trigger registered twice and release startup resources", async ()
                 },
                 resources: hosting.resources,
                 history,
-                replicas,
+                installation,
                 runs,
                 service: () => ({ ...hosting, drainTimeout: 1000 }),
             },
@@ -290,16 +302,16 @@ test("reject a trigger registered twice and release startup resources", async ()
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("give a starting workload the host's audit history, its space's source of copies and the cell recording its runs", async () => {
-    // start a workload that delivers one batch to the history it receives and keeps the source and the cell
-    let received: { readonly scope: string; readonly source: ReplicaSource } | undefined;
+test("give a starting workload the host's audit history, its installation and the cell recording its runs", async () => {
+    // start a workload that delivers one batch to the history it receives and keeps the installation and the cell
+    let received: InstallationContext | undefined;
     let recording: RunClient | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",
             start: async (context) => {
-                await context.history.ingest({ calls: ["started"] });
-                received = context.replicas;
+                await present(context.history, "history").ingest({ calls: ["started"] });
+                received = context.installation;
                 recording = context.runs;
 
                 return { services: [] };
@@ -312,7 +324,7 @@ test("give a starting workload the host's audit history, its space's source of c
             },
             resources: hosting.resources,
             history,
-            replicas,
+            installation,
             runs,
             service: () => ({ ...hosting, drainTimeout: 100 }),
         },
@@ -320,7 +332,31 @@ test("give a starting workload the host's audit history, its space's source of c
     expect([instance.triggers, history.batches.at(-1), received, recording]).toEqual([
         [],
         { calls: ["started"] },
-        replicas,
+        installation,
         runs,
     ]);
+});
+
+test("start a workload journaling only in its own database without an audit history", async () => {
+    // start a workload that keeps the history it receives
+    let received: unknown = "unset";
+    await using _instance = await WorkloadInstance.start(
+        defineWorkload({
+            name: "fixture",
+            start: async (context) => {
+                received = context.history;
+
+                return { services: [] };
+            },
+        }),
+        {
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
+            resources: hosting.resources,
+            service: () => ({ ...hosting, drainTimeout: 100 }),
+        },
+    );
+    expect(received).toBeUndefined();
 });

@@ -1,7 +1,7 @@
-import { type ReplicaSource } from "@destack/sync";
-import { type ComputeDefinition, ModuleMetadata } from "@destack/package";
+import { type Publisher } from "@destack/sync";
+import { type CapabilityName, type ComputeDefinition, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
-import { WorkloadDefinition } from "@destack/package/workload";
+import { type Tier, WorkloadDefinition } from "@destack/package/workload";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ServiceImplementation } from "../server/index.ts";
 import type { RunClient } from "../trigger/index.ts";
@@ -12,6 +12,10 @@ import { type CallKey } from "../request/index.ts";
 export interface Workload extends Declaration {
     /** The compute settings of each instance. */
     readonly compute?: ComputeDefinition;
+    /** The package's capabilities the workload uses, every one when absent. */
+    readonly capabilities?: readonly CapabilityName[];
+    /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
+    readonly placement?: readonly Tier[];
     /** Start one instance and return its services and webhooks. */
     start(context: WorkloadContext): WorkloadImplementation | Promise<WorkloadImplementation>;
 }
@@ -32,12 +36,12 @@ export function defineWorkload(
 export interface WorkloadContext {
     /** The installation's resource and service clients. */
     readonly resources: ResourceContext;
-    /** The audit history the workload's outboxes deliver to. */
-    readonly history: AuditHistory;
-    /** The source of the copies of the installation's space: its chain, and the global rows it reads. */
-    readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
-    /** The cell recording the installation's runs: sent calls and the calls of its triggers' causes. */
-    readonly runs: RunClient;
+    /** The audit history the workload's outboxes deliver to, absent for a workload journaling only in its own database. */
+    readonly history?: AuditHistory;
+    /** The installation the workload runs as, absent outside a space. */
+    readonly installation?: InstallationContext;
+    /** The cell recording the installation's runs: sent calls and the calls of its triggers' causes, absent outside a space. */
+    readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** The shutdown signal. */
@@ -48,6 +52,28 @@ export interface WorkloadContext {
     report(error: unknown): void;
     /** Register cleanup, run in reverse order after draining. */
     defer(dispose: () => void | PromiseLike<void>): void;
+}
+
+/** The installation a workload runs as: its space, the publishers of its copies, and the directory through its cell. */
+export interface InstallationContext {
+    /** The installation's identifier. */
+    readonly id: string;
+    /** The installation's space. */
+    readonly scope: string;
+    /** The publisher of the copies of the space's chain and the universe's rows it reads: its cell. */
+    readonly publisher: Publisher;
+    /** Connect to the installation of the package at an address `<installation>.<space>` as a publisher. */
+    publisherAt(address: string): Publisher;
+    /** The directory, through the space's cell. */
+    readonly directory: CellDirectory;
+}
+
+/** The directory as an installation sees it through its cell: whether people live in a home, and the addresses of projected rows. */
+export interface CellDirectory {
+    /** Decide whether a person lives in a space. */
+    isHome(subject: string, space: string): Promise<boolean>;
+    /** Record that the installation sends a person projected rows. */
+    address(recipient: string): Promise<void>;
 }
 
 /** The audit history a workload delivers its calls to, in batches of one transaction each. */

@@ -8,16 +8,18 @@ test("take over a lapsed lease at the next epoch, refusing the old holder's rene
     const acquire = (holder: string, duration: number) =>
         Leases.acquire(storage.database, "job", "shared", holder, duration);
 
-    // hold, refuse and renew a lease
-    const held = await acquire("first", 20);
+    // take, refuse and renew a lease
+    const taken = await acquire("first", 20);
     const refused = await acquire("second", 20);
     const renewed = await acquire("first", 20);
 
     // take over a lapsed lease
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await new Promise((resolve) => {
+        setTimeout(resolve, 40);
+    });
     const takenOver = await acquire("second", 1000);
     const late = await acquire("first", 1000);
-    expect([held, "lapsesAt" in refused, renewed, takenOver, "lapsesAt" in late]).toEqual([
+    expect([taken, "lapsesAt" in refused, renewed, takenOver, "lapsesAt" in late]).toEqual([
         { epoch: 1 },
         true,
         { epoch: 1 },

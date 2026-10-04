@@ -4,7 +4,7 @@ import { copyRequest } from "../request/request.ts";
 const EGRESS_PATH = "/.destack/egress";
 
 /** An address followed by the path below it: a scoped package as two segments, an installation as one. */
-const ADDRESSED = /^\/(@[^/]+\/[^/]+|[^/@][^/]*)(\/.*)?$/;
+const ADDRESSED = /^\/(@[^/]+\/[^/]+|[^/@][^/]*)(\/.*)?$/u;
 
 /** The paths at which a host takes its workloads' calls: `<egress>/<address>/<path>`, the address an installation (`notes`, `notes.work.acme`) or a package's service (`@destack/audit`). */
 export const Egress = {
@@ -13,7 +13,7 @@ export const Egress = {
 
     /** Write the URL at which a workload reaches an address through its host's egress. */
     url(egress: string, address: string): string {
-        return `${egress.replace(/\/$/, "")}/${address}`;
+        return `${egress.replace(/\/$/u, "")}/${address}`;
     },
 
     /** Split a request to a host's egress into the address and the request below it, absent outside the egress. */

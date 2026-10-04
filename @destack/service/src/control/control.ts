@@ -1,6 +1,11 @@
-import { TABLE, type DatabaseConnection, type Table } from "@destack/db";
-import { DatabaseError } from "@destack/db/error";
-import type { Change } from "@destack/db/log";
+import {
+    TABLE,
+    type DatabaseConnection,
+    type Table,
+    DatabaseError,
+    type Change,
+} from "@destack/db";
+import { aligned, found } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { RetryPolicy, wait } from "../timer/index.ts";
@@ -52,9 +57,9 @@ export const Reconciliation = {
         // check again at each change of the key until the work settles
         const ended = new AbortController();
         const settled = new AbortController();
-        const settling = new Promise<void>((resolve) =>
-            settled.signal.addEventListener("abort", () => resolve(), { once: true }),
-        );
+        const settling = new Promise<void>((resolve) => {
+            settled.signal.addEventListener("abort", () => resolve(), { once: true });
+        });
         const watching = (async () => {
             while (!settled.signal.aborted) {
                 await Promise.race([reconciliation.changed(), settling]);
@@ -109,8 +114,10 @@ export class ControlLoop {
     readonly #lease?: { readonly holder: string; readonly duration: number };
     /** The wake-up the host keeps for the earliest due key. */
     readonly #alarm?: Alarm;
-    /** The earliest due time the alarm holds, absent for none. */
-    #alarmed?: number;
+    /** The earliest due time the alarm keeps, absent for none. */
+    #alarmed: number | undefined;
+    /** The due time of the key that began the running reconciliations, where the alarm stays while any runs. */
+    #busy: number | undefined;
     /** The callers waiting until no key is due now or reconciling. */
     #idle: (() => void)[] = [];
     /** Whether every controller was listed once since the loop started. */
@@ -160,7 +167,7 @@ export class ControlLoop {
 
     /** Run the controllers until the signal aborts. */
     async run(signal: AbortSignal): Promise<void> {
-        // stop every part once one fails
+        // stop every loop once one fails
         const failed = new AbortController();
         const running = AbortSignal.any([signal, failed.signal]);
         const stopping = (part: Promise<void>) =>
@@ -185,8 +192,8 @@ export class ControlLoop {
         }
     }
 
-    /** Settle once no key is due now or reconciling, as an alarm's handler waits before its instance may be evicted. */
-    idle(): Promise<void> {
+    /** Settle once no key is due now or reconciling, or at a deadline, as an alarm's handler waits before it returns. */
+    idle(deadline?: number): Promise<void> {
         // settle at once once the loop stopped
         if (this.#isStopped) {
             return Promise.resolve();
@@ -196,8 +203,14 @@ export class ControlLoop {
         const { promise, resolve } = Promise.withResolvers<void>();
         this.#idle.push(resolve);
         this.#wake();
+        if (deadline === undefined) {
+            return promise;
+        }
 
-        return promise;
+        // settle at the deadline at the latest while late keys keep running and the alarm stays due
+        const timer = setTimeout(resolve, Math.max(0, deadline - Date.now()));
+
+        return promise.finally(() => clearTimeout(timer));
     }
 
     /** Name a key due. */
@@ -208,7 +221,7 @@ export class ControlLoop {
         }
 
         // keep the earliest due time
-        const due = this.#due.get(controller)!;
+        const due = found(this.#due, controller);
         const current = due.get(key);
         if (current === undefined || at < current) {
             due.set(key, at);
@@ -287,7 +300,7 @@ export class ControlLoop {
                 }
                 // enqueue each listed key not failing
                 else {
-                    const failures = this.#failures.get(controller)!;
+                    const failures = found(this.#failures, controller);
                     for (const key of await controller.list()) {
                         if (!failures.has(key)) {
                             this.enqueue(controller, key);
@@ -304,7 +317,7 @@ export class ControlLoop {
     async #relist(controller: Controller): Promise<void> {
         // stop the running keys the list dropped
         const listed = new Set(await controller.list());
-        const running = this.#running.get(controller)!;
+        const running = found(this.#running, controller);
         for (const [key, stop] of running) {
             if (!listed.has(key)) {
                 stop.abort(new Error(`${controller.name} no longer lists ${key}`));
@@ -312,7 +325,7 @@ export class ControlLoop {
         }
 
         // unqueue the due keys the list dropped
-        const due = this.#due.get(controller)!;
+        const due = found(this.#due, controller);
         for (const key of due.keys()) {
             if (!listed.has(key)) {
                 due.delete(key);
@@ -320,7 +333,7 @@ export class ControlLoop {
         }
 
         // start the listed keys neither running nor failing
-        const failures = this.#failures.get(controller)!;
+        const failures = found(this.#failures, controller);
         for (const key of listed) {
             if (!running.has(key) && !failures.has(key)) {
                 this.enqueue(controller, key);
@@ -333,18 +346,22 @@ export class ControlLoop {
         while (!signal.aborted) {
             // start the earliest runnable key
             const now = Date.now();
-            const { runnable, due, held } = this.#take(now);
+            const { runnable, due, skipped } = this.#take(now);
             if (runnable !== undefined) {
                 this.#start(runnable);
             }
-            // keep the host's wake-up at the next due or held key, settle the idle waiters, and sleep until due or woken
+            // keep the wake-up due while keys run or at the next key
             else {
-                await this.#keep(due ?? held);
+                await this.#keep(this.#busy ?? due ?? skipped);
+
+                // settle idle waiters once nothing reconciles
                 if (this.#isListed && this.#reconciling.size === 0) {
                     for (const resolve of this.#idle.splice(0)) {
                         resolve();
                     }
                 }
+
+                // sleep until the next key is due
                 await this.#sleep(due === undefined ? undefined : Math.max(0, due - now), signal);
             }
         }
@@ -359,50 +376,64 @@ export class ControlLoop {
     }
 
     /** Take the earliest runnable key, or the next due time. */
-    #take(now: number): { readonly runnable?: Due; readonly due?: number; readonly held?: number } {
+    #take(now: number): {
+        readonly runnable?: Due;
+        readonly due?: number;
+        readonly skipped?: number;
+    } {
         // skip running keys and keys of a full controller
-        const held: Due[] = [];
-        let found: { readonly runnable?: Due; readonly due?: number; readonly held?: number } = {};
+        const skipped: Due[] = [];
+        let taken: { readonly runnable?: Due; readonly due?: number; readonly skipped?: number } =
+            {};
         for (let next = this.#next(); next !== undefined; next = this.#next()) {
-            const running = this.#running.get(next.controller)!;
+            const running = found(this.#running, next.controller);
             const isFull = running.size >= (next.controller.concurrency ?? 1);
             if (next.at > now) {
-                found = { due: next.at };
+                taken = { due: next.at };
                 break;
             } else if (isFull || running.has(next.key)) {
-                held.push(this.#queue.pop()!);
+                this.#queue.pop();
+                skipped.push(next);
             } else {
                 this.#queue.pop();
-                this.#due.get(next.controller)!.delete(next.key);
-                found = { runnable: next };
+                found(this.#due, next.controller).delete(next.key);
+                taken = { runnable: next };
                 break;
             }
         }
 
         // queue the skipped keys again
-        for (const entry of held) {
+        for (const entry of skipped) {
             this.#queue.push(entry);
         }
 
-        // name the earliest held key, which the host's wake-up keeps while it waits
-        const [earliest] = held;
+        // name the earliest skipped key, which the host's wake-up keeps while it waits
+        const [earliest] = skipped;
 
-        return earliest === undefined || found.runnable !== undefined
-            ? found
-            : { ...found, held: earliest.at };
+        return earliest === undefined || taken.runnable !== undefined
+            ? taken
+            : { ...taken, skipped: earliest.at };
     }
 
     /** Start a reconciliation. */
-    #start(work: Work): void {
-        // mark the key running with the controller aborting it
-        const running = this.#running.get(work.controller)!;
+    #start(work: Due): void {
+        // mark the key running with the controller aborting it, the first running key holding the wake-up at its due time
+        const running = found(this.#running, work.controller);
         const stop = new AbortController();
         running.set(work.key, stop);
+        this.#busy ??= work.at;
         const reconciling = this.#reconcile(work, stop.signal).finally(() => {
-            // free the key and its change waiters, and look for more work
+            // free the key and its change waiters
             running.delete(work.key);
             this.#changes.get(work.controller)?.delete(work.key);
+
+            // release the wake-up after the last reconciliation
             this.#reconciling.delete(reconciling);
+            if (this.#reconciling.size === 0) {
+                this.#busy = undefined;
+            }
+
+            // look for more work
             this.#wake();
         });
         this.#reconciling.add(reconciling);
@@ -412,7 +443,7 @@ export class ControlLoop {
     async #reconcile(work: Work, stopped: AbortSignal): Promise<void> {
         // reconcile under the lease and requeue when asked, or follow again once a follow ends
         const { controller, key } = work;
-        const failures = this.#failures.get(controller)!;
+        const failures = found(this.#failures, controller);
         try {
             const delay = await this.#leased(work, stopped, async (reconciliation) => {
                 // follow until stopped, retrying a lost lease at once and a follow that ended as a failure
@@ -526,7 +557,7 @@ export class ControlLoop {
     /** Find the earliest due key. */
     #next(): Due | undefined {
         for (let next = this.#queue.peek(); next !== undefined; next = this.#queue.peek()) {
-            if (this.#due.get(next.controller)!.get(next.key) === next.at) {
+            if (found(this.#due, next.controller).get(next.key) === next.at) {
                 return next;
             }
             this.#queue.pop();
@@ -578,10 +609,12 @@ class DueQueue {
         let index = heap.length - 1;
         while (index > 0) {
             const parent = (index - 1) >> 1;
-            if (heap[parent]!.at <= heap[index]!.at) {
+            const above = aligned(heap, parent);
+            const below = aligned(heap, index);
+            if (above.at <= below.at) {
                 break;
             }
-            [heap[parent], heap[index]] = [heap[index]!, heap[parent]!];
+            [heap[parent], heap[index]] = [below, above];
             index = parent;
         }
     }
@@ -603,16 +636,16 @@ class DueQueue {
             const left = 2 * index + 1;
             const right = left + 1;
             let smallest = index;
-            if (left < heap.length && heap[left]!.at < heap[smallest]!.at) {
+            if (left < heap.length && aligned(heap, left).at < aligned(heap, smallest).at) {
                 smallest = left;
             }
-            if (right < heap.length && heap[right]!.at < heap[smallest]!.at) {
+            if (right < heap.length && aligned(heap, right).at < aligned(heap, smallest).at) {
                 smallest = right;
             }
             if (smallest === index) {
                 return earliest;
             }
-            [heap[smallest], heap[index]] = [heap[index]!, heap[smallest]!];
+            [heap[smallest], heap[index]] = [aligned(heap, index), aligned(heap, smallest)];
             index = smallest;
         }
     }

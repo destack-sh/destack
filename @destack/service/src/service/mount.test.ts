@@ -22,7 +22,7 @@ test("mount each package's service under its own path and route requests below i
             await routed?.request.text(),
         ],
         root: [root?.packageId, root?.request.url],
-        isOriginalKept: originalRequest(routed!.request) === sent,
+        isOriginalKept: routed !== undefined && originalRequest(routed.request) === sent,
         outside: ServiceMount.route(new Request("http://127.0.0.1/view/notes")),
     }).toEqual({
         path: "/service/package-01",
