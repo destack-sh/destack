@@ -1,11 +1,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { dirname, isAbsolute, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { isAbsolute } from "node:path";
 import { tmpdir } from "node:os";
 import type { Readable, Writable } from "node:stream";
-import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
+import { launcherCommand } from "../bun/command.ts";
 import { SandboxError } from "../error/index.ts";
-import { RUNTIME_PATHS } from "../launcher/launcher.ts";
 import { LauncherMessage, SandboxExit, SandboxOptions } from "./message.ts";
 
 /** Maximum time to prepare OS restrictions and launch a process, in milliseconds. */
@@ -48,137 +46,28 @@ export class Sandbox implements AsyncDisposable {
 
     /** Spawn a restricted command; application readiness is reported by the application. */
     static async start(options: SandboxOptions): Promise<Sandbox> {
-        // refuse platforms without runtime paths and hosts missing the enforcement tools
-        if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[process.platform]) {
-            throw new SandboxError(
-                "UNSUPPORTED",
-                `sandboxing is unsupported on ${process.platform}`,
-            );
-        }
-        const dependencies = SandboxManager.checkDependencies();
-        if (dependencies.errors.length > 0) {
-            throw new SandboxError("UNSUPPORTED", dependencies.errors.join("; "));
-        }
+        // refuse unsupported hosts and unsafe paths before spawning
+        await requireSupport();
+        requirePaths(options);
 
-        // require absolute paths for every permission
-        const paths = [
-            options.executable,
-            options.directory,
-            ...options.read,
-            ...options.write,
-            ...(options.sockets ?? []),
-        ];
-        if (!paths.every(isAbsolute)) {
-            throw new SandboxError("START_FAILED", "sandbox paths must be absolute");
-        }
-
-        // prevent literal host paths from becoming upstream glob permissions
-        if (paths.some((path) => /[\x00*?[\]{}]/u.test(path))) {
-            throw new SandboxError("START_FAILED", "sandbox paths cannot contain glob characters");
-        }
-
-        // isolate the upstream manager and omit host credentials from its environment
-        const executable = Bun.isStandaloneExecutable
-            ? join(dirname(process.execPath), "destack-sandbox")
-            : process.execPath;
-        const arguments_ = Bun.isStandaloneExecutable
-            ? []
-            : ["run", "--no-env-file", fileURLToPath(new URL("../main.ts", import.meta.url))];
-        const launcher = spawn(executable, arguments_, {
-            cwd: options.directory,
-            env: {
-                PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
-                HOME: tmpdir(),
-                TMPDIR: tmpdir(),
-            },
-            stdio: ["pipe", "pipe", "pipe", "ipc"],
-        });
-        const ready = Promise.withResolvers<void>();
-        const closed = Promise.withResolvers<void>();
-        let result: SandboxExit | undefined;
-        let failure: SandboxError | undefined;
-        let isStarted = false;
-
-        // retain the workload result separately from launcher failures
-        launcher.on("message", (received: unknown) => {
-            const message = LauncherMessage.parse(received);
-            if (message.type === "ready") {
-                isStarted = true;
-                ready.resolve();
-            } else if (message.type === "exit") {
-                result = message.exit;
-            } else if (message.type === "error") {
-                failure = new SandboxError(
-                    isStarted ? "STOP_FAILED" : "START_FAILED",
-                    message.message,
-                );
-                ready.reject(failure);
-            }
-        });
-        launcher.once("error", (cause) => {
-            failure = new SandboxError(
-                isStarted ? "STOP_FAILED" : "START_FAILED",
-                "sandbox launcher failed",
-                { cause },
-            );
-            ready.reject(failure);
-        });
-        launcher.once("close", (code, signal) => {
-            // require the workload result and successful manager cleanup
-            if (!failure && (code !== 0 || signal !== null || !result)) {
-                failure = new SandboxError(
-                    isStarted ? "STOP_FAILED" : "START_FAILED",
-                    "sandbox launcher terminated without successful cleanup",
-                );
-            }
-            ready.reject(
-                failure ?? new SandboxError("START_FAILED", "sandbox exited before startup"),
-            );
-            closed.resolve();
-        });
+        // spawn the launcher and watch its messages and termination
+        const launcher = spawnLauncher(options.directory);
+        const watched = watchLauncher(launcher);
 
         // bound startup and terminate failed launchers before returning the error
         const timeout = setTimeout(
-            () => ready.reject(new SandboxError("START_FAILED", "sandbox startup timed out")),
+            () =>
+                watched.ready.reject(new SandboxError("START_FAILED", "sandbox startup timed out")),
             START_TIMEOUT_MILLISECONDS,
         );
         try {
-            launcher.send({ type: "start", options }, (error) => {
-                if (error) {
-                    ready.reject(
-                        new SandboxError("START_FAILED", "cannot configure sandbox", {
-                            cause: error,
-                        }),
-                    );
-                }
-            });
-            await ready.promise;
+            configure(launcher, options, watched.ready);
+            await watched.ready.promise;
 
             // expose failures after startup through the public completion promise
-            const exited = closed.promise.then(() => {
-                if (failure) {
-                    throw failure;
-                } else if (result === undefined) {
-                    throw new TypeError("sandbox launcher closed without a workload result");
-                }
-
-                return result;
-            });
-
-            return new Sandbox(launcher, exited);
+            return new Sandbox(launcher, watched.closed.then(watched.outcome));
         } catch (error) {
-            if (launcher.connected) {
-                launcher.disconnect();
-            }
-            const cleanup = setTimeout(
-                () => launcher.kill("SIGKILL"),
-                CLEANUP_TIMEOUT_MILLISECONDS,
-            );
-            try {
-                await closed.promise;
-            } finally {
-                clearTimeout(cleanup);
-            }
+            await release(launcher, watched.closed);
             throw error;
         } finally {
             clearTimeout(timeout);
@@ -224,5 +113,150 @@ export class Sandbox implements AsyncDisposable {
     /** Stop execution before releasing the sandbox. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.stop();
+    }
+}
+
+/** The launcher's startup signal, termination and workload outcome. */
+interface WatchedLauncher {
+    /** Settles once the workload starts, rejecting on any startup failure. */
+    readonly ready: PromiseWithResolvers<void>;
+    /** Settles once the launcher process closes. */
+    readonly closed: Promise<void>;
+    /** Read the workload result, throwing the launcher's failure. */
+    readonly outcome: () => SandboxExit;
+}
+
+/** Refuse platforms without runtime paths and hosts missing the enforcement tools. */
+async function requireSupport(): Promise<void> {
+    // load the upstream manager on first start, since it costs hundreds of milliseconds to import
+    const [{ SandboxManager }, { RUNTIME_PATHS }] = await Promise.all([
+        import("@anthropic-ai/sandbox-runtime"),
+        import("../launcher/launcher.ts"),
+    ]);
+
+    // refuse an unsupported platform or missing tools
+    if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[process.platform]) {
+        throw new SandboxError("UNSUPPORTED", `sandboxing is unsupported on ${process.platform}`);
+    }
+    const dependencies = SandboxManager.checkDependencies();
+    if (dependencies.errors.length > 0) {
+        throw new SandboxError("UNSUPPORTED", dependencies.errors.join("; "));
+    }
+}
+
+/** Require absolute, glob-free paths for every permission. */
+function requirePaths(options: SandboxOptions): void {
+    // require absolute paths
+    const paths = [
+        options.executable,
+        options.directory,
+        ...options.read,
+        ...options.write,
+        ...(options.sockets ?? []),
+    ];
+    if (!paths.every(isAbsolute)) {
+        throw new SandboxError("START_FAILED", "sandbox paths must be absolute");
+    }
+
+    // prevent literal host paths from becoming upstream glob permissions
+    if (paths.some((path) => /[\x00*?[\]{}]/u.test(path))) {
+        throw new SandboxError("START_FAILED", "sandbox paths cannot contain glob characters");
+    }
+}
+
+/** Spawn the launcher in a directory, omitting host credentials from its environment. */
+function spawnLauncher(directory: string): ChildProcess {
+    const command = launcherCommand();
+
+    return spawn(command.executable, command.arguments, {
+        cwd: directory,
+        env: {
+            PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+            HOME: tmpdir(),
+            TMPDIR: tmpdir(),
+        },
+        stdio: ["pipe", "pipe", "pipe", "ipc"],
+    });
+}
+
+/** Watch a launcher's messages and termination, retaining the workload result apart from failures. */
+function watchLauncher(launcher: ChildProcess): WatchedLauncher {
+    // fail startup or shutdown by whether the workload has started
+    const ready = Promise.withResolvers<void>();
+    const closed = Promise.withResolvers<void>();
+    let result: SandboxExit | undefined;
+    let failure: SandboxError | undefined;
+    let isStarted = false;
+    const fail = (message: string, options?: ErrorOptions) => {
+        failure = new SandboxError(isStarted ? "STOP_FAILED" : "START_FAILED", message, options);
+        ready.reject(failure);
+    };
+
+    // retain the workload result separately from launcher failures
+    launcher.on("message", (received: unknown) => {
+        const message = LauncherMessage.parse(received);
+        if (message.type === "ready") {
+            isStarted = true;
+            ready.resolve();
+        } else if (message.type === "exit") {
+            result = message.exit;
+        } else if (message.type === "error") {
+            fail(message.message);
+        }
+    });
+    launcher.once("error", (cause) => fail("sandbox launcher failed", { cause }));
+    launcher.once("close", (code, signal) => {
+        // require the workload result and successful manager cleanup
+        if (!failure && (code !== 0 || signal !== null || !result)) {
+            failure = new SandboxError(
+                isStarted ? "STOP_FAILED" : "START_FAILED",
+                "sandbox launcher terminated without successful cleanup",
+            );
+        }
+        ready.reject(failure ?? new SandboxError("START_FAILED", "sandbox exited before startup"));
+        closed.resolve();
+    });
+
+    return {
+        ready,
+        closed: closed.promise,
+        outcome: () => {
+            // throw the launcher's failure or a missing result
+            if (failure) {
+                throw failure;
+            } else if (result === undefined) {
+                throw new TypeError("sandbox launcher closed without a workload result");
+            }
+
+            return result;
+        },
+    };
+}
+
+/** Send the sandbox options to the launcher, failing startup when they cannot be sent. */
+function configure(
+    launcher: ChildProcess,
+    options: SandboxOptions,
+    ready: PromiseWithResolvers<void>,
+): void {
+    launcher.send({ type: "start", options }, (error) => {
+        if (error) {
+            ready.reject(
+                new SandboxError("START_FAILED", "cannot configure sandbox", { cause: error }),
+            );
+        }
+    });
+}
+
+/** Disconnect a failed launcher and wait for it to close, killing it after a grace period. */
+async function release(launcher: ChildProcess, closed: Promise<void>): Promise<void> {
+    if (launcher.connected) {
+        launcher.disconnect();
+    }
+    const cleanup = setTimeout(() => launcher.kill("SIGKILL"), CLEANUP_TIMEOUT_MILLISECONDS);
+    try {
+        await closed;
+    } finally {
+        clearTimeout(cleanup);
     }
 }
