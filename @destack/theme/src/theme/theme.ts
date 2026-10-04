@@ -1,126 +1,289 @@
+import { PackageError, type Package } from "@destack/package";
+import { defineSchema, schema } from "@destack/schema";
 import {
-    type GrayPalette,
-    type Palette,
-    paletteAlpha,
-    paletteBlackAlpha,
-    paletteColor,
-    paletteForeground,
+    apca,
+    GRAY_PRESETS,
+    HexColor,
+    Preset,
+    Scale,
+    type GrayPreset,
+    type Scheme,
 } from "../palette/index.ts";
+import { MOTION_VARIABLE, TOKENS, type Variable } from "../token/index.ts";
+import {
+    DENSITY_SCALES,
+    Density,
+    TEXT_SCALES,
+    type Appearance,
+    type Preferences,
+} from "./preference.ts";
+import {
+    COLOR_ROLES,
+    CONTENT_CONTRAST,
+    ROLE_NAMES,
+    RoleName,
+    RoleOverride,
+    SURFACE_ROLES,
+    SurfaceLevel,
+    type Role,
+    type RoleContrast,
+    type Roles,
+    type RoleScales,
+} from "./role.ts";
 
-/** Appearance inherited from the device or selected explicitly. */
-export type Appearance = "system" | "light" | "dark";
+/** The radius multiplier of each corner treatment, after Radix Themes. */
+const RADIUS_SCALES = { none: 0, small: 0.75, medium: 1, large: 1.5, full: 1.5 } as const;
 
-/** Corner treatments supported by the shared controls. */
-export type Radius = "none" | "small" | "medium" | "large" | "full";
+/** The accent of a theme that names none, after Radix Themes. */
+const DEFAULT_ACCENT = "indigo";
 
-/** Proportional interface scales. */
-export type Scaling = "90%" | "95%" | "100%" | "105%" | "110%";
+/** The gray of a theme that names none, after Radix Themes. */
+const DEFAULT_GRAY = "slate";
 
-/** Values selected by the application or user preferences. */
-export interface ThemeOptions {
-    /** Light, dark, or the device preference. */
-    appearance?: Appearance;
-    /** Palette for primary actions and selection. */
-    accent?: Palette;
-    /** Neutral palette for backgrounds and text. */
-    gray?: GrayPalette;
-    /** Corner treatment for controls. */
-    radius?: Radius;
-    /** Interface spacing and type scale. */
-    scaling?: Scaling;
-    /** Font stack for interface text. */
-    fontFamily?: string;
-    /** Font stack for code and tabular text. */
-    monospaceFontFamily?: string;
-}
+/** The corner treatment of a theme that names none, after Radix Themes. */
+const DEFAULT_RADIUS = "medium";
 
-/** Scoped CSS declarations accepted by an element's style attribute. */
+/** The interface scale of a theme that names none. */
+const DEFAULT_SCALING = "100%";
+
+/** The density of a theme that names none. */
+const DEFAULT_DENSITY = "regular";
+
+/** The schemes and contrasts each theme is checked under. */
+const CHECKS = [
+    ["light", "standard"],
+    ["light", "more"],
+    ["dark", "standard"],
+    ["dark", "more"],
+] as const satisfies readonly (readonly [Scheme, RoleContrast])[];
+
+/** A package-local theme name. */
+export const ThemeName = defineSchema(schema.string().regex(/^[a-z][a-zA-Z0-9]*$(?![\s\S])/u));
+
+/** A theme's accent: a preset name or a six-digit sRGB hex seed. */
+export const Accent = defineSchema(schema.union([Preset, HexColor]));
+/** A theme's accent. */
+export type Accent = schema.Infer<typeof Accent>;
+
+/** A corner treatment. */
+export const Radius = defineSchema(schema.enum(["none", "small", "medium", "large", "full"]));
+/** A corner treatment. */
+export type Radius = schema.Infer<typeof Radius>;
+
+/** A proportional interface scale. */
+export const Scaling = defineSchema(schema.enum(["90%", "95%", "100%", "105%", "110%"]));
+/** A proportional interface scale. */
+export type Scaling = schema.Infer<typeof Scaling>;
+
+/** A theme as authored, every field beside the name optional. */
+export const ThemeDefinition = defineSchema(
+    schema.object({
+        /** The package-local name. */
+        name: ThemeName,
+        /** The accent of primary actions and selection, indigo when absent. */
+        accent: Accent.exactOptional(),
+        /** The neutral scale of backgrounds, borders and text, slate when absent. */
+        gray: schema.enum(GRAY_PRESETS).exactOptional(),
+        /** The corner treatment, medium when absent. */
+        radius: Radius.exactOptional(),
+        /** The interface scale, 100% when absent. */
+        scaling: Scaling.exactOptional(),
+        /** The font stacks of interface and code text as CSS `font-family` values, the tokens' when absent. */
+        fonts: schema
+            .object({
+                /** The interface font stack. */
+                text: schema.string().min(1).exactOptional(),
+                /** The code font stack. */
+                code: schema.string().min(1).exactOptional(),
+            })
+            .exactOptional(),
+        /** The density a person's density setting overrides, regular when absent. */
+        density: Density.exactOptional(),
+        /** The roles the theme replaces with a scale step or explicit colors, checked like every role. */
+        roles: schema.partialRecord(RoleName, RoleOverride).exactOptional(),
+    }),
+);
+/** A theme as authored. */
+export type ThemeDefinition = schema.Infer<typeof ThemeDefinition>;
+
+/** The declarations a theme root's style attribute carries. */
 export type ThemeStyle = {
     /** Browser appearance used by light-dark() and native controls. */
     "color-scheme": "light dark" | "light" | "dark";
-    /** Named values consumed by the shared tokens. */
-    [variable: `--destack-${string}`]: string;
+    /** The token values. */
+    [variable: Variable]: string;
 };
 
-/** Attributes applied to an application or nested theme root. */
-export interface Theme {
-    /** Appearance used by the theme stylesheet. */
-    "data-destack-theme": Appearance;
-    /** Corner treatment. */
-    "data-radius": Radius;
-    /** Palette and scale variables for this root. */
-    style: ThemeStyle;
+/** A theme: scales, corners, scaling, fonts and density, resolved into token values per person. */
+export class Theme {
+    /** The declaring package. */
+    readonly package: Package;
+    /** The name, accent, gray, radius, scaling, fonts, density and role replacements. */
+    readonly definition: ThemeDefinition;
+    /** The scales of the theme's own accent. */
+    readonly scales: RoleScales;
+    /** The color roles with the theme's replacements. */
+    readonly roles: Roles;
+
+    /** Hold a theme, generate its scales and apply its role replacements. */
+    constructor(owner: Package, definition: ThemeDefinition) {
+        // hold the definition and the scales of its own accent
+        this.package = owner;
+        this.definition = definition;
+        this.scales = roleScales(
+            definition.gray ?? DEFAULT_GRAY,
+            definition.accent ?? DEFAULT_ACCENT,
+        );
+
+        // replace the roles the theme overrides
+        const roles: Record<RoleName, Role> = { ...COLOR_ROLES };
+        for (const name of ROLE_NAMES) {
+            const override = definition.roles?.[name];
+            if (override !== undefined) {
+                roles[name] = COLOR_ROLES[name].override(override);
+            }
+        }
+        this.roles = roles;
+    }
+
+    /** The package-local name. */
+    get name(): string {
+        return this.definition.name;
+    }
+
+    /** Compute the custom properties of a theme root for an appearance and a person's preferences. */
+    variables(appearance: Appearance, preferences: Preferences): ThemeStyle {
+        // let the appearance drive light-dark() and native controls
+        const style: ThemeStyle = {
+            "color-scheme": appearance === "system" ? "light dark" : appearance,
+        };
+
+        // resolve the roles with the person's accent over the theme's own
+        const scales =
+            preferences.accent === null
+                ? this.scales
+                : roleScales(this.definition.gray ?? DEFAULT_GRAY, preferences.accent);
+        for (const entry of TOKENS.family("color").entries) {
+            const role = this.roles[RoleName.parse(entry.key)];
+            style[entry.variable] = role.css(this.roles, scales, preferences.contrast);
+        }
+        for (const entry of TOKENS.family("surface").entries) {
+            const role = this.roles[SURFACE_ROLES[SurfaceLevel.parse(entry.key)]];
+            style[entry.variable] = role.css(this.roles, scales, preferences.contrast);
+        }
+
+        // scale every other token by the theme and the person's preferences
+        for (const family of TOKENS.families) {
+            const factor = this.#factor(family.name, preferences);
+            if (factor === undefined) {
+                continue;
+            }
+            for (const entry of family.entries) {
+                for (const [variable, value] of entry.values(factor)) {
+                    style[variable] = value;
+                }
+            }
+        }
+
+        // apply the theme's fonts and corners and the person's motion
+        this.#customize(style, preferences);
+
+        return style;
+    }
+
+    /** Refuse a theme whose text roles read below their APCA contrast in either appearance and contrast. */
+    requireContrast(): void {
+        for (const [scheme, contrast] of CHECKS) {
+            for (const name of ROLE_NAMES) {
+                // measure the text role on its background
+                const role = this.roles[name];
+                const text = role.text;
+                if (text === undefined) {
+                    continue;
+                }
+                const foreground = role.color(this.roles, this.scales, scheme, contrast);
+                const background = this.roles[text.on].color(
+                    this.roles,
+                    this.scales,
+                    scheme,
+                    contrast,
+                );
+                const lightness = Math.abs(apca(foreground, background));
+
+                // refuse an illegible pair
+                if (lightness < text.contrast) {
+                    throw new PackageError(
+                        "INVALID_DEFINITION",
+                        `theme ${this.name}: ${name} on ${text.on} reads at Lc ${lightness.toFixed(1)} in ${scheme} with ${contrast} contrast, below ${text.contrast}`,
+                    );
+                }
+            }
+        }
+    }
+
+    /** Select the length factor of a token family, or none for families the theme resolves itself. */
+    #factor(family: string, preferences: Preferences): number | undefined {
+        const scaling = Number.parseInt(this.definition.scaling ?? DEFAULT_SCALING, 10) / 100;
+        const density =
+            DENSITY_SCALES[preferences.density ?? this.definition.density ?? DEFAULT_DENSITY];
+        switch (family) {
+            case "color":
+            case "surface":
+                return undefined;
+            case "space":
+            case "size":
+                return scaling * density;
+            case "radius":
+                return scaling * RADIUS_SCALES[this.definition.radius ?? DEFAULT_RADIUS];
+            case "text":
+                return scaling * TEXT_SCALES[preferences.textSize];
+            case "weight":
+            case "stroke":
+            case "shadow":
+            case "motion":
+                return 1;
+            default:
+                throw new RangeError(`theme has no factor for token family ${family}`);
+        }
+    }
+
+    /** Set the theme's font stacks and full radius, and the person's motion. */
+    #customize(style: ThemeStyle, preferences: Preferences): void {
+        // replace the token font stacks with the theme's
+        const fonts = this.definition.fonts;
+        if (fonts?.text !== undefined) {
+            style[TOKENS.entry(["text", "family"]).variable] = fonts.text;
+        }
+        if (fonts?.code !== undefined) {
+            style[TOKENS.entry(["text", "codeFamily"]).variable] = fonts.code;
+        }
+
+        // square the full radius unless the theme rounds fully
+        if (this.definition.radius !== "full") {
+            style[TOKENS.entry(["radius", "full"]).variable] = "0px";
+        }
+
+        // pin the motion scale the stylesheet otherwise reads from the device
+        if (preferences.motion !== "system") {
+            style[MOTION_VARIABLE] = preferences.motion === "full" ? "1" : "0";
+        }
+    }
 }
 
-/** Create scoped CSS variables without accessing the document or preferences. */
-export function createTheme(options: ThemeOptions = {}): Theme {
-    // choose palettes independently of appearance
-    const accent = options.accent ?? "indigo";
-    const gray = options.gray ?? "slate";
-    const neutral = (step: number) => paletteColor(gray, step);
-    const primary = (step: number) => paletteColor(accent, step);
-    const scaling = Number.parseInt(options.scaling ?? "100%", 10) / 100;
-
-    // pair semantic backgrounds and foregrounds with their interaction states
-    const roles = {
-        background: neutral(1),
-        foreground: neutral(12),
-        card: neutral(2),
-        cardForeground: neutral(12),
-        popover: neutral(2),
-        popoverForeground: neutral(12),
-        primary: primary(9),
-        primaryForeground: paletteForeground(accent),
-        secondary: neutral(3),
-        secondaryForeground: neutral(12),
-        muted: neutral(3),
-        mutedForeground: neutral(11),
-        accent: primary(3),
-        accentForeground: primary(12),
-        border: neutral(6),
-        input: neutral(7),
-        ring: primary(8),
-        destructive: paletteColor("red", 9),
-        sidebar: neutral(2),
-        sidebarForeground: neutral(12),
-        sidebarPrimary: primary(9),
-        sidebarPrimaryForeground: paletteForeground(accent),
-        sidebarAccent: primary(3),
-        sidebarAccentForeground: primary(12),
-        sidebarBorder: neutral(6),
-        sidebarRing: primary(8),
-    };
-
-    // expose CSS variables on the element that establishes the theme
-    const style: ThemeStyle = {
-        "color-scheme":
-            options.appearance === undefined || options.appearance === "system"
-                ? "light dark"
-                : options.appearance,
-        "--destack-scaling": String(scaling),
-    };
-    for (const [name, value] of Object.entries(roles)) {
-        style[`--destack-color-${name}`] = value;
-    }
-
-    // set neutral and alpha scales for shadows
-    for (let step = 1; step <= 12; step++) {
-        style[`--destack-gray-${step}`] = neutral(step);
-        style[`--destack-gray-a${step}`] = paletteAlpha(gray, step);
-        style[`--destack-black-a${step}`] = paletteBlackAlpha(step);
-    }
-
-    // apply font overrides
-    if (options.fontFamily !== undefined) {
-        style["--destack-default-font-family"] = options.fontFamily;
-    }
-    if (options.monospaceFontFamily !== undefined) {
-        style["--destack-code-font-family"] = options.monospaceFontFamily;
-    }
+/** Build the scales roles read from: the gray, the accent preset or seed, and the status presets. */
+function roleScales(gray: GrayPreset, accent: Accent): RoleScales {
+    // shift each solid step until its label reads, against the gray's darkest step as a candidate
+    const neutral = Scale.preset(gray);
+    const text = neutral.color(12, "light");
+    const preset = Preset.safeParse(accent);
+    const solid = (scale: Scale) => scale.legible(text, CONTENT_CONTRAST);
 
     return {
-        "data-destack-theme": options.appearance ?? "system",
-        "data-radius": options.radius ?? "medium",
-        style,
+        gray: neutral,
+        accent: solid(preset.success ? Scale.preset(preset.data) : Scale.generate(accent)),
+        red: solid(Scale.preset("red")),
+        green: solid(Scale.preset("green")),
+        amber: solid(Scale.preset("amber")),
+        blue: solid(Scale.preset("blue")),
     };
 }

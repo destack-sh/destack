@@ -1,141 +1,269 @@
+// generate with `bun run generate` from tokens.json
+
 import { defineConsts } from "@destack/style";
 
-/** Semantic color roles. */
+/** Semantic color roles after shadcn/ui and status roles, with the default theme's values. */
 export const color = defineConsts({
+    /** The page background, the base surface. */
     background: "var(--destack-color-background)",
+    /** Body text on the background. */
     foreground: "var(--destack-color-foreground)",
+    /** The background of cards, the raised surface. */
     card: "var(--destack-color-card)",
-    cardForeground: "var(--destack-color-cardForeground)",
+    /** Text on cards. */
+    cardForeground: "var(--destack-color-card-foreground)",
+    /** The background of popovers and menus, the overlay surface. */
     popover: "var(--destack-color-popover)",
-    popoverForeground: "var(--destack-color-popoverForeground)",
+    /** Text in popovers and menus. */
+    popoverForeground: "var(--destack-color-popover-foreground)",
+    /** The solid background of primary actions. */
     primary: "var(--destack-color-primary)",
-    primaryForeground: "var(--destack-color-primaryForeground)",
+    /** Text on primary actions. */
+    primaryForeground: "var(--destack-color-primary-foreground)",
+    /** The background of secondary actions. */
     secondary: "var(--destack-color-secondary)",
-    secondaryForeground: "var(--destack-color-secondaryForeground)",
+    /** Text on secondary actions. */
+    secondaryForeground: "var(--destack-color-secondary-foreground)",
+    /** The background of muted areas. */
     muted: "var(--destack-color-muted)",
-    mutedForeground: "var(--destack-color-mutedForeground)",
+    /** Secondary text such as descriptions. */
+    mutedForeground: "var(--destack-color-muted-foreground)",
+    /** The background of hovered and selected items. */
     accent: "var(--destack-color-accent)",
-    accentForeground: "var(--destack-color-accentForeground)",
+    /** Text on hovered and selected items. */
+    accentForeground: "var(--destack-color-accent-foreground)",
+    /** The solid background of destructive actions. */
     destructive: "var(--destack-color-destructive)",
+    /** Text on destructive actions. */
+    destructiveForeground: "var(--destack-color-destructive-foreground)",
+    /** The solid background of success states. */
+    success: "var(--destack-color-success)",
+    /** Text on success states. */
+    successForeground: "var(--destack-color-success-foreground)",
+    /** The solid background of warning states. */
+    warning: "var(--destack-color-warning)",
+    /** Text on warning states. */
+    warningForeground: "var(--destack-color-warning-foreground)",
+    /** The solid background of informational states. */
+    info: "var(--destack-color-info)",
+    /** Text on informational states. */
+    infoForeground: "var(--destack-color-info-foreground)",
+    /** Borders and separators. */
     border: "var(--destack-color-border)",
+    /** Borders of form controls. */
     input: "var(--destack-color-input)",
+    /** Focus rings. */
     ring: "var(--destack-color-ring)",
-    sidebar: "var(--destack-color-sidebar)",
-    sidebarForeground: "var(--destack-color-sidebarForeground)",
-    sidebarPrimary: "var(--destack-color-sidebarPrimary)",
-    sidebarPrimaryForeground: "var(--destack-color-sidebarPrimaryForeground)",
-    sidebarAccent: "var(--destack-color-sidebarAccent)",
-    sidebarAccentForeground: "var(--destack-color-sidebarAccentForeground)",
-    sidebarBorder: "var(--destack-color-sidebarBorder)",
-    sidebarRing: "var(--destack-color-sidebarRing)",
+    /** The veil behind dialogs, sheets and drawers. */
+    scrim: "var(--destack-color-scrim)",
 });
 
-/** Spacing steps 1 through 9. */
+/** Surface levels from the page up, with the default theme's values. */
+export const surface = defineConsts({
+    /** The page level. */
+    base: "var(--destack-surface-base)",
+    /** Cards and panels above the page. */
+    raised: "var(--destack-surface-raised)",
+    /** Popovers, menus and dialogs above everything else. */
+    overlay: "var(--destack-surface-overlay)",
+});
+
+/** Text styles named like Apple's, at Apple's Medium text size with 16px body text, scaled by the person's text size. */
+export const text = defineConsts({
+    /** The interface font stack. */
+    family: "var(--destack-text-family)",
+    /** The code font stack. */
+    codeFamily: "var(--destack-text-code-family)",
+    /** Captions and labels. */
+    captionFontFamily: "var(--destack-text-caption-font-family)",
+    /** Captions and labels. */
+    captionFontSize: "var(--destack-text-caption-font-size)",
+    /** Captions and labels. */
+    captionFontWeight: "var(--destack-text-caption-font-weight)",
+    /** Captions and labels. */
+    captionLineHeight: "var(--destack-text-caption-line-height)",
+    /** Captions and labels. */
+    captionLetterSpacing: "var(--destack-text-caption-letter-spacing)",
+    /** Footnotes and secondary labels. */
+    footnoteFontFamily: "var(--destack-text-footnote-font-family)",
+    /** Footnotes and secondary labels. */
+    footnoteFontSize: "var(--destack-text-footnote-font-size)",
+    /** Footnotes and secondary labels. */
+    footnoteFontWeight: "var(--destack-text-footnote-font-weight)",
+    /** Footnotes and secondary labels. */
+    footnoteLineHeight: "var(--destack-text-footnote-line-height)",
+    /** Footnotes and secondary labels. */
+    footnoteLetterSpacing: "var(--destack-text-footnote-letter-spacing)",
+    /** Body text. */
+    bodyFontFamily: "var(--destack-text-body-font-family)",
+    /** Body text. */
+    bodyFontSize: "var(--destack-text-body-font-size)",
+    /** Body text. */
+    bodyFontWeight: "var(--destack-text-body-font-weight)",
+    /** Body text. */
+    bodyLineHeight: "var(--destack-text-body-line-height)",
+    /** Body text. */
+    bodyLetterSpacing: "var(--destack-text-body-letter-spacing)",
+    /** Callouts beside body text. */
+    calloutFontFamily: "var(--destack-text-callout-font-family)",
+    /** Callouts beside body text. */
+    calloutFontSize: "var(--destack-text-callout-font-size)",
+    /** Callouts beside body text. */
+    calloutFontWeight: "var(--destack-text-callout-font-weight)",
+    /** Callouts beside body text. */
+    calloutLineHeight: "var(--destack-text-callout-line-height)",
+    /** Callouts beside body text. */
+    calloutLetterSpacing: "var(--destack-text-callout-letter-spacing)",
+    /** Headlines within body text. */
+    headlineFontFamily: "var(--destack-text-headline-font-family)",
+    /** Headlines within body text. */
+    headlineFontSize: "var(--destack-text-headline-font-size)",
+    /** Headlines within body text. */
+    headlineFontWeight: "var(--destack-text-headline-font-weight)",
+    /** Headlines within body text. */
+    headlineLineHeight: "var(--destack-text-headline-line-height)",
+    /** Headlines within body text. */
+    headlineLetterSpacing: "var(--destack-text-headline-letter-spacing)",
+    /** First-level titles. */
+    title1FontFamily: "var(--destack-text-title1-font-family)",
+    /** First-level titles. */
+    title1FontSize: "var(--destack-text-title1-font-size)",
+    /** First-level titles. */
+    title1FontWeight: "var(--destack-text-title1-font-weight)",
+    /** First-level titles. */
+    title1LineHeight: "var(--destack-text-title1-line-height)",
+    /** First-level titles. */
+    title1LetterSpacing: "var(--destack-text-title1-letter-spacing)",
+    /** Second-level titles. */
+    title2FontFamily: "var(--destack-text-title2-font-family)",
+    /** Second-level titles. */
+    title2FontSize: "var(--destack-text-title2-font-size)",
+    /** Second-level titles. */
+    title2FontWeight: "var(--destack-text-title2-font-weight)",
+    /** Second-level titles. */
+    title2LineHeight: "var(--destack-text-title2-line-height)",
+    /** Second-level titles. */
+    title2LetterSpacing: "var(--destack-text-title2-letter-spacing)",
+    /** Third-level titles. */
+    title3FontFamily: "var(--destack-text-title3-font-family)",
+    /** Third-level titles. */
+    title3FontSize: "var(--destack-text-title3-font-size)",
+    /** Third-level titles. */
+    title3FontWeight: "var(--destack-text-title3-font-weight)",
+    /** Third-level titles. */
+    title3LineHeight: "var(--destack-text-title3-line-height)",
+    /** Third-level titles. */
+    title3LetterSpacing: "var(--destack-text-title3-letter-spacing)",
+    /** Large titles at the top of a view. */
+    largeTitleFontFamily: "var(--destack-text-large-title-font-family)",
+    /** Large titles at the top of a view. */
+    largeTitleFontSize: "var(--destack-text-large-title-font-size)",
+    /** Large titles at the top of a view. */
+    largeTitleFontWeight: "var(--destack-text-large-title-font-weight)",
+    /** Large titles at the top of a view. */
+    largeTitleLineHeight: "var(--destack-text-large-title-line-height)",
+    /** Large titles at the top of a view. */
+    largeTitleLetterSpacing: "var(--destack-text-large-title-letter-spacing)",
+});
+
+/** Font weights after the CSS font-weight keywords and their common names. */
+export const weight = defineConsts({
+    /** Regular text, CSS normal. */
+    regular: "var(--destack-weight-regular)",
+    /** Controls and emphasised labels. */
+    medium: "var(--destack-weight-medium)",
+    /** Headings and strong emphasis. */
+    semibold: "var(--destack-weight-semibold)",
+    /** Bold text, CSS bold. */
+    bold: "var(--destack-weight-bold)",
+});
+
+/** Spacing steps after Radix Themes, scaled by the scaling and density. */
 export const space = defineConsts({
+    /** Spacing step 1. */
     "1": "var(--destack-space-1)",
+    /** Spacing step 2. */
     "2": "var(--destack-space-2)",
+    /** Spacing step 3. */
     "3": "var(--destack-space-3)",
+    /** Spacing step 4. */
     "4": "var(--destack-space-4)",
+    /** Spacing step 5. */
     "5": "var(--destack-space-5)",
+    /** Spacing step 6. */
     "6": "var(--destack-space-6)",
+    /** Spacing step 7. */
     "7": "var(--destack-space-7)",
+    /** Spacing step 8. */
     "8": "var(--destack-space-8)",
+    /** Spacing step 9. */
     "9": "var(--destack-space-9)",
 });
 
-/** Font sizes 1 through 9. */
-export const fontSize = defineConsts({
-    "1": "var(--destack-font-size-1)",
-    "2": "var(--destack-font-size-2)",
-    "3": "var(--destack-font-size-3)",
-    "4": "var(--destack-font-size-4)",
-    "5": "var(--destack-font-size-5)",
-    "6": "var(--destack-font-size-6)",
-    "7": "var(--destack-font-size-7)",
-    "8": "var(--destack-font-size-8)",
-    "9": "var(--destack-font-size-9)",
+/** Control heights after Radix Themes, scaled by the scaling and density. */
+export const size = defineConsts({
+    /** Control height 1. */
+    "1": "var(--destack-size-1)",
+    /** Control height 2. */
+    "2": "var(--destack-size-2)",
+    /** Control height 3. */
+    "3": "var(--destack-size-3)",
+    /** Control height 4. */
+    "4": "var(--destack-size-4)",
 });
 
-/** Line heights 1 through 9. */
-export const lineHeight = defineConsts({
-    "1": "var(--destack-line-height-1)",
-    "2": "var(--destack-line-height-2)",
-    "3": "var(--destack-line-height-3)",
-    "4": "var(--destack-line-height-4)",
-    "5": "var(--destack-line-height-5)",
-    "6": "var(--destack-line-height-6)",
-    "7": "var(--destack-line-height-7)",
-    "8": "var(--destack-line-height-8)",
-    "9": "var(--destack-line-height-9)",
-});
-
-/** Letter spacing 1 through 9. */
-export const letterSpacing = defineConsts({
-    "1": "var(--destack-letter-spacing-1)",
-    "2": "var(--destack-letter-spacing-2)",
-    "3": "var(--destack-letter-spacing-3)",
-    "4": "var(--destack-letter-spacing-4)",
-    "5": "var(--destack-letter-spacing-5)",
-    "6": "var(--destack-letter-spacing-6)",
-    "7": "var(--destack-letter-spacing-7)",
-    "8": "var(--destack-letter-spacing-8)",
-    "9": "var(--destack-letter-spacing-9)",
-});
-
-/** Heading line heights 1 through 9. */
-export const headingLineHeight = defineConsts({
-    "1": "var(--destack-heading-line-height-1)",
-    "2": "var(--destack-heading-line-height-2)",
-    "3": "var(--destack-heading-line-height-3)",
-    "4": "var(--destack-heading-line-height-4)",
-    "5": "var(--destack-heading-line-height-5)",
-    "6": "var(--destack-heading-line-height-6)",
-    "7": "var(--destack-heading-line-height-7)",
-    "8": "var(--destack-heading-line-height-8)",
-    "9": "var(--destack-heading-line-height-9)",
-});
-
-/** Text weights. */
-export const fontWeight = defineConsts({
-    light: "var(--destack-font-weight-light)",
-    regular: "var(--destack-font-weight-regular)",
-    medium: "var(--destack-font-weight-medium)",
-    bold: "var(--destack-font-weight-bold)",
-});
-
-/** Default and code font stacks. */
-export const fontFamily = defineConsts({
-    default: "var(--destack-default-font-family)",
-    code: "var(--destack-code-font-family)",
-});
-
-/** Corner radii and control treatments. */
+/** Corner radii after Radix Themes, scaled by the scaling and the theme's radius. */
 export const radius = defineConsts({
+    /** Corner radius 1. */
     "1": "var(--destack-radius-1)",
+    /** Corner radius 2. */
     "2": "var(--destack-radius-2)",
+    /** Corner radius 3. */
     "3": "var(--destack-radius-3)",
+    /** Corner radius 4. */
     "4": "var(--destack-radius-4)",
+    /** Corner radius 5. */
     "5": "var(--destack-radius-5)",
+    /** Corner radius 6. */
     "6": "var(--destack-radius-6)",
+    /** Pill corners under the full radius, square corners otherwise. */
     full: "var(--destack-radius-full)",
-    thumb: "var(--destack-radius-thumb)",
 });
 
-/** Elevation shadows 1 through 6. */
+/** Line widths of borders and focus rings, unscaled so hairlines stay sharp. */
+export const stroke = defineConsts({
+    /** Borders of controls, cards and separators. */
+    border: "var(--destack-stroke-border)",
+    /** Focus rings, after shadcn/ui's ring width. */
+    ring: "var(--destack-stroke-ring)",
+});
+
+/** Elevation shadows of the surface levels after Radix Themes. */
 export const shadow = defineConsts({
-    "1": "var(--destack-shadow-1)",
-    "2": "var(--destack-shadow-2)",
-    "3": "var(--destack-shadow-3)",
-    "4": "var(--destack-shadow-4)",
-    "5": "var(--destack-shadow-5)",
-    "6": "var(--destack-shadow-6)",
+    /** The hairline around raised and overlaid surfaces, after Radix gray alpha steps 3 and 6. */
+    edge: "var(--destack-shadow-edge)",
+    /** The cast shadow color, after Radix black alpha steps 2 and 6. */
+    cast: "var(--destack-shadow-cast)",
+    /** Sunken fields such as text inputs. */
+    inset: "var(--destack-shadow-inset)",
+    /** Raised surfaces such as cards and buttons. */
+    raised: "var(--destack-shadow-raised)",
+    /** Overlaid surfaces such as popovers and dialogs. */
+    overlay: "var(--destack-shadow-overlay)",
 });
 
-/** Chart series colors. */
-export const chart = defineConsts({
-    "1": "light-dark(oklch(0.646 0.222 41.116), oklch(0.488 0.243 264.376))",
-    "2": "light-dark(oklch(0.6 0.118 184.704), oklch(0.696 0.17 162.48))",
-    "3": "light-dark(oklch(0.398 0.07 227.392), oklch(0.769 0.188 70.08))",
-    "4": "light-dark(oklch(0.828 0.189 84.429), oklch(0.627 0.265 303.9))",
-    "5": "light-dark(oklch(0.769 0.188 70.08), oklch(0.645 0.246 16.439))",
+/** Durations and easings after Material Design 3, collapsed to zero by the person's motion setting. */
+export const motion = defineConsts({
+    /** Small changes such as hover and press, Material short3. */
+    durationShort: "var(--destack-motion-duration-short)",
+    /** Elements entering and leaving, Material medium2. */
+    durationMedium: "var(--destack-motion-duration-medium)",
+    /** Large surfaces and full-screen changes, Material long2. */
+    durationLong: "var(--destack-motion-duration-long)",
+    /** Movement within the screen, Material standard. */
+    easingStandard: "var(--destack-motion-easing-standard)",
+    /** Elements entering the screen, Material emphasized decelerate. */
+    easingEmphasised: "var(--destack-motion-easing-emphasised)",
+    /** Playful movement with a slight overshoot, sampled from a spring as linear(), with an overshooting cubic Bézier as its portable form. */
+    easingSpring: "var(--destack-motion-easing-spring)",
 });
