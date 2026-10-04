@@ -56,6 +56,27 @@ test:
     just @app/test
     just @platform/test
 
+# test the packages the changes since a base commit affect, with their dependents
+test-affected base="origin/main":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    directories="$(bun run destack-check affected "{{base}}")"
+    # run everything when a change reaches every package
+    if [ "$directories" = "*" ]; then
+        just test
+        just @platform/release/test
+        exit 0
+    fi
+    filters=()
+    for directory in $directories; do
+        filters+=(--filter "./$directory")
+    done
+    if [ ${#filters[@]} -eq 0 ]; then
+        echo "no package is affected"
+        exit 0
+    fi
+    bun run --bun --sequential --no-exit-on-error "${filters[@]}" --if-present test
+
 # start, stop or report the test PostgreSQL on port 55432 (DESTACK_TEST_POSTGRES=postgres://postgres@127.0.0.1:55432/postgres)
 postgres action:
     #!/usr/bin/env bash

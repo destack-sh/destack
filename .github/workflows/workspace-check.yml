@@ -76,6 +76,8 @@ jobs:
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
               with:
                   persist-credentials: false
+                  # the merge base with the target branch selects the affected packages
+                  fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
             - name: Install platform tools
               uses: ./.github/actions/setup-platform
             - name: Install sandbox tools
@@ -84,9 +86,14 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install --yes bubblewrap socat ripgrep
                   sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+            - name: Test affected packages
+              if: github.event_name == 'pull_request'
+              run: just test-affected "origin/$GITHUB_BASE_REF"
             - name: Test workspace
+              if: github.event_name != 'pull_request'
               run: just test
             - name: Test releases
+              if: github.event_name != 'pull_request'
               run: just @platform/release/test
 
     macos:
