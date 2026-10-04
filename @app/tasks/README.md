@@ -1,4 +1,4 @@
-# @destack/tasks
+# @app/tasks
 
 Plan projects as tasks with assignees, states and comment threads.
 
@@ -80,7 +80,7 @@ const first = await client.comment.create({
 `install(tasks, …)` installs the package with its `main` database, and `tasksTables` adds the task tables to another package's database.
 
 ```ts
-import tasks from "@destack/tasks/package";
+import tasks from "@app/tasks/package";
 
 export const personal = defineSpace({ installations: { tasks: install(tasks, { main: "main" }) } });
 ```

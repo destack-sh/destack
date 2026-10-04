@@ -1,4 +1,4 @@
-# @destack/pages
+# @app/pages
 
 Write pages in nested trees, shared with people or published by link.
 
@@ -56,7 +56,7 @@ await client.page.grant({
 `install(pages, …)` installs the package with its `main` database, and `pagesTables` adds the page tables to another package's database.
 
 ```ts
-import pages from "@destack/pages/package";
+import pages from "@app/pages/package";
 
 export const personal = defineSpace({ installations: { pages: install(pages, { main: "main" }) } });
 ```

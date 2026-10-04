@@ -1,38 +1,36 @@
 {
-    "name": "@destack/notes",
+    "name": "@app/tasks",
     "version": "2026.9.0",
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Keep notes in notebooks, shared with the people who need them.",
+    "description": "Plan projects as tasks with assignees, states and comment threads.",
     "exports": {
         ".": "./src/index.ts",
         "./destack.json": "./destack.json",
         "./service": "./src/service/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./package": "./src/package.ts",
-        "./view": "./src/view/index.ts"
+        "./package": "./src/package.ts"
     },
     "dependencies": {
+        "@destack/sync": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/space": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/account": "workspace:*",
-        "@destack/style": "workspace:*",
-        "@destack/theme": "workspace:*",
-        "@destack/view": "workspace:*",
-        "@destack/sync": "workspace:*"
+        "@destack/social": "workspace:*",
+        "@destack/account": "workspace:*"
     },
     "devDependencies": {
         "@destack/resource": "workspace:*",
-        "@destack/build": "workspace:*",
         "@destack/test": "workspace:*",
-        "uuid": "14.0.2"
+        "uuid": "14.0.2",
+        "@types/bun": "1.4.2"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",

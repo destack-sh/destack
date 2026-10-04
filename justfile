@@ -26,6 +26,7 @@ generate:
 # format
 format:
     just @destack/format
+    just @app/format
     just @template/format
     just @platform/format
     just @platform/release/format
@@ -35,6 +36,7 @@ alias fmt := format
 # check formatting
 format-check:
     just @destack/format-check
+    just @app/format-check
     just @template/format-check
     just @platform/format-check
     just @platform/release/format-check
@@ -42,15 +44,16 @@ format-check:
 # lint
 lint:
     just check-hygiene
-    bun run destack-check check @destack/*/src @template/*/src @platform/*/src
-    bun run destack-check check $(ls -d @destack/*/tests | grep -v '^@destack/build/')
-    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog @destack/*/README.md @template/*/README.md
+    bun run destack-check check @destack/*/src @app/*/src @template/*/src @platform/*/src
+    bun run destack-check check $(ls -d @destack/*/tests @app/*/tests | grep -v '^@destack/build/')
+    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog @destack/*/README.md @app/*/README.md @template/*/README.md
     just @platform/lint
-    just @platform/release/check
+    just @platform/release/lint
 
 # test
 test:
     just @destack/test
+    just @app/test
     just @platform/test
 
 # start, stop or report the test PostgreSQL on port 55432 (DESTACK_TEST_POSTGRES=postgres://postgres@127.0.0.1:55432/postgres)
@@ -68,8 +71,9 @@ postgres action:
 check:
     just check-hygiene
     just @destack/check
+    just @app/check
     just @template/check
-    just @platform/site/typecheck
+    just @platform/site/check
     just @platform/stack/check
     just @platform/release/check
 

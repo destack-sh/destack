@@ -1,4 +1,4 @@
-# @destack/notes
+# @app/notes
 
 Keep notes in notebooks, shared with the people who need them.
 
@@ -30,7 +30,7 @@ await client.note.restore({ spaceId, id: created.id, requestId });
 The `notes` view lists notebooks and notes and opens a note in a live editor.
 
 ```ts
-import { notes } from "@destack/notes/view";
+import { notes } from "@app/notes/view";
 ```
 
 ## Installation
@@ -38,7 +38,7 @@ import { notes } from "@destack/notes/view";
 `install(notes, …)` installs the package with its `main` database, and `notesTables` adds the note tables to another package's database.
 
 ```ts
-import notes from "@destack/notes/package";
+import notes from "@app/notes/package";
 
 export const personal = defineSpace({ installations: { notes: install(notes, { main: "main" }) } });
 ```

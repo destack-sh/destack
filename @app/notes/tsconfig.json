@@ -18,20 +18,10 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "lib": [
-            "ESNext",
-            "DOM",
-            "DOM.Iterable"
-        ],
-        "types": [
-            "@destack/build/browser"
-        ],
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "types": ["@destack/build/browser"],
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
     },
-    "include": [
-        "src",
-        "tests",
-        "*.config.ts"
-    ]
+    "include": ["src", "tests", "*.config.ts"]
 }

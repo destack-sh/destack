@@ -1,0 +1,27 @@
+set shell := ["bash", "-cu"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+
+_default:
+    @just --list --unsorted
+
+# check
+check:
+    cd .. && bun run --filter './@app/*' --if-present check
+
+# test
+test:
+    cd .. && bun run --bun --sequential --no-exit-on-error --filter './@app/*' --if-present test
+
+# lint
+lint:
+    bun run destack-check check */src
+
+# format
+format:
+    bun run destack-check format */src
+
+# check formatting
+format-check:
+    bun run destack-check format-check */src
+
+alias fmt := format
