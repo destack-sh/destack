@@ -329,6 +329,10 @@ tester.run("valid-declaration", rules["valid-declaration"], {
             filename: SOURCE,
         },
         { code: "const main = defineDatabase({});", filename: SOURCE },
+        {
+            code: 'import { valueOf } from "@destack/db";\nfunction f() {\n    return valueOf({});\n}',
+            filename: SOURCE,
+        },
     ],
     invalid: [
         {
