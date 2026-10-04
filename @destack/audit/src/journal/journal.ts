@@ -22,7 +22,7 @@ import {
     CHAIN_TERMS,
 } from "@destack/db";
 import { Digest, Duration, canonicalize } from "@destack/schema";
-import { errorOf, ServiceError } from "@destack/service/error";
+import { errorOf, isServiceError, ServiceError } from "@destack/service/error";
 import { domainFailure } from "@destack/service/server";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
@@ -297,7 +297,7 @@ export class Journal {
     static failure(
         error: unknown,
     ): { readonly kind: "failure"; readonly error: Failure } | undefined {
-        const failure = error instanceof ServiceError ? error : domainFailure(error);
+        const failure = isServiceError(error) ? error : domainFailure(error);
         const outcome =
             failure === undefined
                 ? undefined

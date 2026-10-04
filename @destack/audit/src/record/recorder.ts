@@ -5,7 +5,7 @@ import { AuditExecution } from "./execution.ts";
 import { v7 } from "uuid";
 import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
-import { denialOf, isServiceError, ServiceError } from "@destack/service";
+import { denialOf, isServiceError } from "@destack/service";
 import type { Authentication } from "@destack/service/authentication";
 import {
     domainFailure,
@@ -212,7 +212,7 @@ export class AuditRecorder<Transaction = never> {
             return { kind: "denied", error: Failure.of(denial) };
         }
         // report a service or audit failure
-        else if (known instanceof ServiceError || known instanceof AuditError) {
+        else if (isServiceError(known) || known instanceof AuditError) {
             return { kind: "failure", error: Failure.of(known) };
         }
 
