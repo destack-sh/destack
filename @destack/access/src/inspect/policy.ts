@@ -1,5 +1,5 @@
 import type { Policy } from "../policy/policy.ts";
-import { AccessName } from "@destack/sync";
+import { AccessName, ObjectTypeReference } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Condition } from "@destack/db";
@@ -11,6 +11,10 @@ import { Elevation } from "../context/elevation.ts";
 export const AccessExpressionDescription: schema.Schema<AccessExpression> = schema.lazy(() =>
     schema.union([
         schema.object({ kind: schema.literal("none") }),
+        schema.object({
+            kind: schema.literal("contained"),
+            principals: schema.array(ObjectTypeReference).exactOptional(),
+        }),
         schema.object({
             kind: schema.enum(["relation", "permission"]),
             name: AccessName,

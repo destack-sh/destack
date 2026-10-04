@@ -1,6 +1,7 @@
 import { check, dialectSQL, sql, type Column, type Condition } from "@destack/db";
 import { schema } from "@destack/schema";
-import { AccessName } from "@destack/sync";
+import { AccessName, type ObjectTypeReference } from "@destack/sync";
+import type { Policy } from "./policy.ts";
 
 /** A scalar request attribute that permission conditions compare. */
 export const Attribute = schema.union([schema.string(), schema.number(), schema.boolean()]);
@@ -18,7 +19,7 @@ export function nameCheck(name: string, column: Column) {
         name,
         dialectSQL({
             sqlite: sql`${column} IS NULL OR (length(${column}) > 0 AND substr(${column}, 1, 1) GLOB '[a-z]' AND ${column} NOT GLOB '*[^a-z0-9-]*' AND ${column} NOT LIKE '%--%' AND ${column} NOT LIKE '%-')`,
-            postgresql: sql`${column} IS NULL OR (${column} COLLATE "C") ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'`,
+            postgresql: sql`${column} IS NULL OR ${column} ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'`,
         }),
     );
 }
@@ -51,7 +52,11 @@ export type AccessExpression =
           readonly transitive: boolean;
       }
     | { readonly kind: "granters"; readonly reference: string }
-    | { readonly kind: "readers"; readonly reference: string; readonly relation: string };
+    | { readonly kind: "readers"; readonly reference: string; readonly relation: string }
+    | { readonly kind: "contained"; readonly principals?: readonly ObjectTypeReference[] };
+
+/** The relation of the subject set of the principals inside a scope. */
+export const CONTAINED = "contained";
 
 /** Match no relation, so only roles grant the permission. */
 export function none(): AccessExpression {
@@ -113,6 +118,24 @@ export function readersOf(reference: string, field: string): AccessExpression {
         reference: AccessName.parse(reference),
         relation: AccessName.parse(field),
     };
+}
+
+/**
+ * Permit the principals inside a scope: those living in it or in a scope it encloses, and the scope's own principal.
+ *
+ * A scope object decides for itself, any other object for the scope it lives in.
+ * Named principal types narrow the principals to those types.
+ */
+export function contained(...principals: readonly Policy[]): AccessExpression {
+    return principals.length === 0
+        ? { kind: "contained" }
+        : {
+              kind: "contained",
+              principals: principals.map((type) => ({
+                  packageId: type.definition.packageId,
+                  type: type.definition.name,
+              })),
+          };
 }
 
 /** Permit objects whose attributes meet a condition, reading request attributes through placeholders. */

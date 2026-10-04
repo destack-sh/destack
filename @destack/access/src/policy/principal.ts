@@ -23,6 +23,8 @@ export const principal = {
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
     /** A host or region serving zones, as the directory knows it. */
     cell: new Policy(OWNER, { name: "cell", permissions: {}, isGlobal: true }),
+    /** A platform workload placed in a region, which that region's hosts run and act as through workload tokens. */
+    workload: new Policy(OWNER, { name: "workload", permissions: {}, isGlobal: true }),
     /** A non-person identity an account creates for automation, living in that account. */
     serviceAccount: new Policy(OWNER, { name: "service-account", permissions: {} }),
     /** A way to reach someone outside Destack that they prove control of, such as an email address. */
