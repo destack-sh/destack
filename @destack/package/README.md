@@ -4,7 +4,8 @@ Define Destack packages, transform their modules, and read their built manifests
 
 ## Definitions
 
-`destack.json` sets a package's id, language, runtimes and declaration constructors, and `describes` lists the functions that describe each kind a constructor declares.
+`destack.json` sets a package's id, language, runtimes, declaration constructors and stamped functions.
+`describes` lists the functions that describe each kind a constructor declares, and `stamps` sets where each stamped function takes the calling module.
 
 ```json
 {
@@ -13,7 +14,6 @@ Define Destack packages, transform their modules, and read their built manifests
     "runtimes": ["browser", "bun", "workerd"],
     "declarations": {
         "defineNotification": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "notification",
@@ -27,6 +27,9 @@ Define Destack packages, transform their modules, and read their built manifests
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineNotification": { "module": 1 }
     }
 }
 ```
@@ -179,19 +182,31 @@ export default definePackage({
 
 ## Modules
 
-The module transform sets `import.meta.destack.package` in each module and passes it to each declaration constructor call.
+The module transform sets `import.meta.destack.package` in each module and passes it to each call of a stamped function.
 
 ```ts
 const { id, name, version } = import.meta.destack.package;
 ```
 
+`stamps` in `destack.json` lists the exported functions the transform passes the calling module to, declaration constructors included, by export path and parameter position.
+A stamped function written as a template tag becomes a call passing the module, and its result tags the template.
+
+```jsonc
+{
+    "stamps": {
+        "t": { "module": 0 }, // t`Close` becomes t(__destackModule)`Close`
+        "Message.context": { "module": 1 }, // Message.context("button")`Open` passes the module second
+    },
+}
+```
+
 ## Transforms
 
-`transform/vite` installs the module transform in Vite and Vitest, `transform/bun` in `Bun.build`, and `transform/preload` in every module a Bun process loads.
+`vite` installs the module transform in Vite and Vitest, `bun` in `Bun.build`, and `bun/preload` in every module a Bun process loads.
 
 ```toml
 # bunfig.toml
-preload = ["@destack/package/transform/preload"]
+preload = ["@destack/package/bun/preload"]
 ```
 
 ## Variants

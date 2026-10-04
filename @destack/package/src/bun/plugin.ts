@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { readFile } from "node:fs/promises";
-import { PackageLocator } from "./locator.ts";
-import { transformModule } from "./transform.ts";
+import { PackageLocator } from "../transform/locator.ts";
+import { transformModule } from "../transform/transform.ts";
 
 /** Package lookups shared by every load in this process. */
 const packages = new PackageLocator();

@@ -1,6 +1,6 @@
 import type { Plugin } from "vite";
-import { PackageLocator } from "./locator.ts";
-import { transformModule } from "./transform.ts";
+import { PackageLocator } from "../transform/locator.ts";
+import { transformModule } from "../transform/transform.ts";
 
 /** Inject Destack module metadata while Vite loads package sources. */
 export function modulePlugin(): Plugin {

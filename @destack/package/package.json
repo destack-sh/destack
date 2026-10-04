@@ -23,9 +23,9 @@
         "./view": "./src/view/index.ts",
         "./runtime": "./src/runtime/index.ts",
         "./transform": "./src/transform/index.ts",
-        "./transform/vite": "./src/transform/vite.ts",
-        "./transform/bun": "./src/transform/bun.ts",
-        "./transform/preload": "./src/transform/preload.ts",
+        "./vite": "./src/vite/plugin.ts",
+        "./bun": "./src/bun/plugin.ts",
+        "./bun/preload": "./src/bun/preload.ts",
         "./declare": "./src/declare/index.ts",
         "./build": "./src/build/index.ts",
         "./schemas/destack.json": "./schemas/destack.json"
