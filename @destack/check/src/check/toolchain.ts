@@ -1,17 +1,15 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BunProcess } from "../bun/process.ts";
 
 /** The name of the toolchain directory beside a standalone executable. */
 const TOOLCHAIN = "toolchain";
 
-/** Whether this process is a standalone Bun executable. */
-const IS_STANDALONE = "Bun" in globalThis && Bun.isStandaloneExecutable;
-
 /** The tools on disk: the toolchain directory beside a standalone executable, or the packages a workspace installed. */
 export const Toolchain = {
     /** The toolchain directory beside a standalone executable, absent when running from a workspace. */
-    directory: IS_STANDALONE ? join(dirname(process.execPath), TOOLCHAIN) : undefined,
+    directory: BunProcess.isStandalone ? join(dirname(process.execPath), TOOLCHAIN) : undefined,
 
     /** The suffix naming this platform's native addon packages, as napi-rs names them for glibc on Linux. */
     platform: `${process.platform}-${process.arch}${process.platform === "linux" ? "-gnu" : ""}`,

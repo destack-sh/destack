@@ -1,30 +1,5 @@
-import { readFile, stat } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
-import { schema } from "@destack/schema";
-
-/** The workspace members of a Bun lockfile by directory, with the root as "". */
-const WorkspaceLockfile = schema
-    .object({
-        workspaces: schema.record(
-            schema.string(),
-            schema
-                .object({
-                    name: schema.string().exactOptional(),
-                    dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
-                    devDependencies: schema
-                        .record(schema.string(), schema.string())
-                        .exactOptional(),
-                    peerDependencies: schema
-                        .record(schema.string(), schema.string())
-                        .exactOptional(),
-                    optionalDependencies: schema
-                        .record(schema.string(), schema.string())
-                        .exactOptional(),
-                })
-                .strip(),
-        ),
-    })
-    .strip();
+import { resolve } from "node:path";
+import { BunLockfile } from "../bun/lockfile.ts";
 
 /** One package of a workspace. */
 export interface WorkspaceMember {
@@ -52,18 +27,12 @@ export class Workspace {
     /** Read the workspace enclosing a directory, absent without an enclosing lockfile. */
     static async read(directory: string): Promise<Workspace | undefined> {
         // read the lockfile of the enclosing workspace
-        const root = await locateWorkspace(directory);
-        const text = await readFile(join(root, "bun.lock"), "utf8").catch((error: unknown) => {
-            if (!isMissing(error)) {
-                throw error;
-            }
-        });
-        if (text === undefined) {
+        const lockfile = await BunLockfile.read(directory);
+        if (lockfile === undefined) {
             return undefined;
         }
 
         // read the members the lockfile records
-        const lockfile = WorkspaceLockfile.parse(JSON.parse(dropTrailingCommas(text)));
         const named = Object.entries(lockfile.workspaces).flatMap(([path, member]) => {
             const location = path === "" ? "." : path;
 
@@ -90,7 +59,7 @@ export class Workspace {
             return { directory: path, name, dependencies };
         });
 
-        return new Workspace(root, members);
+        return new Workspace(lockfile.directory, members);
     }
 
     /** List a member and every member it depends on, directly or through others. */
@@ -152,74 +121,5 @@ export class Workspace {
 
 /** Find the nearest directory holding a Bun lockfile, the directory itself without one. */
 export async function locateWorkspace(directory: string): Promise<string> {
-    // accept the nearest directory holding the lockfile
-    for (let current = resolve(directory); ; current = dirname(current)) {
-        if (await exists(join(current, "bun.lock"))) {
-            return current;
-        }
-        if (dirname(current) === current) {
-            return resolve(directory);
-        }
-    }
-}
-
-/** Report whether a path exists. */
-async function exists(path: string): Promise<boolean> {
-    try {
-        await stat(path);
-
-        return true;
-    } catch (error) {
-        if (!isMissing(error)) {
-            throw error;
-        }
-
-        return false;
-    }
-}
-
-/** Report whether a file system error names a missing path. */
-function isMissing(error: unknown): boolean {
-    return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-/** Drop the trailing commas Bun writes into lockfiles. */
-function dropTrailingCommas(text: string): string {
-    // copy the text character by character and track open strings
-    let result = "";
-    let isString = false;
-    for (let index = 0; index < text.length; index++) {
-        const character = text.charAt(index);
-        // copy strings whole with their escapes
-        if (isString) {
-            result += character;
-            if (character === "\\") {
-                result += text.charAt(++index);
-            } else if (character === '"') {
-                isString = false;
-            }
-        }
-        // skip a comma whose next significant character closes an object or array
-        else if (character === "," && isClosing(text, index + 1)) {
-            continue;
-        }
-        // copy everything else
-        else {
-            isString = character === '"';
-            result += character;
-        }
-    }
-
-    return result;
-}
-
-/** Report whether the next character after whitespace closes an object or array. */
-function isClosing(text: string, start: number): boolean {
-    // skip whitespace before the next character
-    let index = start;
-    while (index < text.length && /\s/u.test(text.charAt(index))) {
-        index++;
-    }
-
-    return text.charAt(index) === "}" || text.charAt(index) === "]";
+    return (await BunLockfile.locate(directory)) ?? resolve(directory);
 }

@@ -86,7 +86,7 @@ function constructorName(
         : PACKAGE_NAME.exec(binding.source)?.[0];
     const declared = owner === undefined ? undefined : packages.constructors(owner, directory);
 
-    return declared?.[binding.name]?.describes === undefined ? undefined : binding.name;
+    return declared?.[binding.name] === undefined ? undefined : binding.name;
 }
 
 /** Read the name of the package containing a directory, caching each directory's answer. */
