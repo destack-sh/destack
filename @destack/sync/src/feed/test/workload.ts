@@ -1,4 +1,5 @@
 import { and, eq, inArray, type DatabaseConnection } from "@destack/db";
+import { aligned } from "@destack/schema";
 import { comment, page, project, tag, task, taskTag } from "../../test/fixture.ts";
 import type { Random } from "./random.ts";
 
@@ -177,7 +178,7 @@ export class Workload {
         // write a page under a lower page of its folder or at the top, deleting only leaves
         else if (kind === "page") {
             const index = random.integer(this.#pages.length);
-            const id = this.#pages[index]!;
+            const id = aligned(this.#pages, index);
             const [existing] = await database.select().from(page).where(eq(page.id, id));
             const home = existing?.scope ?? folder;
             const parents = await database

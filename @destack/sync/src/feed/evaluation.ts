@@ -1,8 +1,7 @@
-import { TABLE } from "@destack/db";
-import { DatabaseError } from "@destack/db/error";
-import type { Change, LogPosition } from "@destack/db/log";
+import { TABLE, DatabaseError, type Change, type LogPosition } from "@destack/db";
+import { aligned } from "@destack/schema";
 import type { Query } from "../query/query.ts";
-import type { QueryPage } from "../query/page.ts";
+import type { Page } from "../query/page.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type Walk } from "../dataflow/run.ts";
 import { PAGE_ROWS } from "../dataflow/selection.ts";
@@ -66,12 +65,12 @@ export class Evaluation {
         return this.#dataflow.inspect();
     }
 
-    /** The held log position, absent before the first walk. */
+    /** The current log position, absent before the first walk. */
     get position(): LogPosition | undefined {
         return this.#dataflow.position;
     }
 
-    /** Decide the pages after the held position, absent for another position. */
+    /** Decide the pages after the current position, absent for another position. */
     after(position: LogPosition): Promise<Advance> | undefined {
         // reuse the decided pages unless stale
         const sequence = position.sequence;
@@ -129,28 +128,28 @@ export class Evaluation {
     }
 
     /** Move from another evaluation's state to this one's at one position. */
-    async moveFrom(previous: Evaluation, position: LogPosition): Promise<QueryPage> {
+    async moveFrom(previous: Evaluation, position: LogPosition): Promise<Page> {
         // collect both and send the difference
         const view = this.#view(position);
-        const held = await previous.collect(view);
-        const holding = await this.collect(view);
-        const patch = Patch.difference(held, holding, previous.#dataflow.nodes, () => false);
+        const before = await previous.collect(view);
+        const after = await this.collect(view);
+        const patch = Patch.difference(before, after, previous.#dataflow.nodes, () => false);
 
         return patch.page(position, this.#audience, this.#feed, { reset: false, complete: false });
     }
 
-    /** Decide the subscriber's rows again as of now at a held position. */
-    async refresh(position: LogPosition): Promise<QueryPage> {
+    /** Decide the subscriber's rows again as of now at the current position. */
+    async refresh(position: LogPosition): Promise<Page> {
         // collect before and after refreshing the audience
         const view = this.#view(position);
-        const held = await this.collect(view);
+        const before = await this.collect(view);
         await this.#audience.refresh();
-        const holding = await this.collect(view);
+        const after = await this.collect(view);
 
         // send the difference and rows with possibly changed readable columns
         const patch = Patch.difference(
-            held,
-            holding,
+            before,
+            after,
             this.#dataflow.nodes,
             (table) => this.#audience.concealable(table).length > 0,
         );
@@ -164,13 +163,13 @@ export class Evaluation {
         sequence: number,
         isComplete: boolean,
         signal: AbortSignal,
-    ): AsyncGenerator<QueryPage, number> {
+    ): AsyncGenerator<Page, number> {
         // read from the feed or the log
         const read = await this.#feed.changes(this.#dataflow.watches(), sequence);
         if (read === undefined) {
             throw new DatabaseError(
                 "CHANGES_COMPACTED",
-                `log no longer holds changes after ${sequence}`,
+                `log no longer has changes after ${sequence}`,
             );
         }
 
@@ -180,7 +179,7 @@ export class Evaluation {
             if (signal.aborted) {
                 break;
             }
-            const position = { epoch, sequence: changes.at(-1)!.sequence };
+            const position = { epoch, sequence: aligned(changes, changes.length - 1).sequence };
             await nextTask();
             const run = new Run(this.#view(position), this.#audience, undefined, changes);
             const isFollowed = await this.#dataflow.step(run);
@@ -195,16 +194,16 @@ export class Evaluation {
             }
         }
 
-        // hold the reached position
+        // keep the reached position
         const reached = Math.max(sequence, read.sequence);
-        const held = signal.aborted ? from : reached;
-        this.#dataflow.advance({ epoch, sequence: held });
+        const advanced = signal.aborted ? from : reached;
+        this.#dataflow.advance({ epoch, sequence: advanced });
 
-        return held;
+        return advanced;
     }
 
     /** Walk the queries as of a view, returning the last page. */
-    async *walk(view: View, walk: Walk): AsyncGenerator<QueryPage, QueryPage> {
+    async *walk(view: View, walk: Walk): AsyncGenerator<Page, Page> {
         // clear the aggregates of a rebuilt subscriber
         const run = new Run(view, this.#audience, walk);
         let isFirst = walk === "snapshot";
@@ -216,8 +215,9 @@ export class Evaluation {
             }
         }
 
-        // hold each root's rows and results
-        for await (const _batch of this.#dataflow.hydrate(run)) {
+        // select each root's rows and results
+        const batches = this.#dataflow.hydrate(run);
+        while ((await batches.next()).done !== true) {
             if (walk === "snapshot" && run.patch.size >= PAGE_ROWS) {
                 await nextTask();
                 yield await run.patch.page(view.position, this.#audience, this.#feed, {
@@ -229,7 +229,7 @@ export class Evaluation {
             }
         }
 
-        // hold the walked position within the capacity
+        // keep the walked position within the capacity
 
         return await run.patch.page(view.position, this.#audience, this.#feed, {
             reset: isFirst,
@@ -239,25 +239,26 @@ export class Evaluation {
 
     /** Collect every row and result as of a view. */
     async collect(view: View): Promise<Patch> {
-        // hold every root's rows as of the view
+        // select every root's rows as of the view
         this.forget(view.position);
         const run = new Run(view, this.#audience, "collect");
-        for await (const _batch of this.#dataflow.hydrate(run)) {
+        const batches = this.#dataflow.hydrate(run);
+        while ((await batches.next()).done !== true) {
             // collect every batch
         }
 
         return run.patch;
     }
 
-    /** Forget everything and hold nothing as of a position. */
+    /** Forget everything and select nothing as of a position. */
     forget(position: LogPosition): void {
         this.#dataflow.forget(position);
     }
 
-    /** Decide the pages after the held position, and a refresh once decisions expire. */
+    /** Decide the pages after the current position, and a refresh once decisions expire. */
     async #pagesAfter(position: LogPosition): Promise<Advance> {
         // decide what follows
-        const pages: QueryPage[] = [];
+        const pages: Page[] = [];
         const advancing = this.advance(
             position.epoch,
             position.sequence,
@@ -265,7 +266,7 @@ export class Evaluation {
             new AbortController().signal,
         );
         let next = await advancing.next();
-        while (!next.done) {
+        while (next.done !== true) {
             pages.push(next.value);
             next = await advancing.next();
         }
@@ -288,7 +289,7 @@ export class Evaluation {
 /** The pages decided after a sequence. */
 export interface Advance {
     /** The pages, complete at their positions. */
-    readonly pages: readonly QueryPage[];
+    readonly pages: readonly Page[];
     /** The sequence the pages reach. */
     readonly sequence: number;
     /** When the audience's decisions expire. */
@@ -300,12 +301,14 @@ export class Restart extends Error {}
 
 /** Let other work run before deciding more. */
 export function nextTask(): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, 0));
+    return new Promise((resolve) => {
+        setTimeout(resolve, 0);
+    });
 }
 
 /** Split changes into runs of about a page that end with whole transactions. */
 function chunks(changes: readonly Change[]): Change[][] {
-    // close a run when it holds a page and a transaction ends
+    // close a run when it has a page and a transaction ends
     const runs: Change[][] = [];
     let run: Change[] = [];
     for (const [index, change] of changes.entries()) {

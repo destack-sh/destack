@@ -1,12 +1,10 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
+import { aligned } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { eq, sql, type Table } from "@destack/db";
-import { Condition } from "@destack/db/query";
-import { Expression } from "@destack/db/expression";
-import type { Change } from "@destack/db/log";
+import { eq, sql, type Table, Expression, type Change, Relations } from "@destack/db";
 import { Feed } from "./feed.ts";
 import { EVERYONE, type Audience } from "./audience.ts";
-import type { QueryPage } from "../query/page.ts";
+import type { Page } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import {
     comment,
@@ -14,13 +12,14 @@ import {
     open,
     page,
     project,
+    relations,
     tag,
     task,
     taskTag,
     take,
     until,
 } from "../test/fixture.ts";
-import { AUDIENCE, MEMORY_AUDIENCE } from "./test/queries.ts";
+import { AUDIENCE, MEMORY_AUDIENCE } from "./test/query.ts";
 
 /** The tables the feed serves. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
@@ -43,25 +42,25 @@ async function first(
     queries: Readonly<Record<string, Query>>,
     audience: Audience = EVERYONE,
 ) {
-    const [page] = await take(
+    const pages = await take(
         feed.subscribe(queries, undefined, AbortSignal.timeout(5000), { audience }),
         (entry) => entry.complete,
     );
 
-    return page!;
+    return aligned(pages, 0);
 }
 
 test.for(TEST_DIALECTS)(
     "refuse queries a subscription cannot keep exactly on %s",
     async (dialect) => {
         const feed = new Feed(await open(dialect), TABLES);
-        const refusal = async (query: Query, audience: Audience = EVERYONE) => {
+        const reason = async (query: Query, audience: Audience = EVERYONE) => {
             const pages = feed.subscribe({ query }, undefined, AbortSignal.timeout(5000), {
                 audience,
             });
             const error = await pages.next().then(
                 () => undefined,
-                (thrown: unknown) => (thrown as Error).message,
+                (thrown: unknown) => (thrown instanceof Error ? thrown.message : thrown),
             );
 
             return error;
@@ -70,87 +69,86 @@ test.for(TEST_DIALECTS)(
         // refuse invalid reads with their reasons
         expect(
             await Promise.all([
-                refusal(
-                    { table: task, scopes: ["inbox"], where: Condition.eq("title", "write") },
-                    AUDIENCE,
-                ),
-                refusal({
+                reason({ table: task, scopes: ["inbox"], where: { title: "write" } }, AUDIENCE),
+                reason({
                     table: task,
                     scopes: ["inbox"],
-                    order: [{ column: "missing", direction: "asc" }],
+                    orderBy: { missing: "asc" },
                 }),
-                refusal({ table: task, scopes: ["inbox"], limit: 0 }),
-                refusal({
+                reason({ table: task, scopes: ["inbox"], limit: 0 }),
+                reason({
                     table: task,
                     scopes: ["inbox"],
                     aggregate: { values: { total: { function: "sum", column: "state" } } },
                 }),
-                refusal({ table: note, scopes: ["inbox"], where: Condition.eq("labels", "draft") }),
-                refusal({ table: note, scopes: ["inbox"] }),
-                refusal({
+                reason({ table: note, scopes: ["inbox"], where: { labels: "draft" } }),
+                reason({ table: note, scopes: ["inbox"] }),
+                reason({
                     table: task,
                     scopes: ["inbox"],
                     limit: 2,
                     aggregate: { values: { tasks: { function: "count" } } },
                 }),
-                refusal(
+                reason(
                     {
                         table: task,
                         scopes: ["inbox"],
-                        compute: { label: Expression.column("title") },
-                        order: [{ column: "label", direction: "asc" }],
+                        extras: { label: Expression.column("title") },
+                        orderBy: { label: "asc" },
                     },
                     AUDIENCE,
                 ),
-                refusal({
+                reason({
                     table: task,
                     scopes: ["inbox"],
-                    compute: { rank: Expression.literal(1) },
+                    extras: { rank: Expression.literal(1) },
                 }),
-                refusal({
+                reason({
                     table: task,
                     scopes: ["inbox"],
-                    compute: { label: Expression.column("title") },
+                    extras: { label: Expression.column("title") },
                     aggregate: { values: { total: { function: "avg", column: "label" } } },
                 }),
-                refusal({
+                reason({
                     table: project,
                     scopes: ["inbox"],
-                    relations: {
-                        tasks: {
-                            table: task,
-                            on: { kind: "key", column: "projectId", parent: "id" },
-                        },
-                    },
-                    compute: { spent: Expression.rollup("sum", "tasks", "title") },
+                    relations,
+                    extras: { spent: Expression.rollup("sum", "tasks", "title") },
                 }),
-                refusal({
+                reason({
                     table: task,
                     scopes: ["inbox"],
-                    relations: {
-                        tasks: {
-                            table: task,
-                            on: { kind: "key", column: "projectId", parent: "projectId" },
-                        },
-                    },
-                    compute: { peers: Expression.rollup("count", "tasks") },
+                    relations: new Relations(
+                        new Map([
+                            [
+                                task,
+                                {
+                                    tasks: {
+                                        table: task,
+                                        cardinality: "many",
+                                        on: {
+                                            kind: "key",
+                                            column: "projectId",
+                                            parent: "projectId",
+                                        },
+                                    },
+                                },
+                            ],
+                        ]),
+                    ),
+                    extras: { peers: Expression.rollup("count", "tasks") },
                 }),
-                refusal({
+                reason({
                     table: task,
                     scopes: ["inbox"],
-                    compute: { peers: Expression.rollup("count", "tasks") },
+                    extras: { peers: Expression.rollup("count", "tasks") },
                 }),
-                refusal(
+                reason(
                     {
                         table: project,
                         scopes: ["inbox"],
-                        relations: {
-                            tasks: {
-                                table: task,
-                                on: { kind: "key", column: "projectId", parent: "id" },
-                            },
-                        },
-                        compute: { open: Expression.rollup("count", "tasks") },
+                        relations,
+                        extras: { open: Expression.rollup("count", "tasks") },
                     },
                     MEMORY_AUDIENCE,
                 ),
@@ -168,7 +166,7 @@ test.for(TEST_DIALECTS)(
             "measure total adds up a non-numeric column",
             "measure sum(title) adds up a non-numeric column",
             "rollup tasks of query measures another table",
-            "relation tasks is not declared by query",
+            "task has no relation tasks",
             "relations read no rows of task, which the audience decides in memory",
         ]);
     },
@@ -181,13 +179,13 @@ test.for(TEST_DIALECTS)(
         await database.insert(task).values([TASK, { ...TASK, id: "t2", rank: 9 }]);
 
         // send the low-ranked task whole and the high-ranked one without its title
-        const page = await first(
+        const sent = await first(
             new Feed(database, TABLES),
             { tasks: { table: task, scopes: ["inbox"] } },
             AUDIENCE,
         );
         expect(
-            page.changes.map((change) => [change.row.id, change.row.title, change.concealed]),
+            sent.changes.map((change) => [change.row["id"], change.row["title"], change.concealed]),
         ).toEqual([
             ["t1", "write", undefined],
             ["t2", undefined, ["title"]],
@@ -212,9 +210,13 @@ test.for(TEST_DIALECTS)(
                 );
 
                 return new Set(
-                    rows.flatMap((row, index) =>
-                        table !== task || granted.has(row.id as string) ? [index] : [],
-                    ),
+                    rows.flatMap((row, index) => {
+                        const id = row["id"];
+
+                        return table !== task || (typeof id === "string" && granted.has(id))
+                            ? [index]
+                            : [];
+                    }),
                 );
             },
             where: (table) =>
@@ -240,18 +242,18 @@ test.for(TEST_DIALECTS)(
             },
         );
 
-        // hold nothing, then the granted task, then nothing after revocation
-        const [snapshot] = await until(pages, (page) => page.complete);
-        const granted = until(pages, (page) => page.changes.length > 0);
+        // select the granted task only while the grant lasts
+        const snapshot = aligned(await until(pages, (sent) => sent.complete), 0);
+        const granted = until(pages, (sent) => sent.changes.length > 0);
         await database.insert(note).values({ ...grant, id: "t1" });
-        const [entered] = await granted;
-        const revoked = until(pages, (page) => page.changes.length > 0);
+        const entered = aligned(await granted, 0);
+        const revoked = until(pages, (sent) => sent.changes.length > 0);
         await database.delete(note).where(eq(note.id, "t1"));
-        const [left] = await revoked;
+        const left = aligned(await revoked, 0);
         expect([
-            snapshot!.changes,
-            entered!.changes.map((change) => [change.operation, change.row.id]),
-            left!.changes.map((change) => [change.operation, change.row.id]),
+            snapshot.changes,
+            entered.changes.map((change) => [change.operation, change.row["id"]]),
+            left.changes.map((change) => [change.operation, change.row["id"]]),
         ]).toEqual([[], [["insert", "t1"]], [["delete", "t1"]]]);
     },
 );
@@ -275,8 +277,8 @@ test.for(TEST_DIALECTS)(
         );
 
         // start over after access changes everything
-        await until(pages, (page) => page.complete);
-        const again = until(pages, (page) => page.reset);
+        await until(pages, (sent) => sent.complete);
+        const again = until(pages, (sent) => sent.reset);
         await database.insert(note).values({
             id: "n",
             title: "grant",
@@ -286,8 +288,8 @@ test.for(TEST_DIALECTS)(
             labels: [],
             editedAt: 0,
         });
-        const [snapshot] = await again;
-        expect([snapshot!.reset, snapshot!.changes.map((change) => change.row.id)]).toEqual([
+        const snapshot = aligned(await again, 0);
+        expect([snapshot.reset, snapshot.changes.map((change) => change.row["id"])]).toEqual([
             true,
             ["t1"],
         ]);
@@ -321,11 +323,10 @@ test.for(TEST_DIALECTS)(
                 projects: {
                     table: project,
                     scopes: ["inbox"],
-                    include: {
+                    relations,
+                    with: {
                         tasks: {
-                            table: task,
-                            on: { kind: "key", column: "projectId", parent: "id" },
-                            order: [{ column: "rank", direction: "asc" }],
+                            orderBy: { rank: "asc" },
                             limit: 2,
                         },
                     },
@@ -334,10 +335,7 @@ test.for(TEST_DIALECTS)(
             undefined,
             AbortSignal.timeout(5000),
         );
-        const refused = await take(pages, (page) => page.complete).then(
-            () => undefined,
-            (error: { code: string; message: string }) => [error.code, error.message],
-        );
+        const refused = await refusal(take(pages, (sent) => sent.complete));
         expect(refused).toEqual(["OVER_CAPACITY", "queries hold 4 rows and groups, more than 3"]);
     },
 );
@@ -350,13 +348,7 @@ test.for(TEST_DIALECTS)("refuse subscribers beyond a feed's limit on %s", async 
     // refuse a second subscriber
     const served = feed.subscribe(query, undefined, signal);
     await served.next();
-    const refused = await feed
-        .subscribe(query, undefined, signal)
-        .next()
-        .then(
-            () => undefined,
-            (error: { code: string; message: string }) => [error.code, error.message],
-        );
+    const refused = await refusal(feed.subscribe(query, undefined, signal).next());
     await served.return(undefined);
     expect(refused).toEqual(["OVERLOADED", "feed serves 1 subscribers already"]);
 });
@@ -384,10 +376,10 @@ test.for(TEST_DIALECTS)(
         }
 
         // send the large transaction whole and split pages at transaction ends
-        const pages: QueryPage[] = await take(
+        const pages: Page[] = await take(
             feed.subscribe({ tasks: { table: task, scopes: ["inbox"] } }, start, signal),
-            (page) => page.changes.some((change) => change.row.id === "t2899"),
+            (sent) => sent.changes.some((change) => change.row["id"] === "t2899"),
         );
-        expect(pages.map((page) => page.changes.length)).toEqual([1500, 1400]);
+        expect(pages.map((sent) => sent.changes.length)).toEqual([1500, 1400]);
     },
 );

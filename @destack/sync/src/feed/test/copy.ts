@@ -1,35 +1,41 @@
-import { Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
-import { type Scalar } from "@destack/db/query";
-import type { LogPosition } from "@destack/db/log";
-import type { QueryPage } from "../../query/page.ts";
+import {
+    Key,
+    TABLE,
+    type DatabaseConnection,
+    type Row,
+    type Table,
+    type Scalar,
+    type LogPosition,
+} from "@destack/db";
+import type { Page } from "../../query/page.ts";
 import type { Query } from "../../query/query.ts";
 import type { Replica } from "../../replica/replica.ts";
 import type { Audience } from "../audience.ts";
 import type { Feed } from "../feed.ts";
-import { groupName, type Holding } from "./oracle.ts";
+import { groupName, type Contents } from "./oracle.ts";
 
-/** What a subscriber holds after applying its pages. */
-export class Copy implements Holding {
+/** What a subscriber has after applying its pages. */
+export class Copy implements Contents {
     /** The tables the copy's rows belong to. */
     readonly #tables: ReadonlyMap<string, Table>;
-    /** The held rows by table and key, concealed columns missing. */
+    /** The rows by table and key, concealed columns missing. */
     readonly rows = new Map<string, Record<string, unknown>>();
-    /** The held aggregate groups by query and group. */
+    /** The aggregate groups by query and group. */
     readonly results = new Map<string, Record<string, Scalar>>();
     /** The pages applied, in order. */
-    readonly pages: QueryPage[] = [];
+    readonly pages: Page[] = [];
     /** The position of the last complete page. */
     position: LogPosition | undefined;
     /** The waiters for the next page. */
     readonly #waiting = new Set<() => void>();
 
-    /** Hold rows of some tables. */
+    /** Keep rows of some tables. */
     constructor(tables: readonly Table[]) {
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
     }
 
     /** Apply one page. */
-    apply(page: QueryPage): void {
+    apply(page: Page): void {
         // record the page and reset on a snapshot
         this.pages.push(page);
         if (page.reset) {
@@ -37,24 +43,30 @@ export class Copy implements Holding {
             this.results.clear();
         }
 
-        // hold and let go of rows and refuse contradicting changes
+        // keep and let go of rows and refuse contradicting changes
         for (const change of page.changes) {
-            const table = this.#tables.get(change.table)!;
+            const table = this.#tables.get(change.table);
+            if (table === undefined) {
+                throw new TypeError(`page changes an unknown table: ${change.table}`);
+            }
             const key = Key.name(table, keyOf(table, change.row));
             if ((change.operation === "insert") === this.rows.has(key)) {
                 throw new Error(
-                    `page ${change.operation}s a row the copy ${this.rows.has(key) ? "holds" : "lacks"}: ${key}`,
+                    `page ${change.operation}s a row the copy ${this.rows.has(key) ? "has" : "lacks"}: ${key}`,
                 );
             }
             if (change.operation === "delete") {
                 this.rows.delete(key);
             } else {
-                const concealed = (change.concealed ?? []).map((name) => [name, null]);
+                const concealed = (change.concealed ?? []).map((name): [string, null] => [
+                    name,
+                    null,
+                ]);
                 this.rows.set(key, { ...change.row, ...Object.fromEntries(concealed) });
             }
         }
 
-        // hold and let go of groups
+        // keep and let go of groups
         for (const result of page.results ?? []) {
             if (result.group === null) {
                 for (const key of this.results.keys()) {
@@ -86,7 +98,9 @@ export class Copy implements Holding {
 
     /** Wait for the next page. */
     next(): Promise<void> {
-        return new Promise((resolve) => this.#waiting.add(resolve));
+        return new Promise((resolve) => {
+            this.#waiting.add(resolve);
+        });
     }
 }
 
@@ -100,7 +114,7 @@ export class Follower {
     readonly #replica:
         | { readonly replica: Replica; readonly database: DatabaseConnection }
         | undefined;
-    /** What the subscriber holds. */
+    /** What the subscriber has. */
     readonly copy: Copy;
     /** The queries followed. */
     #queries: Readonly<Record<string, Query>>;
@@ -109,7 +123,7 @@ export class Follower {
     /** The current stream's loop. */
     #running: Promise<void> = Promise.resolve();
     /** The failure that stopped a stream. */
-    #failure: unknown;
+    #failure: Error | undefined;
 
     /** Create the follower. */
     constructor(
@@ -149,7 +163,10 @@ export class Follower {
                 }
             } catch (error) {
                 if (!signal.aborted) {
-                    this.#failure = error;
+                    this.#failure =
+                        error instanceof Error
+                            ? error
+                            : new TypeError("following failed", { cause: error });
                 }
             }
         })();
@@ -170,17 +187,17 @@ export class Follower {
         await this.#running;
     }
 
-    /** Wait until the copy holds a position. */
+    /** Wait until the copy reaches a position. */
     async reach(position: LogPosition): Promise<void> {
         for (;;) {
             if (this.#failure !== undefined) {
                 throw this.#failure;
             }
-            const held = this.copy.position;
+            const reached = this.copy.position;
             if (
-                held !== undefined &&
-                held.epoch === position.epoch &&
-                held.sequence >= position.sequence
+                reached !== undefined &&
+                reached.epoch === position.epoch &&
+                reached.sequence >= position.sequence
             ) {
                 return;
             }
@@ -190,13 +207,11 @@ export class Follower {
 }
 
 /** Read a row's key from its JSON form. */
-function keyOf(table: Table, row: Readonly<Record<string, unknown>>): Record<string, unknown> {
-    const columns = table[TABLE].columns;
-
+function keyOf(table: Table, row: Readonly<Record<string, unknown>>): Row {
     return Object.fromEntries(
         table[TABLE].key.map((property) => [
             property,
-            columns[property]!.definition.fromJson(row[property] as never),
+            table[TABLE].column(property).definition.fromJson(row[property]),
         ]),
     );
 }

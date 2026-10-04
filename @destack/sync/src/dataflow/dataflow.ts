@@ -1,15 +1,22 @@
-import { Key, TABLE, type DatabaseConnection, type Row, type Table } from "@destack/db";
-import type { Scalar } from "@destack/db/query";
-import { DatabaseError } from "@destack/db/error";
-import type { LogPosition } from "@destack/db/log";
-import { canonicalize } from "@destack/schema/json";
+import {
+    Change,
+    Key,
+    TABLE,
+    type DatabaseConnection,
+    type Row,
+    type Table,
+    type Scalar,
+    type ColumnValue,
+    DatabaseError,
+    type LogPosition,
+} from "@destack/db";
+import { canonicalize, aligned, found, zip } from "@destack/schema";
 import { watchedScopes, type Audience, type Watch } from "../feed/audience.ts";
 import { Node } from "../query/node.ts";
-import type { Query } from "../query/query.ts";
+import type { Query, Item, AggregateRow } from "../query/query.ts";
 import { Aggregation, Mirror, Relation } from "./aggregation.ts";
 import { SyncError } from "../error/error.ts";
 import { Materialization } from "./materialization.ts";
-import type { Include } from "../query/query.ts";
 import type { Arrangement } from "./filter.ts";
 import type { Context, Pipeline } from "./pipeline.ts";
 import { Run, type RunCost, type Transition } from "./run.ts";
@@ -19,7 +26,7 @@ import { Sink } from "./sink.ts";
 import { Trace, type Upstream } from "./upstream.ts";
 
 /** The rows of an include naming no partition, one list shared so equal reads keep their identity. */
-const NO_ROWS: readonly Readonly<Record<string, unknown>>[] = Object.freeze([]);
+const NO_ROWS: readonly Item[] = Object.freeze([]);
 
 /** Queries compiled to one pipeline per node, kept current as of a log position. */
 export class Dataflow implements Arrangement {
@@ -27,9 +34,9 @@ export class Dataflow implements Arrangement {
     readonly roots: readonly Node[];
     /** Every node of the queries, roots first. */
     readonly nodes: readonly Node[];
-    /** What the subscriber holds. */
+    /** What the subscriber has. */
     readonly sink = new Sink();
-    /** The held log position, absent before the first hydration. */
+    /** The current log position, absent before the first hydration. */
     #position: LogPosition | undefined;
     /** What the pipelines share. */
     readonly #context: Context;
@@ -86,34 +93,52 @@ export class Dataflow implements Arrangement {
     ) {
         // resolve the queries into trees
         const upstream = options.upstream;
-        this.#queries = canonicalize(
-            Object.entries(queries).map(([name, query]) => [name, describe(query)]),
-        );
-        this.#capacity = options.capacity;
-        this.#observe = options.observe;
         this.roots = Object.entries(queries).map(
             ([name, query]) => new Node(name, query, query.scopes),
         );
+        this.#queries = canonicalize(this.roots.map((root) => [root.name, describe(root)]));
+        this.#capacity = options.capacity;
+        this.#observe = options.observe;
         this.nodes = this.roots.flatMap((root) => root.nodes());
         this.#trace = upstream === undefined ? undefined : new Trace(upstream);
         this.#context = {
             audience: options.audience,
             sink: this.sink,
-            arrangement: this.#trace ?? this,
+            arrangement: this,
             upstream,
             database: options.database,
             isMaterialized: options.isMaterialized ?? false,
             changesThrough: options.changesThrough,
         };
-        this.#reads = this.nodes.flatMap((node) => [
-            { table: node.table, scopes: node.scopes },
-            ...(node.closure === undefined ? [] : [{ table: node.closure, scopes: node.scopes }]),
-            ...(node.path?.kind === "junction"
-                ? [{ table: node.path.table, scopes: node.scopes }]
-                : []),
-        ]);
+        this.#reads = this.nodes.flatMap(readsOf);
 
         // refuse unlogged watched tables and concealable columns
+        this.#requireLogged();
+        this.#requireUnconcealable(options.audience);
+
+        // build each node's pipeline and link them
+        this.#build(upstream);
+        this.#link();
+
+        // order the pipelines by kind and depth
+        const pipelines = [...this.#pipelines.values()];
+        this.#steps = pipelines
+            .filter((pipeline) => !(pipeline instanceof Relation))
+            .toSorted((left, right) => left.node.depth - right.node.depth);
+        this.#relations = pipelines
+            .filter((pipeline): pipeline is Relation => pipeline instanceof Relation)
+            .toSorted((left, right) => right.node.depth - left.node.depth);
+        this.#linear = pipelines.filter(isLinear);
+        this.#mirrors = pipelines.filter(
+            (pipeline): pipeline is Mirror => pipeline instanceof Mirror,
+        );
+        this.#traced = this.nodes
+            .filter((node) => node.kind === "relation" && !this.#pipelines.has(node))
+            .toSorted((left, right) => right.depth - left.depth);
+    }
+
+    /** Refuse watched tables the log leaves out. */
+    #requireLogged(): void {
         for (const watch of this.watches()) {
             if (watch.table[TABLE].retention === "none") {
                 throw new DatabaseError(
@@ -122,8 +147,12 @@ export class Dataflow implements Arrangement {
                 );
             }
         }
+    }
+
+    /** Refuse nodes reading columns the audience may conceal. */
+    #requireUnconcealable(audience: Audience): void {
         for (const node of this.nodes) {
-            const concealable = options.audience.concealable(node.table);
+            const concealable = audience.concealable(node.table);
             const read = node.reads().filter((name) => concealable.includes(name));
             if (read.length > 0) {
                 throw new DatabaseError(
@@ -132,32 +161,27 @@ export class Dataflow implements Arrangement {
                 );
             }
         }
+    }
 
-        // build each node's pipeline
-        const hasTreeIndex = upstream === undefined;
+    /** Build the pipeline of each stateful node. */
+    #build(upstream: Upstream | undefined): void {
         for (const node of this.nodes) {
-            const pipeline =
-                node.kind === "relation"
-                    ? upstream === undefined
-                        ? new Relation(node, this.#context, hasTreeIndex)
-                        : undefined
-                    : node.aggregate !== undefined
-                      ? upstream === undefined || upstream.isMeasured?.(node) === false
-                          ? new Aggregation(node, this.#context, hasTreeIndex)
-                          : new Mirror(node, this.#context, hasTreeIndex)
-                      : node.isHolding
-                        ? new Selection(node, this.#context, hasTreeIndex)
-                        : undefined;
+            const pipeline = this.#pipelineOf(node, upstream);
             if (pipeline !== undefined) {
                 this.#pipelines.set(node, pipeline);
             }
         }
+    }
 
-        // link the pipelines and index them by table
+    /** Link each pipeline to its parent and children and index the deciding ones by table. */
+    #link(): void {
         for (const [node, pipeline] of this.#pipelines) {
+            // link the parent and children
             pipeline.parent =
                 node.parent === undefined ? undefined : this.#pipelines.get(node.parent);
             pipeline.children = node.children.map((child) => this.#pipelines.get(child));
+
+            // index a pipeline deciding rows one by one
             const isDeciding =
                 pipeline instanceof Selection ||
                 (pipeline instanceof Aggregation && pipeline.isTracked);
@@ -168,28 +192,9 @@ export class Dataflow implements Arrangement {
                 ]);
             }
         }
-        const pipelines = [...this.#pipelines.values()];
-        this.#steps = pipelines
-            .filter((pipeline) => !(pipeline instanceof Relation))
-            .sort((left, right) => left.node.depth - right.node.depth);
-        this.#relations = pipelines
-            .filter((pipeline): pipeline is Relation => pipeline instanceof Relation)
-            .sort((left, right) => right.node.depth - left.node.depth);
-        this.#linear = pipelines.filter(
-            (pipeline): pipeline is Aggregation =>
-                pipeline instanceof Aggregation &&
-                !(pipeline instanceof Relation) &&
-                !pipeline.isTracked,
-        );
-        this.#mirrors = pipelines.filter(
-            (pipeline): pipeline is Mirror => pipeline instanceof Mirror,
-        );
-        this.#traced = this.nodes
-            .filter((node) => upstream !== undefined && node.kind === "relation")
-            .sort((left, right) => right.depth - left.depth);
     }
 
-    /** The held log position, absent before the first hydration. */
+    /** The current log position, absent before the first hydration. */
     get position(): LogPosition | undefined {
         return this.#position;
     }
@@ -223,9 +228,9 @@ export class Dataflow implements Arrangement {
         return size;
     }
 
-    /** Forget everything and hold nothing as of a position. */
+    /** Forget everything and select nothing as of a position. */
     forget(position: LogPosition): void {
-        // hold nothing as of the position
+        // select nothing as of the position
         this.#position = position;
         for (const pipeline of this.#pipelines.values()) {
             pipeline.forget();
@@ -234,7 +239,7 @@ export class Dataflow implements Arrangement {
         this.#trace?.forget();
     }
 
-    /** Hold every root's rows and results as of a run's position, yielding after each page. */
+    /** Select every root's rows and results as of a run's position, yielding after each page. */
     async *hydrate(run: Run, start?: Row): AsyncGenerator<void> {
         // measure every relation first
         const cost = this.#measure(run);
@@ -243,23 +248,25 @@ export class Dataflow implements Arrangement {
         }
         for (const root of this.roots) {
             // open the root's one partition
-            const pipeline = this.#pipelines.get(root)!;
+            const pipeline = found(this.#pipelines, root);
             pipeline.openRoot(start);
 
             // count an aggregate or fill a window
             if (root.aggregate !== undefined || root.limit !== undefined) {
-                run.workOf(pipeline).opened.set("", undefined);
+                run.workOf(pipeline).opened.set("", null);
                 await this.#settle(run);
                 await this.sink.emit(run);
                 yield;
                 continue;
             }
 
-            // hold the root's rows a page at a time
-            const selection = pipeline as Selection;
+            // select the root's rows a page at a time
+            if (!(pipeline instanceof Selection)) {
+                throw new TypeError(`root ${root.name} selects rows without a selection`);
+            }
             let after = start;
             for (let isDone = false; !isDone;) {
-                const rows = await selection.page(after, run);
+                const rows = await pipeline.page(after, run);
                 isDone = rows.length < PAGE_ROWS;
                 after = rows.at(-1);
                 await this.#settle(run);
@@ -272,12 +279,14 @@ export class Dataflow implements Arrangement {
         this.#requireCapacity();
     }
 
-    /** Hold every root's rows and results as of a view. */
-    async fill(view: View, start?: Row): Promise<void> {
+    /** Select every root's rows and results as of a view. */
+    async load(view: View, start?: Row): Promise<void> {
+        // forget everything and select every batch as of the view
         this.forget(view.position);
         const run = new Run(view, this.#context.audience, "collect");
-        for await (const _batch of this.hydrate(run, start)) {
-            // hold every batch
+        const batches = this.hydrate(run, start);
+        while ((await batches.next()).done !== true) {
+            // select every batch
         }
     }
 
@@ -292,8 +301,8 @@ export class Dataflow implements Arrangement {
             const key = Key.name(change.table, change.key);
             const known = rows.get(key);
             rows.set(key, {
-                before: known === undefined ? change.before : known.before,
-                after: change.after,
+                before: known === undefined ? Change.before(change) : known.before,
+                after: Change.after(change),
             });
         }
 
@@ -307,6 +316,37 @@ export class Dataflow implements Arrangement {
         }
 
         // decide again the rows the audience decides again
+        if (!(await this.#redecide(run))) {
+            return false;
+        }
+
+        // measure the relations the source measured and those the copy measures itself
+        await this.#trace?.relate(
+            this.#traced,
+            (relation) => this.#pipelines.get(relation.link().parent),
+            run,
+        );
+        for (const relation of this.#relations) {
+            await relation.step(run.workOf(relation), run);
+        }
+        await this.#settle(run);
+        for (const aggregation of this.#linear) {
+            await aggregation.tally(run);
+        }
+
+        // read a copy's changed aggregates again
+        await this.#refreshMirrors(run);
+        await this.sink.emit(run);
+        this.#position = run.view.position;
+        cost();
+        this.#requireCapacity();
+
+        return true;
+    }
+
+    /** Decide again the rows the audience's changed access rows name, returning false when it names everything. */
+    async #redecide(run: Run): Promise<boolean> {
+        // collect the rows each change names
         const affected = new Map<Table, Row[]>();
         for (const change of run.changes) {
             const entries = await this.#context.audience.dependents(change);
@@ -317,14 +357,14 @@ export class Dataflow implements Arrangement {
                 affected.set(entry.table, [...(affected.get(entry.table) ?? []), entry.key]);
             }
         }
+
+        // read each named row and decide it again where it is
         for (const [table, keys] of affected) {
-            const rows = await run.view.keyed(table, keys);
             const byKey = run.affected.get(table) ?? new Map<string, Row>();
             run.affected.set(table, byKey);
-            for (const [index, key] of keys.entries()) {
+            for (const [key, row] of zip(keys, await run.view.keyed(table, keys))) {
                 const name = Key.name(table, key);
-                const row = rows[index];
-                if (row !== undefined) {
+                if (row !== null) {
                     byKey.set(name, row);
                 }
                 run.changed.add(name);
@@ -333,68 +373,112 @@ export class Dataflow implements Arrangement {
             }
         }
 
-        // measure the relations, decide the pipelines, and count linear aggregates
-        if (this.#trace !== undefined) {
-            await this.#trace.relate(
-                this.#traced,
-                (relation) => this.#pipelines.get(relation.parent!),
-                run,
-            );
-        } else {
-            for (const relation of this.#relations) {
-                await relation.step(run.workOf(relation), run);
-            }
-        }
-        await this.#settle(run);
-        for (const aggregation of this.#linear) {
-            await aggregation.tally(run);
-        }
-
-        // read a copy's changed aggregates again
-        for (const mirror of this.#mirrors) {
-            const upstream = this.#context.upstream!;
-            if (
-                run.changes.some(
-                    (change) =>
-                        change.table === mirror.node.table ||
-                        upstream.groupOf(change)?.query === mirror.node.name,
-                )
-            ) {
-                await mirror.refresh(run);
-            }
-        }
-        await this.sink.emit(run);
-        this.#position = run.view.position;
-        cost();
-        this.#requireCapacity();
-
         return true;
     }
 
-    /** Read a root's held result: its rows with their includes nested, or its groups. */
-    async read(name: string): Promise<readonly Readonly<Record<string, unknown>>[]> {
+    /** Read again the groups of each mirror whose table or source groups a run changed. */
+    async #refreshMirrors(run: Run): Promise<void> {
+        for (const mirror of this.#mirrors) {
+            // require the upstream the mirror reads
+            const upstream = this.#context.upstream;
+            if (upstream === undefined) {
+                throw new TypeError(
+                    `mirror ${mirror.node.name} reads its groups without an upstream`,
+                );
+            }
+
+            // refresh a mirror whose rows or groups changed
+            const isChanged = run.changes.some(
+                (change) =>
+                    change.table === mirror.node.table ||
+                    upstream.groupOf(change)?.query === mirror.node.name,
+            );
+            if (isChanged) {
+                await mirror.refresh(run);
+            }
+        }
+    }
+
+    /** Read a root's current items: its rows with what their includes select. */
+    async read(name: string): Promise<readonly Item[]> {
+        const pipeline = this.#root(name);
+        if (!(pipeline instanceof Selection)) {
+            throw new TypeError(`dataflow query ${name} measures groups instead of rows`);
+        }
+
+        return found(await this.#nest(pipeline, [""]), "");
+    }
+
+    /** Read an aggregate root's current groups. */
+    async results(name: string): Promise<readonly AggregateRow[]> {
+        const pipeline = this.#root(name);
+        if (pipeline instanceof Selection) {
+            throw new TypeError(`dataflow query ${name} selects rows instead of groups`);
+        }
+
+        return groupsOf(pipeline, "").map(({ group, values }) => ({ group, values }));
+    }
+
+    /** Find a root's pipeline, requiring a materialized dataflow. */
+    #root(name: string): Pipeline {
         // require a materialized dataflow
         if (!this.#context.isMaterialized) {
             throw new TypeError("a dataflow reads its results only when it materializes its rows");
         }
-        const root = this.roots.find((entry) => entry.name === name)!;
-        const pipeline = this.#pipelines.get(root)!;
+        const root = this.roots.find((entry) => entry.name === name);
+        if (root === undefined) {
+            throw new TypeError(`dataflow has no query ${name}`);
+        }
 
-        return pipeline instanceof Selection
-            ? (await this.#nest(pipeline, [""])).get("")!
-            : groupsOf(pipeline, "").map(({ group, values }) => ({ group, values }));
+        return found(this.#pipelines, root);
     }
 
-    /** Look up a relation's measures of the rows naming a held value. */
-    measured(relation: Node, value: unknown): Readonly<Record<string, Scalar>> {
-        const pipeline = this.#pipelines.get(relation) as Relation;
+    /** Look up a relation's measures of the rows naming a parent value. */
+    measured(
+        relation: Node,
+        value: ColumnValue | undefined,
+        run: Run,
+    ): Readonly<Record<string, Scalar>> {
+        // read the source's measures or the relation's tally of the parent value
+        const pipeline = this.#pipelines.get(relation);
+        if (this.#trace !== undefined && pipeline === undefined) {
+            return this.#trace.measured(relation, value, run);
+        } else if (!(pipeline instanceof Relation)) {
+            throw new TypeError(`relation ${relation.name} has no relation pipeline`);
+        }
         const tally = pipeline.tallies.get(JSON.stringify(relation.groupFor(value)));
 
         return tally === undefined || tally.isEmpty ? {} : tally.values();
     }
 
-    /** Prepare nothing. */
-    async prepare(): Promise<void> {}
+    /** Read the source's measures of a node's relations the source measured. */
+    async prepare(node: Node, _rows: readonly Row[], run: Run): Promise<void> {
+        await this.#trace?.read(
+            node.relations.filter((relation) => !this.#pipelines.has(relation)),
+            run,
+        );
+    }
+
+    /** Build a node's pipeline: a relation's unless traced upstream, an aggregate's, or a selection's, none for a node measured elsewhere. */
+    #pipelineOf(node: Node, upstream: Upstream | undefined): Pipeline | undefined {
+        const hasTreeIndex = upstream === undefined;
+        const isMeasured = upstream !== undefined && upstream.isMeasured?.(node) !== false;
+
+        // follow a relation here unless its upstream traces it
+        if (node.kind === "relation") {
+            return isMeasured ? undefined : new Relation(node, this.#context, hasTreeIndex);
+        }
+        // measure an aggregate here or mirror the upstream's measures
+        else if (node.aggregate !== undefined) {
+            return isMeasured
+                ? new Mirror(node, this.#context, hasTreeIndex)
+                : new Aggregation(node, this.#context, hasTreeIndex);
+        }
+        // select rows unless the node sits below an aggregate
+        else {
+            return node.hasRows ? new Selection(node, this.#context, hasTreeIndex) : undefined;
+        }
+    }
 
     /** Describe the pipelines and run costs. */
     inspect(): DataflowInspection {
@@ -406,14 +490,7 @@ export class Dataflow implements Arrangement {
             total: this.#total,
             pipelines: [...this.#pipelines.values()].map((pipeline) => ({
                 node: pipeline.node.name,
-                kind:
-                    pipeline instanceof Selection
-                        ? ("selection" as const)
-                        : pipeline instanceof Relation
-                          ? ("relation" as const)
-                          : pipeline instanceof Aggregation
-                            ? ("aggregation" as const)
-                            : ("mirror" as const),
+                kind: pipelineKind(pipeline),
                 path: pipeline.node.path?.kind ?? "root",
                 partitions: pipeline.partitions.size,
                 members: pipeline.members.size,
@@ -454,11 +531,11 @@ export class Dataflow implements Arrangement {
 
     /** Require the pipelines to stay within the capacity. */
     #requireCapacity(): void {
-        const held = this.size;
-        if (this.#capacity !== undefined && held > this.#capacity) {
+        const size = this.size;
+        if (this.#capacity !== undefined && size > this.#capacity) {
             throw new SyncError(
                 "OVER_CAPACITY",
-                `queries hold ${held} rows and groups, more than ${this.#capacity}`,
+                `queries hold ${size} rows and groups, more than ${this.#capacity}`,
             );
         }
     }
@@ -482,7 +559,7 @@ export class Dataflow implements Arrangement {
     }
 
     /** Decide a row again at every pipeline of its table. */
-    #mark(run: Run, table: Table, key: string, row: Row | undefined): void {
+    #mark(run: Run, table: Table, key: string, row: Row | null): void {
         for (const pipeline of this.#deciding.get(table) ?? []) {
             run.workOf(pipeline).dirty.set(key, row);
         }
@@ -492,12 +569,12 @@ export class Dataflow implements Arrangement {
     async #moved(
         run: Run,
         table: Table,
-        before: Row | undefined,
-        after: Row | undefined,
+        before: Row | null,
+        after: Row | null,
         isAccess: boolean,
     ): Promise<void> {
         for (const pipeline of [...this.#steps, ...this.#relations]) {
-            const dirty = new Map<string, Row | undefined>();
+            const dirty = new Map<string, Row | null>();
             await pipeline.input.moves(table, before, after, isAccess, run, dirty);
             for (const [key, row] of dirty) {
                 run.workOf(pipeline).dirty.set(key, row);
@@ -505,89 +582,58 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Read a selection's held rows in order, with concealed columns left out and includes nested, rebuilding only what changed. */
+    /** Read a selection's rows in order, with concealed columns left out and includes nested, rebuilding only what changed. */
     async #nest(
         pipeline: Selection,
         names: readonly string[],
-    ): Promise<Map<string, readonly Readonly<Record<string, unknown>>[]>> {
-        // order every partition's held keys, placing only the rows changed since the last read
+    ): Promise<Map<string, readonly Item[]>> {
+        // order every partition's keys by placing the rows changed since the last read
         const node = pipeline.node;
-        let materialization = this.#materialized.get(pipeline);
-        if (materialization === undefined) {
-            materialization = new Materialization();
-            this.#materialized.set(pipeline, materialization);
-        }
-        const rowOf = (key: string) => pipeline.members.get(key)!.row!;
+        const materialization = this.#materialization(pipeline);
+        const rowOf = (key: string) => {
+            const row = found(pipeline.members, key).row;
+            if (row === undefined) {
+                throw new TypeError(`member ${key} of ${node.name} keeps no row`);
+            }
+
+            return row;
+        };
         const compare = (left: Row, right: Row) => node.compare(left, right);
         const orders = names.map((name) =>
             materialization.order(name, pipeline.keys(name), rowOf, compare),
         );
 
-        // read the concealed columns of every held row
-        const rows = orders.map((keys) => keys.map(rowOf));
-        const concealed = await this.#context.audience.conceals(
-            node.table,
-            rows.flat(),
-            this.#position!,
-        );
-
-        // nest each include's rows or groups by the partition each row names
-        const includes: { readonly property: string; readonly values: unknown[][] }[] = [];
-        for (const [index, child] of node.children.entries()) {
-            const included = pipeline.children[index];
-            if (child.kind !== "include" || included === undefined) {
-                continue;
-            }
-            const property = child.name.slice(node.name.length + 1);
-            const partitions = rows.map((list) => list.map((row) => child.valueOf(row)));
-            const named = [
-                ...new Set(
-                    partitions
-                        .flat()
-                        .filter(isPresent)
-                        .map((value) => child.partition(value)),
-                ),
-            ];
-            const nested =
-                included instanceof Selection ? await this.#nest(included, named) : undefined;
-            const isOne =
-                child.path?.kind === "key" &&
-                child.key.length === 1 &&
-                child.key[0] === child.path.column;
-            const values = partitions.map((list, position) =>
-                list.map((value, index) => {
-                    // keep equal measures as the last read held them
-                    const name = isPresent(value) ? child.partition(value) : undefined;
-                    if (nested === undefined) {
-                        const measures = measuresOf(child, included, name);
-                        const previous = materialization.previous(
-                            orders[position]![index]!,
-                            property,
-                        );
-
-                        return Materialization.isSame(previous, measures) ? previous : measures;
-                    }
-
-                    // take the nested rows, or the one row of a key include
-                    const listed = name === undefined ? NO_ROWS : (nested.get(name) ?? NO_ROWS);
-
-                    return isOne ? (listed[0] ?? null) : listed;
-                }),
-            );
-            includes.push({ property, values });
+        // read the concealed columns of every selected row
+        const current = this.#position;
+        if (current === undefined) {
+            throw new TypeError("a dataflow reads its rows before its first hydration");
         }
+        const rows = orders.map((keys) => keys.map(rowOf));
+        const concealed = await this.#context.audience.conceals(node.table, rows.flat(), current);
+
+        // read each include's items or groups by the partition each row names
+        const { included, measured } = await this.#includes(
+            pipeline,
+            orders,
+            rows,
+            materialization,
+        );
 
         // take each unchanged entry and list again, building only the changed ones
         let offset = 0;
-        const lists = names.map((name, position) => {
-            const keys = orders[position]!;
-            const entries = keys.map((key, index) =>
+        const lists = zip(names, zip(orders, rows)).map(([name, [keys, listed]], position) => {
+            const entries = zip(keys, listed).map(([key, row], index) =>
                 materialization.entry(
                     key,
-                    rows[position]![index]!,
-                    concealed[offset++]!,
-                    includes.map(
-                        ({ property, values }) => [property, values[position]![index]] as const,
+                    row,
+                    aligned(concealed, offset++),
+                    included.map(
+                        ({ name: include, items }) =>
+                            [include, aligned(aligned(items, position), index)] as const,
+                    ),
+                    measured.map(
+                        ({ name: include, groups }) =>
+                            [include, aligned(aligned(groups, position), index)] as const,
                     ),
                 ),
             );
@@ -596,42 +642,184 @@ export class Dataflow implements Arrangement {
         });
         materialization.prune(pipeline.members, pipeline.partitions);
 
-        return new Map(names.map((name, index) => [name, lists[index]!]));
+        return new Map(zip(names, lists));
+    }
+
+    /** Read the materialization of a selection's last read, starting one on the first. */
+    #materialization(pipeline: Selection): Materialization {
+        // reuse the last read's
+        const known = this.#materialized.get(pipeline);
+        if (known !== undefined) {
+            return known;
+        }
+        const started = new Materialization();
+        this.#materialized.set(pipeline, started);
+
+        return started;
+    }
+
+    /** Read each include's nested items, or its groups kept equal to the last read's, by the partition each selected row names. */
+    async #includes(
+        pipeline: Selection,
+        orders: readonly (readonly string[])[],
+        rows: readonly (readonly Row[])[],
+        materialization: Materialization,
+    ): Promise<{
+        readonly included: { readonly name: string; readonly items: (readonly Item[])[][] }[];
+        readonly measured: {
+            readonly name: string;
+            readonly groups: (readonly AggregateRow[])[][];
+        }[];
+    }> {
+        // collect the includes in child order
+        const node = pipeline.node;
+        const included: { readonly name: string; readonly items: (readonly Item[])[][] }[] = [];
+        const measured: {
+            readonly name: string;
+            readonly groups: (readonly AggregateRow[])[][];
+        }[] = [];
+        for (const [child, pipelined] of zip(node.children, pipeline.children)) {
+            // name each selected row's partition of the include
+            if (child.kind !== "include" || pipelined === undefined) {
+                continue;
+            }
+            const name = child.name.slice(node.name.length + 1);
+            const partitions = partitionsOf(child, rows);
+
+            // take the nested items of each row's partition
+            if (pipelined instanceof Selection) {
+                included.push({ name, items: await this.#nestedItems(pipelined, partitions) });
+            }
+            // keep equal groups as the last read had them
+            else {
+                const groups = reuseEqualGroups(
+                    child,
+                    pipelined,
+                    name,
+                    partitions,
+                    orders,
+                    materialization,
+                );
+                measured.push({ name, groups });
+            }
+        }
+
+        return { included, measured };
+    }
+
+    /** Read the nested items of each selected row's partition of an include. */
+    async #nestedItems(
+        pipeline: Selection,
+        partitions: readonly (readonly (string | undefined)[])[],
+    ): Promise<(readonly Item[])[][]> {
+        // nest every named partition once
+        const named = [...new Set(partitions.flat().filter((entry) => entry !== undefined))];
+        const nested = await this.#nest(pipeline, named);
+
+        return partitions.map((list) =>
+            list.map((partition) =>
+                partition === undefined ? NO_ROWS : (nested.get(partition) ?? NO_ROWS),
+            ),
+        );
     }
 }
 
-/** Read an aggregate include's result for one held row's partition. */
-function measuresOf(child: Node, pipeline: Pipeline, name: string | undefined): unknown {
+/** Decide whether a pipeline is an aggregation counting by images. */
+function isLinear(pipeline: Pipeline): pipeline is Aggregation {
+    return (
+        pipeline instanceof Aggregation && !(pipeline instanceof Relation) && !pipeline.isTracked
+    );
+}
+
+/** List the tables and scopes a node reads. */
+function readsOf(node: Node): Watch[] {
+    return [
+        { table: node.table, scopes: node.scopes },
+        ...(node.closure === undefined ? [] : [{ table: node.closure, scopes: node.scopes }]),
+        ...(node.path?.kind === "junction"
+            ? [{ table: node.path.table, scopes: node.scopes }]
+            : []),
+    ];
+}
+
+/** Read each selected row's partition of an include. */
+function partitionsOf(child: Node, rows: readonly (readonly Row[])[]): (string | undefined)[][] {
+    return rows.map((list) =>
+        list.map((row) => {
+            const value = child.valueOf(row);
+
+            return isPresent(value) ? child.partition(value) : undefined;
+        }),
+    );
+}
+
+/** Read an aggregate include's groups per selected row and reuse equal ones. */
+function reuseEqualGroups(
+    child: Node,
+    pipeline: Pipeline,
+    name: string,
+    partitions: readonly (readonly (string | undefined)[])[],
+    orders: readonly (readonly string[])[],
+    materialization: Materialization,
+): (readonly AggregateRow[])[][] {
+    return zip(partitions, orders).map(([list, keys]) =>
+        zip(list, keys).map(([partition, key]) => {
+            // reuse the previous groups when equal
+            const groups = measuresOf(child, pipeline, partition);
+            const previous = materialization.previous(key, name);
+            const isUnchanged = previous !== undefined && Materialization.isSame(previous, groups);
+
+            return isUnchanged ? previous : groups;
+        }),
+    );
+}
+
+/** Read an aggregate include's groups for one selected row's partition, a whole include's measures as one group. */
+function measuresOf(
+    child: Node,
+    pipeline: Pipeline,
+    name: string | undefined,
+): readonly AggregateRow[] {
     // list the partition's groups
+    const aggregate = child.aggregate;
+    if (aggregate === undefined) {
+        throw new TypeError(`include ${child.name} measures nothing`);
+    }
+    const partitionName = child.link().partitionName;
     const listed = (name === undefined ? [] : groupsOf(pipeline, name)).map(
-        ({ group: { [child.partitionName!]: _joined, ...group }, values }) => ({ group, values }),
+        ({ group: { [partitionName]: _joined, ...group }, values }) => ({ group, values }),
     );
 
     // take the one group's measures
-    return child.aggregate!.groupBy === undefined || child.aggregate!.groupBy.length === 0
-        ? (listed[0]?.values ?? child.emptyValues())
+    return aggregate.groupBy === undefined || aggregate.groupBy.length === 0
+        ? [{ group: {}, values: listed[0]?.values ?? child.emptyValues() }]
         : listed;
 }
 
 /** Read an aggregate pipeline's groups in one partition. */
-function groupsOf(
-    pipeline: Pipeline,
-    name: string,
-): { readonly group: Record<string, Scalar>; readonly values: Record<string, Scalar> }[] {
+function groupsOf(pipeline: Pipeline, name: string): AggregateRow[] {
+    // read the mirrored or counted groups
     const node = pipeline.node;
-    const groups =
-        pipeline instanceof Mirror
-            ? pipeline.groups()
-            : [...(pipeline as Aggregation).tallies.values()]
-                  .filter((tally) => !tally.isEmpty)
-                  .map((tally) => ({ group: tally.group, values: tally.values() }));
+    let groups: AggregateRow[];
+    if (pipeline instanceof Mirror) {
+        groups = pipeline.groups();
+    } else if (pipeline instanceof Aggregation) {
+        groups = [...pipeline.tallies.values()]
+            .filter((tally) => !tally.isEmpty)
+            .map((tally) => ({ group: tally.group, values: tally.values() }));
+    } else {
+        throw new TypeError(`node ${node.name} has groups without an aggregate pipeline`);
+    }
+
+    // keep the partition's groups in order
+    const partitionName = node.path === undefined ? undefined : node.link().partitionName;
 
     return groups
         .filter(
             ({ group }) =>
-                node.path === undefined || JSON.stringify(group[node.partitionName!]) === name,
+                partitionName === undefined || JSON.stringify(group[partitionName]) === name,
         )
-        .sort((left, right) => (canonicalize(left.group) < canonicalize(right.group) ? -1 : 1));
+        .toSorted((left, right) => (canonicalize(left.group) < canonicalize(right.group) ? -1 : 1));
 }
 
 /** Whether a value is present. */
@@ -659,40 +847,19 @@ export function changesThroughLog(database: DatabaseConnection): Context["change
     };
 }
 
-/** Describe a query or include in JSON. */
-function describe(
-    query:
-        | (Omit<Query, "scopes"> & { readonly scopes?: Query["scopes"] })
-        | NonNullable<Query["relations"]>[string],
-): unknown {
+/** Describe a resolved query tree in JSON, as a dataflow's identity. */
+function describe(node: Node): unknown {
     return {
-        ...query,
-        table: query.table[TABLE].sqlName,
-        ...("on" in query && (query as Include).on.kind === "junction"
-            ? {
-                  on: {
-                      ...(query as Include).on,
-                      table: ((query as Include).on as { table: Table }).table[TABLE].sqlName,
-                  },
-              }
-            : {}),
-        include: Object.fromEntries(
-            Object.entries("include" in query ? (query.include ?? {}) : {}).map(
-                ([name, include]) => [name, describe(include)],
-            ),
-        ),
-        relations: Object.fromEntries(
-            Object.entries(query.relations ?? {}).map(([name, relation]) => [
-                name,
-                describe(relation),
-            ]),
-        ),
+        selection: node.selection,
+        limit: node.limit ?? null,
+        aggregate: node.aggregate ?? null,
+        children: node.children.map((child) => [child.kind, describe(child)]),
     };
 }
 
 /** The inspection of a dataflow. */
 export interface DataflowInspection {
-    /** The held log position. */
+    /** The current log position. */
     readonly position?: LogPosition;
     /** The rows and groups the pipelines know. */
     readonly size: number;
@@ -712,9 +879,23 @@ export interface DataflowInspection {
         readonly path: string;
         /** The open partitions. */
         readonly partitions: number;
-        /** The held rows. */
+        /** The selected rows. */
         readonly members: number;
         /** The window rows or groups the pipeline knows. */
         readonly size: number;
     }[];
+}
+
+/** Name a pipeline's kind as an inspection reports it. */
+function pipelineKind(pipeline: Pipeline): DataflowInspection["pipelines"][number]["kind"] {
+    // name each pipeline class
+    if (pipeline instanceof Selection) {
+        return "selection";
+    } else if (pipeline instanceof Relation) {
+        return "relation";
+    } else if (pipeline instanceof Aggregation) {
+        return "aggregation";
+    } else {
+        return "mirror";
+    }
 }

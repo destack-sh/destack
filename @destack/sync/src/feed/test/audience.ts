@@ -1,7 +1,14 @@
-import { sql, TABLE, type Table } from "@destack/db";
-import { Condition, type Match } from "@destack/db/query";
+import {
+    sql,
+    TABLE,
+    type Table,
+    Condition,
+    Namespace,
+    Predicate,
+    type Match,
+    type Row,
+} from "@destack/db";
 import type { Audience } from "../audience.ts";
-import type { Row } from "@destack/db";
 
 /** An audience deciding by conditions per table, in SQL and in memory or only in memory. */
 export class ConditionAudience implements Audience {
@@ -30,7 +37,7 @@ export class ConditionAudience implements Audience {
         > = new Map(),
         options: { readonly isInMemory?: boolean } = {},
     ) {
-        // hold and name the conditions
+        // keep and name the conditions
         this.#visible = visible;
         this.#concealed = concealed;
         this.#isInMemory = options.isInMemory ?? false;
@@ -45,11 +52,14 @@ export class ConditionAudience implements Audience {
     where(table: Table) {
         const condition = this.#visible.get(table);
 
-        return condition === undefined
-            ? sql`true`
-            : this.#isInMemory
-              ? "memory"
-              : Condition.render(condition, Condition.bind(table));
+        // admit every row of a table without a condition, and decide the others in memory or SQL
+        if (condition === undefined) {
+            return sql`true`;
+        } else if (this.#isInMemory) {
+            return "memory";
+        } else {
+            return Condition.render(condition, table);
+        }
     }
 
     /** Decide which rows of a table are visible. */
@@ -84,7 +94,7 @@ export class ConditionAudience implements Audience {
     isVisible(table: Table, row: Row): boolean {
         const condition = this.#visible.get(table);
 
-        return condition === undefined || Condition.matches(this.#compiled(condition, table), row);
+        return condition === undefined || Predicate.matches(this.#compiled(condition, table), row);
     }
 
     /** List the columns hidden on a row, in memory. */
@@ -92,7 +102,7 @@ export class ConditionAudience implements Audience {
         const concealed = this.#concealed.get(table);
 
         return concealed !== undefined &&
-            Condition.matches(this.#compiled(concealed.when, table), row)
+            Predicate.matches(this.#compiled(concealed.when, table), row)
             ? concealed.columns
             : [];
     }
@@ -101,7 +111,7 @@ export class ConditionAudience implements Audience {
     #compiled(condition: Condition, table: Table): Match {
         let match = this.#matches.get(condition);
         if (match === undefined) {
-            match = Condition.compile(condition, table);
+            match = Predicate.compile(Condition.resolve(condition, Namespace.fields(table)), table);
             this.#matches.set(condition, match);
         }
 
@@ -111,5 +121,7 @@ export class ConditionAudience implements Audience {
 
 /** Decide a condition on an application row of a table. */
 export function matches(condition: Condition, table: Table, row: Row): boolean {
-    return Condition.matches(Condition.compile(condition, table), row);
+    const predicate = Condition.resolve(condition, Namespace.fields(table));
+
+    return Predicate.matches(Predicate.compile(predicate, table), row);
 }

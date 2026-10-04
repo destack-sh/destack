@@ -1,12 +1,27 @@
-import { expect, test } from "@destack/test";
+import { expect, test, type TestContext } from "@destack/test";
+import { aligned } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { eq, type DatabaseConnection, type Table } from "@destack/db";
-import { Condition } from "@destack/db/query";
-import { Expression } from "@destack/db/expression";
-import type { LogPosition } from "@destack/db/log";
+import {
+    eq,
+    type DatabaseConnection,
+    type Table,
+    Condition,
+    Expression,
+    type LogPosition,
+} from "@destack/db";
 import { Feed } from "./feed.ts";
 import { Replica } from "../replica/replica.ts";
-import { comment, open, openCopy, page, project, tag, task, taskTag } from "../test/fixture.ts";
+import {
+    comment,
+    open,
+    openCopy,
+    page,
+    project,
+    relations,
+    tag,
+    task,
+    taskTag,
+} from "../test/fixture.ts";
 import { Follower } from "./test/copy.ts";
 import { ConditionAudience } from "./test/audience.ts";
 import {
@@ -18,7 +33,7 @@ import {
     TALLIES,
     TREE,
     WINDOWS,
-} from "./test/queries.ts";
+} from "./test/query.ts";
 import { Random } from "./test/random.ts";
 import { Workload } from "./test/workload.ts";
 
@@ -39,7 +54,7 @@ const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
 const SNAPSHOT_OPERATIONS = 100;
 
 /**
- * The most database operations a replica may cost to hold the same snapshot.
+ * The most database operations a replica may cost to keep the same snapshot.
  *
  * A replica stages the pages and applies them in one transaction: about 5.
  */
@@ -72,7 +87,7 @@ const SPACE_AUDIENCES = 50;
  */
 const SPACE_OPERATIONS = 10;
 
-/** The rows a follower of every query set holds at scale. */
+/** The rows a follower of every query set has at scale. */
 const SCALE_ROWS = 3000;
 
 /**
@@ -93,11 +108,9 @@ const DISCUSSED = {
     discussed: {
         table: task,
         scopes: ["inbox"],
-        relations: {
-            comments: { table: comment, on: { kind: "key", column: "taskId", parent: "id" } },
-        },
-        compute: { comments: Expression.rollup("count", "comments") },
-        order: [{ column: "comments", direction: "desc" }],
+        relations,
+        extras: { comments: Expression.rollup("count", "comments") },
+        orderBy: { comments: "desc" },
         limit: 10,
     },
 } as const;
@@ -111,7 +124,7 @@ const FLIP_OPERATIONS = 60;
 test.for(TEST_DIALECTS)(
     "snapshot and copy thousands of rows within an operation budget on %s",
     { timeout: 30_000 },
-    async (dialect) => {
+    async (dialect, { annotate }) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
         await new Workload(new Random(3)).seed(source, 4000);
@@ -157,8 +170,8 @@ test.for(TEST_DIALECTS)(
         const copied = await copyOnce();
 
         // stay within the budgets and report the time per row
-        report("snapshot CPU µs per row", (snapshot * 1000) / rows);
-        report("replica CPU µs per row", (copied.milliseconds * 1000) / rows);
+        await report(annotate, "snapshot CPU µs per row", (snapshot * 1000) / rows);
+        await report(annotate, "replica CPU µs per row", (copied.milliseconds * 1000) / rows);
         expect(rows).toBeGreaterThan(2000);
         expect(operations, "operations per snapshot").toBeLessThan(SNAPSHOT_OPERATIONS);
         expect(copied.operations, "operations per replicated snapshot").toBeLessThan(
@@ -170,7 +183,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "decide writes for a hundred subscribers within an operation budget on %s",
     { timeout: 30_000 },
-    async (dialect) => {
+    async (dialect, { annotate }) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
         const workload = new Workload(new Random(9));
@@ -208,33 +221,37 @@ test.for(TEST_DIALECTS)(
         await Promise.all(followers.map((follower) => follower.stop()));
 
         // stay within the budget and report the time
-        report("CPU µs per decision", (elapsed * 1000) / (followers.length * writes));
+        await report(
+            annotate,
+            "CPU µs per decision",
+            (elapsed * 1000) / (followers.length * writes),
+        );
         expect(operations, "operations per write").toBeLessThan(DECISION_OPERATIONS);
     },
 );
 
 test.for(TEST_DIALECTS)(
-    "resume a stateful subscriber without sending held rows again on %s",
+    "resume a stateful subscriber without sending selected rows again on %s",
     async (dialect) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
         await new Workload(new Random(13)).seed(source, 1500);
 
-        // follow, then reconnect from the held position
+        // follow and reconnect from the reached position
         const follower = new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
             audience: AUDIENCE,
         });
         follower.start();
         await follower.reach(await source.log.position());
-        const held = follower.copy.pages.length;
+        const sent = follower.copy.pages.length;
         await follower.reconnect();
         await follower.reach(await source.log.position());
 
         // rebuild the windows without rows or a snapshot
-        const resumed = follower.copy.pages.slice(held);
+        const resumed = follower.copy.pages.slice(sent);
         expect([
-            resumed.some((page) => page.reset),
-            resumed.flatMap((page) => page.changes),
+            resumed.some((resent) => resent.reset),
+            resumed.flatMap((resent) => resent.changes),
         ]).toEqual([false, []]);
     },
 );
@@ -242,7 +259,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "reach a thousand subscribers of one row within an operation budget on %s",
     { timeout: 30_000 },
-    async (dialect) => {
+    async (dialect, { annotate }) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES, { subscribers: 1000 });
         await new Workload(new Random(21)).seed(source, 200);
@@ -250,24 +267,27 @@ test.for(TEST_DIALECTS)(
         // follow with a thousand subscribers
         const controller = new AbortController();
         const reached = Array.from({ length: 1000 }, () => -1);
-        let wake = () => {};
+        let progress = Promise.withResolvers<void>();
         const subscribers = reached.map(async (_, index) => {
             const pages = feed.subscribe({ ...FILTERS, ...WINDOWS }, undefined, controller.signal, {
                 audience: AUDIENCE,
             });
-            for await (const page of pages) {
-                reached[index] = page.complete ? page.position.sequence : reached[index]!;
-                wake();
+            for await (const sent of pages) {
+                if (sent.complete) {
+                    reached[index] = sent.position.sequence;
+                }
+                progress.resolve();
             }
         });
         const reach = async (position: LogPosition) => {
             while (reached.some((sequence) => sequence < position.sequence)) {
-                await new Promise<void>((resolve) => (wake = resolve));
+                await progress.promise;
+                progress = Promise.withResolvers<void>();
             }
         };
         await reach(await source.log.position());
 
-        // time a write every subscriber holds
+        // time a write every subscriber has
         const { milliseconds, operations } = await measure(
             source,
             40,
@@ -283,7 +303,7 @@ test.for(TEST_DIALECTS)(
         await Promise.all(subscribers);
 
         // stay within the budget and report the time
-        report("CPU ms per write", milliseconds);
+        await report(annotate, "CPU ms per write", milliseconds);
         expect(operations, "operations per write").toBeLessThan(FAN_OUT_OPERATIONS);
     },
 );
@@ -291,7 +311,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "flip fifteen hundred rows through a lookup within an operation budget on %s",
     { timeout: 60_000 },
-    async (dialect) => {
+    async (dialect, { annotate }) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
 
@@ -328,7 +348,7 @@ test.for(TEST_DIALECTS)(
         await follower.stop();
 
         // stay within the budget and report the time
-        report("CPU ms per flip", milliseconds);
+        await report(annotate, "CPU ms per flip", milliseconds);
         expect(operations, "operations per flip").toBeLessThan(FLIP_OPERATIONS);
     },
 );
@@ -336,7 +356,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "follow every query set at scale within an operation budget on %s",
     { timeout: 60_000 },
-    async (dialect) => {
+    async (dialect, { annotate }) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
         const workload = new Workload(new Random(31));
@@ -357,7 +377,7 @@ test.for(TEST_DIALECTS)(
         await follower.stop();
 
         // stay within the budget and report the time
-        report("CPU ms per write", milliseconds);
+        await report(annotate, "CPU ms per write", milliseconds);
         expect(operations, "operations per write").toBeLessThan(SCALE_OPERATIONS);
     },
 );
@@ -365,7 +385,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "reach the subscribers of a space with distinct access within an operation budget on %s",
     { timeout: 60_000 },
-    async (dialect) => {
+    async (dialect, { annotate }) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES, { subscribers: SPACE_SUBSCRIBERS });
         const workload = new Workload(new Random(41));
@@ -375,13 +395,15 @@ test.for(TEST_DIALECTS)(
         const audiences = Array.from(
             { length: SPACE_AUDIENCES },
             (_, index) =>
-                new ConditionAudience(new Map([[task as Table, Condition.ne("id", `s${index}`)]])),
+                new ConditionAudience(
+                    new Map<Table, Condition>([[task, { id: { ne: `s${index}` } }]]),
+                ),
         );
         const followers = Array.from(
             { length: SPACE_SUBSCRIBERS },
             (_, index) =>
                 new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
-                    audience: audiences[index % SPACE_AUDIENCES]!,
+                    audience: aligned(audiences, index % SPACE_AUDIENCES),
                 }),
         );
         for (const follower of followers) {
@@ -402,7 +424,7 @@ test.for(TEST_DIALECTS)(
         await Promise.all(followers.map((follower) => follower.stop()));
 
         // stay within the budget and report the time
-        report("CPU ms per write", milliseconds);
+        await report(annotate, "CPU ms per write", milliseconds);
         expect(operations, "operations per write").toBeLessThan(SPACE_OPERATIONS);
     },
 );
@@ -410,7 +432,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "reorder ten thousand tasks by a rollup within an operation budget on %s",
     { timeout: 60_000 },
-    async (dialect) => {
+    async (dialect, { annotate }) => {
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
 
@@ -448,7 +470,7 @@ test.for(TEST_DIALECTS)(
         await follower.stop();
 
         // stay within the budget and report the time
-        report("CPU ms per comment", milliseconds);
+        await report(annotate, "CPU ms per comment", milliseconds);
         expect(operations, "operations per comment").toBeLessThan(RANKED_OPERATIONS);
     },
 );
@@ -466,7 +488,7 @@ async function measure(
         await reach(await source.log.position());
     }
 
-    // time each write until its subscribers hold it
+    // time each write until its subscribers have it
     let elapsed = 0;
     const operations = source.driver.state.operations;
     for (let index = WARMUP_WRITES; index < WARMUP_WRITES + writes; index += 1) {
@@ -490,6 +512,6 @@ function cpuTime(): number {
 }
 
 /** Report a measured cost beside the test result. */
-function report(label: string, value: number): void {
-    console.info(`${expect.getState().currentTestName}: ${label} ${value.toFixed(2)}`);
+async function report(annotate: TestContext["annotate"], label: string, value: number) {
+    await annotate(`${label} ${value.toFixed(2)}`, "cost");
 }

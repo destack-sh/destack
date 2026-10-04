@@ -3,31 +3,51 @@ import type { Row } from "@destack/db";
 import { Window } from "./window.ts";
 import { Random } from "../feed/test/random.ts";
 
-/** The rows an arrangement holds at most. */
+/** The rows an arrangement has at most. */
 const LIMIT = 5;
 
 /** The keys the random moves pick from, enough for several chunks. */
 const KEYS = 1500;
 
+/** A row the random moves place. */
+type ScoreRow = { readonly id: string; readonly score: number };
+
 /** Sort rows by score descending, then by key. */
 function compare(left: Row, right: Row): number {
-    return (
-        (right.score as number) - (left.score as number) ||
-        String(left.id).localeCompare(String(right.id))
-    );
+    return scoreOf(right) - scoreOf(left) || idOf(left).localeCompare(idOf(right));
+}
+
+/** Read a row's score. */
+function scoreOf(row: Row): number {
+    const score = row["score"];
+    if (typeof score !== "number") {
+        throw new TypeError("a placed row has no score");
+    }
+
+    return score;
+}
+
+/** Read a row's key. */
+function idOf(row: Row): string {
+    const id = row["id"];
+    if (typeof id !== "string") {
+        throw new TypeError("a placed row has no key");
+    }
+
+    return id;
 }
 
 test("arrange rows as a sorted list does through random moves", () => {
     // move rows at random in a window and a sorted list alike
     const random = new Random(7);
-    const window = new Window(compare, LIMIT, undefined, [], true);
-    const reference: Row[] = [];
+    const window = new Window(compare, LIMIT, null, [], true);
+    const reference: ScoreRow[] = [];
     const evictions: string[] = [];
     const expected: string[] = [];
     for (let step = 0; step < 3000; step += 1) {
         // take the row out of the list
         const key = `r${random.integer(KEYS)}`;
-        const before = reference.slice(0, LIMIT).map((row) => row.id as string);
+        const before = reference.slice(0, LIMIT).map((row) => row.id);
         const index = reference.findIndex((row) => row.id === key);
         if (index >= 0) {
             reference.splice(index, 1);
@@ -40,22 +60,26 @@ test("arrange rows as a sorted list does through random moves", () => {
         }
 
         // place it in both, noting the row it evicts
-        const row = { id: key, score: random.integer(100) };
+        const row: ScoreRow = { id: key, score: random.integer(100) };
         const placed = window.place(key, row);
         const position = reference.findIndex((entry) => compare(entry, row) > 0);
         reference.splice(position < 0 ? reference.length : position, 0, row);
-        const after = reference.slice(0, LIMIT).map((entry) => entry.id as string);
-        expect(placed.isHeld).toBe(after.includes(key));
+        const after = new Set(reference.slice(0, LIMIT).map((entry) => entry.id));
+        expect(placed.isPresent).toBe(after.has(key));
         if (placed.evicted !== undefined) {
             evictions.push(placed.evicted);
         }
-        if (!before.includes(key) && after.includes(key) && before.length === LIMIT) {
-            expected.push(before.find((held) => !after.includes(held))!);
+        if (!before.includes(key) && after.has(key) && before.length === LIMIT) {
+            const displaced = before.find((entry) => !after.has(entry));
+            if (displaced === undefined) {
+                throw new TypeError("an entering row displaced no row");
+            }
+            expected.push(displaced);
         }
     }
 
-    // hold the list's first rows and evict the displaced rows
-    expect([window.held(), window.size, evictions]).toEqual([
+    // keep the list's first rows and evict the displaced rows
+    expect([window.keys(), window.size, evictions]).toEqual([
         reference.slice(0, LIMIT).map((row) => row.id),
         reference.length,
         expected,

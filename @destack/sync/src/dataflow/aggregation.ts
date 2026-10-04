@@ -1,6 +1,5 @@
-import type { Row } from "@destack/db";
-import { Condition, type Scalar } from "@destack/db/query";
-import { canonicalize } from "@destack/schema/json";
+import { Change, type ColumnValue, type Row, Condition, Predicate, type Scalar } from "@destack/db";
+import { canonicalize, found, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import { NOWHERE, Pipeline, keyed, without, type Context } from "./pipeline.ts";
 import type { Run, Work } from "./run.ts";
@@ -36,13 +35,13 @@ export class Aggregation extends Pipeline {
             node.isRelating;
     }
 
-    /** The groups the tallies hold. */
+    /** The groups of the tallies. */
     get size(): number {
         return this.tallies.size;
     }
 
     /** Forget every group. */
-    forget(): void {
+    override forget(): void {
         // forget the partitions and members, then the groups
         super.forget();
         this.tallies.clear();
@@ -65,7 +64,7 @@ export class Aggregation extends Pipeline {
                 continue;
             }
             for (const key of this.isTracked ? partition.members : []) {
-                this.#assign(key, undefined, without(this.members.get(key)!.partitions, name), run);
+                this.#assign(key, null, without(found(this.members, key).partitions, name), run);
             }
             if (!this.isTracked) {
                 this.#release(partition.value, run);
@@ -82,8 +81,8 @@ export class Aggregation extends Pipeline {
                 opened.map(([, value]) => value),
                 run,
             );
-            for (const [index, [name]] of opened.entries()) {
-                for (const row of read[index]!) {
+            for (const [[name], rows] of zip(opened, read)) {
+                for (const row of rows) {
                     const key = this.node.keyOf(row);
                     const partitions = this.members.get(key)?.partitions ?? NOWHERE;
                     this.#assign(key, row, new Set([...partitions, name]), run);
@@ -110,29 +109,30 @@ export class Aggregation extends Pipeline {
     /** Count each change of the node's table out before and in after. */
     protected async countImages(
         run: Run,
-        countedAt: (value: unknown) => number | undefined,
+        countedAt: (value: ColumnValue | undefined) => number | undefined,
     ): Promise<void> {
         // decide every image at once
         const node = this.node;
         const changes = run.changes.filter((change) => change.table === node.table);
         const affected = [...(run.affected.get(node.table)?.values() ?? [])];
         await this.filter.prepare(
-            [...changes.flatMap((change) => [change.before, change.after]), ...affected].filter(
-                (image): image is Row => image !== undefined,
-            ),
+            [
+                ...changes.flatMap((change) => [Change.before(change), Change.after(change)]),
+                ...affected,
+            ].filter((image): image is Row => image !== null),
             run,
         );
 
         // count each candidate image out or in
         for (const change of changes) {
             for (const [image, sign] of [
-                [change.before, -1],
-                [change.after, 1],
+                [Change.before(change), -1],
+                [Change.after(change), 1],
             ] as const) {
-                const value = image === undefined ? undefined : joinedOf(node, image);
-                const sequence = image === undefined ? undefined : countedAt(value);
+                const value = image === null ? undefined : joinedOf(node, image);
+                const sequence = image === null ? undefined : countedAt(value);
                 if (
-                    image === undefined ||
+                    image === null ||
                     sequence === undefined ||
                     change.sequence <= sequence ||
                     !this.filter.isCandidate(image, run)
@@ -170,7 +170,7 @@ export class Aggregation extends Pipeline {
         // count the row out of its groups
         for (const entry of this.contributions.get(key) ?? []) {
             this.#note(entry.name, entry.group);
-            if (!this.tallies.get(entry.name)!.count(entry.row, -1)) {
+            if (!found(this.tallies, entry.name).count(entry.row, -1)) {
                 this.#lost.add(entry.name);
             }
         }
@@ -221,7 +221,7 @@ export class Aggregation extends Pipeline {
         this.#lost.clear();
     }
 
-    /** Send a shown group's values while it holds rows, or its leaving. */
+    /** Send a shown group's values while it has rows, or its leaving. */
     protected result(
         group: Readonly<Record<string, Scalar>>,
         tally: Tally | undefined,
@@ -231,45 +231,48 @@ export class Aggregation extends Pipeline {
     }
 
     /** Read the node's selection a page at a time, in order. */
-    protected async pages(run: Run, each: (rows: Row[]) => Promise<void>): Promise<void> {
+    protected async pages(run: Run, each: (rows: readonly Row[]) => Promise<void>): Promise<void> {
         let after: Row | undefined;
         for (let isDone = false; !isDone;) {
             // read the next page
             const [rows] = await run.view.ordered(
                 this.node,
-                [after === undefined ? {} : { after }],
+                [after === undefined ? { value: null } : { value: null, after }],
                 PAGE_ROWS,
                 this.context.audience,
                 run,
                 this.node.relations.length === 0 ? undefined : this.relationView(run),
             );
-            isDone = rows!.length < PAGE_ROWS;
-            after = rows!.at(-1);
-            await each(rows!);
+            if (rows === undefined) {
+                throw new RangeError("an ordered read lacks its one window");
+            }
+            isDone = rows.length < PAGE_ROWS;
+            after = rows.at(-1);
+            await each(rows);
         }
     }
 
     /** Admit a tracked member to its partitions. */
-    protected admit(key: string, row: Row | undefined, names: ReadonlySet<string>, run: Run): void {
+    protected admit(key: string, row: Row | null, names: ReadonlySet<string>, run: Run): void {
         this.#assign(key, row, names, run);
     }
 
     /** Set a tracked member's partitions and count it into their groups. */
-    #assign(key: string, row: Row | undefined, names: ReadonlySet<string>, run: Run): void {
+    #assign(key: string, row: Row | null, names: ReadonlySet<string>, run: Run): void {
         // count the row into its groups
         const node = this.node;
         const member = this.move(key, names);
         this.count(
             key,
-            row === undefined
+            row === null
                 ? (this.contributions.get(key) ?? []).filter((entry) => names.has(entry.partition))
                 : [...names].map((partition) =>
-                      contributionOf(node, row, partition, this.partitions.get(partition)!.value),
+                      contributionOf(node, row, partition, found(this.partitions, partition).value),
                   ),
             run,
         );
 
-        // hold the member in its partitions
+        // keep the member in its partitions
         if (names.size === 0) {
             this.members.delete(key);
         } else if (member === undefined) {
@@ -298,7 +301,7 @@ export class Aggregation extends Pipeline {
     }
 
     /** Count a linear aggregate's opened partitions, one grouped read per batch. */
-    async #countAll(opened: readonly (readonly [string, unknown])[], run: Run): Promise<void> {
+    async #countAll(opened: readonly (readonly [string, ColumnValue])[], run: Run): Promise<void> {
         // build the conditions selecting the opened partitions
         const node = this.node;
         const path = node.path;
@@ -307,22 +310,20 @@ export class Aggregation extends Pipeline {
         if (path?.kind === "key") {
             for (let start = 0; start < opened.length; start += COUNTED_PARTITIONS) {
                 const batch = opened.slice(start, start + COUNTED_PARTITIONS);
-                batches.push(
-                    Condition.oneOf(
-                        path.column,
-                        batch.map(
-                            ([, value]) => node.json(path.column, value) as Exclude<Scalar, null>,
-                        ),
-                    ),
-                );
+                const values = batch.flatMap(([, value]) => {
+                    const json = node.scalar(path.column, value);
+
+                    return json === null ? [] : [json];
+                });
+                batches.push({ [path.column]: { in: values } });
             }
         } else if (opened.length > 0) {
-            batches.push(Condition.all());
+            batches.push({});
         }
 
         // count each batch at its sequence
         for (const [name] of opened) {
-            this.partitions.get(name)!.sequence = sequence;
+            found(this.partitions, name).sequence = sequence;
         }
         for (const within of batches) {
             for (const [name, tally] of await this.tallyAt(within, run)) {
@@ -340,20 +341,18 @@ export class Aggregation extends Pipeline {
         const counted =
             node.path === undefined || node.path.kind === "key"
                 ? await this.tallyAt(
-                      Condition.all(
-                          ...Object.entries(group)
-                              .filter(([column]) => Object.hasOwn(node.columns, column))
-                              .map(([column, entry]) =>
-                                  entry === null
-                                      ? Condition.missing(column)
-                                      : Condition.eq(column, entry),
+                      Condition.equal(
+                          Object.fromEntries(
+                              Object.entries(group).filter(([column]) =>
+                                  Object.hasOwn(node.columns, column),
                               ),
+                          ),
                       ),
                       run,
                       group,
                   )
                 : await this.tallyRows(run, group, {
-                      value: node.parent!.fromJson(node.parentColumn!, group[node.partitionName!]!),
+                      value: node.parentValueOf(node.partitionOf(group)),
                   });
         this.tallies.set(
             name,
@@ -386,23 +385,50 @@ export class Aggregation extends Pipeline {
         if (beyond === undefined) {
             return this.tallyRows(run, only, { within });
         }
-        const match = Condition.compile(within, node.table);
+        const lost = await this.#undo(tallies, beyond, within, only, run);
+
+        // recount the groups that lost an extreme
+        await this.#recountLost(tallies, lost, within, run);
+        for (const [name, tally] of tallies) {
+            tally.sequence = position;
+            if (tally.isEmpty) {
+                tallies.delete(name);
+            }
+        }
+
+        return tallies;
+    }
+
+    /** Count changed rows back out of or into their tallies and return the groups that lost an extreme. */
+    async #undo(
+        tallies: Map<string, Tally>,
+        beyond: readonly Change[],
+        within: Condition,
+        only: Readonly<Record<string, Scalar>> | undefined,
+        run: Run,
+    ): Promise<Set<string>> {
+        // prepare the matching images
+        const node = this.node;
+        const position = run.view.position.sequence;
+        const match = Predicate.compile(node.resolve(within), node.table);
         const images = beyond.flatMap((change) =>
-            [change.after, change.before].filter(
-                (image): image is Row => image !== undefined && Condition.matches(match, image),
+            [Change.after(change), Change.before(change)].filter(
+                (image): image is Row => image !== null && Predicate.matches(match, image),
             ),
         );
         await this.filter.prepare(images, run);
+
+        // count each image back from the newest change
         const lost = new Set<string>();
         for (const change of beyond.toReversed()) {
             for (const [image, sign] of [
-                [change.after, -1],
-                [change.before, 1],
+                [Change.after(change), -1],
+                [Change.before(change), 1],
             ] as const) {
                 // count each row back in or out
                 if (
-                    image === undefined ||
-                    !Condition.matches(match, image) ||
+                    image === null ||
+                    !Predicate.matches(match, image) ||
                     !this.filter.isCandidate(image, run)
                 ) {
                     continue;
@@ -421,38 +447,43 @@ export class Aggregation extends Pipeline {
             }
         }
 
-        // recount the groups that lost an extreme
-        for (const name of lost) {
-            const group = tallies.get(name)!.group;
-            const exact = await this.tallyRows(run, group, { within });
-            tallies.set(name, exact.get(name) ?? Tally.empty(node, group, position));
-        }
-        for (const [name, tally] of tallies) {
-            tally.sequence = position;
-            if (tally.isEmpty) {
-                tallies.delete(name);
-            }
-        }
+        return lost;
+    }
 
-        return tallies;
+    /** Count the groups that lost an extreme again from their rows. */
+    async #recountLost(
+        tallies: Map<string, Tally>,
+        lost: ReadonlySet<string>,
+        within: Condition,
+        run: Run,
+    ): Promise<void> {
+        const position = run.view.position.sequence;
+        for (const name of lost) {
+            const group = found(tallies, name).group;
+            const exact = await this.tallyRows(run, group, { within });
+            tallies.set(name, exact.get(name) ?? Tally.empty(this.node, group, position));
+        }
     }
 
     /** Tally rows by group as of the run's position. */
     async tallyRows(
         run: Run,
         only: Readonly<Record<string, Scalar>> | undefined,
-        selected: { readonly value: unknown } | { readonly within: Condition },
+        selected: { readonly value: ColumnValue } | { readonly within: Condition },
     ): Promise<Map<string, Tally>> {
         // read the candidate rows
         const node = this.node;
         let rows: Row[];
         if ("value" in selected) {
-            [rows] = (await this.matched([selected.value], run)) as [Row[]];
+            const [matched] = await this.matched([selected.value], run);
+            if (matched === undefined) {
+                throw new RangeError("a partition read lacks its one partition");
+            }
+            rows = matched;
         } else {
-            const read = await run.view.matching(
-                node.table,
-                Condition.all(node.condition(), selected.within),
-            );
+            const read = await run.view.matching(node.table, {
+                AND: [node.condition(), selected.within],
+            });
             await this.filter.prepare(read, run);
             rows = read
                 .filter((row) => this.filter.isCandidate(row, run))
@@ -478,39 +509,38 @@ export class Aggregation extends Pipeline {
         return tallies;
     }
 
-    /** Let go of the groups of a partition no held row names. */
-    #release(value: unknown, run: Run): void {
+    /** Let go of the groups of a partition no selected row names. */
+    #release(value: ColumnValue, run: Run): void {
         // let go of each group of the partition
         const node = this.node;
-        const partition = JSON.stringify(node.parent!.json(node.parentColumn!, value));
-        for (const name of this.tallies.keys()) {
-            const group = JSON.parse(name) as Record<string, Scalar>;
-            if (JSON.stringify(group[node.partitionName!]) === partition) {
+        const partition = node.partition(value);
+        for (const [name, tally] of this.tallies) {
+            if (JSON.stringify(node.partitionOf(tally.group)) === partition) {
                 this.tallies.delete(name);
-                this.result(group, undefined, run);
+                this.result(tally.group, undefined, run);
             }
         }
     }
 }
 
-/** The measures of a relation the node's condition and computed values read, by held value. */
+/** The measures of a relation the node's condition and computed values read, by parent value. */
 export class Relation extends Aggregation {
     /** The log sequence a linear relation's count read at. */
     #sequence = -1;
 
     /** Forget every group. */
-    forget(): void {
+    override forget(): void {
         super.forget();
         this.#sequence = -1;
     }
 
-    /** Decide whether the subscriber is shown a group: one a held row of the parent names. */
-    isShown(group: Readonly<Record<string, Scalar>>): boolean {
+    /** Decide whether the subscriber is shown a group: one a selected row of the parent names. */
+    override isShown(group: Readonly<Record<string, Scalar>>): boolean {
         const node = this.node;
 
         return (
-            node.parent!.isHolding &&
-            (this.partitions.get(JSON.stringify(group[node.partitionName!]))?.holders ?? 0) > 0
+            node.link().parent.hasRows &&
+            (this.partitions.get(JSON.stringify(node.partitionOf(group)))?.holders ?? 0) > 0
         );
     }
 
@@ -518,7 +548,7 @@ export class Relation extends Aggregation {
     async hydrate(run: Run): Promise<void> {
         // count every group of a linear relation
         if (!this.isTracked) {
-            for (const [name, tally] of await this.tallyAt(Condition.all(), run)) {
+            for (const [name, tally] of await this.tallyAt({}, run)) {
                 this.tallies.set(name, tally);
             }
             this.#sequence = run.view.position.sequence;
@@ -532,7 +562,7 @@ export class Relation extends Aggregation {
     }
 
     /** Apply a run's changes to every group, deciding the parent's naming rows again. */
-    async step(work: Work, run: Run): Promise<void> {
+    override async step(work: Work, run: Run): Promise<void> {
         // count the changes, or decide the touched rows again
         if (this.isTracked) {
             const dirty = new Map(work.dirty);
@@ -544,14 +574,15 @@ export class Relation extends Aggregation {
 
         // decide the parent's rows naming each moved group again
         const node = this.node;
+        const link = node.link();
         const values = (await this.regroup(run))
-            .map((group) => group[node.partitionName!])
-            .filter((value) => value !== null && value !== undefined)
-            .map((value) => node.parent!.fromJson(node.parentColumn!, value!));
-        const parent = this.parent!;
+            .map((group) => node.partitionOf(group))
+            .filter((value) => value !== null)
+            .map((value) => node.parentValueOf(value));
+        const parent = this.requireParent();
         const holders = await run.view.lookup(
             parent.node.table,
-            values.map((value) => ({ [node.parentColumn!]: value })),
+            values.map((value) => ({ [link.parentColumn]: value })),
         );
         const dirty = run.workOf(parent).dirty;
         for (const row of holders.flat()) {
@@ -559,9 +590,9 @@ export class Relation extends Aggregation {
         }
     }
 
-    /** Send the groups held rows newly name, and let go of the others. */
+    /** Send the groups selected rows newly name, and let go of the others. */
     show(work: Work, run: Run): void {
-        // let go of the groups no held row names
+        // let go of the groups no selected row names
         const node = this.node;
         for (const name of work.closed) {
             const partition = this.partitions.get(name);
@@ -581,26 +612,30 @@ export class Relation extends Aggregation {
     }
 
     /** Decide related rows again and count each into its groups. */
-    async #measure(rows: ReadonlyMap<string, Row | undefined>, run: Run): Promise<void> {
+    async #measure(rows: ReadonlyMap<string, Row | null>, run: Run): Promise<void> {
         // decide the rows and locate their holders
         const node = this.node;
-        const present = [...rows.values()].filter((row): row is Row => row !== undefined);
+        const present = [...rows.values()].filter((row): row is Row => row !== null);
         await this.filter.prepare(present, run);
         const candidates = present.filter((row) => this.filter.isCandidate(row, run));
         const located = await this.input.locate(candidates, run);
-        const values = new Map(candidates.map((row, index) => [row, located[index]!]));
+        const values = new Map(zip(candidates, located));
 
         // count each row out of its old groups and into its new ones
         for (const [key, row] of rows) {
-            const named = row === undefined ? undefined : values.get(row);
-            const resolved = named === undefined ? undefined : this.filter.resolve(row!, run);
-            this.count(
-                key,
-                (named ?? []).map((value) =>
-                    contributionOf(node, resolved!, node.partition(value), value),
-                ),
-                run,
-            );
+            const named = row === null ? undefined : values.get(row);
+            if (row === null || named === undefined) {
+                this.count(key, [], run);
+            } else {
+                const resolved = this.filter.resolve(row, run);
+                this.count(
+                    key,
+                    named.map((value) =>
+                        contributionOf(node, resolved, node.partition(value), value),
+                    ),
+                    run,
+                );
+            }
         }
     }
 }
@@ -616,7 +651,7 @@ export class Mirror extends Pipeline {
     }
 
     /** Forget every group. */
-    forget(): void {
+    override forget(): void {
         super.forget();
         this.#shown.clear();
     }
@@ -637,9 +672,13 @@ export class Mirror extends Pipeline {
         // read the groups of the open partitions
         const node = this.node;
         const groups = new Map<string, Group>();
-        for (const group of await this.context.upstream!.groups(node)) {
+        const upstream = this.context.upstream;
+        if (upstream === undefined) {
+            throw new TypeError(`mirror of ${node.name} reads no upstream`);
+        }
+        for (const group of await upstream.groups(node)) {
             const partition =
-                node.path === undefined ? "" : JSON.stringify(group.group[node.partitionName!]);
+                node.path === undefined ? "" : JSON.stringify(node.partitionOf(group.group));
             if (this.partitions.has(partition)) {
                 groups.set(canonicalize(group.group), group);
             }
@@ -692,7 +731,7 @@ function resultOf(group: Group): Result {
     };
 }
 
-/** Whether two groups hold the same values. */
+/** Whether two groups have the same values. */
 function sameGroup(
     left: Readonly<Record<string, Scalar>>,
     right: Readonly<Record<string, Scalar>>,
@@ -708,13 +747,18 @@ function signatureOf(tally: Tally | undefined): string {
 }
 
 /** Build what a row adds to its group in one partition. */
-function contributionOf(node: Node, row: Row, partition: string, value: unknown): Contribution {
+function contributionOf(
+    node: Node,
+    row: Row,
+    partition: string,
+    value: ColumnValue | undefined,
+): Contribution {
     const group = node.groupOf(row, value);
 
     return { partition, group, name: JSON.stringify(group), row };
 }
 
-/** Read the held value a row of a root or key-joined node joins. */
-function joinedOf(node: Node, row: Row): unknown {
+/** Read the parent value a row of a root or key-joined node joins. */
+function joinedOf(node: Node, row: Row): ColumnValue | undefined {
     return node.path?.kind === "key" ? row[node.path.column] : undefined;
 }

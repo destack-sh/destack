@@ -1,24 +1,34 @@
-import { and, Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
-import { Condition, Order, type Match } from "@destack/db/query";
-import { DatabaseError } from "@destack/db/error";
-import { describeLog, type Change, type LogPosition } from "@destack/db/log";
+import { aligned, found } from "@destack/schema";
+import {
+    and,
+    Key,
+    TABLE,
+    type DatabaseConnection,
+    type Table,
+    Condition,
+    Order,
+    DatabaseError,
+    describeLog,
+    Change,
+    type LogPosition,
+    type Row,
+} from "@destack/db";
 import { SyncError } from "../error/error.ts";
-import type { Row } from "@destack/db";
-import type { QueryPage } from "../query/page.ts";
-import type { Query } from "../query/query.ts";
+import type { Page, RowChange } from "../query/page.ts";
+import type { Query, Item, AggregateRow } from "../query/query.ts";
 import { Node } from "../query/node.ts";
-import { EVERYONE, watchedScopes, type Audience, type Watch } from "./audience.ts";
+import { EVERYONE, watchedScopes, type Audience, Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Stream } from "./stream.ts";
 import type { Upstream } from "../dataflow/upstream.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
-import { View, type Cache } from "../dataflow/view.ts";
+import { Memo, View, type Cache } from "../dataflow/view.ts";
 
 /**
  * The default count of recent changes a feed keeps in memory.
  *
- * At about 1 KB a change, a busy feed holds about 10 MB.
+ * At about 1 KB a change, a busy feed keeps about 10 MB.
  */
 const FEED_CHANGES = 10_000;
 
@@ -36,8 +46,8 @@ const FEED_SUBSCRIBERS = 1000;
  */
 const CAPACITY = 100_000;
 
-/** The recent log sequences whose row reads subscribers share. */
-const SHARED_READS = 8;
+/** The recent log sequences whose reads and encodings the memos keep for subscribers to share. */
+const MEMO_SEQUENCES = 8;
 
 /**
  * The default wait before a caught-up stream repeats its position, in milliseconds.
@@ -47,7 +57,7 @@ const SHARED_READS = 8;
 const HEARTBEAT_MILLISECONDS = 10_000;
 
 /**
- * The rows one page of a capture carries.
+ * The rows of one page of a capture.
  *
  * At 0.1 to 2 KB a row, a page is up to about 1 MB.
  */
@@ -82,17 +92,21 @@ export class Feed implements Cache {
     /** The subscriber count. */
     #subscribers = 0;
     /** Stop reading after the last subscriber. */
-    #reading?: AbortController;
+    #reading: AbortController | undefined;
     /** The failure that stopped reading. */
-    #failure?: unknown;
+    #failure: Error | undefined;
     /** The shared evaluations by key. */
     readonly #evaluations = new Map<string, Evaluation>();
     /** Each shared evaluation's key and the streams sharing it. */
     readonly #shares = new Map<Evaluation, { key: string; streams: number }>();
-    /** The shared reads by sequence and key. */
-    readonly #reads = new Map<number, Map<string, unknown>>();
-    /** The compiled row conditions of watches. */
-    readonly #watchedRows = new WeakMap<Watch, Match>();
+    /** The shared reads of rows by sequence and key. */
+    readonly rows = new Memo<Promise<readonly Row[]>>(MEMO_SEQUENCES);
+    /** The shared reads of single rows by sequence and key. */
+    readonly row = new Memo<Promise<Row | null>>(MEMO_SEQUENCES);
+    /** The shared encodings by sequence and key. */
+    readonly encodings = new Memo<RowChange>(MEMO_SEQUENCES);
+    /** The shared images by sequence and range. */
+    readonly #images = new Memo<Promise<ReadonlyMap<string, Row | null>>>(MEMO_SEQUENCES);
 
     /** Serve a database's logged tables within the limits. */
     constructor(
@@ -156,13 +170,8 @@ export class Feed implements Cache {
         queries: Readonly<Record<string, Query>>,
         after: LogPosition | undefined,
         signal: AbortSignal,
-        options: {
-            readonly audience?: Audience;
-            readonly previous?: Readonly<Record<string, Query>>;
-            readonly every?: number;
-            readonly drain?: AbortSignal;
-        } = {},
-    ): AsyncGenerator<QueryPage> {
+        options: FeedOptions = {},
+    ): AsyncGenerator<Page> {
         // resolve the queries
         const audience = options.audience ?? EVERYONE;
         const stream = new Stream(this, queries, audience, options.every);
@@ -186,7 +195,7 @@ export class Feed implements Cache {
     /**
      * Read every column of the queries' rows as one consistent snapshot run, in one read transaction.
      *
-     * The run carries what the log leaves out: unlogged tables, and binary and sensitive columns.
+     * The run includes what the log leaves out: unlogged tables and sensitive columns.
      * Rewrapping turns a row's host-bound values into values only the target unwraps.
      */
     async *capture(
@@ -195,9 +204,9 @@ export class Feed implements Cache {
         options: {
             readonly rewrap?: (table: Table, row: Row) => Promise<Row>;
         } = {},
-    ): AsyncGenerator<QueryPage> {
+    ): AsyncGenerator<Page> {
         // read in one transaction, handing each page over before reading the next
-        const handoff = new Handoff<QueryPage>();
+        const handoff = new Handoff<Page>();
         const reading = this.database
             .transaction(
                 async (transaction) => {
@@ -222,62 +231,82 @@ export class Feed implements Cache {
         database: DatabaseConnection,
         queries: Readonly<Record<string, Query>>,
         rewrap: ((table: Table, row: Row) => Promise<Row>) | undefined,
-    ): AsyncGenerator<QueryPage> {
+    ): AsyncGenerator<Page> {
         // read every query's rows page by page in key order
         const position = await database.log.position();
         const entries = Object.values(queries);
         let isFirst = true;
         for (const [index, query] of entries.entries()) {
-            // refuse a query the capture cannot read whole
-            if (query.include !== undefined) {
-                throw new SyncError(
-                    "INVALID_SCOPE",
-                    `capture reads no tables across scopes: ${query.table[TABLE].name}`,
-                );
-            }
-            const table = query.table;
-            const order = Order.complete([], table);
-            const where = Condition.render(
-                Condition.all(Node.scoped(query.scopes), query.where ?? Condition.all()),
-                Condition.bind(table),
-            );
-            let last: Row | undefined;
-            do {
-                // read the next page of the table's rows
-                const rows = (await database
-                    .select()
-                    .from(table)
-                    .where(and(where, last && Order.after(order, table, last)))
-                    .orderBy(...Order.render(order, table))
-                    .limit(CAPTURE_ROWS)) as Row[];
-                last = rows.length === CAPTURE_ROWS ? rows.at(-1) : undefined;
-
-                // send them rewrapped, completing the run with the last page
+            // send each page rewrapped and complete the run with the last page
+            for await (const { rows, isLast } of Feed.#tablePages(database, query)) {
                 const rewrapped =
                     rewrap === undefined
                         ? rows
-                        : await Promise.all(rows.map((row) => rewrap(table, row)));
+                        : await Promise.all(rows.map((row) => rewrap(query.table, row)));
                 yield {
                     reset: isFirst,
-                    complete: last === undefined && index === entries.length - 1,
-                    changes: rewrapped.map((row) => ({
-                        table: table[TABLE].sqlName,
-                        operation: "insert" as const,
-                        row: table.encode(row) as Record<string, never>,
-                    })),
+                    complete: isLast && index === entries.length - 1,
+                    changes: rewrapped.map((row) => captured(query.table, row)),
                     position,
                 };
                 isFirst = false;
-            } while (last !== undefined);
+            }
         }
     }
 
-    /** Follow one query's result until the signal aborts. */
-    async *watch(
+    /** Read one query's rows in key order a page at a time. */
+    static async *#tablePages(
+        database: DatabaseConnection,
+        query: Query,
+    ): AsyncGenerator<{ readonly rows: readonly Row[]; readonly isLast: boolean }> {
+        // refuse a query the capture cannot read whole
+        if (query.with !== undefined) {
+            throw new SyncError(
+                "INVALID_SCOPE",
+                `capture reads no tables across scopes: ${query.table[TABLE].name}`,
+            );
+        }
+        const table = query.table;
+        const order = Order.complete([], table);
+        const where = Condition.render(
+            { AND: [Node.scoped(query.scopes), query.where ?? {}] },
+            table,
+        );
+        let last: Row | undefined;
+        do {
+            // read the next page of the table's rows
+            const rows: readonly Row[] = await database
+                .select()
+                .from(table)
+                .where(and(where, last === undefined ? undefined : Order.after(order, table, last)))
+                .orderBy(...Order.render(order, table))
+                .limit(CAPTURE_ROWS);
+            last = rows.length === CAPTURE_ROWS ? rows.at(-1) : undefined;
+            yield { rows, isLast: last === undefined };
+        } while (last !== undefined);
+    }
+
+    /** Follow one query's items until the signal aborts. */
+    watch(name: string, query: Query, signal: AbortSignal): AsyncGenerator<readonly Item[]> {
+        return this.#watched(name, query, signal, (dataflow) => dataflow.read(name));
+    }
+
+    /** Follow one aggregate query's groups until the signal aborts. */
+    watchResults(
         name: string,
         query: Query,
         signal: AbortSignal,
-    ): AsyncGenerator<readonly Readonly<Record<string, unknown>>[]> {
+    ): AsyncGenerator<readonly AggregateRow[]> {
+        return this.#watched(name, query, signal, (dataflow) => dataflow.results(name));
+    }
+
+    /** Follow one query's result, read again after each change of it, until the signal aborts. */
+    async *#watched<Result>(
+        name: string,
+        query: Query,
+        signal: AbortSignal,
+        resultOf: (dataflow: Dataflow) => Promise<Result>,
+    ): AsyncGenerator<Result> {
         // compile the query
         const dataflow = new Dataflow(
             { [name]: query },
@@ -297,39 +326,61 @@ export class Feed implements Cache {
         try {
             let position: LogPosition | undefined;
             while (!signal.aborted) {
-                // hold the query and read its result
+                // run the query and read its result
                 if (position === undefined) {
                     position = await this.database.log.position();
-                    await dataflow.fill(new View(this.database, position, this));
-                    yield await dataflow.read(name);
+                    await dataflow.load(new View(this.database, position, this));
+                    yield await resultOf(dataflow);
                     continue;
                 }
 
-                // apply the changes and read the result again
-                const read = await this.changes(dataflow.watches(), position.sequence);
-                if (read === undefined) {
-                    position = undefined;
-                } else if (read.changes.length === 0) {
-                    position = { epoch: position.epoch, sequence: read.sequence };
-                    await this.next(read.sequence, signal);
-                } else {
-                    const reached = { epoch: position.epoch, sequence: read.sequence };
-                    const run = new Run(
-                        new View(this.database, reached, this),
-                        EVERYONE,
-                        undefined,
-                        read.changes,
-                    );
-                    // yield again only when the step changed the held rows or groups
-                    position = (await dataflow.step(run)) ? reached : undefined;
-                    const isChanged = run.patch.rows.size > 0 || run.patch.results.size > 0;
-                    if (position !== undefined && isChanged) {
-                        yield await dataflow.read(name);
-                    }
+                // apply the changes and read the result again when they changed it
+                const stepped = await this.#stepWatched(dataflow, position, signal);
+                position = stepped.position;
+                if (stepped.isChanged) {
+                    yield await resultOf(dataflow);
                 }
             }
         } finally {
             this.#leave();
+        }
+    }
+
+    /** Apply the changes after a watched query's position. */
+    async #stepWatched(
+        dataflow: Dataflow,
+        position: LogPosition,
+        signal: AbortSignal,
+    ): Promise<{ readonly position: LogPosition | undefined; readonly isChanged: boolean }> {
+        // start over once compacted
+        const read = await this.changes(dataflow.watches(), position.sequence);
+        if (read === undefined) {
+            return { position: undefined, isChanged: false };
+        }
+        // wait past a read without watched changes
+        else if (read.changes.length === 0) {
+            await this.next(read.sequence, signal);
+
+            return {
+                position: { epoch: position.epoch, sequence: read.sequence },
+                isChanged: false,
+            };
+        }
+        // step the dataflow through the changes
+        else {
+            const reached = { epoch: position.epoch, sequence: read.sequence };
+            const run = new Run(
+                new View(this.database, reached, this),
+                EVERYONE,
+                undefined,
+                read.changes,
+            );
+
+            // yield again only when the step changed the selected rows or groups
+            const stepped = (await dataflow.step(run)) ? reached : undefined;
+            const isChanged = run.patch.rows.size > 0 || run.patch.results.size > 0;
+
+            return { position: stepped, isChanged: stepped !== undefined && isChanged };
         }
     }
 
@@ -343,7 +394,7 @@ export class Feed implements Cache {
             return {
                 changes: this.#changes
                     .slice(this.#after(sequence))
-                    .filter((change) => this.#isWatched(watches, change)),
+                    .filter((change) => Watch.matches(watches, change)),
                 sequence: Math.max(sequence, this.#sequence),
             };
         }
@@ -392,7 +443,7 @@ export class Feed implements Cache {
             });
 
             return {
-                changes: read.changes.filter((change) => this.#isWatched(watches, change)),
+                changes: read.changes.filter((change) => Watch.matches(watches, change)),
                 sequence: read.sequence,
             };
         } catch (error) {
@@ -406,63 +457,26 @@ export class Feed implements Cache {
     /** Read the images a table's rows had before their first change between two sequences, by key. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>> {
         // share the images per range
-        return this.share(after, `images:${table[TABLE].sqlName}:${upto}`, async () => {
-            // read from the log unless memory holds the range
+        return this.#images.share(after, `images:${table[TABLE].sqlName}:${upto}`, async () => {
+            // read from the log unless memory has the range
             if (upto <= after || after < this.#start || this.#sequence < upto) {
                 return this.database.log.images(table, after, upto);
             }
             const images = new Map<string, Row | null>();
             for (let index = this.#after(after); index < this.#changes.length; index += 1) {
                 // keep each row's first change in the range
-                const change = this.#changes[index]!;
+                const change = aligned(this.#changes, index);
                 if (change.sequence > upto) {
                     break;
                 }
                 const key = change.table === table ? Key.name(table, change.key) : undefined;
                 if (key !== undefined && !images.has(key)) {
-                    images.set(key, (change.before as Row | undefined) ?? null);
+                    images.set(key, Change.before(change));
                 }
             }
 
             return images;
         });
-    }
-
-    /** Compute a keyed read or encoding once per log sequence, forgetting failed reads. */
-    share<Value>(sequence: number, key: string, compute: () => Value): Value {
-        // reuse a read of the same sequence
-        let reads = this.#reads.get(sequence);
-        if (reads?.has(key) === true) {
-            return reads.get(key) as Value;
-        }
-
-        // start the sequence's reads, dropping the oldest beyond the kept number
-        if (reads === undefined) {
-            reads = new Map<string, unknown>();
-            this.#reads.set(sequence, reads);
-            if (this.#reads.size > SHARED_READS) {
-                this.#reads.delete(Math.min(...this.#reads.keys()));
-            }
-        }
-
-        // read, forgetting a failed read
-        const value = compute();
-        reads.set(key, value);
-        if (value instanceof Promise) {
-            const shared = reads;
-            value.catch(() => {
-                if (shared.get(key) === value) {
-                    shared.delete(key);
-                }
-            });
-        }
-
-        return value;
-    }
-
-    /** Decide whether a read for a sequence is shared. */
-    isShared(sequence: number, key: string): boolean {
-        return this.#reads.get(sequence)?.has(key) === true;
     }
 
     /** Share the evaluation of streams deciding alike at a position, returning the one to follow. */
@@ -482,13 +496,13 @@ export class Feed implements Cache {
 
         // join a shared evaluation at the same position, or share this one
         const shared = this.#evaluations.get(key);
-        const held = shared?.position;
+        const current = shared?.position;
         if (
             shared !== undefined &&
-            held?.epoch === position.epoch &&
-            held.sequence === position.sequence
+            current?.epoch === position.epoch &&
+            current.sequence === position.sequence
         ) {
-            this.#shares.get(shared)!.streams += 1;
+            found(this.#shares, shared).streams += 1;
 
             return shared;
         } else if (shared === undefined) {
@@ -549,7 +563,7 @@ export class Feed implements Cache {
         let high = this.#changes.length;
         while (low < high) {
             const middle = (low + high) >>> 1;
-            if (this.#changes[middle]!.sequence <= sequence) {
+            if (aligned(this.#changes, middle).sequence <= sequence) {
                 low = middle + 1;
             } else {
                 high = middle;
@@ -569,7 +583,10 @@ export class Feed implements Cache {
             this.#follow(reading.signal).catch((error: unknown) => {
                 // report the failure to this reading's subscribers
                 if (this.#reading === reading) {
-                    this.#failure = error;
+                    this.#failure =
+                        error instanceof Error
+                            ? error
+                            : new TypeError("feed reading failed", { cause: error });
                     this.#wake();
                 }
             });
@@ -585,7 +602,10 @@ export class Feed implements Cache {
             this.#changes = [];
             this.#start = Number.POSITIVE_INFINITY;
             this.#sequence = -1;
-            this.#reads.clear();
+            this.rows.clear();
+            this.row.clear();
+            this.encodings.clear();
+            this.#images.clear();
             this.#evaluations.clear();
         }
     }
@@ -613,7 +633,7 @@ export class Feed implements Cache {
             this.#sequence = page.sequence;
             if (this.#changes.length > this.#memory) {
                 const dropped = this.#changes.splice(0, this.#changes.length - this.#memory);
-                this.#start = dropped.at(-1)!.sequence;
+                this.#start = aligned(dropped, dropped.length - 1).sequence;
             }
             this.#wake();
         }
@@ -625,32 +645,23 @@ export class Feed implements Cache {
             wake();
         }
     }
+}
 
-    /** Decide whether a change is of a watched table, scope and row. */
-    #isWatched(watches: readonly Watch[], change: Change): boolean {
-        return watches.some((entry) => {
-            // require the table and scope
-            if (
-                entry.table !== change.table ||
-                (entry.scopes !== "every" && !entry.scopes.includes(change.scope))
-            ) {
-                return false;
-            } else if (entry.where === undefined) {
-                return true;
-            }
+/** Encode a captured row as an inserting change. */
+function captured(table: Table, row: Row): RowChange {
+    return { table: table[TABLE].sqlName, operation: "insert", row: table[TABLE].encode(row) };
+}
 
-            // require the row to match before or after the change
-            let match = this.#watchedRows.get(entry);
-            if (match === undefined) {
-                match = Condition.compile(entry.where, entry.table);
-                this.#watchedRows.set(entry, match);
-            }
-
-            return [change.before, change.after].some(
-                (image) => image !== undefined && Condition.matches(match, image),
-            );
-        });
-    }
+/** How a subscriber follows a feed's queries. */
+export interface FeedOptions {
+    /** The audience the rows are decided for, everyone by default. */
+    readonly audience?: Audience;
+    /** The queries the subscriber's copy reflects, which the first page is a difference from. */
+    readonly previous?: Readonly<Record<string, Query>>;
+    /** The interval pages at the head merge within, in milliseconds. */
+    readonly every?: number;
+    /** The signal ending the stream after its next completed page. */
+    readonly drain?: AbortSignal;
 }
 
 /** The inspection of a feed. */
@@ -677,7 +688,7 @@ export interface FeedInspection {
 /** One value at a time from a producer to a consumer, the producer waiting until the consumer takes each. */
 class Handoff<Value> {
     /** The value given and not yet taken, with the wake-up of its giver. */
-    #held: { readonly value: Value; readonly taken: () => void } | undefined;
+    #given: { readonly value: Value; readonly taken: () => void } | undefined;
     /** The wake-up of a consumer waiting for a value. */
     #waiting: (() => void) | undefined;
     /** Whether the producer ended. */
@@ -693,7 +704,7 @@ class Handoff<Value> {
         }
 
         return new Promise((taken) => {
-            this.#held = { value, taken };
+            this.#given = { value, taken };
             this.#wake();
         });
     }
@@ -701,7 +712,7 @@ class Handoff<Value> {
     /** End the values. */
     end(): void {
         this.#isEnded = true;
-        this.#held?.taken();
+        this.#given?.taken();
         this.#wake();
     }
 
@@ -715,18 +726,18 @@ class Handoff<Value> {
     async *take(): AsyncGenerator<Value> {
         for (;;) {
             // wait for a value or the end
-            if (this.#held === undefined && !this.#isEnded) {
+            if (this.#given === undefined && !this.#isEnded) {
                 await new Promise<void>((wake) => {
                     this.#waiting = wake;
                 });
             }
 
-            // hand over the held value
-            const held = this.#held;
-            if (held !== undefined) {
-                this.#held = undefined;
-                held.taken();
-                yield held.value;
+            // hand over the given value
+            const given = this.#given;
+            if (given !== undefined) {
+                this.#given = undefined;
+                given.taken();
+                yield given.value;
             }
             // rethrow the producer's failure
             else if (this.#failure !== undefined) {

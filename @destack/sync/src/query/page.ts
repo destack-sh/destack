@@ -1,19 +1,5 @@
-import { Failure } from "../call/outcome.ts";
-import { Scalar } from "@destack/db/query";
+import { Scalar, LogPosition } from "@destack/db";
 import { defineSchema, schema } from "@destack/schema";
-import { LogPosition } from "@destack/db/log";
-
-/** The source's outcome of a subscriber's mutation. */
-export const MutationOutcome = defineSchema(
-    schema.object({
-        /** The mutation's request identifier. */
-        id: schema.string().min(1),
-        /** The recorded failure, absent once executed. */
-        error: Failure.optional(),
-    }),
-);
-/** The source's outcome of a subscriber's mutation. */
-export type MutationOutcome = schema.Infer<typeof MutationOutcome>;
 
 /** One row entering, changing within or leaving a subscriber's rows. */
 export const RowChange = defineSchema(
@@ -25,9 +11,9 @@ export const RowChange = defineSchema(
         /** The row's columns as JSON, or its key for a deletion. */
         row: schema.record(schema.string(), schema.json()),
         /** The row before an update, as JSON. */
-        before: schema.record(schema.string(), schema.json()).optional(),
+        before: schema.record(schema.string(), schema.json()).exactOptional(),
         /** The columns the subscriber may not read. */
-        concealed: schema.array(schema.string()).optional(),
+        concealed: schema.array(schema.string()).exactOptional(),
     }),
 );
 /** One row entering, changing within or leaving a subscriber's rows. */
@@ -43,11 +29,11 @@ export const ResultChange = defineSchema(
         /** The group's measures, or null once empty. */
         values: schema.record(schema.string(), Scalar).nullable(),
         /** The group's row count. */
-        rows: schema.number().int().positive().optional(),
+        rows: schema.number().int().positive().exactOptional(),
         /** Each average's sum and count of present values. */
         parts: schema
             .record(schema.string(), schema.object({ sum: Scalar, count: schema.number().int() }))
-            .optional(),
+            .exactOptional(),
     }),
 );
 /** One aggregate group taking new values or leaving, or every group leaving. */
@@ -66,25 +52,23 @@ export const Broadcast = defineSchema(
 export type Broadcast = schema.Infer<typeof Broadcast>;
 
 /** A page of query rows and aggregates. */
-export const QueryPage = defineSchema(
+export const Page = defineSchema(
     schema.object({
         /** Whether the page starts a snapshot. */
         reset: schema.boolean(),
-        /** Whether the subscriber holds all its queries after the page. */
+        /** Whether the subscriber has all its queries after the page. */
         complete: schema.boolean(),
         /** The row changes. */
         changes: schema.array(RowChange),
         /** The group changes. */
-        results: schema.array(ResultChange).optional(),
+        results: schema.array(ResultChange).exactOptional(),
         /** The log position to continue after. */
         position: LogPosition,
-        /** The outcomes of the subscriber's mutations. */
-        outcomes: schema.array(MutationOutcome).optional(),
         /** The events since the last page. */
-        broadcasts: schema.array(Broadcast).optional(),
+        broadcasts: schema.array(Broadcast).exactOptional(),
         /** The scopes the subscription reads, nearest first, when its source sends them. */
-        scopes: schema.array(schema.string().min(1)).optional(),
+        scopes: schema.array(schema.string().min(1)).exactOptional(),
     }),
 );
 /** A page of query rows and aggregates. */
-export type QueryPage = schema.Infer<typeof QueryPage>;
+export type Page = schema.Infer<typeof Page>;

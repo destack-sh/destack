@@ -1,10 +1,18 @@
-import { sql, type SQL, type Table } from "@destack/db";
-import { type Condition } from "@destack/db/query";
-import type { Change, LogPosition } from "@destack/db/log";
-import type { Row } from "@destack/db";
+import {
+    sql,
+    type SQL,
+    type Table,
+    Condition,
+    Change,
+    type LogPosition,
+    type Match,
+    Namespace,
+    Predicate,
+    type Row,
+} from "@destack/db";
 import type { Query } from "../query/query.ts";
 
-/** An audience that holds and reads every row. */
+/** An audience that admits and reads every row. */
 export const EVERYONE: Audience = {
     watches: [],
     where: () => sql`true`,
@@ -17,15 +25,15 @@ export const EVERYONE: Audience = {
     refresh: async () => {},
 };
 
-/** Who a subscription serves: the rows it may hold and the columns it may read. */
+/** Who a subscription serves: the rows it may have and the columns it may read. */
 export interface Audience {
     /** The tables whose changes decide visibility. */
     readonly watches: readonly Watch[];
-    /** Match the rows of a table the subscriber may hold, as SQL, or "memory" when only `admits` decides. */
+    /** Match the rows of a table the subscriber may have, as SQL, or "memory" when only `admits` decides. */
     where(table: Table): SQL | "memory";
     /** The name of everything the audience decides. */
     readonly key: string;
-    /** Decide which rows of a table the subscriber may hold, by index. */
+    /** Decide which rows of a table the subscriber may have, by index. */
     admits(table: Table, rows: readonly Row[], position: LogPosition): Promise<ReadonlySet<number>>;
     /** List the columns of a table the subscriber may not read on some rows. */
     concealable(table: Table): readonly string[];
@@ -43,7 +51,7 @@ export interface Audience {
     dependents(change: Change): Promise<readonly RowKey[] | "everything">;
 }
 
-/** The tables and scopes whose changes decide what a subscriber holds. */
+/** The tables and scopes whose changes decide what a subscriber has. */
 export interface Watch {
     /** The logged table. */
     readonly table: Table;
@@ -52,6 +60,39 @@ export interface Watch {
     /** The rows whose changes matter, absent for every row. */
     readonly where?: Condition;
 }
+
+/** The compiled row conditions of watches. */
+const MATCHES = new WeakMap<Watch, Match>();
+
+/** Watches of logged tables. */
+export const Watch = {
+    /** Decide whether a change is of a watched table, scope and row. */
+    matches(watches: readonly Watch[], change: Change): boolean {
+        return watches.some((entry) => {
+            // require the table and scope
+            if (
+                entry.table !== change.table ||
+                (entry.scopes !== "every" && !entry.scopes.includes(change.scope))
+            ) {
+                return false;
+            } else if (entry.where === undefined) {
+                return true;
+            }
+
+            // require the row to match before or after the change
+            let match = MATCHES.get(entry);
+            if (match === undefined) {
+                const predicate = Condition.resolve(entry.where, Namespace.fields(entry.table));
+                match = Predicate.compile(predicate, entry.table);
+                MATCHES.set(entry, match);
+            }
+
+            return [Change.before(change), Change.after(change)].some(
+                (image) => image !== null && Predicate.matches(match, image),
+            );
+        });
+    },
+};
 
 /** Join the scopes some watches read for one log read, absent when one reads every scope. */
 export function watchedScopes(watches: readonly Watch[]): string[] | undefined {

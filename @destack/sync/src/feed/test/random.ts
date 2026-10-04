@@ -27,6 +27,11 @@ export class Random {
 
     /** Pick one element. */
     pick<Value>(values: readonly Value[]): Value {
-        return values[this.integer(values.length)]!;
+        const value = values[this.integer(values.length)];
+        if (value === undefined) {
+            throw new RangeError("a pick from no values");
+        }
+
+        return value;
     }
 }

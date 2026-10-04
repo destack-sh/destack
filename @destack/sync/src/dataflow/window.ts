@@ -1,7 +1,8 @@
-import type { Row } from "@destack/db";
+import type { ColumnValue, Row } from "@destack/db";
+import { aligned } from "@destack/schema";
 
 /**
- * The most entries one chunk of a window holds before it splits.
+ * The most entries one chunk of a window has before it splits.
  *
  * An insert moves at most 512 pointers, well under a microsecond, and 100k entries span 200 chunks.
  */
@@ -11,24 +12,24 @@ const CHUNK_ENTRIES = 512;
 export class Window {
     /** The complete row order, ending with the key. */
     readonly #compare: (left: Row, right: Row) => number;
-    /** The most rows the window holds. */
+    /** The most rows the window has. */
     readonly #limit: number;
-    /** The known rows in order, in chunks, the held ones first. */
+    /** The known rows in order, in chunks, the present ones first. */
     readonly #chunks: Entry[][] = [];
     /** The row each known key sorts as. */
     readonly #rows = new Map<string, Row>();
     /** The partition's join value, absent for a root. */
-    readonly value: unknown;
+    readonly value: ColumnValue;
     /** Whether the window keeps every candidate. */
     readonly isArranged: boolean;
     /** Whether no candidate follows the last known row. */
     #isExhaustive: boolean;
 
-    /** Order the rows of a partition and hold the first up to a limit. */
+    /** Order the rows of a partition and keep the first up to a limit. */
     constructor(
         compare: (left: Row, right: Row) => number,
         limit: number,
-        value: unknown,
+        value: ColumnValue,
         entries: readonly Entry[],
         isArranged: boolean,
     ) {
@@ -40,7 +41,7 @@ export class Window {
         this.#isExhaustive = isArranged || entries.length < limit;
 
         // chunk the entries in their order
-        const sorted = [...entries].sort((left, right) => compare(left.row, right.row));
+        const sorted = entries.toSorted((left, right) => compare(left.row, right.row));
         for (let start = 0; start < sorted.length; start += CHUNK_ENTRIES) {
             this.#chunks.push(sorted.slice(start, start + CHUNK_ENTRIES));
         }
@@ -49,15 +50,15 @@ export class Window {
         }
     }
 
-    /** Whether the window holds a row. */
-    holds(key: string): boolean {
+    /** Whether the window has a row. */
+    has(key: string): boolean {
         const row = this.#rows.get(key);
 
-        return row !== undefined && this.#isHeldAt(...this.#locate(row));
+        return row !== undefined && this.#isPresentAt(...this.#locate(row));
     }
 
-    /** The keys of the held rows, in order. */
-    held(): string[] {
+    /** The keys of the present rows, in order. */
+    keys(): string[] {
         // walk the chunks up to the limit
         const keys: string[] = [];
         for (const chunk of this.#chunks) {
@@ -73,7 +74,7 @@ export class Window {
     }
 
     /** The keys of the rows the window knows. */
-    keys(): IterableIterator<string> {
+    known(): IterableIterator<string> {
         return this.#rows.keys();
     }
 
@@ -82,7 +83,7 @@ export class Window {
         return this.#rows.size;
     }
 
-    /** Whether the window holds its limit of rows. */
+    /** Whether the window has its limit of rows. */
     get isFull(): boolean {
         return this.#rows.size >= this.#limit;
     }
@@ -97,35 +98,37 @@ export class Window {
         return this.#chunks.at(-1)?.at(-1)?.row;
     }
 
-    /** Place a row in order, returning whether it is held and the key it evicted. */
-    place(key: string, row: Row): { readonly isHeld: boolean; readonly evicted?: string } {
+    /** Place a row in order, returning whether it is present and the key it evicted. */
+    place(key: string, row: Row): { readonly isPresent: boolean; readonly evicted?: string } {
         // take the row out and leave rows beyond a bounded window to a refill
-        const boundary = this.last;
-        const wasHeld = this.remove(key);
-        const isBeyond =
-            boundary === undefined ? !this.#isExhaustive : this.#compare(row, boundary) > 0;
+        const edge = this.last;
+        const wasPresent = this.remove(key);
+        const isBeyond = edge === undefined ? !this.#isExhaustive : this.#compare(row, edge) > 0;
         if (!this.isArranged && isBeyond && (!this.#isExhaustive || this.isFull)) {
             this.#isExhaustive &&= !this.isFull;
 
-            return { isHeld: false };
+            return { isPresent: false };
         }
 
         // insert the row in order
         const [chunk, index] = this.#locate(row);
-        const isHeld = this.#isHeldAt(chunk, index);
+        const isPresent = this.#isPresentAt(chunk, index);
         this.#insert(chunk, index, { key, row });
 
-        // evict the row after the held ones when the row entered
-        if (!isHeld || wasHeld || this.#rows.size <= this.#limit) {
-            return { isHeld };
+        // evict the row after the present ones when the row entered
+        if (!isPresent || wasPresent || this.#rows.size <= this.#limit) {
+            return { isPresent };
         }
-        const evicted = this.#at(this.#limit)!;
+        const evicted = this.#at(this.#limit);
+        if (evicted === undefined) {
+            throw new RangeError(`a window over its limit of ${this.#limit} lacks the evicted row`);
+        }
         if (!this.isArranged) {
             this.remove(evicted.key);
             this.#isExhaustive = false;
         }
 
-        return { isHeld, evicted: evicted.key };
+        return { isPresent, evicted: evicted.key };
     }
 
     /** Append a refill's rows after the last row. */
@@ -139,7 +142,7 @@ export class Window {
         this.#isExhaustive = entries.length < requested;
     }
 
-    /** Take a row out, returning whether the window held it. */
+    /** Take a row out, returning whether the window had it. */
     remove(key: string): boolean {
         // find the row by its sort values
         const row = this.#rows.get(key);
@@ -147,17 +150,17 @@ export class Window {
             return false;
         }
         const [chunk, index] = this.#locate(row);
-        const wasHeld = this.#isHeldAt(chunk, index);
+        const wasPresent = this.#isPresentAt(chunk, index);
 
         // take it out, dropping an emptied chunk
-        const entries = this.#chunks[chunk]!;
+        const entries = aligned(this.#chunks, chunk);
         entries.splice(index, 1);
         if (entries.length === 0) {
             this.#chunks.splice(chunk, 1);
         }
         this.#rows.delete(key);
 
-        return wasHeld;
+        return wasPresent;
     }
 
     /** Find the chunk and index where a row sorts. */
@@ -167,7 +170,8 @@ export class Window {
         let high = this.#chunks.length - 1;
         while (low < high) {
             const middle = (low + high) >>> 1;
-            if (this.#compare(this.#chunks[middle]!.at(-1)!.row, row) < 0) {
+            const chunk = aligned(this.#chunks, middle);
+            if (this.#compare(aligned(chunk, chunk.length - 1).row, row) < 0) {
                 low = middle + 1;
             } else {
                 high = middle;
@@ -180,7 +184,7 @@ export class Window {
         let end = entries.length;
         while (start < end) {
             const middle = (start + end) >>> 1;
-            if (this.#compare(entries[middle]!.row, row) < 0) {
+            if (this.#compare(aligned(entries, middle).row, row) < 0) {
                 start = middle + 1;
             } else {
                 end = middle;
@@ -208,11 +212,11 @@ export class Window {
         }
     }
 
-    /** Whether the entry at a chunk's index is among the held rows. */
-    #isHeldAt(chunk: number, index: number): boolean {
+    /** Whether the entry at a chunk's index is among the present rows. */
+    #isPresentAt(chunk: number, index: number): boolean {
         let position = index;
         for (let before = 0; before < chunk && position < this.#limit; before += 1) {
-            position += this.#chunks[before]!.length;
+            position += aligned(this.#chunks, before).length;
         }
 
         return position < this.#limit;

@@ -1,9 +1,10 @@
-import { Key, type Row, type Table } from "@destack/db";
-import { Order } from "@destack/db/query";
+import { Key, type ColumnValue, type Row, type Table, Order } from "@destack/db";
+import { found, zip } from "@destack/schema";
 import { Node } from "../query/node.ts";
+import type { JunctionPath, KeyPath, TreePath } from "@destack/db";
 import type { Run } from "./run.ts";
 
-/** The source of a node's rows: a scan of a root's scopes, or a join to held parent rows. */
+/** The source of a node's rows: a scan of a root's scopes, or a join to selected parent rows. */
 export abstract class Input {
     /** The node whose rows the input reads. */
     readonly node: Node;
@@ -16,30 +17,33 @@ export abstract class Input {
     /** Create the input of a node's path. */
     static of(node: Node, hasTreeIndex: boolean): Input {
         const path = node.path;
-
-        return path === undefined
-            ? new Scan(node)
-            : path.kind === "key"
-              ? new KeyJoin(node)
-              : path.kind === "junction"
-                ? new JunctionJoin(node)
-                : new TreeJoin(node, hasTreeIndex);
+        switch (path?.kind) {
+            case undefined:
+                return new Scan(node);
+            case "key":
+                return new KeyJoin(node, path);
+            case "junction":
+                return new JunctionJoin(node, path);
+            case "descendants":
+            case "ancestors":
+                return new TreeJoin(node, path, hasTreeIndex);
+        }
     }
 
-    /** Read each partition's rows, aligned with the held values naming them. */
-    abstract members(values: readonly unknown[], run: Run): Promise<Row[][]>;
+    /** Read each partition's rows, aligned with the parent values naming them. */
+    abstract members(values: readonly ColumnValue[], run: Run): Promise<Row[][]>;
 
-    /** Read the held values naming each row's partitions. */
-    abstract locate(rows: readonly Row[], run: Run): Promise<unknown[][]>;
+    /** Read the parent values naming each row's partitions. */
+    abstract locate(rows: readonly Row[], run: Run): Promise<ColumnValue[][]>;
 
     /** Add the rows a changed row moves beyond itself to the rows to decide again. */
     async moves(
         _table: Table,
-        _before: Row | undefined,
-        _after: Row | undefined,
+        _before: Row | null,
+        _after: Row | null,
         _isAccess: boolean,
         _run: Run,
-        _dirty: Map<string, Row | undefined>,
+        _dirty: Map<string, Row | null>,
     ): Promise<void> {}
 
     /** Keep the visible rows of a table in the node's scopes. */
@@ -54,54 +58,62 @@ export abstract class Input {
 /** A root's one partition: every row of its scopes. */
 class Scan extends Input {
     /** Read every row of the scopes. */
-    async members(values: readonly unknown[], run: Run): Promise<Row[][]> {
+    async members(values: readonly ColumnValue[], run: Run): Promise<Row[][]> {
         const rows = await run.view.matching(this.node.table, Node.scoped(this.node.scopes));
 
         return values.map(() => rows);
     }
 
     /** Place every row in the one partition. */
-    async locate(rows: readonly Row[]): Promise<unknown[][]> {
-        return rows.map(() => [undefined]);
+    async locate(rows: readonly Row[]): Promise<ColumnValue[][]> {
+        return rows.map(() => [null]);
     }
 }
 
-/** A key path: the rows whose column holds a held row's value. */
+/** A key path: the rows whose column has a selected row's value. */
 class KeyJoin extends Input {
-    /** The included row's column. */
-    get #column(): string {
-        return (this.node.path as { readonly column: string }).column;
+    /** The path. */
+    readonly #path: KeyPath;
+
+    /** Create the input of a key path. */
+    constructor(node: Node, path: KeyPath) {
+        super(node);
+        this.#path = path;
     }
 
-    /** Read the rows holding each value. */
-    async members(values: readonly unknown[], run: Run): Promise<Row[][]> {
+    /** Read the rows with each value. */
+    async members(values: readonly ColumnValue[], run: Run): Promise<Row[][]> {
         const read = await run.view.lookup(
             this.node.table,
-            values.map((value) => ({ [this.#column]: value })),
+            values.map((value) => ({ [this.#path.column]: value })),
         );
 
         return read.map((rows) => [...rows]);
     }
 
     /** Name each row's own value. */
-    async locate(rows: readonly Row[]): Promise<unknown[][]> {
+    async locate(rows: readonly Row[]): Promise<ColumnValue[][]> {
         return rows.map((row) => {
-            const value = row[this.#column];
+            const value = row[this.#path.column];
 
             return value === null || value === undefined ? [] : [value];
         });
     }
 }
 
-/** A junction path: the rows a held row's visible join rows name. */
+/** A junction path: the rows a selected row's visible join rows name. */
 class JunctionJoin extends Input {
     /** The path. */
-    get #path(): Extract<NonNullable<Node["path"]>, { readonly kind: "junction" }> {
-        return this.node.path as Extract<NonNullable<Node["path"]>, { readonly kind: "junction" }>;
+    readonly #path: JunctionPath;
+
+    /** Create the input of a junction path. */
+    constructor(node: Node, path: JunctionPath) {
+        super(node);
+        this.#path = path;
     }
 
     /** Read the rows each value's visible join rows name, once each. */
-    async members(values: readonly unknown[], run: Run): Promise<Row[][]> {
+    async members(values: readonly ColumnValue[], run: Run): Promise<Row[][]> {
         // read the visible join rows naming each value
         const path = this.#path;
         const joins = await run.view.lookup(
@@ -114,7 +126,7 @@ class JunctionJoin extends Input {
         // read the named rows at once
         const targets = await run.view.lookup(
             this.node.table,
-            named.flat().map((join) => ({ [path.to.key]: join[path.to.column] })),
+            named.flat().map((join) => ({ [path.to.key]: valueOf(join, path.to.column) })),
         );
 
         return unflatten(targets, named).map((reached) => [
@@ -122,19 +134,19 @@ class JunctionJoin extends Input {
         ]);
     }
 
-    /** Name the held values each row's visible join rows join. */
-    async locate(rows: readonly Row[], run: Run): Promise<unknown[][]> {
+    /** Name the parent values each row's visible join rows join. */
+    async locate(rows: readonly Row[], run: Run): Promise<ColumnValue[][]> {
         // read the visible join rows naming each row
         const path = this.#path;
         const joins = await run.view.lookup(
             path.table,
-            rows.map((row) => ({ [path.to.column]: row[path.to.key] })),
+            rows.map((row) => ({ [path.to.column]: valueOf(row, path.to.key) })),
         );
         const passable = new Set(await this.passable(path.table, joins.flat(), run));
 
         // name each distinct value once
         return joins.map((entries) => {
-            const values = new Map<string, unknown>();
+            const values = new Map<string, ColumnValue>();
             for (const join of entries) {
                 const value = join[path.from.column];
                 if (passable.has(join) && value !== null && value !== undefined) {
@@ -147,23 +159,23 @@ class JunctionJoin extends Input {
     }
 
     /** Decide again the rows a changed join row names. */
-    async moves(
+    override async moves(
         table: Table,
-        before: Row | undefined,
-        after: Row | undefined,
+        before: Row | null,
+        after: Row | null,
         _isAccess: boolean,
         run: Run,
-        dirty: Map<string, Row | undefined>,
+        dirty: Map<string, Row | null>,
     ): Promise<void> {
         // follow the join row's images
         const path = this.#path;
         if (table !== path.table) {
             return;
         }
-        const images = [before, after].filter((image): image is Row => image !== undefined);
+        const images = [before, after].filter((image): image is Row => image !== null);
         const named = await run.view.lookup(
             this.node.table,
-            images.map((image) => ({ [path.to.key]: image[path.to.column] })),
+            images.map((image) => ({ [path.to.key]: valueOf(image, path.to.column) })),
         );
         for (const row of named.flat()) {
             dirty.set(this.node.keyOf(row), row);
@@ -171,9 +183,9 @@ class JunctionJoin extends Input {
     }
 }
 
-/** A tree path: every visible row below or above a held row. */
+/** A tree path: every visible row below or above a selected row. */
 export class TreeJoin extends Input {
-    /** Whether the database holds the tree index. */
+    /** Whether the database has the tree index. */
     readonly #isIndexed: boolean;
     /** Whether the path reaches down, to descendants. */
     readonly #isDown: boolean;
@@ -183,46 +195,50 @@ export class TreeJoin extends Input {
     readonly #key: string;
 
     /** Create the input of a tree path. */
-    constructor(node: Node, isIndexed: boolean) {
+    constructor(node: Node, path: TreePath, isIndexed: boolean) {
         // note the direction and columns
         super(node);
+        const [key] = node.key;
+        if (key === undefined || node.key.length !== 1) {
+            throw new TypeError(`${node.name} follows a tree by one key column`);
+        }
         this.#isIndexed = isIndexed;
-        this.#isDown = node.path!.kind === "descendants";
-        this.#column = (node.path as { readonly column: string }).column;
-        this.#key = node.key[0]!;
+        this.#isDown = path.kind === "descendants";
+        this.#column = path.column;
+        this.#key = key;
     }
 
-    /** Read the rows below each held row, or above it. */
-    async members(values: readonly unknown[], run: Run): Promise<Row[][]> {
-        // read the held rows and the rows they reach
-        const held = await run.view.keyed(
+    /** Read the rows below each selected row, or above it. */
+    async members(values: readonly ColumnValue[], run: Run): Promise<Row[][]> {
+        // read the parent rows and the rows they relate to
+        const parents = await run.view.keyed(
             this.node.table,
             values.map((value) => ({ [this.#key]: value })),
         );
-        const present = held.filter((row): row is Row => row !== undefined);
+        const present = parents.filter((row): row is Row => row !== null);
         const reached = this.#isDown
             ? await this.below(present, run)
             : await this.above(present, run);
-        const byRow = new Map(present.map((row, index) => [row, reached[index]!]));
+        const byRow = new Map(zip(present, reached));
 
-        return held.map((row) => (row === undefined ? [] : byRow.get(row)!));
+        return parents.map((row) => (row === null ? [] : found(byRow, row)));
     }
 
     /** Name the visible rows above or below each row. */
-    async locate(rows: readonly Row[], run: Run): Promise<unknown[][]> {
+    async locate(rows: readonly Row[], run: Run): Promise<ColumnValue[][]> {
         const reached = this.#isDown ? await this.above(rows, run) : await this.below(rows, run);
 
-        return reached.map((entries) => entries.map((entry) => entry[this.#key]));
+        return reached.map((entries) => entries.map((entry) => valueOf(entry, this.#key)));
     }
 
-    /** Decide again the rows a changed row carries along a tree. */
-    async moves(
+    /** Decide again the rows below a changed row along a tree. */
+    override async moves(
         table: Table,
-        before: Row | undefined,
-        after: Row | undefined,
+        before: Row | null,
+        after: Row | null,
         isAccess: boolean,
         run: Run,
-        dirty: Map<string, Row | undefined>,
+        dirty: Map<string, Row | null>,
     ): Promise<void> {
         // follow a copy's tree row
         const node = this.node;
@@ -230,11 +246,13 @@ export class TreeJoin extends Input {
         if (!this.#isIndexed && table === node.table) {
             const isMoved =
                 isAccess ||
-                before === undefined ||
-                after === undefined ||
+                before === null ||
+                after === null ||
                 Order.missingFirst(before[this.#column], after[this.#column]) !== 0 ||
                 (await this.#passes(before, run)) !== (await this.#passes(after, run));
-            const images = isMoved ? [before, after].filter((image) => image !== undefined) : [];
+            const images = isMoved
+                ? [before, after].filter((image): image is Row => image !== null)
+                : [];
             const reached = this.#isDown
                 ? await this.below(images, run)
                 : await this.above(images, run);
@@ -245,8 +263,8 @@ export class TreeJoin extends Input {
         // follow a tree index row
         else if (this.#isIndexed && table === node.closure) {
             const ends = [before, after]
-                .filter((image): image is Row => image !== undefined && image.depth !== 0)
-                .map((image) => image[end]);
+                .filter((image): image is Row => image !== null && image["depth"] !== 0)
+                .map((image) => valueOf(image, end));
             await this.#mark(ends, run, dirty);
         }
         // follow a tree row whose visibility may change
@@ -255,40 +273,44 @@ export class TreeJoin extends Input {
             table === node.table &&
             (isAccess || (await this.#passes(before, run)) !== (await this.#passes(after, run)))
         ) {
+            const image = after ?? before;
+            if (image === null) {
+                return;
+            }
             const other = end === "descendant" ? "ancestor" : "descendant";
-            const [paths] = await run.view.lookup(node.closure!, [
-                node.paths((after ?? before)!, other),
-            ]);
-            const ends = paths!.filter((path) => path.depth !== 0).map((path) => path[end]);
+            const [paths = []] = await run.view.lookup(this.#closure(), [node.paths(image, other)]);
+            const ends = paths
+                .filter((path) => path["depth"] !== 0)
+                .map((path) => valueOf(path, end));
             await this.#mark(ends, run, dirty);
         }
     }
 
-    /** Read the rows strictly between each member and its held row. */
+    /** Read the rows strictly between each member and its parent row. */
     async between(
-        pairs: readonly { readonly member: Row; readonly value: unknown }[],
+        pairs: readonly { readonly member: Row; readonly value: ColumnValue }[],
         run: Run,
     ): Promise<Row[][]> {
         // walk up from the lower row of each pair
         const key = this.#key;
-        const held = this.#isDown
-            ? []
+        const parents = this.#isDown
+            ? pairs.map(() => null)
             : await run.view.keyed(
                   this.node.table,
                   pairs.map(({ value }) => ({ [key]: value })),
               );
-        const lower = pairs.map(({ member }, index) => (this.#isDown ? member : held[index]));
-        const present = lower.filter((row): row is Row => row !== undefined);
-        const reached = await this.above(present, run);
-        const byRow = new Map(present.map((row, index) => [row, reached[index]!]));
+        const lower = zip(pairs, parents).map(([{ member }, parent]) =>
+            this.#isDown ? member : parent,
+        );
+        const present = lower.filter((row): row is Row => row !== null);
+        const byRow = new Map(zip(present, await this.above(present, run)));
 
         // keep the rows up to the upper row
-        return pairs.map(({ member, value }, index) => {
+        return zip(pairs, lower).map(([{ member, value }, row]) => {
             // walk up until the upper row
             const upper = this.#isDown ? value : member[key];
             const rows: Row[] = [];
-            const row = lower[index];
-            for (const entry of row === undefined ? [] : byRow.get(row)!) {
+            for (const entry of row === null ? [] : found(byRow, row)) {
                 if (Order.values(entry[key], upper) === 0) {
                     return rows;
                 }
@@ -309,33 +331,33 @@ export class TreeJoin extends Input {
         // read the ancestors from the index
         const node = this.node;
         const paths = await run.view.lookup(
-            node.closure!,
+            this.#closure(),
             rows.map((row) => node.paths(row, "descendant")),
         );
-        const nearest = paths.map((entries) =>
-            entries
-                .filter((path) => (path.depth as number) > 0)
-                .sort((left, right) => (left.depth as number) - (right.depth as number)),
-        );
+        const nearest = paths.map((entries) => byDepth(entries));
         const ancestors = await run.view.keyed(
             node.table,
-            nearest.flat().map((path) => ({ [this.#key]: path.ancestor })),
+            nearest.flat().map((path) => ({ [this.#key]: valueOf(path, "ancestor") })),
         );
         const passable = new Set(
             await this.passable(
                 node.table,
-                ancestors.filter((row): row is Row => row !== undefined),
+                ancestors.filter((row): row is Row => row !== null),
                 run,
             ),
         );
 
         // keep ancestors up to the first impassable row
         return unflatten(ancestors, nearest).map((entries) => {
-            const blocked = entries.findIndex(
-                (ancestor) => ancestor === undefined || !passable.has(ancestor),
-            );
+            const kept: Row[] = [];
+            for (const ancestor of entries) {
+                if (ancestor === null || !passable.has(ancestor)) {
+                    break;
+                }
+                kept.push(ancestor);
+            }
 
-            return (blocked === -1 ? entries : entries.slice(0, blocked)) as Row[];
+            return kept;
         });
     }
 
@@ -349,34 +371,30 @@ export class TreeJoin extends Input {
         // read the descendants from the index
         const node = this.node;
         const paths = await run.view.lookup(
-            node.closure!,
+            this.#closure(),
             rows.map((row) => node.paths(row, "ancestor")),
         );
-        const shallowest = paths.map((entries) =>
-            entries
-                .filter((path) => (path.depth as number) > 0)
-                .sort((left, right) => (left.depth as number) - (right.depth as number)),
-        );
+        const shallowest = paths.map((entries) => byDepth(entries));
         const descendants = await run.view.keyed(
             node.table,
-            shallowest.flat().map((path) => ({ [this.#key]: path.descendant })),
+            shallowest.flat().map((path) => ({ [this.#key]: valueOf(path, "descendant") })),
         );
         const passable = new Set(
             await this.passable(
                 node.table,
-                descendants.filter((row): row is Row => row !== undefined),
+                descendants.filter((row): row is Row => row !== null),
                 run,
             ),
         );
 
         // keep each descendant whose parent the path reached
-        return unflatten(descendants, shallowest).map((entries, position) => {
-            // start from the held row
-            const reached = new Set<unknown>([rows[position]![this.#key]]);
+        return zip(rows, unflatten(descendants, shallowest)).map(([row, entries]) => {
+            // start from the parent row
+            const reached = new Set<ColumnValue | undefined>([row[this.#key]]);
             const kept: Row[] = [];
             for (const descendant of entries) {
                 if (
-                    descendant !== undefined &&
+                    descendant !== null &&
                     passable.has(descendant) &&
                     reached.has(descendant[this.#column])
                 ) {
@@ -389,47 +407,60 @@ export class TreeJoin extends Input {
         });
     }
 
+    /** Read the tree index, which an indexed path reads. */
+    #closure(): Table {
+        const closure = this.node.closure;
+        if (closure === undefined) {
+            throw new TypeError(`${this.node.name} reads a tree index its node lacks`);
+        }
+
+        return closure;
+    }
+
     /** Walk each row's parent column up, a level at a time. */
     async #walkUp(rows: readonly Row[], run: Run): Promise<Row[][]> {
         // walk every row up, guarding against cycles
         const key = this.#key;
-        const walks = rows.map((row) => ({
-            rows: [] as Row[],
-            seen: new Set<unknown>([row[key]]),
-            current: row as Row | undefined,
+        const walks: {
+            readonly rows: Row[];
+            readonly seen: Set<ColumnValue | undefined>;
+            current: Row | null;
+        }[] = rows.map((row) => ({
+            rows: [],
+            seen: new Set<ColumnValue | undefined>([row[key]]),
+            current: row,
         }));
         for (;;) {
-            // read the next parent of every open walk
-            const open = walks.filter((walk) => {
-                // close a walk at the top or at a cycle
+            // read the next parent of every open walk and close walks at the top or at a cycle
+            const open: { readonly walk: (typeof walks)[number]; readonly parent: ColumnValue }[] =
+                [];
+            for (const walk of walks) {
                 const parent = walk.current?.[this.#column];
-                const isOpen = parent !== null && parent !== undefined && !walk.seen.has(parent);
-                if (!isOpen) {
-                    walk.current = undefined;
+                if (parent === null || parent === undefined || walk.seen.has(parent)) {
+                    walk.current = null;
+                } else {
+                    open.push({ walk, parent });
                 }
-
-                return isOpen;
-            });
+            }
             if (open.length === 0) {
                 return walks.map((walk) => walk.rows);
             }
             const parents = await run.view.keyed(
                 this.node.table,
-                open.map((walk) => ({ [key]: walk.current![this.#column] })),
+                open.map(({ parent }) => ({ [key]: parent })),
             );
             const passable = new Set(
                 await this.passable(
                     this.node.table,
-                    parents.filter((row): row is Row => row !== undefined),
+                    parents.filter((row): row is Row => row !== null),
                     run,
                 ),
             );
 
             // step each walk up
-            for (const [index, walk] of open.entries()) {
-                const parent = parents[index];
-                if (parent === undefined || !passable.has(parent)) {
-                    walk.current = undefined;
+            for (const [{ walk }, parent] of zip(open, parents)) {
+                if (parent === null || !passable.has(parent)) {
+                    walk.current = null;
                 } else {
                     walk.seen.add(parent[key]);
                     walk.rows.push(parent);
@@ -443,9 +474,13 @@ export class TreeJoin extends Input {
     async #walkDown(rows: readonly Row[], run: Run): Promise<Row[][]> {
         // walk every row down, guarding against cycles
         const key = this.#key;
-        const walks = rows.map((row) => ({
-            rows: [] as Row[],
-            seen: new Set<unknown>([row[key]]),
+        const walks: {
+            readonly rows: Row[];
+            readonly seen: Set<ColumnValue | undefined>;
+            level: Row[];
+        }[] = rows.map((row) => ({
+            rows: [],
+            seen: new Set<ColumnValue | undefined>([row[key]]),
             level: [row],
         }));
         while (walks.some((walk) => walk.level.length > 0)) {
@@ -453,7 +488,7 @@ export class TreeJoin extends Input {
             const parents = walks.flatMap((walk) => walk.level);
             const children = await run.view.lookup(
                 this.node.table,
-                parents.map((parent) => ({ [this.#column]: parent[key] })),
+                parents.map((parent) => ({ [this.#column]: valueOf(parent, key) })),
             );
             const passable = new Set(await this.passable(this.node.table, children.flat(), run));
 
@@ -462,9 +497,9 @@ export class TreeJoin extends Input {
                 children,
                 walks.map((walk) => walk.level),
             );
-            for (const [position, walk] of walks.entries()) {
+            for (const [walk, level] of zip(walks, levels)) {
                 const next: Row[] = [];
-                for (const child of levels[position]!.flat()) {
+                for (const child of level.flat()) {
                     if (passable.has(child) && !walk.seen.has(child[key])) {
                         walk.seen.add(child[key]);
                         next.push(child);
@@ -479,26 +514,56 @@ export class TreeJoin extends Input {
     }
 
     /** Decide whether the path may pass through a row. */
-    async #passes(row: Row | undefined, run: Run): Promise<boolean> {
-        return row !== undefined && (await this.passable(this.node.table, [row], run)).length > 0;
+    async #passes(row: Row | null, run: Run): Promise<boolean> {
+        return row !== null && (await this.passable(this.node.table, [row], run)).length > 0;
     }
 
     /** Decide again the rows at some tree path ends. */
     async #mark(
-        ends: readonly unknown[],
+        ends: readonly ColumnValue[],
         run: Run,
-        dirty: Map<string, Row | undefined>,
+        dirty: Map<string, Row | null>,
     ): Promise<void> {
         const keys = ends.map((end) => ({ [this.#key]: end }));
         const rows = await run.view.keyed(this.node.table, keys);
-        for (const [index, key] of keys.entries()) {
-            dirty.set(Key.name(this.node.table, key), rows[index]);
+        for (const [key, row] of zip(keys, rows)) {
+            dirty.set(Key.name(this.node.table, key), row);
         }
     }
 }
 
+/** Read a row's value of a column, which the row's table declares. */
+function valueOf(row: Row, column: string): ColumnValue {
+    const value = row[column];
+    if (value === undefined) {
+        throw new TypeError(`row has no column ${column}`);
+    }
+
+    return value;
+}
+
+/** Keep the strict tree index paths, nearest first. */
+function byDepth(paths: readonly Row[]): Row[] {
+    return paths
+        .filter((path) => depthOf(path) > 0)
+        .toSorted((left, right) => depthOf(left) - depthOf(right));
+}
+
+/** Read a tree index path's depth. */
+function depthOf(path: Row): number {
+    const depth = path["depth"];
+    if (typeof depth !== "number") {
+        throw new TypeError("a tree index path has no depth");
+    }
+
+    return depth;
+}
+
 /** Split a flat list into groups as long as some lists. */
-function unflatten<Item>(flat: readonly Item[], lists: readonly (readonly unknown[])[]): Item[][] {
+function unflatten<Entry>(
+    flat: readonly Entry[],
+    lists: readonly (readonly unknown[])[],
+): Entry[][] {
     // take each list's length of items in turn
     let offset = 0;
 

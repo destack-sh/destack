@@ -1,15 +1,26 @@
 import { expect, test } from "@destack/test";
+import { aligned, schema } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { eq, TABLE } from "@destack/db";
-import { Condition } from "@destack/db/query";
+import { defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
-import type { QueryPage } from "../query/page.ts";
-import { first, note, open, project, take, task, until } from "../test/fixture.ts";
+import type { Page } from "../query/page.ts";
+import {
+    first,
+    nextValue,
+    note,
+    open,
+    project,
+    relations,
+    take,
+    task,
+    until,
+} from "../test/fixture.ts";
+import type { Item, Query } from "../query/query.ts";
 
 test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async (dialect) => {
     const database = await open(dialect);
     const feed = new Feed(database, [note]);
-    const query = { table: note, scopes: ["inbox"], where: Condition.eq("title", "Open") };
+    const query = { table: note, scopes: ["inbox"], where: { title: "Open" } };
     await database.insert(note).values([
         { ...first, id: "a", title: "Open" },
         { ...first, id: "b", title: "Done" },
@@ -19,7 +30,7 @@ test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async
     // snapshot the matching rows of the scope
     const signal = AbortSignal.timeout(5000);
     const pages = feed.subscribe({ notes: query }, undefined, signal);
-    const [snapshot] = await take(pages, (page) => page.complete);
+    const snapshot = aligned(await take(pages, (page) => page.complete), 0);
     expect(snapshot).toEqual({
         reset: true,
         complete: true,
@@ -35,6 +46,7 @@ test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async
                     views: "9007199254740993",
                     labels: ["draft"],
                     editedAt: 1790244000123,
+                    attachment: "AQID",
                 },
             },
         ],
@@ -42,14 +54,14 @@ test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async
     });
 
     // enter, leave and move between scopes
-    const following = feed.subscribe({ notes: query }, snapshot!.position, signal);
-    const next = take(following, (page) => page.changes.some((change) => change.row.id === "c"));
+    const following = feed.subscribe({ notes: query }, snapshot.position, signal);
+    const next = take(following, (page) => page.changes.some((change) => change.row["id"] === "c"));
     await database.update(note).set({ title: "Open" }).where(eq(note.id, "b"));
     await database.update(note).set({ title: "Done" }).where(eq(note.id, "a"));
     await database.update(note).set({ summary: "Unrelated" }).where(eq(note.id, "a"));
     await database.update(note).set({ scope: "inbox" }).where(eq(note.id, "c"));
     const changes = (await next).flatMap((page) =>
-        page.changes.map((change) => [change.operation, change.row.id]),
+        page.changes.map((change) => [change.operation, change.row["id"]]),
     );
     expect(changes).toEqual([
         ["insert", "b"],
@@ -80,7 +92,9 @@ test.for(TEST_DIALECTS)(
             [false, false, 1000],
             [false, true, 500],
         ]);
-        expect(pages.flatMap((page) => page.changes.map((change) => change.row.id))).toEqual(ids);
+        expect(pages.flatMap((page) => page.changes.map((change) => change.row["id"]))).toEqual(
+            ids,
+        );
         expect(new Set(pages.map((page) => page.position.sequence)).size).toBe(1);
     },
 );
@@ -96,16 +110,18 @@ test.for(TEST_DIALECTS)(
 
         // commit while a second subscriber catches up
         const current = feed.subscribe(query, start, signal);
-        const seen = take(current, (page) => page.changes.some((change) => change.row.id === "b"));
+        const seen = take(current, (page) =>
+            page.changes.some((change) => change.row["id"] === "b"),
+        );
         await database.insert(note).values(first);
         const behind = feed.subscribe(query, start, signal);
-        const caught = take(behind, (page) => page.changes.some((change) => change.row.id === "b"));
+        const caught = take(behind, (page) =>
+            page.changes.some((change) => change.row["id"] === "b"),
+        );
         await database.insert(note).values({ ...first, id: "b" });
 
         // deliver the same changes to both
-        const ids = async (pages: Promise<QueryPage[]>) =>
-            (await pages).flatMap((page) => page.changes.map((change) => change.row.id));
-        expect([await ids(seen), await ids(caught)]).toEqual([
+        expect([idsOf(await seen), idsOf(await caught)]).toEqual([
             ["a", "b"],
             ["a", "b"],
         ]);
@@ -126,16 +142,16 @@ test.for(TEST_DIALECTS)(
         const resumed = feed.subscribe(query, before, signal);
         const continued = take(resumed, (page) => page.changes.length > 0);
         await database.insert(note).values({ ...first, id: "b" });
-        const carrying = (await continued).filter((page) => page.reset || page.changes.length > 0);
-        expect(carrying.map((page) => [page.reset, page.changes.length])).toEqual([[false, 1]]);
+        const changed = (await continued).filter((page) => page.reset || page.changes.length > 0);
+        expect(changed.map((page) => [page.reset, page.changes.length])).toEqual([[false, 1]]);
 
         // start over after a restore
         const renewed = await database.log.renew();
-        const [snapshot] = await take(
-            feed.subscribe(query, before, signal),
-            (page) => page.complete,
+        const snapshot = aligned(
+            await take(feed.subscribe(query, before, signal), (page) => page.complete),
+            0,
         );
-        expect([snapshot!.reset, snapshot!.position.epoch, snapshot!.changes.length]).toEqual([
+        expect([snapshot.reset, snapshot.position.epoch, snapshot.changes.length]).toEqual([
             true,
             renewed,
             2,
@@ -160,12 +176,16 @@ test.for(TEST_DIALECTS)(
 
         // decide a write once for both
         await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
-        const [left, right] = await Promise.all(
-            streams.map(async (pages) =>
-                (await until(pages, (page) => page.changes.length > 0)).at(-1),
-            ),
+        const lasts = await Promise.all(
+            streams.map(async (pages) => {
+                const read = await until(pages, (page) => page.changes.length > 0);
+
+                return aligned(read, read.length - 1);
+            }),
         );
-        expect([left === right, left!.changes.map((change) => change.row.title)]).toEqual([
+        const left = aligned(lasts, 0);
+        const right = aligned(lasts, 1);
+        expect([left === right, left.changes.map((change) => change.row["title"])]).toEqual([
             true,
             ["Renamed"],
         ]);
@@ -194,22 +214,22 @@ test.for(TEST_DIALECTS)(
         await database.delete(note).where(eq(note.id, "b"));
         await database.insert(note).values({ ...first, id: "c" });
         const following = await until(pages, (page) =>
-            page.changes.some((change) => change.row.id === "c"),
+            page.changes.some((change) => change.row["id"] === "c"),
         );
 
-        // hold each note as the pages leave it
-        const held = new Map<unknown, unknown>();
+        // keep each note as the pages leave it
+        const notes = new Map<unknown, unknown>();
         for (const change of [...snapshot, ...following].flatMap((page) => page.changes)) {
             // forget a deleted note
             if (change.operation === "delete") {
-                held.delete(change.row.id);
+                notes.delete(change.row["id"]);
             }
-            // hold an entered or changed note unchanged
+            // keep an entered or changed note unchanged
             else {
-                held.set(change.row.id, change.row.title);
+                notes.set(change.row["id"], change.row["title"]);
             }
         }
-        expect([...held]).toEqual([
+        expect([...notes]).toEqual([
             ["a", "Renamed"],
             ["c", "First"],
         ]);
@@ -229,17 +249,9 @@ test.for(TEST_DIALECTS)(
         const streams = [0, 1].map(() =>
             feed.subscribe({ notes: query }, undefined, controller.signal),
         );
-        const read = async (
-            pages: AsyncGenerator<QueryPage>,
-            until: (page: QueryPage) => boolean,
-        ) => {
-            while (!until((await pages.next()).value as QueryPage)) {
-                // read on
-            }
-        };
-        await Promise.all(streams.map((pages) => read(pages, (page) => page.complete)));
+        await Promise.all(streams.map((pages) => readUntil(pages, (page) => page.complete)));
         const followed = Promise.all(
-            streams.map((pages) => read(pages, (page) => page.changes.length > 0)),
+            streams.map((pages) => readUntil(pages, (page) => page.changes.length > 0)),
         );
         await database.insert(note).values({ ...first, id: "b" });
         await followed;
@@ -304,7 +316,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect);
         const feed = new Feed(database, [note]);
-        const query = { table: note, scopes: ["inbox"], where: Condition.eq("title", "Open") };
+        const query = { table: note, scopes: ["inbox"], where: { title: "Open" } };
         await database.insert(note).values([
             { ...first, id: "a", title: "Open" },
             { ...first, id: "b", title: "Done" },
@@ -312,16 +324,15 @@ test.for(TEST_DIALECTS)(
 
         // read the first result, then commit a change outside it and one inside it
         const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
-        const initial = (await watching.next()).value!;
+        const initial = await nextValue(watching);
         await database.update(note).set({ summary: "Unrelated" }).where(eq(note.id, "b"));
         await database.update(note).set({ title: "Open" }).where(eq(note.id, "b"));
-        const changed = (await watching.next()).value!;
+        const changed = await nextValue(watching);
         await watching.return(undefined);
 
         // skip the commit that left the rows as they were
-        const ids = (rows: readonly Readonly<Record<string, unknown>>[]) =>
-            rows.map((row) => row.id);
-        expect([ids(initial), ids(changed)]).toEqual([["a"], ["a", "b"]]);
+        const ids = [initial, changed].map((items) => items.map((item) => item.row["id"]));
+        expect(ids).toEqual([["a"], ["a", "b"]]);
     },
 );
 
@@ -333,8 +344,8 @@ test.for(TEST_DIALECTS)(
         const query = {
             table: note,
             scopes: ["inbox"],
-            order: [{ column: "title", direction: "asc" as const }],
-        };
+            orderBy: { title: "asc" },
+        } satisfies Query;
         await database.insert(note).values([
             { ...first, id: "a", title: "Apples" },
             { ...first, id: "b", title: "Bread" },
@@ -343,14 +354,14 @@ test.for(TEST_DIALECTS)(
 
         // read the rows, then rename the first one past the others
         const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
-        const initial = (await watching.next()).value!;
+        const initial = await nextValue(watching);
         await database.update(note).set({ title: "Dates" }).where(eq(note.id, "a"));
-        const renamed = (await watching.next()).value!;
+        const renamed = await nextValue(watching);
         await watching.return(undefined);
 
         // keep the unchanged rows as the same objects, and place the renamed one last
         expect([
-            renamed.map((row: Readonly<Record<string, unknown>>) => [row.id, row.title]),
+            renamed.map((item) => [item.row["id"], item.row["title"]]),
             renamed[0] === initial[1],
             renamed[1] === initial[2],
             renamed[2] === initial[0],
@@ -375,25 +386,10 @@ test.for(TEST_DIALECTS)(
         const query = {
             table: project,
             scopes: ["inbox"],
-            order: [{ column: "name", direction: "asc" as const }],
-            include: {
-                tasks: {
-                    table: task,
-                    on: { kind: "key" as const, column: "projectId", parent: "id" },
-                    order: [{ column: "rank", direction: "asc" as const }],
-                },
-            },
-        };
-        const taskOf = (id: string, projectId: string, rank: number) => ({
-            id,
-            scope: "inbox",
-            projectId,
-            state: "open",
-            rank,
-            points: null,
-            title: id,
-            isSecret: false,
-        });
+            relations,
+            orderBy: { name: "asc" },
+            with: { tasks: { orderBy: { rank: "asc" } } },
+        } satisfies Query;
         await database.insert(project).values([
             { id: "home", scope: "inbox", name: "Home" },
             { id: "work", scope: "inbox", name: "Work" },
@@ -408,28 +404,63 @@ test.for(TEST_DIALECTS)(
 
         // read both projects, then move the first home task last
         const watching = feed.watch("projects", query, AbortSignal.timeout(5000));
-        const next = async () => {
-            const read = await watching.next();
-            if (read.done === true) {
-                throw new Error("the watch ended");
-            }
-
-            return read.value;
-        };
-        const initial = await next();
+        const initial = await nextValue(watching);
         await database.update(task).set({ rank: 3 }).where(eq(task.id, "dishes"));
-        const moved = await next();
+        const moved = await nextValue(watching);
         await watching.return(undefined);
 
         // reorder the home project's tasks, and keep the work project and its tasks as the same objects
-        const titles = (row: Readonly<Record<string, unknown>>) =>
-            (row.tasks as Readonly<Record<string, unknown>>[]).map((entry) => entry.title);
         expect([
-            moved.map(titles),
+            moved.map((item) => tasksOf(item).map((entry) => entry.row["title"])),
             moved[1] === initial[1],
             moved[0] === initial[0],
-            (moved[0]!.tasks as unknown[])[0] === (initial[0]!.tasks as unknown[])[1],
+            tasksOf(aligned(moved, 0))[0] === tasksOf(aligned(initial, 0))[1],
         ]).toEqual([[["laundry", "dishes"], ["report"]], true, false, true]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "watch a board whose JSON columns hold an object and a list of objects apart from its included cards on %s",
+    async (dialect) => {
+        const database = await open(dialect, [board, card]);
+        const feed = new Feed(database, [board, card]);
+        const query = {
+            table: board,
+            scopes: ["inbox"],
+            relations: BOARD_RELATIONS,
+            with: { cards: { orderBy: { id: "asc" } } },
+        } satisfies Query;
+        await database.insert(board).values({
+            id: "plan",
+            scope: "inbox",
+            layout: { id: "grid", columns: 3 },
+            steps: [{ id: "draft" }, { id: "review" }],
+        });
+        await database.insert(card).values([
+            { id: "one", scope: "inbox", boardId: "plan" },
+            { id: "two", scope: "inbox", boardId: "plan" },
+        ]);
+
+        // read the board with its cards
+        const watching = feed.watch("boards", query, AbortSignal.timeout(5000));
+        const [read] = await nextValue(watching);
+        await watching.return(undefined);
+
+        // keep the JSON values in the row and the cards apart from them
+        expect([
+            read?.row,
+            Object.keys(read?.with ?? {}),
+            (read?.with["cards"] ?? []).map((entry) => entry.row["id"]),
+        ]).toEqual([
+            {
+                id: "plan",
+                scope: "inbox",
+                layout: { id: "grid", columns: 3 },
+                steps: [{ id: "draft" }, { id: "review" }],
+            },
+            ["cards"],
+            ["one", "two"],
+        ]);
     },
 );
 
@@ -444,7 +475,7 @@ test.for(TEST_DIALECTS)(
         // keep the feed reading from the snapshot's position
         const signal = AbortSignal.timeout(5000);
         const reading = feed.subscribe({ notes: query }, undefined, signal);
-        const snapshot = (await reading.next()).value as QueryPage;
+        const snapshot = await nextValue(reading);
 
         // commit to another table, then resume from the snapshot's position
         await database.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
@@ -464,3 +495,75 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+/** Boards whose JSON columns hold an object and a list of objects. */
+const board = defineTable(
+    "board",
+    {
+        /** The board identity. */
+        id: text("id").primaryKey(),
+        /** The folder the board lives in. */
+        scope: text("scope").notNull(),
+        /** The layout, an object. */
+        layout: json(
+            "layout",
+            schema.object({ id: schema.string(), columns: schema.number() }),
+        ).notNull(),
+        /** The steps, a list of objects. */
+        steps: json("steps", schema.array(schema.object({ id: schema.string() }))).notNull(),
+    },
+    { log: {} },
+);
+
+/** Cards of boards. */
+const card = defineTable(
+    "card",
+    {
+        /** The card identity. */
+        id: text("id").primaryKey(),
+        /** The folder the card lives in. */
+        scope: text("scope").notNull(),
+        /** The board the card is on. */
+        boardId: text("board_id").notNull(),
+    },
+    { log: {} },
+);
+
+/** The cards of a board. */
+const BOARD_RELATIONS = defineRelations({ board, card }, (relate) => ({
+    board: { cards: relate.many.card({ from: relate.board.id, to: relate.card.boardId }) },
+}));
+
+/** List the row identifiers some pages change. */
+function idsOf(pages: readonly Page[]): unknown[] {
+    return pages.flatMap((page) => page.changes.map((change) => change.row["id"]));
+}
+
+/** Read pages until one satisfies a condition. */
+async function readUntil(
+    pages: AsyncGenerator<Page>,
+    isLast: (page: Page) => boolean,
+): Promise<void> {
+    while (!isLast(await nextValue(pages))) {
+        // read on
+    }
+}
+
+/** Build an open task of a project. */
+function taskOf(id: string, projectId: string, rank: number) {
+    return {
+        id,
+        scope: "inbox",
+        projectId,
+        state: "open",
+        rank,
+        points: null,
+        title: id,
+        isSecret: false,
+    };
+}
+
+/** Read the included tasks of a project item. */
+function tasksOf(item: Item): readonly Item[] {
+    return item.with["tasks"] ?? [];
+}

@@ -1,20 +1,23 @@
 import type { Row } from "@destack/db";
+import { aligned } from "@destack/schema";
+import type { Item, AggregateRow } from "../query/query.ts";
+import type { Member, Partition } from "./pipeline.ts";
 
-/** One built result row: the held row it came from, its concealed columns, and the entry readers see. */
-interface Built {
-    /** The held row the entry was built from. */
+/** One built result row: the selected row it came from, its concealed columns, and the entry readers see. */
+interface ResultRow {
+    /** The selected row the entry was built from. */
     readonly source: Row;
     /** The concealed columns, joined. */
     readonly hidden: string;
     /** The entry, with its includes nested. */
-    readonly entry: Readonly<Record<string, unknown>>;
+    readonly entry: Item;
 }
 
-/** One partition's last order: its keys, and the held rows it ordered them by. */
-interface Ordered {
-    /** The held keys in query order. */
+/** One partition's last order: its keys, and the selected rows it ordered them by. */
+interface PartitionOrder {
+    /** The selected keys in query order. */
     keys: readonly string[];
-    /** The held row each key was ordered by. */
+    /** The selected row each key was ordered by. */
     readonly sources: Map<string, Row>;
 }
 
@@ -25,13 +28,13 @@ interface Ordered {
  */
 export class Materialization {
     /** The built entries, by row key. */
-    readonly #built = new Map<string, Built>();
+    readonly #built = new Map<string, ResultRow>();
     /** The last order of each partition, by name. */
-    readonly #ordered = new Map<string, Ordered>();
+    readonly #ordered = new Map<string, PartitionOrder>();
     /** The last list of each partition's entries, by name. */
-    readonly #listed = new Map<string, readonly Readonly<Record<string, unknown>>[]>();
+    readonly #listed = new Map<string, readonly Item[]>();
 
-    /** Order a partition's held keys, placing only rows that changed since the last read. */
+    /** Order a partition's selected keys, placing only rows that changed since the last read. */
     order(
         name: string,
         keys: readonly string[],
@@ -41,7 +44,7 @@ export class Materialization {
         // sort every key on a partition's first read
         const ordered = this.#ordered.get(name);
         if (ordered === undefined) {
-            const sorted = [...keys].sort((left, right) => compare(rowOf(left), rowOf(right)));
+            const sorted = keys.toSorted((left, right) => compare(rowOf(left), rowOf(right)));
             this.#ordered.set(name, {
                 keys: sorted,
                 sources: new Map(sorted.map((key) => [key, rowOf(key)])),
@@ -74,18 +77,19 @@ export class Materialization {
         return order;
     }
 
-    /** Read the value a row's last entry held for an include, so an equal new value keeps its identity. */
-    previous(key: string, property: string): unknown {
-        return this.#built.get(key)?.entry[property];
+    /** Read the groups a row's last entry had for an aggregate include, so equal new groups keep their identity. */
+    previous(key: string, name: string): readonly AggregateRow[] | undefined {
+        return this.#built.get(key)?.entry.measures[name];
     }
 
-    /** Take a row's entry again when its row, concealment and nested values are unchanged, else build it. */
+    /** Take a row's entry again when its row, concealment and nested results are unchanged, else build it. */
     entry(
         key: string,
         source: Row,
         hidden: readonly string[],
-        nested: readonly (readonly [string, unknown])[],
-    ): Readonly<Record<string, unknown>> {
+        included: readonly (readonly [string, readonly Item[]])[],
+        measured: readonly (readonly [string, readonly AggregateRow[]])[],
+    ): Item {
         // take the last entry when nothing it was built from changed
         const joined = hidden.join(",");
         const built = this.#built.get(key);
@@ -93,21 +97,20 @@ export class Materialization {
             built !== undefined &&
             built.source === source &&
             built.hidden === joined &&
-            nested.every(([property, value]) => built.entry[property] === value);
+            included.every(([name, items]) => built.entry.with[name] === items) &&
+            measured.every(([name, groups]) => built.entry.measures[name] === groups);
         if (isUnchanged) {
             return built.entry;
         }
 
         // build the entry, keeping the last one when its values are equal
-        const entry: Record<string, unknown> = {};
-        for (const [column, value] of Object.entries(source)) {
-            if (!hidden.includes(column)) {
-                entry[column] = value;
-            }
-        }
-        for (const [property, value] of nested) {
-            entry[property] = value;
-        }
+        const entry: Item = {
+            row: Object.fromEntries(
+                Object.entries(source).filter(([column]) => !hidden.includes(column)),
+            ),
+            with: Object.fromEntries(included),
+            measures: Object.fromEntries(measured),
+        };
         const kept =
             built !== undefined && Materialization.isSame(built.entry, entry) ? built.entry : entry;
         this.#built.set(key, { source, hidden: joined, entry: kept });
@@ -115,12 +118,9 @@ export class Materialization {
         return kept;
     }
 
-    /** Keep a partition's entries, taking the earlier list again when it holds the same entries in the same order. */
-    list(
-        name: string,
-        entries: readonly Readonly<Record<string, unknown>>[],
-    ): readonly Readonly<Record<string, unknown>>[] {
-        // keep the earlier list when it holds the same entries in the same order
+    /** Keep a partition's entries, taking the earlier list again when it has the same entries in the same order. */
+    list(name: string, entries: readonly Item[]): readonly Item[] {
+        // keep the earlier list when it has the same entries in the same order
         const listed = this.#listed.get(name);
         const isSame =
             listed !== undefined &&
@@ -132,12 +132,12 @@ export class Materialization {
         return kept;
     }
 
-    /** Forget the rows and partitions the selection no longer holds, once fewer are held than were kept. */
-    prune(held: ReadonlyMap<string, unknown>, partitions: ReadonlyMap<string, unknown>): void {
-        // forget the entries of rows no partition holds
-        if (this.#built.size > held.size) {
+    /** Forget the rows and partitions the selection no longer has, once fewer are selected than were kept. */
+    prune(members: ReadonlyMap<string, Member>, partitions: ReadonlyMap<string, Partition>): void {
+        // forget the entries of rows no partition has
+        if (this.#built.size > members.size) {
             for (const key of this.#built.keys()) {
-                if (!held.has(key)) {
+                if (!members.has(key)) {
                     this.#built.delete(key);
                 }
             }
@@ -159,12 +159,7 @@ export class Materialization {
         // take identical values, and compare objects by their fields
         if (Object.is(left, right)) {
             return true;
-        } else if (
-            typeof left !== "object" ||
-            typeof right !== "object" ||
-            left === null ||
-            right === null
-        ) {
+        } else if (!isObject(left) || !isObject(right)) {
             return false;
         }
         const leftKeys = Object.keys(left);
@@ -172,12 +167,7 @@ export class Materialization {
 
         return (
             leftKeys.length === rightKeys.length &&
-            leftKeys.every((key) =>
-                Materialization.isSame(
-                    (left as Record<string, unknown>)[key],
-                    (right as Record<string, unknown>)[key],
-                ),
-            )
+            leftKeys.every((key) => Materialization.isSame(left[key], right[key]))
         );
     }
 
@@ -193,7 +183,7 @@ export class Materialization {
         let high = order.length;
         while (low < high) {
             const middle = (low + high) >>> 1;
-            if (compare(rowOf(order[middle]!), row) <= 0) {
+            if (compare(rowOf(aligned(order, middle)), row) <= 0) {
                 low = middle + 1;
             } else {
                 high = middle;
@@ -202,4 +192,9 @@ export class Materialization {
 
         return low;
     }
+}
+
+/** Report whether a value is an object or array whose fields compare one by one. */
+function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
+    return typeof value === "object" && value !== null;
 }

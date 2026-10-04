@@ -1,5 +1,4 @@
-import type { Row, Table } from "@destack/db";
-import type { Change } from "@destack/db/log";
+import type { ColumnValue, Row, Table, Change } from "@destack/db";
 import type { Audience } from "../feed/audience.ts";
 import type { Filter } from "./filter.ts";
 import type { Pipeline } from "./pipeline.ts";
@@ -24,7 +23,7 @@ export class Run {
     readonly changed = new Set<string>();
     /** What each pipeline has to do. */
     readonly work = new Map<Pipeline, Work>();
-    /** The rows whose holding the run touched, by key. */
+    /** The rows whose presence the run touched, by key. */
     readonly touched = new Map<string, Touch>();
     /** The rows the run's pipelines decided. */
     decided = 0;
@@ -42,7 +41,7 @@ export class Run {
         walk: Walk | undefined,
         changes: readonly Change[] = [],
     ) {
-        // hold the view, the audience and the changes
+        // keep the view, the audience and the changes
         this.view = view;
         this.#audience = audience;
         this.walk = walk;
@@ -56,9 +55,9 @@ export class Run {
         if (pending.length > 0) {
             const decided = this.#audience
                 .admits(table, pending, this.view.position)
-                .then((held) => {
+                .then((admitted) => {
                     for (const [index, row] of pending.entries()) {
-                        this.#visible.set(row, held.has(index));
+                        this.#visible.set(row, admitted.has(index));
                     }
                 });
             for (const row of pending) {
@@ -67,7 +66,18 @@ export class Run {
         }
 
         // wait for every row's decision
-        await Promise.all(new Set(rows.map((row) => this.#deciding.get(row)!)));
+        await Promise.all(
+            new Set(
+                rows.map((row) => {
+                    const decision = this.#deciding.get(row);
+                    if (decision === undefined) {
+                        throw new TypeError("a row waits for a decision never asked");
+                    }
+
+                    return decision;
+                }),
+            ),
+        );
     }
 
     /** Read a decided row's visibility. */
@@ -122,29 +132,29 @@ export type Walk = "snapshot" | "rebuild" | "collect";
 /** What a run has one pipeline do. */
 export interface Work {
     /** The newly named partitions, with the value naming each. */
-    readonly opened: Map<string, unknown>;
-    /** The partitions no held parent row names. */
+    readonly opened: Map<string, ColumnValue>;
+    /** The partitions no selected parent row names. */
     readonly closed: Set<string>;
-    /** The rows to decide again, by key, absent once gone. */
-    readonly dirty: Map<string, Row | undefined>;
+    /** The rows to decide again, by key, null once gone. */
+    readonly dirty: Map<string, Row | null>;
 }
 
 /** A changed row's first and last image in a run. */
 export interface Transition {
-    /** The row before the run's first change, absent when inserted. */
-    readonly before?: Row;
-    /** The row after the run's last change, absent when deleted. */
-    readonly after?: Row;
+    /** The row before the run's first change, null when inserted. */
+    readonly before: Row | null;
+    /** The row after the run's last change, null when deleted. */
+    readonly after: Row | null;
 }
 
-/** A row whose holding a run touched. */
+/** A row whose presence a run touched. */
 export interface Touch {
     /** The row's table. */
     readonly table: Table;
-    /** The row at the position, absent until a holder passes it or the sink reads it. */
-    row: Row | undefined;
-    /** Whether the subscriber held the row before the run. */
-    readonly wasHeld: boolean;
+    /** The row at the position, null until a holder passes it or the sink reads it. */
+    row: Row | null;
+    /** Whether the subscriber had the row before the run. */
+    readonly wasPresent: boolean;
 }
 
 /** The cost of one run. */
@@ -155,7 +165,7 @@ export interface RunCost {
     readonly operations: number;
     /** The rows the pipelines decided. */
     readonly decided: number;
-    /** The row and group decisions the page carries. */
+    /** The row and group decisions of the page. */
     readonly sent: number;
     /** The run time, in milliseconds. */
     readonly milliseconds: number;

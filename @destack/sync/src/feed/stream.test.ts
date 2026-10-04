@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "@destack/test";
 import { vi } from "vitest";
 import { TABLE } from "@destack/db";
-import type { QueryPage, RowChange } from "../query/page.ts";
+import type { Page, RowChange } from "../query/page.ts";
 import { note } from "../test/fixture.ts";
 import { coalesce } from "./stream.ts";
 
@@ -27,7 +27,7 @@ test("publish a page at once after a quiet interval, and merge the pages within 
         value: page(1, [change("update", "a")]),
     });
 
-    // hold the pages within the interval
+    // buffer the pages within the interval
     const merged = settled(published.next());
     source.push(page(2, [change("update", "a", "Renamed")]));
     source.push(page(3, [change("insert", "b")]));
@@ -50,16 +50,16 @@ test("publish a page at once after a quiet interval, and merge the pages within 
     expect(await quiet).toEqual({ done: false, value: page(6, [change("delete", "a")]) });
 });
 
-test("publish the held page once the pages end", async () => {
+test("publish the buffered page once the pages end", async () => {
     const source = pages();
     const published = coalesce(source.pages, EVERY, [note]);
 
-    // publish the first page, then hold the second within the interval
+    // publish the first page and buffer the second within the interval
     source.push(page(1, [change("insert", "a")]));
     await published.next();
     source.push(page(2, [change("update", "a", "Renamed")]));
 
-    // publish the held page at the end
+    // publish the buffered page at the end
     source.end();
     expect(await published.next()).toEqual({
         done: false,
@@ -69,7 +69,7 @@ test("publish the held page once the pages end", async () => {
 });
 
 /** Build a page completing at a sequence. */
-function page(sequence: number, changes: RowChange[]): QueryPage {
+function page(sequence: number, changes: RowChange[]): Page {
     return { reset: false, complete: true, changes, position: { epoch: "e", sequence } };
 }
 
@@ -92,18 +92,19 @@ function settled<Value>(promise: Promise<Value>): { value: Value | undefined } {
 
 /** Start a source of pushed pages. */
 function pages(): {
-    readonly pages: AsyncGenerator<QueryPage>;
-    push(page: QueryPage): void;
+    readonly pages: AsyncGenerator<Page>;
+    push(page: Page): void;
     end(): void;
 } {
     // queue pushed pages until taken
-    const queued: (QueryPage | undefined)[] = [];
-    let wake = () => {};
-    const generate = async function* (): AsyncGenerator<QueryPage> {
+    const queued: (Page | undefined)[] = [];
+    let arrival = Promise.withResolvers<void>();
+    const generate = async function* (): AsyncGenerator<Page> {
         for (;;) {
             // wait for the next page or the end
-            if (queued.length === 0) {
-                await new Promise<void>((resolve) => (wake = resolve));
+            while (queued.length === 0) {
+                await arrival.promise;
+                arrival = Promise.withResolvers<void>();
             }
             const next = queued.shift();
             if (next === undefined) {
@@ -115,13 +116,13 @@ function pages(): {
 
     return {
         pages: generate(),
-        push(page) {
-            queued.push(page);
-            wake();
+        push(pushed) {
+            queued.push(pushed);
+            arrival.resolve();
         },
         end() {
             queued.push(undefined);
-            wake();
+            arrival.resolve();
         },
     };
 }

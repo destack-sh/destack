@@ -1,8 +1,6 @@
-import { DatabaseError } from "@destack/db/error";
-import type { LogPosition } from "@destack/db/log";
-import type { QueryPage, ResultChange, RowChange } from "../query/page.ts";
-import { TABLE, type Table } from "@destack/db";
-import { canonicalize } from "@destack/schema/json";
+import { DatabaseError, type LogPosition, TABLE, type Table } from "@destack/db";
+import type { Page, ResultChange, RowChange } from "../query/page.ts";
+import { canonicalize } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Audience } from "./audience.ts";
 import { Evaluation, nextTask, Restart } from "./evaluation.ts";
@@ -48,7 +46,7 @@ export class Stream {
         signal: AbortSignal,
         previous?: Evaluation,
         drain?: AbortSignal,
-    ): AsyncGenerator<QueryPage> {
+    ): AsyncGenerator<Page> {
         let epoch = await this.#feed.database.log.epoch();
         let sequence: number | undefined;
         try {
@@ -56,12 +54,18 @@ export class Stream {
                 try {
                     // continue within the epoch or start over with a snapshot
                     if (sequence === undefined) {
-                        sequence =
-                            after?.epoch !== epoch
-                                ? yield* this.#snapshot(epoch, signal)
-                                : previous !== undefined
-                                  ? yield* this.#reshape(previous, after, signal)
-                                  : yield* this.#resume(after, signal);
+                        // start over with a snapshot outside the epoch
+                        if (after?.epoch !== epoch) {
+                            sequence = yield* this.#snapshot(epoch, signal);
+                        }
+                        // reshape the copy of previous queries
+                        else if (previous !== undefined) {
+                            sequence = yield* this.#reshape(previous, after, signal);
+                        }
+                        // resume within the epoch
+                        else {
+                            sequence = yield* this.#resume(after, signal);
+                        }
                     }
 
                     // publish what follows
@@ -98,7 +102,7 @@ export class Stream {
         start: LogPosition,
         signal: AbortSignal,
         drain: AbortSignal | undefined,
-    ): AsyncGenerator<QueryPage> {
+    ): AsyncGenerator<Page> {
         // publish from the start until aborted, or drained between completed pages
         let position = start;
         let published = start.sequence;
@@ -144,7 +148,7 @@ export class Stream {
     }
 
     /** Send a snapshot at the latest position and what followed, returning the sequence reached. */
-    async *#snapshot(epoch: string, signal: AbortSignal): AsyncGenerator<QueryPage, number> {
+    async *#snapshot(epoch: string, signal: AbortSignal): AsyncGenerator<Page, number> {
         // walk the queries, then catch up
         const start = { epoch, sequence: (await this.#feed.database.log.position()).sequence };
         this.#evaluation.forget(start);
@@ -157,8 +161,8 @@ export class Stream {
     }
 
     /** Rebuild a resuming subscriber's state at its position, returning the sequence reached. */
-    async *#resume(after: LogPosition, signal: AbortSignal): AsyncGenerator<QueryPage, number> {
-        // rebuild the held rows and windows and send every group
+    async *#resume(after: LogPosition, signal: AbortSignal): AsyncGenerator<Page, number> {
+        // rebuild the selected rows and windows and send every group
         this.#evaluation.forget(after);
         const rebuilt = yield* this.#evaluation.walk(
             new View(this.#feed.database, after, this.#feed),
@@ -173,13 +177,11 @@ export class Stream {
         previous: Evaluation,
         after: LogPosition,
         signal: AbortSignal,
-    ): AsyncGenerator<QueryPage, number> {
+    ): AsyncGenerator<Page, number> {
         // rebuild the previous queries' state
         previous.forget(after);
-        for await (const _page of previous.walk(
-            new View(this.#feed.database, after, this.#feed),
-            "rebuild",
-        )) {
+        const pages = previous.walk(new View(this.#feed.database, after, this.#feed), "rebuild");
+        while ((await pages.next()).done !== true) {
             // rebuild without sending
         }
 
@@ -201,21 +203,21 @@ export class Stream {
         return yield* this.#catchUp(position, moved, signal);
     }
 
-    /** Send a held page and the changes up to the latest position, returning the sequence reached. */
+    /** Send a pending page and the changes up to the latest position, returning the sequence reached. */
     async *#catchUp(
         position: LogPosition,
-        held: QueryPage,
+        pending: Page,
         signal: AbortSignal,
-    ): AsyncGenerator<QueryPage, number> {
+    ): AsyncGenerator<Page, number> {
         // replay the changes except the last page
         const target = (await this.#feed.database.log.position()).sequence;
         let sequence = position.sequence;
-        let last = held;
+        let last = pending;
         while (sequence < target && !signal.aborted) {
             const pages = this.#evaluation.advance(position.epoch, sequence, false, signal);
             let next = await pages.next();
-            while (!next.done) {
-                // send the held page unless empty
+            while (next.done !== true) {
+                // send the pending page unless empty
                 if (last.reset || last.changes.length > 0 || (last.results?.length ?? 0) > 0) {
                     yield last;
                 }
@@ -251,12 +253,12 @@ export class Stream {
 
 /** Publish pages at most once per interval, merging those within it. */
 export async function* coalesce(
-    pages: AsyncGenerator<QueryPage>,
+    pages: AsyncGenerator<Page>,
     every: number,
     tables: readonly Table[],
-): AsyncGenerator<QueryPage> {
+): AsyncGenerator<Page> {
     // race the next page with the interval's end
-    let pending: QueryPage | undefined;
+    let pending: Page | undefined;
     let published = Number.NEGATIVE_INFINITY;
     let next = pages.next();
     for (;;) {
@@ -278,7 +280,10 @@ export async function* coalesce(
 
         // publish the merged page at the interval's end
         if (arrived === undefined) {
-            yield pending!;
+            if (pending === undefined) {
+                throw new TypeError("an interval ended without a pending page");
+            }
+            yield pending;
             pending = undefined;
             published = Date.now();
         }
@@ -304,11 +309,14 @@ export async function* coalesce(
 }
 
 /** Merge two consecutive pages. */
-function merge(earlier: QueryPage, later: QueryPage, tables: readonly Table[]): QueryPage {
+function merge(earlier: Page, later: Page, tables: readonly Table[]): Page {
     // net each row's changes, by table and key
     const changes = new Map<string, RowChange>();
     for (const change of [...earlier.changes, ...later.changes]) {
-        const table = tables.find((entry) => entry[TABLE].sqlName === change.table)!;
+        const table = tables.find((entry) => entry[TABLE].sqlName === change.table);
+        if (table === undefined) {
+            throw new TypeError(`a merged page names an unknown table: ${change.table}`);
+        }
         const key = JSON.stringify([
             change.table,
             ...table[TABLE].key.map((name) => change.row[name]),
@@ -334,7 +342,6 @@ function merge(earlier: QueryPage, later: QueryPage, tables: readonly Table[]): 
         }
         results.set(`${result.query}\n${canonicalize(result.group)}`, result);
     }
-    const outcomes = [...(earlier.outcomes ?? []), ...(later.outcomes ?? [])];
 
     return {
         reset: earlier.reset,
@@ -342,7 +349,6 @@ function merge(earlier: QueryPage, later: QueryPage, tables: readonly Table[]): 
         changes: [...changes.values()],
         ...(results.size === 0 ? {} : { results: [...results.values()] }),
         position: later.position,
-        ...(outcomes.length === 0 ? {} : { outcomes }),
     };
 }
 
@@ -353,13 +359,13 @@ function netChange(earlier: RowChange, later: RowChange): RowChange | undefined 
         return undefined;
     }
 
-    // keep the later row with the net operation
-    const operation =
-        earlier.operation === "insert" && later.operation === "update"
-            ? "insert"
-            : earlier.operation === "delete" && later.operation !== "delete"
-              ? "update"
-              : later.operation;
+    // net the two operations
+    let operation = later.operation;
+    if (earlier.operation === "insert" && later.operation === "update") {
+        operation = "insert";
+    } else if (earlier.operation === "delete" && later.operation !== "delete") {
+        operation = "update";
+    }
 
     return { ...later, operation };
 }

@@ -1,5 +1,5 @@
-import type { DatabaseConnection, Row } from "@destack/db";
-import type { Change, RelationView } from "@destack/db/log";
+import type { ColumnValue, DatabaseConnection, Row, Change, RelationView } from "@destack/db";
+import { found, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import type { Audience, Watch } from "../feed/audience.ts";
 import { Filter, type Arrangement } from "./filter.ts";
@@ -10,7 +10,7 @@ import type { Upstream } from "./upstream.ts";
 import type { Segment } from "./view.ts";
 import type { Window } from "./window.ts";
 
-/** The partitions of a row no partition holds. */
+/** The partitions of a row no partition has. */
 export const NOWHERE: ReadonlySet<string> = new Set();
 
 /** One node's operators, with its open partitions and members. */
@@ -29,7 +29,7 @@ export abstract class Pipeline {
     children: readonly (Pipeline | undefined)[] = [];
     /** The open partitions, by name. */
     readonly partitions = new Map<string, Partition>();
-    /** The rows the node holds, by key. */
+    /** The rows the node selects, by key. */
     readonly members = new Map<string, Member>();
 
     /** Create the pipeline of a node. */
@@ -47,7 +47,7 @@ export abstract class Pipeline {
     /** The rows and groups the pipeline knows. */
     abstract get size(): number;
 
-    /** Forget everything the pipeline holds. */
+    /** Forget everything the pipeline has. */
     forget(): void {
         this.partitions.clear();
         this.members.clear();
@@ -56,13 +56,13 @@ export abstract class Pipeline {
     /** Open a root's one partition, starting after a row when given one. */
     openRoot(start?: Row): void {
         this.partitions.set("", {
-            ...partitionOf(undefined, 1),
+            ...partitionOf(null, 1),
             ...(start === undefined ? {} : { start }),
         });
     }
 
-    /** Count a held value's holders up or down, opening or closing its partition. */
-    hold(value: unknown, step: 1 | -1, run: Run): void {
+    /** Count a parent value's holders up or down, opening or closing its partition. */
+    retain(value: ColumnValue, step: 1 | -1, run: Run): void {
         // name the partition and the run's work
         const name = this.node.partition(value);
         const partition = this.partitions.get(name);
@@ -72,8 +72,8 @@ export abstract class Pipeline {
         if (step > 0 && partition === undefined) {
             this.partitions.set(name, partitionOf(value, 1));
             work.opened.set(name, value);
-        } else if (step > 0) {
-            partition!.holders += 1;
+        } else if (step > 0 && partition !== undefined) {
+            partition.holders += 1;
             work.closed.delete(name);
         }
         // close a partition after its last holder
@@ -86,22 +86,31 @@ export abstract class Pipeline {
         }
     }
 
+    /** Read the parent node's pipeline, failing for a root. */
+    protected requireParent(): Pipeline {
+        if (this.parent === undefined) {
+            throw new TypeError(`root ${this.node.name} has no parent pipeline`);
+        }
+
+        return this.parent;
+    }
+
     /** Decide rows again as of the run's position. */
-    async decide(rows: ReadonlyMap<string, Row | undefined>, run: Run): Promise<void> {
+    async decide(rows: ReadonlyMap<string, Row | null>, run: Run): Promise<void> {
         // decide the rows and locate the candidates' partitions
         if (rows.size === 0) {
             return;
         }
         run.decided += rows.size;
-        const present = [...rows.values()].filter((row): row is Row => row !== undefined);
+        const present = [...rows.values()].filter((row): row is Row => row !== null);
         await this.filter.prepare(present, run);
         const candidates = present.filter((row) => this.filter.isCandidate(row, run));
         const located = await this.input.locate(candidates, run);
-        const partitions = new Map(candidates.map((row, index) => [row, located[index]!]));
+        const partitions = new Map(zip(candidates, located));
 
         // admit each row to its open partitions
         for (const [key, row] of rows) {
-            const values = row === undefined ? undefined : partitions.get(row);
+            const values = row === null ? undefined : partitions.get(row);
             const names = new Set<string>();
             for (const value of values ?? []) {
                 const name = this.node.partition(value);
@@ -111,7 +120,7 @@ export abstract class Pipeline {
             }
             this.admit(
                 key,
-                values === undefined ? undefined : this.filter.resolve(row!, run),
+                row === null || values === undefined ? null : this.filter.resolve(row, run),
                 names,
                 run,
             );
@@ -121,7 +130,7 @@ export abstract class Pipeline {
     /** Admit a decided row to its partitions. */
     protected abstract admit(
         key: string,
-        row: Row | undefined,
+        row: Row | null,
         names: ReadonlySet<string>,
         run: Run,
     ): void;
@@ -138,7 +147,7 @@ export abstract class Pipeline {
         }
         for (const name of names) {
             if (!before.has(name)) {
-                this.partitions.get(name)!.members.add(key);
+                found(this.partitions, name).members.add(key);
             }
         }
 
@@ -146,7 +155,7 @@ export abstract class Pipeline {
     }
 
     /** Read each partition's candidates with their computed values. */
-    protected async matched(values: readonly unknown[], run: Run): Promise<Row[][]> {
+    protected async matched(values: readonly ColumnValue[], run: Run): Promise<Row[][]> {
         // read and decide the partitions' rows
         const members = await this.input.members(values, run);
         await this.filter.prepare(members.flat(), run);
@@ -187,14 +196,12 @@ export abstract class Pipeline {
             run,
         );
 
-        return matched.map((rows, index) => {
-            const after = segments[index]!.after;
-
-            return rows
+        return zip(matched, segments).map(([rows, { after }]) =>
+            rows
                 .filter((row) => after === undefined || node.compare(row, after) > 0)
-                .sort((left, right) => node.compare(left, right))
-                .slice(0, count);
-        });
+                .toSorted((left, right) => node.compare(left, right))
+                .slice(0, count),
+        );
     }
 
     /** Follow the node's relations as of the run's position. */
@@ -207,11 +214,9 @@ export abstract class Pipeline {
                 // answer by the relation's count of rows naming the row
                 const relation = node.relation(via, where);
                 await arrangement.prepare(node, [row], run);
-                const count = arrangement.measured(relation, relation.valueOf(row), run).count as
-                    | number
-                    | undefined;
+                const count = arrangement.measured(relation, relation.valueOf(row), run)["count"];
 
-                return (count ?? 0) > 0;
+                return typeof count === "number" && count > 0;
             },
             touched: (after, upto) => run.view.dependents(node, after, upto),
             resolve: async (row) => {
@@ -227,7 +232,7 @@ export abstract class Pipeline {
 export interface Context {
     /** Who the dataflow serves. */
     readonly audience: Audience;
-    /** What the subscriber holds. */
+    /** What the subscriber has. */
     readonly sink: Sink;
     /** The groups of the relations filters look up. */
     readonly arrangement: Arrangement;
@@ -235,7 +240,7 @@ export interface Context {
     readonly upstream: Upstream | undefined;
     /** The database read. */
     readonly database: DatabaseConnection;
-    /** Whether selections hold their rows. */
+    /** Whether selections keep their rows. */
     readonly isMaterialized: boolean;
     /** Read the watched changes between two sequences, absent once compacted. */
     changesThrough(
@@ -245,13 +250,13 @@ export interface Context {
     ): Promise<Change[] | undefined>;
 }
 
-/** A partition of a node that held parent rows opened. */
+/** A partition of a node that selected parent rows opened. */
 export interface Partition {
-    /** The held parent rows' value naming it, absent for a root. */
-    readonly value: unknown;
-    /** How many held parent rows name it. */
+    /** The selected parent rows' value naming it, null for a root. */
+    readonly value: ColumnValue;
+    /** How many selected parent rows name it. */
     holders: number;
-    /** The keys of the rows it holds. */
+    /** The keys of the rows it has. */
     readonly members: Set<string>;
     /** The first rows of the node's order, when the node is limited. */
     window: Window | undefined;
@@ -261,18 +266,18 @@ export interface Partition {
     start?: Row;
 }
 
-/** A row a node holds. */
+/** A row a node selects. */
 export interface Member {
-    /** The partitions holding the row. */
+    /** The partitions with the row. */
     partitions: ReadonlySet<string>;
     /** The value naming each child's partition, in child order. */
-    joins: readonly unknown[];
-    /** The row with its computed values, held when the dataflow materializes. */
+    joins: readonly ColumnValue[];
+    /** The row with its computed values, kept when the dataflow materializes. */
     row?: Row;
 }
 
 /** Create a partition. */
-export function partitionOf(value: unknown, holders: number): Partition {
+export function partitionOf(value: ColumnValue, holders: number): Partition {
     return { value, holders, members: new Set(), window: undefined, sequence: -1 };
 }
 
