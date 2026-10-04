@@ -7,6 +7,7 @@ import { SigningKey } from "./key.ts";
 import { TrustedRoot } from "./root.ts";
 import { parseObject } from "./json.ts";
 import { SignedRepository } from "./repository.ts";
+import { COMMIT } from "../update/tests/repository.ts";
 
 test("renew freshness while preserving exact targets authorization", async () => {
     // prepare independent roles and a quorum using disposable keys
@@ -40,6 +41,7 @@ test("renew freshness while preserving exact targets authorization", async () =>
             {
                 target: "aarch64-apple-darwin",
                 version: "2026.9.1",
+                commit: COMMIT,
                 archive,
             },
         ]);

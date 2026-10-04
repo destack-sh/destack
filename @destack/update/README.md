@@ -11,9 +11,10 @@ import { Release, Updater } from "@destack/update";
 
 await using updater = await Updater.open({
     directory: installationDirectory,
-    repository: new URL("https://download.destack.sh/"),
+    repository: new URL("https://download.destack.sh/stable/"),
+    channel: "stable", // refuse releases of another channel
     root: trustedRoot,
-    target: Release.target(),
+    target: Release.target(process.platform, process.arch),
     application: applicationPath, // macOS only, with its bundle identifier
     applicationIdentifier: "app.destack.desktop",
 });
@@ -27,7 +28,7 @@ if (update !== undefined) {
 
 ## Targets
 
-`Release.target()` returns the running target, one of these five.
+`Release.target(platform, architecture)` returns the target of a platform and architecture as Node names them, one of these five.
 
 ```text
 aarch64-apple-darwin
@@ -70,6 +71,18 @@ const online = {
 const root = TrustedRoot.create(1, [first.public, second.public, third.public], online, expires);
 root.sign((bytes) => first.sign(bytes)); // the ceremony signs with two of the three root keys
 root.sign((bytes) => second.sign(bytes));
-await SignedRepository.create(directory, revision, root, keys, [{ target, version, archive }]);
+await SignedRepository.create(directory, revision, root, keys, [
+    { target, version, commit, archive },
+]);
 await SignedRepository.renew(directory, revision, root, keys, targetBytes); // fresh snapshot and timestamp
+```
+
+## Lifetimes
+
+`LIFETIME_DAYS` keeps targets valid for a year, and snapshot and timestamp for two weeks.
+
+```text
+targets     365 days   signed with each release
+snapshot     14 days   re-signed by every publication and renewal
+timestamp    14 days   re-signed by every publication and renewal
 ```

@@ -6,6 +6,9 @@ import { join } from "node:path";
 import type { UpdaterOptions } from "../updater.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "../../publish/index.ts";
 
+/** The Git commit every fixture distribution claims to be built from. */
+export const COMMIT = "2c9f1e7d5b3a8f60c4e1d2b7a9f0e3c5d8b1a4f6";
+
 /** A real signed repository and isolated installation served over loopback. */
 export class Repository implements AsyncDisposable {
     /** Temporary files owned by this scenario. */
@@ -79,6 +82,7 @@ export class Repository implements AsyncDisposable {
         this.options = {
             directory: join(directory, "installation"),
             repository: new URL("http://127.0.0.1/"),
+            channel: "stable",
             root: SignedRepository.encode(this.root).toString(),
             target: this.target,
         };
@@ -97,7 +101,7 @@ export class Repository implements AsyncDisposable {
             await cp(join(fixture, "source"), repository.source, { recursive: true });
             await cp(join(fixture, "release.tar.gz"), repository.archive);
             await SignedRepository.create(repository.path, 1, repository.root, repository.keys, [
-                { target: repository.target, version, archive: repository.archive },
+                { target: repository.target, version, commit: COMMIT, archive: repository.archive },
             ]);
 
             // select an available loopback port for this repository

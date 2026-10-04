@@ -1,7 +1,7 @@
 import { UpdateError } from "../error/error.ts";
 import { isAbsolute, join } from "node:path";
 import { type InstalledRelease, Installer, type StagedRelease } from "../install/installer.ts";
-import { Release, type Target } from "../release/release.ts";
+import { type Channel, Release, type Target } from "../release/release.ts";
 import { type Download, UpdateRepository } from "../repository/repository.ts";
 import { Update } from "./update.ts";
 import { FileLock } from "@destack/fs";
@@ -78,6 +78,7 @@ export class Updater implements AsyncDisposable {
                 join(options.directory, "update"),
                 options.repository,
                 options.root,
+                options.channel,
             );
             const updater = new Updater(options, lock, repository);
             return updater;
@@ -239,6 +240,8 @@ export interface UpdaterOptions {
     directory: string;
     /** TUF repository containing metadata and targets. */
     repository: URL;
+    /** The channel the installation follows. */
+    channel: Channel;
     /** Initial public root metadata bundled with the executable. */
     root: string;
     /** Platform of the distribution to install. */

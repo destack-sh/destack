@@ -15,6 +15,10 @@ import {
 import type { SigningKey } from "./key.ts";
 import { parseObject } from "./json.ts";
 import { TrustedRoot } from "./root.ts";
+import { TargetCustom } from "../release/release.ts";
+
+/** The days each online role's metadata stays valid after signing. */
+export const LIFETIME_DAYS = { targets: 365, snapshot: 14, timestamp: 14 } as const;
 
 /** Keys authorized to publish routine release metadata. */
 export interface ReleaseKeys extends RenewalKeys {
@@ -36,6 +40,8 @@ export interface Distribution {
     target: string;
     /** Calendar version reported by the executable. */
     version: string;
+    /** Git commit the distribution was built from. */
+    commit: string;
     /** Local archive containing the CLI and desktop. */
     archive: string;
     /** Download format; update archives use tar.gz. */
@@ -143,7 +149,11 @@ async function createRepository(
 
     // address every archive by its digest and describe its release in signed target metadata
     const targets = new Metadata(
-        new Targets({ version: revision, specVersion: "1.0.31", expires: expires(365) }),
+        new Targets({
+            version: revision,
+            specVersion: "1.0.31",
+            expires: expires(LIFETIME_DAYS.targets),
+        }),
     );
     for (const distribution of distributions) {
         const path = `${distribution.target}.${distribution.format ?? "tar.gz"}`;
@@ -156,12 +166,16 @@ async function createRepository(
         }
         const sha256 = hash.digest("hex");
         const file = await stat(distribution.archive);
+        const custom = TargetCustom.parse({
+            version: distribution.version,
+            commit: distribution.commit,
+        });
         targets.signed.addTarget(
             new TargetFile({
                 path,
                 length: file.size,
                 hashes: { sha256 },
-                unrecognizedFields: { custom: { version: distribution.version } },
+                unrecognizedFields: { custom },
             }),
         );
         await copyFile(distribution.archive, join(archives, `${sha256}.${path}`));
@@ -186,7 +200,7 @@ async function writeMetadata(
         Targets.fromJSON({
             ...targets.signed.toJSON(),
             version: revision,
-            expires: expires(365),
+            expires: expires(LIFETIME_DAYS.targets),
         }),
     );
     targets.sign((bytes) => keys.targets.sign(bytes));
@@ -229,7 +243,7 @@ async function renewMetadata(
         new Snapshot({
             specVersion: "1.0.31",
             version: revision,
-            expires: expires(7),
+            expires: expires(LIFETIME_DAYS.snapshot),
             meta: { "targets.json": describe(targets.signed.version, targetBytes) },
         }),
     );
@@ -241,7 +255,7 @@ async function renewMetadata(
         new Timestamp({
             specVersion: "1.0.31",
             version: revision,
-            expires: expires(2),
+            expires: expires(LIFETIME_DAYS.timestamp),
             snapshotMeta: describe(revision, snapshotBytes),
         }),
     );

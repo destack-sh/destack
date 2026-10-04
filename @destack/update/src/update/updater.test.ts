@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { create } from "tar";
 import { Metadata, MetadataKind, Timestamp } from "@tufjs/models";
-import { Repository, createRootKey } from "./tests/repository.ts";
+import { COMMIT, Repository, createRootKey } from "./tests/repository.ts";
 import { Updater } from "./updater.ts";
 import type { Update } from "./update.ts";
 import type { StagedRelease } from "../install/installer.ts";
@@ -228,6 +228,7 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
         {
             target,
             version: "2026.9.1",
+            commit: COMMIT,
             archive,
         },
     ]);
@@ -292,6 +293,7 @@ test("preserve the installed release when signed replacements contradict its ide
         {
             target,
             version: "2026.9.2",
+            commit: COMMIT,
             archive,
         },
     ]);
@@ -313,6 +315,7 @@ test("preserve the installed release when signed replacements contradict its ide
         {
             target,
             version: "2026.9.1",
+            commit: COMMIT,
             archive,
         },
     ]);
@@ -320,6 +323,19 @@ test("preserve the installed release when signed replacements contradict its ide
         await using updater = await Updater.open(options);
         await expect(updater.check()).rejects.toThrow(
             new UpdateError("RELEASE", "published release changed"),
+        );
+        expect(await updater.current()).toEqual(installed);
+        expect(await updater.staged()).toBeUndefined();
+    }
+
+    // refuse a correctly signed nightly release in the stable repository
+    await SignedRepository.create(repository.path, 5, repository.root, repository.keys, [
+        { target, version: "2026.9.2-nightly.1", commit: COMMIT, archive },
+    ]);
+    {
+        await using updater = await Updater.open(options);
+        await expect(updater.check()).rejects.toThrow(
+            new UpdateError("REPOSITORY", "the stable repository publishes a nightly release"),
         );
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();

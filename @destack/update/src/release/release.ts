@@ -1,4 +1,4 @@
-import { schema, Version } from "@destack/schema";
+import { Commit, schema, Version } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 
 /** Operating systems and architectures supported by Destack distributions. */
@@ -16,27 +16,43 @@ export const Target = schema.enum(TARGETS);
 /** A supported distribution target. */
 export type Target = schema.Infer<typeof Target>;
 
+/** The custom field of a signed TUF target: the release it distributes. */
+export const TargetCustom = schema
+    .object({
+        /** The calendar version the executables report. */
+        version: Version,
+        /** The Git commit the distribution was built from. */
+        commit: Commit,
+    })
+    .strip();
+
+/** The update channels a release publishes on, each with its own signed repository. */
+export const CHANNELS = ["stable", "nightly"] as const;
+
+/** An update channel. */
+export type Channel = (typeof CHANNELS)[number];
+
+/** The release architecture of each Node architecture name. */
+const ARCHITECTURES: Readonly<Record<string, string | undefined>> = {
+    arm64: "aarch64",
+    x64: "x86_64",
+};
+
+/** The release system of each Node platform name. */
+const SYSTEMS: Readonly<Record<string, string | undefined>> = {
+    darwin: "apple-darwin",
+    linux: "unknown-linux-gnu",
+    win32: "pc-windows-msvc",
+};
+
 /** A calendar release identified by authenticated update metadata. */
 export class Release {
-    /** Identify the running distribution's operating system and architecture. */
-    static target(): Target {
-        // map the process architecture and platform to a release target
-        const architecture =
-            process.arch === "arm64" ? "aarch64" : process.arch === "x64" ? "x86_64" : undefined;
-        const system =
-            process.platform === "darwin"
-                ? "apple-darwin"
-                : process.platform === "linux"
-                  ? "unknown-linux-gnu"
-                  : process.platform === "win32"
-                    ? "pc-windows-msvc"
-                    : undefined;
-        const target = Target.safeParse(`${architecture}-${system}`);
+    /** Identify the release target of a platform and architecture, as Node names them in `process.platform` and `process.arch`. */
+    static target(platform: string, architecture: string): Target {
+        // map the platform and architecture to a release target
+        const target = Target.safeParse(`${ARCHITECTURES[architecture]}-${SYSTEMS[platform]}`);
         if (!target.success) {
-            throw new UpdateError(
-                "RELEASE",
-                `unsupported target: ${process.platform}/${process.arch}`,
-            );
+            throw new UpdateError("RELEASE", `unsupported target: ${platform}/${architecture}`);
         }
 
         return target.data;
@@ -73,8 +89,8 @@ export class Release {
         return `${this.version}-${this.target}`;
     }
 
-    /** Update feed selected by this release identity. */
-    get channel(): "stable" | "nightly" {
+    /** Update channel selected by this release identity. */
+    get channel(): Channel {
         return this.version.includes("-nightly.") ? "nightly" : "stable";
     }
 }

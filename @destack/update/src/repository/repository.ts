@@ -3,7 +3,7 @@ import { UpdateError } from "../error/error.ts";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type TargetFile, Updater, type UpdaterOptions } from "tuf-js";
-import { Release, type Target } from "../release/release.ts";
+import { type Channel, Release, type Target, TargetCustom } from "../release/release.ts";
 import { DownloadFetcher, type DownloadOptions } from "./download.ts";
 
 /** An authenticated release and its downloaded archive. */
@@ -18,6 +18,8 @@ export interface Download {
 
 /** A TUF repository with persistent trust and rollback protection. */
 export class UpdateRepository {
+    /** The channel whose releases this repository publishes. */
+    readonly channel: Channel;
     /** Metadata selected by this session, indexed by immutable release identity. */
     private readonly selected = new Map<string, TargetFile>();
     /** Metadata and download locations for target-specific fetchers. */
@@ -27,7 +29,8 @@ export class UpdateRepository {
     >;
 
     /** Configure a repository after initializing its trusted root. */
-    private constructor(directory: string, url: URL) {
+    private constructor(directory: string, url: URL, channel: Channel) {
+        this.channel = channel;
         this.locations = {
             metadataDir: join(directory, "metadata"),
             targetDir: join(directory, "downloads"),
@@ -37,7 +40,12 @@ export class UpdateRepository {
     }
 
     /** Initialize trust from the root bundled with the installed executable. */
-    static async open(directory: string, url: URL, root: string): Promise<UpdateRepository> {
+    static async open(
+        directory: string,
+        url: URL,
+        root: string,
+        channel: Channel,
+    ): Promise<UpdateRepository> {
         // permit plaintext only for local release verification
         const isLoopback = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
         if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
@@ -74,7 +82,7 @@ export class UpdateRepository {
             throw new UpdateError("REPOSITORY", "update cache belongs to a different repository");
         }
 
-        return new UpdateRepository(directory, url);
+        return new UpdateRepository(directory, url, channel);
     }
 
     /** Refresh trusted metadata and describe the current release for a target. */
@@ -90,8 +98,22 @@ export class UpdateRepository {
             throw new UpdateError("REPOSITORY", `no published release for ${target}`);
         }
 
+        // read the signed release identity
+        const custom = TargetCustom.safeParse(artifact.custom);
+        if (!custom.success) {
+            throw new UpdateError("RELEASE", "invalid release metadata");
+        }
+
+        // refuse a release of another channel, such as a nightly in the stable repository
+        const release = new Release(custom.data.version, target);
+        if (release.channel !== this.channel) {
+            throw new UpdateError(
+                "REPOSITORY",
+                `the ${this.channel} repository publishes a ${release.channel} release`,
+            );
+        }
+
         // retain the exact signed target even if the repository publishes another release
-        const release = new Release(artifact.custom["version"], target);
         const previous = this.selected.get(release.directory);
         if (previous && !previous.equals(artifact)) {
             throw new UpdateError("REPOSITORY", "published release changed");

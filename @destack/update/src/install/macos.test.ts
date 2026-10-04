@@ -13,7 +13,7 @@ test.runIf(process.platform === "darwin")(
         const directory = await mkdtemp(join(tmpdir(), "destack-macos-update-"));
         try {
             const installer = new Installer(join(directory, "installation"));
-            const release = new Release("2026.9.1", Release.target());
+            const release = new Release("2026.9.1", Release.target(process.platform, process.arch));
             const staged = join(installer.directory, "versions", release.directory);
             const application = join(staged, "Destack.app");
             await writeApplication(application, release, "org.example.editor");
@@ -60,7 +60,10 @@ test.skipIf(process.platform !== "darwin")(
             const source = join(directory, "source.app");
             const destination = join(directory, "renamed.app");
             for (const version of ["2026.9.1-nightly.1", "2026.9.1-nightly.2"]) {
-                const release = new Release(version, Release.target());
+                const release = new Release(
+                    version,
+                    Release.target(process.platform, process.arch),
+                );
                 await writeApplication(source, release, "org.example.editor.nightly");
                 await installApplication(source, destination, "org.example.editor.nightly");
                 expect(
@@ -69,7 +72,7 @@ test.skipIf(process.platform !== "darwin")(
             }
 
             // reject another distribution identity without changing the installed bundle
-            const stable = new Release("2026.9.2", Release.target());
+            const stable = new Release("2026.9.2", Release.target(process.platform, process.arch));
             await writeApplication(source, stable, "org.example.editor");
             await expect(
                 installApplication(source, destination, "org.example.editor"),
