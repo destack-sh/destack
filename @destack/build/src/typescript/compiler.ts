@@ -6,7 +6,8 @@ import { API, type Project } from "typescript/unstable/async";
 import { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
 import { collectImports, type ProgramImports } from "./program.ts";
-import { describeProject, isAuthored, type TypeScriptInspection } from "./module.ts";
+import { describeProject, type TypeScriptInspection } from "./module.ts";
+import { isAuthored } from "../source/dependency.ts";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));

@@ -35,14 +35,12 @@ async function writeWorkspace(directory: string, owner: string): Promise<void> {
             key === "owner"
                 ? {
                       defineThing: {
-                          module: 1,
                           describes: [{ kind: "thing", function: "./inspect#describe" }],
                       },
                   }
                 : key === "other"
                   ? {
                         defineGreeting: {
-                            module: 1,
                             describes: [
                                 { kind: "greeting", function: "./inspect#describe" },
                                 { kind: "thing", package: owner, function: "./inspect#describe" },
@@ -50,12 +48,16 @@ async function writeWorkspace(directory: string, owner: string): Promise<void> {
                         },
                     }
                   : {};
+        const stamps = Object.fromEntries(
+            Object.keys(constructors).map((name) => [name, { module: 1 }]),
+        );
         files[`${root}destack.json`] = JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: identity.id,
             language: "typescript",
             runtimes: ["bun"],
             declarations: constructors,
+            stamps,
         });
         files[`${root}package.json`] = JSON.stringify({
             name: identity.name,

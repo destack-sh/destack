@@ -30,6 +30,7 @@ import type {
 } from "@destack/package/code";
 import type { SourceRange } from "@destack/package/source";
 import { compareText } from "../build/serialization.ts";
+import { isAuthored, relativePath } from "../source/dependency.ts";
 
 /** Named declarations retained as references instead of expanded structural types. */
 const REFERENCE_FLAGS =
@@ -54,22 +55,24 @@ export class SymbolInspector {
     readonly project: Project;
     /** Resolve named declarations and enqueue local dependencies. */
     readonly reference: (symbol: TypeScriptSymbol) => Promise<SymbolReference>;
-    /** Convert a source node into a package-relative range. */
-    readonly range: (node: Node) => SourceRange;
+    /** The package directory. */
+    readonly root: string;
     /** The source file of each declaration path, fetched once. */
     readonly #sources = new Map<string, Promise<SourceFile | undefined>>();
     /** The step of each type a walk has visited, shared by every walk of the inspection. */
     readonly #steps = new Map<number, Promise<TypeStep>>();
+    /** The package-relative path of each compiler file. */
+    readonly #paths = new Map<string, string>();
 
     /** Associate compiler results with package declarations and source files. */
     constructor(
         project: Project,
         reference: (symbol: TypeScriptSymbol) => Promise<SymbolReference>,
-        range: (node: Node) => SourceRange,
+        root: string,
     ) {
         this.project = project;
         this.reference = reference;
-        this.range = range;
+        this.root = root;
     }
 
     /** Resolve an alias to the symbol it names, keeping any other symbol. */
@@ -81,8 +84,8 @@ export class SymbolInspector {
 
     /** Describe a symbol's type and value namespaces independently. */
     async describe(symbol: TypeScriptSymbol, name: string): Promise<SymbolDescription> {
-        // collect merged declarations and their documentation
-        const nodes = await this.nodes(symbol);
+        // collect the package's merged declarations and their documentation
+        const nodes = await this.#authored(symbol);
         const result: SymbolDescription = {
             name,
             declarations: await Promise.all(nodes.map((node) => this.declaration(node))),
@@ -113,9 +116,15 @@ export class SymbolInspector {
             result.signatures = await this.signatures(type, nodes[0]);
         }
 
-        // describe a module's exports and every declared member once
+        // describe a module's exports and every member the package declares once
         const members = await this.#members(symbol, declared, nodes, result);
-        result.members = await Promise.all(members.map((member) => this.member(member, symbol)));
+        const declarations = await Promise.all(members.map((member) => this.#authored(member)));
+        const described = members.flatMap((member, index) => {
+            const authored = aligned(declarations, index);
+
+            return authored.length ? [this.member(member, symbol, authored)] : [];
+        });
+        result.members = await Promise.all(described);
 
         return result;
     }
@@ -193,13 +202,13 @@ export class SymbolInspector {
         });
     }
 
-    /** Describe a member's declarations, type, overloads, and documentation. */
+    /** Describe a member from its declarations in the package, with its type, overloads and documentation. */
     async member(
         symbol: TypeScriptSymbol,
         parent: TypeScriptSymbol,
+        declarations: readonly Node[],
     ): Promise<SymbolDescription["members"][number]> {
         // inspect the original declaration in its type or value namespace
-        const declarations = await this.nodes(symbol);
         const location = declarations[0];
         const type = await this.#memberType(await this.original(symbol), location);
         if (type === undefined || type.isErrorType()) {
@@ -637,6 +646,26 @@ export class SymbolInspector {
     /** Resolve the source declarations of a symbol. */
     nodes(symbol: TypeScriptSymbol): Promise<Node[]> {
         return Promise.all(symbol.declarations.map((handle) => this.node(handle)));
+    }
+
+    /** Resolve a symbol's declarations in the package's modules, leaving dependency augmentations. */
+    async #authored(symbol: TypeScriptSymbol): Promise<Node[]> {
+        const nodes = await this.nodes(symbol);
+
+        return nodes.filter((node) => isAuthored(this.root, node.getSourceFile().fileName));
+    }
+
+    /** Name a node's range by its file's package-relative path, read once per file. */
+    range(node: Node): SourceRange {
+        // name each file once, since ranges cover every expression
+        const file = node.getSourceFile().fileName;
+        let path = this.#paths.get(file);
+        if (path === undefined) {
+            path = relativePath(this.root, file);
+            this.#paths.set(file, path);
+        }
+
+        return { file: path, start: node.getStart(), end: node.getEnd() };
     }
 
     /** Resolve a declaration, fetching its source file once however many walks resolve it together. */

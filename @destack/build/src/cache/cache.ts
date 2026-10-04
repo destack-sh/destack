@@ -8,6 +8,7 @@ import { PackageOutput } from "@destack/package/manifest";
 import { SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/transform";
 import { Digest, found, schema } from "@destack/schema";
+import { BunProcess } from "@destack/check/bun";
 import { readDirectory } from "../compile/asset.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import type { ProgramImports } from "../typescript/program.ts";
@@ -183,7 +184,7 @@ interface PackageIdentity {
 /** Identify the toolchain running this compiler: a standalone executable by its bytes, else Bun, TypeScript and the build package with its dependencies. */
 export async function identifyToolchain(identities: Identities): Promise<Digest> {
     // identify a standalone executable by its bytes
-    if (Bun.isStandaloneExecutable) {
+    if (BunProcess.isStandalone) {
         return await Digest.json({
             layout: KEY_LAYOUT,
             executable: await identities.file(process.execPath),
@@ -195,7 +196,7 @@ export async function identifyToolchain(identities: Identities): Promise<Digest>
 
     return await Digest.json({
         layout: KEY_LAYOUT,
-        bun: Bun.revision,
+        bun: BunProcess.revision(),
         typescript: version,
         build: await identities.package(directory),
     });

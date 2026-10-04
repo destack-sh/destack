@@ -1,6 +1,6 @@
 import { VERSION_HEADER } from "@destack/service/request";
 import { test } from "@destack/test";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PackageBuild } from "../src/index.ts";
 import {

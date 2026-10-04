@@ -1,7 +1,7 @@
 import { BuildError } from "../error/index.ts";
 import { found, present } from "@destack/schema";
 import { readFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, relative, sep } from "node:path";
+import { basename, dirname } from "node:path";
 import { version } from "typescript";
 import {
     type NodeHandle,
@@ -25,7 +25,6 @@ import {
     type SymbolDescription,
     type SymbolReference,
 } from "@destack/package/code";
-import type { SourceRange } from "@destack/package/source";
 import { SymbolInspector } from "./symbol.ts";
 import { PackageFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
@@ -36,7 +35,7 @@ import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
 import { collectDirectories, type DirectoryReference } from "./directory.ts";
 import { compareText } from "../build/serialization.ts";
-import { relativePath } from "../source/dependency.ts";
+import { isAuthored, relativePath } from "../source/dependency.ts";
 
 /** The identifier `meta`, which every `import.meta` expression spells without escapes. */
 const META = /(?<![\w$])meta(?![\w$])/u;
@@ -133,18 +132,12 @@ class ProjectInspection {
     readonly #pending = new Map<number, TypeScriptSymbol>();
     /** The reference of each located symbol. */
     readonly #locations = new Map<number, Promise<SymbolReference>>();
-    /** The package-relative path of each compiler file. */
-    readonly #paths = new Map<string, string>();
 
     /** Start inspecting a project. */
     constructor(project: Project, root: string) {
         this.project = project;
         this.root = root;
-        this.inspector = new SymbolInspector(
-            project,
-            (symbol) => this.reference(symbol),
-            (node) => this.#range(node),
-        );
+        this.inspector = new SymbolInspector(project, (symbol) => this.reference(symbol), root);
     }
 
     /** Locate a symbol once, queueing the package's declarations its exports and public types name. */
@@ -271,19 +264,6 @@ class ProjectInspection {
             module: located.module,
             symbol: await this.inspector.describe(symbol, located.name),
         };
-    }
-
-    /** Name a node's range by its file's package-relative path, read once per file. */
-    #range(node: Node): SourceRange {
-        // name each file once, since ranges cover every expression
-        const file = node.getSourceFile().fileName;
-        let path = this.#paths.get(file);
-        if (path === undefined) {
-            path = relativePath(this.root, file);
-            this.#paths.set(file, path);
-        }
-
-        return { file: path, start: node.getStart(), end: node.getEnd() };
     }
 }
 
@@ -632,16 +612,4 @@ async function declarationName(symbol: TypeScriptSymbol): Promise<string> {
 /** Report whether a file holds declarations only, by the compiler's naming rule for `.d.ts` files. */
 export function isDeclarationPath(path: string): boolean {
     return /\.d\.[cm]?ts$/u.test(path) || (path.endsWith(".ts") && basename(path).includes(".d."));
-}
-
-/** Report whether a compiler file is one of the package's modules. */
-export function isAuthored(root: string, file: string): boolean {
-    return contains(root, file) && !relative(root, file).split(sep).includes("node_modules");
-}
-
-/** Report whether a file lies inside a directory. */
-function contains(directory: string, file: string): boolean {
-    const path = relative(directory, file);
-
-    return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
 }

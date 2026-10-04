@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
+import { BunProcess } from "@destack/check/bun";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
@@ -56,7 +57,7 @@ export const Compiler = {
     /** Find the compiler this process starts: the released one beside a standalone executable, else Bun running this package's entry from its workspace. */
     async current(): Promise<Compiler> {
         // start the release's compiler from a standalone executable
-        if (Bun.isStandaloneExecutable) {
+        if (BunProcess.isStandalone) {
             return Compiler.beside(process.execPath);
         }
 

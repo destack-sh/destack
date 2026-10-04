@@ -10,7 +10,7 @@ import { graph, Package } from "@destack/package";
 import type { DeclarationExport, FunctionExport } from "./declaration.ts";
 import { type Comparator, Plan } from "@destack/resource";
 import type { PackageSource } from "../source/index.ts";
-import { modulePlugin } from "@destack/package/transform/vite";
+import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { runtimeConditions } from "@destack/package/build";

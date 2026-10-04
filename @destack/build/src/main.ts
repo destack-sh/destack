@@ -13,7 +13,7 @@ if (Toolchain.directory !== undefined) {
 }
 
 // load package sources with their module metadata before the compiler loads any, which loads rolldown
-await import("@destack/package/transform/preload");
+await import("@destack/package/bun/preload");
 
 // keep the binding's path from the tools the compiler starts, which load their bindings themselves
 delete process.env["NAPI_RS_NATIVE_LIBRARY_PATH"];

@@ -67,8 +67,8 @@ test("rebuild a web application with emitted assets and restore every output", a
         file,
         'import first from "./first.svg?url";\nimport second from "./second.svg?url";\n' +
             original.replace(
-                "<main {...theme}>",
-                "<main {...theme}><img src={first} /><img src={second} />",
+                '<main style={theme.variables("light", DEFAULT_PREFERENCES)}>',
+                '<main style={theme.variables("light", DEFAULT_PREFERENCES)}><img src={first} /><img src={second} />',
             ),
     );
     await writeFile(file, source);
@@ -241,6 +241,32 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             code: "BUILD_FAILED",
             message: `unsupported workerd API: document.title at src/note.ts:${note.length + 44}`,
         });
+
+        // refuse the Function constructor on workerd, and accept reads of its prototype
+        const constructed =
+            note +
+            "\n/** The constructor. */\nexport const create: FunctionConstructor = Function;\n";
+        await writeFile(notePath, constructed);
+        await expect(
+            builder.build({
+                dependencies: {},
+                outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
+            }),
+        ).rejects.toMatchObject({
+            code: "BUILD_FAILED",
+            message: `unsupported workerd API: Function at src/note.ts:${note.length + 68}`,
+        });
+        const prototypeSource =
+            note +
+            "\n/** The function prototype's names. */\nexport const names = Object.getOwnPropertyNames(Function.prototype);\n";
+        await writeFile(notePath, prototypeSource);
+        await using workerd = await builder.build({
+            dependencies: {},
+            outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
+        });
+        expect(await readFile(join(workerd.directory, "src/note.ts"), "utf8")).toBe(
+            prototypeSource,
+        );
 
         // accept browser index signatures through the runtime's actual type declarations
         const browserSource =
@@ -562,6 +588,214 @@ test("plan the upgrade from what a package published", async () => {
     });
 });
 
+test("bundle an empty module for a host module a dependency's browser field replaces, and refuse an unreplaced one", async () => {
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-replaced-")));
+    try {
+        // write an app using a sibling parser, whose file reader requires the file system lazily
+        const parser = {
+            name: "@example/parser",
+            version: "2026.9.0",
+            main: "./index.js",
+            types: "./index.d.ts",
+            browser: { "fs/promises": false },
+        };
+        const files: Record<string, string> = {
+            "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+            "app/destack.json": JSON.stringify({
+                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                id: "package-01996ab0-0000-7000-8000-00000000000c",
+                language: "typescript",
+                runtimes: ["workerd"],
+            }),
+            "app/package.json": JSON.stringify({
+                name: "@example/app",
+                version: "2026.9.0",
+                type: "module",
+                exports: { ".": "./src/greeting.ts" },
+                dependencies: { "@example/parser": "workspace:*" },
+            }),
+            "app/src/greeting.ts":
+                'import { parse } from "@example/parser";\n\n/** The parsed greeting. */\nexport const greeting: string = parse("hello");\n',
+            "parser/destack.json": JSON.stringify({
+                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                id: "package-01996ab0-0000-7000-8000-00000000000d",
+                language: "typescript",
+                runtimes: ["workerd"],
+            }),
+            "parser/package.json": JSON.stringify(parser),
+            "parser/index.js":
+                'exports.parse = (text) => text.toUpperCase();\nexports.parseFile = async (path) => {\n    const { readFile } = require("fs/promises");\n    return exports.parse(await readFile(path, "utf8"));\n};\n',
+            "parser/index.d.ts":
+                "export declare function parse(text: string): string;\nexport declare function parseFile(path: string): Promise<string>;\n",
+        };
+        for (const [path, text] of Object.entries(files)) {
+            await mkdir(join(directory, path, ".."), { recursive: true });
+            await writeFile(join(directory, path), text);
+        }
+        await mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
+        await symlink(
+            join(directory, "parser"),
+            join(directory, "app/node_modules/@example/parser"),
+        );
+
+        // run the parser built for workerd, which lacks the file system
+        await using builder = await PackageBuilder.start(join(directory, "app"));
+        const outputs = { server: { kind: "module", runtime: "workerd", bundle: true } } as const;
+        await using built = await builder.build({ dependencies: {}, outputs });
+        await built.write(join(directory, "build"));
+        const module = await importBuilt(
+            join(directory, "build"),
+            rootExport(built.manifest, "server"),
+        );
+        expect({ ...module }).toEqual({ greeting: "HELLO" });
+
+        // refuse the file system once the parser no longer replaces it
+        const { browser: _browser, ...unreplaced } = parser;
+        await writeFile(join(directory, "parser/package.json"), JSON.stringify(unreplaced));
+        await expect(builder.build({ dependencies: {}, outputs })).rejects.toMatchObject({
+            code: "BUILD_FAILED",
+            message: "host module is unavailable on workerd: fs/promises",
+        });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
+test("compile a package with the build extension it declares", async () => {
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-extension-")));
+    try {
+        // write a package whose module reads a constant only its own extension writes in
+        const files: Record<string, string> = {
+            "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+            "destack.json": JSON.stringify({
+                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                id: "package-01996ab0-0000-7000-8000-00000000000e",
+                language: "typescript",
+                runtimes: ["bun"],
+                build: "./build#greetingExtension",
+            }),
+            "package.json": JSON.stringify({
+                name: "@example/greeting",
+                version: "2026.9.0",
+                type: "module",
+                exports: { ".": "./src/greeting.ts", "./build": "./src/build.ts" },
+            }),
+            "src/greeting.ts": [
+                "/** The greeting the build extension writes in. */",
+                "declare const GREETING: string;",
+                "",
+                "/** The greeting. */",
+                "export const greeting: string = GREETING;",
+                "",
+            ].join("\n"),
+            "src/build.ts": [
+                "/** Write the greeting into the package's modules. */",
+                "export const greetingExtension = {",
+                "    compile: () => [",
+                "        {",
+                '            name: "greeting",',
+                "            transform: (code: string) => ({",
+                "                code: code.replaceAll(/\\bGREETING\\b/gu, '\"hello\"'),",
+                "                map: null,",
+                "            }),",
+                "        },",
+                "    ],",
+                "};",
+                "",
+            ].join("\n"),
+        };
+        for (const [path, text] of Object.entries(files)) {
+            await mkdir(join(directory, path, ".."), { recursive: true });
+            await writeFile(join(directory, path), text);
+        }
+
+        // build the package and read the greeting its extension wrote in
+        await using builder = await PackageBuilder.start(directory);
+        const outputs = { library: { kind: "module", runtime: "bun", bundle: true } } as const;
+        await using built = await builder.build({ dependencies: {}, outputs });
+        await built.write(join(directory, "build"));
+        const module = await importBuilt(
+            join(directory, "build"),
+            rootExport(built.manifest, "library"),
+        );
+        expect({ ...module }).toEqual({ greeting: "hello" });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
+test("bundle a dependency whose optional peer is absent, failing only once it is imported", async () => {
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-peer-")));
+    try {
+        // write an app using a sibling loader, whose optional peer nobody installs
+        const files: Record<string, string> = {
+            "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+            "app/destack.json": JSON.stringify({
+                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                id: "package-01996ab0-0000-7000-8000-00000000000f",
+                language: "typescript",
+                runtimes: ["bun"],
+            }),
+            "app/package.json": JSON.stringify({
+                name: "@example/app",
+                version: "2026.9.0",
+                type: "module",
+                exports: { ".": "./src/app.ts" },
+                dependencies: { "@example/loader": "workspace:*" },
+            }),
+            "app/src/app.ts": 'export { greet, load } from "@example/loader";\n',
+            "loader/destack.json": JSON.stringify({
+                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                id: "package-01996ab0-0000-7000-8000-000000000010",
+                language: "typescript",
+                runtimes: ["bun"],
+            }),
+            "loader/package.json": JSON.stringify({
+                name: "@example/loader",
+                version: "2026.9.0",
+                type: "module",
+                main: "./index.js",
+                types: "./index.d.ts",
+                peerDependencies: { "@example/plugin": "2026.9.0" },
+                peerDependenciesMeta: { "@example/plugin": { optional: true } },
+            }),
+            "loader/index.js":
+                'export const greet = () => "hello";\nexport const load = () => import("@example/plugin");\n',
+            "loader/index.d.ts":
+                "export declare function greet(): string;\nexport declare function load(): Promise<unknown>;\n",
+        };
+        for (const [path, text] of Object.entries(files)) {
+            await mkdir(join(directory, path, ".."), { recursive: true });
+            await writeFile(join(directory, path), text);
+        }
+        await mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
+        await symlink(
+            join(directory, "loader"),
+            join(directory, "app/node_modules/@example/loader"),
+        );
+
+        // greet through the bundled loader, and fail to load the absent peer
+        await using builder = await PackageBuilder.start(join(directory, "app"));
+        const outputs = { library: { kind: "module", runtime: "bun", bundle: true } } as const;
+        await using built = await builder.build({ dependencies: {}, outputs });
+        await built.write(join(directory, "build"));
+        const module = await importBuilt(
+            join(directory, "build"),
+            rootExport(built.manifest, "library"),
+        );
+        if (!isLoaderModule(module)) {
+            throw new TypeError("the app exports no greet and load functions");
+        }
+        expect(module.greet()).toBe("hello");
+        await expect(module.load()).rejects.toMatchObject({
+            message:
+                'Could not resolve "@example/plugin" imported by "@example/loader". Is it installed?',
+        });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {
     const path = manifest.outputs[output]?.exports["."];
@@ -570,6 +804,16 @@ function rootExport(manifest: PackageManifest, output: string): string {
     }
 
     return path;
+}
+
+/** Report whether a built module exports the loader's greet and load functions. */
+function isLoaderModule(module: object): module is { greet(): string; load(): Promise<unknown> } {
+    return (
+        "greet" in module &&
+        typeof module.greet === "function" &&
+        "load" in module &&
+        typeof module.load === "function"
+    );
 }
 
 /** Report whether a resource description lists tables by dialect, keeping the parsed objects. */

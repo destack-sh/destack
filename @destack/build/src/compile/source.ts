@@ -8,6 +8,9 @@ import { BuildError } from "../error/index.ts";
 import { relativePath } from "../source/dependency.ts";
 import { schema } from "@destack/schema";
 
+/** The namespaces of virtual module identifiers: plugins' modules, and Vite's for absent optional peers. */
+const VIRTUAL_NAMESPACES = ["virtual:", "__vite-optional-peer-dep:"];
+
 /** The sources of a source map and their contents. */
 const SourceMap = schema.looseObject({
     sources: schema.array(schema.string()),
@@ -118,10 +121,12 @@ export function mapSource(
     output: string,
     locations: ReadonlyMap<string, ModuleSource>,
 ): string {
-    // preserve virtual module identifiers emitted by framework plugins
-    const virtual = source.indexOf("virtual:");
-    if (virtual !== -1) {
-        return source.slice(virtual);
+    // preserve the identifiers of virtual modules, which rolldown writes as paths
+    for (const namespace of VIRTUAL_NAMESPACES) {
+        const virtual = source.indexOf(namespace);
+        if (virtual !== -1) {
+            return source.slice(virtual);
+        }
     }
 
     // use the same package attribution as compiler inspection

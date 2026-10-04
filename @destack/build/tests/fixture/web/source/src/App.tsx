@@ -1,15 +1,13 @@
 import { createSignal, onSettled } from "@destack/view";
-import { createTheme } from "@destack/theme";
+import { DEFAULT_PREFERENCES } from "@destack/theme";
 import "@destack/theme/theme.css";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
 import "./style.css";
+import { theme } from "./theme.ts";
 
 /** Shared styles compiled into the browser stylesheet. */
 const styles = style.create({ title: { color: color.primary } });
-
-/** Theme shared by the server and browser renders. */
-const theme = createTheme({ appearance: "light", accent: "indigo" });
 
 /** Render the build fixture. */
 export default function App() {
@@ -22,7 +20,7 @@ export default function App() {
     });
 
     return (
-        <main {...theme}>
+        <main style={theme.variables("light", DEFAULT_PREFERENCES)}>
             <h1 {...style.attrs(styles.title)}>Hello Destack</h1>
             <button onClick={() => setCount(count() + 1)}>Count: {count()}</button>
         </main>

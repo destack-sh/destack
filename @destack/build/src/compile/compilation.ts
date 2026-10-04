@@ -20,7 +20,7 @@ import {
     type Compilation,
     type CompiledOutput,
     type DeclarationModule,
-    isHostModule,
+    HostModules,
     isRuntimeModule,
     type OutputDescription,
     runtimeConditions,
@@ -114,6 +114,7 @@ export class OutputCompilation implements Compilation {
         this.directories = inspection.directories;
         this.extensions = extensions;
         this.isLent = isLent;
+        this.#hosts = new HostModules(project.runtime);
     }
 
     /** The package the build compiles. */
@@ -319,6 +320,8 @@ export class OutputCompilation implements Compilation {
                 outDir: destination,
                 emptyOutDir: false,
                 ssr: project.runtime !== "browser",
+                // emit current syntax for the server runtimes Destack ships, and baseline syntax for browsers
+                target: project.runtime === "browser" ? "baseline-widely-available" : "esnext",
                 minify: options.minify ?? false,
                 sourcemap: true,
                 copyPublicDir: false,
@@ -351,12 +354,15 @@ export class OutputCompilation implements Compilation {
                 project,
                 input.dependencies,
                 compiled.inspection,
+                compiled.files,
                 compiled.output.directory,
+                project.runtime,
                 undefined,
                 locations,
                 assets,
             ),
             this.#entryPlugin(facades),
+            this.#hosts.plugin(),
         ];
     }
 
@@ -504,17 +510,10 @@ export class OutputCompilation implements Compilation {
         dependencies: Readonly<Record<string, DependencyResolution>>,
         output: PackageOutput,
     ): boolean {
-        // keep host modules the runtime supplies, refusing the rest before Vite emits browser stubs
-        const { project } = this;
-        if (isHostModule(specifier)) {
-            if (!isRuntimeModule(specifier, project.runtime)) {
-                throw new BuildError(
-                    "BUILD_FAILED",
-                    `host module is unavailable on ${project.runtime}: ${specifier}`,
-                );
-            }
-
-            return true;
+        // keep host modules the runtime supplies, and bundle the empty module for replaced ones
+        const host = this.#hosts.resolve(specifier, importer);
+        if (host !== undefined) {
+            return host === "external";
         }
 
         // bundle local modules and what bundled dependencies import

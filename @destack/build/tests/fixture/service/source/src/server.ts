@@ -42,7 +42,7 @@ export const service = defineService("notes", router);
 export const notes = defineServiceBinding("notes", service);
 
 /** Implement the public notes procedures. */
-export function implementService(): ServiceImplementation {
+export function implementNotes(): ServiceImplementation {
     const implementation = implement(router);
 
     return {
@@ -61,7 +61,7 @@ export const web = defineWorkload({
     start: async () => {
         instruments.logger.emit({ body: "Workload started" });
 
-        return { services: [implementService()] };
+        return { services: [implementNotes()] };
     },
 });
 

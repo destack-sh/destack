@@ -142,9 +142,7 @@ function accessExpressions(
     const expressions = new Map<string, GlobalReference>();
     for (const reference of references) {
         // refuse dynamic property access and code evaluation on workerd
-        const name = reference.name === "globalThis" ? reference.members[0] : reference.name;
-        const isEvaluation = name === "eval" || name === "Function";
-        if (reference.dynamic || (runtime === "workerd" && isEvaluation)) {
+        if (reference.dynamic || (runtime === "workerd" && isEvaluation(reference))) {
             throw unsupported(reference, runtime);
         }
 
@@ -154,6 +152,21 @@ function accessExpressions(
     }
 
     return expressions;
+}
+
+/** Report whether a global reaches `eval` or the `Function` constructor, which workerd refuses to run. */
+function isEvaluation(reference: GlobalReference): boolean {
+    // read the access path from the global object
+    const path =
+        reference.name === "globalThis"
+            ? reference.members
+            : [reference.name, ...reference.members];
+    const [name, member, prototypeMember] = path;
+
+    // accept the function prototype's members except its constructor
+    const isPrototype = member === "prototype" && prototypeMember !== "constructor";
+
+    return name === "eval" || (name === "Function" && !isPrototype);
 }
 
 /** Require the runtime configuration to parse and its declarations to check. */

@@ -50,6 +50,12 @@ await using build = await buildPackage({
 { "runtimes": ["browser", "bun", "workerd"], "exports": { "./view": { "runtimes": ["browser"] } } }
 ```
 
+The build refuses a host module the runtime lacks, unless the importing package's `browser` field replaces it with `false`, which the build bundles as an empty module.
+
+```json
+{ "name": "cron-parser", "browser": { "fs": false, "fs/promises": false } }
+```
+
 ## Upgrades
 
 `history` passes what the package has published, and the build writes the `Upgrade` from it into the manifest.

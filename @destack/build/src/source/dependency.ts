@@ -1,8 +1,8 @@
 import { readFile, stat, symlink } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { BuildError, isMissing } from "../error/index.ts";
 import { DependencyName, DependencyResolution } from "@destack/package";
-import { JSONC } from "bun";
+import { BunLockfile, type LockedPackage } from "@destack/check/bun";
 import { schema } from "@destack/schema";
 
 /** The dependencies a package.json declares. */
@@ -23,23 +23,8 @@ type InstalledPackage = schema.Infer<typeof InstalledPackage>;
 /** The release a package.json names, absent from a subpath manifest that only configures modules. */
 const ReleasedPackage = schema.looseObject({ name: schema.string(), version: schema.string() });
 
-/** Bun's versioned package resolution records. */
-const BunLockfile = schema
-    .object({
-        lockfileVersion: schema.literal(2),
-        packages: schema.record(
-            schema.string(),
-            schema.tuple([
-                schema.string(),
-                schema.string().exactOptional(),
-                schema.json().exactOptional(),
-                schema.string().exactOptional(),
-            ]),
-        ),
-    })
-    .strip();
-/** The fields of a Bun lockfile that dependency resolution reads. */
-type BunLockfile = schema.Infer<typeof BunLockfile>;
+/** The lockfile format version whose package records dependency resolution reads. */
+const LOCKFILE_VERSION = 2;
 
 /** Link the nearest installed dependency directory into an isolated compiler directory. */
 export async function linkDependencies(source: string, destination: string): Promise<void> {
@@ -124,10 +109,7 @@ export async function readDependencies(
 }
 
 /** Read a locked registry release, absent for a workspace package. */
-function readLockedRelease(
-    id: string,
-    entry: BunLockfile["packages"][string],
-): DependencyResolution | undefined {
+function readLockedRelease(id: string, entry: LockedPackage): DependencyResolution | undefined {
     // name the release, leaving workspace packages to their sources
     const [release, location, , integrity] = entry;
     const separator = release.indexOf("@", 1);
@@ -180,17 +162,33 @@ export function relativePath(directory: string, file: string): string {
     return relative(directory, file).split(sep).join("/");
 }
 
-/** Read the nearest Bun lockfile used by the source package. */
+/** Report whether a compiler file is one of the package's modules. */
+export function isAuthored(root: string, file: string): boolean {
+    return contains(root, file) && !relative(root, file).split(sep).includes("node_modules");
+}
+
+/** Report whether a file lies inside a directory. */
+function contains(directory: string, file: string): boolean {
+    const path = relative(directory, file);
+
+    return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+}
+
+/** Read the nearest Bun lockfile used by the source package, refusing other formats. */
 async function readLockfile(directory: string): Promise<BunLockfile> {
-    // read the nearest lockfile
-    for (const current of ancestors(directory)) {
-        const text = await readText(join(current, "bun.lock"));
-        if (text !== undefined) {
-            return BunLockfile.parse(JSONC.parse(text));
-        }
+    // require the nearest lockfile in the format the package records follow
+    const lockfile = await BunLockfile.read(directory);
+    if (lockfile === undefined) {
+        throw new BuildError("BUILD_FAILED", "no Bun lockfile");
+    }
+    if (lockfile.version !== LOCKFILE_VERSION) {
+        throw new BuildError(
+            "BUILD_FAILED",
+            `unsupported Bun lockfile version: ${lockfile.version}`,
+        );
     }
 
-    throw new BuildError("BUILD_FAILED", "no Bun lockfile");
+    return lockfile;
 }
 
 /** List a directory and each directory above it, up to the filesystem root. */

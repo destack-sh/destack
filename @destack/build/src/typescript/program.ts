@@ -10,9 +10,8 @@ import {
     SyntaxKind,
 } from "typescript/unstable/ast";
 import { BuildError } from "../error/index.ts";
-import { modulePackage } from "../source/dependency.ts";
+import { isAuthored, modulePackage } from "../source/dependency.ts";
 import { collectDirectories } from "./directory.ts";
-import { isAuthored } from "./module.ts";
 
 /** What one import of a module resolves to. */
 export type ImportTarget =

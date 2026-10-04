@@ -38,7 +38,7 @@ const ExportsManifest = schema.looseObject({
 type PackageLocation = Awaited<ReturnType<typeof modulePackage>>;
 
 /** A kind a constructor's entry describes declarations as, with the functions it names. */
-type DescribedKind = NonNullable<DeclarationConstructor["describes"]>[number];
+type DescribedKind = DeclarationConstructor["describes"][number];
 
 /** A kind a constructor describes each declaration as, with the functions inspecting it. */
 interface ConstructorKind {
@@ -173,12 +173,12 @@ export class ConstructorCatalog {
 
     /** Parse the inspected constructors of a package once, with its exports and identity. */
     async #readInspected(location: PackageLocation): Promise<Map<string, InspectedConstructor>> {
-        // skip packages without inspected constructors before reading their manifests
+        // skip packages without described constructors before reading their manifests
         const declared = Object.entries(
             this.#packages.constructors(location.name, location.directory),
         );
         const inspected = new Map<string, InspectedConstructor>();
-        if (declared.every(([, constructor]) => constructor.describes === undefined)) {
+        if (declared.length === 0) {
             return inspected;
         }
 
@@ -187,14 +187,10 @@ export class ConstructorCatalog {
         for (const [name, constructor] of declared) {
             // describe each kind the constructor lists
             const kinds: ConstructorKind[] = [];
-            for (const entry of constructor.describes ?? []) {
+            for (const entry of constructor.describes) {
                 kinds.push(await this.#describeKind(location, identity, entry));
             }
-
-            // keep constructors the build inspects
-            if (kinds.length > 0) {
-                inspected.set(name, { package: identity, kinds });
-            }
+            inspected.set(name, { package: identity, kinds });
         }
 
         return inspected;
@@ -254,7 +250,7 @@ export class ConstructorCatalog {
         // require a dependency whose constructors describe the kind as theirs
         const directory = this.#packages.directory(name, location.directory);
         const entry = Object.values(this.#packages.constructors(name, location.directory))
-            .flatMap((constructor) => constructor.describes ?? [])
+            .flatMap((constructor) => constructor.describes)
             .find((candidate) => candidate.kind === kind && candidate.package === undefined);
         if (directory === undefined || entry === undefined) {
             throw new BuildError(

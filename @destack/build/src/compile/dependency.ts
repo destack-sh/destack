@@ -111,6 +111,7 @@ class DependencyRecorder {
         description: BuildDescription,
         locations: Map<string, ModuleSource>,
         assets: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+        files: Map<string, Uint8Array<ArrayBuffer>>,
     ) {
         // keep the compiled package, the releases and what the compilation fills
         this.project = project;
@@ -118,6 +119,7 @@ class DependencyRecorder {
         this.description = description;
         this.locations = locations;
         this.assets = assets;
+        this.files = files;
     }
 
     /** Record a parsed module's location and the package it comes from. */
@@ -172,6 +174,17 @@ class DependencyRecorder {
                 ...(reviewed === undefined ? {} : { runtimes: reviewed }),
             });
             await this.#dependency(source, definition, path, key);
+        }
+    }
+
+    /** Record the assets a bundle emits from original files. */
+    async bundled(root: string, bundle: OutputBundle): Promise<void> {
+        for (const entry of Object.values(bundle)) {
+            if (entry.type === "asset") {
+                for (const original of entry.originalFileNames) {
+                    await this.asset(root, original);
+                }
+            }
         }
     }
 
@@ -320,19 +333,28 @@ export function dependencyPlugin(
     project: PackageSource,
     resolutions: Readonly<Record<string, DependencyResolution>>,
     description: BuildDescription,
+    files: Map<string, Uint8Array<ArrayBuffer>>,
     output: string,
+    runtime: Runtime | undefined,
     environment?: string,
     locations = new Map<string, ModuleSource>(),
     assets: ReadonlyMap<string, Uint8Array<ArrayBuffer>> = new Map(),
 ): Plugin {
     // track resolved packages, runtimes and imports across hooks
-    const recorder = new DependencyRecorder(project, resolutions, description, locations, assets);
+    const recorder = new DependencyRecorder(
+        project,
+        resolutions,
+        description,
+        locations,
+        assets,
+        files,
+    );
     const runtimes = new Map<string, Runtime[]>();
     const imports = new Map<string, ParsedImports>();
     let root: string;
 
     return {
-        ...resolutionPlugin(project, resolutions, undefined, runtimes, recorder.resolver),
+        ...resolutionPlugin(project, resolutions, runtime, runtimes, recorder.resolver),
         name: "destack-dependencies",
         applyToEnvironment(candidate) {
             return environment === undefined || candidate.name === environment;
@@ -356,25 +378,13 @@ export function dependencyPlugin(
         },
         async generateBundle(_, bundle) {
             // identify retained directory assets alongside the dependency's source modules
-            for (const entry of Object.values(bundle)) {
-                if (entry.type === "asset") {
-                    for (const original of entry.originalFileNames) {
-                        await recorder.asset(root, original);
-                    }
-                }
-            }
+            await recorder.bundled(root, bundle);
 
             // describe the compiled inputs and outputs
-            const inspection = describeCompilation(
-                locations,
-                description.packages,
-                output,
-                bundle,
-                imports,
+            Object.assign(
+                description,
+                describeCompilation(locations, description.packages, output, bundle, imports),
             );
-            description.packages = inspection.packages;
-            description.inputs = inspection.inputs;
-            description.outputs = inspection.outputs;
         },
     };
 }
@@ -403,6 +413,8 @@ export function resolutionPlugin(
 ): Plugin {
     return {
         name: "destack-resolution",
+        // see each bare import before Vite's own resolver answers it
+        enforce: "pre",
         resolveId: {
             filter: { id: { exclude: [/^(?:\.|\/|\0|#|virtual:|node:)/u] } },
             async handler(specifier, importer) {
@@ -413,7 +425,7 @@ export function resolutionPlugin(
 
                 // let Vite apply package exports and the selected environment conditions
                 const resolved = await this.resolve(specifier, importer, { skipSelf: true });
-                if (resolved === null || resolved.external !== false || !isAbsolute(resolved.id)) {
+                if (resolved === null || resolved.external === true || !isAbsolute(resolved.id)) {
                     return resolved;
                 }
 
