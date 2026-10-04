@@ -25,3 +25,10 @@ async function hash(content: string | Uint8Array<ArrayBuffer>): Promise<Digest> 
 
     return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex();
 }
+
+/** A committed Git object identifier: a SHA-1 or SHA-256 digest in hexadecimal. */
+export const Commit = defineSchema(
+    schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$(?![\s\S])/u),
+);
+/** A committed Git object identifier. */
+export type Commit = schema.Infer<typeof Commit>;

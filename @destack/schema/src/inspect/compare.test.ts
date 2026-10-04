@@ -12,11 +12,11 @@ const Node: schema.Schema<Node> = schema.lazy(() =>
 );
 
 /** A recursive tree schema with numbered nodes. */
-const NumberedNode: schema.Schema<Node> = schema.lazy(() =>
+const NodeSchema: schema.Schema<Node> = schema.lazy(() =>
     schema
         .object({
             name: schema.string().regex(/^\d+$/u),
-            children: schema.array(NumberedNode).exactOptional(),
+            children: schema.array(NodeSchema).exactOptional(),
         })
         .strict(),
 );
@@ -121,7 +121,7 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
 
     // recursion and JSON
     ["keep a recursive tree", Node, Node, "same"],
-    ["widen a recursive tree", NumberedNode, Node, "wider"],
+    ["widen a recursive tree", NodeSchema, Node, "wider"],
     ["narrow JSON to a string", schema.json(), schema.string(), "narrower"],
     ["keep JSON", schema.json(), schema.json(), "same"],
 ];

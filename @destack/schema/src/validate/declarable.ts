@@ -71,9 +71,30 @@ function requireNode(
     }
 
     // visit shared and recursive schemas in each optional-value context
+    if (!markVisited(visited, schema, isOptionalAllowed)) {
+        return;
+    }
+
+    // require JSON metadata and exportable rules
+    requireMetadata(schema);
+    requireRules(schema);
+
+    // visit each component in its optional-value context
+    for (const [component, isComponentOptionalAllowed] of componentsOf(schema, isOptionalAllowed)) {
+        requireNode(component, visited, isComponentOptionalAllowed);
+    }
+}
+
+/** Record a schema as visited in an optional-value context. */
+function markVisited(
+    visited: Map<z.core.$ZodType, Set<boolean>>,
+    schema: z.core.$ZodType,
+    isOptionalAllowed: boolean,
+): boolean {
+    // skip a context visited already
     const contexts = visited.get(schema);
     if (contexts?.has(isOptionalAllowed) === true) {
-        return;
+        return false;
     }
 
     // record this context
@@ -83,6 +104,11 @@ function requireNode(
         visited.set(schema, new Set([isOptionalAllowed]));
     }
 
+    return true;
+}
+
+/** Require a schema's metadata to be JSON descriptions that cannot override validation. */
+function requireMetadata(schema: z.core.$ZodType): void {
     // keep metadata from overriding validation in the generated description
     const metadata = z.globalRegistry.get(schema);
     for (const key of Object.keys(metadata ?? {})) {
@@ -95,7 +121,10 @@ function requireNode(
     if (metadata !== undefined) {
         z.json().parse(metadata);
     }
+}
 
+/** Require a schema to coerce nothing and to check only by exportable checks. */
+function requireRules(schema: z.core.$ZodType): void {
     // reject coercion
     const definition = schema._zod.def;
     if ("coerce" in definition && definition.coerce === true) {
@@ -110,7 +139,13 @@ function requireNode(
     for (const check of checks) {
         requireCheck(check);
     }
+}
 
+/** List a schema's components with their optional-value contexts. */
+function componentsOf(
+    schema: z.core.$ZodType,
+    isOptionalAllowed: boolean,
+): (readonly [z.core.$ZodType, boolean])[] {
     // accept the leaf schemas
     if (
         schema instanceof z.core.$ZodString ||
@@ -120,75 +155,74 @@ function requireNode(
         schema instanceof z.core.$ZodEnum ||
         schema instanceof z.core.$ZodNever
     ) {
-        return;
+        return [];
     }
     // require literal values to survive JSON serialization
     else if (schema instanceof z.core.$ZodLiteral) {
         for (const value of schema._zod.def.values) {
             z.json().parse(value);
         }
+
+        return [];
     }
     // inspect schema components before exporting the compiled string pattern
     else if (schema instanceof z.core.$ZodTemplateLiteral) {
-        for (const part of schema._zod.def.parts) {
-            if (typeof part === "object" && part !== null) {
-                requireNode(part, visited, false);
-            }
-        }
+        return schema._zod.def.parts.flatMap((part) =>
+            typeof part === "object" && part !== null ? [[part, false] as const] : [],
+        );
     }
     // require closed objects with declarable properties
     else if (schema instanceof z.core.$ZodObject) {
         if (schema._zod.def.catchall?._zod.def.type !== "never") {
             throw new TypeError("declared object schemas must reject unknown properties");
         }
-        for (const property of Object.values(schema._zod.def.shape)) {
-            requireNode(property, visited, true);
-        }
+
+        return Object.values(schema._zod.def.shape).map((property) => [property, true] as const);
     }
     // visit array elements
     else if (schema instanceof z.core.$ZodArray) {
-        requireNode(schema._zod.def.element, visited, false);
+        return [[schema._zod.def.element, false]];
     }
     // visit tuple items and the rest
     else if (schema instanceof z.core.$ZodTuple) {
-        for (const item of schema._zod.def.items) {
-            requireNode(item, visited, false);
-        }
-        if (schema._zod.def.rest !== null) {
-            requireNode(schema._zod.def.rest, visited, false);
-        }
+        const rest = schema._zod.def.rest;
+        const items = rest === null ? schema._zod.def.items : [...schema._zod.def.items, rest];
+
+        return items.map((item) => [item, false] as const);
     }
     // visit record keys and values
     else if (schema instanceof z.core.$ZodRecord) {
-        requireNode(schema._zod.def.keyType, visited, false);
-        requireNode(schema._zod.def.valueType, visited, false);
+        return [
+            [schema._zod.def.keyType, false],
+            [schema._zod.def.valueType, false],
+        ];
     }
     // visit both sides of an intersection
     else if (schema instanceof z.core.$ZodIntersection) {
-        requireNode(schema._zod.def.left, visited, isOptionalAllowed);
-        requireNode(schema._zod.def.right, visited, isOptionalAllowed);
+        return [
+            [schema._zod.def.left, isOptionalAllowed],
+            [schema._zod.def.right, isOptionalAllowed],
+        ];
     }
     // visit each union option
     else if (schema instanceof z.core.$ZodUnion) {
-        for (const option of schema._zod.def.options) {
-            requireNode(option, visited, isOptionalAllowed);
-        }
+        return schema._zod.def.options.map((option) => [option, isOptionalAllowed] as const);
     }
     // look through nullable and optional wrappers
     else if (schema instanceof z.core.$ZodNullable || schema instanceof z.core.$ZodOptional) {
-        requireNode(schema._zod.def.innerType, visited, isOptionalAllowed);
+        return [[schema._zod.def.innerType, isOptionalAllowed]];
     }
     // permit optional branches whose undefined result this schema rejects
     else if (schema instanceof z.core.$ZodNonOptional) {
-        requireNode(schema._zod.def.innerType, visited, true);
+        return [[schema._zod.def.innerType, true]];
     }
     // visit the schema a lazy one returns
     else if (schema instanceof z.core.$ZodLazy) {
-        requireNode(schema._zod.def.getter(), visited, isOptionalAllowed);
+        return [[schema._zod.def.getter(), isOptionalAllowed]];
     }
     // reject every other schema type
     else {
-        throw new TypeError(`unsupported schema type: ${definition.type}`);
+        throw new TypeError(`unsupported schema type: ${schema._zod.def.type}`);
     }
 }
 
