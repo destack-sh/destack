@@ -68,7 +68,7 @@ const authentication = {
 `SesClient.send` sends a composed message through the SESv2 HTTP API with Signature Version 4, calls `credentials` once per send and returns the SES MessageId.
 
 ```ts
-import { SesClient } from "@destack/mail/ses";
+import { SesClient } from "@destack/mail/aws";
 
 const client = new SesClient({
     region: "eu-central-1",
@@ -100,7 +100,7 @@ try {
 `signRequest` signs an AWS request with Signature Version 4 and returns its headers, canonical request and string to sign.
 
 ```ts
-import { signRequest } from "@destack/mail/ses";
+import { signRequest } from "@destack/mail/aws";
 
 const signed = await signRequest(
     { method: "POST", url, headers: { "content-type": "application/json" }, body },

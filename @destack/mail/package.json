@@ -6,8 +6,8 @@
     "sideEffects": false,
     "description": "Compose and submit mail in Destack.",
     "exports": {
+        "./aws": "./src/aws/index.ts",
         "./mime": "./src/mime/index.ts",
-        "./ses": "./src/ses/index.ts",
         "./smtp": "./src/smtp/index.ts",
         "./test": "./src/test/index.ts"
     },
