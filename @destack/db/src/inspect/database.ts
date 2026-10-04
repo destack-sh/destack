@@ -1,4 +1,4 @@
-import { Address, type Compare, type Plan, type Step } from "@destack/resource";
+import { Address, type Comparator, type Plan, type Step } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { graph } from "@destack/package";
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
@@ -27,7 +27,7 @@ export function describeDatabase(database: Database): DatabaseDeclaration {
 }
 
 /** Plan a database's table changes between releases in every dialect, the steps both share once. */
-export const compareDatabase: Compare = (before, after) => {
+export const compareDatabase: Comparator = (before, after) => {
     // read both releases' databases, whose table states carry their own releases
     const earlier = DatabaseDeclaration.parse(before.description);
     const later = DatabaseDeclaration.parse(after.description);

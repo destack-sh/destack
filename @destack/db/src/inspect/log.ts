@@ -14,10 +14,12 @@ export const ChangeDescription = defineSchema(
         retention: schema.enum(["window", "history"]),
         /** The primary key's SQL column names in key order. */
         key: schema.array(schema.string().min(1)).min(1),
-        /** The recorded SQL column names, without binary and sensitive columns. */
+        /** The recorded SQL column names, without sensitive columns. */
         columns: schema.array(schema.string().min(1)),
         /** The recorded columns converted to text for exact precision. */
         exact: schema.array(schema.string().min(1)),
+        /** The recorded binary columns, converted to hexadecimal text. */
+        binary: schema.array(schema.string().min(1)),
         /** Every SQL column name, to skip updates that change nothing. */
         compared: schema.array(schema.string().min(1)),
         /** The SQL column with each row's scope, absent when every row takes the database's scope. */

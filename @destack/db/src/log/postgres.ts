@@ -27,9 +27,14 @@ export const postgresLog: LogDialect = {
 
 /** Create the PostgreSQL log, its horizon and its functions. */
 function createPostgresLog(epoch: string, scope?: string): readonly string[] {
+    // create the log with its stamp and record functions
+    return [...createLogTables(), ...createEpoch(epoch, scope), ...createStamp(), createRecord()];
+}
+
+/** Create the log table with its indexes and sequence and the horizon. */
+function createLogTables(): string[] {
     const log = quote(LOG);
 
-    // stamp sequences at commit under one lock, in commit order
     return [
         `CREATE TABLE IF NOT EXISTS ${log} (
             id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -54,7 +59,14 @@ function createPostgresLog(epoch: string, scope?: string): readonly string[] {
             sequence BIGINT NOT NULL
         )`,
         `INSERT INTO ${quote(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
-        ...createEpoch(epoch, scope),
+    ];
+}
+
+/** Create the function and deferred trigger stamping sequences at commit. */
+function createStamp(): string[] {
+    const log = quote(LOG);
+
+    return [
         `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_stamp`)}() RETURNS trigger LANGUAGE plpgsql AS $$
         DECLARE
             unstamped BIGINT;
@@ -81,13 +93,21 @@ function createPostgresLog(epoch: string, scope?: string): readonly string[] {
                     DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION ${quote(`${LOG}_stamp`)}();
             END IF;
         END $$`,
-        `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_record`)}() RETURNS trigger LANGUAGE plpgsql AS $$
+    ];
+}
+
+/** Create the function recording a row change. */
+function createRecord(): string {
+    const log = quote(LOG);
+
+    return `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_record`)}() RETURNS trigger LANGUAGE plpgsql SET bytea_output = 'hex' AS $$
         DECLARE
             retention TEXT := TG_ARGV[0];
             key_columns TEXT[] := TG_ARGV[1]::TEXT[];
             recorded TEXT[] := TG_ARGV[2]::TEXT[];
             exact TEXT[] := TG_ARGV[3]::TEXT[];
-            scope_column TEXT := TG_ARGV[4];
+            binary_columns TEXT[] := TG_ARGV[4]::TEXT[];
+            scope_column TEXT := TG_ARGV[5];
             database_scope TEXT;
             old_scope TEXT;
             new_scope TEXT;
@@ -105,28 +125,8 @@ function createPostgresLog(epoch: string, scope?: string): readonly string[] {
             IF TG_OP <> 'INSERT' THEN old_row := to_jsonb(OLD); END IF;
             IF TG_OP <> 'DELETE' THEN new_row := to_jsonb(NEW); END IF;
             IF TG_OP = 'UPDATE' AND old_row = new_row THEN RETURN NULL; END IF;
-            IF old_row IS NOT NULL THEN
-                SELECT jsonb_agg(old_row -> column_name ORDER BY position) INTO old_key
-                FROM unnest(key_columns) WITH ORDINALITY AS entry(column_name, position);
-                SELECT jsonb_object_agg(column_name, old_row -> column_name) INTO old_recorded
-                FROM unnest(recorded) AS entry(column_name);
-                FOREACH name IN ARRAY exact LOOP
-                    IF old_recorded -> name <> 'null'::jsonb THEN
-                        old_recorded := jsonb_set(old_recorded, ARRAY[name], to_jsonb(old_recorded ->> name));
-                    END IF;
-                END LOOP;
-            END IF;
-            IF new_row IS NOT NULL THEN
-                SELECT jsonb_agg(new_row -> column_name ORDER BY position) INTO new_key
-                FROM unnest(key_columns) WITH ORDINALITY AS entry(column_name, position);
-                SELECT jsonb_object_agg(column_name, new_row -> column_name) INTO new_recorded
-                FROM unnest(recorded) AS entry(column_name);
-                FOREACH name IN ARRAY exact LOOP
-                    IF new_recorded -> name <> 'null'::jsonb THEN
-                        new_recorded := jsonb_set(new_recorded, ARRAY[name], to_jsonb(new_recorded ->> name));
-                    END IF;
-                END LOOP;
-            END IF;
+            ${recordedImage("old")}
+            ${recordedImage("new")}
             IF scope_column IS NULL THEN
                 SELECT scope INTO database_scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1;
                 IF database_scope IS NULL THEN
@@ -154,8 +154,27 @@ function createPostgresLog(epoch: string, scope?: string): readonly string[] {
                     new_recorded, previous, new_scope, retention, now_ms);
             END IF;
             RETURN NULL;
-        END $$`,
-    ];
+        END $$`;
+}
+
+/** Read one row image's key and recorded columns. */
+function recordedImage(side: "old" | "new"): string {
+    return `IF ${side}_row IS NOT NULL THEN
+                SELECT jsonb_agg(${side}_row -> column_name ORDER BY position) INTO ${side}_key
+                FROM unnest(key_columns) WITH ORDINALITY AS entry(column_name, position);
+                SELECT jsonb_object_agg(column_name, ${side}_row -> column_name) INTO ${side}_recorded
+                FROM unnest(recorded) AS entry(column_name);
+                FOREACH name IN ARRAY exact LOOP
+                    IF ${side}_recorded -> name <> 'null'::jsonb THEN
+                        ${side}_recorded := jsonb_set(${side}_recorded, ARRAY[name], to_jsonb(${side}_recorded ->> name));
+                    END IF;
+                END LOOP;
+                FOREACH name IN ARRAY binary_columns LOOP
+                    IF ${side}_recorded -> name <> 'null'::jsonb THEN
+                        ${side}_recorded := jsonb_set(${side}_recorded, ARRAY[name], to_jsonb(substr(${side}_recorded ->> name, 3)));
+                    END IF;
+                END LOOP;
+            END IF;`;
 }
 
 /** Generate a table's trigger calling the shared PostgreSQL function. */
@@ -163,12 +182,13 @@ function postgresLogTriggers(description: ChangeDescription): string[] {
     // write the column lists as array literals
     const table = quote(description.table);
 
-    // pass the retention, columns and the scope column when the table has one
+    // pass the retention, the column lists and the scope column when the table has one
     const parameters = [
         literal(description.retention),
         literal(array(description.key)),
         literal(array(description.columns)),
         literal(array(description.exact)),
+        literal(array(description.binary)),
         ...(description.scope === undefined ? [] : [literal(description.scope)]),
     ];
 

@@ -20,7 +20,7 @@ export const note = defineTable(
         labels: json("labels", schema.array(schema.string())).notNull(),
         /** The last edit time. */
         editedAt: integer("edited_at").notNull(),
-        /** Attached bytes, left out of the log. */
+        /** Attached bytes, logged as hexadecimal text. */
         attachment: binary("attachment"),
     },
     { log: {} },

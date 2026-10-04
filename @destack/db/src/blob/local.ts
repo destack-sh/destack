@@ -8,8 +8,8 @@ import type { BlobStore } from "./blob.ts";
 /** The bytes one read of a blob file takes: 1 MiB, a few milliseconds of disk at 500 MB/s. */
 const READ_BYTES = 1024 * 1024;
 
-/** A directory of blob files, each named by its digest. */
-export class LocalBlobStore implements BlobStore {
+/** A directory of blob files, each named by its digest, whose owner deletes them. */
+export class LocalBlobStore implements Omit<BlobStore, "hold" | "retire"> {
     /** The directory. */
     readonly directory: string;
 

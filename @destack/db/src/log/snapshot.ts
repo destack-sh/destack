@@ -8,8 +8,8 @@ import { Key } from "../query/key.ts";
 import { Change } from "./log.ts";
 import { Order, type OrderBy } from "../query/order.ts";
 import { Namespace, type Extras } from "../query/namespace.ts";
-import { Expression, type Related } from "../expression/expression.ts";
-import { TABLE, Table, type Logged } from "../table/table.ts";
+import { Expression, type RelationReader } from "../expression/expression.ts";
+import { TABLE, Table, type RowImage } from "../table/table.ts";
 import { headFields, latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
 import type { Row } from "../table/row.ts";
 import type { Column, ColumnValue } from "../table/column.ts";
@@ -30,7 +30,7 @@ const HEAD = schema.tuple([schema.string(), LogInteger.nullable(), LogInteger]);
 const KEYS_PER_READ = CHAIN_TERMS;
 
 /** A read of the first matching rows in an order. */
-export interface OrderedRead<Read = Row> {
+export interface WindowRead<Read = Row> {
     /** The condition the rows meet. */
     readonly where: Condition<Read>;
     /** How the rows sort, completed by the primary key. */
@@ -88,7 +88,7 @@ export interface RelationView {
     /** Read the keys of rows with related rows that changed between two sequences. */
     touched(after: number, upto: number): Promise<readonly Row[]>;
     /** Resolve a row's lookups, as of the position. */
-    resolve(row: Row): Promise<Related>;
+    resolve(row: Row): Promise<RelationReader>;
 }
 
 /** The database's logged columns as they were at a log position. */
@@ -131,8 +131,8 @@ export class Snapshot {
     /** Read a table's rows matching a condition. */
     async rows<Definition extends Table>(
         table: Definition,
-        where: Condition<Logged<NoInfer<Definition>>>,
-    ): Promise<Logged<Definition>[]> {
+        where: Condition<RowImage<NoInfer<Definition>>>,
+    ): Promise<RowImage<Definition>[]> {
         // read the current rows and the changed rows' images
         const predicate = Condition.resolve(where, Namespace.fields(table));
         const { rows, sequence } = await this.#read(table, render(predicate, table));
@@ -156,7 +156,7 @@ export class Snapshot {
         table: Definition,
         columns: readonly string[],
         tuples: readonly (readonly unknown[])[],
-    ): Promise<Logged<Definition>[]> {
+    ): Promise<RowImage<Definition>[]> {
         // read the head and each tuple's rows in one statement
         if (tuples.length === 0) {
             return [];
@@ -197,7 +197,7 @@ export class Snapshot {
     async row<Definition extends Table>(
         table: Definition,
         key: Key<Definition>,
-    ): Promise<Logged<Definition> | null> {
+    ): Promise<RowImage<Definition> | null> {
         // read the row and its earlier image
         const { rows, sequence } = await this.#read(table, Key.match(table, key));
         const images = await this.#since(table, sequence);
@@ -211,8 +211,8 @@ export class Snapshot {
     /** Read up to a count of admitted matching rows in an order after a row, with their computed values. */
     async ordered<Definition extends Table, Extra = {}>(
         table: Definition,
-        query: OrderedRead<Logged<NoInfer<Definition>> & Extra> & { readonly after?: Row },
-    ): Promise<(Logged<Definition> & Row)[]> {
+        query: WindowRead<RowImage<NoInfer<Definition>> & Extra> & { readonly after?: Row },
+    ): Promise<(RowImage<Definition> & Row)[]> {
         const [rows] = await this.#windows(table, query, undefined);
         if (rows === undefined) {
             throw new RangeError("an ordered read lacks its one window");
@@ -224,8 +224,10 @@ export class Snapshot {
     /** Read up to a count of admitted matching rows of each partition some values of a column name, in an order, aligned with the values. */
     async windows<Definition extends Table, Extra = {}>(
         table: Definition,
-        query: OrderedRead<Logged<NoInfer<Definition>> & Extra> & { readonly partition: Partition },
-    ): Promise<(Logged<Definition> & Row)[][]> {
+        query: WindowRead<RowImage<NoInfer<Definition>> & Extra> & {
+            readonly partition: Partition;
+        },
+    ): Promise<(RowImage<Definition> & Row)[][]> {
         const windows = await this.#windows(table, query, query.partition);
 
         return windows.map((window) => logged(window));
@@ -234,7 +236,7 @@ export class Snapshot {
     /** Read the first rows of one window, or of each partition's window in one ranked read per round. */
     async #windows<Read>(
         table: Table,
-        query: OrderedRead<Read> & { readonly after?: Row },
+        query: WindowRead<Read> & { readonly after?: Row },
         partition: Partition | undefined,
     ): Promise<Row[][]> {
         // read enough current rows to cover every changed row
@@ -252,18 +254,8 @@ export class Snapshot {
         let rows: Row[] = [];
         while (unsettled.size > changed) {
             changed = unsettled.size;
-            const selection = and(
-                render(predicate, table, namespace),
-                admits?.current,
-                query.after === undefined
-                    ? undefined
-                    : Order.after(order, table, query.after, namespace),
-            );
             const limit = isAdmittedInMemory ? undefined : query.limit + changed;
-            const read =
-                partition === undefined
-                    ? await this.#read(table, selection, order, limit, namespace)
-                    : await this.#ranked(table, selection, partition, order, limit, namespace);
+            const read = await this.#readCurrent(table, query, partition, order, predicate, limit);
             rows = read.rows;
 
             // take the rows as they are when live
@@ -274,23 +266,15 @@ export class Snapshot {
 
             // extend the images past the earlier read
             const sequence = read.sequence ?? (await this.#latest());
-            for (const [name, image] of await this.#rewind(table, reached, sequence)) {
-                if (!images.has(name)) {
-                    images.set(name, image);
-                }
-            }
+            unsettled = await this.#extendImages(
+                table,
+                images,
+                relations,
+                reached,
+                sequence,
+                position.sequence,
+            );
             reached = Math.max(reached, sequence);
-            const settling = new Map(images);
-            const touched =
-                relations === undefined
-                    ? new Map<string, Row | null>()
-                    : await this.#settled(table, relations, position.sequence, sequence);
-            for (const [name, row] of touched) {
-                if (!settling.has(name)) {
-                    settling.set(name, row);
-                }
-            }
-            unsettled = settling;
         }
 
         // overlay the matching admitted images
@@ -304,12 +288,67 @@ export class Snapshot {
         );
     }
 
+    /** Read the current rows matching a windowed read up to a limit per window. */
+    #readCurrent<Read>(
+        table: Table,
+        query: WindowRead<Read> & { readonly after?: Row },
+        partition: Partition | undefined,
+        order: Order,
+        predicate: Predicate,
+        limit: number | undefined,
+    ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
+        // select the matching admitted rows after the read's row
+        const namespace = query.namespace ?? { extras: {} };
+        const selection = and(
+            render(predicate, table, namespace),
+            query.admits?.current,
+            query.after === undefined
+                ? undefined
+                : Order.after(order, table, query.after, namespace),
+        );
+
+        return partition === undefined
+            ? this.#read(table, selection, order, limit, namespace)
+            : this.#ranked(table, selection, partition, order, limit, namespace);
+    }
+
+    /** Add the images of the rows changed past the earlier read. */
+    async #extendImages(
+        table: Table,
+        images: Map<string, Row | null>,
+        relations: RelationView | undefined,
+        reached: number,
+        sequence: number,
+        position: number,
+    ): Promise<Map<string, Row | null>> {
+        // extend the images past the earlier read
+        for (const [name, image] of await this.#rewind(table, reached, sequence)) {
+            if (!images.has(name)) {
+                images.set(name, image);
+            }
+        }
+
+        // add the rows whose related rows changed
+        const settling = new Map(images);
+        const touched =
+            relations === undefined
+                ? new Map<string, Row | null>()
+                : await this.#settled(table, relations, position, sequence);
+        for (const [name, row] of touched) {
+            if (!settling.has(name)) {
+                settling.set(name, row);
+            }
+        }
+
+        return settling;
+    }
+
     /** Keep the admitted current rows no image replaces, and add the admitted images matching a read after its row. */
     async #merge<Read>(
         table: Table,
         rows: Row[],
         images: ReadonlyMap<string, Row | null>,
-        query: OrderedRead<Read> & { readonly after?: Row },
+        query: WindowRead<Read> & { readonly after?: Row },
         order: Order,
         predicate: Predicate,
     ): Promise<Row[]> {
@@ -539,11 +578,11 @@ export class Snapshot {
 }
 
 /** Type rows a snapshot decoded by a table's logged columns as that table's logged records. */
-function logged<Definition extends Table>(rows: Row[]): (Logged<Definition> & Row)[];
+function logged<Definition extends Table>(rows: Row[]): (RowImage<Definition> & Row)[];
 /**
  * Pass the rows on, whose decoders and log keep exactly the table's logged columns.
  *
- * @construct the snapshot decoded every row through the table's logged columns, which is how Logged maps the table.
+ * @construct the snapshot decoded every row through the table's logged columns, which is how RowImage maps the table.
  */
 function logged(rows: Row[]): Row[] {
     return rows;
@@ -555,7 +594,7 @@ function render(predicate: Predicate, table: Table, namespace?: Namespace): SQL 
 }
 
 /** Add a row's computed values. */
-function augment(row: Row, extras: Extras, related?: Related): Row {
+function augment(row: Row, extras: Extras, related?: RelationReader): Row {
     const entries = Object.entries(extras);
 
     return entries.length === 0
@@ -622,12 +661,32 @@ function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): 
                 LEFT JOIN ${table} ON ${sql.join(
                     columns.map(
                         (column, index) =>
-                            sql`${table[TABLE].column(column)} = wanted.value ->> ${sql.raw(String(index))}`,
+                            sql`${table[TABLE].column(column)} = ${wantedValue(table[TABLE].column(column), index, dialect)}`,
                     ),
                     sql` AND `,
                 )}`,
         );
     });
+}
+
+/** Read a wanted tuple's value of a column from its JSON form, as the column's type. */
+function wantedValue(column: Column, index: number, dialect: Dialect): SQL {
+    // read the element of the column's position
+    const element = sql`wanted.value ->> ${sql.raw(String(index))}`;
+    const type = column.definition.types.postgresql;
+
+    // read SQLite values and PostgreSQL text as they are
+    if (dialect === "sqlite" || type === "text") {
+        return element;
+    }
+    // decode PostgreSQL bytes from base64
+    else if (column.definition.kind === "binary") {
+        return sql`decode(${element}, 'base64')`;
+    }
+    // cast any other PostgreSQL value from its text
+    else {
+        return sql`(${element})::${sql.raw(type)}`;
+    }
 }
 
 /** Write a row's column value in JSON form. */

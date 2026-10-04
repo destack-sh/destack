@@ -10,7 +10,7 @@ import * as statement from "./statement.ts";
 import { quote } from "../dialect/quote.ts";
 import { bridgeTriggers } from "./bridge.ts";
 import type { Triggers } from "./trigger.ts";
-import type { MergedState } from "./merge.ts";
+import type { Merge } from "./merge.ts";
 import { canonicalize, Version } from "@destack/schema";
 import { v7 } from "uuid";
 import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
@@ -59,7 +59,7 @@ export interface PlanInput {
     /** The declared tables. */
     readonly declared: readonly TableState[];
     /** The conflicting tables with their reasons. */
-    readonly conflicts?: MergedState["conflicts"];
+    readonly conflicts?: Merge["conflicts"];
     /** The database's dialect. */
     readonly dialect: Dialect;
 }
@@ -67,244 +67,21 @@ export interface PlanInput {
 /** Plan a database's migration, or name every problem to fix. */
 export function planTables(input: PlanInput): TablePlan {
     // index applied tables and collect problems
-    const { applied, existing, declared, dialect } = input;
+    const { applied, declared, dialect } = input;
     const remaining = new Map(applied.map((state) => [state.table.name, state]));
     const problems: Problem[] = (input.conflicts ?? []).map((conflict) => ({
         target: Address.join("table", conflict.table),
         detail: conflict.reason,
     }));
-    const steps: TableStep[] = [];
-    const created: TableDescription[] = [];
 
-    // plan each agreeing table
-    const conflicting = new Set((input.conflicts ?? []).map((conflict) => conflict.table));
-    for (const state of declared) {
-        const name = state.table.name;
-        if (conflicting.has(name)) {
-            remaining.delete(name);
-            continue;
-        }
-        const previous =
-            remaining.get(name) ??
-            (state.moved?.table === undefined ? undefined : remaining.get(state.moved.table));
-        remaining.delete(previous?.table.name ?? name);
-
-        // create each missing table unless a newer release renamed it or an unmanaged one has its name
-        if (!previous) {
-            const renamed = applied.find(
-                (entry) =>
-                    entry.moved?.table === name &&
-                    Version.compare(entry.package.version, state.package.version) > 0,
-            );
-            // refuse a table a newer release renamed, which the rollback would create again empty
-            if (renamed !== undefined) {
-                const detail = `rollback to ${state.package.version} cannot read the table ${renamed.package.version} renamed to ${renamed.table.name}`;
-                problems.push({ target: Address.join("table", name), detail });
-            }
-            // refuse a name an unmanaged table has
-            else if (existing.includes(name)) {
-                const target = Address.join("table", name);
-                problems.push({ target, detail: "table exists without applied state" });
-            }
-            // create the table
-            else {
-                steps.push(
-                    step(
-                        "create",
-                        Address.join("table", name),
-                        "safe",
-                        "create table",
-                        createStatements(state.table),
-                    ),
-                );
-                created.push(state.table);
-            }
-            continue;
-        }
-
-        // keep a newer applied table for an older release that it covers, refusing one it cannot cover
-        if (Version.compare(state.package.version, previous.package.version) < 0) {
-            if (!coversState(previous, state)) {
-                const detail = `rollback to ${state.package.version} cannot read the table as ${previous.package.version} applied it`;
-                problems.push({ target: Address.join("table", name), detail });
-            }
-            continue;
-        }
-
-        // rename a moved table before changing it
-        if (previous.table.name !== name) {
-            steps.push(
-                step(
-                    "rename",
-                    Address.join("table", name),
-                    "backward-incompatible",
-                    `rename table from ${previous.table.name}`,
-                    [statement.renameTable(previous.table.name, name)],
-                ),
-            );
-        }
-        const changes = changeTable(
-            { ...previous.table, name },
-            state.table,
-            state.moved?.columns ?? {},
-            problems,
-        );
-
-        // convert rows through each release after the applied one, and check the column values
-        const conversions = Version.between(
-            state.conversions ?? {},
-            previous.package.version,
-            state.package.version,
-        );
-        for (const [release, assignments] of conversions) {
-            changes.push(convertRows(state, release, assignments));
-        }
-        const releases = conversions.map(([release]) => release);
-        changes.push(...changeValues(previous, state, releases, problems));
-
-        // backfill newly bridged columns
-        const bridged = new Set((previous.bridges ?? []).map((bridge) => bridge.to));
-        for (const bridge of state.bridges ?? []) {
-            if (!bridged.has(bridge.to)) {
-                changes.push(
-                    step(
-                        "convert",
-                        Address.join("table", name, "column", bridge.to),
-                        "fallible",
-                        `copy ${bridge.from} into ${bridge.to}`,
-                        [`UPDATE ${quote(name)} SET ${quote(bridge.to)} = ${quote(bridge.from)}`],
-                    ),
-                );
-            }
-        }
-
-        // rebuild a changed tree's index
-        if (state.tree && canonicalize(state.tree) !== canonicalize(previous.tree ?? null)) {
-            changes.push({
-                ...step(
-                    "update",
-                    Address.join("table", name, "tree"),
-                    "safe",
-                    "rebuild the ancestor index",
-                    [],
-                ),
-                tree: state.tree,
-            });
-        }
-
-        // reinstall log triggers when nothing else changed
-        if (
-            changes.length === 0 &&
-            canonicalize(state.log ?? null) !== canonicalize(previous.log ?? null)
-        ) {
-            changes.push(
-                step(
-                    "update",
-                    Address.join("table", name, "log"),
-                    "safe",
-                    `log changes with retention ${state.log?.retention ?? "none"}`,
-                    [],
-                ),
-            );
-        }
-        steps.push(...changes);
-    }
-
-    // compute new or changed aggregates
-    for (const state of declared) {
-        const previous = applied.find((entry) => entry.table.name === state.table.name);
-        for (const aggregate of missing(state.aggregates, previous?.aggregates)) {
-            steps.push(
-                step(
-                    "create",
-                    Address.join("table", aggregate.table, "aggregate", aggregate.column),
-                    "safe",
-                    `compute ${aggregate.column} from ${aggregate.source}`,
-                    [recomputeAggregate(aggregate, dialect)],
-                ),
-            );
-        }
-    }
-
-    // stop keeping removed aggregates
-    for (const previous of applied) {
-        const state = declared.find((entry) => entry.table.name === previous.table.name);
-        for (const aggregate of missing(previous.aggregates, state?.aggregates)) {
-            steps.push(
-                step(
-                    "delete",
-                    Address.join("table", aggregate.table, "aggregate", aggregate.column),
-                    "safe",
-                    `stop keeping ${aggregate.column} from ${aggregate.source}`,
-                    [],
-                ),
-            );
-        }
-    }
-
-    // start and stop keeping dependents
-    for (const state of declared) {
-        const previous = applied.find((entry) => entry.table.name === state.table.name);
-        for (const dependent of missing(state.dependents, previous?.dependents)) {
-            steps.push(
-                step(
-                    "create",
-                    Address.join("table", dependent.table, "dependent", dependent.source),
-                    "safe",
-                    `${dependent.onDelete} deletes into ${dependent.source}`,
-                    [],
-                ),
-            );
-        }
-    }
-    for (const previous of applied) {
-        const state = declared.find((entry) => entry.table.name === previous.table.name);
-        for (const dependent of missing(previous.dependents, state?.dependents)) {
-            steps.push(
-                step(
-                    "delete",
-                    Address.join("table", dependent.table, "dependent", dependent.source),
-                    "safe",
-                    `stop ${dependent.onDelete} deletes into ${dependent.source}`,
-                    [],
-                ),
-            );
-        }
-    }
-
-    // add PostgreSQL foreign keys after every table exists
-    if (dialect === "postgresql") {
-        for (const table of created) {
-            const keys = table.constraints.filter((constraint) => constraint.kind === "foreignKey");
-            for (const key of keys) {
-                steps.push(
-                    step(
-                        "create",
-                        Address.join("table", table.name, "constraint", key.name),
-                        "safe",
-                        `add foreign key ${key.name}`,
-                        [statement.addConstraint(table.name, key)],
-                    ),
-                );
-            }
-        }
-    }
+    // plan each agreeing table and its aggregates, dependents and foreign keys
+    const { steps, created } = planDeclared(input, remaining, problems);
+    steps.push(...aggregateSteps(declared, applied, dialect));
+    steps.push(...dependentSteps(declared, applied));
+    steps.push(...(dialect === "postgresql" ? foreignKeySteps(created) : []));
 
     // drop applied tables no longer declared, keeping those a newer release of a declared package added
-    const releases = new Map<string, Version>();
-    for (const state of declared) {
-        const release = releases.get(state.package.id);
-        if (release === undefined || Version.compare(state.package.version, release) > 0) {
-            releases.set(state.package.id, state.package.version);
-        }
-    }
-    const dropped = [...remaining.values()]
-        .filter((previous) => {
-            const release = releases.get(previous.package.id);
-
-            return release === undefined || Version.compare(previous.package.version, release) <= 0;
-        })
-        .map((previous) => previous.table.name);
+    const dropped = droppedTables(declared, remaining);
     for (const name of dropped) {
         steps.push(
             step("delete", Address.join("table", name), "destructive", "drop table", [
@@ -320,27 +97,329 @@ export function planTables(input: PlanInput): TablePlan {
     }
 
     // reinstall every generated trigger around the steps
-    const isChanged = steps.length > 0;
+    const triggers = reinstallTriggers(applied, declared, dialect, steps.length > 0);
+
+    return { dialect, steps, ...triggers, state: declared, dropped };
+}
+
+/** Plan each declared table without a conflict. */
+function planDeclared(
+    input: PlanInput,
+    remaining: Map<string, TableState>,
+    problems: Problem[],
+): { readonly steps: TableStep[]; readonly created: TableDescription[] } {
+    // collect the steps and the created tables
+    const steps: TableStep[] = [];
+    const created: TableDescription[] = [];
+    const conflicting = new Set((input.conflicts ?? []).map((conflict) => conflict.table));
+    for (const state of input.declared) {
+        // skip a conflicting table
+        const name = state.table.name;
+        if (conflicting.has(name)) {
+            remaining.delete(name);
+            continue;
+        }
+        const previous =
+            remaining.get(name) ??
+            (state.moved?.table === undefined ? undefined : remaining.get(state.moved.table));
+        remaining.delete(previous?.table.name ?? name);
+
+        // create each missing table unless a newer release renamed it or an unmanaged one has its name
+        if (!previous) {
+            const creating = planCreate(state, input, problems);
+            if (creating !== undefined) {
+                steps.push(creating);
+                created.push(state.table);
+            }
+        }
+        // keep a newer applied table for an older release that it covers, refusing one it cannot cover
+        else if (Version.compare(state.package.version, previous.package.version) < 0) {
+            if (!coversState(previous, state)) {
+                const detail = `rollback to ${state.package.version} cannot read the table as ${previous.package.version} applied it`;
+                problems.push({ target: Address.join("table", name), detail });
+            }
+        }
+        // change an applied table
+        else {
+            steps.push(...planChange(state, previous, problems));
+        }
+    }
+
+    return { steps, created };
+}
+
+/** Plan the creation of a missing table. */
+function planCreate(
+    state: TableState,
+    { applied, existing }: PlanInput,
+    problems: Problem[],
+): TableStep | undefined {
+    const name = state.table.name;
+    const renamed = applied.find(
+        (entry) =>
+            entry.moved?.table === name &&
+            Version.compare(entry.package.version, state.package.version) > 0,
+    );
+    // refuse a table a newer release renamed, which the rollback would create again empty
+    if (renamed !== undefined) {
+        const detail = `rollback to ${state.package.version} cannot read the table ${renamed.package.version} renamed to ${renamed.table.name}`;
+        problems.push({ target: Address.join("table", name), detail });
+
+        return undefined;
+    }
+    // refuse a name an unmanaged table has
+    else if (existing.includes(name)) {
+        const target = Address.join("table", name);
+        problems.push({ target, detail: "table exists without applied state" });
+
+        return undefined;
+    }
+    // create the table
+    else {
+        const statements = createStatements(state.table);
+
+        return step("create", Address.join("table", name), "safe", "create table", statements);
+    }
+}
+
+/** Plan the changes from a table's applied state to its declared one. */
+function planChange(state: TableState, previous: TableState, problems: Problem[]): TableStep[] {
+    // rename a moved table before changing it
+    const name = state.table.name;
+    const steps: TableStep[] = [];
+    if (previous.table.name !== name) {
+        steps.push(
+            step(
+                "rename",
+                Address.join("table", name),
+                "backward-incompatible",
+                `rename table from ${previous.table.name}`,
+                [statement.renameTable(previous.table.name, name)],
+            ),
+        );
+    }
+    const changes = changeTable(
+        { ...previous.table, name },
+        state.table,
+        state.moved?.columns ?? {},
+        problems,
+    );
+
+    // convert rows, backfill newly bridged columns and rebuild a changed tree's index
+    changes.push(...convertSteps(state, previous, problems));
+    changes.push(...bridgeSteps(state, previous));
+    changes.push(...treeSteps(state, previous));
+
+    // reinstall log triggers when nothing else changed
+    if (
+        changes.length === 0 &&
+        canonicalize(state.log ?? null) !== canonicalize(previous.log ?? null)
+    ) {
+        changes.push(
+            step(
+                "update",
+                Address.join("table", name, "log"),
+                "safe",
+                `log changes with retention ${state.log?.retention ?? "none"}`,
+                [],
+            ),
+        );
+    }
+
+    return [...steps, ...changes];
+}
+
+/** Convert rows through each release after the applied one. */
+function convertSteps(state: TableState, previous: TableState, problems: Problem[]): TableStep[] {
+    const conversions = Version.between(
+        state.conversions ?? {},
+        previous.package.version,
+        state.package.version,
+    );
+    const releases = conversions.map(([release]) => release);
+
+    return [
+        ...conversions.map(([release, assignments]) => convertRows(state, release, assignments)),
+        ...changeValues(previous, state, releases, problems),
+    ];
+}
+
+/** Backfill the columns the declared state newly bridges from their previous names. */
+function bridgeSteps(state: TableState, previous: TableState): TableStep[] {
+    const name = state.table.name;
+    const bridged = new Set((previous.bridges ?? []).map((bridge) => bridge.to));
+
+    return (state.bridges ?? [])
+        .filter((bridge) => !bridged.has(bridge.to))
+        .map((bridge) =>
+            step(
+                "convert",
+                Address.join("table", name, "column", bridge.to),
+                "fallible",
+                `copy ${bridge.from} into ${bridge.to}`,
+                [`UPDATE ${quote(name)} SET ${quote(bridge.to)} = ${quote(bridge.from)}`],
+            ),
+        );
+}
+
+/** Rebuild the ancestor index of a changed tree. */
+function treeSteps(state: TableState, previous: TableState): TableStep[] {
+    // leave an absent or unchanged tree
+    if (!state.tree || canonicalize(state.tree) === canonicalize(previous.tree ?? null)) {
+        return [];
+    }
+    const rebuild = step(
+        "update",
+        Address.join("table", state.table.name, "tree"),
+        "safe",
+        "rebuild the ancestor index",
+        [],
+    );
+
+    return [{ ...rebuild, tree: state.tree }];
+}
+
+/** Compute new or changed aggregates and stop keeping removed ones. */
+function aggregateSteps(
+    declared: readonly TableState[],
+    applied: readonly TableState[],
+    dialect: Dialect,
+): TableStep[] {
+    // compute new or changed aggregates
+    const created = declared.flatMap((state) => {
+        const previous = applied.find((entry) => entry.table.name === state.table.name);
+
+        return missing(state.aggregates, previous?.aggregates).map((aggregate) =>
+            step(
+                "create",
+                Address.join("table", aggregate.table, "aggregate", aggregate.column),
+                "safe",
+                `compute ${aggregate.column} from ${aggregate.source}`,
+                [recomputeAggregate(aggregate, dialect)],
+            ),
+        );
+    });
+
+    // stop keeping removed aggregates
+    const deleted = applied.flatMap((previous) => {
+        const state = declared.find((entry) => entry.table.name === previous.table.name);
+
+        return missing(previous.aggregates, state?.aggregates).map((aggregate) =>
+            step(
+                "delete",
+                Address.join("table", aggregate.table, "aggregate", aggregate.column),
+                "safe",
+                `stop keeping ${aggregate.column} from ${aggregate.source}`,
+                [],
+            ),
+        );
+    });
+
+    return [...created, ...deleted];
+}
+
+/** Start keeping new dependents and stop keeping removed ones. */
+function dependentSteps(
+    declared: readonly TableState[],
+    applied: readonly TableState[],
+): TableStep[] {
+    // start keeping new dependents
+    const created = declared.flatMap((state) => {
+        const previous = applied.find((entry) => entry.table.name === state.table.name);
+
+        return missing(state.dependents, previous?.dependents).map((dependent) =>
+            step(
+                "create",
+                Address.join("table", dependent.table, "dependent", dependent.source),
+                "safe",
+                `${dependent.onDelete} deletes into ${dependent.source}`,
+                [],
+            ),
+        );
+    });
+
+    // stop keeping removed dependents
+    const deleted = applied.flatMap((previous) => {
+        const state = declared.find((entry) => entry.table.name === previous.table.name);
+
+        return missing(previous.dependents, state?.dependents).map((dependent) =>
+            step(
+                "delete",
+                Address.join("table", dependent.table, "dependent", dependent.source),
+                "safe",
+                `stop ${dependent.onDelete} deletes into ${dependent.source}`,
+                [],
+            ),
+        );
+    });
+
+    return [...created, ...deleted];
+}
+
+/** Add the created tables' PostgreSQL foreign keys after every table exists. */
+function foreignKeySteps(created: readonly TableDescription[]): TableStep[] {
+    return created.flatMap((table) =>
+        table.constraints
+            .filter((constraint) => constraint.kind === "foreignKey")
+            .map((key) =>
+                step(
+                    "create",
+                    Address.join("table", table.name, "constraint", key.name),
+                    "safe",
+                    `add foreign key ${key.name}`,
+                    [statement.addConstraint(table.name, key)],
+                ),
+            ),
+    );
+}
+
+/** List the remaining applied tables to drop. */
+function droppedTables(
+    declared: readonly TableState[],
+    remaining: ReadonlyMap<string, TableState>,
+): string[] {
+    // find each declared package's newest release
+    const releases = new Map<string, Version>();
+    for (const state of declared) {
+        const release = releases.get(state.package.id);
+        if (release === undefined || Version.compare(state.package.version, release) > 0) {
+            releases.set(state.package.id, state.package.version);
+        }
+    }
+
+    // drop the tables of no newer release
+    return [...remaining.values()]
+        .filter((previous) => {
+            const release = releases.get(previous.package.id);
+
+            return release === undefined || Version.compare(previous.package.version, release) <= 0;
+        })
+        .map((previous) => previous.table.name);
+}
+
+/** Remove every applied generated trigger before changed steps and install the declared ones after. */
+function reinstallTriggers(
+    applied: readonly TableState[],
+    declared: readonly TableState[],
+    dialect: Dialect,
+    isChanged: boolean,
+): { readonly before: string[]; readonly after: string[] } {
+    // leave the triggers of an unchanged database
+    if (!isChanged) {
+        return { before: [], after: [] };
+    }
 
     return {
-        dialect,
-        steps,
-        before: isChanged
-            ? applied.flatMap((state) =>
-                  TRIGGERS.flatMap((triggers) => triggers.remove(state, dialect)),
-              )
-            : [],
-        after: isChanged
-            ? [
-                  ...createLog(dialect, v7()),
-                  createState(),
-                  ...declared.flatMap((state) =>
-                      TRIGGERS.flatMap((triggers) => triggers.install(state, dialect)),
-                  ),
-              ]
-            : [],
-        state: declared,
-        dropped,
+        before: applied.flatMap((state) =>
+            TRIGGERS.flatMap((triggers) => triggers.remove(state, dialect)),
+        ),
+        after: [
+            ...createLog(dialect, v7()),
+            createState(),
+            ...declared.flatMap((state) =>
+                TRIGGERS.flatMap((triggers) => triggers.install(state, dialect)),
+            ),
+        ],
     };
 }
 

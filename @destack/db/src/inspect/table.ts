@@ -13,6 +13,8 @@ export const ColumnDescription = defineSchema(
         value: schema.record(schema.string(), schema.json()),
         /** The dialect-specific SQL type. */
         type: schema.string(),
+        /** The collation text compares by, absent for the dialect's byte order. */
+        collation: schema.string().exactOptional(),
         /** Whether the declaration allows NULL. */
         nullable: schema.boolean(),
         /** The SQL default expression. */

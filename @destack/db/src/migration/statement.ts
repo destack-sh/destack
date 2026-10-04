@@ -62,15 +62,23 @@ export function alterColumn(
     from: ColumnDescription,
     to: ColumnDescription,
 ): string[] {
-    // alter the type, nullability and default
+    // name the table and column
     const target = quote(table);
     const column = quote(to.name);
     const statements: string[] = [];
+
+    // convert the values to another type
     if (from.type !== to.type) {
         statements.push(
-            `ALTER TABLE ${target} ALTER COLUMN ${column} TYPE ${to.type} USING ${column}::${to.type}`,
+            `ALTER TABLE ${target} ALTER COLUMN ${column} TYPE ${typed(to)} USING ${column}::${to.type}`,
         );
     }
+    // keep the values under another collation
+    else if (from.collation !== to.collation) {
+        statements.push(`ALTER TABLE ${target} ALTER COLUMN ${column} TYPE ${typed(to)}`);
+    }
+
+    // alter the nullability and default
     if (from.nullable !== to.nullable) {
         statements.push(
             `ALTER TABLE ${target} ALTER COLUMN ${column} ${to.nullable ? "DROP" : "SET"} NOT NULL`,
@@ -121,7 +129,7 @@ export function rebuildTable(table: TableDescription, copied: readonly string[])
 /** Write one column's definition. */
 function columnDefinition(column: ColumnDescription, dialect: Dialect): string {
     // write the type, default and nullability
-    const parts = [quote(column.name), column.type];
+    const parts = [quote(column.name), typed(column)];
     if (column.generated !== undefined) {
         parts.push(
             `GENERATED ALWAYS AS (${column.generated.expression}) ${storage(column, dialect)}`,
@@ -134,6 +142,13 @@ function columnDefinition(column: ColumnDescription, dialect: Dialect): string {
     }
 
     return parts.join(" ");
+}
+
+/** Write a column's type with its collation. */
+function typed(column: ColumnDescription): string {
+    return column.collation === undefined
+        ? column.type
+        : `${column.type} COLLATE ${quote(column.collation)}`;
 }
 
 /** Write a generated column's storage. */

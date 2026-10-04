@@ -2,7 +2,7 @@ import { dialectSQL, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
 import { Statement } from "../query/statement.ts";
 import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { TABLE, type Logged, Table } from "../table/table.ts";
+import { TABLE, type RowImage, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
 import { LOG_EPOCH, LOG_SLOT, LOG_HORIZON, LOG_REPLICA, LOG, LOG_TRANSACTION } from "./schema.ts";
@@ -38,21 +38,21 @@ export type Write<Definition extends Table = Table> = {
           /** Insert the row. */
           readonly operation: "insert";
           /** The row after the insert. */
-          readonly after: Logged<Definition>;
+          readonly after: RowImage<Definition>;
       }
     | {
           /** Update the row. */
           readonly operation: "update";
           /** The row before the update. */
-          readonly before: Logged<Definition>;
+          readonly before: RowImage<Definition>;
           /** The row after the update. */
-          readonly after: Logged<Definition>;
+          readonly after: RowImage<Definition>;
       }
     | {
           /** Delete the row. */
           readonly operation: "delete";
           /** The row before the delete. */
-          readonly before: Logged<Definition>;
+          readonly before: RowImage<Definition>;
       }
 );
 
@@ -65,17 +65,17 @@ export type Change<Definition extends Table = Table> = Write<Definition> & {
 /** Read changes. */
 export const Change = {
     /** Read a write's latest image of its row: the row after an insert or update, the row before a delete. */
-    image<Definition extends Table>(change: Write<Definition>): Logged<Definition> {
+    image<Definition extends Table>(change: Write<Definition>): RowImage<Definition> {
         return change.operation === "delete" ? change.before : change.after;
     },
 
     /** Read the row before a write, null for an insert. */
-    before<Definition extends Table>(change: Write<Definition>): Logged<Definition> | null {
+    before<Definition extends Table>(change: Write<Definition>): RowImage<Definition> | null {
         return change.operation === "insert" ? null : change.before;
     },
 
     /** Read the row after a write, null for a delete. */
-    after<Definition extends Table>(change: Write<Definition>): Logged<Definition> | null {
+    after<Definition extends Table>(change: Write<Definition>): RowImage<Definition> | null {
         return change.operation === "delete" ? null : change.after;
     },
 
@@ -161,7 +161,7 @@ const LogBounds = schema.looseObject({
 });
 
 /** The latest sequence of some entries, null over none. */
-const Latest = schema.looseObject({ sequence: LogInteger.nullable() });
+const SequenceRow = schema.looseObject({ sequence: LogInteger.nullable() });
 
 /** The hexadecimal digits of a layout digest: 128 bits, whose collisions are negligible among any database's tables. */
 const LAYOUT_LENGTH = 32;
@@ -323,7 +323,7 @@ export class Log {
             SELECT max(sequence) AS sequence FROM ${sql.identifier(LOG)}
             WHERE "transaction" = (SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)
         `);
-        const { sequence } = Latest.parse(row);
+        const { sequence } = SequenceRow.parse(row);
 
         return sequence === null
             ? committed
@@ -548,7 +548,7 @@ export class Log {
                     AND changed_at < ${before}
                     AND sequence IS NOT NULL
             `);
-            const newest = Latest.parse(newestRow).sequence;
+            const newest = SequenceRow.parse(newestRow).sequence;
             if (newest === null) {
                 return;
             }
@@ -559,7 +559,7 @@ export class Log {
                     (SELECT min(sequence) FROM ${sql.identifier(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
-            const kept = Latest.extend({ horizon: LogInteger }).parse(keptRow);
+            const kept = SequenceRow.extend({ horizon: LogInteger }).parse(keptRow);
             const cap = kept.sequence === null ? newest : Math.min(newest, kept.sequence);
             if (cap <= kept.horizon) {
                 return;
@@ -735,11 +735,11 @@ function decodeLogged<Definition extends Table>(
     table: Definition,
     row: Readonly<Record<string, JsonValue>>,
     dialect: Dialect,
-): Logged<Definition>;
+): RowImage<Definition>;
 /**
  * Decode a logged row's values by column name through its logged columns.
  *
- * @construct each logged column decodes its value into the column's type, which is how Logged maps the table.
+ * @construct each logged column decodes its value into the column's type, which is how RowImage maps the table.
  */
 function decodeLogged(
     table: Table,
@@ -750,11 +750,15 @@ function decodeLogged(
         Object.entries(table[TABLE].logged).map(([property, column]) => {
             // read a column added after the change as null
             const value = row[column.definition.name];
+            if (value === null || value === undefined) {
+                return [property, null];
+            }
 
+            // decode bytes from hexadecimal text and other values by their column
             return [
                 property,
-                value === null || value === undefined
-                    ? null
+                column.definition.kind === "binary"
+                    ? Uint8Array.fromHex(schema.string().parse(value))
                     : column.definition.decode(value, dialect),
             ];
         }),

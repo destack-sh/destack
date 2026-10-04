@@ -29,6 +29,9 @@ const CLOSED_CODES: ReadonlySet<string> = new Set(["CONNECTION_DESTROYED", "CONN
 /** The prefix of a payload carrying one fragment of a message, which no JSON text starts with. */
 const FRAGMENT = "#";
 
+/** Who writes a PostgreSQL database: pools announcing their commits to each other through LISTEN and NOTIFY, or one pool alone. */
+export type PostgresWriteMode = "shared" | "sole";
+
 /** A PostgreSQL database with its own pool. */
 export class PostgresDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
@@ -36,8 +39,12 @@ export class PostgresDatabase<
     /** The PostgreSQL connection pool. */
     readonly $client: postgres.Sql;
 
-    /** Bind tables to a connection pool. */
-    constructor(client: postgres.Sql, tables: declaration.Database<Models> | readonly Table[]) {
+    /** Bind tables to a connection pool, listening to the other writers' commits unless it writes alone. */
+    constructor(
+        client: postgres.Sql,
+        tables: declaration.Database<Models> | readonly Table[],
+        writers: PostgresWriteMode = "shared",
+    ) {
         // declare the tables with their tree tables
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
         requireDistinct(declared, "postgresql");
@@ -47,9 +54,11 @@ export class PostgresDatabase<
                 new PostgresSession(client),
                 new ConnectionState(
                     "networked",
-                    (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
+                    writers === "sole"
+                        ? undefined
+                        : (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
                     "database",
-                    "tables" in tables ? tables.spec.tier : undefined,
+                    "tables" in tables ? tables.spec.copies : [],
                 ),
             ),
             declared,
@@ -92,95 +101,132 @@ export function postgresChannel(client: postgres.Sql, name: string): Channel<unk
         });
 
     return {
-        notify: (message) => {
-            // send a small message whole, and a large one in numbered fragments
-            const text = JSON.stringify(message);
-            if (UTF8.encode(text).byteLength <= PAYLOAD_BYTES) {
-                send(text);
-            } else {
-                const id = crypto.randomUUID();
-                const parts = fragments(text, PAYLOAD_BYTES);
-                for (const [index, part] of parts.entries()) {
-                    send(`${FRAGMENT}${id}:${index}:${parts.length}:${part}`);
-                }
-            }
-        },
-        listen: (receive, resume, fail) => {
-            // reassemble fragmented messages, dropping ones whose fragments stop arriving
-            const pending = new Map<string, { parts: string[]; received: number; at: number }>();
-            const deliver = (payload: string) => {
-                // deliver a whole message at once, as the database's own notifications send them too
-                if (!payload.startsWith(FRAGMENT)) {
-                    const message: unknown = JSON.parse(payload);
-                    receive(message);
-
-                    return;
-                }
-
-                // keep a fragment, and deliver its message once every fragment arrived
-                const header = payload.slice(FRAGMENT.length);
-                const [id, index, count] = header.split(":", 3);
-                const position = Number(index);
-                const total = Number(count);
-                if (
-                    id === undefined ||
-                    index === undefined ||
-                    count === undefined ||
-                    !Number.isSafeInteger(position) ||
-                    !Number.isSafeInteger(total) ||
-                    position < 0 ||
-                    position >= total
-                ) {
-                    throw new TypeError(`malformed notification fragment on ${name}`);
-                }
-                const part = header.slice(id.length + index.length + count.length + 3);
-                const now = Date.now();
-                for (const [key, entry] of pending) {
-                    if (now - entry.at > FRAGMENT_MILLISECONDS) {
-                        pending.delete(key);
-                    }
-                }
-                const entry = pending.get(id) ?? {
-                    parts: Array.from<string>({ length: total }),
-                    received: 0,
-                    at: now,
-                };
-                pending.set(id, entry);
-                entry.parts[position] = part;
-                entry.received += 1;
-                if (entry.received === entry.parts.length) {
-                    pending.delete(id);
-                    const message: unknown = JSON.parse(entry.parts.join(""));
-                    receive(message);
-                }
-            };
-
-            // deliver each notification once listening, resuming on each reconnect
-            if (fail !== undefined) {
-                failures.add(fail);
-            }
-            const listening = client.listen(name, deliver, () => resume?.());
-            listening.catch((error: unknown) => fail?.(error));
-
-            // stop listening
-            return () => {
-                if (fail !== undefined) {
-                    failures.delete(fail);
-                }
-                void listening.then(
-                    (listener) =>
-                        listener.unlisten().catch((error: unknown) => {
-                            // count a closed connection as stopped, and fail on anything else
-                            const code = errorCode(error);
-                            if (code === undefined || !CLOSED_CODES.has(code)) {
-                                fail?.(error);
-                            }
-                        }),
-                    () => undefined,
-                );
-            };
-        },
+        notify: (message) => notifyInFragments(send, message),
+        listen: (receive, resume, fail) =>
+            listenToChannel(client, name, failures, receive, resume, fail),
     };
+}
+
+/** Send a message whole or in numbered fragments. */
+function notifyInFragments(send: (payload: string) => void, message: unknown): void {
+    const text = JSON.stringify(message);
+    // send a small message whole
+    if (UTF8.encode(text).byteLength <= PAYLOAD_BYTES) {
+        send(text);
+    }
+    // send a large message in numbered fragments
+    else {
+        const id = crypto.randomUUID();
+        const parts = fragments(text, PAYLOAD_BYTES);
+        for (const [index, part] of parts.entries()) {
+            send(`${FRAGMENT}${id}:${index}:${parts.length}:${part}`);
+        }
+    }
+}
+
+/** Listen to a channel's notifications until stopped. */
+function listenToChannel(
+    client: postgres.Sql,
+    name: string,
+    failures: Set<(error: unknown) => void>,
+    receive: (message: unknown) => void,
+    resume: (() => void) | undefined,
+    fail: ((error: unknown) => void) | undefined,
+): () => void {
+    // deliver each notification once listening, resuming on each reconnect
+    if (fail !== undefined) {
+        failures.add(fail);
+    }
+    const listening = client.listen(name, reassembler(name, receive), () => resume?.());
+    listening.catch((error: unknown) => fail?.(error));
+
+    // stop listening
+    return () => {
+        if (fail !== undefined) {
+            failures.delete(fail);
+        }
+        void listening.then(
+            (listener) =>
+                listener.unlisten().catch((error: unknown) => {
+                    // count a closed connection as stopped, and fail on anything else
+                    const code = errorCode(error);
+                    if (code === undefined || !CLOSED_CODES.has(code)) {
+                        fail?.(error);
+                    }
+                }),
+            () => undefined,
+        );
+    };
+}
+
+/** Deliver whole messages and reassemble fragmented ones. */
+function reassembler(name: string, receive: (message: unknown) => void): (payload: string) => void {
+    const pending = new Map<string, { parts: string[]; received: number; at: number }>();
+
+    return (payload) => {
+        // deliver a whole message at once, as the database's own notifications send them too
+        if (!payload.startsWith(FRAGMENT)) {
+            const message: unknown = JSON.parse(payload);
+            receive(message);
+
+            return;
+        }
+
+        // drop the messages whose fragments stopped arriving
+        const { id, position, total, part } = parseFragment(name, payload);
+        const now = Date.now();
+        for (const [key, entry] of pending) {
+            if (now - entry.at > FRAGMENT_MILLISECONDS) {
+                pending.delete(key);
+            }
+        }
+
+        // keep the fragment, and deliver its message once every fragment arrived
+        const entry = pending.get(id) ?? {
+            parts: Array.from<string>({ length: total }),
+            received: 0,
+            at: now,
+        };
+        pending.set(id, entry);
+        entry.parts[position] = part;
+        entry.received += 1;
+        if (entry.received === entry.parts.length) {
+            pending.delete(id);
+            const message: unknown = JSON.parse(entry.parts.join(""));
+            receive(message);
+        }
+    };
+}
+
+/** Read a fragment's message id, position, count and text. */
+function parseFragment(
+    name: string,
+    payload: string,
+): {
+    readonly id: string;
+    readonly position: number;
+    readonly total: number;
+    readonly part: string;
+} {
+    // read the header's id, position and count
+    const header = payload.slice(FRAGMENT.length);
+    const [id, index, count] = header.split(":", 3);
+    const position = Number(index);
+    const total = Number(count);
+    if (
+        id === undefined ||
+        index === undefined ||
+        count === undefined ||
+        !Number.isSafeInteger(position) ||
+        !Number.isSafeInteger(total) ||
+        position < 0 ||
+        position >= total
+    ) {
+        throw new TypeError(`malformed notification fragment on ${name}`);
+    }
+    const part = header.slice(id.length + index.length + count.length + 3);
+
+    return { id, position, total, part };
 }
 
 /** Split text into parts of at most some UTF-8 bytes each, never inside a character. */

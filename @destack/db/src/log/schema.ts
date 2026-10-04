@@ -58,11 +58,15 @@ export function describeLog(table: Table): ChangeDescription | undefined {
         );
     }
 
-    // record every column but binary and sensitive ones
+    // record every column but sensitive ones under a key without binary columns
     const columns = Object.values(definition.columns).map((column) => column.definition);
     const logged = table[TABLE].logged;
     const recorded = Object.values(logged).map((column) => column.definition);
-    const unlogged = definition.key.find((property) => !Object.hasOwn(logged, property));
+    const unlogged = definition.key.find(
+        (property) =>
+            !Object.hasOwn(logged, property) ||
+            definition.column(property).definition.kind === "binary",
+    );
     if (unlogged !== undefined) {
         throw new DatabaseError(
             "INVALID_MIGRATION",
@@ -78,6 +82,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
         exact: recorded
             .filter((column) => column.kind === "bigint" || column.kind === "numeric")
             .map((column) => column.name),
+        binary: recorded.filter((column) => column.kind === "binary").map((column) => column.name),
         compared: columns.map((column) => column.name),
         ...(scope === undefined ? {} : { scope: scope.definition.name }),
     };

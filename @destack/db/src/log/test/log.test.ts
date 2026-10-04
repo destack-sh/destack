@@ -35,7 +35,7 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     const tables = [note, revision, lease];
     expect((await database.log.position()).sequence).toBe(0);
 
-    // record an insert with exact values and no binary column
+    // record an insert with exact and binary values
     await database.transaction(async (transaction) => {
         await transaction.insert(note).values(first);
         await transaction
@@ -44,7 +44,6 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
         await transaction.insert(lease).values({ name: "a", expiresAt: 1 });
     });
     const created = await database.log.read({ tables, after: 0 });
-    const { attachment: _attachment, ...logged } = first;
     expect(
         created.changes.map(
             ({
@@ -63,7 +62,7 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
             table: true,
             key: { id: "a" },
             operation: "insert",
-            after: logged,
+            after: first,
             scope: "inbox",
         },
         {
@@ -78,7 +77,7 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     // share one transaction across both changes
     expect(new Set(created.changes.map((change) => change.transaction)).size).toBe(1);
 
-    // skip empty updates and record binary-only ones
+    // skip empty updates and record binary-only ones with the bytes before and after
     await database.update(note).set({ title: "First" }).where(eq(note.id, "a"));
     await database
         .update(note)
@@ -87,10 +86,15 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
     const updated = await database.log.read({ tables: [note], after: created.sequence });
     expect(
-        updated.changes.map((change) => [change.operation, Change.after(change)?.title]),
+        updated.changes.map((change) => [
+            change.operation,
+            Change.after(change)?.title,
+            Change.before(change)?.attachment,
+            Change.after(change)?.attachment,
+        ]),
     ).toEqual([
-        ["update", "First"],
-        ["update", "Renamed"],
+        ["update", "First", new Uint8Array([1, 2, 3]), new Uint8Array([4])],
+        ["update", "Renamed", new Uint8Array([4]), new Uint8Array([4])],
     ]);
 
     // record a key change as a deletion and an insertion, then a deletion

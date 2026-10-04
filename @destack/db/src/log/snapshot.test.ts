@@ -42,6 +42,22 @@ const revision = defineTable(
     { log: { retention: "history" } },
 );
 
+/** Numbered parts of uploads, keyed by text and an integer. */
+const part = defineTable(
+    "snapshot_part",
+    {
+        /** The upload the part belongs to. */
+        upload: text("upload").primaryKey(),
+        /** The part's number. */
+        number: integer("number").primaryKey(),
+        /** The folder the upload lives in. */
+        scope: text("scope").notNull(),
+        /** The part's size. */
+        size: integer("size").notNull(),
+    },
+    { log: {} },
+);
+
 /** Draw a seeded pseudo-random number. */
 function random(seed: { value: number }): number {
     seed.value = (seed.value * 1_103_515_245 + 12_345) % 2_147_483_648;
@@ -263,5 +279,36 @@ test.for(TEST_DIALECTS)(
                 sorted.slice(0, 3),
             ]);
         }
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "select rows by keys of text and integer columns, none for a missing key, on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [part], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
+        await database.insert(part).values([
+            { upload: "u", number: 1, scope: "inbox", size: 10 },
+            { upload: "u", number: 2, scope: "inbox", size: 20 },
+            { upload: "v", number: 1, scope: "inbox", size: 30 },
+        ]);
+
+        // read two kept keys and a missing one
+        const rows = await Snapshot.live(database).select(
+            part,
+            ["upload", "number"],
+            [
+                ["u", 2],
+                ["u", 3],
+                ["v", 1],
+            ],
+        );
+        expect(
+            rows.toSorted((left, right) => Order.rows(Order.complete([], part), left, right)),
+        ).toEqual([
+            { upload: "u", number: 2, scope: "inbox", size: 20 },
+            { upload: "v", number: 1, scope: "inbox", size: 30 },
+        ]);
     },
 );

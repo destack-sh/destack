@@ -58,92 +58,136 @@ function createSQLiteLog(epoch: string, scope?: string): readonly string[] {
 
 /** Generate the SQLite triggers recording one table's changes. */
 function sqliteLogTriggers(description: ChangeDescription): string[] {
-    // encode keys and columns as JSON, exact numbers as text
+    // abort a change of a table taking the database's scope while the database has none
     const table = quote(description.table);
-    const value = (row: "NEW" | "OLD", name: string) =>
-        description.exact.includes(name)
-            ? `CAST(${row}.${quote(name)} AS TEXT)`
-            : `${row}.${quote(name)}`;
-    const key = (row: "NEW" | "OLD") =>
-        `json_array(${description.key.map((name) => value(row, name)).join(", ")})`;
-    const row = (source: "NEW" | "OLD") => {
-        const recorded = description.columns.map(
-            (name) => `${literal(name)}, ${value(source, name)}`,
-        );
-
-        return recorded.length
-            ? chunks(recorded, JSON_PAIR_LIMIT)
-                  .map((chunk) => `json_object(${chunk.join(", ")})`)
-                  .reduce((merged, next) => `json_patch(${merged}, ${next})`)
-            : "json_object()";
-    };
-    const log = quote(LOG);
-    const transaction = `(SELECT id FROM ${quote(LOG_TRANSACTION)} WHERE slot = 1)`;
-    const now = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
-    const databaseScope = `(SELECT scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1)`;
-    const scope = (source: "NEW" | "OLD") =>
-        description.scope === undefined
-            ? databaseScope
-            : `CAST(${source}.${quote(description.scope)} AS TEXT)`;
     const scoped =
         description.scope === undefined
-            ? `SELECT RAISE(ABORT, ${literal(`the database has no scope for the rows of ${description.table}`)}) WHERE ${databaseScope} IS NULL;`
+            ? `SELECT RAISE(ABORT, ${literal(`the database has no scope for the rows of ${description.table}`)}) WHERE ${databaseScope()} IS NULL;`
             : "";
 
-    // record each changed column's old value
-    const previous = `json_remove(${chunks(
-        description.columns.map(
-            (name) =>
-                `CASE WHEN NEW.${quote(name)} IS NOT OLD.${quote(name)} THEN ${literal(`$."${name.replaceAll('"', '\\"')}"`)} ELSE '$.__unchanged' END, ${value("OLD", name)}`,
-        ),
-        JSON_PAIR_LIMIT,
-    ).reduce(
-        (merged, chunk) => `json_insert(${merged}, ${chunk.join(", ")})`,
-        "json_object()",
-    )}, '$.__unchanged')`;
-    const entry = (operation: string, source: "NEW" | "OLD", prior = "NULL") =>
-        `INSERT INTO ${log} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
-            SELECT
-                ${transaction},
-                ${literal(description.table)},
-                ${key(source)},
-                ${operation},
-                ${row(source)},
-                ${prior},
-                ${scope(source)},
-                ${literal(description.retention)},
-                ${now};`;
-    const changed = description.compared
-        .map((name) => `NEW.${quote(name)} IS NOT OLD.${quote(name)}`)
-        .join(" OR ");
-    const moved = [
+    // tell updates from key or scope changes
+    const changed = anyChanged(description.compared);
+    const moved = anyChanged([
         ...description.key,
         ...(description.scope === undefined ? [] : [description.scope]),
-    ]
-        .map((name) => `NEW.${quote(name)} IS NOT OLD.${quote(name)}`)
-        .join(" OR ");
+    ]);
     const prefix = `${description.table}__change`;
 
     // record a key or scope change as a deletion and an insertion
     return [
         `CREATE TRIGGER ${quote(`${prefix}_insert`)} AFTER INSERT ON ${table} BEGIN
             ${scoped}
-            ${entry("'insert'", "NEW")}
+            ${logEntry(description, "'insert'", "NEW")}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_update`)} AFTER UPDATE ON ${table} WHEN (${changed}) AND NOT (${moved}) BEGIN
             ${scoped}
-            ${entry("'update'", "NEW", previous)}
+            ${logEntry(description, "'update'", "NEW", previousValues(description))}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_move`)} AFTER UPDATE ON ${table} WHEN ${moved} BEGIN
             ${scoped}
-            ${entry("'delete'", "OLD")}
-            ${entry("'insert'", "NEW")}
+            ${logEntry(description, "'delete'", "OLD")}
+            ${logEntry(description, "'insert'", "NEW")}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_delete`)} AFTER DELETE ON ${table} BEGIN
             ${scoped}
-            ${entry("'delete'", "OLD")}
+            ${logEntry(description, "'delete'", "OLD")}
         END`,
     ];
+}
+
+/** Insert one log entry of a row image. */
+function logEntry(
+    description: ChangeDescription,
+    operation: string,
+    source: "NEW" | "OLD",
+    prior = "NULL",
+): string {
+    const transaction = `(SELECT id FROM ${quote(LOG_TRANSACTION)} WHERE slot = 1)`;
+    const now = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
+
+    return `INSERT INTO ${quote(LOG)} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
+            SELECT
+                ${transaction},
+                ${literal(description.table)},
+                ${recordedKey(description, source)},
+                ${operation},
+                ${recordedRow(description, source)},
+                ${prior},
+                ${rowScope(description, source)},
+                ${literal(description.retention)},
+                ${now};`;
+}
+
+/** Read a recorded column of a row image as JSON takes it. */
+function recordedValue(
+    description: ChangeDescription,
+    source: "NEW" | "OLD",
+    name: string,
+): string {
+    const column = `${source}.${quote(name)}`;
+    // read an exact number as text
+    if (description.exact.includes(name)) {
+        return `CAST(${column} AS TEXT)`;
+    }
+    // read bytes as hexadecimal text
+    else if (description.binary.includes(name)) {
+        return `CASE WHEN ${column} IS NULL THEN NULL ELSE lower(hex(${column})) END`;
+    }
+    // read any other value as it is
+    else {
+        return column;
+    }
+}
+
+/** Encode a row image's key as a JSON array. */
+function recordedKey(description: ChangeDescription, source: "NEW" | "OLD"): string {
+    const values = description.key.map((name) => recordedValue(description, source, name));
+
+    return `json_array(${values.join(", ")})`;
+}
+
+/** Encode a row image's recorded columns as a JSON object. */
+function recordedRow(description: ChangeDescription, source: "NEW" | "OLD"): string {
+    const recorded = description.columns.map(
+        (name) => `${literal(name)}, ${recordedValue(description, source, name)}`,
+    );
+
+    return recorded.length
+        ? chunks(recorded, JSON_PAIR_LIMIT)
+              .map((chunk) => `json_object(${chunk.join(", ")})`)
+              .reduce((merged, next) => `json_patch(${merged}, ${next})`)
+        : "json_object()";
+}
+
+/** Encode each changed column's old value as a JSON object. */
+function previousValues(description: ChangeDescription): string {
+    const pairs = description.columns.map(
+        (name) =>
+            `CASE WHEN NEW.${quote(name)} IS NOT OLD.${quote(name)} THEN ${literal(`$."${name.replaceAll('"', '\\"')}"`)} ELSE '$.__unchanged' END, ${recordedValue(description, "OLD", name)}`,
+    );
+    const inserted = chunks(pairs, JSON_PAIR_LIMIT).reduce(
+        (merged, chunk) => `json_insert(${merged}, ${chunk.join(", ")})`,
+        "json_object()",
+    );
+
+    return `json_remove(${inserted}, '$.__unchanged')`;
+}
+
+/** Read a row image's scope. */
+function rowScope(description: ChangeDescription, source: "NEW" | "OLD"): string {
+    return description.scope === undefined
+        ? databaseScope()
+        : `CAST(${source}.${quote(description.scope)} AS TEXT)`;
+}
+
+/** Read the database's scope. */
+function databaseScope(): string {
+    return `(SELECT scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1)`;
+}
+
+/** Match a row whose columns changed in any of some columns. */
+function anyChanged(names: readonly string[]): string {
+    return names.map((name) => `NEW.${quote(name)} IS NOT OLD.${quote(name)}`).join(" OR ");
 }
 
 /** Split values into groups within the argument limit. */

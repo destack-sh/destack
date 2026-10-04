@@ -392,7 +392,7 @@ function describeDependents(table: Table, tables: readonly Table[]): DependentDe
     });
 }
 
-/** Let a replica's copy leave out the columns its log never carries: binary and sensitive ones. */
+/** Let a replica's copy leave out the columns its log never records: sensitive ones. */
 function replicated(table: Table, described: TableDescription): TableDescription {
     const logged = new Set(
         Object.values(table[TABLE].logged).map((column) => column.definition.name),
