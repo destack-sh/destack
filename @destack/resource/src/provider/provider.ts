@@ -114,8 +114,8 @@ export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unkno
 
 /** Refuse writes into a resource's content while a transfer copies it, as a lease fence refuses a former holder. */
 export interface Fence<Kind extends ResourceKind = ResourceKind> {
-    /** Refuse every write into the resource's content until lifted, returning once the writes in flight finished. */
-    fence(record: ResourceRecord<Kind>): Promise<void>;
+    /** Refuse every write into the resource's content until lifted, returning once the writes in flight finished, and report whether this call set the fence. */
+    fence(record: ResourceRecord<Kind>): Promise<boolean>;
     /** Accept writes into the resource's content again. */
     lift(record: ResourceRecord<Kind>): Promise<void>;
 }

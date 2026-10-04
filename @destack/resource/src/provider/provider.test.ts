@@ -43,12 +43,12 @@ test("accept providers fencing their resources and declaring the controllers the
     type Swept = Provider<typeof bucket, unknown, never, never, never, Sweep>;
 
     // accept a whole fence and the controllers the host runs, typed by the host's controller alone
-    const swept = { ...provided, fence: { fence: destroy, lift: destroy }, controllers: [sweep] };
+    const swept = { ...provided, fence: { fence, lift: destroy }, controllers: [sweep] };
     expectTypeOf(swept).toExtend<Swept>();
     expectTypeOf(swept).not.toExtend<Provider<typeof bucket>>();
 
     // refuse half a fence and a controller of another type
-    expectTypeOf({ ...provided, fence: { fence: destroy } }).not.toExtend<Swept>();
+    expectTypeOf({ ...provided, fence: { fence } }).not.toExtend<Swept>();
     expectTypeOf({ ...provided, controllers: ["sweep"] }).not.toExtend<Swept>();
 });
 
@@ -68,3 +68,8 @@ async function provision() {
 
 /** Destroy nothing. */
 async function destroy() {}
+
+/** Fence nothing, reporting the fence set. */
+async function fence() {
+    return true;
+}
