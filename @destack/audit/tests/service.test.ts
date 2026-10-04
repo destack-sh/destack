@@ -6,7 +6,7 @@ import { Health } from "@destack/service/health";
 import { AuditRecorder } from "../src/record/index.ts";
 import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
-import { implementService } from "../src/server/index.ts";
+import { implementAudit } from "../src/server/index.ts";
 import { Server } from "@destack/service/server";
 import { Authentication } from "@destack/service/authentication";
 import { ResourceContext } from "@destack/resource/context";
@@ -21,7 +21,7 @@ import {
 } from "@destack/access";
 import { accountRecord } from "./stack/index.ts";
 import { copyScope } from "@destack/access/test";
-import { call } from "../src/history/index.ts";
+import { call } from "../src/object/index.ts";
 
 /** The accounts whose histories the test reads. */
 const account = new Policy(
@@ -111,7 +111,8 @@ test("authorize producers and readers, stream history, and record denied access"
             subject: principal.user.reference("universe", "reader"),
         });
         await using server = Server.start({
-            ...implementService(history, {
+            ...implementAudit({
+                history,
                 access: { authorizer, database },
                 record: (request) =>
                     AuditRecorder.from(

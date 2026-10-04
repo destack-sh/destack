@@ -7,7 +7,7 @@ import {
     type ServiceContext,
     type ServiceImplementation,
 } from "@destack/service/server";
-import { call } from "../history/access.ts";
+import { call } from "../object/access.ts";
 import { ServiceError } from "@destack/service";
 import { AuditHistory } from "../history/history.ts";
 import { AuditRecorder } from "../record/index.ts";
@@ -23,10 +23,7 @@ export interface AuditRequestContext {
 }
 
 /** Implement the audit service on a history. */
-export function implementService(
-    auditHistory: AuditHistory,
-    options: AuditServerOptions,
-): ServiceImplementation {
+export function implementAudit(options: AuditOptions): AuditImplementation {
     // add a recorder and a permission check to each call
     const implementation = implement(auditService.router)
         .$context<ServiceContext>()
@@ -56,8 +53,12 @@ export function implementService(
             }),
         );
 
+    // serve the history
+    const auditHistory = options.history;
+
     return {
         service: auditService,
+        history: auditHistory,
         access: options.access,
         audit: AuditRecorder.procedure(({ context }) => options.record(context)),
         router: implementation.router({
@@ -120,14 +121,22 @@ export function implementService(
     };
 }
 
-/** The access and recording a host supplies. */
-export interface AuditServerOptions {
+/** The history, access and recording a host serves the audit service with. */
+export interface AuditOptions {
+    /** The history the service stores and reads. */
+    readonly history: AuditHistory;
     /** The host's policies. */
     access: ServiceAccess;
     /** Create the recorder of history access. */
     record(
         context: ServiceContext,
     ): AuditRequestContext["audit"] | Promise<AuditRequestContext["audit"]>;
+}
+
+/** The audit service with the history it serves. */
+export interface AuditImplementation extends ServiceImplementation {
+    /** The history the service stores and reads. */
+    readonly history: AuditHistory;
 }
 
 /** Name a scope's history as a target. */

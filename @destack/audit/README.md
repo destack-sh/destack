@@ -104,11 +104,11 @@ await new ControlLoop(database, [calls.controller(createAuditClient({ url, heade
 `AuditHistory` stores each call once and lists, exports and prunes a scope's calls.
 
 ```ts
-import { AuditHistory, auditTables } from "@destack/audit/history";
-import { implementService } from "@destack/audit/server";
+import { AuditHistory } from "@destack/audit/history";
+import { implementAudit } from "@destack/audit/server";
 
 const history = new AuditHistory(historyDatabase);
-Server.start({ ...implementService(history, { access, record }), ...hosting });
+Server.start({ ...implementAudit({ history, access, record }), ...hosting });
 
 const page = await history.list({ scope: spaceId, limit: 100 });
 await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
@@ -119,5 +119,7 @@ await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
 `auditTables` lists the tables of the history's database.
 
 ```ts
+import { auditTables } from "@destack/audit/stack";
+
 export const histories = defineDatabase({ name: "history", tables: auditTables });
 ```

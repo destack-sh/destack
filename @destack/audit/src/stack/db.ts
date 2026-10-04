@@ -1,4 +1,4 @@
-import { AuditCall } from "../../record/call.ts";
+import { AuditCall } from "../record/call.ts";
 import {
     identifier,
     integer,
