@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { openAsBlob } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import { join } from "node:path";
@@ -161,7 +162,7 @@ async function createRepository(
             throw new Error(`duplicate target: ${path}`);
         }
         const hash = createHash("sha256");
-        for await (const bytes of Bun.file(distribution.archive).stream()) {
+        for await (const bytes of (await openAsBlob(distribution.archive)).stream()) {
             hash.update(bytes);
         }
         const sha256 = hash.digest("hex");

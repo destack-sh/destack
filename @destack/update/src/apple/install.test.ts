@@ -2,8 +2,8 @@ import { expect, test } from "@destack/test";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { installApplication } from "./macos.ts";
-import { Installer } from "./installer.ts";
+import { installApplication } from "./install.ts";
+import { Installer } from "../install/installer.ts";
 import { Release } from "../release/release.ts";
 
 test.runIf(process.platform === "darwin")(

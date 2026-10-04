@@ -17,7 +17,7 @@ import { extract, type ReadEntry } from "tar";
 import type { Stats } from "node:fs";
 import type { Download } from "../repository/repository.ts";
 import { Release } from "../release/release.ts";
-import { installApplication } from "./macos.ts";
+import { installApplication } from "../apple/install.ts";
 
 /** The persisted record of the current release. */
 const CurrentRecord = schema.object({

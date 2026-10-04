@@ -1,5 +1,7 @@
 import { UpdateError } from "../error/error.ts";
+import { spawn } from "node:child_process";
 import { isAbsolute, join } from "node:path";
+import { text } from "node:stream/consumers";
 import { type InstalledRelease, Installer, type StagedRelease } from "../install/installer.ts";
 import { type Channel, Release, type Target } from "../release/release.ts";
 import { type Download, UpdateRepository } from "../repository/repository.ts";
@@ -258,23 +260,22 @@ export interface UpdaterOptions {
 async function verifyRelease(directory: string, release: Release): Promise<void> {
     // execute only an archive previously authenticated by the update repository
     const name = release.target.includes("windows") ? "destack.exe" : "destack";
-    const child = Bun.spawn([join(directory, "bin", name), "version", "--json"], {
+    const child = spawn(join(directory, "bin", name), ["version", "--json"], {
         env: { ...process.env, DESTACK_UPDATE_CHECK: "1" },
         timeout: VERIFY_TIMEOUT_MS,
-        stdout: "pipe",
-        stderr: "pipe",
+        stdio: ["ignore", "pipe", "pipe"],
     });
-    const [code, stdout, stderr] = await Promise.all([
-        child.exited,
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
+    const exited = new Promise<number | NodeJS.Signals | null>((resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (code, signal) => resolve(signal ?? code));
+    });
+    const [exit, stdout, stderr] = await Promise.all([
+        exited,
+        text(child.stdout),
+        text(child.stderr),
     ]);
-    if (code !== 0) {
-        const diagnostic = stderr.trim();
-        throw new UpdateError(
-            "RELEASE",
-            `downloaded CLI exited with ${child.signalCode ?? code}: ${diagnostic}`,
-        );
+    if (exit !== 0) {
+        throw new UpdateError("RELEASE", `downloaded CLI exited with ${exit}: ${stderr.trim()}`);
     }
 
     // reject incomplete distributions before changing the active release

@@ -8,7 +8,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./release": "./src/release/index.ts",
-        "./install/macos": "./src/install/macos.ts",
+        "./apple": "./src/apple/index.ts",
         "./error": "./src/error/index.ts",
         "./publish": "./src/publish/index.ts",
         "./test": "./src/update/tests/repository.ts"
