@@ -1,13 +1,6 @@
-import {
-    accessRelationship,
-    accessRole,
-    anyone,
-    principal,
-    Relationship,
-    Role,
-} from "@destack/access";
+import { anyone, principal } from "@destack/access";
 import { Scope, type TrackerMessage } from "@destack/sync";
-import { copyScope } from "@destack/access/test";
+import { copyRole, copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
 import { journal } from "@destack/audit";
 import {
@@ -183,32 +176,11 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
     await copyScope(database, reference);
 
     // define a role reading the space and bind it to anyone
-    const now = Date.now();
-    const role = schema.identifier("role").parse(`role-${v7()}`);
-    await database.insert(accessRole).values({
-        id: role,
-        createdAt: now,
-        updatedAt: now,
-        scope: spaceId,
-        name: "member",
-        description: "Reads the space",
-    });
-    const read = space.permission("read");
-    await Role.permit(database, role, spaceId, [
-        { packageId: read.packageId, type: read.type, name: read.name },
-    ]);
-    await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object: reference,
-                role,
-                subject: anyone.reference("*", "*"),
-                createdAt: now,
-                expiresAt: null,
-            },
-            spaceId,
-        ),
+    await copyRole(
+        database,
+        reference,
+        { name: "member", description: "Reads the space", permissions: [space.permission("read")] },
+        anyone.reference("*", "*"),
     );
 
     return spaceId;
