@@ -4,11 +4,11 @@ import { type Match, Predicate, type Row, type Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
-import type { AccessExpression } from "../policy/expression.ts";
+import { CONTAINED, type AccessExpression } from "../policy/expression.ts";
 import { type PermissionReference } from "../policy/policy.ts";
-import { accepts } from "../policy/subject.ts";
+import { accepts, type RelationDefinition } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { EncodedRelationship } from "../relationship/table.ts";
+import type { RelationshipRow } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
@@ -89,7 +89,7 @@ interface Trail {
 }
 
 /** A relationship binding a role. */
-type RoleBinding = EncodedRelationship & { readonly roleId: string };
+type RoleBinding = RelationshipRow & { readonly roleId: string };
 
 /** Collect, once for every caller, the grant trees a permission reaches on rows of one mapped type. */
 export class GrantReader {
@@ -102,7 +102,7 @@ export class GrantReader {
     /** The chains of the scopes below that scope whose rows the reader also decides, by scope. */
     readonly #chains = new Map<string, readonly ObjectReference[]>();
     /** The relationships of each object read so far, by object key. */
-    readonly #read = new Map<string, Promise<EncodedRelationship[]>>();
+    readonly #read = new Map<string, Promise<RelationshipRow[]>>();
     /** The proper ancestors of each node read so far, by tree, scope and node. */
     readonly #ancestry = new Map<string, Promise<string[]>>();
     /** The rows read so far, absent where none exists, by type, scope and identifier. */
@@ -124,7 +124,7 @@ export class GrantReader {
     }
 
     /** Note an object a call creates and the relationships its creation writes. */
-    creating(object: ObjectReference, relationships: readonly EncodedRelationship[]): void {
+    creating(object: ObjectReference, relationships: readonly RelationshipRow[]): void {
         this.#read.set(ObjectReference.key(object), Promise.resolve([...relationships]));
     }
 
@@ -220,7 +220,7 @@ export class GrantReader {
         const objects = [
             ...new Map(reached.map((object) => [ObjectReference.key(object), object])).values(),
         ].filter((object) => !this.#read.has(ObjectReference.key(object)));
-        const byObject = new Map<string, EncodedRelationship[]>(
+        const byObject = new Map<string, RelationshipRow[]>(
             objects.map((object) => [ObjectReference.key(object), []]),
         );
         for (const chunk of chunks(objects)) {
@@ -314,7 +314,57 @@ export class GrantReader {
                 return this.#granters(expression.reference, mapping, row, trail);
             case "readers":
                 return this.#readers(expression, mapping, row, trail);
+            case "contained":
+                return this.#contained(expression, mapping, row, trail);
         }
+    }
+
+    /** Grant a row to the principals inside its scope, or inside the scope it is, of the named types when given. */
+    #contained(
+        expression: Extract<AccessExpression, { kind: "contained" }>,
+        mapping: TableMapping,
+        row: Row,
+        trail: Trail,
+    ): GrantTree {
+        // find the scope containing the principals: the row itself for a scope, else the scope it lives in
+        const definition = mapping.policy.definition;
+        const scope = TableMapping.scope(mapping, row);
+        const [nearest] = this.#chain(scope);
+        const object =
+            definition.scope === true
+                ? {
+                      packageId: definition.packageId,
+                      type: definition.name,
+                      scope,
+                      id: TableMapping.text(row, mapping.id),
+                  }
+                : nearest?.id === scope
+                  ? nearest
+                  : undefined;
+        if (object === undefined) {
+            return some([]);
+        }
+
+        // grant the scope's containment set, to principals of the named types alone when given
+        const path = [...trail.path, CONTAINED];
+        const grant = (subject: Subject): Grant => ({
+            subject,
+            arrows: trail.arrows,
+            object,
+            path,
+        });
+        const inside = any([grant({ ...object, relation: CONTAINED })]);
+        const { principals } = expression;
+
+        return principals === undefined
+            ? inside
+            : {
+                  kind: "all",
+                  trees: [
+                      inside,
+                      any(principals.map((type) => grant({ ...type, scope: "*", id: "*" }))),
+                  ],
+              };
     }
 
     /** Collect the tree of the grant permission of the object a row references, where this database keeps it. */
@@ -496,51 +546,94 @@ export class GrantReader {
             return any(await this.#enclosing(expression, mapping, scope, trail));
         }
 
-        // read the relation and the scope its related objects share with the row
-        const relation = this.#authorizer.relation(mapping.policy, expression.relation);
+        // follow relationships to plain objects in the same scope
         const field = mapping.relations[expression.relation];
-
-        // follow relationships to plain objects in the same scope and add each arrow's conditions
         if (!field) {
-            const relationships = (await this.#relationshipsOf(mapping, row)).filter(
-                (entry) =>
-                    entry.relation === expression.relation &&
-                    entry.subjectScope === scope &&
-                    entry.subjectRelation === null,
-            );
-            const trees: GrantTree[] = [];
-            for (const entry of relationships) {
-                const subject = relation.subjects.find(
-                    (type) =>
-                        type.packageId === entry.subjectPackageId &&
-                        type.type === entry.subjectType,
-                );
-                if (subject === undefined) {
-                    continue;
-                }
-                const target = this.#authorizer.mapping(subject);
-                for (const related of await this.#rows(target, scope, [entry.subjectId])) {
-                    trees.push(
-                        await this.#permission(
-                            target.policy.permission(expression.permission),
-                            target,
-                            related,
-                            {
-                                arrows: [...trail.arrows, new GrantCondition(entry)],
-                                path: [
-                                    ...trail.path,
-                                    `through relation ${expression.relation} to ${target.policy.definition.name} ${entry.subjectId}`,
-                                ],
-                            },
-                        ),
-                    );
-                }
-            }
-
-            return some(trees);
+            return this.#throughRelationships(expression, mapping, row, scope, trail);
         }
 
-        // follow the parent a field refers to, in the row's scope or the scope the field gives
+        // follow the parent a field refers to
+        return this.#throughField(expression, mapping, field, row, scope, trail);
+    }
+
+    /** Follow a row's relationships to plain objects in its scope and add each arrow's conditions. */
+    async #throughRelationships(
+        expression: Extract<AccessExpression, { kind: "through" }>,
+        mapping: TableMapping,
+        row: Row,
+        scope: string,
+        trail: Trail,
+    ): Promise<GrantTree> {
+        // keep the relationships to plain objects in the row's scope
+        const relation = this.#authorizer.relation(mapping.policy, expression.relation);
+        const relationships = (await this.#relationshipsOf(mapping, row)).filter(
+            (entry) =>
+                entry.relation === expression.relation &&
+                entry.subjectScope === scope &&
+                entry.subjectRelation === null,
+        );
+
+        // collect the trees of each related object in turn
+        const trees: GrantTree[] = [];
+        for (const entry of relationships) {
+            trees.push(
+                ...(await this.#throughRelationship(expression, relation, entry, scope, trail)),
+            );
+        }
+
+        return some(trees);
+    }
+
+    /** Collect the trees of the object one relationship relates, none for a type the relation does not accept. */
+    async #throughRelationship(
+        expression: Extract<AccessExpression, { kind: "through" }>,
+        relation: RelationDefinition,
+        entry: RelationshipRow,
+        scope: string,
+        trail: Trail,
+    ): Promise<GrantTree[]> {
+        // find the accepted subject type the relationship names
+        const subject = relation.subjects.find(
+            (type) => type.packageId === entry.subjectPackageId && type.type === entry.subjectType,
+        );
+        if (subject === undefined) {
+            return [];
+        }
+
+        // decide the permission on the related object under the arrow's conditions
+        const target = this.#authorizer.mapping(subject);
+        const trees: GrantTree[] = [];
+        for (const related of await this.#rows(target, scope, [entry.subjectId])) {
+            trees.push(
+                await this.#permission(
+                    target.policy.permission(expression.permission),
+                    target,
+                    related,
+                    {
+                        arrows: [...trail.arrows, new GrantCondition(entry)],
+                        path: [
+                            ...trail.path,
+                            `through relation ${expression.relation} to ${target.policy.definition.name} ${entry.subjectId}`,
+                        ],
+                    },
+                ),
+            );
+        }
+
+        return trees;
+    }
+
+    /** Follow the parent a field refers to, or its ancestors, in the row's scope or the scope the field gives. */
+    async #throughField(
+        expression: Extract<AccessExpression, { kind: "through" }>,
+        mapping: TableMapping,
+        field: TableMapping["relations"][string],
+        row: Row,
+        scope: string,
+        trail: Trail,
+    ): Promise<GrantTree> {
+        // find the related type: the relation's one type, or the type the row's columns name
+        const relation = this.#authorizer.relation(mapping.policy, expression.relation);
         const typed = field.subject;
         const subject =
             typed === undefined
@@ -552,12 +645,16 @@ export class GrantReader {
         if (subject === undefined) {
             return some([]);
         }
+
+        // read the parent or the ancestors the field refers to
         const target = this.#authorizer.mapping(subject);
         const isUnset = row[field.column] === null || row[field.column] === undefined;
         const direct = isUnset ? [] : [TableMapping.text(row, field.column)];
         const ids = expression.transitive
             ? await this.#ancestors(mapping, expression.relation, row)
             : direct;
+
+        // decide the permission on each related object
         const trees: GrantTree[] = [];
         for (const related of await this.#rows(target, field.scope ?? scope, ids)) {
             trees.push(
@@ -716,12 +813,12 @@ export class GrantReader {
     }
 
     /** Read the relationships on the object a mapped row is. */
-    #relationshipsOf(mapping: TableMapping, row: Row): Promise<EncodedRelationship[]> {
+    #relationshipsOf(mapping: TableMapping, row: Row): Promise<RelationshipRow[]> {
         return this.#relationships(objectOf(mapping, row));
     }
 
     /** Read every relationship on one object once. */
-    #relationships(object: ObjectReference): Promise<EncodedRelationship[]> {
+    #relationships(object: ObjectReference): Promise<RelationshipRow[]> {
         // reuse the relationships read before
         const key = ObjectReference.key(object);
         const known = this.#read.get(key);
@@ -793,7 +890,7 @@ export class GrantReader {
 }
 
 /** Determine whether a relationship binds a role. */
-function isRoleBinding(entry: EncodedRelationship): entry is RoleBinding {
+function isRoleBinding(entry: RelationshipRow): entry is RoleBinding {
     return entry.roleId !== null;
 }
 
@@ -810,7 +907,7 @@ function objectOf(mapping: TableMapping, row: Row): ObjectReference {
 }
 
 /** Reference the object a relationship relates. */
-function relatedObject(entry: EncodedRelationship): ObjectReference {
+function relatedObject(entry: RelationshipRow): ObjectReference {
     return {
         packageId: entry.packageId,
         type: entry.type,
@@ -820,7 +917,7 @@ function relatedObject(entry: EncodedRelationship): ObjectReference {
 }
 
 /** Read a relationship's subject. */
-function subjectOf(entry: EncodedRelationship): Subject {
+function subjectOf(entry: RelationshipRow): Subject {
     return {
         packageId: entry.subjectPackageId,
         type: entry.subjectType,

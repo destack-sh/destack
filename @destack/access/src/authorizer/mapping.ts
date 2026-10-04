@@ -14,8 +14,12 @@ import {
 import { Scope } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import type { Policy } from "../policy/policy.ts";
+import { principal } from "../policy/principal.ts";
 import type { SubjectType } from "../policy/subject.ts";
 import type { Authorizer } from "./authorizer.ts";
+
+/** The scope of a field relation naming objects by identifier across scopes, which only `through` follows. */
+export const ANY_SCOPE = "*";
 
 /** Where a policy's objects live: their table and the columns with their identity, scope, attributes and relations. */
 export interface TableMapping {
@@ -40,7 +44,7 @@ export interface TableMapping {
             {
                 /** The column with the subject identifier. */
                 readonly column: string;
-                /** The scope of every subject in the column, the object's own scope when absent. */
+                /** The scope of every subject in the column, the object's own scope when absent, and `*` for objects identified across scopes. */
                 readonly scope?: string;
                 /** The columns with the subject's type, scope and relation, for relations with several subject types. */
                 readonly subject?: Omit<ReferenceColumns, "id"> & {
@@ -105,16 +109,28 @@ export interface FieldRelation {
 
 /** Check mapped columns against their declared attribute and relation types. */
 function validate(authorizer: Authorizer, mapping: TableMapping): void {
-    // resolve the record identifier and scope before inspecting its attributes
-    const definition = mapping.policy.definition;
+    // check the columns, then the relations, trees and parent against the policy
+    validateKeys(mapping);
+    validateAttributes(mapping);
+    validateReferenceColumns(mapping);
+    validateRelations(authorizer, mapping);
+    validateTrees(authorizer, mapping);
+    validateParent(authorizer, mapping);
+}
+
+/** Require the record identifier and scope columns to hold text that is never null. */
+function validateKeys(mapping: TableMapping): void {
     for (const name of mapping.scope === undefined ? [mapping.id] : [mapping.id, mapping.scope]) {
         const attribute = column(mapping.table, name).definition;
         if (attribute.kind !== "text" || attribute.nullable) {
             throw new AccessError("INVALID_DECLARATION", `invalid object key column: ${name}`);
         }
     }
+}
 
-    // require columns with the object's declared scalar type, where null reads as missing
+/** Require columns with the object's declared scalar type, where null reads as missing. */
+function validateAttributes(mapping: TableMapping): void {
+    const definition = mapping.policy.definition;
     for (const [name, expected] of Object.entries(definition.attributes)) {
         // leave the attributes of a scope type mapped onto its scope rows undecided
         const mapped = mapping.attributes[name];
@@ -126,6 +142,8 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
                 `no column maps attribute ${name} of ${definition.name}`,
             );
         }
+
+        // compare the column's kind with the declared type
         const attribute = column(mapping.table, mapped).definition;
         const kind = attribute.kind;
         const type =
@@ -134,8 +152,11 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
             throw new AccessError("INVALID_DECLARATION", `incompatible attribute column: ${name}`);
         }
     }
+}
 
-    // require the text columns naming polymorphic subjects and referenced objects
+/** Require the text columns naming polymorphic subjects and referenced objects. */
+function validateReferenceColumns(mapping: TableMapping): void {
+    // collect the subject type columns of fields and the columns of references
     const typed = [
         ...Object.values(mapping.relations).flatMap((field) =>
             field.subject === undefined ? [] : Object.values<string>(field.subject),
@@ -147,13 +168,17 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
             reference.id,
         ]),
     ];
+
+    // require each to hold text
     for (const name of typed) {
         if (column(mapping.table, name).definition.kind !== "text") {
             throw new AccessError("INVALID_DECLARATION", `invalid reference column: ${name}`);
         }
     }
+}
 
-    // require a field relation to accept one type in a text column, unless columns keep its subject's type
+/** Require a field relation to accept one type in a text column, unless columns keep its subject's type. */
+function validateRelations(authorizer: Authorizer, mapping: TableMapping): void {
     for (const [name, field] of Object.entries(mapping.relations)) {
         const relation = authorizer.relation(mapping.policy, name);
         if (
@@ -162,13 +187,17 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
                 (relation.subjects.length !== 1 || relation.open)) ||
             relation.subjects.some((subject) => subject.wildcard) ||
             column(mapping.table, field.column).definition.kind !== "text" ||
-            field.scope === ""
+            field.scope === "" ||
+            (field.scope === ANY_SCOPE && relation.subjects.some(isPrincipalType))
         ) {
             throw new AccessError("INVALID_DECLARATION", `invalid relation mapping: ${name}`);
         }
     }
+}
 
-    // require each ancestor index to maintain this table's declared self relation
+/** Require each ancestor index to maintain this table's declared self relation. */
+function validateTrees(authorizer: Authorizer, mapping: TableMapping): void {
+    const definition = mapping.policy.definition;
     for (const [name, tree] of Object.entries(mapping.trees ?? {})) {
         const field = mapping.relations[name];
         const [subject] = authorizer.relation(mapping.policy, name).subjects;
@@ -186,14 +215,19 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
             throw new AccessError("INVALID_DECLARATION", `invalid tree mapping: ${name}`);
         }
     }
+}
 
-    // require the owning parent to be a field relation of one subject type
+/** Require the owning parent to be a field relation of one subject type. */
+function validateParent(authorizer: Authorizer, mapping: TableMapping): void {
+    // refuse a parent kept in relationships
     if (mapping.parent !== undefined && !mapping.relations[mapping.parent]) {
         throw new AccessError(
             "INVALID_DECLARATION",
             `owning parent must be a field relation: ${mapping.parent}`,
         );
-    } else if (mapping.parent !== undefined) {
+    }
+    // require one subject type of a parent kept in a field
+    else if (mapping.parent !== undefined) {
         authorizer.onlySubject(mapping.policy, mapping.parent);
     }
 }
@@ -219,6 +253,14 @@ function freeze(mapping: TableMapping): TableMapping {
     });
 }
 
+/** Decide whether a subject type is a principal, which callers authenticate as. */
+function isPrincipalType(type: SubjectType): boolean {
+    return Object.values(principal).some(
+        (kind) =>
+            kind.definition.packageId === type.packageId && kind.definition.name === type.type,
+    );
+}
+
 /** Read rows of a mapped type in a scope by identifier from a snapshot. */
 async function read(
     snapshot: Snapshot,
@@ -235,7 +277,7 @@ async function read(
 
     return rows.filter(
         (row) =>
-            scope(mapping, row) === within &&
+            (within === ANY_SCOPE || scope(mapping, row) === within) &&
             (mapping.isShared !== true ||
                 (row["packageId"] === definition.packageId && row["type"] === definition.name)),
     );

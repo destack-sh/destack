@@ -3,17 +3,18 @@ import { Replica, type ScopeLink, Scope, type ObjectReference, Subject } from "@
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../policy/policy.ts";
 import { type SubjectType } from "../policy/subject.ts";
+import { CONTAINED } from "../policy/expression.ts";
 import { ACCESS_PACKAGE_ID } from "../policy/principal.ts";
 import * as principal from "../policy/principal.ts";
 import { AccessContext, Caller, Contact } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { EncodedRelationship } from "../relationship/table.ts";
+import type { RelationshipRow } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { Role } from "../role/role.ts";
-import type { DefinedRole, RoleGrant } from "../role/closure.ts";
-import { COPY_NAME } from "../replica/replica.ts";
+import type { RoleDefinition, RoleGrant } from "../role/closure.ts";
+import { CHAIN_SHAPE } from "../replica/replica.ts";
 import { Authority } from "./authority.ts";
 import { GrantCondition, type ConditionContext } from "./condition.ts";
 import type { Gate } from "./decision.ts";
@@ -117,8 +118,7 @@ export class Access {
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
         const scopes = links.map((link) => link.object);
 
-        // read the roles and the subject sets of the caller and every lent delegate
-        const lent = Caller.delegation(context).filter((link) => link.authority === "lent");
+        // read the roles and the subject sets of the caller and every lent delegate with their containing scopes
         const [roles, , represented, delegates] = await Promise.all([
             readRoles(snapshot, chain, context),
             snapshot.position === undefined
@@ -126,26 +126,12 @@ export class Access {
                 : undefined,
             Access.expand(
                 snapshot,
-                [
-                    ...context.subjects,
-                    ...Caller.contacts(context).map((contact) => Contact.subject(contact)),
-                ],
+                await Access.#represented(snapshot, context, scopes),
                 context,
                 authorizer,
                 scopes,
             ),
-            Promise.all(
-                lent.map(async ({ delegate, delegator }) => ({
-                    expanded: await Access.expand(
-                        snapshot,
-                        [delegate],
-                        context,
-                        authorizer,
-                        scopes,
-                    ),
-                    delegation: { delegate, delegator },
-                })),
-            ),
+            Access.#expandDelegates(snapshot, context, authorizer, scopes),
         ]);
 
         // take the earliest moment a subject set, an inclusion or an elevation the caller has changes by time
@@ -171,6 +157,42 @@ export class Access {
             grants: roles.grants,
             until,
         });
+    }
+
+    /** List the subjects the caller represents: its own, its contacts' and the subject sets of the scopes containing them. */
+    static async #represented(
+        snapshot: Snapshot,
+        context: AccessContext,
+        scopes: readonly ObjectReference[],
+    ): Promise<Subject[]> {
+        return [
+            ...context.subjects,
+            ...Caller.contacts(context).map((contact) => Contact.subject(contact)),
+            ...(await Access.#contained(snapshot, context.subjects, scopes)),
+        ];
+    }
+
+    /** Expand the subject sets of every delegate lent to the caller, with the delegation lending it. */
+    static async #expandDelegates(
+        snapshot: Snapshot,
+        context: AccessContext,
+        authorizer: Authorizer,
+        scopes: readonly ObjectReference[],
+    ) {
+        const lent = Caller.delegation(context).filter((link) => link.authority === "lent");
+
+        return Promise.all(
+            lent.map(async ({ delegate, delegator }) => ({
+                expanded: await Access.expand(
+                    snapshot,
+                    [delegate, ...(await Access.#contained(snapshot, [delegate], scopes))],
+                    context,
+                    authorizer,
+                    scopes,
+                ),
+                delegation: { delegate, delegator },
+            })),
+        );
     }
 
     /**
@@ -385,6 +407,39 @@ export class Access {
         return { subjects: [...expanded.values()], until: earliest(moments) };
     }
 
+    /** List the containment sets of the scopes each principal lives in or is, and of the scopes enclosing them. */
+    static async #contained(
+        snapshot: Snapshot,
+        subjects: readonly Subject[],
+        chain: readonly ObjectReference[],
+    ): Promise<Subject[]> {
+        const sets: Subject[] = [];
+        for (const subject of subjects) {
+            // skip subject sets and wildcards
+            if (subject.relation !== undefined || subject.id === "*") {
+                continue;
+            }
+
+            // find the scopes below the universe the principal lives in or is
+            const place = chain.findIndex(
+                (scope) => scope.id === subject.scope || scope.id === subject.id,
+            );
+            const enclosing =
+                place !== -1
+                    ? chain.slice(place)
+                    : subject.scope === Scope.universe.id
+                      ? []
+                      : (await Scope.chain(snapshot, subject.scope)).map((link) => link.object);
+            sets.push(
+                ...enclosing
+                    .filter((scope) => scope.id !== Scope.universe.id)
+                    .map((scope) => ({ ...scope, relation: CONTAINED })),
+            );
+        }
+
+        return sets;
+    }
+
     /** Add the subjects not seen before to an expansion, with the sets they reach on the chain's enclosed scopes, returning those added. */
     static #admit(
         found: readonly Subject[],
@@ -530,7 +585,7 @@ async function requireConfirmed(
     lag: number,
 ): Promise<void> {
     const now = Date.now();
-    for (const [scope, origin] of await Replica.origins(database, COPY_NAME, chain)) {
+    for (const [scope, origin] of await Replica.origins(database, CHAIN_SHAPE, chain)) {
         if (now - origin.confirmedAt > lag) {
             throw new AccessError(
                 "STALE",
@@ -574,7 +629,7 @@ async function readRoles(
     );
 
     // close the roles over their inclusions
-    const roles: DefinedRole[] = rows.map((row) => ({
+    const roles: RoleDefinition[] = rows.map((row) => ({
         id: row.id,
         isUniversal: row.isUniversal,
         permissions: (byRole.get(row.id) ?? []).map((granted) => ({
@@ -602,7 +657,7 @@ async function memberships(
     subjects: readonly Subject[],
     context: ConditionContext,
     sets: readonly SubjectType[] | undefined,
-): Promise<EncodedRelationship[]> {
+): Promise<RelationshipRow[]> {
     const rows = await Relationship.readBySubject(snapshot, subjects);
 
     return rows.filter(

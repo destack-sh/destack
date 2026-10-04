@@ -4,7 +4,7 @@ import { defineSchema, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, AccessContext, Caller } from "../context/context.ts";
 import { Relationship, type RelationshipCondition } from "../relationship/relationship.ts";
-import { accessProposal, ProposedRelationship } from "./table.ts";
+import { accessProposal, ProposalRelationship } from "./table.ts";
 
 /** How long a proposal stays acceptable unless it sets its own lapse, in milliseconds. */
 export const PROPOSAL_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
@@ -18,7 +18,7 @@ const proposalSchema = defineSchema(
         /** The stable proposal identifier. */
         id: schema.string().min(1),
         /** The relationship accepting the proposal creates. */
-        relationship: ProposedRelationship,
+        relationship: ProposalRelationship,
         /** The principal proposing the relationship. */
         proposer: Subject,
         /** Why the proposer asks for or offers the relationship. */

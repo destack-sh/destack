@@ -6,8 +6,8 @@ import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { accessProposal } from "../proposal/table.ts";
 
-/** The name of each database's copy of its scope chain. */
-export const COPY_NAME = "chain";
+/** The name of the shape copying a scope's chain. */
+export const CHAIN_SHAPE = "chain";
 
 /** The access tables decisions read, parents first. */
 export const decisionTables: readonly Table[] = [

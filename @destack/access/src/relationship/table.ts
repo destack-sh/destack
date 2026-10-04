@@ -140,7 +140,7 @@ export const accessRelationship = defineTable(
 );
 
 /** A relationship as `Relationship.encode` stores it, its subject and conditions in columns of their own. */
-export type EncodedRelationship = Select<typeof accessRelationship>;
+export type RelationshipRow = Select<typeof accessRelationship>;
 
 /** The relationship columns of the table or one of its aliases. */
 export type RelationshipColumnMap = Readonly<

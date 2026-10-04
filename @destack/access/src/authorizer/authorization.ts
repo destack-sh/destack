@@ -35,10 +35,10 @@ import { accessRole, accessRolePermission } from "../role/table.ts";
 import type { Access } from "./access.ts";
 import type { Admission, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
-import type { GrantReader } from "./grant.ts";
+import type { GrantReader, Lookup } from "./grant.ts";
 
 /** The relationship fields that authorization reads from a request, proposal or stored row. */
-type Grantable = {
+type RelationshipFields = {
     /** The related object. */
     readonly object: ObjectReference;
     /** The subject, absent while an offer awaits its recipient. */
@@ -159,10 +159,19 @@ export class Authorization {
         rows: readonly Row[],
         reader?: GrantReader,
         below?: ReadonlyMap<string, Access>,
+        lookup?: Lookup,
     ): Promise<Admission> {
         const access = await this.in(scope);
 
-        return this.authorizer.checkRows(this.snapshot, permission, access, rows, reader, below);
+        return this.authorizer.checkRows(
+            this.snapshot,
+            permission,
+            access,
+            rows,
+            reader,
+            below,
+            lookup,
+        );
     }
 
     /**
@@ -628,7 +637,7 @@ export class Authorization {
     }
 
     /** Require the grant permission and every permission a granted role grants, or only the lender for a delegation. */
-    protected async authorizeGrant(request: Grantable): Promise<void> {
+    protected async authorizeGrant(request: RelationshipFields): Promise<void> {
         // write only the access of an object this database keeps
         await this.authorizer.requireLocal(this.database, request.object);
 
@@ -670,14 +679,14 @@ export class Authorization {
         // require ownership to bind a role granting everything
         if (
             grants?.isUniversal === true &&
-            !(await this.authorizer.owns(this.snapshot, request.object, access))
+            !(await this.authorizer.isOwner(this.snapshot, request.object, access))
         ) {
             throw new AccessError("FORBIDDEN", "only owners may bind a role granting everything");
         }
     }
 
     /** Require the permission granting what a relationship grants, unless the caller lent it. */
-    protected async authorizeRevoke(request: Grantable): Promise<void> {
+    protected async authorizeRevoke(request: RelationshipFields): Promise<void> {
         // let a lender manage its own delegations
         if (!this.#lends(request)) {
             await this.#requireGrant(request.object, relationOf(request));
@@ -726,7 +735,7 @@ export class Authorization {
     }
 
     /** Determine whether the caller is the principal a delegation lends authority from. */
-    #lends(request: Grantable): boolean {
+    #lends(request: RelationshipFields): boolean {
         const onBehalfOf = request.conditions?.onBehalfOf;
         const caller = Caller.principal(
             this.context(this.authorizer.governingScope(request.object)),
@@ -807,6 +816,6 @@ async function requireRemainingOwner(
 }
 
 /** Read the relation a relationship relates through, absent for a role binding. */
-function relationOf(request: Grantable): string | undefined {
+function relationOf(request: RelationshipFields): string | undefined {
     return "relation" in request ? request.relation : undefined;
 }

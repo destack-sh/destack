@@ -5,7 +5,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { relationshipBase } from "../relationship/relationship.ts";
 
 /** A relationship as proposed, before anyone accepts it: through a declared relation, or binding a role. */
-export const ProposedRelationship = defineSchema(
+export const ProposalRelationship = defineSchema(
     schema.union([
         relationshipBase.omit({ id: true, createdAt: true }).extend({
             /** The declared relation. */
@@ -18,7 +18,7 @@ export const ProposedRelationship = defineSchema(
     ]),
 );
 /** A relationship as proposed, before anyone accepts it. */
-export type ProposedRelationship = schema.Infer<typeof ProposedRelationship>;
+export type ProposalRelationship = schema.Infer<typeof ProposalRelationship>;
 
 /** A relationship awaiting acceptance, kept apart from the relationships that apply. */
 export const accessProposal = defineTable(
@@ -45,7 +45,7 @@ export const accessProposal = defineTable(
             onDelete: "cascade",
         }),
         /** The relationship accepting the proposal creates. */
-        relationship: json("relationship", ProposedRelationship).notNull(),
+        relationship: json("relationship", ProposalRelationship).notNull(),
         /** The principal proposing the relationship. */
         proposer: json("proposer", Subject).notNull(),
         /** The proposer's key, listing what a principal proposed. */

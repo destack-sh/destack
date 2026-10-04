@@ -2,7 +2,7 @@ import { jsonElements, sql, type SQL, type SQLWrapper } from "@destack/db";
 import { Subject } from "@destack/sync";
 import { ACCESS_PACKAGE_ID, anyone } from "../policy/principal.ts";
 import type { AccessContext } from "../context/context.ts";
-import type { RelationshipColumnMap, EncodedRelationship } from "../relationship/table.ts";
+import type { RelationshipColumnMap, RelationshipRow } from "../relationship/table.ts";
 import type { GrantFailure } from "./decision.ts";
 
 /** The request values a relationship's conditions compare against. */
@@ -53,7 +53,7 @@ export class GrantCondition {
     readonly onBehalfOf: string | null;
 
     /** Read a relationship's conditions from its row. */
-    constructor(row: EncodedRelationship) {
+    constructor(row: RelationshipRow) {
         // take the times and conditions
         this.createdAt = row.createdAt;
         this.expiresAt = row.expiresAt;

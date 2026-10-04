@@ -1,11 +1,11 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot, asc, type DatabaseConnection } from "@destack/db";
-import { Feed, Replica } from "@destack/sync";
+import { Feed, Replica, type Subscription } from "@destack/sync";
 import { aligned } from "@destack/schema";
 import {
     accessTables,
     accessRelationship,
-    COPY_NAME,
+    CHAIN_SHAPE,
     Authorization,
     Authorizer,
     principal,
@@ -47,20 +47,20 @@ function including(entry: TableMapping): TableMapping[] {
     return [...mappings, entry];
 }
 
-/** Build the copy of a scope's chain row an authorizer's database follows. */
+/** Build the copy of a scope's chain row an authorizer's database follows, with its subscription. */
 function chainOf(authorizer: Authorizer, scope: string) {
-    return authorizer.chainShape.replica(
-        authorizer.chainShape.subscription({
-            name: COPY_NAME,
-            scope,
-            below: scope,
-            parameters: { local: [...authorizer.local], copied: [...authorizer.copied] },
-        }),
-    );
+    const subscription = authorizer.chainShape.subscription({
+        name: Authorizer.chainCopy(scope),
+        scope,
+        below: scope,
+        parameters: { local: [...authorizer.local], copied: [...authorizer.copied] },
+    });
+
+    return { replica: authorizer.chainShape.replica(subscription), subscription };
 }
 
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
-    // open the global database with accounts, the regional one with spaces, and an app's with notes
+    // open the account service's database with accounts, the cell's with spaces, and an app's with notes
     const global = await openFixture();
     const regional = await openFixture();
     const app = await openFixture();
@@ -107,7 +107,7 @@ test("relay an account's access through the space's database into an app's, and 
         subject: aligned(carol.subjects, 1),
     });
 
-    // copy the account into the regional database, then create the space there
+    // copy the account into the cell's database, then create the space there
     const accountFeed = new Feed(global.database, [...accessTables, policyTable]);
     await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
     await regional.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
@@ -116,7 +116,7 @@ test("relay an account's access through the space's database into an app's, and 
         { owner: aligned(alice.subjects, 0) },
     );
 
-    // relay the space and the account from the regional database into the app's, where carol reads every note
+    // relay the space and the account from the cell's database into the app's, where carol reads every note
     const spaceFeed = new Feed(regional.database, [...accessTables, policyTable]);
     const relay = async () => {
         await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
@@ -155,7 +155,7 @@ test("relay an account's access through the space's database into an app's, and 
     // relay the revocation: carol reads nothing, and the app's copy reflects the account's own position
     await relay();
     expect(await readable(carol)).toEqual([]);
-    const origins = await Replica.origins(app.database, COPY_NAME, ["account-1"]);
+    const origins = await Replica.origins(app.database, CHAIN_SHAPE, ["account-1"]);
     expect(origins.get("account-1")?.position).toEqual(revoked);
 
     // refuse writing the account's access in the app's copy
@@ -182,12 +182,13 @@ test("relay an account's access through the space's database into an app's, and 
 /** Apply a source's feed to a copy until it reaches the source's head. */
 async function copy(
     database: DatabaseConnection,
-    replica: Replica,
+    chain: { readonly replica: Replica; readonly subscription: Subscription },
     feed: Feed,
     from: "position" | "snapshot" = "position",
 ): Promise<void> {
     // read the pages up to the source's head
-    await replica.register(database);
+    const { replica, subscription } = chain;
+    await replica.register(database, subscription);
     const head = await feed.database.log.position();
     const after = from === "snapshot" ? undefined : await replica.position(database);
     const pages = [];

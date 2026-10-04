@@ -318,6 +318,7 @@ export const fixtureTables = [
 export const fixtureDatabase = defineDatabase({
     name: "main",
     tables: fixtureTables,
+    copies: [],
 });
 
 /** Application records spanning two isolated scopes. */

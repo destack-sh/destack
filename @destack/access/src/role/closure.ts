@@ -9,7 +9,7 @@ export interface RoleGrant {
 }
 
 /** One role as a scope chain defines it, with the permissions it grants itself. */
-export interface DefinedRole {
+export interface RoleDefinition {
     /** The role identifier. */
     readonly id: string;
     /** Whether the role grants every permission but reserved ones. */
@@ -20,7 +20,7 @@ export interface DefinedRole {
 
 /** Close each defined role over the defined roles it includes, following only roles the same chain defines. */
 export function close(
-    roles: readonly DefinedRole[],
+    roles: readonly RoleDefinition[],
     includes: readonly { readonly role: string; readonly included: string }[],
 ): Map<string, RoleGrant> {
     // index the defined roles and their inclusions

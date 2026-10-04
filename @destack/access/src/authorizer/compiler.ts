@@ -13,8 +13,12 @@ import {
 import { aligned } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { type PermissionReference } from "../policy/policy.ts";
-import type { AccessExpression, ConditionExpression } from "../policy/expression.ts";
-import { accepts, type RelationDefinition } from "../policy/subject.ts";
+import {
+    CONTAINED,
+    type AccessExpression,
+    type ConditionExpression,
+} from "../policy/expression.ts";
+import { accepts, type RelationDefinition, type SubjectType } from "../policy/subject.ts";
 import { AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -23,7 +27,7 @@ import type { Access } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { GrantCondition } from "./condition.ts";
-import { column, TableMapping } from "./mapping.ts";
+import { ANY_SCOPE, column, TableMapping } from "./mapping.ts";
 
 /** The resolved caller, the authority compiled and the alias allocation one predicate shares. */
 interface Compilation {
@@ -33,6 +37,24 @@ interface Compilation {
     readonly authority: Authority;
     /** The next free alias number. */
     readonly aliases: { next: number };
+}
+
+/** A relation kept in a field of a mapped table. */
+type Field = TableMapping["relations"][string];
+
+/** An expression following a relation to a related object's permission. */
+type ThroughExpression = Extract<AccessExpression, { kind: "through" }>;
+
+/** A type a relation relates, with an alias of its table and its permission compiled against that alias. */
+interface RelationTarget {
+    /** The related subject type. */
+    readonly subject: SubjectType;
+    /** The mapping of the related type. */
+    readonly target: TableMapping;
+    /** The alias of the related type's table. */
+    readonly parent: Table;
+    /** The related permission compiled against the alias. */
+    readonly predicate: SQL;
 }
 
 /**
@@ -342,12 +364,54 @@ export class Compiler {
                 return this.#granters(expression.reference, mapping, source, compilation);
             case "readers":
                 return this.#readers(expression, mapping, source, compilation);
+            case "contained":
+                return Compiler.#contained(expression, mapping, source, compilation);
         }
+    }
+
+    /** Match a row when the authority lives inside its scope, or inside the scope it is, lending nothing to delegates. */
+    static #contained(
+        expression: Extract<AccessExpression, { kind: "contained" }>,
+        mapping: TableMapping,
+        source: Table,
+        compilation: Compilation,
+    ): SQL {
+        // lend nothing to delegates, and admit only the named principal types when given
+        const { authority, access } = compilation;
+        const isTyped =
+            expression.principals === undefined ||
+            expression.principals.some((type) =>
+                authority.isMember({ ...type, scope: "*", id: "*" }),
+            );
+        if (authority.delegator !== undefined || !isTyped) {
+            return sql`false`;
+        }
+
+        // match a scope's row by its own containment set
+        const definition = mapping.policy.definition;
+        if (definition.scope === true) {
+            return authority.match({
+                packageId: sql`${definition.packageId}`,
+                type: sql`${definition.name}`,
+                scope: TableMapping.scopeColumn(source, mapping),
+                id: column(source, mapping.id),
+                relation: sql`${CONTAINED}`,
+            });
+        }
+
+        // match another row living in the resolved scope by that scope's containment set
+        const [scope] = access.scopes;
+        const isInside =
+            scope !== undefined && authority.isMember({ ...scope, relation: CONTAINED });
+
+        return isInside
+            ? sql`${TableMapping.scopeColumn(source, mapping)} = ${scope.id}`
+            : sql`false`;
     }
 
     /** Match a current relationship of the authority on an object of the scope chain granting the enclosing scope's permission. */
     #enclosing(
-        expression: Extract<AccessExpression, { kind: "through" }>,
+        expression: ThroughExpression,
         mapping: TableMapping,
         compilation: Compilation,
     ): SQL {
@@ -490,54 +554,11 @@ export class Compiler {
     #relation(name: string, mapping: TableMapping, source: Table, compilation: Compilation): SQL {
         // read the relation and whether a field keeps it
         const relation = this.#authorizer.relation(mapping.policy, name);
-        const scope = TableMapping.scopeColumn(source, mapping);
         const field = mapping.relations[name];
-        const authority = compilation.authority;
 
-        // lend nothing in a field to a delegate
-        if (field && authority.delegator !== undefined) {
-            return sql`false`;
-        }
-        // match a subject key in the column against the authority's subjects the relation accepts
-        else if (field?.isKey) {
-            const keys = authority.subjects
-                .filter((subject) => accepts(relation, subject))
-                .map((subject) => Subject.key(subject));
-
-            return keys.length === 0
-                ? sql`false`
-                : sql`coalesce(${inArray(column(source, field.column), keys)}, false)`;
-        }
-        // match a subject by the type, scope and relation in the row's columns
-        else if (field?.subject !== undefined) {
-            const subject = {
-                packageId: column(source, field.subject.packageId),
-                type: column(source, field.subject.type),
-                scope: column(source, field.subject.scope),
-                id: column(source, field.column),
-            };
-            if (field.subject.relation === undefined) {
-                return sql`coalesce(${authority.match(subject)}, false)`;
-            }
-            const relationColumn = column(source, field.subject.relation);
-
-            return sql`coalesce((
-                (${relationColumn} IS NULL AND ${authority.match(subject)})
-                OR (${relationColumn} IS NOT NULL AND ${authority.match({ ...subject, relation: relationColumn })})
-            ), false)`;
-        }
-        // match the one subject type of a field
-        else if (field) {
-            const type = this.#authorizer.onlySubject(mapping.policy, name);
-            const subject = {
-                packageId: sql`${type.packageId}`,
-                type: sql`${type.type}`,
-                scope: field.scope === undefined ? scope : sql`${field.scope}`,
-                id: column(source, field.column),
-                ...(type.relation === undefined ? {} : { relation: sql`${type.relation}` }),
-            };
-
-            return sql`coalesce(${authority.match(subject)}, false)`;
+        // match the subject in a field
+        if (field) {
+            return this.#field(name, field, relation, mapping, source, compilation.authority);
         }
 
         // match current relationships of subject types the relation accepts
@@ -546,10 +567,11 @@ export class Compiler {
             `access_relationship_${compilation.aliases.next++}`,
         );
         const definition = mapping.policy.definition;
+        const authority = compilation.authority;
 
         return sql`EXISTS (
             SELECT 1 FROM ${from(relationship)}
-            WHERE ${relationship.objectScope} = ${scope}
+            WHERE ${relationship.objectScope} = ${TableMapping.scopeColumn(source, mapping)}
                 AND ${relationship.packageId} = ${definition.packageId}
                 AND ${relationship.type} = ${definition.name}
                 AND ${relationship.objectId} = ${column(source, mapping.id)}
@@ -560,9 +582,53 @@ export class Compiler {
         )`;
     }
 
+    /** Match the subject a field keeps: a subject key, typed columns, or an identifier of the relation's one type. */
+    #field(
+        name: string,
+        field: Field,
+        relation: RelationDefinition,
+        mapping: TableMapping,
+        source: Table,
+        authority: Authority,
+    ): SQL {
+        // lend nothing in a field to a delegate
+        if (authority.delegator !== undefined) {
+            return sql`false`;
+        }
+        // match a subject key in the column against the authority's subjects the relation accepts
+        else if (field.isKey) {
+            const keys = authority.subjects
+                .filter((subject) => accepts(relation, subject))
+                .map((subject) => Subject.key(subject));
+
+            return keys.length === 0
+                ? sql`false`
+                : sql`coalesce(${inArray(column(source, field.column), keys)}, false)`;
+        }
+        // match a subject by the type, scope and relation in the row's columns
+        else if (field.subject !== undefined) {
+            return matchTypedField(field, field.subject, source, authority);
+        }
+
+        // match the one subject type of a field
+        const type = this.#authorizer.onlySubject(mapping.policy, name);
+        const subject = {
+            packageId: sql`${type.packageId}`,
+            type: sql`${type.type}`,
+            scope:
+                field.scope === undefined
+                    ? TableMapping.scopeColumn(source, mapping)
+                    : sql`${field.scope}`,
+            id: column(source, field.column),
+            ...(type.relation === undefined ? {} : { relation: sql`${type.relation}` }),
+        };
+
+        return sql`coalesce(${authority.match(subject)}, false)`;
+    }
+
     /** Correlate a related object's permission through a field, an ancestor index, or relationships. */
     #through(
-        expression: Extract<AccessExpression, { kind: "through" }>,
+        expression: ThroughExpression,
         mapping: TableMapping,
         source: Table,
         compilation: Compilation,
@@ -572,13 +638,36 @@ export class Compiler {
             return this.#enclosing(expression, mapping, compilation);
         }
 
-        // read the relation and whether a field keeps it
-        const relation = this.#authorizer.relation(mapping.policy, expression.relation);
-        const scope = TableMapping.scopeColumn(source, mapping);
+        // compile the target permission against a distinct alias of each related type
+        const related = this.#related(expression, mapping, compilation);
         const field = mapping.relations[expression.relation];
 
-        // compile the target permission against a distinct alias of each related type
-        const related = relation.subjects.map((subject) => {
+        // follow relationships to plain objects in the same scope without delegation
+        if (!field) {
+            return followRelationships(expression, mapping, source, related, compilation);
+        }
+        // correlate the parent of whichever type the row's columns name, for a field with several types
+        else if (field.subject !== undefined && !expression.transitive) {
+            return followTypedField(field, field.subject, mapping, source, related);
+        }
+        // correlate the direct parent a field refers to
+        else if (!expression.transitive) {
+            return followField(field, mapping, source, aligned(related, 0));
+        }
+
+        // join the indexed ancestors to their protected application rows
+        return followAncestors(expression, mapping, source, aligned(related, 0), compilation);
+    }
+
+    /** Compile the target permission against a distinct alias of each type a relation relates. */
+    #related(
+        expression: ThroughExpression,
+        mapping: TableMapping,
+        compilation: Compilation,
+    ): RelationTarget[] {
+        const relation = this.#authorizer.relation(mapping.policy, expression.relation);
+
+        return relation.subjects.map((subject) => {
             // alias the related type's table for its own correlated permission
             const target = this.#authorizer.mapping(subject);
             const parent = alias(target.table, `access_parent_${compilation.aliases.next++}`);
@@ -591,86 +680,152 @@ export class Compiler {
 
             return { subject, target, parent, predicate };
         });
-
-        // follow relationships to plain objects in the same scope without delegation
-        if (!field) {
-            const relationship = alias(
-                accessRelationship,
-                `access_relationship_${compilation.aliases.next++}`,
-            );
-            const definition = mapping.policy.definition;
-            const arrows = related.map(
-                ({ subject, target, parent, predicate }) => sql`(
-                    ${relationship.subjectPackageId} = ${subject.packageId}
-                    AND ${relationship.subjectType} = ${subject.type}
-                    AND EXISTS (
-                        SELECT 1 FROM ${from(parent)}
-                        WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
-                            AND ${column(parent, target.id)} = ${relationship.subjectId}
-                            AND ${predicate}
-                    )
-                )`,
-            );
-
-            return sql`EXISTS (
-                SELECT 1 FROM ${from(relationship)}
-                WHERE ${relationship.objectScope} = ${scope}
-                    AND ${relationship.packageId} = ${definition.packageId}
-                    AND ${relationship.type} = ${definition.name}
-                    AND ${relationship.objectId} = ${column(source, mapping.id)}
-                    AND ${relationship.relation} = ${expression.relation}
-                    AND ${relationship.subjectScope} = ${scope}
-                    AND ${relationship.subjectRelation} IS NULL
-                    AND ${GrantCondition.where(relationship, GrantCondition.values(compilation.access.context))}
-                    AND (${sql.join(arrows, sql` OR `)})
-            )`;
-        }
-
-        // correlate the parent of whichever type the row's columns name, for a field with several types
-        if (field.subject !== undefined && !expression.transitive) {
-            const typed = field.subject;
-            const arrows = related.map(
-                ({ subject, target, parent, predicate }) => sql`(
-                    ${column(source, typed.packageId)} = ${subject.packageId}
-                    AND ${column(source, typed.type)} = ${subject.type}
-                    AND EXISTS (
-                        SELECT 1 FROM ${from(parent)}
-                        WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
-                            AND ${column(parent, target.id)} = ${column(source, field.column)}
-                            AND ${predicate}
-                    )
-                )`,
-            );
-
-            return arrows.length === 0 ? sql`false` : sql`(${sql.join(arrows, sql` OR `)})`;
-        }
-
-        // correlate the direct parent a field refers to, in the source object's scope or the scope the field gives
-        const { target, parent, predicate } = aligned(related, 0);
-        const targetId = column(parent, target.id);
-        const targetScope = TableMapping.scopeColumn(parent, target);
-        if (!expression.transitive) {
-            return sql`EXISTS (
-                SELECT 1 FROM ${from(parent)}
-                WHERE ${targetScope} = ${field.scope === undefined ? scope : sql`${field.scope}`}
-                    AND ${targetId} = ${column(source, field.column)}
-                    AND ${predicate}
-            )`;
-        }
-
-        // join the indexed ancestors to their protected application rows
-        const tree = TableMapping.tree(mapping, expression.relation);
-        const ancestor = alias(tree.ancestors, `access_ancestor_${compilation.aliases.next++}`);
-
-        return sql`EXISTS (
-            SELECT 1 FROM ${from(ancestor)} JOIN ${from(parent)}
-                ON ${targetId} = ${ancestor.ancestor} AND ${targetScope} = ${ancestor.scope}
-            WHERE ${ancestor.scope} = ${scope}
-                AND ${ancestor.descendant} = ${column(source, mapping.id)}
-                AND ${ancestor.depth} > 0
-                AND ${predicate}
-        )`;
     }
+}
+
+/** Match a subject by the type, scope and relation a field's columns keep. */
+function matchTypedField(
+    field: Field,
+    columns: NonNullable<Field["subject"]>,
+    source: Table,
+    authority: Authority,
+): SQL {
+    // match a plain subject when the columns keep no relation
+    const subject = {
+        packageId: column(source, columns.packageId),
+        type: column(source, columns.type),
+        scope: column(source, columns.scope),
+        id: column(source, field.column),
+    };
+    if (columns.relation === undefined) {
+        return sql`coalesce(${authority.match(subject)}, false)`;
+    }
+
+    // match a plain subject or a subject set, as the relation column says
+    const relationColumn = column(source, columns.relation);
+
+    return sql`coalesce((
+        (${relationColumn} IS NULL AND ${authority.match(subject)})
+        OR (${relationColumn} IS NOT NULL AND ${authority.match({ ...subject, relation: relationColumn })})
+    ), false)`;
+}
+
+/** Follow relationships to plain objects in the same scope without delegation. */
+function followRelationships(
+    expression: ThroughExpression,
+    mapping: TableMapping,
+    source: Table,
+    related: readonly RelationTarget[],
+    compilation: Compilation,
+): SQL {
+    // match each related type's row the relationship names
+    const scope = TableMapping.scopeColumn(source, mapping);
+    const relationship = alias(
+        accessRelationship,
+        `access_relationship_${compilation.aliases.next++}`,
+    );
+    const arrows = related.map(
+        ({ subject, target, parent, predicate }) => sql`(
+            ${relationship.subjectPackageId} = ${subject.packageId}
+            AND ${relationship.subjectType} = ${subject.type}
+            AND EXISTS (
+                SELECT 1 FROM ${from(parent)}
+                WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
+                    AND ${column(parent, target.id)} = ${relationship.subjectId}
+                    AND ${predicate}
+            )
+        )`,
+    );
+
+    // read the current relationships of the row through the relation
+    const definition = mapping.policy.definition;
+
+    return sql`EXISTS (
+        SELECT 1 FROM ${from(relationship)}
+        WHERE ${relationship.objectScope} = ${scope}
+            AND ${relationship.packageId} = ${definition.packageId}
+            AND ${relationship.type} = ${definition.name}
+            AND ${relationship.objectId} = ${column(source, mapping.id)}
+            AND ${relationship.relation} = ${expression.relation}
+            AND ${relationship.subjectScope} = ${scope}
+            AND ${relationship.subjectRelation} IS NULL
+            AND ${GrantCondition.where(relationship, GrantCondition.values(compilation.access.context))}
+            AND (${sql.join(arrows, sql` OR `)})
+    )`;
+}
+
+/** Correlate the parent of whichever type the row's columns name, for a field with several types. */
+function followTypedField(
+    field: Field,
+    typed: NonNullable<Field["subject"]>,
+    mapping: TableMapping,
+    source: Table,
+    related: readonly RelationTarget[],
+): SQL {
+    const scope = TableMapping.scopeColumn(source, mapping);
+    const arrows = related.map(
+        ({ subject, target, parent, predicate }) => sql`(
+            ${column(source, typed.packageId)} = ${subject.packageId}
+            AND ${column(source, typed.type)} = ${subject.type}
+            AND EXISTS (
+                SELECT 1 FROM ${from(parent)}
+                WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
+                    AND ${column(parent, target.id)} = ${column(source, field.column)}
+                    AND ${predicate}
+            )
+        )`,
+    );
+
+    return arrows.length === 0 ? sql`false` : sql`(${sql.join(arrows, sql` OR `)})`;
+}
+
+/** Correlate the direct parent a field refers to, in the source object's scope or the scope the field gives. */
+function followField(
+    field: Field,
+    mapping: TableMapping,
+    source: Table,
+    related: RelationTarget,
+): SQL {
+    // match the parent in any scope, the field's scope or the source object's scope
+    const { target, parent, predicate } = related;
+    const scope = TableMapping.scopeColumn(source, mapping);
+    const targetScope = TableMapping.scopeColumn(parent, target);
+    const inScope =
+        field.scope === ANY_SCOPE
+            ? sql`true`
+            : sql`${targetScope} = ${field.scope === undefined ? scope : sql`${field.scope}`}`;
+
+    return sql`EXISTS (
+        SELECT 1 FROM ${from(parent)}
+        WHERE ${inScope}
+            AND ${column(parent, target.id)} = ${column(source, field.column)}
+            AND ${predicate}
+    )`;
+}
+
+/** Join the indexed ancestors of the source row to their protected application rows. */
+function followAncestors(
+    expression: ThroughExpression,
+    mapping: TableMapping,
+    source: Table,
+    related: RelationTarget,
+    compilation: Compilation,
+): SQL {
+    // alias the ancestor index of the relation
+    const { target, parent, predicate } = related;
+    const targetId = column(parent, target.id);
+    const targetScope = TableMapping.scopeColumn(parent, target);
+    const tree = TableMapping.tree(mapping, expression.relation);
+    const ancestor = alias(tree.ancestors, `access_ancestor_${compilation.aliases.next++}`);
+
+    return sql`EXISTS (
+        SELECT 1 FROM ${from(ancestor)} JOIN ${from(parent)}
+            ON ${targetId} = ${ancestor.ancestor} AND ${targetScope} = ${ancestor.scope}
+        WHERE ${ancestor.scope} = ${TableMapping.scopeColumn(source, mapping)}
+            AND ${ancestor.descendant} = ${column(source, mapping.id)}
+            AND ${ancestor.depth} > 0
+            AND ${predicate}
+    )`;
 }
 
 /** Match a current binding of one of the roles to the compiled authority on a covered object. */

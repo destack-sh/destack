@@ -102,6 +102,7 @@ test.for(TEST_DIALECTS)(
             defineDatabase({
                 name: "attachment",
                 tables: [...accessTables, articles, photos, remarks],
+                copies: [],
             }),
             { isMigrated: true },
         );
