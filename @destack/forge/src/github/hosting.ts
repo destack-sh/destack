@@ -1,4 +1,4 @@
-import { Connections } from "@destack/account/server";
+import { ProviderInstallation } from "@destack/account/server";
 import { and, eq, isNull, type DatabaseConnection, type Select } from "@destack/db";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { schema } from "@destack/schema";
@@ -109,11 +109,11 @@ export class GitHubHosting {
     /** Read the live installations of the App a selection names. */
     #installations(
         selection: Omit<
-            Parameters<typeof Connections.installations>[1],
+            Parameters<typeof ProviderInstallation.list>[1],
             "provider" | "applicationId"
         >,
     ) {
-        return Connections.installations(this.#database, {
+        return ProviderInstallation.list(this.#database, {
             ...selection,
             provider: "github",
             applicationId: this.app.id,

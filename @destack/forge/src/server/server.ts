@@ -69,7 +69,7 @@ const BLANK_COLUMNS = {
 } as const satisfies Omit<OriginColumns, "hosting">;
 
 /** The database, workload identity, stores, URL and GitHub App the forge serves with. */
-export interface ForgeServerOptions {
+export interface ForgeOptions {
     /** The forge's database with its objects, and copies of its residency's accounts and connections. */
     readonly database: DatabaseConnection;
     /** The forge's placement in its region, which follows the account service's copies of its residency's accounts and resolves names through its directory. */
@@ -90,8 +90,31 @@ export interface ForgeServerOptions {
     readonly report?: (error: unknown) => void;
 }
 
-/** Serves the forge's repositories and packages as objects, with the npm endpoints, the builds and the GitHub webhook. */
-export class ForgeServer {
+/** The forge service with its object server and the forge receiving webhooks and sweeping builds. */
+export interface ForgeImplementation extends ServiceImplementation {
+    /** The object server executing the forge's methods. */
+    readonly objects: Forge["objects"];
+    /** The forge serving the service. */
+    readonly forge: Forge;
+}
+
+/** Implement the forge service with the npm endpoints, the builds of published releases and the sweep of unreleased builds. */
+export function implementForge(options: ForgeOptions): ForgeImplementation {
+    // serve the objects with the sweep, the manifests, the npm endpoints and the builds
+    const forge = new Forge(options);
+
+    return {
+        ...forge.objects.implement(forgeService, [new SweepController(forge)]),
+        router: { ...forge.objects.router(), manifests: forge.manifests() },
+        route: async (request, context) =>
+            (await forge.npm.route(request, context)) ?? (await forge.builds(request, context)),
+        objects: forge.objects,
+        forge,
+    };
+}
+
+/** The forge's repositories and packages as objects, with the npm endpoints, the builds and the GitHub webhook. */
+export class Forge {
     /** The object server executing the forge's methods. */
     readonly objects: ObjectServer<{
         readonly repository: typeof repository;
@@ -112,14 +135,14 @@ export class ForgeServer {
     /** The repository object with this server's handlers. */
     readonly #repository: typeof repository;
     /** The region's database, storage and GitHub App. */
-    readonly #options: ForgeServerOptions;
+    readonly #options: ForgeOptions;
     /** The fetch calling Git remotes. */
     readonly #fetch: Fetch;
     /** The repositories kept at GitHub, absent in a universe running no GitHub App. */
     readonly #github: GitHubHosting | undefined;
 
     /** Serve the forge over a region's database, stores and GitHub App. */
-    constructor(options: ForgeServerOptions) {
+    constructor(options: ForgeOptions) {
         // keep the region's options and the directory resolving account handles
         const { identity } = options;
         this.#options = options;
@@ -166,16 +189,6 @@ export class ForgeServer {
         });
         this.npm = new NpmServer(options.endpoint, this);
         this.served = new PackageServer(new URL(BUILDS_PATH, options.endpoint), options.store);
-    }
-
-    /** Implement the forge service with the npm endpoints, the builds of published releases and the sweep of unreleased builds. */
-    service(): ServiceImplementation {
-        return {
-            ...this.objects.implement(forgeService, [new SweepController(this)]),
-            router: { ...this.objects.router(), manifests: this.#manifests() },
-            route: async (request, context) =>
-                (await this.npm.route(request, context)) ?? (await this.#serve(request, context)),
-        };
     }
 
     /** Receive a delivery of the forge's GitHub App signed with its webhook secret, refreshing as the system the repositories it changes. */
@@ -270,7 +283,7 @@ export class ForgeServer {
     }
 
     /** Answer the manifest of a published release a caller reads. */
-    #manifests() {
+    manifests() {
         return implementation.router({
             find: implementation.find.handler(async ({ input, context }) => {
                 // find the published release of the version
@@ -301,7 +314,7 @@ export class ForgeServer {
     }
 
     /** Serve the build of a published release below the builds path as the caller reads its package, and take the builds its publishers push. */
-    async #serve(request: Request, context: ServiceContext): Promise<Response | undefined> {
+    async builds(request: Request, context: ServiceContext): Promise<Response | undefined> {
         // leave paths outside the builds
         if (!new URL(request.url).pathname.startsWith(BUILDS_PATH)) {
             return undefined;

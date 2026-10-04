@@ -204,7 +204,7 @@ PUT /builds/<digest>/manifest.json            a pushed manifest, once its files 
 
 ## Sweeps
 
-`ForgeServer.sweep` deletes the manifests and files no release names once they are a day old, and the forge runs it every hour.
+`Forge.sweep` deletes the manifests and files no release names once they are a day old, and the forge runs it every hour.
 
 ```ts
 await forge.sweep(Date.now());
@@ -222,15 +222,15 @@ GET /npm/@acme/tools/-/tools-2026.10.0.tgz    archive
 
 ## Serving
 
-`ForgeServer.service` serves the forge's objects, the npm endpoints below `NPM_PATH` and the builds below `BUILDS_PATH` of its `endpoint`, and `receive` refreshes the repositories a verified GitHub App webhook delivery changes.
+`implementForge` serves the forge's objects, the npm endpoints below `NPM_PATH` and the builds below `BUILDS_PATH` of its `endpoint`, and its `forge.receive` refreshes the repositories a verified GitHub App webhook delivery changes.
 
 ```ts
 import { PackageStore } from "@destack/build/store";
-import { ForgeServer } from "@destack/forge/server";
+import { implementForge } from "@destack/forge/server";
 
 // the forge follows the account service as its WorkloadIdentity: it copies its residency's accounts,
 // their access and connections, decides every call from that copy, and claims names in the directory
-const forge = new ForgeServer({
+const service = implementForge({
     database: forgeDatabase.get(context),
     identity, // the placement, calling the account service with its workload token
     callKey,
@@ -239,8 +239,7 @@ const forge = new ForgeServer({
     storage,
     github: new GitHubApp({ id, key, api }), // absent: GitHub repositories fail with PRECONDITION_FAILED
 });
-const service = forge.service(); // npm reads <endpoint>/npm/@acme/notes
-await forge.receive(request, secret);
+await service.forge.receive(request, secret); // npm reads <endpoint>/npm/@acme/notes
 ```
 
 ## GitHub

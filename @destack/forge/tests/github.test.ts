@@ -218,7 +218,7 @@ test.each(TEST_DIALECTS)(
             }),
         ];
         for (const request of deliveries) {
-            await region.server.receive(request, WEBHOOK_SECRET);
+            await region.forge.receive(request, WEBHOOK_SECRET);
         }
 
         // move main, add v2 at its peeled commit, delete next, and leave the other installation's push alone
@@ -273,7 +273,7 @@ test.each(TEST_DIALECTS)(
             },
             "another secret",
         );
-        expect(await refusal(region.server.receive(forged, WEBHOOK_SECRET))).toEqual([
+        expect(await refusal(region.forge.receive(forged, WEBHOOK_SECRET))).toEqual([
             "UNAUTHORIZED",
             "webhook signature does not match",
         ]);

@@ -117,7 +117,7 @@ test.each(TEST_DIALECTS)(
         // push and release the build
         await using forge = await PackageFixture.open(dialect);
         const answer = await forge.publish("answer");
-        const pushed = await forge.server.store.contents(answer.manifest);
+        const pushed = await forge.forge.store.contents(answer.manifest);
 
         // keep the pushed build as the release's manifest
         expect([pushed.manifest, await pushed.reader.distributed()]).toEqual([
@@ -499,7 +499,7 @@ test.each(TEST_DIALECTS)(
         // publish a package, and find its account through the directory as the forge, by the package id alone
         await using forge = await PackageFixture.open(dialect);
         const answer = await forge.publish("answer");
-        const directory = forge.server.resolver.directory;
+        const directory = forge.forge.resolver.directory;
         expect([
             await packageObject.lookup(directory, "id", [answer.packageId]),
             await packageObject.lookup(directory, "id", [

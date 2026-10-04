@@ -19,7 +19,7 @@ import { connect } from "../../src/client/index.ts";
 import { GitHubApp } from "../../src/github/index.ts";
 import { LocalGitStorage } from "../../src/local/index.ts";
 import { reference, repository } from "../../src/object/index.ts";
-import { ForgeServer } from "../../src/server/index.ts";
+import { type ForgeImplementation, type Forge, implementForge } from "../../src/server/index.ts";
 import { forgeService } from "../../src/service/index.ts";
 import { forgeDatabase } from "../../src/stack/index.ts";
 import { temporary } from "./git.ts";
@@ -61,8 +61,8 @@ export class RepositoryFixture {
     readonly storage: LocalGitStorage;
     /** The GitHub REST API stand-in. */
     readonly github: GitHubStandIn;
-    /** The repository server. */
-    readonly server: ForgeServer;
+    /** The forge serving the repositories. */
+    readonly forge: Forge;
     /** The HTTP server serving the forge. */
     readonly http: Server;
     /** The journal of the forge database's calls. */
@@ -82,7 +82,7 @@ export class RepositoryFixture {
         this.connection = fields.connection;
         this.storage = fields.storage;
         this.github = fields.github;
-        this.server = fields.server;
+        this.forge = fields.forge;
         this.http = fields.http;
         this.journal = fields.journal;
         this.reported = fields.reported;
@@ -164,7 +164,7 @@ export class RepositoryFixture {
         onTestFinished(() => bucket[Symbol.asyncDispose]());
         const reported: unknown[] = [];
         const database = regional.database;
-        const server = new ForgeServer({
+        const implementation = implementForge({
             callKey: testCallKey,
             database,
             identity,
@@ -180,8 +180,8 @@ export class RepositoryFixture {
             fetch: github.fetch,
             report: (error) => reported.push(error),
         });
-        const http = RepositoryFixture.#serve(server);
-        await accounts.settle(server.objects, placement);
+        const http = RepositoryFixture.#serve(implementation);
+        await accounts.settle(implementation.objects, placement);
 
         return new RepositoryFixture({
             accounts,
@@ -190,9 +190,9 @@ export class RepositoryFixture {
             connection: aligned(connections, 0),
             storage,
             github,
-            server,
+            forge: implementation.forge,
             http,
-            journal: server.objects.journal,
+            journal: implementation.objects.journal,
             reported,
             placement,
         });
@@ -200,7 +200,7 @@ export class RepositoryFixture {
 
     /** Wait until the service's copies reach the account service's writes so far. */
     settle(): Promise<void> {
-        return this.accounts.settle(this.server.objects, this.placement);
+        return this.accounts.settle(this.forge.objects, this.placement);
     }
 
     /** Connect to the forge as a user. */
@@ -234,9 +234,8 @@ export class RepositoryFixture {
     }
 
     /** Serve the forge to the user in an x-user header or the host in an x-host header. */
-    static #serve(server: ForgeServer): Server {
+    static #serve(implementation: ForgeImplementation): Server {
         // settle through the controllers by hand when each test chooses
-        const implementation = server.service();
         const audience = implementation.service.package.id;
         const http = Server.start({
             ...implementation,

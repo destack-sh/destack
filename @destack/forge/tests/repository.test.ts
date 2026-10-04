@@ -750,7 +750,7 @@ function remotePath(remote: string | null): string {
 
 /** Find the settlement controller a region's object server runs. */
 function settlementController(region: RepositoryFixture) {
-    const controller = region.server.objects
+    const controller = region.forge.objects
         .controllers()
         .find((entry) => entry.name === "settlement");
     if (controller === undefined) {

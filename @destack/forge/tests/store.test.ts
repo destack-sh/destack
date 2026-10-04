@@ -71,7 +71,7 @@ test.each(TEST_DIALECTS)(
         expect({
             status: pushed.status,
             body,
-            isStored: await forge.server.store.contains(digest),
+            isStored: await forge.forge.store.contains(digest),
         }).toEqual({
             status: 404,
             body: { error: "NOT_FOUND", message: "package not found" },
@@ -118,7 +118,7 @@ test.each(TEST_DIALECTS)(
         expect({
             refused,
             accepted: await push(),
-            isStored: await forge.server.store.contains(digest),
+            isStored: await forge.forge.store.contains(digest),
         }).toEqual({
             refused: [
                 "BAD_GATEWAY",
@@ -137,7 +137,7 @@ test.each(TEST_DIALECTS)(
         await using forge = await PackageFixture.open(dialect);
         const published = await forge.publish("answer", { visibility: "public" });
         const unreleased = await forge.push(await fixtureBuild("answer", "2026.9.1"));
-        const store = forge.server.store;
+        const store = forge.forge.store;
         const stored = async () => ({
             released: await store.contains(published.manifest),
             archive: (await store.bucket.head(`files/${published.release.distribution.digest}`))
@@ -146,11 +146,11 @@ test.each(TEST_DIALECTS)(
         });
 
         // keep the unreleased build within the window, and mark it after, then drop it an interval later
-        await forge.server.sweep(Date.now());
+        await forge.forge.sweep(Date.now());
         const within = await stored();
         const after = Date.now() + UNRELEASED_MILLISECONDS;
-        await forge.server.sweep(after);
-        await forge.server.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
+        await forge.forge.sweep(after);
+        await forge.forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
         expect({ within, after: await stored() }).toEqual({
             within: {
                 released: true,
@@ -180,14 +180,14 @@ test.each(TEST_DIALECTS)(
         const build = await fixtureBuild("answer", "2026.9.1");
         const manifest = await forge.push(build);
         const after = Date.now() + UNRELEASED_MILLISECONDS + 1000;
-        await forge.server.sweep(after);
+        await forge.forge.sweep(after);
 
         // release the marked build, then sweep an interval later
         const released = await forge.release("answer", build);
-        await forge.server.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
+        await forge.forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
 
         // read and verify every file of the released build after the sweep
-        const store = forge.server.store;
+        const store = forge.forge.store;
         const files = await (await store.contents(manifest)).reader.distributed();
         const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
         expect({ released: released.manifest, sizes }).toEqual({

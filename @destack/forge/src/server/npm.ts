@@ -8,7 +8,7 @@ import type { ServiceContext } from "@destack/service/server";
 import { SpanStatusCode, telemetry } from "@destack/telemetry";
 import { release, tag, type Release, type Tag } from "../object/index.ts";
 import { NPM_PATH } from "../service/index.ts";
-import type { ForgeServer } from "./server.ts";
+import type { Forge } from "./server.ts";
 
 /** Instruments for npm HTTP requests. */
 const { tracer, logger } = telemetry.scope(import.meta.destack.package);
@@ -35,10 +35,10 @@ export class NpmServer {
     /** The canonical URL of the endpoints, independent of request Host headers, ending in a slash. */
     readonly url: URL;
     /** The forge serving the packages. */
-    readonly #server: ForgeServer;
+    readonly #forge: Forge;
 
     /** Serve the endpoints below the npm path of the forge service's URL. */
-    constructor(endpoint: URL, server: ForgeServer) {
+    constructor(endpoint: URL, forge: Forge) {
         // require a plain HTTP URL, read as a directory
         if (
             !/^https?:$/u.test(endpoint.protocol) ||
@@ -50,7 +50,7 @@ export class NpmServer {
             throw new TypeError("invalid registry URL");
         }
         this.url = new URL(`${endpoint.href.replace(/\/+$/u, "")}${NPM_PATH}`);
-        this.#server = server;
+        this.#forge = forge;
     }
 
     /** Answer npm reads below the npm path, and nothing elsewhere. */
@@ -130,7 +130,7 @@ export class NpmServer {
 
         // find the package the caller may read, then answer an archive or a document
         const selected = groups?.["selected"];
-        const found = await this.#server.find(name, context);
+        const found = await this.#forge.find(name, context);
         const file =
             selected === undefined
                 ? undefined
@@ -155,7 +155,7 @@ export class NpmServer {
             throw new ServiceError("NOT_FOUND", { message: "package archive not found" });
         }
         const [selected] = await this.#list(
-            async (input) => this.#server.objects.call(release, "list", input, context),
+            async (input) => this.#forge.objects.call(release, "list", input, context),
             found,
             [{ version: file.slice(local.length + 1) }, { unpublishedAt: { isNull: true } }],
         );
@@ -182,7 +182,7 @@ export class NpmServer {
         }
 
         // stream the archive
-        const object = await this.#server.store.open({
+        const object = await this.#forge.store.open({
             path: "package.tgz",
             digest,
             size,
@@ -203,12 +203,12 @@ export class NpmServer {
         // describe each published release as npm installs it
         const [releases, tags] = await Promise.all([
             this.#list(
-                async (input) => this.#server.objects.call(release, "list", input, context),
+                async (input) => this.#forge.objects.call(release, "list", input, context),
                 found,
                 [{ unpublishedAt: { isNull: true } }],
             ),
             this.#list(
-                async (input) => this.#server.objects.call(tag, "list", input, context),
+                async (input) => this.#forge.objects.call(tag, "list", input, context),
                 found,
                 [],
             ),

@@ -1,5 +1,5 @@
 import type { Controller } from "@destack/service/control";
-import type { ForgeServer } from "./server.ts";
+import type { Forge } from "./server.ts";
 
 /** How often the forge sweeps its store: every hour, which leaves an unreleased build at most an hour past its window. */
 export const SWEEP_INTERVAL_MILLISECONDS = 60 * 60 * 1000;
@@ -9,12 +9,12 @@ export class SweepController implements Controller {
     /** The controller's name in reports. */
     readonly name = "forge-sweep";
     /** The forge whose store it sweeps. */
-    readonly #forge: ForgeServer;
+    readonly #forge: Forge;
     /** The last sweep, in UTC epoch milliseconds. */
     #sweptAt = 0;
 
     /** Sweep a forge's store. */
-    constructor(forge: ForgeServer) {
+    constructor(forge: Forge) {
         this.#forge = forge;
     }
 

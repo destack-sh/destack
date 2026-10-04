@@ -25,7 +25,7 @@ import { type PackageDistribution } from "@destack/package/manifest";
 import { connect } from "../../src/client/index.ts";
 import { LocalGitStorage } from "../../src/local/index.ts";
 import { packageObject, type Release } from "../../src/object/index.ts";
-import { ForgeServer } from "../../src/server/index.ts";
+import { type Forge, implementForge } from "../../src/server/index.ts";
 import { BUILDS_PATH, forgeService } from "../../src/service/index.ts";
 import { forgeDatabase } from "../../src/stack/index.ts";
 import { testCallKey } from "@destack/service/test";
@@ -89,7 +89,7 @@ export class PackageFixture implements AsyncDisposable {
     /** The bucket with the publisher's builds. */
     readonly publisher: LocalBucket;
     /** The forge served. */
-    readonly server: ForgeServer;
+    readonly forge: Forge;
     /** The forge's placement in the platform's region. */
     readonly placement: Identifier<"placement">;
     /** The journal of the forge database's calls. */
@@ -129,7 +129,7 @@ export class PackageFixture implements AsyncDisposable {
         this.origin = `http://127.0.0.1:${this.#http.port}`;
 
         // serve the forge to the user a bearer token names, and to anonymous callers
-        this.server = new ForgeServer({
+        const implementation = implementForge({
             identity,
             callKey: testCallKey,
             database: regional.database,
@@ -137,10 +137,11 @@ export class PackageFixture implements AsyncDisposable {
             endpoint: new URL(this.origin),
             storage: new LocalGitStorage(join(directory, "repository")),
         });
+        this.forge = implementation.forge;
         this.placement = identity.placementId;
-        this.journal = this.server.objects.journal;
+        this.journal = implementation.objects.journal;
         this.#service = Server.start({
-            ...this.server.service(),
+            ...implementation,
             audience: packageObject.policy.definition.packageId,
             resources: new ResourceContext(),
             health: new Health("forge"),
@@ -259,7 +260,7 @@ export class PackageFixture implements AsyncDisposable {
 
     /** Write the npm configuration selecting this registry for the fixture scope with the owner's token. */
     npmrc(): string {
-        const url = this.server.npm.url;
+        const url = this.forge.npm.url;
 
         return `@example:registry=${url.href}\n//${url.host}${url.pathname}:_authToken=${OWNER}\n`;
     }
@@ -277,7 +278,7 @@ export class PackageFixture implements AsyncDisposable {
 
     /** Wait until the forge's copies reflect the account service as of now. */
     async settle(): Promise<void> {
-        await this.accounts.settle(this.server.objects, this.placement);
+        await this.accounts.settle(this.forge.objects, this.placement);
     }
 
     /** Verify a request's bearer token as the user it names, for a minute. */
