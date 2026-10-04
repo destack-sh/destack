@@ -6,10 +6,10 @@ import { join } from "node:path";
 import { aligned, schema, present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { LocalBucketHost } from "../local/index.ts";
-import { segment } from "../local/stack/index.ts";
-import { Feed, Replica, replicaTables } from "@destack/sync";
-import { ZoneTransfer } from "@destack/space/server";
-import { localBucketProvider } from "./provider.ts";
+import { segment } from "../catalogue/stack/index.ts";
+import { StorageError } from "../error/index.ts";
+import { bucketProvider } from "./provider.ts";
+import { SweepController } from "./sweep.ts";
 
 /** The bucket resource both hosts keep. */
 const record = {
@@ -38,7 +38,7 @@ test("provision a bucket once and destroy it with its files", async () => {
         region: "local",
         credentials: CREDENTIALS,
     });
-    const provider = localBucketProvider(buckets);
+    const provider = bucketProvider.local(buckets);
 
     // provision twice under one reference, keeping a file
     const provision = await provider.provision.provision(record);
@@ -52,6 +52,34 @@ test("provision a bucket once and destroy it with its files", async () => {
     expect(await readdir(directory)).toEqual([]);
 });
 
+test("fence a bucket through its provider, and declare the sweep its host runs", async () => {
+    const directory = await temporary();
+    await using buckets = new LocalBucketHost({
+        directory,
+        endpoint: new URL("http://s3.localhost"),
+        region: "local",
+        credentials: CREDENTIALS,
+    });
+    const provider = bucketProvider.local(buckets);
+    const provisioned = { ...record, ...(await provider.provision.provision(record)) };
+    const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
+
+    // refuse a write while fenced, and accept it once lifted
+    await provider.fence.fence(provisioned);
+    const refused = await bucket.put("notes/a.txt", "first").catch((error: unknown) => error);
+    await provider.fence.lift(provisioned);
+    await bucket.put("notes/a.txt", "first");
+    expect({
+        refused,
+        written: await (await bucket.get("notes/a.txt"))?.text(),
+        controllers: provider.controllers,
+    }).toEqual({
+        refused: new StorageError("FENCED", "bucket is fenced while a transfer copies it"),
+        written: "first",
+        controllers: [new SweepController(buckets)],
+    });
+});
+
 test("open a bucket's catalogue under its space's scope, with the blobs its rows reference", async () => {
     const directory = await temporary();
     await using buckets = new LocalBucketHost({
@@ -60,7 +88,7 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
         region: "local",
         credentials: CREDENTIALS,
     });
-    const provider = localBucketProvider(buckets);
+    const provider = bucketProvider.local(buckets);
     const provision = await provider.provision.provision(record);
     const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
     await bucket.put("notes/a.txt", "first");
@@ -79,67 +107,4 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
         changes.changes.map((change) => change.scope),
         new TextDecoder().decode(Buffer.concat(read)),
     ]).toEqual([createHash("sha256").update("first").digest("hex"), [record.scope], "first"]);
-});
-
-test("copy a bucket to another host: follow its catalogue and blobs, then capture the rest once it stops writing", async () => {
-    // keep a bucket with one file on the source host, and provision it on the target host
-    const [sources, targets] = await Promise.all([temporary(), temporary()]);
-    await using sourceHost = new LocalBucketHost({
-        directory: sources,
-        endpoint: new URL("http://s3.localhost"),
-        region: "local",
-        credentials: CREDENTIALS,
-    });
-    await using targetHost = new LocalBucketHost({
-        directory: targets,
-        endpoint: new URL("http://s3.localhost"),
-        region: "local",
-        credentials: CREDENTIALS,
-    });
-    const [source, target] = [localBucketProvider(sourceHost), localBucketProvider(targetHost)];
-    const bucketId = schema.identifier("bucket").parse(record.id);
-    const written = await sourceHost.open({ bucketId }, record.scope);
-    await written.put("notes/a.txt", "first");
-    const from = await source.open.open(
-        { ...record, ...(await source.provision.provision(record)) },
-        [],
-    );
-    onTestFinished(() => from.close());
-    const to = await target.open.open(
-        { ...record, ...(await target.provision.provision(record)) },
-        [],
-    );
-    await to.migrate(replicaTables);
-
-    // follow the catalogue, fetching each referenced blob, while the source writes another file
-    const copy = ZoneTransfer.copy(record.id, to.database);
-    const feed = new Feed(from.database, copy.tables);
-    const blobs = { store: present(to.blobs, "blobs"), source: present(from.blobs, "blobs") };
-    const controller = new AbortController();
-    const following = copy.follow(
-        to.database,
-        ({ after }, signal) => feed.subscribe(copy.queries, after, signal),
-        controller.signal,
-        { blobs },
-    );
-    await written.put("notes/b.txt", "second");
-    const signal = AbortSignal.timeout(5000);
-    await Replica.reach(to.database, record.id, await from.database.log.position(), signal);
-    controller.abort();
-    await following;
-
-    // capture the rest once the source stops, then own the copy and drop its bookkeeping
-    await written.delete("notes/a.txt");
-    await Array.fromAsync(copy.apply(to.database, feed.capture(copy.captured, signal), { blobs }));
-    await copy.promote(to.database);
-    await to.migrate([]);
-    await to.close();
-
-    // read the source's files on the target
-    const received = await targetHost.open({ bucketId });
-    const listed = await received.list();
-    expect([
-        listed.files.map((file) => file.key),
-        await present(await received.get("notes/b.txt"), "notes/b.txt").text(),
-    ]).toEqual([["notes/b.txt"], "second"]);
 });

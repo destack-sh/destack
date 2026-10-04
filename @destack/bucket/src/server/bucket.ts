@@ -1,9 +1,10 @@
-import type { Call } from "@destack/object";
+import type { Call, CallOf, PreparedCallOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { BucketHttpMetadata, type BucketFile } from "../bucket/index.ts";
 import { StorageError, type StorageErrorCode } from "../error/index.ts";
 import type { Lease, LeaseMode } from "@destack/resource";
+import { BucketSpec } from "../declare/bucket.ts";
 import { bucket, type FileMetadata } from "../object/index.ts";
 import {
     type BucketHost,
@@ -19,8 +20,10 @@ export const LEASE_LIFETIME = 15 * 60;
 /** The most bytes of custom metadata names and values together, S3's 2 KB limit. */
 const MAX_METADATA_BYTES = 2048;
 
-/** The service failure of each storage failure a request causes. */
-const REQUEST_FAILURES: Partial<Record<StorageErrorCode, "BAD_REQUEST" | "NOT_FOUND">> = {
+/** The service failure of each storage failure a caller sees: the request's own, or a fence it may retry after. */
+const REQUEST_FAILURES: Partial<
+    Record<StorageErrorCode, "BAD_REQUEST" | "NOT_FOUND" | "UNAVAILABLE">
+> = {
     INVALID_KEY: "BAD_REQUEST",
     INVALID_RANGE: "BAD_REQUEST",
     INVALID_CURSOR: "BAD_REQUEST",
@@ -29,6 +32,7 @@ const REQUEST_FAILURES: Partial<Record<StorageErrorCode, "BAD_REQUEST" | "NOT_FO
     INVALID_CHECKSUM: "BAD_REQUEST",
     INVALID_CUSTOMER_KEY: "BAD_REQUEST",
     NO_SUCH_UPLOAD: "NOT_FOUND",
+    FENCED: "UNAVAILABLE",
 };
 
 /** The HTTP method a lease of each mode signs: GET reads a body, PUT writes one. */
@@ -49,129 +53,196 @@ interface LeaseRequest {
 /** Serve the files of a host's buckets: their metadata, and presigned leases on their bodies. */
 export function serveBucket(host: BucketHost) {
     return bucket.handle({
-        files: (call) =>
-            files(host, call, async (opened) => {
-                // list a page of files with their metadata
-                const input = call.input;
-                const page = await opened.list({
-                    ...(input.prefix === undefined ? {} : { prefix: input.prefix }),
-                    ...(input.delimiter === undefined ? {} : { delimiter: input.delimiter }),
-                    ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
-                    limit: input.limit,
-                    include: ["httpMetadata", "customMetadata"],
-                });
-
-                return {
-                    files: page.files.map((file) => describe(file)),
-                    delimitedPrefixes: page.delimitedPrefixes,
-                    cursor: page.truncated ? page.cursor : null,
-                };
-            }),
-        file: (call) =>
-            files(host, call, async (opened) => {
-                const file = await opened.head(call.input.key);
-
-                return file === null ? null : describe(file);
-            }),
-        open: {
-            authorize: async (call) => {
-                // require the right to upload for a write
-                if (call.input.mode === "write") {
-                    await call
-                        .requireAuthorization()
-                        .require(bucket.permission("write"), call.reference());
-                }
-            },
-            handler: (call) => {
-                // bind a read's range and entity tag
-                const input = call.input;
-                const headers = new Headers();
-                if (input.mode === "read") {
-                    if (input.range !== undefined) {
-                        headers.set("range", input.range);
-                    }
-                }
-                // bind a write's body length, stored metadata and replacement precondition
-                else {
-                    if (input.size === undefined) {
-                        throw new ServiceError("BAD_REQUEST", {
-                            message: "a write states its body's size",
-                        });
-                    }
-                    const customMetadata = input.customMetadata ?? {};
-                    requireMetadata(customMetadata);
-                    headers.set("content-length", String(input.size));
-                    BucketHttpMetadata.write(httpMetadata(input.httpMetadata ?? {}), headers);
-                    for (const [name, value] of Object.entries(customMetadata)) {
-                        headers.set(`x-amz-meta-${name}`, value);
-                    }
-                    if (input.ifNoneMatch !== undefined) {
-                        headers.set("if-none-match", input.ifNoneMatch);
-                    }
-                }
-
-                // bind the entity tag the file must have, and the customer key
-                if (input.ifMatch !== undefined) {
-                    headers.set("if-match", input.ifMatch);
-                }
-                encrypt(headers, input.customerKey);
-
-                return presign(host, call, { mode: input.mode, key: input.key, headers });
-            },
+        files: (call) => listFiles(host, call),
+        file: (call) => headFile(host, call),
+        open: { authorize: authorizeOpen, handler: (call) => openLease(host, call) },
+        remove: {
+            authorize: async (call) => requireWriter(call),
+            handler: (call) => removeFiles(host, call),
         },
-        remove: (call) =>
-            files(host, call, async (opened) => {
-                await opened.delete(call.input.keys);
+        createUpload: {
+            authorize: async (call) => requireWriter(call),
+            handler: (call) => createUpload(host, call),
+        },
+        uploadPart: {
+            authorize: async (call) => requireWriter(call),
+            handler: (call) => uploadPart(host, call),
+        },
+        completeUpload: {
+            authorize: async (call) => requireWriter(call),
+            handler: (call) => completeUpload(host, call),
+        },
+        abortUpload: {
+            authorize: async (call) => requireWriter(call),
+            handler: (call) => abortUpload(host, call),
+        },
+    });
+}
 
-                return {};
-            }),
-        createUpload: (call) =>
-            files(host, call, async (opened) => {
-                // create the upload with the metadata its file receives
-                const input = call.input;
-                requireMetadata(input.customMetadata);
-                const upload = await opened.createMultipartUpload(input.key, {
-                    httpMetadata: httpMetadata(input.httpMetadata),
-                    customMetadata: input.customMetadata,
-                    ...(input.customerKey === undefined
-                        ? {}
-                        : { ssecKey: Uint8Array.fromBase64(input.customerKey).buffer }),
-                });
+/** List a page of a bucket's files with their metadata. */
+function listFiles(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "files">,
+): Promise<ResultOf<typeof bucket, "files">> {
+    return files(host, call, async (opened) => {
+        // list a page of files with their metadata
+        const input = call.input;
+        const page = await opened.list({
+            ...(input.prefix === undefined ? {} : { prefix: input.prefix }),
+            ...(input.delimiter === undefined ? {} : { delimiter: input.delimiter }),
+            ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+            limit: input.limit,
+            include: ["httpMetadata", "customMetadata"],
+        });
 
-                return { uploadId: upload.uploadId, key: upload.key };
-            }),
-        uploadPart: (call) => {
-            // bind the part's length and number
-            const input = call.input;
-            const headers = new Headers({ "content-length": String(input.size) });
-            encrypt(headers, input.customerKey);
+        return {
+            files: page.files.map((file) => describe(file)),
+            delimitedPrefixes: page.delimitedPrefixes,
+            cursor: page.truncated ? page.cursor : null,
+        };
+    });
+}
 
-            return presign(host, call, {
-                mode: "write",
-                key: input.key,
-                headers,
-                query: { partNumber: String(input.partNumber), uploadId: input.uploadId },
+/** Read one file's metadata, null for a missing file. */
+function headFile(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "file">,
+): Promise<ResultOf<typeof bucket, "file">> {
+    return files(host, call, async (opened) => {
+        const file = await opened.head(call.input.key);
+
+        return file === null ? null : describe(file);
+    });
+}
+
+/** Require the right to upload for a write, and the system for a bucket it alone writes. */
+async function authorizeOpen(call: CallOf<typeof bucket, "open">): Promise<void> {
+    if (call.input.mode === "write") {
+        await call.requireAuthorization().require(bucket.permission("write"), call.reference());
+        requireWriter(call);
+    }
+}
+
+/** Presign a lease reading or writing one file's body. */
+function openLease(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "open">,
+): Promise<ResultOf<typeof bucket, "open">> {
+    // bind a read's range and entity tag
+    const input = call.input;
+    const headers = new Headers();
+    if (input.mode === "read") {
+        if (input.range !== undefined) {
+            headers.set("range", input.range);
+        }
+    }
+    // bind a write's body length, stored metadata and replacement precondition
+    else {
+        if (input.size === undefined) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: "a write states its body's size",
             });
-        },
-        completeUpload: (call) =>
-            files(host, call, async (opened) => {
-                // assemble the parts by the opaque tags their quoted entity tags carry
-                const input = call.input;
-                const upload = opened.resumeMultipartUpload(input.key, input.uploadId);
-                const parts = input.parts.map((part) => ({
-                    partNumber: part.partNumber,
-                    etag: part.etag.replace(/^"(.*)"$/u, "$1"),
-                }));
+        }
+        const customMetadata = input.customMetadata ?? {};
+        requireMetadata(customMetadata);
+        headers.set("content-length", String(input.size));
+        BucketHttpMetadata.write(httpMetadata(input.httpMetadata ?? {}), headers);
+        for (const [name, value] of Object.entries(customMetadata)) {
+            headers.set(`x-amz-meta-${name}`, value);
+        }
+        if (input.ifNoneMatch !== undefined) {
+            headers.set("if-none-match", input.ifNoneMatch);
+        }
+    }
 
-                return describe(await upload.complete(parts));
-            }),
-        abortUpload: (call) =>
-            files(host, call, async (opened) => {
-                const input = call.input;
-                await opened.resumeMultipartUpload(input.key, input.uploadId).abort();
+    // bind the entity tag the file must have, and the customer key
+    if (input.ifMatch !== undefined) {
+        headers.set("if-match", input.ifMatch);
+    }
+    encrypt(headers, input.customerKey);
 
-                return {};
-            }),
+    return presign(host, call, { mode: input.mode, key: input.key, headers });
+}
+
+/** Delete some files of a bucket. */
+function removeFiles(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "remove">,
+): Promise<ResultOf<typeof bucket, "remove">> {
+    return files(host, call, async (opened) => {
+        await opened.delete(call.input.keys);
+
+        return {};
+    });
+}
+
+/** Create a multipart upload with the metadata its file receives. */
+function createUpload(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "createUpload">,
+): Promise<ResultOf<typeof bucket, "createUpload">> {
+    return files(host, call, async (opened) => {
+        // create the upload with the metadata its file receives
+        const input = call.input;
+        requireMetadata(input.customMetadata);
+        const upload = await opened.createMultipartUpload(input.key, {
+            httpMetadata: httpMetadata(input.httpMetadata),
+            customMetadata: input.customMetadata,
+            ...(input.customerKey === undefined
+                ? {}
+                : { ssecKey: Uint8Array.fromBase64(input.customerKey).buffer }),
+        });
+
+        return { uploadId: upload.uploadId, key: upload.key };
+    });
+}
+
+/** Presign a lease writing one part of a multipart upload. */
+function uploadPart(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "uploadPart">,
+): Promise<ResultOf<typeof bucket, "uploadPart">> {
+    // bind the part's length and number
+    const input = call.input;
+    const headers = new Headers({ "content-length": String(input.size) });
+    encrypt(headers, input.customerKey);
+
+    return presign(host, call, {
+        mode: "write",
+        key: input.key,
+        headers,
+        query: { partNumber: String(input.partNumber), uploadId: input.uploadId },
+    });
+}
+
+/** Complete a multipart upload from its parts. */
+function completeUpload(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "completeUpload">,
+): Promise<ResultOf<typeof bucket, "completeUpload">> {
+    return files(host, call, async (opened) => {
+        // assemble the parts by their entity tags without quotes
+        const input = call.input;
+        const upload = opened.resumeMultipartUpload(input.key, input.uploadId);
+        const parts = input.parts.map((part) => ({
+            partNumber: part.partNumber,
+            etag: part.etag.replace(/^"(.*)"$/u, "$1"),
+        }));
+
+        return describe(await upload.complete(parts));
+    });
+}
+
+/** Abort a multipart upload. */
+function abortUpload(
+    host: BucketHost,
+    call: PreparedCallOf<typeof bucket, "abortUpload">,
+): Promise<ResultOf<typeof bucket, "abortUpload">> {
+    return files(host, call, async (opened) => {
+        const input = call.input;
+        await opened.resumeMultipartUpload(input.key, input.uploadId).abort();
+
+        return {};
     });
 }
 
@@ -186,14 +257,27 @@ function reference(call: BucketCall): BucketReference {
     };
 }
 
-/** Work on the bucket a call targets, reporting storage failures the request caused. */
-async function files<Value>(
+/** Refuse a write into a bucket the system alone writes, unless the system calls. */
+function requireWriter(call: BucketCall): void {
+    const target = call.requireTarget();
+    if (BucketSpec.parse(target.spec).write === "system" && !call.requireAuthorization().isSystem) {
+        throw new ServiceError("FORBIDDEN", { message: `the system alone writes ${target.id}` });
+    }
+}
+
+/** Work on the bucket a call targets, reporting the storage failures its caller sees. */
+function files<Value>(
     host: BucketHost,
     call: BucketCall,
     work: (opened: Awaited<ReturnType<BucketHost["open"]>>) => Promise<Value>,
 ): Promise<Value> {
+    return reported(async () => work(await host.open(reference(call))));
+}
+
+/** Run storage work, reporting the storage failures its caller sees as service failures. */
+async function reported<Value>(work: () => Promise<Value>): Promise<Value> {
     try {
-        return await work(await host.open(reference(call)));
+        return await work();
     } catch (error) {
         // rethrow failures the request did not cause
         const code = error instanceof StorageError ? REQUEST_FAILURES[error.code] : undefined;
@@ -207,7 +291,9 @@ async function files<Value>(
 /** Presign one S3 request on the bucket a call targets. */
 async function presign(host: BucketHost, call: BucketCall, lease: LeaseRequest): Promise<Lease> {
     // address the key, and the part the query selects, at the bucket's S3 location
-    const { location, credentials } = await host.locate(reference(call));
+    const { location, credentials } = await reported(() =>
+        host.locate(reference(call), lease.mode),
+    );
     const url = S3Location.url(location, lease.key);
     for (const [name, value] of Object.entries(lease.query ?? {})) {
         url.searchParams.set(name, value);

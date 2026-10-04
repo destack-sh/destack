@@ -8,6 +8,7 @@ import {
     exerciseMarkers,
 } from "../scenario/bucket.ts";
 import { exerciseMultipart } from "../scenario/multipart.ts";
+import { exerciseContentStore } from "../scenario/store.ts";
 
 /** The storage class R2 reports for files stored without one. */
 const DEFAULT_STORAGE_CLASS = "Standard";
@@ -36,6 +37,9 @@ export default {
                     break;
                 case "/exerciseMultipart":
                     await exerciseMultipart(bucket);
+                    break;
+                case "/exerciseContentStore":
+                    await exerciseContentStore(bucket);
                     break;
                 default:
                     throw new Error("unknown bucket scenario");

@@ -31,8 +31,7 @@ import { installation, space } from "@destack/space/object";
 import { v7 } from "uuid";
 import { ObjectServer } from "@destack/object/server";
 import { serveBucket, LEASE_LIFETIME } from "../bucket.ts";
-import { bucketTables } from "../../stack/index.ts";
-import { spaceTables } from "@destack/space/stack";
+import { spaceCopies, spaceTables } from "@destack/space/stack";
 import { DirectoryStore, directoryTables } from "@destack/directory";
 import type { Lease } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
@@ -117,8 +116,12 @@ export class BucketFixture implements AsyncDisposable {
             objects: {
                 bucket: serveBucket({
                     open: (reference) => this.#open(reference),
-                    locate: async (reference) => {
-                        await this.#open(reference);
+                    locate: async (reference, mode) => {
+                        // refuse a write into the fenced bucket
+                        const opened = await this.#open(reference);
+                        if (mode === "write") {
+                            opened.checkWritable();
+                        }
 
                         return {
                             location: {
@@ -343,7 +346,7 @@ export class BucketFixture implements AsyncDisposable {
         for (const dialect of TEST_DIALECTS) {
             opened.set(
                 dialect,
-                await TestDatabase.create(dialect, [...bucketTables, ...spaceTables], {
+                await TestDatabase.create(dialect, [...spaceTables, ...spaceCopies], {
                     isMigrated: true,
                 }),
             );

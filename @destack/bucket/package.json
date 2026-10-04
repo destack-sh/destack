@@ -10,11 +10,11 @@
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./local": "./src/local/index.ts",
+        "./catalogue": "./src/catalogue/index.ts",
         "./r2": "./src/r2/index.ts",
         "./error": "./src/error/index.ts",
         "./object": "./src/object/index.ts",
         "./server": "./src/server/index.ts",
-        "./stack": "./src/stack/index.ts",
         "./s3": "./src/s3/index.ts",
         "./provider": "./src/provider/index.ts"
     },

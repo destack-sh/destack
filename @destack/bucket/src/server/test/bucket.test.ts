@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { principal } from "@destack/access";
 import { invokeService } from "@destack/audit";
+import { eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { ServiceError } from "@destack/service/error";
 import { aligned, schema, present } from "@destack/schema";
@@ -9,6 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "@desta
 import { vi } from "vitest";
 import { v7 } from "uuid";
 import { spaceService } from "@destack/space/service";
+import * as bucketObject from "../../object/index.ts";
 import { LEASE_LIFETIME } from "../bucket.ts";
 import { BucketFixture, NOW, PRESIGNED } from "./fixture.ts";
 
@@ -583,6 +585,162 @@ test.for(TEST_DIALECTS)(
         await expect(client.files({ ...bucket, limit: 10 })).rejects.toEqual(
             new ServiceError("NOT_FOUND", { message: `no scope ${spaceId}`, defined: true }),
         );
+    },
+);
+
+/** Keep a bucket the system alone writes from its editors and consumers, who still read it. */
+test.for(TEST_DIALECTS)(
+    "refuse writes into a bucket the system alone writes to editors and consumers, who read on, on %s",
+    async (dialect) => {
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
+        const { client, bucket, spaceId } = fixture;
+        await fixture.files.put("builds/manifest.json", "{}");
+        const { uploadId } = await fixture.files.createMultipartUpload("builds/archive.tar");
+        const consumer = principal.installation.reference(spaceId, await fixture.install("files"));
+
+        // declare the bucket written by the system alone
+        await fixture.database
+            .update(bucketObject.bucket.table)
+            .set({ spec: { write: "system" } })
+            .where(eq(bucketObject.bucket.table.id, fixture.bucketId));
+
+        // refuse every write of the editor, and a lease of the consumer
+        const writes = (requestId: () => string) => [
+            client.open({
+                mode: "write",
+                ...bucket,
+                key: "builds/other.json",
+                size: 2,
+                httpMetadata: {},
+                customMetadata: {},
+            }),
+            client.uploadPart({
+                ...bucket,
+                key: "builds/archive.tar",
+                uploadId,
+                partNumber: 1,
+                size: 1,
+            }),
+            client.remove({ ...bucket, requestId: requestId(), keys: ["builds/manifest.json"] }),
+            client.createUpload({
+                ...bucket,
+                requestId: requestId(),
+                key: "builds/other.tar",
+                httpMetadata: {},
+                customMetadata: {},
+            }),
+            client.completeUpload({
+                ...bucket,
+                requestId: requestId(),
+                key: "builds/archive.tar",
+                uploadId,
+                parts: [{ partNumber: 1, etag: "etag" }],
+            }),
+            client.abortUpload({
+                ...bucket,
+                requestId: requestId(),
+                key: "builds/archive.tar",
+                uploadId,
+            }),
+        ];
+        const refusals = await Promise.all(
+            writes(() => RequestId.create()).map((refused) =>
+                refused.then(
+                    () => "accepted",
+                    (error: unknown) => error,
+                ),
+            ),
+        );
+        fixture.caller = fixture.authenticate(consumer, [consumer]);
+        const leased = await client
+            .open({
+                mode: "write",
+                ...bucket,
+                key: "builds/other.json",
+                size: 2,
+                httpMetadata: {},
+                customMetadata: {},
+            })
+            .catch((error: unknown) => error);
+
+        // read the bucket's files as the consumer
+        const download = await client.open({
+            mode: "read",
+            ...bucket,
+            key: "builds/manifest.json",
+        });
+        const read = await fixture.transfer(download);
+        const refused = new ServiceError("FORBIDDEN", {
+            message: `the system alone writes ${fixture.bucketId}`,
+            defined: true,
+        });
+        expect({ refusals, leased, read: [read.status, await read.text()] }).toEqual({
+            refusals: Array.from({ length: 6 }, () => refused),
+            leased: refused,
+            read: [200, "{}"],
+        });
+    },
+);
+
+/** Refuse writes into a bucket a transfer fenced as retryable, presigned ones included, until the fence lifts. */
+test.for(TEST_DIALECTS)(
+    "refuse writes into a fenced bucket until its fence lifts, while reads go on, on %s",
+    async (dialect) => {
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
+        const { client, bucket } = fixture;
+        const file = {
+            ...bucket,
+            key: "notes/a.txt",
+            size: 5,
+            httpMetadata: {},
+            customMetadata: {},
+        };
+        const lease = await client.open({ mode: "write", ...file });
+
+        // refuse a lease, a removal and the earlier lease's transfer while fenced, and list on
+        await fixture.files.fence();
+        const leased = await client
+            .open({ mode: "write", ...file })
+            .catch((error: unknown) => error);
+        const removed = await client
+            .remove({ ...bucket, requestId: RequestId.create(), keys: ["notes/a.txt"] })
+            .catch((error: unknown) => error);
+        const transferred = await fixture.transfer(lease, "first");
+        const listed = await client.files({ ...bucket, limit: 10 });
+
+        // transfer the lease once the fence lifts
+        await fixture.files.lift();
+        const lifted = await fixture.transfer(lease, "first");
+        const fenced = new ServiceError("UNAVAILABLE", {
+            message: "bucket is fenced while a transfer copies it",
+            status: 503,
+            defined: true,
+        });
+        expect({
+            leased,
+            removed,
+            transferred: [transferred.status, await transferred.text()],
+            listed,
+            lifted: lifted.status,
+        }).toEqual({
+            leased: fenced,
+            removed: fenced,
+            transferred: [
+                503,
+                errorDocument(
+                    "ServiceUnavailable",
+                    fenced.message,
+                    "/files/notes/a.txt",
+                    transferred,
+                ),
+            ],
+            listed: { files: [], delimitedPrefixes: [], cursor: null },
+            lifted: 200,
+        });
     },
 );
 

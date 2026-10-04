@@ -10,14 +10,14 @@
         "./r2": {
             "runtimes": ["workerd"]
         },
-        "./stack": {
+        "./catalogue": {
             "runtimes": ["bun", "workerd"]
         },
         "./s3": {
             "runtimes": ["bun", "workerd"]
         },
         "./provider": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun", "workerd"]
         }
     },
     "declarations": {

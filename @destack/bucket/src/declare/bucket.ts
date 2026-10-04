@@ -3,8 +3,13 @@ import { ModuleMetadata } from "@destack/package";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import type { Bucket } from "../bucket/index.ts";
 
-/** A file namespace bound to managed storage. */
-export const BucketSpec = defineSchema(schema.object({}));
+/** A file namespace bound to managed storage, and who writes its files. */
+export const BucketSpec = defineSchema(
+    schema.object({
+        /** The system alone writes the bucket's files, absent for every caller with the write permission. */
+        write: schema.literal("system").exactOptional(),
+    }),
+);
 /** The bucket resource kind: file storage. */
 export const BucketKind = defineResourceKind("bucket", { spec: BucketSpec });
 /** A named file storage dependency. */

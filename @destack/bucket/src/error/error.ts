@@ -15,7 +15,8 @@ export type StorageErrorCode =
     | "NO_SUCH_BUCKET"
     | "UNSUPPORTED"
     | "CLOSED"
-    | "BUSY";
+    | "BUSY"
+    | "FENCED";
 
 /** A storage failure with a stable code. */
 export class StorageError extends Error {
