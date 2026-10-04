@@ -1,7 +1,7 @@
-import { defineConfig } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
+import { defineConfiguration } from "./src/test/index.ts";
 
-export default defineConfig({
+export default defineConfiguration({
     root: fileURLToPath(new URL(".", import.meta.url)),
-    test: { include: ["src/**/*.test.ts"], testTimeout: 2000 },
+    test: { include: ["src/**/*.test.ts", "src/**/*.test.tsx"], testTimeout: 2000 },
 });

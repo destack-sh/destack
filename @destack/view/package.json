@@ -6,30 +6,61 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
-        "./client": "./src/client/index.ts",
+        "./destack.json": "./destack.json",
+        "./declare": "./src/declare/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./form": "./src/form/index.ts",
         "./router": "./src/router/index.ts",
         "./document": "./src/document/index.ts",
         "./render": "./src/render/index.ts",
-        "./runtime": "./src/runtime.ts",
-        "./inspect": "./src/inspect/index.ts",
-        "./jsx-runtime": "./src/jsx-runtime.ts",
-        "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
+        "./browser": "./src/browser/index.ts",
+        "./runtime": "./src/runtime/index.ts",
+        "./jsx-runtime": "./src/jsx-runtime/index.ts",
+        "./jsx-dev-runtime": "./src/jsx-dev-runtime/index.ts",
+        "./build": "./src/build/index.ts",
+        "./test": "./src/test/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
-    "devDependencies": {
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/test": "workspace:*"
-    },
-    "dependencies": {
         "@destack/service": "workspace:*",
         "@destack/signals": "workspace:*",
-        "@solidjs/router": "2.0.0-next.24",
+        "@destack/style": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/ui": "workspace:*",
         "@solidjs/meta": "1.0.0-next.2",
-        "solid-js": "2.0.0-rc.8",
-        "@solidjs/web": "2.0.0-rc.8"
+        "@solidjs/router": "2.0.0-next.24",
+        "@solidjs/vite-plugin": "3.0.0-next.43",
+        "@solidjs/web": "2.0.0-rc.8",
+        "happy-dom": "20.14.5",
+        "rolldown": "1.2.9",
+        "solid-js": "2.0.0-rc.8"
+    },
+    "peerDependencies": {
+        "@destack/build": "workspace:*",
+        "vite": "8.3.0"
+    },
+    "peerDependenciesMeta": {
+        "@destack/build": {
+            "optional": true
+        },
+        "vite": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@destack/build": "workspace:*",
+        "@destack/db": "workspace:*",
+        "vite": "8.3.0"
     }
 }

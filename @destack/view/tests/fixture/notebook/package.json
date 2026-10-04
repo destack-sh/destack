@@ -1,0 +1,20 @@
+{
+    "name": "@destack/view-notebook-fixture",
+    "version": "2026.9.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts",
+        "./view": "./src/view/index.ts"
+    },
+    "dependencies": {
+        "@destack/icon": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/space": "workspace:*",
+        "@destack/view": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/build": "workspace:*"
+    }
+}

@@ -1,13 +1,42 @@
 {
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614f-73f1-896b-bb411e8814d4",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ],
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ]
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./browser": {
+            "runtimes": ["browser"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        },
+        "./build": {
+            "runtimes": ["bun"]
+        }
+    },
+    "build": "./build#viewExtension",
+    "declarations": {
+        "defineView": {
+            "describes": [
+                {
+                    "kind": "view",
+                    "function": "./inspect#describeView",
+                    "symbols": "./inspect#viewSymbols"
+                }
+            ]
+        },
+        "defineCommand": {
+            "describes": [
+                {
+                    "kind": "command",
+                    "function": "./inspect#describeCommand",
+                    "symbols": "./inspect#commandSymbols"
+                }
+            ]
+        }
+    },
+    "stamps": {
+        "defineView": { "module": 1 },
+        "defineCommand": { "module": 1 }
+    }
 }

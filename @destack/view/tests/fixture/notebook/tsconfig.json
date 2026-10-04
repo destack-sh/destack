@@ -19,10 +19,9 @@
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
         "lib": ["ESNext", "DOM", "DOM.Iterable"],
-        "types": ["@destack/build/browser", "vite/client"],
+        "types": ["@destack/build/browser"],
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
     },
-    "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["tests/fixture/notebook"]
+    "include": ["src", "tests", "*.config.ts"]
 }

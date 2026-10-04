@@ -15,7 +15,6 @@ export {
     createRoot,
     createSignal,
     createStore,
-    createTrackedEffect,
     deep,
     enableExternalSource,
     flatten,
