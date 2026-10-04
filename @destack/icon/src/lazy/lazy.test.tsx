@@ -1,18 +1,10 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, test } from "@destack/test";
+import { draw } from "@destack/view/test";
 import { createSignal } from "solid-js";
-import { render, type JSX } from "@solidjs/web";
 import acorn from "@destack/icon/phosphor/acorn";
 import alien from "@destack/icon/phosphor/alien";
 import type { IconName } from "@destack/icon";
 import { LazyIcon } from "@destack/icon/lazy";
-
-/** Render an element into a detached container, disposing it after the test. */
-function draw(element: () => JSX.Element): HTMLElement {
-    const container = document.createElement("div");
-    onTestFinished(render(element, container));
-
-    return container;
-}
 
 /** Wrap an icon body in the SVG element an icon renders. */
 function svg(attributes: string, body: string): string {

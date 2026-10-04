@@ -7,7 +7,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./lazy": "./src/lazy/index.ts",
-        "./phosphor/*": "./src/phosphor/icon/*.ts"
+        "./phosphor/*": "./src/phosphor/icon/*.ts",
+        "./build": "./src/build/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
@@ -15,14 +16,26 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/package": "workspace:*",
         "@solidjs/web": "2.0.0-rc.8",
+        "rolldown": "1.2.9",
         "solid-js": "2.0.0-rc.8"
+    },
+    "peerDependencies": {
+        "vite": "8.3.0"
+    },
+    "peerDependenciesMeta": {
+        "vite": {
+            "optional": true
+        }
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/view": "workspace:*",
+        "@jridgewell/trace-mapping": "0.3.31",
         "@phosphor-icons/core": "2.1.1",
-        "@types/bun": "1.4.2"
+        "@types/bun": "1.4.2",
+        "vite": "8.3.0"
     }
 }

@@ -24,7 +24,7 @@ Each icon draws in six weights, regular by default.
 
 ## Loading
 
-Each icon is its own module with all six weights, which view builds import for an icon with a literal name and refuse for a computed name without `icon`.
+Each icon is its own module with all six weights, which builds import for an icon with a literal name and refuse for a computed name without `icon`.
 
 ```tsx
 import check from "@destack/icon/phosphor/check-circle";
@@ -42,6 +42,16 @@ import circle from "@destack/icon/phosphor/circle";
 import { LazyIcon } from "@destack/icon/lazy";
 
 <LazyIcon name={file().icon} />; // only modules importing LazyIcon carry the index of every icon
+```
+
+## Builds
+
+`iconExtension` passes each `Icon` imported by name with a literal name the bodies of a static import of `@destack/icon/phosphor/<name>` in builds of every package whose dependency closure includes `@destack/icon`, and fails on an `Icon` without `icon` whose name it cannot read.
+
+```tsx
+<Icon name="trash" />; // <Icon name="trash" icon={trash} /> with trash from @destack/icon/phosphor/trash
+<Icon icon={properties.icon} />; // left as written
+<Icon name={properties.name} />; // fails the build, as do <Icon {...properties} /> and <icons.Icon name="trash" />
 ```
 
 ## Data
