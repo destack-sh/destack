@@ -1,0 +1,17 @@
+set shell := ["bash", "-cu"]
+
+# check
+check:
+    bun run check
+
+# test
+test:
+    bun run test
+
+# generate one module per icon and the icon names from @phosphor-icons/core
+generate:
+    bun run generate
+
+# format
+format:
+    bun run destack-check format src package.json destack.json

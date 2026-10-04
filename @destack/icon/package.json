@@ -1,0 +1,28 @@
+{
+    "name": "@destack/icon",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts",
+        "./lazy": "./src/lazy/index.ts",
+        "./phosphor/*": "./src/phosphor/icon/*.ts"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "generate": "bun run src/phosphor/generate.ts",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@solidjs/web": "2.0.0-rc.8",
+        "solid-js": "2.0.0-rc.8"
+    },
+    "devDependencies": {
+        "@destack/check": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@destack/view": "workspace:*",
+        "@phosphor-icons/core": "2.1.1",
+        "@types/bun": "1.4.2"
+    }
+}
