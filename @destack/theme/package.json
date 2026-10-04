@@ -8,17 +8,27 @@
     ],
     "exports": {
         ".": "./src/index.ts",
+        "./declare": "./src/declare/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./motion": "./src/motion/index.ts",
         "./setting": "./src/setting/index.ts",
+        "./text": "./src/text/index.ts",
         "./theme.css": "./src/theme/theme.css",
+        "./tokens.json": "./src/token/tokens.json",
         "./tokens.stylex": "./src/token/tokens.stylex.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "generate": "bun run src/token/generate.ts",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/style": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
     }
 }

@@ -1,0 +1,14 @@
+import { defineSetting } from "@destack/setting/declare";
+import { DEFAULT_PREFERENCES, TextSize } from "../theme/index.ts";
+
+/** The text size a person reads at, overridden per package, space, installation or device. */
+export const textSize = defineSetting({
+    name: "textSize",
+    title: "Text size",
+    description: "Read text smaller or larger, after Apple's Dynamic Type sizes.",
+    schema: TextSize,
+    default: DEFAULT_PREFERENCES.textSize,
+    scope: "user",
+    overrides: ["package", "space", "installation", "device"],
+    apply: "immediate",
+});
