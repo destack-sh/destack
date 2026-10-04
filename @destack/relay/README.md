@@ -14,28 +14,37 @@ macbook.flotothemoon.destack.computer                 the host macbook of flotot
 
 ## Relays
 
-`RelayServer.start` serves the relay's names and its hosts' tunnels on one listener.
+`RelayServer.start` copies the accounts, hosts, host keys and zones names resolve with from the account service, and keeps its hosts' tunnels in memory.
 
 ```ts
-import { Resolver } from "@destack/account/directory";
-import { RelayServer } from "@destack/relay/bun";
-import { RELAY_PACKAGE } from "@destack/relay/server";
-import { TokenVerifier } from "@destack/service/authentication";
+import { RelayServer } from "@destack/relay/server";
+import { BunRelay } from "@destack/relay/bun";
+import { WorkerdRelay } from "@destack/relay/workerd";
 
-const relay = RelayServer.start({
+const server = RelayServer.start({
     origin: "https://relay.destack.space",
-    listener: { hostname: "0.0.0.0", port: 443, tls },
-    database,
-    resolver: Resolver.global(database),
-    tokens: new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer,
-        audience: RELAY_PACKAGE.id,
-        keys,
-    }),
-    certificate: { cert, key },
+    database: relayDatabase.get(context),
+    identity, // the WorkloadIdentity following the account service with its workload token
+    tokens, // the verifier of the universe's tokens for RELAY_PACKAGE
     report,
 });
+const listener = BunRelay.listen(server, { hostname: "0.0.0.0", port: 443, tls }); // a Bun process
+const object = new WorkerdRelay(server); // a Durable Object: object.fetch(request) accepts tunnels as WebSockets
+```
+
+## Workload
+
+`relayWorkload` runs one relay per universe over `relayDatabase`, the `workloadIdentity` and `relayConfiguration`, whose `serve` hands the started relay to the runtime.
+
+```ts
+const resources = new ResourceContext()
+    .bind(relayDatabase, database)
+    .bind(workloadIdentity, identity)
+    .bind(relayConfiguration, {
+        origin,
+        tokens,
+        serve: (server) => BunRelay.listen(server, listener),
+    }); // operators bind the workload RELAY_ROLE, reading accounts, hosts, host keys and zones
 ```
 
 ## Tunnels
@@ -49,7 +58,8 @@ import { TunnelClient } from "@destack/relay/tunnel";
 const tunnel = TunnelClient.open({
     url: "https://relay.destack.space/tunnel",
     token: async () => (await identity.token(RELAY_PACKAGE.id, accounts, fetch)).accessToken,
-    fetch: (request) => views.fetch(request, "relay"),
+    fetch: (request) => gateway.relay(request), // the host's space service, installations and views
+    name: (name) => publish(`https://${name}`), // on every token renewal and after renames: laptop.florian.destack.computer
     report,
 });
 ```

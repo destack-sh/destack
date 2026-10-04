@@ -9,25 +9,31 @@
         ".": "./src/index.ts",
         "./server": "./src/server/index.ts",
         "./bun": "./src/bun/index.ts",
-        "./tunnel": "./src/tunnel/index.ts"
+        "./workerd": "./src/workerd/index.ts",
+        "./tunnel": "./src/tunnel/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./workload": "./src/workload/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/directory": "workspace:*",
         "@destack/host": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/space": "workspace:*"
+        "@destack/space": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/resource": "workspace:*"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "@destack/directory": "workspace:*",
-        "@destack/sync": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
     }
