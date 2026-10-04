@@ -2,7 +2,6 @@ import { AccessContext } from "@destack/access";
 import { account, connection, host, hostKey, zone } from "@destack/account/object";
 import type { WorkloadIdentity } from "@destack/account/client";
 import type { Resolver } from "@destack/account/directory";
-import { Connections } from "@destack/account/server";
 import { PackageServer, type PackageStore } from "@destack/build/store";
 import { and, eq, isNull, type DatabaseConnection, type Select } from "@destack/db";
 import type { CallOf } from "@destack/object";
@@ -18,9 +17,8 @@ import {
     type ServiceContext,
     type ServiceImplementation,
 } from "@destack/service/server";
-import { WEBHOOK_SIGNATURES } from "@destack/service/trigger";
 import { Subject, type ObjectReference } from "@destack/sync";
-import { GitHubApp, GitHubEvent } from "../github/index.ts";
+import { GitHubHosting, type GitHubApp } from "../github/index.ts";
 import {
     dependency,
     ORIGIN_FIELDS,
@@ -117,6 +115,8 @@ export class ForgeServer {
     readonly #options: ForgeServerOptions;
     /** The fetch calling Git remotes. */
     readonly #fetch: Fetch;
+    /** The repositories kept at GitHub, absent in a universe running no GitHub App. */
+    readonly #github: GitHubHosting | undefined;
 
     /** Serve the forge over a region's database, stores and GitHub App. */
     constructor(options: ForgeServerOptions) {
@@ -124,6 +124,10 @@ export class ForgeServer {
         const { identity } = options;
         this.#options = options;
         this.#fetch = options.fetch ?? globalThis.fetch;
+        this.#github =
+            options.github === undefined
+                ? undefined
+                : new GitHubHosting(options.github, options.database);
         this.resolver = identity.directory().resolver();
         this.store = options.store;
         this.#repository = this.#handleRepository();
@@ -176,42 +180,20 @@ export class ForgeServer {
 
     /** Receive a delivery of the forge's GitHub App signed with its webhook secret, refreshing as the system the repositories it changes. */
     async receive(request: Request, secret: string): Promise<void> {
-        // verify the delivery and read the changed repository, ignoring the ping
-        const delivery = await WEBHOOK_SIGNATURES.github.verify(request, secret, {}, Date.now());
-        const signal = request.signal;
-        const event = GitHubEvent.read(delivery);
-        if (event === null) {
+        // read the repositories the delivery changes, ignoring the ping
+        const change = await this.#requireGitHub().receive(request, secret);
+        if (change === null) {
             return;
         }
 
-        // find the live repositories of the GitHub repository and the connections to the delivering installation
-        const table = repository.table;
-        const [candidates, connections] = await Promise.all([
-            this.#options.database
-                .select()
-                .from(table)
-                .where(
-                    and(
-                        eq(table.hosting, "github"),
-                        eq(table.providerRepositoryId, event.repositoryId),
-                        isNull(table.deletionRequestedAt),
-                    ),
-                ),
-            this.#installations({ installationId: event.installationId }),
-        ]);
-
-        // refresh the repositories connected through that installation only, observing references as they are now
-        const installations = new Set(connections.map((row) => `${row.scope} ${row.id}`));
-        const repositories = candidates.filter((candidate) =>
-            installations.has(`${candidate.scope} ${candidate.connectedAccountId}`),
-        );
-        signal.throwIfAborted();
-        if (repositories.length > 0) {
+        // refresh them, observing references as they are now
+        request.signal.throwIfAborted();
+        if (change.repositories.length > 0) {
             await this.objects.executeAsSystem(
                 this.#repository,
                 "refresh",
-                repositories.map((row) => SystemCall.of(row)),
-                delivery.receivedAt,
+                change.repositories.map((row) => SystemCall.of(row)),
+                change.receivedAt,
             );
         }
     }
@@ -532,13 +514,9 @@ export class ForgeServer {
         }
         // identify a GitHub repository through the account's installation
         else if (origin.hosting === "github") {
-            const installation = await this.#installation(scope, origin.connectedAccountId);
-            const found = await this.#github().repository(
-                installation,
-                GitHubApp.fullName(origin.remote),
-            );
+            const providerRepositoryId = await this.#requireGitHub().identify(scope, origin);
 
-            return { ...BLANK_COLUMNS, ...origin, providerRepositoryId: found.id };
+            return { ...BLANK_COLUMNS, ...origin, providerRepositoryId };
         }
         // keep a host by its subject's key
         else if (origin.hosting === "host") {
@@ -571,13 +549,7 @@ export class ForgeServer {
         }
         // lease a GitHub repository through an installation token limited to it and the mode
         else if (target.hosting === "github") {
-            const { connectedAccountId, providerRepositoryId, remote } = target;
-            if (connectedAccountId === null || providerRepositoryId === null || remote === null) {
-                throw new TypeError(`github repository ${target.id} has no complete origin`);
-            }
-            const installation = await this.#installation(target.scope, connectedAccountId);
-
-            return this.#github().open(installation, providerRepositoryId, remote, mode);
+            return this.#requireGitHub().open(target, mode);
         }
         // leave host repositories to their host
         else if (target.hosting === "host") {
@@ -656,38 +628,9 @@ export class ForgeServer {
         return columns.providerRepositoryId;
     }
 
-    /** Read the installation of this GitHub App an account's connection names. */
-    async #installation(scope: string, connectedAccountId: string): Promise<string> {
-        const [row] = await this.#installations({
-            scope: schema.identifier("account").parse(scope),
-            id: schema.identifier("connected-account").parse(connectedAccountId),
-        });
-        if (row === undefined) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `connection ${connectedAccountId} is no installation of the github app`,
-            });
-        }
-
-        return row.installationId;
-    }
-
-    /** Read the live installations of this GitHub App a selection names. */
-    #installations(
-        selection: Omit<
-            Parameters<typeof Connections.installations>[1],
-            "provider" | "applicationId"
-        >,
-    ) {
-        return Connections.installations(this.#options.database, {
-            ...selection,
-            provider: "github",
-            applicationId: this.#github().id,
-        });
-    }
-
-    /** Read the GitHub App, refusing GitHub repositories in a universe running none. */
-    #github(): GitHubApp {
-        const { github } = this.#options;
+    /** Read the repositories kept at GitHub, refusing them in a universe running no GitHub App. */
+    #requireGitHub(): GitHubHosting {
+        const github = this.#github;
         if (github === undefined) {
             throw new ServiceError("PRECONDITION_FAILED", {
                 message: "this universe runs no github app for github repositories",

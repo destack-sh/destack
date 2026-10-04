@@ -4,7 +4,7 @@ import { expect, refusal, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { principal } from "@destack/access";
 import { RequestId } from "@destack/service/request";
-import { WEBHOOK_SIGNATURES } from "@destack/service/trigger";
+import { GitHubSignature } from "@destack/service/github";
 import { GitHubApp } from "../src/github/index.ts";
 import { APP_ID, GITHUB_API, GitHubStandIn } from "./fixture/github.ts";
 import { githubPrivateKey } from "./fixture/key.ts";
@@ -64,7 +64,7 @@ function source(installation: number) {
 /** Sign a delivery as GitHub sends it to the webhook's route. */
 async function deliver(id: string, event: string, payload: unknown, secret = WEBHOOK_SECRET) {
     const body = JSON.stringify(payload);
-    const headers = await WEBHOOK_SIGNATURES.github.sign(
+    const headers = await new GitHubSignature().sign(
         { id, event, body, sentAt: Date.now() },
         secret,
     );

@@ -109,6 +109,9 @@ await client.repository.restore({ accountId, id: site.id, requestId });
 `LocalGitStorage` keeps platform repositories in a local directory, and `ArtifactsStorage` keeps them in Cloudflare Artifacts.
 
 ```ts
+import { ArtifactsStorage } from "@destack/forge/cloudflare";
+import { LocalGitStorage } from "@destack/forge/local";
+
 const local = new LocalGitStorage("/var/lib/destack/repositories");
 const artifacts = new ArtifactsStorage({ account, namespace: "repositories", token });
 ```
@@ -238,6 +241,17 @@ const forge = new ForgeServer({
 });
 const service = forge.service(); // npm reads <endpoint>/npm/@acme/notes
 await forge.receive(request, secret);
+```
+
+## GitHub
+
+`GitHubHosting` keeps the repositories of the GitHub App's installations: `identify` finds a remote's repository, `open` leases it, and `receive` verifies a webhook delivery with `GitHubSignature` and reads the repositories it changes.
+
+```ts
+import { GitHubApp, GitHubHosting } from "@destack/forge/github";
+
+const github = new GitHubHosting(new GitHubApp({ id, key, api }), database);
+const change = await github.receive(request, secret); // null for the ping
 ```
 
 ## Workload

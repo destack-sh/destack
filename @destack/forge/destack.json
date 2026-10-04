@@ -19,7 +19,7 @@
         "./local": {
             "runtimes": ["bun"]
         },
-        "./artifacts": {
+        "./cloudflare": {
             "runtimes": ["bun", "workerd"]
         },
         "./github": {

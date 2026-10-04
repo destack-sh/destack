@@ -15,7 +15,7 @@
         "./pack": "./src/pack/index.ts",
         "./storage": "./src/storage/index.ts",
         "./local": "./src/local/index.ts",
-        "./artifacts": "./src/artifacts/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts",
         "./github": "./src/github/index.ts",
         "./package": "./src/package.ts"
     },

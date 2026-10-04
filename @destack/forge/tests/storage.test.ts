@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ServiceError } from "@destack/service/error";
-import { ArtifactsStorage } from "../src/artifacts/index.ts";
+import { ArtifactsStorage } from "../src/cloudflare/index.ts";
 import { GitLease, LocalGitStorage } from "../src/local/index.ts";
 import { GitAdvertisement } from "../src/storage/index.ts";
 import { advertise, git, History, temporary, Worktree } from "./fixture/git.ts";

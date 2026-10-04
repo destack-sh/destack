@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import { text } from "node:stream/consumers";
 import { pathToFileURL } from "node:url";
 import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -203,19 +205,21 @@ export class LocalGitStorage implements GitStorage {
         input = "",
     ): Promise<string> {
         // run git in the repository without reading global configuration
-        const child = Bun.spawn(
-            ["git", ...(directory === undefined ? [] : ["-C", directory]), ...arguments_],
-            {
-                env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" },
-                stdin: new TextEncoder().encode(input),
-                stdout: "pipe",
-                stderr: "pipe",
-            },
+        const child = spawn(
+            "git",
+            [...(directory === undefined ? [] : ["-C", directory]), ...arguments_],
+            { env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } },
         );
+        child.stdin.end(input);
+        const exited = new Promise<number | NodeJS.Signals | null>((resolve, reject) => {
+            child.once("error", reject);
+            child.stdin.once("error", reject);
+            child.once("close", (code, signal) => resolve(signal ?? code));
+        });
         const [code, output, errors] = await Promise.all([
-            child.exited,
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
+            exited,
+            text(child.stdout),
+            text(child.stderr),
         ]);
 
         // fail with git's message

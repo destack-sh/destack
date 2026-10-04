@@ -1,5 +1,7 @@
+import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { devNull } from "node:os";
+import { text } from "node:stream/consumers";
 import type { Lease } from "@destack/resource";
 
 /** The commits fetched from a leased repository: the one commit a build names, without its history. */
@@ -57,21 +59,24 @@ async function git(
     );
 
     // run git without prompts until it exits or the signal aborts
-    const child = Bun.spawn(["git", "-C", directory, ...command], {
+    const child = spawn("git", ["-C", directory, ...command], {
         env: {
-            PATH: Bun.env["PATH"],
-            SystemRoot: Bun.env["SystemRoot"],
+            PATH: process.env["PATH"],
+            SystemRoot: process.env["SystemRoot"],
             GIT_CONFIG_NOSYSTEM: "1",
             GIT_CONFIG_GLOBAL: devNull,
             GIT_TERMINAL_PROMPT: "0",
             GIT_CONFIG_COUNT: String(configuration.length),
             ...settings,
         },
-        stdout: "ignore",
-        stderr: "pipe",
+        stdio: ["ignore", "ignore", "pipe"],
         signal,
     });
-    const [code, errors] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    const exited = new Promise<number | NodeJS.Signals | null>((resolve, reject) => {
+        child.once("error", (error) => reject(signal.aborted ? signal.reason : error));
+        child.once("close", (code, exitSignal) => resolve(exitSignal ?? code));
+    });
+    const [code, errors] = await Promise.all([exited, text(child.stderr)]);
 
     // fail with why the signal aborted, or with git's message
     signal.throwIfAborted();
