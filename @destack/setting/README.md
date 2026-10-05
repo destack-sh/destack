@@ -113,12 +113,12 @@ await saved.confirmed;
 
 ## Service
 
-`servedObjects` serves the `setting` objects, which apply the values stacks place and check them against the declaring release.
+`serveSettings` serves the `setting` objects, which apply the values stacks place and check them against the declaring release.
 
 ```ts
-import { servedObjects } from "@destack/setting/server";
+import { serveSettings } from "@destack/setting/server";
 
-const { setting } = servedObjects(release); // release opens the package release a value names
+const { setting } = serveSettings(release); // release opens the package release a value names
 const server = new ObjectServer({ objects: { setting, ...others }, database, callKey, origin });
 ```
 

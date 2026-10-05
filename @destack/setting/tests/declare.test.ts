@@ -8,7 +8,7 @@ import { schema, type JsonObject } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
-import { servedObjects } from "../src/server/index.ts";
+import { serveSettings } from "../src/server/index.ts";
 import { editor, notes } from "./fixture/setting/editor.ts";
 import { Storage } from "./fixture/storage.ts";
 
@@ -38,7 +38,7 @@ test.each(TEST_DIALECTS)(
             space.reference(Scope.universe.id, spaceId),
         );
         const { release } = storage;
-        const objects = [servedObjects(release).setting];
+        const objects = [serveSettings(release).setting];
         const apply = (settings: JsonObject) =>
             Stack.apply({
                 database: storage.database,

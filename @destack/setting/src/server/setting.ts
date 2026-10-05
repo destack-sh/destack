@@ -1,5 +1,4 @@
 import { SpaceSetting } from "../declare/space.ts";
-import { SettingError } from "../error/index.ts";
 import { setting, type SettingValue } from "../object/index.ts";
 import { SettingCatalog, SettingPlacement } from "../setting/index.ts";
 import type { PackageId } from "@destack/package";
@@ -14,7 +13,7 @@ export type OpenRelease = (
 ) => Promise<BuildReader>;
 
 /** Serve declared values, checking each written value and each value a stack places against its declaration. */
-export function servedObjects(release: OpenRelease) {
+export function serveSettings(release: OpenRelease) {
     return {
         setting: setting
             .handle({
@@ -35,24 +34,22 @@ export function servedObjects(release: OpenRelease) {
                 collect: (document) =>
                     schema.record(schema.string(), SpaceSetting).parse(document["settings"] ?? {}),
                 resolve: async (_name, desired: SpaceSetting, stack) => {
-                    // stamp the declaring release, and require a declared value at a placement the space permits
-                    try {
-                        const reader = await stack.release(
-                            stack.manager.packageId,
-                            stack.manager.installationId,
-                        );
-                        const declared = (await SettingCatalog.read(reader)).get(desired.setting);
-                        const write = {
-                            mode: desired.mode,
-                            value: desired.value,
-                            release: declared.package.version,
-                        };
-                        declared.requireWrite(write, stack.scope);
+                    // read the declaring release
+                    const reader = await stack.release(
+                        stack.manager.packageId,
+                        stack.manager.installationId,
+                    );
+                    const declared = (await SettingCatalog.read(reader)).get(desired.setting);
 
-                        return { ...desired, release: declared.package.version };
-                    } catch (error) {
-                        throw error instanceof SettingError ? error.toServiceError() : error;
-                    }
+                    // require a declared value at a placement the space permits, stamped with its release
+                    const write = {
+                        mode: desired.mode,
+                        value: desired.value,
+                        release: declared.package.version,
+                    };
+                    declared.requireWrite(write, stack.scope);
+
+                    return { ...desired, release: declared.package.version };
                 },
                 values: (_name, desired) => ({
                     packageId: desired.setting.packageId,
@@ -71,23 +68,18 @@ async function requireDeclared(
         Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
     release: OpenRelease,
 ): Promise<void> {
-    const placement = SettingPlacement.of(value);
-
     // check it against the release its placement selects
-    try {
-        const reader = await release(
+    const placement = SettingPlacement.of(value);
+    const reader = await release(
+        value.scope,
+        placement.package ?? value.packageId,
+        placement.installation,
+    );
+    const catalog = await SettingCatalog.read(reader);
+    catalog
+        .get({ packageId: value.packageId, name: value.name })
+        .requireWrite(
+            { ...placement, mode: value.mode, value: value.value, release: value.release },
             value.scope,
-            placement.package ?? value.packageId,
-            placement.installation,
         );
-        const catalog = await SettingCatalog.read(reader);
-        catalog
-            .get({ packageId: value.packageId, name: value.name })
-            .requireWrite(
-                { ...placement, mode: value.mode, value: value.value, release: value.release },
-                value.scope,
-            );
-    } catch (error) {
-        throw error instanceof SettingError ? error.toServiceError() : error;
-    }
 }

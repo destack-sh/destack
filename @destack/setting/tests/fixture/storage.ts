@@ -12,7 +12,7 @@ import { ObjectServer } from "@destack/object/server";
 
 import { settingTables } from "../../src/stack/index.ts";
 import { setting } from "../../src/object/index.ts";
-import { type OpenRelease, servedObjects } from "../../src/server/index.ts";
+import { type OpenRelease, serveSettings } from "../../src/server/index.ts";
 import { defineService } from "@destack/service";
 import type { Setting } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./setting/index.ts";
@@ -33,7 +33,7 @@ export class Storage {
     /** Open the fixture release declaring the settings. */
     readonly release: OpenRelease;
     /** The served setting values and devices. */
-    readonly objects: ObjectServer<ReturnType<typeof servedObjects> & { device: typeof device }>;
+    readonly objects: ObjectServer<ReturnType<typeof serveSettings> & { device: typeof device }>;
 
     /** Serve values checked against a release declaring some settings. */
     constructor(test: TestDatabase, declarations: readonly Setting[]) {
@@ -43,7 +43,7 @@ export class Storage {
         const reader = release(declarations);
         this.release = () => Promise.resolve(reader);
         this.objects = new ObjectServer({
-            objects: { ...servedObjects(this.release), device },
+            objects: { ...serveSettings(this.release), device },
             database: test.database,
             callKey: testCallKey,
             origin: { package: settingService.package, service: settingService.name },
