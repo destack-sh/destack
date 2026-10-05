@@ -8,6 +8,9 @@ import { PackageError } from "../error/index.ts";
 import type { DeclarationName, PackageId } from "../definition/package.ts";
 import { PackageLocation, PackageManifest } from "./manifest.ts";
 
+/** The path of a build's root manifest beside its files, as stores and running workloads keep it. */
+export const MANIFEST_PATH = "manifest.json";
+
 /** A readable package distribution supplied by local or remote storage. */
 export interface PackageDistribution {
     /** The root manifest. */
@@ -155,10 +158,10 @@ export class BuildReader {
         }
 
         // authenticate and verify the root before trusting its file references
-        const bytes = await BuildReader.#fetch(new URL("manifest.json", base), fetch, signal);
+        const bytes = await BuildReader.#fetch(new URL(MANIFEST_PATH, base), fetch, signal);
         await PackageFile.verify(
             {
-                path: "manifest.json",
+                path: MANIFEST_PATH,
                 digest: location.manifest,
                 size: bytes.byteLength,
                 mediaType: "application/json",
