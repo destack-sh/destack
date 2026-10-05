@@ -1,5 +1,5 @@
 import type { Uplink } from "@destack/sync";
-import type { ResourceDeclaration } from "@destack/resource";
+import type { Connector, ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { telemetry } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
@@ -17,7 +17,13 @@ import type { PackageId } from "@destack/package";
 import { WebhookOn, Trigger, type RunClient } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
-import type { AuditHistory, CellDirectory, InstallationContext, Workload } from "./workload.ts";
+import type {
+    AuditHistory,
+    CellDirectory,
+    InstallationContext,
+    WorkloadContext,
+    Workload,
+} from "./workload.ts";
 import { CallKey } from "../request/index.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
@@ -49,9 +55,12 @@ export interface RunnerOptions {
     directory(url: string, secret: string): CellDirectory;
     /** Connect to the cell recording the installation's runs, through the host's egress with the runner's secret. */
     runs(url: string, start: WorkloadStart): RunClient;
-    // TODO #Incomplete: pass the Durable Object's storage as the alarm from a workerd entry, calling `alarm(deadline)` in its alarm handler
     /** Keep a wake-up for the workload's earliest due controller key, such as the Durable Object's alarm running it. */
     readonly alarm?: Alarm;
+    /** Open the database the instance's ephemeral objects live in, such as in a Durable Object's storage, absent where the workload opens its own. */
+    readonly ephemeral?: WorkloadContext["ephemeral"];
+    /** The connectors the runtime supplies by provider code, such as a Durable Object's for the databases it keeps, ahead of the declarations' own. */
+    readonly connectors?: Readonly<Record<string, Connector>>;
 }
 
 /** A workload instance a host started, serving its package below its mount on any runtime. */
@@ -122,6 +131,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 callKey: () => callKey,
                 report,
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
+                ...(runner.ephemeral === undefined ? {} : { ephemeral: runner.ephemeral }),
                 service: () => WorkloadRunner.#serve(runner, start),
             });
 
@@ -305,7 +315,8 @@ export class WorkloadRunner implements AsyncDisposable {
         for (const [name, binding] of Object.entries(start.bindings)) {
             // require the declaration of the binding's kind and its connector for the provider
             const declaration = runner.resources[name];
-            const connector = declaration?.connectors[binding.provider];
+            const connector =
+                runner.connectors?.[binding.provider] ?? declaration?.connectors[binding.provider];
             if (
                 declaration === undefined ||
                 declaration.kind !== binding.kind ||

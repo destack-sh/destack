@@ -6,7 +6,7 @@ import type { RunClient, Trigger } from "../trigger/index.ts";
 import { type Alarm, AlarmClock } from "../control/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
-import type { AuditHistory, InstallationContext, Workload } from "./workload.ts";
+import type { AuditHistory, InstallationContext, Workload, WorkloadContext } from "./workload.ts";
 import { type CallKey } from "../request/index.ts";
 
 /** A running workload instance. */
@@ -47,6 +47,7 @@ export class WorkloadInstance implements AsyncDisposable {
                     : { installation: options.installation }),
                 ...(options.runs === undefined ? {} : { runs: options.runs }),
                 callKey: options.callKey,
+                ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
                 report: (error) => options.report(error),
@@ -216,6 +217,8 @@ export interface WorkloadInstanceOptions {
     readonly callKey: CallKey;
     /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */
     readonly alarm?: Alarm;
+    /** Open the database the instance's ephemeral objects live in, absent where the workload opens its own. */
+    readonly ephemeral?: WorkloadContext["ephemeral"];
     /** Report a failure of the workload's background work to its host. */
     report(error: unknown): void;
     /** Select the options of one service. */

@@ -1,3 +1,4 @@
+import type { DatabaseConnection, Table } from "@destack/db";
 import type { Publisher, Uplink } from "@destack/sync";
 import { type CapabilityName, type ComputeDefinition, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
@@ -45,6 +46,10 @@ export interface WorkloadContext {
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
+    /** Open the database the instance's ephemeral objects live in, absent where the workload opens its own. */
+    readonly ephemeral?: (
+        tables: readonly Table[],
+    ) => Promise<DatabaseConnection & { close(): Promise<void> }>;
     /** The shutdown signal. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
