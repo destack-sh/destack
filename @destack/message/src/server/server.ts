@@ -67,7 +67,7 @@ export function serveMessages(providers: readonly MessageProvider[], retry: Retr
             concurrency: CONCURRENCY,
             reconcile: (reconciliation) => send(reconciliation, providers, retry),
         }),
-        messageAttempt,
+        attempt: messageAttempt,
     };
 }
 
