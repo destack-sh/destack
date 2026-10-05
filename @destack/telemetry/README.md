@@ -1,10 +1,10 @@
 # @destack/telemetry
 
-Instrument Destack packages with logs, spans and metrics over [OpenTelemetry](https://opentelemetry.io/docs/languages/js/).
+Instrument Destack packages with [OpenTelemetry](https://opentelemetry.io/docs/languages/js/) logs, spans, metrics and exceptions.
 
 ## Logs
 
-`log` emits a structured record under a literal event name, and attributes under `sensitive.` keys hold values the monitor masks.
+`log` emits a structured record under a literal event name.
 
 ```ts
 import { telemetry } from "@destack/telemetry";
@@ -14,12 +14,11 @@ const { log } = telemetry.scope(import.meta.destack.package);
 
 log.info("note.saved", { length: text.length });
 log.info("user.invited", { "sensitive.email": invite.email, role: "editor" });
-log.error("note.sync.failed", telemetry.exceptionAttributes(error));
 ```
 
 ## Spans
 
-`span` runs a function in a child span of the active span, and `span.current` returns the active span, such as the call the platform traces.
+`span` runs a function in a child span of the active span.
 
 ```ts
 const { span } = telemetry.scope(import.meta.destack.package);
@@ -30,7 +29,7 @@ const html = await span("note.render", { blocks: 12 }, () => render(note));
 
 ## Metrics
 
-`metric.counter` declares the values each attribute takes, so the compiler bounds the series of the metric.
+`metric.counter` declares a counter and the values of each attribute.
 
 ```ts
 const { metric } = telemetry.scope(import.meta.destack.package);
@@ -42,47 +41,92 @@ const saves = metric.counter("note.saves", {
 saves.add(1, { notebook: "shared" });
 ```
 
+## Handled failures
+
+`captureException` and `captureMessage` record a handled failure as an `exception`.
+
+```ts
+const { captureException, captureMessage } = telemetry.scope(import.meta.destack.package);
+
+captureException(error, { tags: { feature: "export" }, attributes: { "export.id": id } });
+captureMessage("quota nearly reached", { level: "warning", fingerprint: ["quota"] });
+captureException(error, { isEscaped: true, tags: { controller: "deliveries" } });
+```
+
+## Uncaught failures
+
+`startTelemetry` records uncaught failures and exports them at once.
+
+```ts
+import { startTelemetry } from "@destack/telemetry/bun"; // uncaughtException, unhandledRejection
+import { startTelemetry as startBrowser } from "@destack/telemetry/browser"; // error, unhandledrejection
+import { withTelemetry } from "@destack/telemetry/worker"; // a failure the operation throws
+
+await startTelemetry(options);
+await startBrowser(options, window);
+await withTelemetry(options, () => handle(request), context);
+```
+
+## Error types
+
+`exceptionAttributes` sets `error.type` to a failure's service code, `code` or name.
+
+```ts
+import { ServiceError } from "@destack/service";
+
+telemetry.exceptionAttributes(new ServiceError("NOT_FOUND"), false)["error.type"]; // "NOT_FOUND"
+telemetry.exceptionAttributes(Object.assign(new Error("gone"), { code: "ENOENT" }), false)["error.type"]; // "ENOENT"
+```
+
+## Sessions
+
+`startSession` and `endSession` mark one run of the application.
+
+```ts
+telemetry.startSession();
+await saveNote(note); // a handled exception marks the session errored, an escaped one crashed
+telemetry.endSession(); // session.end { session.status }, session.count { session.status }
+```
+
 ## Sampling
 
-The sampler keeps the `ratio` of traces the exporter options name, and every trace that failed or ran slow.
+`exporter.options` samples a `ratio` of traces and keeps every failed or slow trace.
 
-```text
-a root whose random bits fall below the ratio   kept
-a child span                                    kept as its parent decided
-a local trace that failed or ran slow           buffered with its records and kept once its root ends
-a buffered trace evicted undecided              dropped, and counted in telemetry.tail.evicted
+```ts
+await startTelemetry(exporter.options(runner.package, { ratio: 0.1 }));
 ```
 
 ## Trace identifiers
 
-The trace identifier generator writes the creation millisecond into the first 6 bytes, so a lookup by identifier knows the time.
+`TraceIdGenerator` writes the creation time into the first 6 bytes of a trace identifier.
 
-```text
-0199a3f2c1b0 7a4e9f2d6c8b1e3a5f70
-└ Unix ms ─┘ └ 10 random bytes ─┘
+```ts
+import { TraceIdGenerator } from "@destack/telemetry/trace";
+
+const id = new TraceIdGenerator().generateTraceId(); // "0199a3f2c1b0" + 10 random bytes
+const createdAt = Number.parseInt(id.slice(0, 12), 16);
 ```
 
 ## Export
 
-`OtlpExporter.http` exports every signal as OTLP/JSON to the scope's monitor and passes refused deliveries and SDK failures to `report`.
+`OtlpExporter.http` exports every signal as OTLP/JSON to the scope's monitor.
 
 ```ts
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 
 const exporter = OtlpExporter.http(start.monitor, () => `Bearer ${credential}`, report);
-const running = await startTelemetry(
+await startTelemetry(
     exporter.options(runner.package, {
         attributes: { "service.instance.id": instance },
-        manifest: start.manifest,
-        ratio: 0.1,
+        manifest: start.manifest, // destack.build.manifest beside service.version
     }),
 );
 ```
 
 ## Browser export
 
-`OtlpExporter.origin` exports a page's signals to `/.destack/telemetry` on the page's origin with `keepalive`, so a delivery outlives the page, and the host records them for the installation.
+`OtlpExporter.origin` exports a page's signals to `/.destack/telemetry` on its origin.
 
 ```ts
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
@@ -90,40 +134,4 @@ import { OtlpExporter } from "@destack/telemetry/otlp";
 
 const exporter = OtlpExporter.origin(reportToDevtools);
 await startTelemetry(exporter.options(view.package, { manifest: bootstrap.manifest }));
-```
-
-## Release
-
-The resource of every signal names the release and the build manifest that emitted it, which the monitor uses to group failures by release and map stacks through source maps.
-
-```json
-{ "service.version": "2026.10.0", "destack.build.manifest": "e23ace0a…" }
-```
-
-## Capture
-
-Each runtime records an uncaught failure as an `exception` log record at `ERROR` in the active trace, with `exception.type`, `exception.message` and `exception.stacktrace`, and exports it at once.
-
-```text
-/bun      uncaughtException and unhandledRejection
-          waits up to two seconds for the export before raising the failure again,
-          ending the process as it would have ended, unless another listener handles it
-/browser  the window's error and unhandledrejection
-          leaves the browser's reporting, and exports again on pagehide and on visibilitychange to hidden
-/worker   a failure withTelemetry's operation throws
-          throws it on, exporting before the invocation ends
-```
-
-## Runtimes
-
-Each runtime's `startTelemetry` propagates context through async local storage on Bun, through the call stack in browsers and through the given context manager in workers.
-
-```ts
-import { startTelemetry } from "@destack/telemetry/bun";
-import { startTelemetry as startBrowser } from "@destack/telemetry/browser";
-import { startTelemetry as startWorker } from "@destack/telemetry/worker";
-
-await startTelemetry(options);
-await startBrowser(options, window); // DevtoolsExporter writes to the developer tools
-await startWorker(options, manager); // or withTelemetry per invocation
 ```

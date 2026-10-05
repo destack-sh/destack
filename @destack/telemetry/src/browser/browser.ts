@@ -17,8 +17,11 @@ export function startTelemetry(
     );
 }
 
-/** Record a window's uncaught errors and unhandled rejections, exporting them at once and whenever the page hides. */
+/** Record a window's session with its uncaught errors and unhandled rejections, exporting them at once and whenever the page hides. */
 export function captureWindow(telemetry: Telemetry, target: CaptureWindow): () => void {
+    // run the page's session from now until it hides
+    telemetry.startSession();
+
     // export what is buffered, the exporter reporting a failed delivery
     const flush = () => {
         void telemetry.flush().catch(() => {});
@@ -36,6 +39,12 @@ export function captureWindow(telemetry: Telemetry, target: CaptureWindow): () =
         flush();
     };
 
+    // end the session as the page goes away, exporting it
+    const onHide = () => {
+        telemetry.endSession();
+        flush();
+    };
+
     // export before the page hides, the last moment it reliably runs
     const onVisibility = () => {
         if (target.document.visibilityState === "hidden") {
@@ -48,7 +57,7 @@ export function captureWindow(telemetry: Telemetry, target: CaptureWindow): () =
     const { signal } = listening;
     target.addEventListener("error", onError, { signal });
     target.addEventListener("unhandledrejection", onRejection, { signal });
-    target.addEventListener("pagehide", flush, { signal });
+    target.addEventListener("pagehide", onHide, { signal });
     target.addEventListener("visibilitychange", onVisibility, { signal });
 
     return () => listening.abort();

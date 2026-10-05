@@ -2,14 +2,16 @@ import {
     type Attributes,
     context,
     type ContextManager,
+    type Counter,
     diag,
     DiagLogLevel,
     metrics,
     propagation,
     type TextMapPropagator,
     trace,
+    ValueType,
 } from "@opentelemetry/api";
-import { type Logger, logs } from "@opentelemetry/api-logs";
+import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
 import {
     CompositePropagator,
     W3CBaggagePropagator,
@@ -28,6 +30,7 @@ import {
     type TelemetryScope,
 } from "../scope/index.ts";
 import { TraceIdGenerator } from "../trace/generator.ts";
+import { type Session, SessionProcessor } from "../session/index.ts";
 
 /** Configure one application's identity and its three telemetry providers. */
 export interface TelemetryOptions {
@@ -64,8 +67,12 @@ export class Telemetry {
     readonly metrics: MeterProvider;
     /** The structured log provider. */
     readonly logs: LoggerProvider;
-    /** The application's own logger, recording uncaught failures. */
+    /** The application's own logger, recording uncaught failures and sessions. */
     private readonly logger: Logger;
+    /** The counter of ended sessions by status. */
+    private readonly sessionCount: Counter;
+    /** The processor stamping signals with the running session. */
+    private readonly sessionProcessor = new SessionProcessor();
     /** Remove only registrations made by this instance. */
     private readonly unregister: (() => void)[] = [];
     /** The shared shutdown operation. */
@@ -92,11 +99,23 @@ export class Telemetry {
         this.traces = new TracerProvider({
             idGenerator: new TraceIdGenerator(),
             ...options.traces,
+            spanProcessors: [this.sessionProcessor.spans, ...(options.traces.spanProcessors ?? [])],
             resource,
         });
         this.metrics = new MeterProvider({ ...options.metrics, resource });
-        this.logs = new LoggerProvider({ ...options.logs, resource });
+        this.logs = new LoggerProvider({
+            ...options.logs,
+            processors: [this.sessionProcessor.logs, ...(options.logs.processors ?? [])],
+            resource,
+        });
         this.logger = this.logs.getLogger(options.name, options.version);
+        this.sessionCount = this.metrics
+            .getMeter(options.name, options.version)
+            .createCounter("session.count", {
+                unit: "{session}",
+                description: "The sessions that ended, by how they ended.",
+                valueType: ValueType.INT,
+            });
     }
 
     /** Attribute instrumentation to a package using this instance's providers. */
@@ -111,6 +130,38 @@ export class Telemetry {
     /** Record an uncaught failure as an error log record in the active trace. */
     capture(error: unknown): void {
         emitException(this.logger, exceptionAttributes(error, true));
+    }
+
+    /** Start a session of a person using the application, ending the running one, after OpenTelemetry's session events. */
+    startSession(): Session {
+        // end the running session and start the next one
+        this.endSession();
+        const session = this.sessionProcessor.start();
+        this.logger.emit({
+            eventName: "session.start",
+            severityNumber: SeverityNumber.INFO,
+            severityText: "INFO",
+        });
+
+        return session;
+    }
+
+    /** End the running session, recording how it ended and counting it by its status. */
+    endSession(): Session | undefined {
+        // record the end in the session before closing it
+        const session = this.sessionProcessor.session;
+        if (session === undefined) {
+            return undefined;
+        }
+        this.logger.emit({
+            eventName: "session.end",
+            severityNumber: SeverityNumber.INFO,
+            severityText: "INFO",
+            attributes: { "session.status": session.status },
+        });
+        this.sessionCount.add(1, { "session.status": session.status });
+
+        return this.sessionProcessor.end();
     }
 
     /** Register providers, the host's context manager and the realm's capture once per application. */
