@@ -3,7 +3,7 @@ name: Deploy site
 on:
     workflow_dispatch:
     workflow_run:
-        workflows: [Check workspace]
+        workflows: [Check]
         types: [completed]
         branches: [main]
 
