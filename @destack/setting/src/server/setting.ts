@@ -1,12 +1,18 @@
 import { SpaceSetting } from "../declare/space.ts";
 import { setting, type SettingValue } from "../object/index.ts";
 import { SettingCatalog, SettingPlacement } from "../setting/index.ts";
-import { BuildCache } from "@destack/package/manifest";
-import { schema } from "@destack/schema";
-import type { OpenRelease } from "@destack/space/server";
+import { BuildCache, type BuildReader } from "@destack/package/manifest";
+import type { PackageId } from "@destack/package";
+import { schema, type Identifier } from "@destack/schema";
 
 /** Serve declared values, checking each written value and each value a stack places against its declaration. */
-export function serveSettings(release: OpenRelease) {
+export function serveSettings(
+    release: (
+        scope: string,
+        packageId: PackageId,
+        installationId?: Identifier<"installation">,
+    ) => Promise<BuildReader>,
+) {
     // read each release's settings once
     const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
 
@@ -63,7 +69,7 @@ export function serveSettings(release: OpenRelease) {
 async function requireDeclared(
     value: Parameters<typeof SettingPlacement.of>[0] &
         Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
-    release: OpenRelease,
+    release: Parameters<typeof serveSettings>[0],
     catalogs: BuildCache<SettingCatalog>,
 ): Promise<void> {
     // check it against the release its placement selects

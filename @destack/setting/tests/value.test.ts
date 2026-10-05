@@ -5,7 +5,7 @@ import { Subject, Scope } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { setting, SettingValue } from "../src/object/index.ts";
-import { alice, device, installation, named, selection, space } from "./fixture/value.ts";
+import { alice, installation, named, selection, space } from "./fixture/value.ts";
 import { editor, lineNumbers } from "./fixture/setting/index.ts";
 import { Storage } from "./fixture/storage.ts";
 
@@ -99,24 +99,6 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
-
-test.each(TEST_DIALECTS)("refuse values for devices no one registered on %s", async (dialect) => {
-    const storage = await Storage.open(dialect);
-    onTestFinished(() => storage.close());
-
-    // refuse a device no one registered
-    const unknown = storage.call(setting, "create", alice, {
-        ...named(editor),
-        mode: "set",
-        value: "vim",
-        release: editor.package.version,
-        deviceId: device,
-    });
-    expect(await refusal(unknown)).toEqual([
-        "BROKEN_REFERENCE",
-        "the change would leave a reference to a missing record",
-    ]);
-});
 
 test.each(TEST_DIALECTS)(
     "resolve a setting from the values placed along a scope's chain, and its default without one, on %s",

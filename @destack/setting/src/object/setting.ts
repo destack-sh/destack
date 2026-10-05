@@ -17,15 +17,11 @@ import { PackageId } from "@destack/package";
 import { SpaceSetting } from "../declare/space.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
 import { SettingName } from "../setting/setting.ts";
-import { account, device, organisation, user } from "@destack/account/object";
-import { host } from "@destack/account/object";
-import { space } from "@destack/space/object";
 
 /** A setting value placed in a scope. */
 export const setting = defineObject({
     name: "setting",
     plural: "settings",
-    scope: [user, space, account, organisation, host],
     declarable: { schema: SpaceSetting },
     // hand every value down to the scopes inside its scope
     inherited: {},
@@ -42,9 +38,8 @@ export const setting = defineObject({
         space: field.string(schema.identifier("space")).optional(),
         /** The installation the value applies to. */
         installation: field.string(schema.identifier("installation")).optional(),
-        // reference the device, which lives in the same user scope as the values set for it
         /** The user's device the value applies on. */
-        device: field.reference(device, { delete: "cascade" }).optional(),
+        deviceId: field.string(schema.identifier("device")).optional(),
 
         /** How the value applies. */
         mode: field.enum(SETTING_MODES),

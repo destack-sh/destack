@@ -4,7 +4,8 @@ import { Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/service/request";
 import { accessTables, principal } from "@destack/access";
-import { device, type Device } from "@destack/account/object";
+import { account, device, host, organisation, user, type Device } from "@destack/account/object";
+import { space } from "@destack/space/object";
 import type { Dialect } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
 import type { CallableName, CallOutput, ObjectType } from "@destack/object";
@@ -12,7 +13,6 @@ import { ObjectServer } from "@destack/object/server";
 
 import { settingTables } from "../../src/stack/index.ts";
 import { setting } from "../../src/object/index.ts";
-import type { OpenRelease } from "@destack/space/server";
 import { serveSettings } from "../../src/server/index.ts";
 import { defineService } from "@destack/service";
 import type { Setting } from "../../src/setting/index.ts";
@@ -32,7 +32,7 @@ export class Storage {
     /** Alice, who owns the scopes she writes in. */
     readonly subject: Subject;
     /** Open the fixture release declaring the settings. */
-    readonly release: OpenRelease;
+    readonly release: Parameters<typeof serveSettings>[0];
     /** The served setting values and devices. */
     readonly objects: ObjectServer<ReturnType<typeof serveSettings> & { device: typeof device }>;
 
@@ -45,6 +45,8 @@ export class Storage {
         this.release = () => Promise.resolve(reader);
         this.objects = new ObjectServer({
             objects: { ...serveSettings(this.release), device },
+            // decide access in the scopes the values live in
+            policies: [user, space, account, organisation, host].map((type) => type.policy),
             database: test.database,
             callKey: testCallKey,
             origin: { package: settingService.package, service: settingService.name },
