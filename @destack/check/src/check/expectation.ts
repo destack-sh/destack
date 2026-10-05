@@ -114,7 +114,9 @@ async function workspaceMembers(directory: string): Promise<string[]> {
                     next.push(
                         ...entries
                             .filter((entry) => entry.isDirectory())
-                            .map((entry) => resolve(parent, entry.name)),
+                            .map((entry) => entry.name)
+                            .toSorted()
+                            .map((name) => resolve(parent, name)),
                     );
                 } else {
                     next.push(resolve(parent, segment));
