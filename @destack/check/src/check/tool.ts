@@ -5,9 +5,6 @@ import { basename, join } from "node:path";
 import process from "node:process";
 import { CheckError } from "../error/index.ts";
 
-/** The longest a checking tool runs, in milliseconds, well above a package lint's few seconds. */
-const TOOL_TIMEOUT = 30_000;
-
 /** Captured output from a pinned checking tool. */
 export interface ToolResult {
     /** The exit status, including ordinary diagnostic failures. */
@@ -35,7 +32,7 @@ export async function runTool(
         // run the child with its output in the file
         const { code, stderr } = await new Promise<{ code: number; stderr: string }>(
             (complete, reject) => {
-                // bound the child lifetime and propagate caller cancellation
+                // run the child under the caller's cancellation
                 const child = spawn(
                     process.execPath,
                     ["run", "--no-env-file", executable, ...toolArguments],
@@ -43,10 +40,7 @@ export async function runTool(
                         cwd: directory,
                         env: { ...(environment ?? process.env), BUN_BE_BUN: "1" },
                         stdio: ["ignore", output.fd, "pipe"],
-                        signal: AbortSignal.any([
-                            AbortSignal.timeout(TOOL_TIMEOUT),
-                            ...(signal ? [signal] : []),
-                        ]),
+                        ...(signal === undefined ? {} : { signal }),
                     },
                 );
 

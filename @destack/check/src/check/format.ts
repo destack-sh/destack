@@ -8,6 +8,9 @@ import { runTool, type ToolResult } from "./tool.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { CheckError } from "../error/index.ts";
 
+/** The longest the formatter runs, in milliseconds, far above formatting a scope's sources. */
+const FORMAT_TIMEOUT = 30_000;
+
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -64,7 +67,10 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
                 ...(options.files ?? ["src"]).map((file) => resolve(options.directory, file)),
             ],
             resolve(options.directory),
-            options.signal,
+            AbortSignal.any([
+                AbortSignal.timeout(FORMAT_TIMEOUT),
+                ...(options.signal === undefined ? [] : [options.signal]),
+            ]),
         );
     } finally {
         await rm(temporary, { recursive: true });
