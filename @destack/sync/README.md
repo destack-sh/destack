@@ -299,3 +299,13 @@ await Scope.fence(database, spaceId, targetCell, Date.now()); // writes to the s
 await Scope.guard(transaction, [spaceId]); // keeps a write's scopes unfenced until it commits
 await Scope.unfence(database, spaceId);
 ```
+
+## Errors
+
+A copy, subscription or scope the source cannot serve throws a `SyncError`, and `toServiceError` names the service error its caller receives, such as `OVERLOADED` as `SERVICE_UNAVAILABLE`.
+
+```ts
+import { SyncError } from "@destack/sync";
+
+new SyncError("NOT_FOUND", "unknown scope: space-…").toServiceError(); // { code: "NOT_FOUND", … }
+```
