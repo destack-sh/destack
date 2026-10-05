@@ -102,19 +102,6 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
                 }),
             ),
         }),
-        clientInterceptors: [
-            async (interception) => {
-                try {
-                    return await interception.next();
-                } catch (error) {
-                    // map audit failures to service failures
-                    if (error instanceof AuditError) {
-                        throw error.toServiceError();
-                    }
-                    throw error;
-                }
-            },
-        ],
     };
 }
 

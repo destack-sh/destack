@@ -1,4 +1,4 @@
-import { ServiceError } from "@destack/service/error";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
 
 /** The service error code of each audit failure. */
 const SERVICE_CODES = {
@@ -7,22 +7,25 @@ const SERVICE_CODES = {
     FORBIDDEN: "FORBIDDEN",
     NOT_FOUND: "NOT_FOUND",
     UNAVAILABLE: "UNAVAILABLE",
-} as const;
+} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+
+/** A failure code of audit history. */
+export type AuditErrorCode = keyof typeof SERVICE_CODES;
 
 /** An audit failure. */
-export class AuditError extends Error {
+export class AuditError extends Error implements ReportableError {
     /** The error classification. */
-    readonly code: keyof typeof SERVICE_CODES;
+    readonly code: AuditErrorCode;
 
     /** Create the error with its code and cause. */
-    constructor(code: AuditError["code"], message: string, options?: ErrorOptions) {
+    constructor(code: AuditErrorCode, message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "AuditError";
         this.code = code;
     }
 
     /** Convert the failure to the service error a caller receives. */
-    toServiceError() {
-        return new ServiceError(SERVICE_CODES[this.code], { message: this.message, cause: this });
+    toServiceError(): ServiceErrorReport {
+        return { code: SERVICE_CODES[this.code], message: this.message };
     }
 }

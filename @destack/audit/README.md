@@ -126,10 +126,10 @@ export const histories = defineDatabase({ name: "history", tables: auditTables }
 
 ## Errors
 
-A refused or failed audit operation throws an `AuditError`, and `toServiceError` answers it as the service error a caller receives.
+A refused or failed audit operation throws an `AuditError`, and `toServiceError` names the service error its caller receives.
 
 ```ts
 import { AuditError } from "@destack/audit/error";
 
-throw new AuditError("NOT_FOUND", "audited call not found").toServiceError(); // NOT_FOUND
+new AuditError("NOT_FOUND", "audited call not found").toServiceError(); // { code: "NOT_FOUND", message: "audited call not found" }
 ```
