@@ -39,13 +39,13 @@ The closest to malleable software we have today are constrained sandboxes like E
 [Path editing in Tiny Glade](https://www.youtube.com/watch?v=CdWpq2efN8Y) — Pounce Light, trailer excerpt.
 :::
 
-Yet, our new class of machine user demands the broadest possilbe access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
+Yet, our new class of machine user demands the broadest possible access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
 Agents are on pace to outnumber human users by multiple orders of magnitude very soon, but they are awkwardly caged in by last century's software stack.
 
 Until very recently, the key issue with "malleable software" was that approximately nobody _wants_ to build *and maintain* "owned software".
 Building custom software is enticing but difficult: it never ends, it rarely works _quite_ as well as the off-the-shelf SaaS alternative, and in any case there was little benefit to owning the stack.
 
-Now, the equation has flipped - building is cheap, the lack of integration and control is expensive.
+Now, the equation has flipped: building is cheap, and the lack of integration is what's expensive.
 How do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
 It simply does not compute - the depth of integration required is impossible to achieve by merely tying together slices of the old stack.
 
@@ -59,8 +59,7 @@ If software is solved, why is there still so much bad software?
 And how _do_ we solve it?
 How do we put the "engineering" into "software engineering"?
 
-Excruciaingly, there are all these amazing new probabilistic computing capabilities to embed deep and wide into our symbolic stack.
-Where is all the automation? 
+There are all these amazing new probabilistic computing capabilities to embed deep and wide into our symbolic stack, but where is all the automation? 
 Why aren't all form fields automatically pre-filled?
 Why doesn't _every_ textbox have autocomplete based on my own profile..?
 
@@ -81,7 +80,7 @@ We gradually remove ourselves from the cumbersome burden of having to actually s
 :::
 
 Programming, then, is just reified problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
-We used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code, but really, it doesn't have to be any formal language at all.
+We used to solve software-shaped problems with artisanal human-directed next-character-prediction of symbolic code, but really, it doesn't have to be any formal language at all.
 
 The idea of programming beyond code is as old as code itself, and there is broad and successful prior art on "higher order programming".
 Most prominently, game developers have been doing this for _decades_:
@@ -111,7 +110,7 @@ Now, we also need a "software engine": a "game engine"-like abstraction of _inte
 # The System and The Meta System
 
 Fundamentally, there is not a single test, certificate, proof, or "magic gate" that you can run to convince me that some non-trivial software program is correct.
-The correctness of any complex software systems spans many granuliarities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_.
+The correctness of any complex software systems spans many granularities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_.
 
 Oddly, the primary objective of "software factories" seems to be about _removing_ oneself from _all_ the details without any sufficient higher order specification to anchor this new higher order process.
 In frighteningly short order, steering exclusively through the peephole of a chat window makes it almost impossible to figure out where to go next and how to get there.
@@ -120,7 +119,7 @@ In frighteningly short order, steering exclusively through the peephole of a cha
 [Timber centering supporting a masonry vault, 1856](https://commons.wikimedia.org/wiki/File:Construction.voute.romaine.png) — Eugène Viollet-le-Duc, public domain.
 :::
 
-To only way to judge correctness for general purpose software - that is: does it do what it should? - is to look, to see the software in motion under many different angles and granularities.
+The only way to judge correctness for general purpose software - that is: does it do what it should? - is to look, to see the software in motion under many different angles and granularities.
 Notably, this is not an intelligence problem at all - it's a human problem, and a real world integration problem; I just don't know what I want until I see it.
 
 <!--Building any software system and making sure it works and keeps working is an iterative process that requires constant feedback and continuous alignment as the shape and understanding of the problem evolves.
@@ -133,7 +132,7 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 # The Destack
 
 Software should be open, hackable, remixable - a stack you can own, without the hassle of traditional software ownership.
-To make it so, we need a "software engine": a stable platform of _integrated_ building blocks designed for iteration and higher order programming of fluid software _without_ giving up on the benefits of modern stacks and the cloud.
+To make it so, we need a "software engine": a stable platform of _integrated_ building blocks designed for iteration and higher order programming of fluid, just-in-time software _without_ giving up on the benefits of modern stacks and the cloud.
 
 So.
 How do we get there, from here?
@@ -164,8 +163,8 @@ Completely standardised, as much "set and forget" by default as possible.
 <!-- TODO: demo #2 -->
 
 Following the game engine model, Destack integrates libraries and tools for interactively building, understanding, and refining software products, all based on modern best practices.
-It's as indescructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
-Or any combination.
+It's as indestructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
+(Or any combination.)
 
 <!-- TODO: demo #2 -->
 
