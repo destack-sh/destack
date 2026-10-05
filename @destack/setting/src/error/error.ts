@@ -1,4 +1,4 @@
-import { ServiceError } from "@destack/service/error";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
 
 /** The service error code of each setting failure. */
 const SERVICE_CODES = {
@@ -6,22 +6,25 @@ const SERVICE_CODES = {
     INVALID_VALUE: "BAD_REQUEST",
     INVALID_PLACEMENT: "BAD_REQUEST",
     CONFLICT: "CONFLICT",
-} as const;
+} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+
+/** A failure code of setting declarations, placements and resolution. */
+export type SettingErrorCode = keyof typeof SERVICE_CODES;
 
 /** A setting declaration, placement or resolution failure. */
-export class SettingError extends Error {
+export class SettingError extends Error implements ReportableError {
     /** The failure category. */
-    readonly code: keyof typeof SERVICE_CODES;
+    readonly code: SettingErrorCode;
 
     /** Report a setting failure. */
-    constructor(code: SettingError["code"], message: string) {
+    constructor(code: SettingErrorCode, message: string) {
         super(message);
         this.name = "SettingError";
         this.code = code;
     }
 
     /** Convert the failure to the service error a caller receives. */
-    toServiceError() {
-        return new ServiceError(SERVICE_CODES[this.code], { message: this.message, cause: this });
+    toServiceError(): ServiceErrorReport {
+        return { code: SERVICE_CODES[this.code], message: this.message };
     }
 }

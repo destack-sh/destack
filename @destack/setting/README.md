@@ -137,10 +137,10 @@ export const spaceDatabase = defineDatabase({
 
 ## Errors
 
-A setting failure throws a `SettingError`, and `toServiceError` answers it as the service error a caller receives.
+A setting failure throws a `SettingError`, and `toServiceError` names the service error its caller receives.
 
 ```ts
 import { SettingError } from "@destack/setting/error";
 
-throw new SettingError("UNDECLARED", "no setting editor.mode").toServiceError(); // NOT_FOUND
+new SettingError("UNDECLARED", "no setting editor.mode").toServiceError(); // { code: "NOT_FOUND", message: "no setting editor.mode" }
 ```

@@ -112,9 +112,12 @@ test.each(TEST_DIALECTS)(
                 apply({ editor: { setting: editor.reference, value: "vim", mode: "set" } }),
             ),
         ]).toEqual([
-            ["BAD_REQUEST", "setting value does not match its declaration"],
-            ["NOT_FOUND", `setting ${notes.id}/editor.theme is not declared`],
-            ["BAD_REQUEST", "setting value outside its declared scope must recommend or require"],
+            ["INVALID_VALUE", "setting value does not match its declaration"],
+            ["UNDECLARED", `setting ${notes.id}/editor.theme is not declared`],
+            [
+                "INVALID_PLACEMENT",
+                "setting value outside its declared scope must recommend or require",
+            ],
         ]);
 
         // turn the recommendation into a requirement of the space's users

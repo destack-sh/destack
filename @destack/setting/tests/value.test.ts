@@ -79,7 +79,7 @@ test.each(TEST_DIALECTS)(
 
         // refuse a second value at the same placement, values the setting rejects on creation
         //  and update, a value of a later release, an undeclared setting, and misplaced values
-        const mismatch = ["BAD_REQUEST", "setting value does not match its declaration"];
+        const mismatch = ["INVALID_VALUE", "setting value does not match its declaration"];
         expect([
             await refusal(create({})),
             await refusal(create({ value: "emacs" })),
@@ -92,10 +92,10 @@ test.each(TEST_DIALECTS)(
             ["DUPLICATE", "a record with the same unique key exists"],
             mismatch,
             mismatch,
-            ["BAD_REQUEST", "setting value is at release 2026.10.0, its declaration at 2026.9.0"],
-            ["NOT_FOUND", `setting ${editor.reference.packageId}/editor.theme is not declared`],
-            ["BAD_REQUEST", "setting value in its declared scope must be set"],
-            ["BAD_REQUEST", "setting value uses an unsupported setting override"],
+            ["INVALID_VALUE", "setting value is at release 2026.10.0, its declaration at 2026.9.0"],
+            ["UNDECLARED", `setting ${editor.reference.packageId}/editor.theme is not declared`],
+            ["INVALID_PLACEMENT", "setting value in its declared scope must be set"],
+            ["INVALID_PLACEMENT", "setting value uses an unsupported setting override"],
         ]);
     },
 );
