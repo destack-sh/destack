@@ -1,6 +1,8 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { v7 } from "uuid";
-import type { Keychain } from "./keychain.ts";
+import { HostError } from "../error/index.ts";
+import type { WrappedKey } from "../key/key.ts";
+import { Keychain } from "./keychain.ts";
 
 /** The bytes of a root key, an AES-256 key. */
 const ROOT_KEY_BYTES = 32;
@@ -17,33 +19,6 @@ const Keyset = schema.object({
 });
 /** The root keys a keychain keeps under one name. */
 type Keyset = schema.Infer<typeof Keyset>;
-
-/** A key wrapped under a keyring: the wrapping key's version, and the wrapped bytes with their nonce. */
-export const WrappedKey = defineSchema(
-    schema.object({
-        /** The version of the key it is wrapped under. */
-        keyId: schema.string().min(1),
-        /** The base64 wrapped bytes with their authentication tag. */
-        wrappedKey: schema.base64(),
-        /** The base64 nonce. */
-        keyNonce: schema.base64(),
-    }),
-);
-/** A key wrapped under a keyring. */
-export type WrappedKey = schema.Infer<typeof WrappedKey>;
-
-/** A failure of a keyring's keys, without their bytes. */
-export class KeyringError extends Error {
-    /** The failure's category. */
-    readonly code: "KEY_UNAVAILABLE" | "DECRYPTION_FAILED" | "INVALID_KEY";
-
-    /** Report a failure without its cryptographic inputs. */
-    constructor(code: KeyringError["code"], message: string) {
-        super(message);
-        this.name = "KeyringError";
-        this.code = code;
-    }
-}
 
 /** Versioned wrapping keys used to encrypt and decrypt data keys. */
 export interface Keyring {
@@ -67,41 +42,33 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Open the root keys a keychain keeps under a name, generating the first one when none is kept. */
-    static async open(keychain: Keychain, name: string): Promise<LocalKeyring> {
-        // keep a first key when the keychain has none
-        const kept = await keychain.load(name);
-        const keys = kept === undefined ? LocalKeyring.#generate() : Keyset.parse(JSON.parse(kept));
-        if (kept === undefined) {
-            await keychain.save(name, JSON.stringify(keys));
-        }
-
-        return LocalKeyring.#from(keys);
+    static open(keychain: Keychain, name: string): Promise<LocalKeyring> {
+        return LocalKeyring.#change(keychain, name, (keys) => keys ?? LocalKeyring.#generate());
     }
 
     /** Keep a new active root key beside the others. */
-    static async rotate(keychain: Keychain, name: string): Promise<LocalKeyring> {
-        const keys = LocalKeyring.#generate(await LocalKeyring.#load(keychain, name));
-        await keychain.save(name, JSON.stringify(keys));
-
-        return LocalKeyring.#from(keys);
+    static rotate(keychain: Keychain, name: string): Promise<LocalKeyring> {
+        return LocalKeyring.#change(keychain, name, (keys) =>
+            LocalKeyring.#generate(LocalKeyring.#required(keys, name)),
+        );
     }
 
     /** Forget a root key, refusing the active one and one the keychain does not keep. */
-    static async retire(keychain: Keychain, name: string, id: string): Promise<LocalKeyring> {
-        // refuse forgetting the active key or an unknown one
-        const keys = await LocalKeyring.#load(keychain, name);
-        if (keys.active === id) {
-            throw new KeyringError("INVALID_KEY", "cannot retire the active root key");
-        } else if (!Object.hasOwn(keys.keys, id)) {
-            throw new KeyringError("INVALID_KEY", `no root key ${id} is kept as ${name}`);
-        }
+    static retire(keychain: Keychain, name: string, id: string): Promise<LocalKeyring> {
+        return LocalKeyring.#change(keychain, name, (kept) => {
+            // refuse forgetting the active key or an unknown one
+            const keys = LocalKeyring.#required(kept, name);
+            if (keys.active === id) {
+                throw new HostError("INVALID_KEY", "cannot retire the active root key");
+            } else if (!Object.hasOwn(keys.keys, id)) {
+                throw new HostError("INVALID_KEY", `no root key ${id} is kept as ${name}`);
+            }
 
-        // keep the other keys
-        const { [id]: _retired, ...others } = keys.keys;
-        const kept = { active: keys.active, keys: others };
-        await keychain.save(name, JSON.stringify(kept));
+            // keep the other keys
+            const { [id]: _retired, ...others } = keys.keys;
 
-        return LocalKeyring.#from(kept);
+            return { active: keys.active, keys: others };
+        });
     }
 
     /** Import independently generated 256-bit root keys. */
@@ -110,14 +77,14 @@ export class LocalKeyring implements Keyring {
         values: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     ): Promise<LocalKeyring> {
         if (active === "" || !values.has(active)) {
-            throw new KeyringError("INVALID_KEY", "active root key is missing");
+            throw new HostError("INVALID_KEY", "active root key is missing");
         }
 
         // validate all versions before accepting the deployment
         const keys = new Map<string, CryptoKey>();
         for (const [id, value] of values) {
             if (id === "" || value.length !== ROOT_KEY_BYTES) {
-                throw new KeyringError("INVALID_KEY", "root keys require a version and 32 bytes");
+                throw new HostError("INVALID_KEY", "root keys require a version and 32 bytes");
             }
             keys.set(
                 id,
@@ -170,18 +137,39 @@ export class LocalKeyring implements Keyring {
             if (!(error instanceof DOMException && error.name === "OperationError")) {
                 throw error;
             }
-            throw new KeyringError("DECRYPTION_FAILED", "data key authentication failed");
+            throw new HostError("DECRYPTION_FAILED", "data key authentication failed");
         }
     }
 
-    /** Read the root keys a keychain keeps under an existing name. */
-    static async #load(keychain: Keychain, name: string): Promise<Keyset> {
-        const kept = await keychain.load(name);
-        if (kept === undefined) {
-            throw new KeyringError("KEY_UNAVAILABLE", `no root keys are kept as ${name}`);
+    /** Change the root keys a keychain keeps under a name, and open the keys finally kept. */
+    static async #change(
+        keychain: Keychain,
+        name: string,
+        change: (keys: Keyset | undefined) => Keyset,
+    ): Promise<LocalKeyring> {
+        // change the parsed keys, keeping the kept text when they are unchanged
+        const kept = await Keychain.update(keychain, name, (text) => {
+            const keys = text === undefined ? undefined : LocalKeyring.#parse(text);
+            const changed = change(keys);
+
+            return changed === keys && text !== undefined ? text : JSON.stringify(changed);
+        });
+
+        return LocalKeyring.#from(LocalKeyring.#parse(kept));
+    }
+
+    /** Parse a kept keyset. */
+    static #parse(text: string): Keyset {
+        return Keyset.parse(JSON.parse(text));
+    }
+
+    /** Refuse a name the keychain keeps no root keys under. */
+    static #required(keys: Keyset | undefined, name: string): Keyset {
+        if (keys === undefined) {
+            throw new HostError("KEY_UNAVAILABLE", `no root keys are kept as ${name}`);
         }
 
-        return Keyset.parse(JSON.parse(kept));
+        return keys;
     }
 
     /** Import a kept keyset. */
@@ -206,7 +194,7 @@ export class LocalKeyring implements Keyring {
     #get(id: string): CryptoKey {
         const key = this.#keys.get(id);
         if (key === undefined) {
-            throw new KeyringError("KEY_UNAVAILABLE", "required root key is unavailable");
+            throw new HostError("KEY_UNAVAILABLE", "required root key is unavailable");
         }
 
         return key;
