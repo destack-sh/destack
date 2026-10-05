@@ -9,10 +9,10 @@ import { expect, onTestFinished, single, test } from "@destack/test";
 import { LocalKeyring } from "@destack/host/keychain";
 import { VaultKey } from "../encryption/index.ts";
 import { secret, secretVersion, vault, SecretVersion } from "../object/index.ts";
-import { LOCATION, VaultFixture } from "../server/tests/fixture.ts";
+import { LOCATION, VaultFixture } from "../test/index.ts";
 import { vaultKey } from "../stack/index.ts";
-import { cellTables } from "../server/tests/fixture.ts";
-import { vaultProvider } from "./provider.ts";
+import { spaceDatabase } from "@destack/space/stack";
+import { KeyringVaultHost, vaultProvider } from "./provider.ts";
 
 /** Copy the rows of the zone tables a target lacks, as a transfer's zone copy does. */
 async function copyZone(from: DatabaseConnection, to: DatabaseConnection): Promise<void> {
@@ -33,7 +33,7 @@ test.each(TEST_DIALECTS)(
         // keep a secret value on the source, and copy the zone's rows to the target
         await using fixture = await VaultFixture.open(dialect);
         const { first } = await fixture.createSecret();
-        const target = await TestDatabase.create(dialect, cellTables, { isMigrated: true });
+        const target = await TestDatabase.create(dialect, spaceDatabase, { isMigrated: true });
         onTestFinished(() => target.close());
         await copyZone(fixture.database, target.database);
 
@@ -42,8 +42,12 @@ test.each(TEST_DIALECTS)(
             "two",
             new Map([["two", crypto.getRandomValues(new Uint8Array(32))]]),
         );
-        const source = vaultProvider(fixture.database, await fixture.keyring(), LOCATION);
-        const destination = vaultProvider(target.database, targetKeyring, "us");
+        const source = vaultProvider(
+            new KeyringVaultHost(fixture.database, await fixture.keyring(), LOCATION),
+        );
+        const destination = vaultProvider(
+            new KeyringVaultHost(target.database, targetKeyring, "us"),
+        );
 
         // wrap the key for the target's recipient, then under the target's root key
         const recipient = await Recipient.generate();
@@ -74,7 +78,7 @@ test.each(TEST_DIALECTS)(
         const { client, database } = fixture;
         const { key } = await fixture.createSecret();
         const keyring = await fixture.keyring();
-        const provider = vaultProvider(database, keyring, LOCATION);
+        const provider = vaultProvider(new KeyringVaultHost(database, keyring, LOCATION));
         const record = {
             id: fixture.vaultId,
             scope: fixture.spaceId,
