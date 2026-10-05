@@ -18,3 +18,7 @@ variable "major_version" {
   description = "Postgres major version."
   type        = string
 }
+variable "processes" {
+  description = "The processes connecting with roles of their own, each creating its services' schemas."
+  type        = set(string)
+}
