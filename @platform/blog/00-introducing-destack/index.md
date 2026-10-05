@@ -135,7 +135,8 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 Software should be open, hackable, remixable - a stack you can own, without the hassle of traditional software ownership.
 To make it so, we need a "software engine": a stable platform of _integrated_ building blocks designed for iteration and higher order programming of fluid software _without_ giving up on the benefits of modern stacks and the cloud.
 
-So. How do we get there, from here?
+So.
+How do we get there, from here?
 What even is this ideal "final stack"?
 It can't be too different, or nobody - human or agent - would know how to use it.
 Paradoxically, now is _not_ the time to figure out an "ideal second system" _from scratch_, the final stack must trace the old stack (for better and worse).
