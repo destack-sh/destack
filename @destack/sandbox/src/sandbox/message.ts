@@ -50,7 +50,7 @@ export const LauncherRequest = schema.discriminatedUnion("type", [
         /** Stop this workload. */
         type: schema.literal("stop"),
         /** Graceful shutdown duration in milliseconds. */
-        gracePeriodMs: schema.int().min(0),
+        gracePeriod: schema.int().min(0),
     }),
 ]);
 

@@ -23,7 +23,7 @@ export class Sandbox implements AsyncDisposable {
     readonly stdout: Readable;
     /** Workload standard error. */
     readonly stderr: Readable;
-    /** Workload termination after manager cleanup; rejects on launcher or cleanup failure. */
+    /** The workload's termination after manager cleanup, rejecting on a launcher or cleanup failure. */
     readonly exited: Promise<SandboxExit>;
     /** The launcher process outside the workload sandbox. */
     readonly #launcher: ChildProcess;
@@ -44,7 +44,7 @@ export class Sandbox implements AsyncDisposable {
         this.exited = exited;
     }
 
-    /** Spawn a restricted command; application readiness is reported by the application. */
+    /** Spawn a restricted command, whose application reports its own readiness. */
     static async start(options: SandboxOptions): Promise<Sandbox> {
         // refuse unsupported hosts and unsafe paths before spawning
         await requireSupport();
@@ -74,13 +74,13 @@ export class Sandbox implements AsyncDisposable {
         }
     }
 
-    /** Stop the workload's process group and release its proxies; detached children may survive. */
-    stop(gracePeriodMs = STOP_TIMEOUT_MILLISECONDS): Promise<SandboxExit> {
+    /** Stop the workload's process group and release its proxies, which may leave detached children running. */
+    stop(gracePeriod = STOP_TIMEOUT_MILLISECONDS): Promise<SandboxExit> {
         // require a bounded grace period
         if (
-            !Number.isSafeInteger(gracePeriodMs) ||
-            gracePeriodMs < 0 ||
-            gracePeriodMs > MAX_STOP_TIMEOUT_MILLISECONDS
+            !Number.isSafeInteger(gracePeriod) ||
+            gracePeriod < 0 ||
+            gracePeriod > MAX_STOP_TIMEOUT_MILLISECONDS
         ) {
             throw new RangeError(
                 `grace period must be between 0 and ${MAX_STOP_TIMEOUT_MILLISECONDS} milliseconds`,
@@ -88,16 +88,16 @@ export class Sandbox implements AsyncDisposable {
         }
 
         // share one shutdown request and deadline across callers
-        this.#stopping ??= this.#stop(gracePeriodMs);
+        this.#stopping ??= this.#stop(gracePeriod);
 
         return this.#stopping;
     }
 
     /** Request shutdown once and wait for manager cleanup. */
-    async #stop(gracePeriodMs: number): Promise<SandboxExit> {
+    async #stop(gracePeriod: number): Promise<SandboxExit> {
         if (this.#launcher.connected) {
             await new Promise<void>((resolve, reject) => {
-                this.#launcher.send({ type: "stop", gracePeriodMs }, (cause) => {
+                this.#launcher.send({ type: "stop", gracePeriod }, (cause) => {
                     if (cause) {
                         reject(new SandboxError("STOP_FAILED", "cannot stop sandbox", { cause }));
                     } else {

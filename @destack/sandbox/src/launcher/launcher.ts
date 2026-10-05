@@ -39,7 +39,7 @@ export async function runLauncher(): Promise<void> {
     const stopped = new AbortController();
     let child: ChildProcess | undefined;
     let exit: SandboxExit | undefined;
-    let gracePeriodMs = 0;
+    let gracePeriod = 0;
     process.on("disconnect", () => {
         stopped.abort();
         request.reject(new SandboxError("START_FAILED", "sandbox parent disconnected"));
@@ -51,7 +51,7 @@ export async function runLauncher(): Promise<void> {
         if (message.type === "start") {
             request.resolve(message.options);
         } else if (message.type === "stop") {
-            gracePeriodMs = message.gracePeriodMs;
+            gracePeriod = message.gracePeriod;
             stopped.abort();
         }
     });
@@ -126,7 +126,7 @@ export async function runLauncher(): Promise<void> {
         let timeout: ReturnType<typeof setTimeout> | undefined;
         const stop = () => {
             signalGroup(workload, "SIGTERM");
-            timeout = setTimeout(() => signalGroup(workload, "SIGKILL"), gracePeriodMs);
+            timeout = setTimeout(() => signalGroup(workload, "SIGKILL"), gracePeriod);
         };
         stopped.signal.addEventListener("abort", stop, { once: true });
         if (stopped.signal.aborted) {
@@ -173,14 +173,14 @@ function quote(value: string): string {
 
 /** Signal the workload process group, accepting an already terminated group. */
 function signalGroup(child: ChildProcess, signal: NodeJS.Signals): void {
-    // leave exited workloads alone; their process group id may already be reused
+    // leave exited workloads alone, since their process group id may already be reused
     if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
         return;
     }
     try {
         process.kill(-child.pid, signal);
     } catch (error) {
-        // accept groups that are gone; macOS reports groups of exited, unreaped workloads as not permitted
+        // accept gone groups, which macOS reports as not permitted for exited, unreaped workloads
         const isGone =
             error instanceof Error &&
             "code" in error &&
