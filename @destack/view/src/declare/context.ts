@@ -15,6 +15,9 @@ export const DISPLAY_PATH = "/.destack/display";
 /** The same-origin host path below which a browser registers its device and binds its view credential to it. */
 export const DEVICE_PATH = "/.destack/device";
 
+/** The same-origin host path below which a view calls the platform services it declares, each at its service mount. */
+export const PLATFORM_PATH = "/.destack/platform";
+
 /** The query parameter of the open path with the object to open, as JSON. */
 export const OBJECT_PARAMETER = "object";
 

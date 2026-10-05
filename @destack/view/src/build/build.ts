@@ -52,6 +52,7 @@ export const viewExtension: BuildExtension = {
                 permissions: view.permissions,
                 capabilities,
                 presents: view.presents,
+                services: view.services,
             };
         }
 
@@ -81,6 +82,8 @@ interface LocatedView extends DeclarationModule {
     readonly permissions: ViewDescription["permissions"];
     /** The object types the view presents. */
     readonly presents: ViewDescription["presents"];
+    /** The packages of the platform services the view calls. */
+    readonly services: ViewDescription["services"];
 }
 
 /** Locate the views the package declares through the modules exporting them. */
@@ -101,15 +104,17 @@ function locate(compilation: Compilation): LocatedView[] {
             throw new TypeError(`duplicate view: ${declaration.name}`);
         }
 
-        // keep the module exporting the view, its permissions and the types it presents
+        // keep the module exporting the view, its permissions, the types it presents and the services it calls
         const { description } = declaration;
         const permissions = ViewDescription.shape.permissions.parse(description["permissions"]);
         const presents = ViewDescription.shape.presents.parse(description["presents"]);
+        const services = ViewDescription.shape.services.parse(description["services"]);
         views.push({
             name: declaration.name,
             ...compilation.locate(declaration),
             permissions,
             presents,
+            services,
         });
     }
 

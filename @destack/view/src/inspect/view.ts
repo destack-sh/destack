@@ -6,11 +6,12 @@ import type { View } from "../declare/view.ts";
 /** The object types a view's description presents, beside its name and permissions. */
 const Presents = schema.looseObject({ presents: schema.array(ViewPresentation) });
 
-/** Describe a view by its name, the permissions it requests by scope and the object types it presents. */
+/** Describe a view by its name, the permissions it requests by scope, the object types it presents and the platform services it calls. */
 export function describeView(view: View): {
     readonly name: string;
     readonly permissions: ViewDescription["permissions"];
     readonly presents: readonly ViewPresentation[];
+    readonly services: ViewDescription["services"];
 } {
     // describe the permissions of each scope as plain references
     const permissions: ViewDescription["permissions"] = Object.fromEntries(
@@ -28,6 +29,7 @@ export function describeView(view: View): {
             type: object.name,
             priority,
         })),
+        services: view.services.map((service) => service.package.id),
     };
 }
 

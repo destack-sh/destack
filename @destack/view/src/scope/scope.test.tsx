@@ -114,6 +114,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
             CONTEXT,
             { [BOARD_ID]: client },
             [],
+            new Map(),
         ),
     );
     await expect.poll(() => element.textContent).toBe("ApplesBread");
@@ -147,6 +148,7 @@ test("fail access to an object type the view's space does not hold into the erro
             CONTEXT,
             { [BOARD_ID]: client },
             [],
+            new Map(),
         ),
     );
     expect(element.textContent).toBe("the client has no object board");

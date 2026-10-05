@@ -4,7 +4,7 @@ Render interfaces with Solid 2.
 
 ## Usage
 
-The package root exports the Solid reactive runtime, and `@destack/view/render` exports `render`.
+The package root exports the Solid reactive runtime.
 
 ```ts
 import { createSignal } from "@destack/view";
@@ -13,9 +13,7 @@ import { render } from "@destack/view/render";
 
 ## Views
 
-`defineView` declares a view with the object types it opens, the permissions it requests and the object types it presents, and opening an object picks the view that presents its type.
-Each permission sits under the scope it applies in, relative to the view's context: `space` for the space the view runs in, `home` for the person's home and `account` for the space's account.
-The view opens each object type in the scopes it requests permissions on that type in, and requests each permission in one scope only.
+`defineView` declares a view with the object types it opens and the permissions it requests.
 
 ```ts
 import { defineView } from "@destack/view/declare";
@@ -33,9 +31,28 @@ export const notes = defineView({
 });
 ```
 
+## Platform services
+
+`useService` calls a platform service that the view declares in `services`.
+
+```tsx
+export const issues = defineView({
+    name: "issues",
+    objects,
+    permissions,
+    services: [monitorService],
+    component,
+});
+
+const monitor = useService(monitorService);
+const page = createMemo(() =>
+    monitor.search({ scope, attributes: { "destack.issue": id }, from, before, limit }),
+);
+```
+
 ## Commands
 
-`defineCommand` names a call of one method that the shell offers in its command menu, menus, shortcuts, the terminal and agents.
+`defineCommand` declares a method call that the shell offers in menus, shortcuts and the terminal.
 
 ```ts
 import { defineCommand } from "@destack/view/declare";
@@ -51,7 +68,7 @@ export const archive = defineCommand({
 
 ## Context
 
-`useView` returns what the host gives the view: its installation, space, account, name, person, home space, locale and the object it opens for.
+`useView` returns the view's installation, space, person and target object.
 
 ```tsx
 import { useView } from "@destack/view";
@@ -61,7 +78,7 @@ const { space, user, home, locale, target } = useView();
 
 ## Data
 
-`useSpace` opens the objects of the view's space, `useQuery` follows a query, and `mutate`, `mutation` and `undo` change the objects.
+`useSpace` opens the objects of the view's space, and `useQuery` follows a query.
 
 ```tsx
 import { For, useQuery, useSpace } from "@destack/view";
@@ -80,7 +97,7 @@ await space.undo().confirmed;
 
 ## Query updates
 
-`useQuery` stays pending until the scope's copy holds the rows and keeps the objects of unchanged rows, so a list re-renders only the rows that changed.
+`useQuery` re-renders only the rows that changed.
 
 ```tsx
 const notes = useQuery(() => space.query.note.findMany()); // a failure goes to the nearest error boundary
@@ -92,7 +109,7 @@ const body = useText(note, id, "body"); // one text field, with every keystroke 
 
 ## Permissions and calls
 
-`can` checks a permission of the person on an object, the view's target by default, and `call` calls a mutating method by name.
+`can` checks a permission of the person on an object, and `call` calls a method by name.
 
 ```tsx
 const space = useSpace({ note });
@@ -103,7 +120,7 @@ if (await space.can("write")) {
 
 ## Home
 
-`useHome` reads the object types the view's `home` permissions grant from the person's home, which the host opens beside the view's space and account.
+`useHome` reads objects from the person's home space.
 
 ```tsx
 import { useHome } from "@destack/view";
@@ -120,7 +137,7 @@ const unread = useQuery(() => home.query.notification.aggregate(UNREAD));
 
 ## Forms
 
-`@destack/view/form` binds `@destack/ui`'s field to an object field: the field's type picks the control, its schema validates each value in the person's language, and its status follows the optimistic write.
+`@destack/view/form` binds a `@destack/ui` field to an object field.
 
 ```tsx
 import { Field } from "@destack/view/form";
@@ -140,7 +157,7 @@ import { Field } from "@destack/view/form";
 
 ## State transitions
 
-`StateTransition` shows an object's state and a button for each transition its machine allows from it and the person may make.
+`StateTransition` shows an object's state and a button per allowed transition.
 
 ```tsx
 import { StateTransition } from "@destack/view/form";
@@ -157,7 +174,7 @@ import { StateTransition } from "@destack/view/form";
 
 ## Reference combobox
 
-`ReferenceCombobox` picks an object of a type through the client's query, searching as the person types.
+`ReferenceCombobox` picks an object of a type, searching as the person types.
 
 ```tsx
 import { ReferenceCombobox } from "@destack/view/form";
@@ -175,7 +192,7 @@ import { ReferenceCombobox } from "@destack/view/form";
 
 ## Command button
 
-`CommandButton` runs an object method, busy until the server confirms it and toasting a refusal.
+`CommandButton` runs an object method and shows a refusal as a toast.
 
 ```tsx
 import { CommandButton } from "@destack/view/form";
@@ -190,7 +207,7 @@ import { CommandButton } from "@destack/view/form";
 
 ## Opening objects
 
-`urlOf` writes the same-origin address at which the host opens an object in the view presenting it most strongly, or in the view asked for, with the object as that view's `target`.
+`urlOf` returns the address that opens an object in the view presenting it.
 
 ```tsx
 import { urlOf, useView } from "@destack/view";
@@ -202,7 +219,7 @@ const { space } = useView();
 
 ## Locations
 
-A view's location is its page's address, which links and `@destack/view/router` move through.
+`@destack/view/router` moves a view between locations of its page.
 
 ```tsx
 import { createRouter, defineRoutes } from "@destack/view/router";
@@ -213,7 +230,7 @@ export const Router = createRouter({ routes });
 
 ## Language
 
-The host writes the person's language into `<html lang>` and launches the view with the catalogs of its package and dependency releases along that language's fallback chain, which `useLocale` renders in.
+`useLocale` renders text in the person's language from the package's catalogs.
 
 ```tsx
 import { useLocale } from "@destack/locale/solid";
@@ -224,7 +241,7 @@ useLocale().render(t`Saved`); // "Gespeichert" with the package's German catalog
 
 ## Theme
 
-The host writes the view package's declared theme, or Destack's default, for the person's display settings as custom properties on `<html>`, and pushes each change on `/.destack/display`.
+The host writes the theme as custom properties on `<html>`.
 
 ```ts
 import { defineTheme } from "@destack/theme/declare";
@@ -234,7 +251,7 @@ export const theme = defineTheme({ name: "notes", gray: "sand", accent: "orange"
 
 ## Launch
 
-`ViewLaunch` parses the JSON in the page's `destack-view` script element, and mounting a view starts the page's telemetry with its `release` and `manifest`.
+`ViewLaunch` parses the launch JSON of the page's `destack-view` script element.
 
 ```ts
 import { ViewLaunch } from "@destack/view/declare";
@@ -262,7 +279,7 @@ export function Metadata() {
 
 ## Builds
 
-`viewExtension` compiles Solid components wherever modules of packages depending on `@destack/view` compile, as the `SolidApplication` a web output names, and emits each view as a separate `./view/<name>` browser chunk.
+`viewExtension` compiles Solid components and emits each view as a `./view/<name>` browser chunk.
 
 ```ts
 const { entrypoint, permissions, presents } = build.manifest.outputs.browser.views.notes;
@@ -270,11 +287,18 @@ const { entrypoint, permissions, presents } = build.manifest.outputs.browser.vie
 
 ## Tests
 
-`defineConfiguration` from `@destack/view/test` compiles components with the transforms of the package's dependency closure as builds do, and `renderView` renders a component as a mounted view over its scopes' clients.
+`renderView` from `@destack/view/test` renders a component as a mounted view.
 
 ```tsx
 import { defineConfiguration, renderView } from "@destack/view/test";
 
 export default defineConfiguration({ test: { include: ["tests/*.test.tsx"] } });
-const unmount = renderView(Notes, element, context, { [context.space]: client }, catalogs);
+const unmount = renderView(
+    Notes,
+    element,
+    context,
+    { [context.space]: client },
+    catalogs,
+    services,
+);
 ```

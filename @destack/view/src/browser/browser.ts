@@ -14,6 +14,7 @@ import {
 } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
 import { renderView } from "../page/mount.ts";
+import { mountServices } from "../page/view.ts";
 
 /** How long to wait before following the display again after its stream drops. */
 const RECONNECT_MILLISECONDS = 1000;
@@ -47,10 +48,11 @@ export async function mount(view: View): Promise<() => Promise<void>> {
         fetchCatalogs(catalogs),
     ]);
     const clients = Object.fromEntries([...tabs].map(([scope, tab]) => [scope, tab.client]));
+    const services = mountServices(view.services, location.origin);
 
     // render the root component under the view, its clients and the launch's catalogs
     const { default: Component } = await view.component();
-    let dispose = renderView(Component, document.body, context, clients, translations);
+    let dispose = renderView(Component, document.body, context, clients, translations, services);
 
     // restyle the page on each display change and render again in a new language
     let locale = context.locale;
@@ -80,6 +82,7 @@ export async function mount(view: View): Promise<() => Promise<void>> {
                     { ...context, locale: next.locale },
                     clients,
                     fetched,
+                    services,
                 );
             },
             (error: unknown) => reportError(error),

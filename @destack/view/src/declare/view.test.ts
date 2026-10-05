@@ -5,6 +5,7 @@ import { PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
 import { describeCommand, describeView } from "../inspect/index.ts";
 import { defineCommand } from "./command.ts";
+import { defineService } from "@destack/service";
 import { defineView } from "./view.ts";
 
 /** The declaring package. */
@@ -36,20 +37,22 @@ const reminder = defineObject({
     methods: (method) => ({ list: method.list("read") }),
 });
 
-test("describe a declared view by its name and permissions without loading its component", () => {
-    // declare a view of notes whose component never loads
+test("describe a declared view by its name, permissions, presented types and platform services without loading its component", () => {
+    // declare a view of notes calling a platform service, whose component never loads
+    const counter = defineService("counter", {}, { package: notes });
     const view = defineView(
         {
             name: "notes",
             objects: [note],
             permissions: { space: [note.permission("read")] },
             presents: [{ object: note, priority: "default" }],
+            services: [counter],
             component: () => Promise.reject(new Error("loaded")),
         },
         { package: notes },
     );
 
-    // describe the name, permissions and presented types, and keep the package and object types
+    // describe the name, permissions, presented types and services, and keep the package and object types
     expect([view.package, view.objects, describeView(view)]).toEqual([
         notes,
         [note],
@@ -57,6 +60,7 @@ test("describe a declared view by its name and permissions without loading its c
             name: "notes",
             permissions: { space: [{ packageId: note.package.id, type: "note", name: "read" }] },
             presents: [{ packageId: note.package.id, type: "note", priority: "default" }],
+            services: [notes.id],
         },
     ]);
 });

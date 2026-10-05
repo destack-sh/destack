@@ -1,1 +1,1 @@
-export { urlOf, useView } from "./view.ts";
+export { urlOf, useService, useView } from "./view.ts";

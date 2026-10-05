@@ -2,6 +2,7 @@ import { DeclarationName, ModuleMetadata, type Package } from "@destack/package"
 import { ViewScope, type ViewPresentationPriority } from "@destack/package/manifest";
 import { type Permission, PermissionReference } from "@destack/access";
 import type { ObjectType } from "@destack/object";
+import type { Service } from "@destack/service";
 import type { Component } from "solid-js";
 
 /** A view as its package defines it. */
@@ -14,6 +15,8 @@ export interface ViewDefinition {
     readonly permissions?: { readonly [Scope in ViewScope]?: readonly Permission[] };
     /** The object types the view presents, and how strongly, so opening an object picks its view. */
     readonly presents?: readonly Presentation[];
+    /** The platform services the view calls as its person, such as the monitor service. */
+    readonly services?: readonly Service[];
     /** Load the module whose default export is the root component. */
     readonly component: () => Promise<{ readonly default: Component }>;
 }
@@ -38,6 +41,8 @@ export class View {
     readonly permissions: NonNullable<ViewDefinition["permissions"]>;
     /** The object types the view presents. */
     readonly presents: readonly Presentation[];
+    /** The platform services the view calls as its person. */
+    readonly services: readonly Service[];
     /** Load the module whose default export is the root component. */
     readonly component: ViewDefinition["component"];
 
@@ -49,6 +54,7 @@ export class View {
         this.objects = definition.objects ?? [];
         this.permissions = definition.permissions ?? {};
         this.presents = definition.presents ?? [];
+        this.services = definition.services ?? [];
         this.component = definition.component;
     }
 

@@ -2,19 +2,24 @@ import { createContext, useContext } from "solid-js";
 import type { ObjectClient } from "@destack/object/client";
 import type { ViewScope } from "@destack/package/manifest";
 import type { ObjectReference } from "@destack/sync";
+import { type Client, type Service, type ServiceRouter, ServiceMount } from "@destack/service";
+import { type ClientOptions, createClient } from "@destack/service/client";
 import {
     OBJECT_PARAMETER,
     OPEN_PATH,
+    PLATFORM_PATH,
     VIEW_PARAMETER,
     type ViewContext,
 } from "../declare/context.ts";
 
-/** A mounted view: what its host gives it and the open clients of its scopes. */
+/** A mounted view: what its host gives it, the open clients of its scopes and the connections of the platform services it calls. */
 export interface ViewMount {
     /** What the host gives the view. */
     readonly context: ViewContext;
     /** The clients of the scopes the view opens, by scope. */
     readonly clients: ReadonlyMap<string, ObjectClient>;
+    /** How the view reaches the platform services it declares, by package. */
+    readonly services: ReadonlyMap<string, ClientOptions>;
 }
 
 /** The mounted view. */
@@ -44,6 +49,33 @@ export function useClient(scope: string): ObjectClient {
     }
 
     return client;
+}
+
+/** Connect to a platform service the mounted view declares, refusing one it does not declare. */
+export function useService<Definition extends ServiceRouter>(
+    service: Service<Definition>,
+): Client<Definition> {
+    // connect where the host mounted the declared service
+    const options = useContext(ViewMountContext).services.get(service.package.id);
+    if (options === undefined) {
+        throw new TypeError(`the view declares no ${service.name} service`);
+    }
+
+    return createClient(service, options);
+}
+
+/** Mount the platform services a view declares below the platform path of its origin, by package. */
+export function mountServices(
+    services: readonly Pick<Service, "package">[],
+    origin: string,
+): ReadonlyMap<string, ClientOptions> {
+    return new Map(
+        services.map((service) => {
+            const path = `${PLATFORM_PATH}${ServiceMount.path(service.package.id)}`;
+
+            return [service.package.id, { url: new URL(path, origin).href }];
+        }),
+    );
 }
 
 /** Write the same-origin address at which the host opens an object in the view presenting it, or in the view asked for. */
