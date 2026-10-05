@@ -106,6 +106,10 @@
             "rules": { "destack/valid-package-handle": "off" }
         },
         {
+            "files": ["@destack/web/src/document/script.tsx", "@destack/web/src/document/font.tsx"],
+            "rules": { "destack/prevent-abbreviations": "off" }
+        },
+        {
             "files": ["@destack/telemetry/src/browser/devtools.ts"],
             "rules": { "eslint/no-console": "off" }
         },

@@ -2,6 +2,20 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a103c1-562e-7137-942d-c7336bd8e645",
     "language": "typescript",
-    "runtimes": ["bun"],
-    "build": "./build#webExtension"
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./build": {
+            "runtimes": ["bun"]
+        }
+    },
+    "build": "./build#webExtension",
+    "check": {
+        "expect": [
+            {
+                "files": ["src/document/script.tsx", "src/document/font.tsx"],
+                "rules": ["destack/prevent-abbreviations"],
+                "reason": "src is the script element's attribute and next/font's file list, whose names they keep"
+            }
+        ]
+    }
 }
