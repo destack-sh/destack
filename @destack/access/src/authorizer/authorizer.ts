@@ -66,7 +66,7 @@ const UNIVERSE_SHAPE = "universe";
 export const ChainParameters = schema.object({
     /** The object types whose access rows live in the follower's own database. */
     local: schema.array(ObjectTypeReference),
-    /** The object types the follower keeps copies of: the inherited rows of inherited types, and the scopes' own rows of scope types. */
+    /** The object types the follower keeps copies of: the inherited rows of inherited types, the scopes' own rows of scope types, and the rows of scoped types in the replicated scopes. */
     copied: schema.array(ObjectTypeReference),
     /** The scopes a follower outside their chains replicates, copied with the copied scope above them and the scopes between. */
     via: schema.array(schema.string().min(1)).min(1).exactOptional(),
@@ -138,6 +138,8 @@ export class Authorizer {
     readonly local: readonly ObjectTypeReference[];
     /** The object types this database keeps copies of from the scopes above it: inherited rows, and the scopes' own rows of the scope types it keeps a table of. */
     readonly copied: readonly ObjectTypeReference[];
+    /** The object types this database keeps copies of whose rows live in a scope, which a follower outside their chains copies in the scopes it replicates. */
+    readonly scoped: readonly ObjectTypeReference[];
     /** The types whose objects live in the universe, whose access rows stay in the account service's database. */
     readonly universal: readonly ObjectTypeReference[];
     /** The policies indexed by package and type. */
@@ -193,6 +195,7 @@ export class Authorizer {
         const copies = options.copies ?? (() => false);
         this.local = this.#localTypes(copies);
         this.copied = this.#copiedTypes(copies);
+        this.scoped = this.#scopedTypes(copies);
         this.universal = this.#universalTypes();
 
         // expand the subject sets roles may bind to
@@ -354,6 +357,22 @@ export class Authorizer {
                     (copies(mapping.table) &&
                         mapping.policy.definition.scope === true &&
                         mapping.table !== Scope.table),
+            )
+            .map((mapping) => ({
+                packageId: mapping.policy.definition.packageId,
+                type: mapping.policy.definition.name,
+            }));
+    }
+
+    /** List the copied types whose rows live in a scope, neither inherited nor scopes themselves. */
+    #scopedTypes(copies: (table: Table) => boolean): ObjectTypeReference[] {
+        return [...this.#mappings.values()]
+            .filter(
+                (mapping) =>
+                    copies(mapping.table) &&
+                    mapping.inherited === undefined &&
+                    mapping.policy.definition.scope !== true &&
+                    mapping.scope !== undefined,
             )
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
@@ -791,7 +810,10 @@ export class Authorizer {
             parameters: {
                 local: [...this.local],
                 // take the scopes' own rows from the follower's copy of the universe
-                copied: this.copied.filter((type) => this.mapping(type).inherited !== undefined),
+                copied: [
+                    ...this.copied.filter((type) => this.mapping(type).inherited !== undefined),
+                    ...this.scoped,
+                ],
                 via: [...replicated].toSorted(),
                 between: [...between].toSorted(),
             },
@@ -837,7 +859,8 @@ export class Authorizer {
     /** Build a chain copy: the access rows of its scopes, its copied types' inherited rows and the scopes' own rows. */
     #chainReplica(name: string, scope: string, parameters: ChainParameters): Replica {
         // copy the scope, and the replicated scopes and those between for a follower outside their chains
-        const scopes = [scope, ...(parameters.between ?? []), ...(parameters.via ?? [])];
+        const via = parameters.via ?? [];
+        const scopes = [scope, ...(parameters.between ?? []), ...via];
 
         // leave out the access rows of the objects the follower keeps, and of objects living in the universe
         const remote: Condition = {
@@ -854,11 +877,11 @@ export class Authorizer {
             scopes,
         ]);
 
-        // add each copied type's inherited rows, or the scopes' own rows of a copied scope type
-        const copied = parameters.copied.flatMap((type) => this.#copiedRows(type, scopes));
+        // add each copied type's inherited rows, the scopes' own rows of a copied scope type, and a scoped type's rows
+        const copied = parameters.copied.flatMap((type) => this.#copiedRows(type, scopes, via));
         const owned = new Set(
             parameters.copied
-                .filter((type) => this.mapping(type).inherited === undefined)
+                .filter((type) => this.mapping(type).policy.definition.scope === true)
                 .map((type) => this.#copiedTable(type)),
         );
 
@@ -881,8 +904,12 @@ export class Authorizer {
         });
     }
 
-    /** Select a copied type's rows in a chain copy: an inherited type's inherited rows, or the scopes' own rows of a scope type. */
-    #copiedRows(type: ObjectTypeReference, scopes: readonly string[]): ChainTable[] {
+    /** Select a copied type's rows in a chain copy: an inherited type's inherited rows, the scopes' own rows of a scope type, or a scoped type's rows in the replicated scopes. */
+    #copiedRows(
+        type: ObjectTypeReference,
+        scopes: readonly string[],
+        via: readonly string[],
+    ): ChainTable[] {
         const mapping = this.mapping(type);
         const table = this.#copiedTable(type);
 
@@ -898,7 +925,20 @@ export class Authorizer {
 
             return living.length === 0 ? [] : [[table, mapping.inherited, living]];
         }
-        // refuse a type that is neither inherited nor a scope
+        // copy a scoped type's rows living in the replicated scopes of a follower outside their chains
+        else if (
+            mapping.policy.definition.scope !== true &&
+            mapping.scope !== undefined &&
+            via.length > 0
+        ) {
+            const scope = mapping.scope;
+            const living = via.filter(
+                (id) => column(table, scope).definition.schema.safeParse(id).success,
+            );
+
+            return living.length === 0 ? [] : [[table, undefined, living]];
+        }
+        // refuse a type that is neither inherited, a scope nor replicated through its scopes
         else if (mapping.policy.definition.scope !== true) {
             throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
         }
