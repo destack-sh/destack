@@ -1,0 +1,20 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a109a7-65e2-707d-933c-8f8e69b8be6b",
+    "language": "typescript",
+    "runtimes": ["bun"],
+    "exports": {
+        "./catalog": {
+            "runtimes": ["browser", "bun", "workerd"]
+        }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/distribution/build.ts", "src/distribution/distribution.ts"],
+                "rules": ["destack/no-manifest-import"],
+                "reason": "the release reads the Desktop version and the workspace's Bun version from their manifests"
+            }
+        ]
+    }
+}

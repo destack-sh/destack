@@ -23,14 +23,14 @@ just @platform/release/rehearse VERSION ARCHIVE
 
 ```text
 release-publish   a nightly at the published nightly's commit skips build and only renews
-├── prepare     select version and work                    prepare.ts
+├── prepare     select version and work                    github/prepare.ts
 ├── check       workspace-check
 ├── build       build, verify, pack, rehearse per target   build.ts, verify.ts, pack.ts, rehearse.ts
-├── sign        sign and notarize per signed target        sign.ts, credential.ts
+├── sign        sign and notarize per signed target        sign.ts, apple/credential.ts
 ├── installer   build per installer                        installer/build.ts
-├── publish     attest archives and installers, sign       key/credential.ts, sign.ts, upload.ts, verify.ts
+├── publish     attest archives and installers, sign       github/credential.ts, sign.ts, upload.ts, verify.ts
 │               targets, snapshot and timestamp
-├── renew       re-sign every other channel's snapshot     key/credential.ts, renew.ts, submit.ts, verify.ts
+├── renew       re-sign every other channel's snapshot     github/credential.ts, renew.ts, submit.ts, verify.ts
 │               and timestamp
 ├── expiry      fail inside a signed role's renewal window expiry.ts
 └── verify      install and update per target              install.ts
@@ -137,7 +137,7 @@ bun run @platform/release/src/key/ceremony.ts sign \
     /opt/homebrew/lib/libykcs11.dylib /absolute/ceremony/1.root.json
 bun run @platform/release/src/key/ceremony.ts verify /absolute/ceremony/1.root.json
 
-bun run @platform/release/src/key/archive.ts /absolute/signing/production /Volumes/USB/destack-signing.age
+bun run @platform/release/src/bitwarden/archive.ts /absolute/signing/production /Volumes/USB/destack-signing.age
 age -d -i /absolute/recovery-identity.txt /absolute/destack-signing.age | tar -xz -C /absolute/restore
 ```
 
@@ -182,4 +182,12 @@ A Developer ID Application certificate signs the application, and an App Store C
 ```text
 certificate    https://developer.apple.com/help/account/certificates/create-developer-id-certificates
 notarization   https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution
+```
+
+## Tests
+
+The tests sign, publish, renew and serve repositories with disposable keys and local buckets, and build and install the executables in a sandbox.
+
+```sh
+just @platform/release/test
 ```
