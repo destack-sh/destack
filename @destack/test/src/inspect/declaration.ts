@@ -7,6 +7,8 @@ export const TestDeclaration = defineSchema(
         kind: schema.enum(["test", "suite"]),
         /** The literal title or parameterized title pattern. */
         name: schema.string(),
+        /** The titles of the enclosing suites, outermost first. */
+        suites: schema.array(schema.string()),
         /** The source file relative to the package root. */
         file: schema.string(),
         /** The inclusive UTF-16 source offset. */

@@ -62,7 +62,7 @@ export async function collectTests(
 
     // collect literal declarations in module scope and suite callbacks, in source order
     const declarations: TestDeclaration[] = [];
-    const suites = new Set<Node>();
+    const suites = new Map<Node, string[]>();
     for (const [index, call] of calls.entries()) {
         // resolve the declaration kind through its imported symbol
         const symbol = symbols[index];
@@ -153,7 +153,7 @@ function describeTest(
     call: TestCall,
     kind: "test" | "suite",
     file: string,
-    suites: Set<Node>,
+    suites: Map<Node, string[]>,
 ): TestDeclaration | undefined {
     // leave registrations in other functions to the modules calling them
     const { node, modifiers } = call;
@@ -164,6 +164,10 @@ function describeTest(
     if (scopes.some((scope) => isFunction(scope) && !suites.has(scope))) {
         return undefined;
     }
+
+    // name the enclosing suites through the innermost suite callback
+    const titles =
+        scopes.map((scope) => suites.get(scope)).find((value) => value !== undefined) ?? [];
 
     // reject registrations whose presence depends on executing application code
     const location = `${file}:${node.getStart()}`;
@@ -192,13 +196,14 @@ function describeTest(
                 `suite declaration requires an inline callback: ${location}`,
             );
         }
-        suites.add(callback);
+        suites.set(callback, [...titles, title.text]);
     }
 
     // retain parameterized cases as declarations with their literal title patterns
     return {
         kind,
         name: title.text,
+        suites: titles,
         file,
         start: node.getStart(),
         end: node.getEnd(),
