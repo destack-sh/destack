@@ -12,9 +12,7 @@
         "./setting": "./src/setting/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json",
-        "lint": "destack-check check",
-        "format": "destack-check format"
+        "typecheck": "tsc --project tsconfig.json"
     },
     "devDependencies": {
         "@destack/check": "2026.9.0"
