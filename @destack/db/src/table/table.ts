@@ -23,9 +23,9 @@ import { schema, Version, type JsonObject, type JsonValue } from "@destack/schem
 import { Expression } from "../expression/expression.ts";
 import type { Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
-import type { ChangeRetention } from "../inspect/log.ts";
+import type { ChangeRetention } from "../log/description.ts";
 import { Tree } from "../tree/tree.ts";
-import type { ColumnDescription } from "../inspect/table.ts";
+import type { ColumnDescription } from "./description.ts";
 import type { TableState } from "../migration/state.ts";
 import type { Row } from "./row.ts";
 import { recordSchema, type JsonShape, type Shape } from "./schema.ts";

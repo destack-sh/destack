@@ -1,4 +1,4 @@
-import type { ChangeDescription } from "../inspect/log.ts";
+import type { ChangeDescription } from "../log/description.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import {
     createEpoch,

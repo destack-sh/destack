@@ -3,7 +3,7 @@ import type { Triggers } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
-import type { DependentDescription } from "../inspect/dependent.ts";
+import type { DependentDescription } from "./description.ts";
 import { LOG_REPLICA } from "../log/schema.ts";
 import { boundedName } from "../table/namespace.ts";
 

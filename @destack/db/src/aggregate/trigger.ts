@@ -3,7 +3,7 @@ import type { Triggers } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";
-import type { AggregateDescription } from "../inspect/aggregate.ts";
+import type { AggregateDescription } from "./description.ts";
 import { LOG_REPLICA } from "../log/schema.ts";
 import { boundedName } from "../table/namespace.ts";
 

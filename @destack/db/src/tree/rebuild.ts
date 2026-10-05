@@ -3,7 +3,7 @@ import { sql, type SQL } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
-import type { TreeDescription } from "../inspect/tree.ts";
+import type { TreeDescription } from "./description.ts";
 
 /** The bound parameters of one ancestor record. */
 const RECORD_PARAMETERS = 4;

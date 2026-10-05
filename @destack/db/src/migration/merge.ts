@@ -1,5 +1,5 @@
 import { canonicalize, Version } from "@destack/schema";
-import type { TableDescription } from "../inspect/table.ts";
+import type { TableDescription } from "../table/description.ts";
 import { logOf, type TableState } from "./state.ts";
 
 /** The merged table states of several declarations, and their conflicts. */

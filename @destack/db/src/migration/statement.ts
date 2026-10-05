@@ -3,7 +3,7 @@ import type {
     ConstraintDescription,
     IndexDescription,
     TableDescription,
-} from "../inspect/table.ts";
+} from "../table/description.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";

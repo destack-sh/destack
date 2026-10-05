@@ -1,6 +1,6 @@
 import type { Dialect } from "../dialect/dialect.ts";
-import type { TableDescription } from "../inspect/table.ts";
-import type { TreeDescription } from "../inspect/tree.ts";
+import type { TableDescription } from "../table/description.ts";
+import type { TreeDescription } from "../tree/description.ts";
 import { createLog, logTriggers } from "../log/trigger.ts";
 import { treeTriggers } from "../tree/trigger.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";

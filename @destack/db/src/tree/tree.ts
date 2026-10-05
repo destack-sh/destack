@@ -4,7 +4,7 @@ import { defineTable, TABLE, Table } from "../table/table.ts";
 import { text, integer } from "../table/column.ts";
 import { index } from "../table/constraint.ts";
 import { assertNever, DatabaseError } from "../error/index.ts";
-import type { TreeDescription } from "../inspect/tree.ts";
+import type { TreeDescription } from "./description.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import type { Snapshot } from "../log/snapshot.ts";
 

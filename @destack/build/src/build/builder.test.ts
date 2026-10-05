@@ -18,28 +18,13 @@ import { requests } from "../../tests/fixture/web/request.ts";
 import * as service from "../../tests/fixture/service/request.ts";
 import { formatSource } from "@destack/check";
 import { Vocabulary } from "@destack/resource";
-import { present, schema } from "@destack/schema";
+import { present } from "@destack/schema";
+import { DatabaseDeclaration } from "@destack/db/inspect";
 import { LocalBucket } from "@destack/bucket/local";
 import { PackageStore } from "../store/index.ts";
 
 /** The error a denied read reports: Seatbelt refuses it, bubblewrap hides the file. */
 const DENIED_READ: Partial<Record<NodeJS.Platform, string>> = { darwin: "EPERM", linux: "ENOENT" };
-
-/** The tables of a database resource's description, by dialect. */
-const TableDescription = schema.looseObject({
-    tables: schema.record(
-        schema.string(),
-        schema.array(
-            schema.looseObject({
-                table: schema.looseObject({
-                    columns: schema.array(schema.looseObject({ name: schema.string() })),
-                }),
-            }),
-        ),
-    ),
-});
-/** The tables of a database resource's description, by dialect. */
-type TableDescription = schema.Infer<typeof TableDescription>;
 
 test("rebuild a web application with emitted assets and restore every output", async () => {
     await using fixture = await Fixture.open("web");
@@ -162,18 +147,19 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
             ),
             "the edited build's resource",
         );
-        const expected = structuredClone(baseline);
-        const { description } = expected;
-        if (!isTableDescription(description)) {
-            throw new TypeError("the resource description has no tables");
-        }
-        for (const dialect of ["sqlite", "postgresql"]) {
+        const { description: before, ...expected } = baseline;
+        const renamed = DatabaseDeclaration.parse(before);
+        for (const dialect of ["sqlite", "postgresql"] as const) {
             // rename the column in the table
-            const [state] = present(description.tables[dialect], `the ${dialect} tables`);
+            const [state] = present(renamed.tables[dialect], `the ${dialect} tables`);
             const columns = present(state, `the ${dialect} table`).table.columns;
             present(columns[1], "the title column").name = "heading";
         }
-        expect(actual).toEqual(expected);
+        const { description: after, ...rebuilt } = actual;
+        expect({ ...rebuilt, description: DatabaseDeclaration.parse(after) }).toEqual({
+            ...expected,
+            description: renamed,
+        });
 
         // restore the title module and compare every distributed byte and the full manifest
         await writeFile(titleModule, original);
@@ -433,11 +419,8 @@ async function read(path: string): Promise<string> {
             ),
             "the resource",
         );
-        const { description } = declared;
-        if (!isTableDescription(description)) {
-            throw new TypeError("the resource description has no tables");
-        }
-        const [state] = present(description.tables["sqlite"], "the sqlite tables");
+        const { tables } = DatabaseDeclaration.parse(declared.description);
+        const [state] = present(tables.sqlite, "the sqlite tables");
         const columns = present(state, "the note table").table.columns;
         expect(columns.map((column) => column.name)).toEqual([
             "id",
@@ -814,11 +797,6 @@ function isLoaderModule(module: object): module is { greet(): string; load(): Pr
         "load" in module &&
         typeof module.load === "function"
     );
-}
-
-/** Report whether a resource description lists tables by dialect, keeping the parsed objects. */
-function isTableDescription(value: unknown): value is TableDescription {
-    return TableDescription.safeParse(value).success;
 }
 
 /** Import a written build's library module, requiring its createNote function. */

@@ -1,7 +1,7 @@
 import type { Triggers } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
-import type { TreeDescription } from "../inspect/tree.ts";
+import type { TreeDescription } from "./description.ts";
 import { quote } from "../dialect/quote.ts";
 
 /** Generate a tree's indexes and triggers. */

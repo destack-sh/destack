@@ -1,6 +1,6 @@
 import { TABLE, type Table } from "../table/table.ts";
 import type { Column } from "../table/column.ts";
-import type { ChangeDescription } from "../inspect/log.ts";
+import type { ChangeDescription } from "./description.ts";
 import { DatabaseError } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 

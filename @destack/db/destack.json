@@ -18,6 +18,9 @@
         },
         "./browser": {
             "runtimes": ["browser"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
