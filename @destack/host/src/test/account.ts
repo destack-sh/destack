@@ -478,9 +478,9 @@ export class AccountFixture implements AsyncDisposable {
 
     /** Wait until a placed workload's copies catch up with the account service. */
     async settle(objects: ObjectServer, placementId: string): Promise<void> {
-        // wait for the copies to catch up with the account service's position
-        const head = await this.database.log.position();
+        // wait for the copies to catch up with the account service's latest change they did not originate
         const signal = AbortSignal.timeout(SETTLE_MILLISECONDS);
+        const head = await this.database.log.position(await objects.database.log.epoch());
         const done = new Set<string>();
         for (let isGrowing = true; isGrowing;) {
             // wait for every scope the requested copies read, not caught up yet

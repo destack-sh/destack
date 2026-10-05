@@ -431,6 +431,8 @@ test("start one in-process workload for two starts of an instance at once", asyn
                 stream: () => {
                     throw new Error("the fixture publisher streams no copies");
                 },
+                receive: () =>
+                    Promise.reject(new Error("the fixture publisher receives no changes")),
             }),
             directory: () => ({
                 isHome: async () => false,

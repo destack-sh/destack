@@ -7,7 +7,7 @@ import type { Authentication } from "@destack/service/authentication";
 import { Egress } from "@destack/service";
 import { ServiceError } from "@destack/service/error";
 import { CallKey } from "@destack/service/request";
-import { SPACE_ADDRESS, type WorkloadStart } from "@destack/service/workload";
+import type { WorkloadStart } from "@destack/service/workload";
 
 /** The instances a host runs on one server runtime: it starts, stops and serves them as their spaces' cells assign them. */
 export interface Runtime {
@@ -138,6 +138,8 @@ export interface WorkloadSecret {
     readonly secret: Identifier<"secret">;
     /** The version the deployment captured. */
     readonly version: number;
+    /** The address of the service serving the secret. */
+    readonly reference: string;
 }
 
 /** Bind the running package's resources and secrets by their declared names. */
@@ -164,13 +166,13 @@ function bindings(spec: InstanceSpec, egress: string, secret: string): WorkloadS
         };
     }
 
-    // bind each secret version to the space's service at the egress
+    // bind each secret version to the service serving it at the egress
     for (const entry of spec.secrets) {
         bound[entry.name] = {
             resource: entry.secret,
             kind: SECRET_KIND,
             provider: SECRET_PROVIDER,
-            reference: Egress.url(egress, SPACE_ADDRESS),
+            reference: Egress.url(egress, entry.reference),
             credential: secret,
             scope: spec.scope,
             version: entry.version,
