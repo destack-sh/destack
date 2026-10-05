@@ -13,9 +13,9 @@ import {
 } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import type { Policy } from "../policy/policy.ts";
-import { principal } from "../policy/principal.ts";
-import type { SubjectType } from "../policy/subject.ts";
+import type { Policy } from "../declare/policy.ts";
+import { principal } from "../declare/principal.ts";
+import type { SubjectType } from "../declare/subject.ts";
 import type { Authorizer } from "./authorizer.ts";
 
 /** The scope of a field relation naming objects by identifier across scopes, which only `through` follows. */

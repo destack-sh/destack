@@ -1,10 +1,10 @@
-import type { Policy } from "../policy/policy.ts";
+import type { Policy } from "../declare/policy.ts";
 import { AccessName, ObjectTypeReference } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Condition } from "@destack/db";
-import { AttributeType, type AccessExpression } from "../policy/expression.ts";
-import { SubjectType } from "../policy/subject.ts";
+import { AttributeType, type AccessExpression } from "../declare/expression.ts";
+import { SubjectType } from "../declare/subject.ts";
 import { Elevation } from "../context/elevation.ts";
 
 /** Serialized permission expressions with no executable callbacks. */

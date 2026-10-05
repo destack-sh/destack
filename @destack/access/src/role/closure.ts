@@ -1,4 +1,4 @@
-import { PermissionReference } from "../policy/policy.ts";
+import { PermissionReference } from "../declare/policy.ts";
 
 /** What a role grants: every permission but reserved ones, or its own and its included roles' permissions. */
 export interface RoleGrant {

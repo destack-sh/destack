@@ -12,13 +12,13 @@ import {
 } from "@destack/db";
 import { aligned } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
-import { type PermissionReference } from "../policy/policy.ts";
+import { type PermissionReference } from "../declare/policy.ts";
 import {
     CONTAINED,
     type AccessExpression,
     type ConditionExpression,
-} from "../policy/expression.ts";
-import { accepts, type RelationDefinition, type SubjectType } from "../policy/subject.ts";
+} from "../declare/expression.ts";
+import { accepts, type RelationDefinition, type SubjectType } from "../declare/subject.ts";
 import { AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";

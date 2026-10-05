@@ -11,7 +11,7 @@ import {
     type SQLWrapper,
 } from "@destack/db";
 import { accessRole, managerChecks } from "../role/table.ts";
-import { nameCheck } from "../policy/expression.ts";
+import { nameCheck } from "../declare/expression.ts";
 
 /** Relate an object to a subject through a declared relation or a bound role. */
 export const accessRelationship = defineTable(

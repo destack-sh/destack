@@ -11,7 +11,7 @@ import {
     uniqueIndex,
     type Column,
 } from "@destack/db";
-import { nameCheck } from "../policy/expression.ts";
+import { nameCheck } from "../declare/expression.ts";
 
 /** A named set of permissions defined within a scope. */
 export const accessRole = defineTable(

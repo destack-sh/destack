@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { PermissionReference } from "../policy/policy.ts";
+import { PermissionReference } from "../declare/policy.ts";
 import type { AccessContext } from "./context.ts";
 
 /** The schema of a restriction: a permission a restricted credential allows, in one scope and optionally on one object. */

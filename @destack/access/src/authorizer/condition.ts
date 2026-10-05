@@ -1,6 +1,6 @@
 import { jsonElements, sql, type SQL, type SQLWrapper } from "@destack/db";
 import { Subject } from "@destack/sync";
-import { ACCESS_PACKAGE_ID, anyone } from "../policy/principal.ts";
+import { ACCESS_PACKAGE_ID, anyone } from "../declare/principal.ts";
 import type { AccessContext } from "../context/context.ts";
 import type { RelationshipColumnMap, RelationshipRow } from "../relationship/table.ts";
 import type { GrantFailure } from "./decision.ts";

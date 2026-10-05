@@ -1,11 +1,11 @@
 import type { DatabaseConnection, Row, Select, Snapshot } from "@destack/db";
 import { Replica, type ScopeLink, Scope, type ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import { PermissionReference } from "../policy/policy.ts";
-import { type SubjectType } from "../policy/subject.ts";
-import { CONTAINED } from "../policy/expression.ts";
-import { ACCESS_PACKAGE_ID } from "../policy/principal.ts";
-import * as principal from "../policy/principal.ts";
+import { PermissionReference } from "../declare/policy.ts";
+import { type SubjectType } from "../declare/subject.ts";
+import { CONTAINED } from "../declare/expression.ts";
+import { ACCESS_PACKAGE_ID } from "../declare/principal.ts";
+import * as principal from "../declare/principal.ts";
 import { AccessContext, Caller, Contact } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";

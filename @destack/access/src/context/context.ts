@@ -2,10 +2,10 @@ import { defineSchema, Instant, schema } from "@destack/schema";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
-import { isPrincipal, principal } from "../policy/principal.ts";
+import { isPrincipal, principal } from "../declare/principal.ts";
 import { Restriction } from "./restriction.ts";
-import { type Attribute, CONTAINED } from "../policy/expression.ts";
-import type { PermissionReference } from "../policy/policy.ts";
+import { type Attribute, CONTAINED } from "../declare/expression.ts";
+import type { PermissionReference } from "../declare/policy.ts";
 
 /** The schema of a contact. */
 const contactSchema = defineSchema(

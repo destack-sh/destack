@@ -1,4 +1,4 @@
-export * from "./policy/index.ts";
+export * from "./declare/index.ts";
 export * from "./context/index.ts";
 export * from "./authorizer/index.ts";
 export * from "./relationship/index.ts";

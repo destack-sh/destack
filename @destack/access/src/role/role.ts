@@ -4,7 +4,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
-import { PermissionReference } from "../policy/policy.ts";
+import { PermissionReference } from "../declare/policy.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "./table.ts";

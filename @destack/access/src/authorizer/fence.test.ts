@@ -1,8 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { principal } from "../policy/principal.ts";
-import { copyScope } from "../test/copy.ts";
+import { principal } from "../declare/principal.ts";
+import { AccessFixture } from "../test/access.ts";
 import { account, fixtureDatabase, mappings, policies, space } from "../test/fixture.ts";
 import { Authorizer } from "./authorizer.ts";
 import { Scope } from "@destack/sync";

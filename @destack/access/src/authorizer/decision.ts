@@ -1,6 +1,6 @@
 import { ObjectReference, Subject } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
-import { PermissionReference } from "../policy/policy.ts";
+import { PermissionReference } from "../declare/policy.ts";
 
 /** Whether a caller has a permission on one object, and until when that stays true by time alone. */
 export const Decision = defineSchema(

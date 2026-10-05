@@ -12,9 +12,9 @@ import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { aligned, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
-import { PermissionReference } from "../policy/policy.ts";
-import * as policies from "../policy/principal.ts";
-import { anyone, isPrincipal } from "../policy/principal.ts";
+import { PermissionReference } from "../declare/policy.ts";
+import * as policies from "../declare/principal.ts";
+import { anyone, isPrincipal } from "../declare/principal.ts";
 import { AccessContext, Caller } from "../context/context.ts";
 import { HIGHEST_ASSURANCE } from "../context/elevation.ts";
 import {

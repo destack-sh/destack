@@ -31,10 +31,14 @@ import {
 } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
-import { relationsOf, PermissionReference, type Policy } from "../policy/policy.ts";
-import type { AccessExpression, AttributeType, ConditionExpression } from "../policy/expression.ts";
-import { accepts, type RelationDefinition, type SubjectType } from "../policy/subject.ts";
-import { ACCESS_PACKAGE_ID, INTRINSIC_POLICIES } from "../policy/principal.ts";
+import { relationsOf, PermissionReference, type Policy } from "../declare/policy.ts";
+import type {
+    AccessExpression,
+    AttributeType,
+    ConditionExpression,
+} from "../declare/expression.ts";
+import { accepts, type RelationDefinition, type SubjectType } from "../declare/subject.ts";
+import { ACCESS_PACKAGE_ID, INTRINSIC_POLICIES } from "../declare/principal.ts";
 import { ACCESS_MAPPINGS } from "../replica/replica.ts";
 import { type AccessContext } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";

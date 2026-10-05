@@ -28,7 +28,7 @@ import {
 } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 import { GrantTree } from "./grant.ts";
-import { relationship } from "../policy/principal.ts";
+import { relationship } from "../declare/principal.ts";
 
 /** The number of random access models each dialect checks. */
 const MODELS = 6;
