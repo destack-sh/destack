@@ -2,6 +2,8 @@
 const capacity = 400;
 /** The pull of gravity on a spark, in CSS pixels per second squared. */
 const gravity = 260;
+/** The radius of a spark's glow, in CSS pixels. */
+const glowRadius = 5.4;
 
 /** One particle of light. */
 type Particle = {
@@ -31,6 +33,10 @@ export class Sparks {
     frame: number | undefined;
     /** The time of the last frame in milliseconds. */
     last: number;
+    /** One spark's core and glow, drawn once and stamped at every particle. */
+    glow: HTMLCanvasElement;
+    /** The area drawn on in the last frame, as left, top, right and bottom in CSS pixels. */
+    drawn: readonly [number, number, number, number] | undefined;
 
     /** Create the particles on a canvas. */
     constructor(canvas: HTMLCanvasElement) {
@@ -44,6 +50,8 @@ export class Sparks {
         this.particles = [];
         this.frame = undefined;
         this.last = 0;
+        this.glow = glowOf();
+        this.drawn = undefined;
     }
 
     /** Burst a spray of sparks from a point, flung up and out. */
@@ -106,11 +114,15 @@ export class Sparks {
         }
         const context = this.context;
         context.setTransform(scale, 0, 0, scale, 0, 0);
-        context.clearRect(0, 0, width, height);
+        if (this.drawn !== undefined) {
+            const [left, top, right, bottom] = this.drawn;
+            context.clearRect(left, top, right - left, bottom - top);
+        }
         context.globalCompositeOperation = "lighter";
 
-        // move each particle as it falls
+        // move each particle as it falls and stamp its glow where it lands
         const alive: Particle[] = [];
+        let [left, top, right, bottom] = [width, height, 0, 0];
         for (const particle of this.particles) {
             particle.life -= elapsed;
             if (particle.life <= 0) {
@@ -120,21 +132,25 @@ export class Sparks {
             particle.x += particle.speedX * elapsed;
             particle.y += particle.speedY * elapsed;
 
-            // glow cream, fading out at the end of its life
-            const fade = Math.min(1, particle.life / (particle.span * 0.4));
-            const size = 1.8;
-            context.fillStyle = `rgba(255, 244, 222, ${(fade * 0.7).toFixed(3)})`;
-            context.beginPath();
-            context.arc(particle.x, particle.y, size, 0, Math.PI * 2);
-            context.fill();
-            context.fillStyle = `rgba(255, 180, 120, ${(fade * 0.1).toFixed(3)})`;
-            context.beginPath();
-            context.arc(particle.x, particle.y, size * 3, 0, Math.PI * 2);
-            context.fill();
+            // fade out at the end of its life
+            context.globalAlpha = Math.min(1, particle.life / (particle.span * 0.4));
+            context.drawImage(
+                this.glow,
+                particle.x - glowRadius,
+                particle.y - glowRadius,
+                glowRadius * 2,
+                glowRadius * 2,
+            );
 
-            // keep the live particles
+            // keep the live particles and the area they cover
             alive.push(particle);
+            left = Math.min(left, particle.x - glowRadius - 1);
+            top = Math.min(top, particle.y - glowRadius - 1);
+            right = Math.max(right, particle.x + glowRadius + 1);
+            bottom = Math.max(bottom, particle.y + glowRadius + 1);
         }
+        context.globalAlpha = 1;
+        this.drawn = alive.length > 0 ? [left, top, right, bottom] : undefined;
         this.particles = alive;
 
         // keep drawing while any particle lives
@@ -142,4 +158,29 @@ export class Sparks {
             this.request();
         }
     }
+}
+
+/** Draw a spark once: a cream core inside a faint warm glow. */
+function glowOf() {
+    // size the sprite for a sharp glow on dense screens
+    const sprite = document.createElement("canvas");
+    const size = Math.ceil(glowRadius * 2 * 2);
+    sprite.width = size;
+    sprite.height = size;
+    const context = sprite.getContext("2d");
+    if (!context) {
+        throw new TypeError("the spark sprite has no 2D context");
+    }
+
+    // fill the glow and then the core
+    const centre = size / 2;
+    const gradient = context.createRadialGradient(centre, centre, 0, centre, centre, centre);
+    gradient.addColorStop(0, "rgba(255, 244, 222, 0.7)");
+    gradient.addColorStop(1 / 3, "rgba(255, 244, 222, 0.7)");
+    gradient.addColorStop(1 / 3 + 0.01, "rgba(255, 180, 120, 0.1)");
+    gradient.addColorStop(1, "rgba(255, 180, 120, 0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+
+    return sprite;
 }

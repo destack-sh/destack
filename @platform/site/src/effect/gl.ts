@@ -130,6 +130,14 @@ export class Shader {
     clip: { left: number; top: number; width: number; height: number } | undefined;
     /** The observer that tracks the displayed size. */
     sizes: ResizeObserver;
+    /** The canvas's top in CSS pixels: from the viewport's top when fixed, else from the page's top. */
+    offset: number;
+    /** Whether the canvas stays put in the viewport as the page scrolls. */
+    isFixed: boolean;
+    /** Whether the last frame shaded only the part of the clip on screen. */
+    isPartial: boolean;
+    /** Draw the rest of a partly shaded frame as the page scrolls it into view. */
+    onScroll: () => void;
     /** The pending animation frame, if any. */
     frame: number | undefined;
     /** Whether the canvas is on screen. */
@@ -162,13 +170,23 @@ export class Shader {
         this.density = density;
         this.width = canvas.clientWidth;
         this.height = canvas.clientHeight;
+        this.offset = 0;
+        this.isFixed = false;
+        this.isPartial = false;
         this.sizes = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 this.width = entry.contentRect.width;
                 this.height = entry.contentRect.height;
             }
+            this.measure();
         });
         this.sizes.observe(canvas);
+        this.onScroll = () => {
+            if (this.isPartial) {
+                this.request();
+            }
+        };
+        window.addEventListener("scroll", this.onScroll, { passive: true });
         this.frame = undefined;
         this.isVisible = true;
         this.onDraw = onDraw;
@@ -205,10 +223,17 @@ export class Shader {
         }
     }
 
+    /** Measure where the canvas sits so frames find its part on screen without a layout. */
+    measure() {
+        this.isFixed = getComputedStyle(this.canvas).position === "fixed";
+        this.offset = this.canvas.getBoundingClientRect().top + (this.isFixed ? 0 : window.scrollY);
+    }
+
     /** Pause while off screen, and pick up again once back. */
     show(isVisible: boolean) {
         this.isVisible = isVisible;
         if (isVisible) {
+            this.measure();
             this.request();
         } else {
             this.stop();
@@ -223,10 +248,12 @@ export class Shader {
         }
     }
 
-    /** Stop drawing and release the size observer and the drawing context. */
+    /** Stop drawing and release the size observer, the scroll listener and the drawing context. */
     dispose() {
+        // stop drawing and following the page before dropping the context
         this.stop();
         this.sizes.disconnect();
+        window.removeEventListener("scroll", this.onScroll);
         this.context.getExtension("WEBGL_lose_context")?.loseContext();
     }
 
@@ -254,22 +281,26 @@ export class Shader {
         context.uniform2f(this.uniform("resolution"), width, height);
         context.uniform1f(this.uniform("scale"), scale);
 
-        // upload the frame, then clear the canvas and draw the quad over its clip alone
+        // upload the frame and clear the canvas before shading the part of its clip on screen
         const isMoving = this.onDraw(now);
         context.clearColor(0, 0, 0, 0);
         context.clear(context.COLOR_BUFFER_BIT);
-        const clip = this.clip;
-        if (clip !== undefined) {
+        const clip = this.clip ?? { left: 0, top: 0, width: this.width, height: this.height };
+        const onScreen = this.isFixed ? this.offset : this.offset - pageScroll.y;
+        const top = Math.max(clip.top, -onScreen);
+        const bottom = Math.min(clip.top + clip.height, window.innerHeight - onScreen);
+        this.isPartial = top > clip.top || bottom < clip.top + clip.height;
+        if (bottom > top) {
             context.enable(context.SCISSOR_TEST);
             context.scissor(
                 Math.floor(clip.left * scale),
-                Math.floor(height - (clip.top + clip.height) * scale),
+                Math.floor(height - bottom * scale),
                 Math.ceil(clip.width * scale),
-                Math.ceil(clip.height * scale),
+                Math.ceil((bottom - top) * scale),
             );
+            context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
+            context.disable(context.SCISSOR_TEST);
         }
-        context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
-        context.disable(context.SCISSOR_TEST);
 
         // keep animating while the draw asks for more
         if (isMoving) {
