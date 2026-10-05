@@ -4,7 +4,7 @@ Sell products with features, bill accounts for subscriptions and purchases, and 
 
 ## Declarations
 
-`defineFeature` declares what a product grants (access alone, a fixed value of a schema, or usage of a meter up to a limit), and later releases keep each feature's kind.
+`defineFeature` declares what a product grants: access, a static value or metered usage up to a limit.
 
 ```ts
 import { defineFeature, defineMeter } from "@destack/finance/declare";
@@ -34,7 +34,7 @@ export const calls = defineFeature({
 
 ## Objects
 
-Every object lives in an account: a seller's account keeps its products, and a buyer's account keeps its customer, subscriptions, purchases, entitlements, meter events and invoices.
+Each finance object lives in a seller's or a buyer's account.
 
 ```text
 account
@@ -53,7 +53,7 @@ account
 
 ## Selling
 
-A seller's `product-feature` grants a declared feature of a package `@<handle>/…` its account publishes, with a value its declaration accepts, and its prices bill the product once or each period.
+A `product-feature` grants a feature of one of the seller's packages to the buyers of a product.
 
 ```ts
 const pro = await client.product.create({
@@ -89,7 +89,7 @@ for (const [feature, value] of [
 
 ## Billing
 
-The provider creates subscriptions of recurring prices and purchases of one-time prices for an account with a `customer` and moves them through their states as the system, and the account's managers hold `bill` over the rest.
+The payment provider creates the subscriptions and purchases of an account's `customer`.
 
 ```text
 subscription  trial      incomplete                                      -> trialing
@@ -106,7 +106,7 @@ purchase      pay        pending                                         -> paid
 
 ## Snapshots
 
-A subscription item or purchase keeps its active price's `terms` and its active product's `grants` from its creation on, so derivation never reads the seller's rows, which may live in another residency.
+A subscription item or purchase copies its price's `terms` and its product's `grants` when created.
 
 ```ts
 const { terms, grants } = await Price.snapshot(database, { scope: shopId, id: priceId });
@@ -125,7 +125,7 @@ await server.executeAsSystem(
 
 ## Entitlements
 
-The customer's controller derives one `entitlement` per grant of each item of a trialing, active or past due subscription and of each paid purchase, and counts metered usage from `meter-event`s within the subscription's current period, while a purchase grants only boolean and static features.
+The customer's controller derives one `entitlement` per grant of each active subscription and paid purchase.
 
 ```ts
 const { items } = await client.entitlement.list({ accountId, where: { feature: "api.calls" } });
@@ -134,7 +134,7 @@ const { items } = await client.entitlement.list({ accountId, where: { feature: "
 
 ## Resolution
 
-`Entitlement.resolve` combines a feature's rows across sources: any source grants access, the highest number or else the latest value wins, and metered limits add up, unlimited when any source is, against the usage within the period of the source resetting first.
+`Entitlement.resolve` combines the entitlements of one feature across sources.
 
 ```ts
 const calls = Entitlement.resolve(items, { packageId, name: "api.calls" });
@@ -143,7 +143,7 @@ const calls = Entitlement.resolve(items, { packageId, name: "api.calls" });
 
 ## Meter events
 
-A `meter-event` is unique per CloudEvents `source` and `eventId`, so a repeat is refused as a duplicate, and each event updates only the usage of the entitlements on its meter.
+A `meter-event` is unique per CloudEvents `source` and `eventId`.
 
 ```ts
 await server.executeAsSystem(
@@ -161,7 +161,7 @@ await server.executeAsSystem(
 
 ## Payers
 
-`Customer.payer` reads the account paying an account's charges from the copies: its organisation's `payer`, or else the account itself.
+`Customer.payer` returns the account that pays an account's charges.
 
 ```ts
 const paying = await Customer.payer(database, accountId);
@@ -169,12 +169,12 @@ const paying = await Customer.payer(database, accountId);
 
 ## Service
 
-`implementFinance` serves the finance objects over a residency's database, following the account service's copies and deriving entitlements under a controller.
+`implementFinance` serves the finance objects over a residency's database.
 
 ```ts
 import { implementFinance } from "@destack/finance/server";
 
-const finance = implementFinance({ database, identity, callKey, release, report });
+const finance = implementFinance({ database, identity, callKey, releases, report });
 ```
 
 ## Client
@@ -190,17 +190,20 @@ await finance.customer.list({ accountId });
 
 ## Workload
 
-`financeWorkload` serves the objects once per residency over `financeDatabase`, the `workloadIdentity` and `financeConfiguration`.
+`financeWorkload` serves the finance objects once per residency.
 
 ```ts
+import { Registry } from "@destack/forge/client";
 import { financeConfiguration, financeWorkload } from "@destack/finance/workload";
 
-resources.bind(financeConfiguration, { release: (packageId) => openRelease(packageId) });
+resources.bind(financeConfiguration, {
+    registry: Registry.of(directory, fetch),
+});
 ```
 
 ## Tables
 
-`financeDatabase` holds `financeTables` beside copies of the residency's accounts and organisations, whose payers customers record.
+`financeDatabase` holds `financeTables` and copies of the residency's accounts and organisations.
 
 ```ts
 import { financeDatabase, financeTables } from "@destack/finance/stack";

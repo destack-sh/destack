@@ -2,10 +2,11 @@ import { and, count, desc, eq, gte, inArray, lt, sql, type DatabaseConnection } 
 import { account } from "@destack/account/object";
 import type { CallOf, IdentifierOf } from "@destack/object";
 import type { PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
 import { aligned, canonicalize, found, present } from "@destack/schema";
 import { FeatureLimit, type FeatureReset } from "../feature/feature.ts";
-import { FeatureCatalog } from "../feature/index.ts";
+import type { Registry } from "@destack/forge/client";
+import type { FeatureCatalog } from "../feature/index.ts";
+import { latestCatalog } from "./catalog.ts";
 import { MeterReference, type Meter } from "../meter/meter.ts";
 import {
     type customer,
@@ -22,12 +23,6 @@ import {
 
 /** The identifier of an account. */
 type AccountId = IdentifierOf<typeof account>;
-
-/** Read a package's feature catalog. */
-type ReadCatalog = (packageId: PackageId) => Promise<FeatureCatalog>;
-
-/** Open the build of a package's current release, which declares its features and meters. */
-export type OpenRelease = (packageId: PackageId) => Promise<BuildReader>;
 
 /** An entitlement as one source derives it, before it is kept. */
 type Draft = Pick<
@@ -66,11 +61,11 @@ interface Source {
 /** Derive an account's entitlements from its granting subscriptions and paid purchases, and their metered usage. */
 export async function entitle(
     call: CallOf<typeof customer, "entitle">,
-    release: OpenRelease,
+    registry: Pick<Registry, "open">,
 ): Promise<void> {
     // derive one entitlement per feature of each source's product
-    const catalog = readCatalogs(release);
     const scope = account.identifier(call.scope);
+    const catalog = readCatalogs(registry);
     const derived = new Map<string, Draft>();
     for (const source of await readSources(call.database, scope)) {
         for (const grant of source.grants) {
@@ -113,11 +108,11 @@ export async function entitle(
 export async function measure(
     call: CallOf<typeof meterEvent, "create">,
     event: MeterEvent,
-    release: OpenRelease,
+    registry: Pick<Registry, "open">,
 ): Promise<void> {
     // read the account's metered entitlements
-    const catalog = readCatalogs(release);
     const scope = account.identifier(call.scope);
+    const catalog = readCatalogs(registry);
     const rows = await call.database
         .select()
         .from(entitlement.table)
@@ -151,15 +146,15 @@ export async function measure(
     }
 }
 
-/** Read each package's catalog once per call. */
-function readCatalogs(release: OpenRelease): ReadCatalog {
-    const catalogs = new Map<PackageId, Promise<FeatureCatalog>>();
+/** Read each package's latest catalog once per call, keeping one release for the whole call. */
+function readCatalogs(
+    registry: Pick<Registry, "open">,
+): (packageId: PackageId) => Promise<FeatureCatalog> {
+    const opened = new Map<PackageId, Promise<FeatureCatalog>>();
 
     return (packageId) => {
-        const read =
-            catalogs.get(packageId) ??
-            release(packageId).then((reader) => FeatureCatalog.read(reader));
-        catalogs.set(packageId, read);
+        const read = opened.get(packageId) ?? latestCatalog(registry, packageId);
+        opened.set(packageId, read);
 
         return read;
     };
@@ -237,7 +232,7 @@ async function derive(
     scope: AccountId,
     source: Source,
     grant: FeatureGrant,
-    catalog: ReadCatalog,
+    catalog: (packageId: PackageId) => Promise<FeatureCatalog>,
 ): Promise<Draft> {
     // read the feature's declaration
     const reference = { packageId: grant.packageId, name: grant.feature };

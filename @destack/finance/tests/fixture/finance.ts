@@ -36,6 +36,7 @@ import { serveFinance } from "../../src/server/index.ts";
 import { financeService } from "../../src/service/index.ts";
 import { financeDatabase } from "../../src/stack/index.ts";
 import type { Feature } from "../../src/feature/index.ts";
+import type { Package } from "@destack/package";
 import { release } from "./release.ts";
 import {
     calls,
@@ -101,16 +102,17 @@ export class Finance {
     readonly test: TestDatabase;
     /** The served finance objects. */
     readonly server: ObjectServer<ReturnType<typeof serveFinance>>;
+    /** The latest release of each package, by identifier. */
+    readonly #releases = new Map([
+        [storage.id, release(storage, [requests, stored, sync, support, seats, calls, quota])],
+        [hosting.id, release(hosting, [domains])],
+    ]);
 
     /** Serve the finance objects over a database, opening the storage and hosting packages' releases. */
     private constructor(test: TestDatabase) {
         this.test = test;
-        const releases = new Map([
-            [storage.id, release(storage, [requests, stored, sync, support, seats, calls, quota])],
-            [hosting.id, release(hosting, [domains])],
-        ]);
         this.server = new ObjectServer({
-            objects: serveFinance((packageId) => found(releases, packageId)),
+            objects: serveFinance({ open: (packageId) => found(this.#releases, packageId) }),
             policies: [account, organisation],
             database: test.database,
             callKey: testCallKey,

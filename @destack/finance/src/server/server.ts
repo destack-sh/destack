@@ -8,7 +8,6 @@ import { ServiceError } from "@destack/service/error";
 import type { CallKey } from "@destack/service/request";
 import type { ServiceImplementation } from "@destack/service/server";
 import { FeatureReference } from "../feature/feature.ts";
-import { FeatureCatalog } from "../feature/index.ts";
 import {
     customer,
     Customer,
@@ -27,7 +26,9 @@ import {
     subscriptionItem,
 } from "../object/index.ts";
 import { financeService } from "../service/index.ts";
-import { entitle, measure, type OpenRelease } from "./entitlement.ts";
+import type { Registry } from "@destack/forge/client";
+import { latestCatalog } from "./catalog.ts";
+import { entitle, measure } from "./entitlement.ts";
 
 /** The database, workload identity and releases the finance service serves with. */
 export interface FinanceOptions {
@@ -37,8 +38,8 @@ export interface FinanceOptions {
     readonly identity: WorkloadIdentity;
     /** The key sensitive call inputs are fingerprinted under in the journal. */
     readonly callKey: CallKey;
-    /** Open the build declaring a package's features and meters. */
-    readonly release: OpenRelease;
+    /** The registry of published releases declaring packages' features and meters, read at their latest release. */
+    readonly registry: Pick<Registry, "open">;
     /** Report committed external work that fails to settle. */
     readonly report?: (error: unknown) => void;
 }
@@ -54,7 +55,7 @@ export function implementFinance(options: FinanceOptions): FinanceImplementation
     // serve the finance objects, following the account service's copies as the placement
     const { identity } = options;
     const objects: ObjectServer<ReturnType<typeof serveFinance>> = new ObjectServer({
-        objects: serveFinance(options.release),
+        objects: serveFinance(options.registry),
         policies: [account, organisation],
         database: options.database,
         callKey: options.callKey,
@@ -68,15 +69,15 @@ export function implementFinance(options: FinanceOptions): FinanceImplementation
     return { ...objects.implement(financeService), objects };
 }
 
-/** Serve the finance objects, checking grants against their features' declarations and deriving entitlements. */
-export function serveFinance(release: OpenRelease) {
+/** Serve the finance objects, checking grants against the declarations of their packages' latest releases and deriving entitlements. */
+export function serveFinance(registry: Pick<Registry, "open">) {
     return {
-        customer: serveCustomers(release),
+        customer: serveCustomers(registry),
         seller,
         product,
         productFeature: productFeature.handle({
             create: {
-                authorize: (call) => requireGrant(call.input, call.scope, call.database, release),
+                authorize: (call) => requireGrant(call.input, call.scope, call.database, registry),
             },
             update: {
                 authorize: (call) =>
@@ -84,7 +85,7 @@ export function serveFinance(release: OpenRelease) {
                         { ...call.requireTarget(), ...call.input },
                         call.scope,
                         call.database,
-                        release,
+                        registry,
                     ),
             },
         }),
@@ -109,7 +110,7 @@ export function serveFinance(release: OpenRelease) {
                 // require a customer buying a one-time price without metered grants
                 await Customer.require(call.database, account.identifier(call.scope));
                 requireType(call.input.terms, "one_time", "a purchase");
-                await requireUnmetered(call.input.grants, release);
+                await requireUnmetered(call.input.grants, registry);
 
                 return next();
             },
@@ -120,7 +121,7 @@ export function serveFinance(release: OpenRelease) {
             create: async (call, next) => {
                 // keep the event and count it into its meter's entitlements
                 const event = await next();
-                await measure(call, event, release);
+                await measure(call, event, registry);
 
                 return event;
             },
@@ -130,11 +131,11 @@ export function serveFinance(release: OpenRelease) {
 }
 
 /** Serve customers, deriving each account's entitlements again after its subscriptions and purchases change. */
-function serveCustomers(release: OpenRelease) {
+function serveCustomers(registry: Pick<Registry, "open">) {
     return customer
         .handle({
             entitle: async (call) => {
-                await entitle(call, release);
+                await entitle(call, registry);
 
                 return call.requireTarget();
             },
@@ -161,15 +162,14 @@ async function requireGrant(
     grant: { readonly packageId: string; readonly feature: string; readonly value?: JsonValue },
     scope: string,
     database: DatabaseConnection,
-    release: OpenRelease,
+    registry: Pick<Registry, "open">,
 ): Promise<void> {
     // refuse a feature of a package another account publishes
     const reference = FeatureReference.parse({ packageId: grant.packageId, name: grant.feature });
-    const reader = await release(reference.packageId);
-    await Seller.requirePublisher(database, account.identifier(scope), reader.manifest.package);
+    const catalog = await latestCatalog(registry, reference.packageId);
+    await Seller.requirePublisher(database, account.identifier(scope), catalog.package);
 
     // refuse a value the feature's declaration rejects
-    const catalog = await FeatureCatalog.read(reader);
     catalog.feature(reference).requireGrant(grant.value ?? null);
 }
 
@@ -187,12 +187,12 @@ function requireType(terms: PriceTerms, type: PriceTerms["type"], buyer: string)
 /** Refuse a purchase granting a metered feature, whose one-time usage credit grants cover. */
 async function requireUnmetered(
     grants: readonly FeatureGrant[],
-    release: OpenRelease,
+    registry: Pick<Registry, "open">,
 ): Promise<void> {
     for (const grant of grants) {
         // read the granted feature's kind
         const reference = { packageId: grant.packageId, name: grant.feature };
-        const catalog = await FeatureCatalog.read(await release(grant.packageId));
+        const catalog = await latestCatalog(registry, grant.packageId);
 
         // refuse a metered one
         if (catalog.feature(reference).definition.kind === "metered") {
