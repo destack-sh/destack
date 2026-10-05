@@ -14,7 +14,7 @@ import {
     type ServiceContext,
 } from "@destack/service/server";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
-import type { AuditAction } from "../action/action.ts";
+import type { AuditAction } from "../declare/action.ts";
 import { AuditError } from "../error/index.ts";
 import { invokeService } from "./action.ts";
 
@@ -109,6 +109,7 @@ export class AuditRecorder<Transaction = never> {
 
         // read the request's session, token and trace
         const sessionId = session.success ? session.data : origin.sessionId;
+        const deviceId = caller?.credential.device ?? origin.deviceId;
         const tokenId = token.success ? token.data : origin.tokenId;
         const traceId = span && isSpanContextValid(span) ? span.traceId : undefined;
 
@@ -117,6 +118,7 @@ export class AuditRecorder<Transaction = never> {
                 ...origin,
                 caller: recorded,
                 ...(deploymentId === undefined ? {} : { deploymentId }),
+                ...(deviceId === undefined ? {} : { deviceId }),
                 ...(sessionId === undefined ? {} : { sessionId }),
                 ...(tokenId === undefined ? {} : { tokenId }),
                 ...(traceId === undefined ? {} : { traceId }),
