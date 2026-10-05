@@ -169,6 +169,9 @@ async function open(options: DevelopmentServerOptions): Promise<PackageSource> {
     });
 }
 
+/** The browsers development serves syntax for, the ones Vite's `baseline-widely-available` build target names. */
+const BROWSER_TARGETS = ["chrome111", "edge111", "firefox114", "safari16.4"];
+
 /** Create and listen with a Vite server of fresh plugins for an application, calling back when a dependency's definition changes. */
 async function serve(
     options: DevelopmentServerOptions,
@@ -199,6 +202,7 @@ async function serve(
             entryPlugin(),
         ],
         resolve: { conditions: runtimeConditions("browser", "development") },
+        oxc: { target: BROWSER_TARGETS },
         ssr: {
             noExternal: true,
             resolve: { conditions: runtimeConditions(runtime, "development") },
