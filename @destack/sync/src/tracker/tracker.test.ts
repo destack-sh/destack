@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, eq, integer, text, type DatabaseConnection, type Channel } from "@destack/db";
-import { channelHub, TestDatabase } from "@destack/db/test";
+import { channelHub } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
 import { Tracker, type TrackerMessage } from "./tracker.ts";
 
 /** Cursors of sessions on a board, kept in memory. */
@@ -118,6 +119,29 @@ test("replicate which instance tracks an owner, released everywhere once its ins
         ["bob", true],
         ["bob", false],
     ]);
+});
+
+test("skip the instance's own messages a channel echoes back, as PostgreSQL's does", async () => {
+    const join = channelHub<TrackerMessage>();
+    const east = await open(join());
+    const echo = join();
+    await write(east, "alice", (database) =>
+        database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
+    );
+
+    // echo the instance's hello between committing a deletion and publishing it
+    const rows = await east.database.transaction(async (transaction) => {
+        await transaction.delete(cursor).where(eq(cursor.id, "a"));
+
+        return east.record(transaction, () => "alice");
+    });
+    echo.notify({ kind: "hello", instance: east.instance });
+    await new Promise<void>((resolve) => {
+        queueMicrotask(resolve);
+    });
+    await east.settled();
+    east.publish(rows);
+    expect(await read(east)).toEqual([]);
 });
 
 /** Track the cursors of an in-memory database on a channel. */

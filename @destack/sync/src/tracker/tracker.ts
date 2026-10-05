@@ -264,6 +264,11 @@ export class Tracker {
 
     /** Apply another instance's message. */
     async #receive(message: TrackerMessage): Promise<void> {
+        // skip this instance's own messages a channel echoes back
+        if (message.instance === this.instance) {
+            return;
+        }
+
         // note the sender as alive
         if (message.kind !== "stop") {
             this.#instances.set(message.instance, Date.now());
