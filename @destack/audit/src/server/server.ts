@@ -109,10 +109,7 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
                 } catch (error) {
                     // map audit failures to service failures
                     if (error instanceof AuditError) {
-                        throw new ServiceError(
-                            error.code === "INVALID_EVENT" ? "BAD_REQUEST" : error.code,
-                            { message: error.message },
-                        );
+                        throw error.toServiceError();
                     }
                     throw error;
                 }
