@@ -80,7 +80,7 @@ export class Storage {
 
     /** Register a device of Alice's. */
     async register(name: string): Promise<Device> {
-        return await this.call(device, "create", alice, { name });
+        return await this.call(device, "create", alice, { name, kind: "desktop" });
     }
 
     /** Open a database of a dialect with Alice's own personal scope. */

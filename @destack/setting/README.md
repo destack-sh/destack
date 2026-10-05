@@ -22,7 +22,54 @@ export const editorMode = defineSetting({
 });
 ```
 
-## Reading
+### Releases
+
+`convert` upgrades a setting's earlier values by the release narrowing its schema.
+
+```ts
+import { Expression } from "@destack/db";
+
+export const keymap = defineSetting({
+    ...editorMode.definition,
+    schema: schema.object({ keymap: schema.enum(["standard", "vim"]) }),
+    default: { keymap: "standard" },
+    convert: { "2026.10.0": Expression.object({ keymap: Expression.column("value") }) }, // `value` is the stored value
+});
+```
+
+### Stacks
+
+`mode` sets a stack's value in its space, or recommends or requires it for the space's users.
+
+```ts
+import { defineSpace } from "@destack/space";
+
+export const personal = defineSpace({
+    settings: {
+        editor: { setting: editorMode, value: "vim", mode: "recommend" },
+    },
+});
+```
+
+## Objects
+
+A `setting` object holds one value of a setting at a placement, and readers resolve the effective value from the rows along a scope chain.
+
+### Placements
+
+A placement holds the override columns of a `setting` row, its device as `deviceId`, and spreads into a created value.
+
+```ts
+const placement = SettingPlacement.of({
+    scope: userId,
+    space: spaceId,
+    installation: null,
+    deviceId,
+});
+// { scope: userId, space: spaceId, deviceId }
+```
+
+### Reading
 
 `resolve` reads a setting's value from the `setting` rows a client follows along the space's scope chain.
 
@@ -40,7 +87,7 @@ const chain = await space.replica.chain(space.database);
 const mode = editorMode.resolve(selection, rows, chain);
 ```
 
-## Editing
+### Editing
 
 The `setting` object's methods create, update and delete the row at a placement.
 
@@ -64,50 +111,9 @@ const saved =
 await saved.confirmed;
 ```
 
-## Placements
+## Service
 
-A placement holds the override columns of a `setting` row, its device as `deviceId`, and spreads into a created value.
-
-```ts
-const placement = SettingPlacement.of({
-    scope: userId,
-    space: spaceId,
-    installation: null,
-    deviceId,
-});
-// { scope: userId, space: spaceId, deviceId }
-```
-
-## Stacks
-
-`mode` sets a stack's value in its space, or recommends or requires it for the space's users.
-
-```ts
-import { defineSpace } from "@destack/space";
-
-export const personal = defineSpace({
-    settings: {
-        editor: { setting: editorMode, value: "vim", mode: "recommend" },
-    },
-});
-```
-
-## Releases
-
-`convert` upgrades a setting's earlier values by the release narrowing its schema.
-
-```ts
-export const keymap = defineSetting({
-    ...editorMode.definition,
-    schema: schema.object({ keymap: schema.enum(["standard", "vim"]) }),
-    default: { keymap: "standard" },
-    convert: { "2026.10.0": Expression.object({ keymap: Expression.column("value") }) }, // `value` is the stored value
-});
-```
-
-## Hosting
-
-The `setting` objects apply the values stacks place and check them against the declaring release.
+`servedObjects` serves the `setting` objects, which apply the values stacks place and check them against the declaring release.
 
 ```ts
 import { servedObjects } from "@destack/setting/server";

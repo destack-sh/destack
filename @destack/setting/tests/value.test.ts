@@ -139,3 +139,35 @@ test.each(TEST_DIALECTS)(
         ]).toEqual(["vim", true]);
     },
 );
+
+test.each(TEST_DIALECTS)(
+    "follow a scope's values for a setting and yield them again after a change on %s",
+    async (dialect) => {
+        const storage = await Storage.open(dialect);
+        onTestFinished(() => storage.close());
+        const created = await storage.call(setting, "create", alice, {
+            ...named(editor),
+            mode: "set",
+            value: "vim",
+            release: "2026.9.0",
+        });
+
+        // read the values before and after a change
+        const stopping = new AbortController();
+        onTestFinished(() => stopping.abort());
+        const followed = SettingValue.follow(
+            storage.database,
+            [editor.reference],
+            alice,
+            stopping.signal,
+        );
+        const first = await followed.next();
+        await storage.call(setting, "update", alice, { id: created.id, value: "standard" });
+        const second = await followed.next();
+        expect(
+            [first, second].map((step) =>
+                step.done === true ? [] : step.value.values.map((row) => row.value),
+            ),
+        ).toEqual([["vim"], ["standard"]]);
+    },
+);
