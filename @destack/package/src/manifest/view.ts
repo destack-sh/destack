@@ -49,19 +49,29 @@ export const ViewPermission = defineSchema(
 /** A permission a view requests on an object type. */
 export type ViewPermission = schema.Infer<typeof ViewPermission>;
 
-/** An object type a view names by its package and name. */
-export const ViewObjectType = defineSchema(
+/** The scopes a view's permissions apply in, relative to its context. */
+const VIEW_SCOPES = ["space", "home", "account"] as const;
+
+/** A scope relative to a view's context, with a later fourth for objects the person picks, granted per object through a shell picker. */
+export const ViewScope = defineSchema(schema.enum(VIEW_SCOPES));
+/** A scope relative to a view's context: its space, the person's home, or the space's account. */
+export type ViewScope = schema.Infer<typeof ViewScope>;
+
+/** The permissions a view requests, by the scope they apply in. */
+export const ViewPermissions = defineSchema(
     schema
         .object({
-            /** The package declaring the object type. */
-            packageId: PackageId,
-            /** The object type. */
-            type: schema.string().min(1),
+            /** The permissions in the space the view runs in. */
+            space: schema.array(ViewPermission).exactOptional(),
+            /** The permissions in the person's home. */
+            home: schema.array(ViewPermission).exactOptional(),
+            /** The permissions in the account of the view's space. */
+            account: schema.array(ViewPermission).exactOptional(),
         })
         .strict(),
 );
-/** An object type a view names by its package and name. */
-export type ViewObjectType = schema.Infer<typeof ViewObjectType>;
+/** The permissions a view requests, by the scope they apply in. */
+export type ViewPermissions = schema.Infer<typeof ViewPermissions>;
 
 /** A view a browser output compiles, as manifests describe it. */
 export const ViewDescription = Object.assign(
@@ -70,36 +80,35 @@ export const ViewDescription = Object.assign(
             .object({
                 /** The emitted chunk mounting the view. */
                 entrypoint: PackagePath,
-                /** The permissions the view requests. */
-                permissions: schema.array(ViewPermission),
+                /** The permissions the view requests, by the scope they apply in. */
+                permissions: ViewPermissions,
                 /** The browser features the view may use, as its package declares them. */
                 capabilities: Capabilities,
                 /** The object types the view presents, so opening an object picks its view. */
                 presents: schema.array(ViewPresentation),
-                /** The object types the view opens in the person's home space, whose permissions the host grants there. */
-                home: schema.array(ViewObjectType).exactOptional(),
             })
             .strict(),
     ),
     {
-        /** Scope a view's permissions: those on its home types to the person's home, none without one, and the rest to its space. */
+        /** Grant a view's permissions in the scopes they name, dropping those of a scope the view's context lacks. */
         grants(
-            view: {
-                readonly permissions: readonly ViewPermission[];
-                readonly home?: readonly ViewObjectType[];
+            view: { readonly permissions: ViewPermissions },
+            scopes: {
+                readonly space: string;
+                readonly home: string | undefined;
+                readonly account: string | undefined;
             },
-            scopes: { readonly space: string; readonly home: string | undefined },
         ): (ViewPermission & { readonly scope: string })[] {
-            return view.permissions.flatMap((permission) => {
-                const isHome = (view.home ?? []).some(
-                    (type) =>
-                        type.packageId === permission.packageId && type.type === permission.type,
-                );
-                if (!isHome) {
-                    return [{ ...permission, scope: scopes.space }];
-                }
+            return ViewScope.options.flatMap((name) => {
+                // grant the scope's permissions where the context names the scope
+                const scope = scopes[name];
 
-                return scopes.home === undefined ? [] : [{ ...permission, scope: scopes.home }];
+                return scope === undefined
+                    ? []
+                    : (view.permissions[name] ?? []).map((permission) => ({
+                          ...permission,
+                          scope,
+                      }));
             });
         },
 

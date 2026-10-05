@@ -23,25 +23,30 @@ test("rank views presenting no type first, then by their strongest presentation,
     expect(ViewDescription.rank({})).toEqual([]);
 });
 
-test("grant a view's home permissions in the person's home, none without one, and the rest in its space", () => {
-    // request a permission on a space type and one on a home type
+test("grant a view's permissions in their scopes, dropping those of an unknown home or account", () => {
+    // request a permission in the space, one in the person's home and one in the space's account
     const packageId = NOTES;
     const view = {
-        permissions: [
-            { packageId, type: "note", name: "read" },
-            { packageId, type: "notification", name: "read" },
-        ],
-        home: [{ packageId, type: "notification" }],
+        permissions: {
+            space: [{ packageId, type: "note", name: "read" }],
+            home: [{ packageId, type: "notification", name: "read" }],
+            account: [{ packageId, type: "member", name: "read" }],
+        },
     };
 
-    // scope each permission, dropping the home one without a home
+    // grant each in its scope, and only the space's without a home or an account
     expect([
-        ViewDescription.grants(view, { space: "space-a", home: "space-home" }),
-        ViewDescription.grants(view, { space: "space-a", home: undefined }),
+        ViewDescription.grants(view, {
+            space: "space-a",
+            home: "space-home",
+            account: "account-a",
+        }),
+        ViewDescription.grants(view, { space: "space-a", home: undefined, account: undefined }),
     ]).toEqual([
         [
             { packageId, type: "note", name: "read", scope: "space-a" },
             { packageId, type: "notification", name: "read", scope: "space-home" },
+            { packageId, type: "member", name: "read", scope: "account-a" },
         ],
         [{ packageId, type: "note", name: "read", scope: "space-a" }],
     ]);
