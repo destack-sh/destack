@@ -1,5 +1,5 @@
 import { type Table, defineDatabase } from "@destack/db";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { page } from "../object/index.ts";
 
 /** The tables of pages, for a database embedding them. */
