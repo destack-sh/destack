@@ -6,11 +6,9 @@ import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/vie
 import { Debris } from "../effect/debris";
 import { isDarkPage, isWeakGraphics } from "../effect/gl";
 import { charge } from "../effect/goo";
-import { bergStagger, type Bob, crackTime, Ice } from "../effect/ice";
-import { type Flight, sound } from "../effect/sound";
+import { type Bob, crackTime, Ice } from "../effect/ice";
 import { Sparks } from "../effect/sparks";
 import {
-    drainAt,
     nightWater,
     paperWater,
     stir,
@@ -22,8 +20,9 @@ import {
 } from "../effect/water";
 import { commandEvents } from "../command/command";
 import { lattice } from "../style/lattice.stylex";
+import { plate } from "../style/plate.stylex";
 import { tokens } from "../style/tokens.stylex";
-import { Band, Card, DuctTape, type Entity, type Reveal } from "./card";
+import { Band, Card, DuctTape, type Entity } from "./card";
 import {
     boardCells,
     columnCentres,
@@ -39,8 +38,6 @@ import { Remix, sceneSources, scenes, slotApps, todayScenes, usesOf } from "./re
 import { telemetry } from "@destack/telemetry";
 import { log } from "../site/telemetry.ts";
 
-/** The pitch each berg cracks at, from the left to the right, so the three breaks sound apart. */
-const bergPitches = [1.12, 1, 0.9];
 /** The media query for screens narrower than the desktop frame, where the drawing spans the whole frame. */
 const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
@@ -87,9 +84,6 @@ type Count = {
     /** The distinct vendors they rent from. */
     vendors: number;
 };
-
-/** How long a shown layer stays lit, in milliseconds. */
-const litTime = 2600;
 
 /** The six layers, from the users of the stack down to where it runs. */
 const layers: readonly Layer[] = [
@@ -172,10 +166,10 @@ const locked: Readonly<Record<string, readonly Entity[]>> = {
 /** The milliseconds each silo rides its iceberg before the next swap. */
 const swapTime = 6500;
 
-/** The layers every Destack app shares, one per band row, with the packages each holds and what each shows inside. */
+/** The layers every Destack app shares, one per band row, with the packages each holds. */
 const shared: readonly {
     entity: Entity;
-    items: readonly (Entity & { reveal: Reveal })[];
+    items: readonly Entity[];
 }[] = [
     {
         entity: { label: "Services", icon: "services", role: "Shared logic", tint: "#6b5ca5" },
@@ -185,56 +179,24 @@ const shared: readonly {
                 tint: "#a0485f",
                 icon: "auth",
                 role: "Roles",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["client", "forms"],
-                        ["claude", "incidents"],
-                        ["investor", "update"],
-                    ],
-                },
             },
             {
                 label: "Settings",
                 tint: "#6d7f86",
                 icon: "settings",
                 role: "JSON",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["week", "monday"],
-                        ["theme", "night"],
-                        ["digest", "8:00"],
-                    ],
-                },
             },
             {
                 label: "Search",
                 tint: "#3d6fb0",
                 icon: "search",
                 role: "Full text",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["plan.md", "2 hits"],
-                        ["t_0931", "1 hit"],
-                        ["#team", "4 hits"],
-                    ],
-                },
             },
             {
                 label: "AI",
                 tint: "#6b5ca5",
                 icon: "ai",
                 role: "Your own",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["model", "yours"],
-                        ["key", "yours"],
-                        ["credits", "none"],
-                    ],
-                },
             },
         ],
     },
@@ -246,56 +208,24 @@ const shared: readonly {
                 tint: "#2f7d8c",
                 icon: "storage",
                 role: "SQL",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["tasks", "1,204 rows"],
-                        ["candidates", "86 rows"],
-                        ["invoices", "42 rows"],
-                    ],
-                },
             },
             {
                 label: "Bucket",
                 tint: "#b8862b",
                 icon: "bucket",
                 role: "S3",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["plan.md", "2 KB"],
-                        ["cover.png", "48 KB"],
-                        ["notes.md", "1 KB"],
-                    ],
-                },
             },
             {
                 label: "Vault",
                 tint: "#12313c",
                 icon: "vault",
                 role: "Secrets",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["MAIL_TOKEN", "\u2022\u2022\u2022\u2022"],
-                        ["MODEL_KEY", "\u2022\u2022\u2022\u2022"],
-                        ["STRIPE_KEY", "\u2022\u2022\u2022\u2022"],
-                    ],
-                },
             },
             {
                 label: "Audit",
                 tint: "#5b7f2e",
                 icon: "audit",
                 role: "Change log",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["09:41", "you"],
-                        ["09:42", "claude"],
-                        ["09:44", "client"],
-                    ],
-                },
             },
         ],
     },
@@ -307,114 +237,54 @@ const shared: readonly {
                 tint: "#c64a17",
                 icon: "source",
                 role: "Git",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["3f9a2c", "pipeline view"],
-                        ["e02d4f", "remix crm"],
-                        ["9d44b1", "book interviews"],
-                    ],
-                },
             },
             {
                 label: "Registry",
                 tint: "#a0485f",
                 icon: "registry",
                 role: "npm",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["@you/hiring", "1.2"],
-                        ["@you/invoices", "0.4"],
-                        ["@roommate/household", "2.0"],
-                    ],
-                },
             },
             {
                 label: "Build",
                 tint: "#4f8a5b",
                 icon: "build",
                 role: "Node",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["bundle", "38 KB"],
-                        ["types", "ok"],
-                        ["done", "0.4s"],
-                    ],
-                },
             },
             {
                 label: "Templates",
                 tint: "#3d6fb0",
                 icon: "template",
                 role: "Starters",
-                reveal: {
-                    kind: "fields",
-                    rows: [
-                        ["standup", "incidents"],
-                        ["hiring", "feedback"],
-                        ["invoices", "household"],
-                    ],
-                },
             },
         ],
     },
 ];
 
 /** The hosts a space can run on. */
-const hosts: readonly { entity: Entity; reveal: Reveal }[] = [
+const hosts: readonly Entity[] = [
     {
-        entity: {
-            label: "Your laptop",
-            icon: "computer",
-            role: "You run, we tunnel",
-            tint: "#3d6fb0",
-        },
-        reveal: {
-            kind: "code",
-            name: "terminal",
-            lines: ["$ destack dev", "ready on :3000", "tunnel  you.destack.sh"],
-        },
+        label: "Your laptop",
+        icon: "computer",
+        role: "You run, we tunnel",
+        tint: "#3d6fb0",
     },
     {
-        entity: {
-            label: "Your server",
-            icon: "hosts",
-            role: "You run, we tunnel",
-            tint: "#4f8a5b",
-        },
-        reveal: {
-            kind: "code",
-            name: "destack new",
-            lines: ["$ docker compose up", "destack  running", "backups  nightly"],
-        },
+        label: "Your server",
+        icon: "hosts",
+        role: "You run, we tunnel",
+        tint: "#4f8a5b",
     },
     {
-        entity: {
-            label: "Your cloud",
-            icon: "cloud",
-            role: "You run everything",
-            tint: "#6b5ca5",
-        },
-        reveal: {
-            kind: "code",
-            name: "terminal",
-            lines: ["$ destack deploy --to aws", "region   eu-central-1", "billing  yours"],
-        },
+        label: "Your cloud",
+        icon: "cloud",
+        role: "You run everything",
+        tint: "#6b5ca5",
     },
     {
-        entity: {
-            label: "Our cloud",
-            icon: "cloud",
-            role: "We run everything",
-            tint: "#c64a17",
-        },
-        reveal: {
-            kind: "code",
-            name: "terminal",
-            lines: ["$ destack deploy", "regions  3", "backups  hourly"],
-        },
+        label: "Our cloud",
+        icon: "cloud",
+        role: "We run everything",
+        tint: "#c64a17",
     },
 ];
 
@@ -452,7 +322,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const [isAdrift, setIsAdrift] = createSignal(false);
     const [today, setToday] = createSignal(0);
     const [surfacedAt, setSurfacedAt] = createSignal(0);
-    const [litLayer, setLitLayer] = createSignal<number | undefined>(undefined);
     const isOpen = createMemo(() => stack() === "destack");
     const count = createMemo((): Count => {
         // count the people and vendors in the scene on screen
@@ -470,11 +339,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let drawingElement: HTMLDivElement | undefined;
     let canvasElement: HTMLCanvasElement | undefined;
     let iceCanvasElement: HTMLCanvasElement | undefined;
-    let lensElement: HTMLDivElement | undefined;
     let water: Water | undefined;
     let sparks: Sparks | undefined;
     let sparkCanvasElement: HTMLCanvasElement | undefined;
-    let swirling: ReturnType<typeof setInterval> | undefined;
     let ice: Ice | undefined;
     let debris: Debris | undefined;
     let debrisCanvasElement: HTMLCanvasElement | undefined;
@@ -489,7 +356,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             !drawingElement ||
             !canvasElement ||
             !iceCanvasElement ||
-            !lensElement ||
             !sparkCanvasElement ||
             !debrisCanvasElement
         ) {
@@ -501,7 +367,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             drawing: drawingElement,
             canvas: canvasElement,
             iceCanvas: iceCanvasElement,
-            lens: lensElement,
             sparkCanvas: sparkCanvasElement,
             debrisCanvas: debrisCanvasElement,
         };
@@ -514,7 +379,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         calm = setTimeout(() => setIsAdrift(true), adriftDelay);
     };
     const reveals = layers.map(() => 0);
-    const light = { target: { x: 0, y: 0 }, x: 0, y: 0, radius: 0, isOn: false, waterline: 0 };
+    let surface = 0;
 
     // keep the drawing's place within the water canvas, measured only when the layout changes
     const frame = { offset: 0, shift: 0, width: 0, height: 0, depth: 0 };
@@ -539,11 +404,11 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const follow = (level: number) => {
         // light the rows the waterline has passed
         setIsPainted(true);
-        light.waterline = level;
+        surface = level;
         const { offset, height } = frame;
         const row = height / layers.length;
         const { style } = elements().figure;
-        for (const [index, previous] of reveals.entries()) {
+        for (const index of reveals.keys()) {
             // leave the dry rows above the waterline alone
             if (index < dryRows) {
                 continue;
@@ -551,41 +416,25 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             const passed = (level - offset - row * index) / row;
             const reveal = Math.max(0, Math.min(1, passed));
             style.setProperty(`--reveal-${index}`, reveal.toFixed(3));
-
-            // pluck a note as each band comes into view, climbing the chord
-            if (previous < 0.5 && reveal >= 0.5) {
-                sound.pluck(index - dryRows);
-            }
             reveals[index] = reveal;
         }
     };
 
-    // aim the searchlight at the pointer
+    // stir the water when the pointer skims it, harder the closer it comes
     let stirredAt: number | undefined;
-    const aim = (event: PointerEvent) => {
-        // aim the light at the pointer, and turn it off over controls
+    const skim = (event: PointerEvent) => {
+        // measure the pointer against the waterline
         const bounds = elements().figure.getBoundingClientRect();
-        light.target = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
-        const origin = event.target;
-        const isControl = origin instanceof Element && origin.closest("button, a") !== null;
-        light.isOn = event.pointerType === "mouse" && event.buttons === 0 && !isControl;
-
-        // stir the water when skimming it, harder the closer the pointer
-        const distance = Math.abs(light.target.y - light.waterline);
+        const x = event.clientX - bounds.left;
+        const distance = Math.abs(event.clientY - bounds.top - surface);
         if (!isOpen() && distance < stirRange) {
-            if (stirredAt === undefined || Math.abs(light.target.x - stirredAt) > stirStep) {
-                stir(light.target.x + waterSpill, 7 * (1 - distance / stirRange));
-                sound.stir(1 - distance / stirRange, event.clientX / window.innerWidth);
-                stirredAt = light.target.x;
+            if (stirredAt === undefined || Math.abs(x - stirredAt) > stirStep) {
+                stir(x + waterSpill, 7 * (1 - distance / stirRange));
+                stirredAt = x;
             }
         } else {
             stirredAt = undefined;
         }
-    };
-
-    // put the searchlight out
-    const leave = () => {
-        light.isOn = false;
     };
 
     // pick points across the ice above and just below the waterline, in page pixels, where shards break off
@@ -633,8 +482,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             setIsAdrift(false);
         }
 
-        // spray sparks where the ice breaks, and swirl motes down into the drain as the water goes
-        clearInterval(swirling);
+        // spray sparks where the ice breaks
         if (next === "destack" && sparks) {
             const bounds = elements().drawing.getBoundingClientRect();
             const origin = elements().sparkCanvas.getBoundingClientRect();
@@ -646,43 +494,20 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     14,
                 );
             }
-            const began = performance.now();
-            const motes = sparks;
-            swirling = setInterval(() => {
-                if (performance.now() - began > travel) {
-                    clearInterval(swirling);
-                }
-                motes.swirl(
-                    elements().canvas.clientWidth * 0.3,
-                    elements().canvas.clientWidth - waterSpill * 2,
-                    light.waterline + 10,
-                    2,
-                );
-            }, 120);
         }
-
-        // sound the change, and switch the background from sea to music or back
-        sound.play(next === "destack" ? "destack" : "restack");
-        sound.follow(next);
 
         // crack each berg in turn, then send its shards up into the planet's ring once it bursts
         clearTimeout(rising);
         if (next === "destack") {
-            for (const [berg, pitch] of bergPitches.entries()) {
-                const crackIn = (berg * bergStagger) / 1000;
-                sound.breakIce(crackIn, crackIn + crackTime / 1000, pitch);
-            }
             rising = setTimeout(() => {
                 if (debris) {
                     debris.rise(shardOrigins());
-                    soundFlights(debris, (flights) => sound.shatter(flights));
                 }
             }, crackTime);
         }
         // bring the shards home to the reforming ice
         else if (debris) {
             debris.fall();
-            soundFlights(debris, (flights) => sound.gather(flights));
         }
 
         // shatter the ice as the water drains, or clump it together just before it returns
@@ -703,33 +528,14 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         }
     };
 
-    // start the ice, water, and searchlight once the figure is in the page
+    // start the ice and water once the figure is in the page
     onSettled(() => {
         // require the rendered drawing and canvases
-        const { figure, drawing, canvas, iceCanvas, lens, sparkCanvas, debrisCanvas } = elements();
+        const { figure, drawing, canvas, iceCanvas, sparkCanvas, debrisCanvas } = elements();
 
         // flip the stack whenever the page's switch asks for it
         const flip = () => select(isOpen() ? "today" : "destack");
         document.addEventListener(commandEvents.switchStack, flip);
-
-        // show a layer when the page asks: destack, bring the figure into view, and light the layer's row a while
-        let unlight: ReturnType<typeof setTimeout> | undefined;
-        const show = (event: Event) => {
-            // refuse a show request that names no layer
-            if (!(event instanceof CustomEvent) || typeof event.detail !== "number") {
-                throw new TypeError("show layer requires a layer index");
-            }
-
-            // destack first, then bring the figure and the layer's row into view
-            if (!isOpen()) {
-                select("destack");
-            }
-            figure.scrollIntoView({ behavior: "smooth", block: "center" });
-            setLitLayer(event.detail);
-            clearTimeout(unlight);
-            unlight = setTimeout(() => setLitLayer(undefined), litTime);
-        };
-        document.addEventListener(commandEvents.showLayer, show);
 
         // read the motion preference and set the flotsam adrift
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -939,10 +745,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             if (!isStill) {
                 debris = new Debris(debrisCanvas, orbitOf);
                 sparks = new Sparks(sparkCanvas);
-                sparks.drain = {
-                    x: canvas.clientWidth * drainAt - waterSpill,
-                    y: canvas.clientHeight + 30,
-                };
             }
             water.shader.request();
         } catch (error) {
@@ -963,85 +765,12 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         });
         resize.observe(drawing);
 
-        // swing the searchlight after the pointer and show inside the boxes it falls on
-        let beam: number | undefined;
-        const shine = () => {
-            // schedule the next frame, and rest while the light is out
-            beam = requestAnimationFrame(shine);
-            if (!light.isOn && light.radius === 0) {
-                return;
-            }
-
-            // measure the boxes with an inside, and light up only under water or over a visible box
-            const bounds = figure.getBoundingClientRect();
-            const boxes = [...figure.querySelectorAll<HTMLElement>("[data-inside]")].map((box) => {
-                const outside = box.parentElement;
-                if (!outside) {
-                    throw new TypeError("a box's inside has no box around it");
-                }
-
-                return { box, outside, place: outside.getBoundingClientRect() };
-            });
-            const pointer = { x: light.target.x + bounds.left, y: light.target.y + bounds.top };
-            const isOverBox = boxes.some(
-                ({ outside, place }) =>
-                    pointer.x >= place.left &&
-                    pointer.x <= place.right &&
-                    pointer.y >= place.top &&
-                    pointer.y <= place.bottom &&
-                    outside.checkVisibility({ opacityProperty: true }),
-            );
-            const isUnderWater = !isOpen() && light.target.y > light.waterline;
-            const goal = light.isOn && (isOverBox || isUnderWater) ? (isOpen() ? 72 : 96) : 0;
-            if (light.radius < 0.5 && light.isOn) {
-                light.x = light.target.x;
-                light.y = light.target.y;
-            }
-            light.radius += (goal - light.radius) * 0.16;
-            light.x += (light.target.x - light.x) * 0.28;
-            light.y += (light.target.y - light.y) * 0.28;
-            const radius = light.radius < 0.5 ? 0 : light.radius;
-            light.radius = radius;
-
-            // move and size the lens, and light each box under it
-            lens.style.opacity = radius > 0 ? "1" : "0";
-            lens.style.translate = `${light.x - radius}px ${light.y - radius}px`;
-            lens.style.width = `${radius * 2}px`;
-            lens.style.height = `${radius * 2}px`;
-            water?.shine(light.x + waterSpill, light.y, radius);
-            boxes.forEach(({ box, place }) => {
-                // show only the insides the lens touches, and leave the rest out of the page's painting
-                const x = light.x + bounds.left;
-                const y = light.y + bounds.top;
-                const gap = Math.hypot(
-                    Math.max(place.left - x, 0, x - place.right),
-                    Math.max(place.top - y, 0, y - place.bottom),
-                );
-                const isLit = radius > 0 && gap < radius;
-                if (isLit !== box.hasAttribute("data-lit")) {
-                    box.toggleAttribute("data-lit", isLit);
-                }
-                if (isLit) {
-                    box.style.setProperty("--lens-x", `${x - place.left}px`);
-                    box.style.setProperty("--lens-y", `${y - place.top}px`);
-                    box.style.setProperty("--lens-radius", `${radius}px`);
-                }
-            });
-        };
-
-        // pause the ice, water, and searchlight while the figure is off screen
+        // pause the ice, the water and every animation while the figure is off screen
         const sight = new IntersectionObserver((entries) => {
             for (const entry of entries) {
-                // show or hide the effects, and restart the searchlight on screen
                 ice?.shader.show(entry.isIntersecting);
                 water?.shader.show(entry.isIntersecting);
-                if (beam !== undefined) {
-                    cancelAnimationFrame(beam);
-                    beam = undefined;
-                }
-                if (entry.isIntersecting) {
-                    beam = requestAnimationFrame(shine);
-                }
+                figure.toggleAttribute("data-asleep", !entry.isIntersecting);
             }
         });
         sight.observe(figure);
@@ -1049,21 +778,15 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         return () => {
             // stop listening, and stop the observers, timers, and frames
             document.removeEventListener(commandEvents.switchStack, flip);
-            document.removeEventListener(commandEvents.showLayer, show);
-            clearTimeout(unlight);
             sight.disconnect();
             themes.disconnect();
             resize.disconnect();
             scheme.removeEventListener("change", repaint);
             clearTimeout(settle);
             clearTimeout(calm);
-            clearInterval(swirling);
             clearInterval(swapping);
             sparks?.stop();
             debris?.stop();
-            if (beam !== undefined) {
-                cancelAnimationFrame(beam);
-            }
             ice?.shader.dispose();
             water?.shader.dispose();
         };
@@ -1073,14 +796,12 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         <figure
             ref={figureElement}
             aria-label="Apps today compared with Destack"
-            onPointerMove={aim}
-            onPointerLeave={leave}
+            onPointerMove={skim}
             style={{
                 "--reveal-2": "0",
                 "--reveal-3": "0",
                 "--reveal-4": "0",
                 "--reveal-5": "0",
-                "--card-shadow": isOpen() ? "#ff792e" : "#12313c",
                 "--card-marks": isOpen() ? "1" : "0",
             }}
             {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.figure)}
@@ -1089,22 +810,15 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             <For each={layers}>
                 {(layer, index) => (
                     <div
-                        data-universe
                         style={{
                             "--row": String(index() + 1),
                             ...(index() < dryRows
                                 ? {}
                                 : { opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))` }),
                         }}
-                        {...stylex.attrs(styles.claim, litLayer() === index() && styles.claimLit)}
+                        {...stylex.attrs(styles.claim)}
                     >
-                        <span
-                            style={numberOnWater(index())}
-                            {...stylex.attrs(
-                                styles.number,
-                                index() < dryRows && isOpen() && styles.numberLit,
-                            )}
-                        >
+                        <span {...stylex.attrs(styles.number, isOpen() && styles.numberLit)}>
                             0{index() + 1} {layer.name}
                         </span>
                         {/* set the verb and the things the layer is made of on one baseline */}
@@ -1177,7 +891,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                     <Card
                                         entity={lockedLayer(id, index)}
                                         kind="locked"
-                                        reveal={{ kind: "cipher" }}
                                         style={styles.fill}
                                     />
                                 </div>
@@ -1240,12 +953,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         }}
                         {...stylex.attrs(styles.column)}
                     >
-                        <Card
-                            entity={host.entity}
-                            kind="plain"
-                            reveal={host.reveal}
-                            style={styles.fill}
-                        />
+                        <Card entity={host} kind="plain" style={styles.fill} />
                     </div>
                 ))}
             </div>
@@ -1259,6 +967,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 ref={canvasElement}
                 aria-hidden="true"
                 style={{
+                    "clip-path": `inset(0 ${waterSpill}px ${waterSpill}px)`,
                     height: `calc(100% + ${waterSpill}px)`,
                     left: `-${waterSpill}px`,
                     width: `calc(100% + ${waterSpill * 2}px)`,
@@ -1269,16 +978,12 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             {/* carry shards of ice between the bergs and the planet's ring, over the whole page */}
             <canvas ref={debrisCanvasElement} aria-hidden="true" {...stylex.attrs(styles.debris)} />
 
-            {/* glow sparks and motes over the water */}
+            {/* glow sparks over the water */}
             <canvas ref={sparkCanvasElement} aria-hidden="true" {...stylex.attrs(styles.sparks)} />
 
-            {/* ring the searchlight that follows the pointer */}
-            <div ref={lensElement} aria-hidden="true" {...stylex.attrs(styles.lens)}>
-                <svg viewBox="0 0 100 100" {...stylex.attrs(styles.lensRing)}>
-                    <circle cx="50" cy="50" r="49" />
-                    <path d="M50 -6V6M50 94V106M-6 50H6M94 50H106" />
-                </svg>
-            </div>
+            {/* draw the frame and the legend's rule over the water, so no line breaks where it rises */}
+            <span aria-hidden="true" {...stylex.attrs(styles.frameRules)} />
+            <span aria-hidden="true" {...stylex.attrs(styles.columnRule)} />
         </figure>
     );
 }
@@ -1341,18 +1046,6 @@ function lockedLayer(id: string, depth: number): Entity {
     return layer;
 }
 
-/** Sound each shard's flight, breaking off and chiming into the ring, or falling home to the freezing ice. */
-function soundFlights(shattered: Debris, play: (flights: Flight[]) => void): void {
-    const now = performance.now();
-    play(
-        shattered.shards.map((shard) => ({
-            leaveIn: (shard.at - now) / 1000,
-            reachIn: (shard.at + shard.duration - now) / 1000,
-            position: (shard.home.x - window.scrollX) / window.innerWidth,
-        })),
-    );
-}
-
 /** Pick the water palette for the page theme. */
 function palette(): WaterPalette {
     return isDarkPage() ? nightWater : paperWater;
@@ -1410,9 +1103,7 @@ function Swap(properties: {
         properties.isPlated === true ? (
             <span {...stylex.attrs(styles.plates)}>
                 {(isOpen ? text.split(", ") : [text]).map((part) => (
-                    <span {...stylex.attrs(styles.plate, !isOpen && styles.plateClosed)}>
-                        {part}
-                    </span>
+                    <span {...stylex.attrs(plate.plate, !isOpen && plate.closed)}>{part}</span>
                 ))}
             </span>
         ) : (
@@ -1463,17 +1154,6 @@ function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     return label;
 }
 
-/** Return a layer number colour that lights up orange as the water leaves its row. */
-function numberOnWater(row: number): JSX.CSSProperties {
-    if (row < dryRows) {
-        return {};
-    }
-
-    return {
-        color: `color-mix(in srgb, var(--destack-color-primary) calc(var(--reveal-${row}) * 100%), var(--destack-color-foreground))`,
-    };
-}
-
 /** The easing of the figure transitions. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 
@@ -1486,13 +1166,7 @@ const styles = stylex.create({
         margin: 0,
         position: "relative",
     },
-    claimLit: {
-        backgroundColor: "rgb(255 121 46 / 16%)",
-        boxShadow: `inset 3px 0 0 ${tokens.signal}`,
-    },
     claim: {
-        transitionDuration: "400ms",
-        transitionProperty: "background-color, box-shadow",
         display: "flex",
         flexDirection: "column",
         gap: "0.25rem",
@@ -1532,7 +1206,7 @@ const styles = stylex.create({
         whiteSpace: "nowrap",
     },
     numberLit: {
-        color: color.primary,
+        color: color.foreground,
     },
     swap: {
         display: "grid",
@@ -1563,6 +1237,27 @@ const styles = stylex.create({
         fontWeight: 600,
         lineHeight: "1.375rem",
         whiteSpace: "nowrap",
+    },
+    frameRules: {
+        borderColor: tokens.rule,
+        borderStyle: "solid",
+        borderWidth: `${tokens.hairline} ${tokens.hairline} ${tokens.hairline}`,
+        inset: `0 calc(-1 * ${tokens.hairline}) calc(-1 * ${tokens.hairline})`,
+        pointerEvents: "none",
+        position: "absolute",
+        zIndex: 6,
+        [mobile]: { borderInlineWidth: 0 },
+    },
+    columnRule: {
+        borderRightColor: tokens.rule,
+        borderRightStyle: "solid",
+        borderRightWidth: tokens.hairline,
+        gridColumn: "1 / span 8",
+        gridRow: "1 / span 6",
+        pointerEvents: "none",
+        position: "relative",
+        zIndex: 6,
+        [narrow]: { display: "none" },
     },
     drawing: {
         display: "grid",
@@ -1628,27 +1323,6 @@ const styles = stylex.create({
         gap: "0.375rem",
         justifyContent: "flex-end",
     },
-    plate: {
-        backgroundColor: tokens.cream,
-        borderColor: tokens.signalInk,
-        borderStyle: "solid",
-        borderWidth: "1.5px",
-        boxShadow: `2px 2px 0 var(--card-shadow, ${tokens.signalInk})`,
-        color: tokens.signalInk,
-        fontSize: "0.75rem",
-        lineHeight: 1,
-        paddingBlock: "0.3125rem",
-        paddingInline: "0.4375rem",
-        whiteSpace: "nowrap",
-    },
-    plateClosed: {
-        backgroundColor: "transparent",
-        cursor: "not-allowed",
-        borderColor: "currentColor",
-        borderStyle: "dashed",
-        boxShadow: "none",
-        color: "inherit",
-    },
     itemText: {
         fontFamily: tokens.monoFont,
         fontSize: "0.75rem",
@@ -1689,25 +1363,6 @@ const styles = stylex.create({
     },
     unpainted: {
         opacity: 0,
-    },
-    lens: {
-        height: 0,
-        opacity: 0,
-        left: 0,
-        pointerEvents: "none",
-        position: "absolute",
-        top: 0,
-        width: 0,
-        zIndex: 4,
-    },
-    lensRing: {
-        fill: "none",
-        height: "100%",
-        overflow: "visible",
-        stroke: tokens.signal,
-        strokeWidth: 1.5,
-        vectorEffect: "non-scaling-stroke",
-        width: "100%",
     },
     tapeGone: {
         opacity: 0,

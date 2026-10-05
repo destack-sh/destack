@@ -32,14 +32,8 @@ export const paperWater: WaterPalette = {
     ink: [0.07, 0.19, 0.235],
 };
 
-/** Where the water drains, as a fraction of the page frame's width: straight down into the footer's black hole at its middle. */
-export const drainAt = 0.5;
-
-/** How far the water canvas reaches past the figure on the sides and bottom, in CSS pixels, so its rim can wobble across the frame rules. */
+/** How far the water canvas reaches past the figure on the sides and bottom, in CSS pixels, where the figure clips its rim. */
 export const waterSpill = 8;
-
-/** The water surface in page pixels, for whatever settles on it, or infinity while the page has no water. */
-export const pageWater = { top: Number.POSITIVE_INFINITY };
 
 /** The milliseconds a full drain or fill takes. */
 export const travel = 2400;
@@ -69,15 +63,12 @@ uniform vec2 resolution;
 uniform float scale;
 uniform float time;
 uniform float level;
-uniform float funnel;
-uniform float fill;
 uniform float agitation;
 uniform vec3 deep;
 uniform vec3 shallow;
 uniform vec3 caustic;
 uniform vec3 foam;
 uniform vec3 ink;
-uniform vec3 lens;
 uniform vec4 ripples[${rippleCapacity}];
 uniform float rest;
 
@@ -151,33 +142,23 @@ void main() {
     float x = gl_FragCoord.x / scale;
     float y = size.y - gl_FragCoord.y / scale;
 
-    // ripple the surface gently, rougher while it moves; pull a whirlpool down to the drain as it drains,
-    // and well the water up from the drain as it fills
+    // ripple the surface gently, rougher while it moves
     float swell = 1.0 + agitation * 3.0;
     float surface = level
         + sin(x * 0.017 + time * 0.7) * 1.8 * swell
         + sin(x * 0.043 - time * 1.0) * 0.8 * swell
         + sin(x * 0.11 + time * 1.4) * 0.3
         + rippleAt(x);
-    float drain = size.x * ${drainAt};
-    float spread = (x - drain) / (size.x * 0.05);
-    float lean = 1.0 - abs(x - drain) / size.x;
-    surface += funnel * ((size.y - level) * exp(-spread * spread) + 60.0 * lean);
-    surface -= fill * (size.y * 0.24 * exp(-spread * spread * 0.3) + 50.0 * lean);
     float below = y - surface;
 
-    // hold the water in a basin whose walls sag and swell slowly, open at the drain while water pours through it
-    float motion = funnel + fill;
+    // hold the water in a basin whose walls sag and swell slowly
     float wall = basin(vec2(x, y), size)
         - ((noise(vec2(x, y) * 0.007 + vec2(time * 0.025, time * 0.018)) - 0.5) * 2.0
         + noise(vec2(x, y) * 0.013 - vec2(time * 0.03, time * 0.012)) - 0.5) * 2.2;
-    float outlet = motion * exp(-spread * spread * 6.0) * smoothstep(size.y - rest - 30.0, size.y - rest, y);
-    wall -= outlet * 40.0;
     float edge = 1.0 / scale;
     float held = 1.0 - smoothstep(-edge, edge, wall);
-    float open = 1.0 - smoothstep(0.1, 0.5, outlet);
-    float rim = (1.0 - smoothstep(0.4, 1.1, abs(wall + 0.6))) * open;
-    float line = (1.0 - smoothstep(0.35, 0.9, abs(wall - 1.1))) * open;
+    float rim = 1.0 - smoothstep(0.4, 1.1, abs(wall + 0.6));
+    float line = 1.0 - smoothstep(0.35, 0.9, abs(wall - 1.1));
     float cover = smoothstep(-0.6, 0.6, below) * max(max(held, rim), line);
     if (cover <= 0.0) {
         discard;
@@ -196,25 +177,11 @@ void main() {
         + smoothstep(0.6, 1.0, sin(slant * 0.031 - time * 0.11 + 1.7)) * 0.7;
     color = mix(color, caustic, shafts * 0.07 * (1.0 - smoothstep(0.0, 0.8, depth)));
 
-    // twist the whirlpool into a narrowing throat over the drain: helical foam streaks around a dark core
-    float throat = 6.0 + max(size.y - y, 0.0) * 0.18;
-    float around = (x - drain) / throat;
-    float whirl = motion * exp(-around * around * 0.35);
-    float helix = fract(around * 0.9 + y * 0.045 - time * (fill > 0.0 ? -2.2 : 2.2));
-    float streaks = smoothstep(0.72, 0.8, helix) * (1.0 - smoothstep(0.8, 0.92, helix));
-    color = mix(color, ink, whirl * exp(-around * around * 2.5) * 0.45);
-    color = mix(color, foam, whirl * streaks * 0.7);
-
     // net the light into faint caustic lines that thin out with depth
     vec2 drift = vec2(x, y + sin(x * 0.02 + time * 0.5) * 6.0) / 70.0;
     float border = cells(drift, time * 0.6);
     float threshold = 0.035 - depth * 0.02;
     color = mix(color, caustic, (1.0 - smoothstep(threshold - 0.01, threshold, border)) * 0.06 * (1.0 - depth));
-
-    // clear the water inside the searchlight
-    float offset = length(vec2(x, y) - lens.xy);
-    float clear = (1.0 - smoothstep(lens.z - 1.5, lens.z + 0.5, offset)) * step(1.0, lens.z);
-    color = mix(color, caustic, clear * 0.08);
 
     // edge the surface with one foam line that thickens while the water moves, and rim the basin in foam
     float crest = 2.0 + agitation * 1.5;
@@ -223,8 +190,8 @@ void main() {
     color = mix(color, foam, rim);
     color = mix(color, ink, line * (1.0 - max(held, rim)));
 
-    // keep the water nearly opaque so the submerged stack reads only as shapes, except through the searchlight
-    float alpha = mix(mix(0.74, 0.88, smoothstep(0.0, 0.8, depth)), 0.42, clear);
+    // keep the water nearly opaque so the submerged stack reads only as shapes
+    float alpha = mix(0.74, 0.88, smoothstep(0.0, 0.8, depth));
     alpha = max(max(alpha * held, froth), max(rim, line)) * cover;
     gl_FragColor = vec4(color * alpha, alpha);
 }
@@ -248,10 +215,6 @@ export class Water {
     isMoving: boolean;
     /** Receive the water level after every frame. */
     onLevel: (level: number) => void;
-    /** The canvas's top in page pixels, measured once and again after the page resizes. */
-    pageTop: number | undefined;
-    /** The searchlight centre and radius in canvas CSS pixels, with no radius when off. */
-    searchlight: { x: number; y: number; radius: number };
 
     /** Create water on a canvas, or throw when WebGL is unavailable. */
     constructor(
@@ -270,17 +233,6 @@ export class Water {
         this.start = performance.now();
         this.isMoving = isMoving;
         this.onLevel = onLevel;
-        this.searchlight = { x: 0, y: 0, radius: 0 };
-        this.pageTop = undefined;
-        window.addEventListener("resize", () => {
-            this.pageTop = undefined;
-        });
-    }
-
-    /** Shine the searchlight at a point in canvas CSS pixels, or switch it off with no radius. */
-    shine(x: number, y: number, radius: number) {
-        this.searchlight = { x, y, radius };
-        this.shader.request();
     }
 
     /** Drain or fill toward a new water level. */
@@ -324,20 +276,15 @@ export class Water {
         const shader = this.shader;
         const context = shader.context;
 
-        // shape the move: rough while travelling, funnelled while draining, welling up while filling
+        // shape the move: rough while travelling
         const progress = this.progressAt(now);
         const level = this.levelAt(now);
         const motion = Math.sin(progress * Math.PI);
-        const isDraining = this.to > this.from;
 
         // upload the frame parameters
         context.uniform1f(shader.uniform("time"), this.isMoving ? now / 1000 : 0);
-        const light = this.searchlight;
-        context.uniform3f(shader.uniform("lens"), light.x, light.y, light.radius);
         context.uniform1f(shader.uniform("level"), level);
         context.uniform1f(shader.uniform("rest"), waterSpill - 3);
-        context.uniform1f(shader.uniform("funnel"), isDraining ? motion : 0);
-        context.uniform1f(shader.uniform("fill"), isDraining ? 0 : motion);
         context.uniform1f(shader.uniform("agitation"), motion);
         context.uniform3fv(shader.uniform("deep"), this.palette.deep);
         context.uniform3fv(shader.uniform("shallow"), this.palette.shallow);
@@ -350,12 +297,10 @@ export class Water {
         );
         context.uniform4fv(shader.uniform("ripples"), packed);
         this.onLevel(level);
-        this.pageTop ??= shader.canvas.getBoundingClientRect().top + window.scrollY;
-        pageWater.top = level < shader.height ? this.pageTop + level : Number.POSITIVE_INFINITY;
 
-        // draw every frame while the waterline moves, ripples run or the searchlight shines, else at the ambient pace
+        // draw every frame while the waterline moves or ripples run, else at the ambient pace
         const isStirred = ripples.some((ripple) => now / 1000 - ripple.at < rippleLife);
-        shader.pace = progress < 1 || isStirred || light.radius > 0 ? 0 : ambientPace;
+        shader.pace = progress < 1 || isStirred ? 0 : ambientPace;
 
         // keep animating while water shows or the waterline still moves
         const isDrained = level >= shader.height && progress >= 1;

@@ -5,7 +5,7 @@ const breakTime = 1200;
 /** The milliseconds hairline cracks spread through a berg before it bursts. */
 export const crackTime = 320;
 /** The milliseconds between one berg breaking and the next, from left to right. */
-export const bergStagger = 140;
+const bergStagger = 140;
 /** The milliseconds the whole break takes beyond one berg's, for the cracks and the stagger across all three. */
 const totalStagger = crackTime + bergStagger * 2;
 

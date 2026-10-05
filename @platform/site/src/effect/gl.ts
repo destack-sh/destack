@@ -126,6 +126,8 @@ export class Shader {
     height: number;
     /** The most device pixels drawn per CSS pixel. */
     density: number;
+    /** The part of the canvas worth shading, in CSS pixels from its top left, or the whole canvas. */
+    clip: { left: number; top: number; width: number; height: number } | undefined;
     /** The observer that tracks the displayed size. */
     sizes: ResizeObserver;
     /** The pending animation frame, if any. */
@@ -171,6 +173,7 @@ export class Shader {
         this.isVisible = true;
         this.onDraw = onDraw;
         this.pace = 0;
+        this.clip = undefined;
         this.drawnAt = -Infinity;
 
         // cover the canvas with one quad
@@ -251,11 +254,22 @@ export class Shader {
         context.uniform2f(this.uniform("resolution"), width, height);
         context.uniform1f(this.uniform("scale"), scale);
 
-        // upload the frame, then clear and draw the quad
+        // upload the frame, then clear the canvas and draw the quad over its clip alone
         const isMoving = this.onDraw(now);
         context.clearColor(0, 0, 0, 0);
         context.clear(context.COLOR_BUFFER_BIT);
+        const clip = this.clip;
+        if (clip !== undefined) {
+            context.enable(context.SCISSOR_TEST);
+            context.scissor(
+                Math.floor(clip.left * scale),
+                Math.floor(height - (clip.top + clip.height) * scale),
+                Math.ceil(clip.width * scale),
+                Math.ceil(clip.height * scale),
+            );
+        }
         context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
+        context.disable(context.SCISSOR_TEST);
 
         // keep animating while the draw asks for more
         if (isMoving) {

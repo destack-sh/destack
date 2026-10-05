@@ -1,7 +1,6 @@
 import * as stylex from "@destack/style";
 import { type JSX, onSettled } from "@destack/view";
 
-import { sound } from "../effect/sound";
 import { stir, waveAt } from "../effect/water";
 import { tokens } from "../style/tokens.stylex";
 
@@ -175,6 +174,20 @@ type Drift = {
     tagSpeed: number;
 };
 
+/** One piece on the water with its rendered elements and its current drift. */
+type Float = {
+    /** The piece drawn. */
+    piece: Piece;
+    /** The element holding the drawing. */
+    element: HTMLDivElement;
+    /** The tag the piece wears. */
+    tag: HTMLSpanElement;
+    /** The wire between the piece and its tag. */
+    wire: SVGPathElement;
+    /** The piece's drift on this pass. */
+    drift: Drift;
+};
+
 /** The lone bottle that drifts past a missing page. */
 export const strandedBottle: Piece = {
     art: Bottle,
@@ -194,13 +207,18 @@ export function Flotsam(properties: {
 }) {
     // pick the pieces and hold their elements
     const pieces = properties.pieces ?? vendorFlotsam;
-    let water!: HTMLDivElement;
+    let water: HTMLDivElement | undefined;
     const elements: HTMLDivElement[] = [];
     const tags: HTMLSpanElement[] = [];
     const wires: SVGPathElement[] = [];
 
     // float the pieces once the water is in the page
     onSettled(() => {
+        // require the rendered water
+        if (!water) {
+            throw new TypeError("the flotsam rendered without its water");
+        }
+
         // hold the frame and the time of the last one
         let frame: number | undefined;
         let last = performance.now();
@@ -226,7 +244,7 @@ export function Flotsam(properties: {
 
         // track the held piece and the recent path of the pointer holding it
         let held:
-            | { index: number; path: { x: number; y: number; at: number }[]; downAt: number }
+            | { float: Float; path: { x: number; y: number; at: number }[]; downAt: number }
             | undefined;
         let pointer = { x: 0, y: 0 };
 
@@ -237,28 +255,27 @@ export function Flotsam(properties: {
         };
 
         // pick up a floating piece where it was grabbed
-        const grab = (index: number, event: PointerEvent) => {
+        const grab = (float: Float, event: PointerEvent) => {
             // leave sinking pieces alone
-            const drift = drifts[index];
+            const drift = float.drift;
             if (drift.sunk !== undefined) {
                 return;
             }
 
             // capture the pointer and hold the piece by the grabbed spot
             event.preventDefault();
-            (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+            float.element.setPointerCapture(event.pointerId);
             pointer = locate(event);
-            const box = elements[index].getBoundingClientRect();
+            const box = float.element.getBoundingClientRect();
             const bounds = water.getBoundingClientRect();
             drift.grab = { x: pointer.x - drift.x, y: pointer.y - (box.top - bounds.top) };
 
             // start the path to throw with
             held = {
-                index,
+                float,
                 path: [{ ...pointer, at: performance.now() }],
                 downAt: performance.now(),
             };
-            sound.play("lift");
         };
 
         // follow the pointer, keeping only the last moments of its path
@@ -278,42 +295,40 @@ export function Flotsam(properties: {
             }
 
             // measure the last moments of the path
-            const drift = drifts[held.index];
+            const drift = held.float.drift;
             const first = held.path[0];
-            const last = held.path[held.path.length - 1];
-            const span = Math.max(16, last.at - first.at) / 1000;
-            const travelled = Math.hypot(last.x - first.x, last.y - first.y);
+            const latest = held.path.at(-1);
+            if (!first || !latest) {
+                throw new TypeError("held piece has no pointer path");
+            }
+            const span = Math.max(16, latest.at - first.at) / 1000;
+            const travelled = Math.hypot(latest.x - first.x, latest.y - first.y);
             drift.grab = undefined;
 
             // sink the piece on a quick tap
             if (performance.now() - held.downAt < 250 && travelled < 6 && drift.lift <= 0) {
                 drift.sunk = 0;
-                bubble(drift.x + pieces[held.index].width / 2);
-                sound.splash(0.6, (drift.x + pieces[held.index].width / 2) / width());
+                bubble(drift.x + held.float.piece.width / 2);
             }
             // throw it at the pointer's last speed otherwise
             else {
                 const clamp = (value: number) =>
                     Math.max(-fastestThrow, Math.min(fastestThrow, value));
-                drift.speed = clamp((last.x - first.x) / span);
-                drift.climb = clamp(-(last.y - first.y) / span);
+                drift.speed = clamp((latest.x - first.x) / span);
+                drift.climb = clamp(-(latest.y - first.y) / span);
             }
             held = undefined;
         };
-
-        // listen for grabs on every piece
-        for (const [index, element] of elements.entries()) {
-            element.addEventListener("pointerdown", (event) => grab(index, event));
-            element.addEventListener("pointermove", drag);
-            element.addEventListener("pointerup", release);
-            element.addEventListener("pointercancel", release);
-        }
 
         // send a few bubbles up from where a piece goes under
         const bubble = (x: number) => {
             for (let index = 0; index < 6; index++) {
                 const element = document.createElement("span");
-                element.className = stylex.attrs(styles.bubble).class!;
+                const { class: bubbleClass } = stylex.attrs(styles.bubble);
+                if (bubbleClass === undefined) {
+                    throw new TypeError("expected class names for a bubble");
+                }
+                element.className = bubbleClass;
                 const size = 3 + Math.random() * 4;
                 element.style.cssText = `left:${(x + (Math.random() - 0.5) * 24).toFixed(1)}px;top:${(20 + Math.random() * 20).toFixed(1)}px;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;animation-delay:${(index * 0.15).toFixed(2)}s`;
                 water.append(element);
@@ -323,18 +338,37 @@ export function Flotsam(properties: {
 
         // spread the first pieces out with room between them, the rest queued up off the left edge
         let behind = width() * (0.2 + Math.random() * 0.5);
-        const scatter = () =>
-            pieces.map((piece) => {
-                const drift = launch(piece, behind);
-                behind -= width() * leastGap + Math.random() * longestCalm * fastest;
+        const scatter = (piece: Piece) => {
+            const drift = launch(piece, behind);
+            behind -= width() * leastGap + Math.random() * longestCalm * fastest;
 
-                return drift;
-            });
-        let drifts = scatter();
-        let surfaced = properties.surfacedAt;
-        drifts.forEach((drift, index) => {
-            tags[index].textContent = pieces[index].tags[drift.tag];
+            return drift;
+        };
+
+        // pair each piece with its rendered elements and first drift
+        const floats = pieces.map((piece, index): Float => {
+            // require the piece's element, tag and wire
+            const element = elements[index];
+            const tag = tags[index];
+            const wire = wires[index];
+            if (!element || !tag || !wire) {
+                throw new TypeError("flotsam piece is not rendered");
+            }
+
+            return { piece, element, tag, wire, drift: scatter(piece) };
         });
+        let surfaced = properties.surfacedAt;
+        for (const float of floats) {
+            float.tag.textContent = tagText(float.piece, float.drift);
+        }
+
+        // listen for grabs on every piece
+        for (const float of floats) {
+            float.element.addEventListener("pointerdown", (event) => grab(float, event));
+            float.element.addEventListener("pointermove", drag);
+            float.element.addEventListener("pointerup", release);
+            float.element.addEventListener("pointercancel", release);
+        }
 
         // sink a piece and its tag together as the piece nears either edge, so it rises out of the water drifting in and dives under drifting out
         const diveAt = (x: number) => {
@@ -358,22 +392,23 @@ export function Flotsam(properties: {
             if (properties.surfacedAt !== surfaced) {
                 surfaced = properties.surfacedAt;
                 behind = width() * (0.35 + Math.random() * 0.4);
-                drifts = scatter();
-                drifts.forEach((drift, index) => {
-                    drift.rise = 1;
-                    tags[index].textContent = pieces[index].tags[drift.tag];
-                });
-                sound.splash(0.8, 0.5);
+                for (const float of floats) {
+                    float.drift = scatter(float.piece);
+                    float.drift.rise = 1;
+                    float.tag.textContent = tagText(float.piece, float.drift);
+                }
             }
 
             // move each piece, its tag, and its wire
             const seconds = now / 1000;
-            pieces.forEach((piece, index) => {
-                // look up the piece's drift
-                const drift = drifts[index];
+            floats.forEach((float, index) => {
+                // look up the piece, its elements, and its drift
+                const { piece, element, tag, wire, drift } = float;
 
                 // keep clear of the piece ahead by matching its pace when closing in
-                const ahead = drifts.filter((other) => other.x > drift.x);
+                const ahead = floats
+                    .map((other) => other.drift)
+                    .filter((other) => other.x > drift.x);
                 const nearest = ahead.reduce((best, other) => (other.x < best.x ? other : best), {
                     x: Infinity,
                     pace: drift.pace,
@@ -394,10 +429,6 @@ export function Flotsam(properties: {
                         drift.lift += drift.climb * elapsed;
                         if (drift.lift <= 0) {
                             stir(drift.x + piece.width / 2, Math.min(8, 1.5 - drift.climb / 150));
-                            sound.splash(
-                                0.3 - drift.climb / fastestThrow,
-                                (drift.x + piece.width / 2) / width(),
-                            );
                             drift.lift = 0;
                             drift.climb = 0;
                         }
@@ -409,36 +440,36 @@ export function Flotsam(properties: {
                     drift.sunk += elapsed;
                 }
                 const isGone = drift.sunk !== undefined && drift.sunk > sinkTime + strandTime;
-                if (isGone || drift.x > width() + wireLength + tags[index].offsetWidth + 20) {
-                    const trailing = Math.min(...drifts.map((other) => other.x));
+                if (isGone || drift.x > width() + wireLength + tag.offsetWidth + 20) {
+                    const trailing = Math.min(...floats.map((other) => other.drift.x));
                     const start = Math.min(-piece.width, trailing - width() * leastGap);
                     const next = launch(piece, start - Math.random() * longestCalm * fastest);
                     next.tag = (drift.tag + 1) % piece.tags.length;
-                    drifts[index] = next;
-                    tags[index].textContent = piece.tags[next.tag];
+                    float.drift = next;
+                    tag.textContent = tagText(piece, next);
                 }
+                const tether = float.drift;
 
                 // splash now and then while on the water
-                const isAfloat = drifts[index].x > -piece.width && drifts[index].x < width();
+                const isAfloat = tether.x > -piece.width && tether.x < width();
                 if (isAfloat && Math.random() < splashChance * elapsed) {
-                    sound.splash(0.05, (drifts[index].x + piece.width / 2) / width());
                 }
 
                 // sit on the wave under the piece's middle, leaning with its slope
-                const x = drifts[index].x;
+                const x = tether.x;
                 const middle = x + piece.width / 2;
                 const rise = waveAt(middle, seconds);
                 const slope = waveAt(middle + 6, seconds) - waveAt(middle - 6, seconds);
-                drifts[index].rise *= 0.965;
-                const grip = drifts[index].grab;
-                const sinking = drifts[index].sunk;
+                tether.rise *= 0.965;
+                const grip = tether.grab;
+                const sinking = tether.sunk;
                 const depth =
                     sinking === undefined
                         ? 0
                         : (piece.height + 24) * Math.min(1, (sinking / sinkTime) ** 2);
                 if (grip) {
                     const floatTop = rise - piece.height + piece.draft;
-                    drifts[index].lift = Math.max(0, floatTop - (pointer.y - grip.y));
+                    tether.lift = Math.max(0, floatTop - (pointer.y - grip.y));
                 }
                 const dive = diveAt(middle);
                 const y =
@@ -446,15 +477,14 @@ export function Flotsam(properties: {
                     rise -
                     piece.height +
                     piece.draft +
-                    drifts[index].rise * 48 -
-                    drifts[index].lift +
+                    tether.rise * 48 -
+                    tether.lift +
                     depth;
                 const lean =
-                    drifts[index].lift > 0
-                        ? Math.max(-0.6, Math.min(0.6, drifts[index].speed * 0.0012))
+                    tether.lift > 0
+                        ? Math.max(-0.6, Math.min(0.6, tether.speed * 0.0012))
                         : Math.atan2(slope, 12);
-                elements[index].style.transform =
-                    `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${lean.toFixed(4)}rad)`;
+                element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${lean.toFixed(4)}rad)`;
 
                 // find the hitch on the leaning piece, turning about its bottom middle
                 const pivot = { x: middle, y: y + piece.height };
@@ -465,8 +495,6 @@ export function Flotsam(properties: {
                 };
 
                 // tow the floating tag behind the hitch, springing toward a wandering spot and settling
-                const tag = tags[index];
-                const tether = drifts[index];
                 const goal = hitch.x - wireLength * 0.6 + Math.sin(seconds * 0.7 + index * 2.1) * 6;
                 tether.tagX ??= goal;
                 if (sinking === undefined) {
@@ -509,16 +537,16 @@ export function Flotsam(properties: {
                     sinking === undefined
                         ? 1
                         : Math.max(0, Math.min(1, (sinkTime + strandTime - sinking) / 1.2));
-                elements[index].style.opacity = String(sinkFade);
+                element.style.opacity = String(sinkFade);
                 tag.style.opacity = String(strandFade);
-                wires[index].style.opacity = String(sinkFade);
+                wire.style.opacity = String(sinkFade);
                 tag.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px) rotate(${tilt.toFixed(2)}deg)`;
 
                 // run the wire from the hitch to the tag's grommet, sagging while slack
                 const hole = { x: tether.tagX, y: top + tagHeight / 2 };
                 const span = Math.hypot(hole.x - hitch.x, hole.y - hitch.y);
                 const sag = Math.max(0, wireLength - span) * 0.5 + 1.5;
-                wires[index].setAttribute(
+                wire.setAttribute(
                     "d",
                     `M${hitch.x.toFixed(1)} ${hitch.y.toFixed(1)}Q${((hitch.x + hole.x) / 2).toFixed(1)} ${((hitch.y + hole.y) / 2 + sag).toFixed(1)} ${hole.x.toFixed(1)} ${hole.y.toFixed(1)}`,
                 );
@@ -574,6 +602,17 @@ export function Flotsam(properties: {
             ))}
         </div>
     );
+}
+
+/** Read the tag a piece wears on its current drift. */
+function tagText(piece: Piece, drift: Drift): string {
+    // reject a tag index outside the piece's tags
+    const text = piece.tags[drift.tag];
+    if (text === undefined) {
+        throw new TypeError("flotsam tag index is out of range");
+    }
+
+    return text;
 }
 
 /** Draw a patched pool unicorn, deflating, its head drooping. */

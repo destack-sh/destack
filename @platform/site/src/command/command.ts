@@ -18,7 +18,6 @@ export const commandEvents = {
     copyMarkdown: "destack:copy-md",
     copyText: "destack:copy-txt",
     open: "destack:search",
-    showLayer: "destack:show-layer",
     switchStack: "destack:switch-stack",
 } as const;
 

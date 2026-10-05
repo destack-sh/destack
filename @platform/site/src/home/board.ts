@@ -11,7 +11,7 @@ export const columnLefts = [3, 32, 61];
 /** The centre of each column in a row of three cards, in cells. */
 export const columnCentres = columnLefts.map((left) => left + columnWidth / 2);
 /** The gap between the cards of a row of four, in cells. */
-export const quarterGap = 3;
+const quarterGap = 3;
 /** The width of each card in a row of four, in cells. */
 export const quarterWidth = (boardCells - boardInset * 2 - quarterGap * 3) / 4;
 /** The left edge of each card in a row of four, in cells. */

@@ -1,10 +1,11 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { color, text } from "@destack/theme/tokens.stylex";
 import { onSettled } from "@destack/view";
 import * as stylex from "@destack/style";
 
 import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
-import { sound } from "../effect/sound";
+import { telemetry } from "@destack/telemetry";
+import { log } from "../site/telemetry.ts";
 
 /** Properties for the page source controls. */
 type SourceActionsProperties = {
@@ -39,14 +40,13 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
 
         // publish the requested source
         await navigator.clipboard.writeText(await response.text());
-        sound.play("copy");
     };
 
     // copy in the background, logging failures
     const copy = (kind: SourceKind) => {
-        // report clipboard failures through the browser console
+        // report clipboard failures
         void write(kind).catch((error: unknown) => {
-            console.error(error);
+            log.error("source.copy.failed", telemetry.exceptionAttributes(error));
         });
     };
 
@@ -129,7 +129,7 @@ const styles = stylex.create({
     controls: {
         alignItems: "center",
         display: "flex",
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem",

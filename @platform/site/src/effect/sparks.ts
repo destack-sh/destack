@@ -3,30 +3,30 @@ const capacity = 400;
 /** The pull of gravity on a spark, in CSS pixels per second squared. */
 const gravity = 260;
 
-/** Draw light particles on a canvas: sparks that burst and fall, and motes that swirl down into a drain. */
+/** One particle of light. */
+type Particle = {
+    /** The position across, in CSS pixels. */
+    x: number;
+    /** The position down, in CSS pixels. */
+    y: number;
+    /** The speed across, in CSS pixels per second. */
+    speedX: number;
+    /** The speed down, in CSS pixels per second. */
+    speedY: number;
+    /** The remaining life, in seconds. */
+    life: number;
+    /** The full life, in seconds. */
+    span: number;
+};
+
+/** Draw sparks on a canvas that burst and fall. */
 export class Sparks {
     /** The canvas the particles are drawn on. */
     canvas: HTMLCanvasElement;
     /** The drawing context. */
     context: CanvasRenderingContext2D;
-    /** The particles' positions across, in CSS pixels. */
-    x: Float32Array;
-    /** The particles' positions down, in CSS pixels. */
-    y: Float32Array;
-    /** The particles' speeds across, in CSS pixels per second. */
-    speedX: Float32Array;
-    /** The particles' speeds down, in CSS pixels per second. */
-    speedY: Float32Array;
-    /** The particles' remaining lives, in seconds. */
-    life: Float32Array;
-    /** The particles' full lives, in seconds. */
-    span: Float32Array;
-    /** Whether each particle swirls toward the drain instead of falling. */
-    isMote: Uint8Array;
-    /** The number of particles alive. */
-    count: number;
-    /** The drain the motes swirl into, in CSS pixels. */
-    drain: { x: number; y: number };
+    /** The particles alive, at most the capacity. */
+    particles: Particle[];
     /** The pending animation frame, if any. */
     frame: number | undefined;
     /** The time of the last frame in milliseconds. */
@@ -34,18 +34,14 @@ export class Sparks {
 
     /** Create the particles on a canvas. */
     constructor(canvas: HTMLCanvasElement) {
-        // take the 2D context and allocate the particle columns
+        // take the 2D context and start without particles
+        const context = canvas.getContext("2d");
+        if (!context) {
+            throw new TypeError("the sparks canvas has no 2D context");
+        }
         this.canvas = canvas;
-        this.context = canvas.getContext("2d")!;
-        this.x = new Float32Array(capacity);
-        this.y = new Float32Array(capacity);
-        this.speedX = new Float32Array(capacity);
-        this.speedY = new Float32Array(capacity);
-        this.life = new Float32Array(capacity);
-        this.span = new Float32Array(capacity);
-        this.isMote = new Uint8Array(capacity);
-        this.count = 0;
-        this.drain = { x: 0, y: 0 };
+        this.context = context;
+        this.particles = [];
         this.frame = undefined;
         this.last = 0;
     }
@@ -61,32 +57,20 @@ export class Sparks {
                 Math.cos(angle) * speed,
                 Math.sin(angle) * speed,
                 0.6 + Math.random() * 0.7,
-                false,
             );
         }
         this.request();
     }
 
-    /** Scatter motes along a line that then swirl down into the drain. */
-    swirl(fromX: number, toX: number, y: number, count: number) {
-        for (let index = 0; index < count; index++) {
-            const x = fromX + Math.random() * (toX - fromX);
-            this.add(x, y + Math.random() * 30, 0, 0, 1.6 + Math.random() * 1.2, true);
-        }
-        this.request();
-    }
-
     /** Add one particle, replacing the oldest when full. */
-    add(x: number, y: number, speedX: number, speedY: number, life: number, isMote: boolean) {
-        // take a free index, or a random one when full
-        const index = this.count < capacity ? this.count++ : Math.floor(Math.random() * capacity);
-        this.x[index] = x;
-        this.y[index] = y;
-        this.speedX[index] = speedX;
-        this.speedY[index] = speedY;
-        this.life[index] = life;
-        this.span[index] = life;
-        this.isMote[index] = isMote ? 1 : 0;
+    add(x: number, y: number, speedX: number, speedY: number, life: number) {
+        // take a free place, or replace a random particle when full
+        const particle = { x, y, speedX, speedY, life, span: life };
+        if (this.particles.length < capacity) {
+            this.particles.push(particle);
+        } else {
+            this.particles[Math.floor(Math.random() * capacity)] = particle;
+        }
     }
 
     /** Schedule the next frame once. */
@@ -125,60 +109,36 @@ export class Sparks {
         context.clearRect(0, 0, width, height);
         context.globalCompositeOperation = "lighter";
 
-        // move each particle: sparks fall, motes spiral inward toward the drain
-        let alive = 0;
-        for (let index = 0; index < this.count; index++) {
-            this.life[index] -= elapsed;
-            if (this.life[index] <= 0) {
+        // move each particle as it falls
+        const alive: Particle[] = [];
+        for (const particle of this.particles) {
+            particle.life -= elapsed;
+            if (particle.life <= 0) {
                 continue;
             }
-            if (this.isMote[index] === 1) {
-                const towardX = this.drain.x - this.x[index];
-                const towardY = this.drain.y - this.y[index];
-                const distance = Math.hypot(towardX, towardY) + 1;
-                const pull = 1600 + 90000 / distance;
-                this.speedX[index] +=
-                    ((towardX / distance) * pull - (towardY / distance) * pull * 0.6) * elapsed;
-                this.speedY[index] +=
-                    ((towardY / distance) * pull + (towardX / distance) * pull * 0.6) * elapsed;
-                this.speedX[index] *= 0.93;
-                this.speedY[index] *= 0.93;
-                if (distance < 10) {
-                    this.life[index] = 0;
-                    continue;
-                }
-            } else {
-                this.speedY[index] += gravity * elapsed;
-            }
-            this.x[index] += this.speedX[index] * elapsed;
-            this.y[index] += this.speedY[index] * elapsed;
+            particle.speedY += gravity * elapsed;
+            particle.x += particle.speedX * elapsed;
+            particle.y += particle.speedY * elapsed;
 
             // glow cream, fading out at the end of its life
-            const fade = Math.min(1, this.life[index] / (this.span[index] * 0.4));
-            const size = this.isMote[index] === 1 ? 1.4 : 1.8;
+            const fade = Math.min(1, particle.life / (particle.span * 0.4));
+            const size = 1.8;
             context.fillStyle = `rgba(255, 244, 222, ${(fade * 0.7).toFixed(3)})`;
             context.beginPath();
-            context.arc(this.x[index], this.y[index], size, 0, Math.PI * 2);
+            context.arc(particle.x, particle.y, size, 0, Math.PI * 2);
             context.fill();
             context.fillStyle = `rgba(255, 180, 120, ${(fade * 0.1).toFixed(3)})`;
             context.beginPath();
-            context.arc(this.x[index], this.y[index], size * 3, 0, Math.PI * 2);
+            context.arc(particle.x, particle.y, size * 3, 0, Math.PI * 2);
             context.fill();
 
-            // keep the live particles packed at the front
-            this.x[alive] = this.x[index];
-            this.y[alive] = this.y[index];
-            this.speedX[alive] = this.speedX[index];
-            this.speedY[alive] = this.speedY[index];
-            this.life[alive] = this.life[index];
-            this.span[alive] = this.span[index];
-            this.isMote[alive] = this.isMote[index];
-            alive += 1;
+            // keep the live particles
+            alive.push(particle);
         }
-        this.count = alive;
+        this.particles = alive;
 
         // keep drawing while any particle lives
-        if (alive > 0) {
+        if (alive.length > 0) {
             this.request();
         }
     }

@@ -2,7 +2,8 @@ import { color } from "@destack/theme/tokens.stylex";
 import { createSignal, onSettled, Show } from "@destack/view";
 import * as stylex from "@destack/style";
 
-import { sound } from "../effect/sound";
+import { telemetry } from "@destack/telemetry";
+import { log } from "../site/telemetry.ts";
 
 /** Switch between light and dark themes, starting with the system preference. */
 export function ThemeToggle() {
@@ -14,7 +15,7 @@ export function ThemeToggle() {
         // read the theme, and follow the system preference
         const preference = window.matchMedia("(prefers-color-scheme: dark)");
         const update = () => {
-            const theme = document.documentElement.dataset.theme;
+            const theme = document.documentElement.dataset["theme"];
             setIsDark(theme === "dark" || (theme === undefined && preference.matches));
         };
         update();
@@ -27,15 +28,14 @@ export function ThemeToggle() {
     const toggle = () => {
         // set the theme on the page and store it
         const theme = isDark() ? "light" : "dark";
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.dataset.destackTheme = theme;
+        document.documentElement.dataset["theme"] = theme;
+        document.documentElement.dataset["destackTheme"] = theme;
         document.documentElement.style.colorScheme = theme;
         setIsDark(theme === "dark");
-        sound.play("theme");
         try {
             localStorage.setItem("destack-theme", theme);
         } catch (error) {
-            console.warn("Could not save the site theme", error);
+            log.warn("theme.save.failed", telemetry.exceptionAttributes(error));
         }
     };
 

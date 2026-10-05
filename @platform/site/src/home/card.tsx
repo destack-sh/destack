@@ -1,4 +1,4 @@
-import { fontFamily } from "@destack/theme/tokens.stylex";
+import { text } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createMemo, For } from "@destack/view";
 
@@ -22,25 +22,6 @@ const cornerMarks = ["0 0", "100% 0", "0 100%", "100% 100%"]
 /** How far a shared item has risen into its band, from 0 to 1: after the band opens past its middle, one item after another. */
 const itemEntry = "var(--band-reveal, 1) * 4 - 1.6 - var(--item, 0) * 0.45";
 
-/** What a box shows under the searchlight. */
-export type Reveal =
-    /** An excerpt of one file. */
-    | { kind: "code"; name: string; lines: readonly string[] }
-    /** Named fields and their values. */
-    | { kind: "fields"; rows: readonly (readonly [string, string])[] }
-    /** Ciphertext from a closed vendor. */
-    | { kind: "cipher" };
-
-/** The ciphertext every closed box shows. */
-const cipher = ["9f3a c17e 5b21 d4a0 88e1", "03bd e2f4 7a90 1c6e 4f28", "b7d1 56c0 e93a 2f8b 0d74"];
-
-/** The tokens a code line highlights: strings, line marks, keys, keywords and hashes, and punctuation. */
-const tokenPattern =
-    /(?<string>"[^"]*"|'[^']*')|(?<mark>^\s*(?:\$|#|@@|- \[[ x]\]|[-+](?= )))|(?<key>^\s*[\w/@.{}-]+(?=:))|(?<keyword>\b(?:export|function|const|return|import|from|create|table|primary|key|not|null|references|text|date|true|false)\b|\b[0-9a-f]{6}\b)|(?<punctuation>[{}()[\];,<>=:])/g;
-
-/** One highlighted run of a code line. */
-type Token = { text: string; tone: keyof typeof tones };
-
 /** One entity in the stack figure. */
 export type Entity = {
     /** The visible label. */
@@ -59,7 +40,6 @@ export type Entity = {
 export function Card(properties: {
     entity: Entity;
     kind: "plain" | "vendor" | "locked";
-    reveal?: Reveal;
     style?: stylex.Styles;
 }) {
     return (
@@ -78,7 +58,6 @@ export function Card(properties: {
                 <span {...stylex.attrs(styles.role)}>{properties.entity.role}</span>
                 <span {...stylex.attrs(styles.label)}>{properties.entity.label}</span>
             </span>
-            {properties.reveal && <Reveals reveals={[properties.reveal]} />}
         </div>
     );
 }
@@ -88,18 +67,20 @@ function Tile(properties: { entity: Entity; isLocked?: boolean }) {
     return (
         <span
             style={
-                properties.isLocked
+                properties.isLocked === true
                     ? undefined
                     : {
                           "background-color": properties.entity.tint ?? tokens.signalInk,
                           color: properties.entity.glyph ?? tokens.cream,
                       }
             }
-            class={stylex.attrs(styles.chip, properties.isLocked && styles.lockedChip).class}
+            class={
+                stylex.attrs(styles.chip, properties.isLocked === true && styles.lockedChip).class
+            }
         >
             <span
                 style={{
-                    "mask-image": `url(/diagram/${properties.isLocked ? "lock" : properties.entity.icon}.svg)`,
+                    "mask-image": `url(/diagram/${properties.isLocked === true ? "lock" : properties.entity.icon}.svg)`,
                 }}
                 {...stylex.attrs(styles.icon)}
             />
@@ -110,7 +91,7 @@ function Tile(properties: { entity: Entity; isLocked?: boolean }) {
 /** Render a layer shared by every app as one wide card listing what it holds. */
 export function Band(properties: {
     entity: Entity;
-    items: readonly (Entity & { reveal: Reveal })[];
+    items: readonly Entity[];
     active: readonly string[];
 }) {
     return (
@@ -141,97 +122,12 @@ export function Band(properties: {
                                 </span>
                                 <span {...stylex.attrs(styles.label)}>{item.label}</span>
                             </span>
-                            <Reveals reveals={[item.reveal]} />
                         </span>
                     )}
                 </For>
             </span>
         </div>
     );
-}
-
-/** Render what a box holds in columns, shown only where the searchlight falls on it. */
-function Reveals(properties: { reveals: readonly Reveal[] }) {
-    return (
-        <span data-inside aria-hidden="true" class={stylex.attrs(styles.reveals).class}>
-            {properties.reveals.map((reveal) => (
-                <RevealColumn reveal={reveal} />
-            ))}
-        </span>
-    );
-}
-
-/** Render one column of a reveal: a file name for code, then its three lines. */
-function RevealColumn(properties: { reveal: Reveal }) {
-    return (
-        <span class={stylex.attrs(styles.column, styles.columnStill).class}>
-            {properties.reveal.kind === "code" && (
-                <span class={stylex.attrs(styles.name).class}>{properties.reveal.name}</span>
-            )}
-            <span
-                class={
-                    stylex.attrs(
-                        properties.reveal.kind === "fields" ? styles.fieldTrack : styles.track,
-                    ).class
-                }
-            >
-                {revealRows(properties.reveal)}
-            </span>
-        </span>
-    );
-}
-
-/** Return the rendered rows of a reveal: highlighted code lines, field pairs, or ciphertext lines. */
-function revealRows(reveal: Reveal) {
-    // highlight each code line
-    if (reveal.kind === "code") {
-        return reveal.lines.map((line) => (
-            <span class={stylex.attrs(styles.line).class}>
-                {highlight(line).map((token) => (
-                    <span class={stylex.attrs(tones[token.tone]).class}>{token.text}</span>
-                ))}
-            </span>
-        ));
-    }
-    // align each field with its value
-    else if (reveal.kind === "fields") {
-        return reveal.rows.map(([field, value]) => (
-            <>
-                <span class={stylex.attrs(styles.line, fieldTones[field] ?? tones.key).class}>
-                    {field}
-                </span>
-                <span class={stylex.attrs(styles.line).class}>{value}</span>
-            </>
-        ));
-    }
-    // scramble closed boxes
-    else {
-        return cipher.map((line) => (
-            <span class={stylex.attrs(styles.line, tones.cipher).class}>{line}</span>
-        ));
-    }
-}
-
-/** Split a code line into highlighted tokens and the plain text between them. */
-function highlight(line: string): Token[] {
-    // split the line at each token match
-    const tokens: Token[] = [];
-    let end = 0;
-    for (const match of line.matchAll(tokenPattern)) {
-        const tone = Object.entries(match.groups!).find(([, text]) => text !== undefined)![0];
-        if (match.index > end) {
-            tokens.push({ text: line.slice(end, match.index), tone: "plain" });
-        }
-        tokens.push({ text: match[0], tone: tone as Token["tone"] });
-        end = match.index + match[0].length;
-    }
-
-    // keep the rest of the line plain
-    if (end < line.length) {
-        tokens.push({ text: line.slice(end), tone: "plain" });
-    }
-
-    return tokens;
 }
 
 /** Render a strip of duct tape with torn ends and a scrawled label. */
@@ -287,24 +183,6 @@ export function DuctTape(properties: {
     );
 }
 
-/** The colours of each highlighted token tone. */
-const tones = stylex.create({
-    plain: {},
-    string: { color: "#b9d98f" },
-    mark: { color: tokens.signal },
-    key: { color: "#8fcfdc" },
-    keyword: { color: tokens.signal },
-    punctuation: { color: "#6f8f99" },
-    cipher: { color: "#6f8f99", letterSpacing: "0.12em" },
-});
-
-/** The tones of the access verdicts a field can show. */
-const fieldTones: { [field: string]: stylex.Styles | undefined } = {
-    ALLOWED: stylex.create({ tone: { color: "#8fd694" } }).tone,
-    BLOCKED: stylex.create({ tone: { color: "#ff6b5b" } }).tone,
-    ASKS: tones.keyword,
-};
-
 /** A fresh strip of duct tape slapped across a gap: dropped on large and twisted, then pressed flat. */
 const slap = stylex.keyframes({
     from: { opacity: 0, transform: "scale(1.4) rotate(-10deg)" },
@@ -324,19 +202,17 @@ const styles = stylex.create({
     card: {
         alignItems: "center",
         backgroundColor: tokens.cream,
-        borderColor: tokens.signalInk,
-        borderRadius: "0",
+        borderColor: `color-mix(in srgb, ${tokens.signalInk} 30%, transparent)`,
+        borderRadius: "6px",
         borderStyle: "solid",
-        borderWidth: "2px",
-        boxShadow: `4px 4px 0 var(--card-shadow, ${tokens.signalInk})`,
+        borderWidth: "1px",
         color: tokens.signalInk,
         display: "flex",
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         gap: "0.5rem",
         height: cardHeight,
         paddingInline: "0.375rem 0.625rem",
         position: "relative",
-        transition: "box-shadow 600ms ease",
         whiteSpace: "nowrap",
         width: "max-content",
         zIndex: 1,
@@ -369,8 +245,7 @@ const styles = stylex.create({
     lockedCard: {
         backgroundColor: `color-mix(in srgb, ${tokens.cream} 18%, transparent)`,
         borderColor: `color-mix(in srgb, ${tokens.signalInk} 70%, transparent)`,
-        borderWidth: "1.5px",
-        boxShadow: "none",
+        borderWidth: "1px",
         color: tokens.signalInk,
         cursor: "not-allowed",
         opacity: 0.8,
@@ -440,7 +315,7 @@ const styles = stylex.create({
         [mobile]: { display: "none" },
     },
     itemActive: {
-        boxShadow: `inset 0 -5px 0 ${tokens.signal}`,
+        boxShadow: `inset 0 -2px 0 ${tokens.signal}`,
     },
     chip: {
         opacity: "var(--ink, 1)",
@@ -493,60 +368,6 @@ const styles = stylex.create({
         fontSize: "0.875rem",
         fontWeight: 700,
         [mobile]: { fontSize: "0.6875rem" },
-    },
-    reveals: {
-        backgroundColor: tokens.night,
-        color: tokens.cream,
-        columnGap: "1rem",
-        display: "flex",
-        fontFamily: tokens.monoFont,
-        fontSize: "0.625rem",
-        inset: "-1px",
-        lineHeight: "0.8125rem",
-        maskImage:
-            "radial-gradient(circle var(--lens-radius, 0px) at var(--lens-x, -999px) var(--lens-y, -999px), #000 calc(var(--lens-radius, 0px) - 1px), transparent var(--lens-radius, 0px))",
-        overflow: "hidden",
-        paddingBlock: "0.25rem",
-        paddingInline: "0.625rem",
-        pointerEvents: "none",
-        position: "absolute",
-        whiteSpace: "pre",
-        zIndex: 2,
-    },
-    column: {
-        display: "flex",
-        flex: "1 1 0",
-        flexDirection: "column",
-        minWidth: 0,
-        overflow: "hidden",
-        position: "relative",
-    },
-    columnStill: {
-        justifyContent: "center",
-    },
-    name: {
-        backgroundColor: tokens.night,
-        color: "#6f8f99",
-        fontSize: "0.5625rem",
-        paddingLeft: "0.5rem",
-        position: "absolute",
-        right: 0,
-        top: 0,
-        zIndex: 1,
-    },
-    track: {
-        display: "flex",
-        flexDirection: "column",
-    },
-    fieldTrack: {
-        columnGap: "0.5rem",
-        display: "grid",
-        gridTemplateColumns: "max-content 1fr",
-    },
-    line: {
-        minHeight: "0.8125rem",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
     },
     tape: {
         height: "26px",

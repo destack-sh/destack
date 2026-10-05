@@ -1,28 +1,24 @@
-import { fontFamily } from "@destack/theme/tokens.stylex";
+import { text } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createSignal, For } from "@destack/view";
 
 import { installCommand } from "../content/site";
 import { Goo } from "../effect/goo";
-import { sound } from "../effect/sound";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
 import { socialLinks } from "./navigation";
-
-/** The radius of the black hole in the footer, in CSS pixels. */
-const holeRadius = 7;
 
 /** The media query for screens where the top bar's tools take four columns. */
 const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
-/** Close every page with a band of starry space around a black hole, holding the install command and the community links. */
+/** Close every page with a band of starry space holding the install command and the community links. */
 export function Footer() {
     return (
         <footer {...stylex.attrs(styles.root)}>
-            <Goo hole={holeRadius} style={styles.band}>
+            <Goo style={styles.band}>
                 <div {...stylex.attrs(lattice.frame, styles.bar)}>
                     <InstallCommand />
                     <nav aria-label="Social navigation" {...stylex.attrs(styles.navigation)}>
@@ -57,8 +53,7 @@ function InstallCommand() {
         // write the command to the clipboard
         await navigator.clipboard.writeText(installCommand);
 
-        // chime, and replay the acknowledgement on every press
-        sound.play("copy");
+        // replay the acknowledgement on every press
         const at = performance.now();
         setCopiedAt(at);
         setTimeout(
@@ -71,7 +66,7 @@ function InstallCommand() {
         <button
             type="button"
             aria-label="Copy install command"
-            title={copiedAt() ? "Copied" : "Copy"}
+            title={copiedAt() === undefined ? "Copy" : "Copied"}
             data-silent
             onClick={() => void copy()}
             {...stylex.attrs(styles.command)}
@@ -98,7 +93,7 @@ function InstallCommand() {
                     stroke-linecap="round"
                     stroke-linejoin="round"
                 >
-                    {copiedAt() ? (
+                    {copiedAt() !== undefined ? (
                         <path d="M20 6 9 17l-5-5" pathLength="1" {...stylex.attrs(styles.check)} />
                     ) : (
                         <>
@@ -162,7 +157,7 @@ const styles = stylex.create({
         alignItems: "center",
         borderInlineWidth: 0,
         color: tokens.cream,
-        fontFamily: fontFamily.default,
+        fontFamily: text.family,
         height: "100%",
     },
     command: {

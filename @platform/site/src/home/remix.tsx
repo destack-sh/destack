@@ -3,7 +3,6 @@ import { present } from "@destack/schema";
 import * as stylex from "@destack/style";
 import { createMemo, createSignal, For, onSettled } from "@destack/view";
 
-import { type Shift, sound } from "../effect/sound";
 import { tokens } from "../style/tokens.stylex";
 import {
     boardCells,
@@ -13,7 +12,7 @@ import {
     quarterCentres,
     rowCells,
 } from "./board";
-import { Card, type Entity, type Reveal } from "./card";
+import { Card, type Entity } from "./card";
 
 /** The milliseconds each open scene holds before the next one begins. */
 const sceneTime = 5200;
@@ -21,7 +20,7 @@ const sceneTime = 5200;
 const firstSceneTime = 2400;
 /** The milliseconds between neighbouring cards turning over, left to right. */
 const flipStagger = 150;
-/** The milliseconds after the stack opens before its apps turn into view, once the silos have gone down the drain. */
+/** The milliseconds after the stack opens before its apps turn into view, once the silos have sunk. */
 const openFlipAt = 1500;
 /** The milliseconds a card's ink takes to fade out before it hands over its box, or to fade in after it takes one. */
 const inkFade = 320;
@@ -31,7 +30,7 @@ const flipTime = 1200;
 const moveTime = 1400;
 
 /** The humans, agents, silos, and apps the scenes arrange. */
-const entities: Record<string, Entity> = {
+export const entities: Record<string, Entity> = {
     // people
     you: { label: "You", icon: "user", role: "Human", tint: "#2f7d8c" },
     cofounder: { label: "Cofounder", icon: "user", role: "Human", tint: "#a0485f" },
@@ -132,204 +131,6 @@ const remixes: Readonly<Record<string, readonly string[]>> = {
     invoices: ["sheets", "crm", "mail"],
     household: ["sheets", "expenses", "files"],
     contacts: ["notes", "calendar", "mail"],
-};
-
-/** How each person or agent gets into the silos of a locked scene today, one line per silo from left to right. */
-const todayAccess: Readonly<Record<string, readonly [string, string, string]>> = {
-    you: ["2FA code", "magic link", "SSO"],
-    cofounder: ["admin", "seat pending", "billing owner"],
-    designer: ["guest", "no seat", "viewer"],
-    client: ["guest invite", "shared channel", "no access"],
-    candidate: ["public form", "no access", "email only"],
-    investor: ["PDF export", "no access", "forwarded"],
-    partner: ["no seat", "no access", "your password"],
-    roommate: ["public link", "no access", "no access"],
-    agent: ["API 403", "paid tier", "MCP token"],
-    chatgpt: ["connector", "read only", "no access"],
-    claude: ["MCP token", "no access", "connector"],
-};
-
-/** The agent's balance in each silo that meters its AI in credits. */
-const creditBalances: Readonly<Record<string, string>> = {
-    notion: "12 credits left",
-    figma: "out of credits",
-    airtable: "resets in 9 days",
-    linear: "top up $10",
-    github: "out of AI credits",
-    typeform: "enrichment credits",
-    homemade: "out of credits",
-};
-
-/** What the homemade app rents under the searchlight today. */
-const homemadeReveal: Reveal = {
-    kind: "fields",
-    rows: [
-        ["Lovable", "credits"],
-        ["Supabase", "$25/mo"],
-        ["Vercel", "$20/seat/mo"],
-    ],
-};
-
-/** What each card shows under the searchlight with Destack: one identity and its grants, or the app's source. */
-const openReveals: { [id: string]: Reveal | undefined } = {
-    // one account each, with just the grants it needs
-    you: {
-        kind: "fields",
-        rows: [
-            ["account", "one"],
-            ["apps", "owner"],
-            ["agents", "3 granted"],
-        ],
-    },
-    cofounder: {
-        kind: "fields",
-        rows: [
-            ["account", "one"],
-            ["tasks", "admin"],
-            ["crm", "edit"],
-        ],
-    },
-    designer: {
-        kind: "fields",
-        rows: [
-            ["account", "one"],
-            ["tasks", "edit"],
-            ["source", "review"],
-        ],
-    },
-    client: {
-        kind: "fields",
-        rows: [
-            ["account", "guest"],
-            ["forms", "submit"],
-            ["the rest", "hidden"],
-        ],
-    },
-    candidate: {
-        kind: "fields",
-        rows: [
-            ["account", "guest"],
-            ["calendar", "book"],
-            ["the rest", "hidden"],
-        ],
-    },
-    investor: {
-        kind: "fields",
-        rows: [
-            ["account", "guest"],
-            ["update", "read"],
-            ["the rest", "hidden"],
-        ],
-    },
-    partner: {
-        kind: "fields",
-        rows: [
-            ["account", "one"],
-            ["household", "edit"],
-            ["contacts", "read"],
-        ],
-    },
-    roommate: {
-        kind: "fields",
-        rows: [
-            ["account", "one"],
-            ["household", "edit"],
-            ["the rest", "hidden"],
-        ],
-    },
-    agent: {
-        kind: "fields",
-        rows: [
-            ["tasks", "triage"],
-            ["source", "read"],
-            ["deploy", "asks first"],
-        ],
-    },
-    chatgpt: {
-        kind: "fields",
-        rows: [
-            ["sheets", "analyse"],
-            ["mail", "draft"],
-            ["send", "asks first"],
-        ],
-    },
-    claude: {
-        kind: "fields",
-        rows: [
-            ["incidents", "triage"],
-            ["crm", "read"],
-            ["send", "asks first"],
-        ],
-    },
-
-    // the apps' own source
-    pages: code("pages.tsx", "export function Pages() {", "  return <List of={pages} />;", "}"),
-    notes: code("notes.tsx", "export function Notes() {", "  return <List of={notes} />;", "}"),
-    chat: code("chat.tsx", "export function Chat() {", "  return <Thread of={messages} />;", "}"),
-    tasks: code("tasks.tsx", "export function Tasks() {", "  return <Board of={tasks} />;", "}"),
-    source: code("source.tsx", "export function Source() {", "  return <Log of={commits} />;", "}"),
-    crm: code("crm.tsx", "export function Crm() {", "  return <List of={people} />;", "}"),
-    forms: code("forms.tsx", "export function Forms() {", "  return <Form of={fields} />;", "}"),
-    calendar: code(
-        "calendar.tsx",
-        "export function Calendar() {",
-        "  return <Month of={events} />;",
-        "}",
-    ),
-    sheets: code("sheets.tsx", "export function Sheets() {", "  return <Grid of={cells} />;", "}"),
-    mail: code("mail.tsx", "export function Mail() {", "  return <Thread of={mail} />;", "}"),
-    expenses: code(
-        "expenses.tsx",
-        "export function Expenses() {",
-        "  return <Ledger of={costs} />;",
-        "}",
-    ),
-    files: code("files.tsx", "export function Files() {", "  return <List of={files} />;", "}"),
-
-    // each remix, joining its apps' data
-    standup: code("standup.tsx", "<Split>", "  <Chat /> <Tasks due={today} />", "</Split>"),
-    incidents: code(
-        "incidents.tsx",
-        "<Room of={alert}>",
-        "  <Chat /> <Tasks /> <Commits />",
-        "</Room>",
-    ),
-    feedback: code(
-        "feedback.ts",
-        'forms.on("submit", (reply) =>',
-        "  tasks.create({ for: reply.customer })",
-        ");",
-    ),
-    hiring: code(
-        "hiring.tsx",
-        "<Pipeline of={candidates}>",
-        "  <Form /> <Calendar book />",
-        "</Pipeline>",
-    ),
-    update: code(
-        "update.tsx",
-        "<Update month={last}>",
-        "  <Chart of={sheets.metrics} />",
-        "</Update>",
-    ),
-    invoices: code(
-        "invoices.ts",
-        "crm.clients.map((client) =>",
-        "  mail.send(invoice(client.hours))",
-        ");",
-    ),
-    household: code(
-        "household.tsx",
-        "<Split between={flatmates}>",
-        "  <Expenses /> <Files of={receipts} />",
-        "</Split>",
-    ),
-    contacts: code(
-        "contacts.tsx",
-        "<People sort={lastSpoke}>",
-        "  <Notes /> <Calendar /> <Mail />",
-        "</People>",
-    ),
 };
 
 /** Every card the scenes can show. */
@@ -521,58 +322,57 @@ export const scenes: readonly Scene[] = [
 ];
 
 /** The services each open app calls, each with the store that service keeps the app's state in, by label; remixes use their apps' own. */
-export const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> =
-    withRemixes({
-        pages: [
-            ["Access", "DB"],
-            ["Search", "Bucket"],
-        ],
-        notes: [
-            ["Access", "DB"],
-            ["Search", "DB"],
-        ],
-        chat: [
-            ["Access", "DB"],
-            ["AI", "Vault"],
-        ],
-        tasks: [
-            ["Access", "DB"],
-            ["Settings", "DB"],
-        ],
-        source: [
-            ["Access", "Audit"],
-            ["Search", "Bucket"],
-        ],
-        crm: [
-            ["Access", "DB"],
-            ["Search", "DB"],
-        ],
-        forms: [
-            ["Access", "DB"],
-            ["Settings", "DB"],
-        ],
-        calendar: [
-            ["Access", "DB"],
-            ["Settings", "DB"],
-        ],
-        sheets: [
-            ["Access", "DB"],
-            ["AI", "Vault"],
-        ],
-        mail: [
-            ["Access", "DB"],
-            ["Search", "DB"],
-            ["AI", "Vault"],
-        ],
-        expenses: [
-            ["Access", "Audit"],
-            ["Settings", "DB"],
-        ],
-        files: [
-            ["Access", "Bucket"],
-            ["Search", "Bucket"],
-        ],
-    });
+const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> = withRemixes({
+    pages: [
+        ["Access", "DB"],
+        ["Search", "Bucket"],
+    ],
+    notes: [
+        ["Access", "DB"],
+        ["Search", "DB"],
+    ],
+    chat: [
+        ["Access", "DB"],
+        ["AI", "Vault"],
+    ],
+    tasks: [
+        ["Access", "DB"],
+        ["Settings", "DB"],
+    ],
+    source: [
+        ["Access", "Audit"],
+        ["Search", "Bucket"],
+    ],
+    crm: [
+        ["Access", "DB"],
+        ["Search", "DB"],
+    ],
+    forms: [
+        ["Access", "DB"],
+        ["Settings", "DB"],
+    ],
+    calendar: [
+        ["Access", "DB"],
+        ["Settings", "DB"],
+    ],
+    sheets: [
+        ["Access", "DB"],
+        ["AI", "Vault"],
+    ],
+    mail: [
+        ["Access", "DB"],
+        ["Search", "DB"],
+        ["AI", "Vault"],
+    ],
+    expenses: [
+        ["Access", "Audit"],
+        ["Settings", "DB"],
+    ],
+    files: [
+        ["Access", "Bucket"],
+        ["Search", "Bucket"],
+    ],
+});
 
 /** The source step each open scene shows at work, by its label: installing a set of apps, then building its remix. */
 export const sceneSources = scenes.map((scene, index) => {
@@ -604,7 +404,7 @@ const todayPlacements = todayScenes.map(arrange);
 const scenePlacements = scenes.map(arrange);
 
 /** How a card moves into its placement. */
-type Step = "stay" | "enter" | "leave" | "park" | "fuse" | "flip" | "drain";
+type Step = "stay" | "enter" | "leave" | "park" | "fuse" | "flip";
 
 /** One placed card: its row, its span in whole board cells, and how it gets there. */
 type Placement = {
@@ -728,12 +528,12 @@ export function Remix(properties: {
                     entering.push(next);
                 }
             }
-            // sink a vendor app where it stands, or swirl it down the drain with the water when the stack opens
+            // sink a vendor app where it stands
             else if (isVendor) {
                 last.set(id, {
                     ...(previous ?? lockedPlacement(id)),
                     isShown: false,
-                    step: isToggle ? "drain" : "stay",
+                    step: "stay",
                     delay: 0,
                     isLate: false,
                 });
@@ -835,7 +635,6 @@ export function Remix(properties: {
         const startX = event.clientX;
         const startY = event.clientY;
         event.preventDefault();
-        sound.play("lift");
         setDrag({ id, x: 0, y: 0 });
 
         // follow the pointer until it lifts, then let go of the card
@@ -843,7 +642,6 @@ export function Remix(properties: {
             setDrag({ id, x: moving.clientX - startX, y: moving.clientY - startY });
         const drop = () => {
             // let go of the card and stop following the pointer
-            sound.play("set");
             setDrag(undefined);
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", drop);
@@ -1258,7 +1056,6 @@ export function Remix(properties: {
             } else if (scene() !== wasScene || properties.today !== wasToday) {
                 changedAt = now;
                 delay = moveTime * 0.8;
-                soundShifts(layout());
 
                 // run a dash of light down every open cable once the new scene's cables are in
                 if (properties.isOpen && !isStill) {
@@ -1403,14 +1200,6 @@ export function Remix(properties: {
                                 <Card
                                     entity={entityOf(id)}
                                     kind={isVendor ? "vendor" : "plain"}
-                                    reveal={
-                                        properties.isOpen
-                                            ? openReveals[id]
-                                            : todayReveal(
-                                                  id,
-                                                  present(todayScenes[properties.today], "scene"),
-                                              )
-                                    }
                                     style={styles.fill}
                                 />
                             </div>
@@ -1440,10 +1229,6 @@ const land = stylex.keyframes({
 });
 /** The easing of a card springing back from a drag. */
 const spring = "cubic-bezier(0.3, 1.45, 0.5, 1)";
-/** The milliseconds a silo takes to swirl down the drain as the stack opens. */
-const drainTime = 1900;
-/** How far below the silo row the drain lies, in hole rows: down through the figure to the footer. */
-const drainDrop = 52;
 /** How far a silo sinks below its berg before it is gone, deep enough for the water to hide it. */
 const sinkDepth = "8rem";
 /** The easing of a vendor app sinking with the ice. */
@@ -1477,23 +1262,14 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
                   scale: "1",
                   transition: `opacity 500ms ease ${place.delay}ms, translate 1100ms ${spring} ${place.delay}ms, rotate 1100ms ${spring} ${place.delay}ms, scale 900ms ${spring} ${place.delay}ms`,
               }
-            : place.step === "drain"
-              ? {
-                    opacity: "0",
-                    translate: `calc(${tokens.cell} * ${boardCells / 2 - place.left - place.width / 2}) calc(${tokens.cellRow} * ${drainDrop})`,
-                    rotate: `${place.left < boardCells / 3 ? 220 : -220}deg`,
-                    scale: "0.08",
-                    "pointer-events": "none",
-                    transition: `translate ${drainTime}ms cubic-bezier(0.55, 0, 0.8, 0.4), rotate ${drainTime}ms cubic-bezier(0.4, 0, 0.9, 0.6), scale ${drainTime}ms cubic-bezier(0.7, 0, 0.9, 0.5), opacity 500ms ease ${drainTime - 500}ms`,
-                }
-              : {
-                    opacity: "0",
-                    translate: `0 ${sinkDepth}`,
-                    rotate: "5deg",
-                    scale: "1",
-                    "pointer-events": "none",
-                    transition: `translate 1300ms ${sink}, rotate 1300ms ${sink}, opacity 700ms ease 500ms`,
-                };
+            : {
+                  opacity: "0",
+                  translate: `0 ${sinkDepth}`,
+                  rotate: "5deg",
+                  scale: "1",
+                  "pointer-events": "none",
+                  transition: `translate 1300ms ${sink}, rotate 1300ms ${sink}, opacity 700ms ease 500ms`,
+              };
     }
 
     // turn a card over in its slot: the old one turns away, and the new one turns into view from behind it
@@ -1544,34 +1320,6 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
         transition: place.step === "park" ? "none" : move,
         ...(place.isShown ? {} : { "pointer-events": "none" }),
     };
-}
-
-/** Sound the cards moving in a remix: turning over, fusing, and sliding in and out, once per kind and moment. */
-function soundShifts(places: ReadonlyMap<string, Placement>) {
-    const heard = new Set<string>();
-    for (const place of places.values()) {
-        // pick the sounding move and when it happens: a turn halfway through, a fuse as it lands, a slide as it starts
-        let shift: { kind: Shift; at: number } | undefined;
-        if (place.step === "flip" && place.isShown) {
-            shift = { kind: "flip", at: place.delay + flipTime / 2 };
-        } else if (place.step === "fuse" && !place.isShown) {
-            shift = { kind: "fuse", at: place.delay + moveTime * 0.8 };
-        } else if (place.step === "enter" && place.isShown) {
-            shift = { kind: "enter", at: place.delay };
-        } else if (place.step === "leave" && !place.isShown) {
-            shift = { kind: "leave", at: place.delay };
-        }
-
-        // sound each kind once per moment, where across the board it happens
-        if (shift === undefined) {
-            continue;
-        }
-        const key = `${shift.kind}:${Math.round(shift.at / 80)}`;
-        if (!heard.has(key)) {
-            heard.add(key);
-            sound.shift(shift.kind, shift.at / 1000, (place.left + place.width / 2) / boardCells);
-        }
-    }
 }
 
 /** Add the drag offset to a card's motion: the card follows the pointer while held and springs home when let go. */
@@ -1830,11 +1578,6 @@ export function usesOf(id: string): readonly (readonly [string, string])[] {
     return uses;
 }
 
-/** Return a code reveal: a file name and its lines. */
-function code(name: string, ...lines: string[]): Reveal {
-    return { kind: "code", name, lines };
-}
-
 /** Add each remix's services and stores, the union of the apps it joins. */
 function withRemixes(
     uses: Record<string, readonly (readonly [string, string])[]>,
@@ -1858,37 +1601,6 @@ function withRemixes(
     return { ...uses, ...Object.fromEntries(joined) };
 }
 
-/** Return what a card shows under the searchlight today: a person's way into each silo on show, the agent's credits where a silo meters them, the silos' ciphertext, or the homemade app's rent. */
-function todayReveal(id: string, scene: Scene): Reveal | undefined {
-    // show how the person gets into each silo of the scene
-    const access = todayAccess[id];
-    if (access) {
-        return {
-            kind: "fields",
-            rows: scene.lower.map((card, index) => {
-                // read the way in to the silo at this place on the ice
-                const way = access[index];
-                if (way === undefined) {
-                    throw new TypeError(`${id} has no way into silo ${index}`);
-                }
-
-                return [
-                    entityOf(card.id).label,
-                    (id === "agent" ? creditBalances[card.id] : undefined) ?? way,
-                ];
-            }),
-        };
-    }
-    // rent for the homemade app, ciphertext for the silos
-    else if (id === "homemade") {
-        return homemadeReveal;
-    } else if (vendors.has(id)) {
-        return { kind: "cipher" };
-    }
-
-    return undefined;
-}
-
 /** The sway of the people cards dancing while locked. */
 const dance = stylex.keyframes({
     "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
@@ -1901,9 +1613,9 @@ const dance = stylex.keyframes({
 /** The cable strokes for each cable kind. */
 const cableKinds = stylex.create({
     locked: { stroke: color.mutedForeground },
-    link: { stroke: color.primary },
-    chain: { stroke: color.primary },
-    drop: { stroke: color.primary },
+    link: { stroke: `color-mix(in srgb, ${color.foreground} 55%, transparent)` },
+    chain: { stroke: `color-mix(in srgb, ${color.foreground} 55%, transparent)` },
+    drop: { stroke: `color-mix(in srgb, ${color.foreground} 55%, transparent)` },
 });
 
 /** The plug fills for each cable kind. */

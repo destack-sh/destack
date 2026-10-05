@@ -3,35 +3,19 @@ import { type JSX, onSettled } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
 import { ambientPace, isDarkPage, isWeakGraphics, pageScroll, Shader } from "./gl";
-import { sound } from "./sound";
-import { drainAt, pageWater } from "./water";
 import { telemetry } from "@destack/telemetry";
 import { log } from "../site/telemetry.ts";
 
 /** The distance the goo field reaches past the site frame, in CSS pixels, so its rim can wobble across the frame rules. */
 const spill = 8;
+/** How far past its cells the goo can reach, in CSS pixels: its rim, the charge swell and the pointer's pull, with room to spare. */
+const clipMargin = 24;
 /** The milliseconds the field takes to fade in over the still stars. */
 const fadeTime = 500;
-/** How far the site frame's rim lies outside the frame, in CSS pixels. */
+/** How far an island's rim lies outside its cell, in CSS pixels. */
 const rimOffset = 3;
-/** The milliseconds a section's text takes to ease into its new scheme as the universe passes it. */
-const turnTime = 600;
-/** The most goo islands the universe grows out of. */
+/** The most goo islands the field draws. */
 const islandCapacity = 4;
-/** The milliseconds the universe takes to spread across the site or shrink back into its islands. */
-const spreadTime = 2600;
-/** How much nearer the universe's reach below an island counts, so it pours down faster than it spreads. */
-const pourDown = 0.55;
-/** How much farther the universe's reach above an island counts, so it climbs slowly. */
-const pourUp = 1.4;
-/** The scale of the universe's ragged edge, in waves per CSS pixel. */
-const raggedScale = 0.0045;
-/** How far the universe's ragged edge reaches in and out, in CSS pixels. */
-const raggedDepth = 220;
-/** How far ahead of the universe's front its ragged edge can reach, in CSS pixels, so no loose blobs form beyond it. */
-const raggedReach = 60;
-/** How softly the universe's islands merge into one another, in CSS pixels. */
-const mergeSoftness = 90;
 /** The seconds the goo's bulge takes to catch up with the pointer, so it drags behind like something thick. */
 const gooLag = 0.6;
 /** The seconds the tail of the bulge takes to catch up with its head, drawing the goo out into a strand while the pointer moves. */
@@ -48,18 +32,10 @@ const fullStir = 3000;
 const starLife = 1.2;
 /** The milliseconds between measurements of the goo cells, in case the page shifts under them without resizing. */
 const remeasureTime = 1000;
-/** How far past the farthest point of the site frame the universe spreads, in CSS pixels, to settle its ragged edge. */
-const spreadMargin = 60;
-/** How many points across and down the site frame are measured for the universe's farthest reach. */
-const reachSamples = 24;
 /** The share of far star cells that hold a star. */
 const distantStars = "0.14";
 /** The share of near star cells that hold a star. */
 const closeStars = "0.16";
-/** The lattice rule color over space. */
-const spaceRule = "rgb(241 234 219 / 16%)";
-/** How far inside the universe's edge a section's centre must lie before it is drawn for space, in CSS pixels. */
-const coverDepth = 24;
 
 /** A still tile of stars that shows before the shader paints, seeded so server and browser agree. */
 export const stillStars = (() => {
@@ -98,23 +74,15 @@ uniform float stir;
 uniform float shower;
 uniform vec2 far;
 uniform vec2 near;
-uniform vec4 hole;
-uniform float glow;
-uniform float flow;
 uniform float charge;
 uniform vec3 star;
 uniform vec4 islands[${islandCapacity}];
 uniform float islandCount;
-uniform float spread;
-uniform float fullness;
-uniform float waterTop;
 uniform float outline;
-uniform vec4 frame;
 
 const vec3 space = vec3(0.031, 0.09, 0.137);
 const vec3 rimColor = vec3(0.945, 0.918, 0.859);
 const vec3 inkColor = vec3(0.071, 0.192, 0.235);
-const vec3 signal = vec3(1.0, 0.475, 0.18);
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -130,28 +98,6 @@ float noise(vec2 p) {
 float box(vec2 p, vec2 extent, float radius) {
     vec2 q = abs(p) - extent + radius;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
-}
-
-// return a few crossing waves for a ragged, organic edge that the page can trace exactly
-float ragged(vec2 p) {
-    return 0.5
-        + 0.22 * sin(p.x * 1.7 + p.y * 0.9)
-        + 0.14 * sin(p.x * -1.1 + p.y * 2.3 + 1.3)
-        + 0.09 * sin(p.x * 3.1 - p.y * 1.9 + 2.1)
-        + 0.05 * sin(p.x * 5.3 + p.y * 4.7 + 0.7);
-}
-
-// return the distance to a rounded box, squashed below it and stretched above it outside, so heavy goo pours down faster than it climbs
-float pour(vec2 p, vec2 extent) {
-    vec2 q = abs(p) - extent + 6.0;
-    q.y *= q.y > 0.0 ? (p.y > 0.0 ? ${pourDown} : ${pourUp}) : 1.0;
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 6.0;
-}
-
-// blend two distances into one gooey union
-float merge(float first, float second, float softness) {
-    float blend = max(softness - abs(first - second), 0.0) / softness;
-    return min(first, second) - blend * blend * softness * 0.25;
 }
 
 // return a sparse field of flat, crisp stars in a few sizes
@@ -199,34 +145,23 @@ void main() {
         discard;
     }
 
-    // measure the island cells, and the universe growing out of them while it spreads
-    float cells = 1e5;
-    float grown = 1e5;
+    // measure the island cells
+    float d = 1e5;
     for (int i = 0; i < ${islandCapacity}; i++) {
         if (float(i) < islandCount) {
             vec4 island = islands[i];
-            vec2 extent = island.zw + charge * 3.0;
-            cells = min(cells, box(frag - island.xy, extent, 6.0));
-            grown = merge(grown, pour(frag - island.xy, extent) - spread, ${mergeSoftness.toFixed(1)});
+            d = min(d, box(frag - island.xy, island.zw + charge * 3.0, 6.0));
         }
     }
-
-    // push the universe's front out in slow lobes that settle into the frame as it fills, and keep it above the water
-    float front = smoothstep(0.0, 80.0, spread) * (1.0 - smoothstep(0.7, 1.0, fullness));
-    vec2 page = frag + origin;
-    float near = exp(-max(grown, 0.0) / ${raggedReach.toFixed(1)});
-    grown += (ragged(page * ${raggedScale} + vec2(time * 0.06, -time * 0.04)) - 0.5) * ${raggedDepth.toFixed(1)} * front * near;
-    grown = max(grown, frag.y - waterTop - 4.0);
-    float d = max(box(frag - frame.xy, frame.zw, 6.0), min(cells, grown));
     if (d > 140.0) {
         discard;
     }
 
-    // sag and swell the edge very slowly, and heave it while it spreads
-    float spreading = front * (1.0 - smoothstep(0.0, 160.0, -grown));
+    // sag and swell the edge very slowly
+    vec2 page = frag + origin;
     float slow = noise(page * 0.007 + vec2(time * 0.025, time * 0.018)) - 0.5;
     float swell = noise(page * 0.013 - vec2(time * 0.03, time * 0.012)) - 0.5;
-    d -= (slow * 2.0 + swell) * wobble * (1.0 + spreading * 6.0);
+    d -= (slow * 2.0 + swell) * wobble;
 
     // swell toward the pointer along the strand it drags behind it, thinning toward the tail, and heave in slow broad swells while it moves
     vec2 along = trail - pointer;
@@ -245,17 +180,9 @@ void main() {
         discard;
     }
 
-    // bend the starlight around the black hole, if there is one
-    vec2 around = frag - hole.xy;
-    float distance = length(around);
-    vec2 sky = frag;
-    if (hole.z > 0.0) {
-        sky += around / max(distance, 1.0) * hole.z * hole.z * 1.6 / max(distance, hole.z);
-    }
-
     // bend the stars away from the pointer like a lens while it is near
     vec2 toward = frag - pointer;
-    sky += toward / max(length(toward), 1.0) * 22.0 * pull * exp(-dot(toward, toward) / 4200.0);
+    vec2 sky = frag + toward / max(length(toward), 1.0) * 22.0 * pull * exp(-dot(toward, toward) / 4200.0);
 
     // glow in slow page-wide clouds under two depths of sparse flat stars placed across the page
     float falloff = smoothstep(0.25, 0.85, noise(page * 0.0012 + vec2(time * 0.004, 0.0)));
@@ -290,28 +217,6 @@ void main() {
         color += vec3(1.0, 0.95, 0.85) * (streak * 1.4 + flash);
     }
 
-    // swallow the light behind a black hole ringed by a swirling accretion disk seen nearly edge on,
-    // faint at rest and blazing while lit
-    if (hole.z > 0.0) {
-        vec2 tilted = vec2(around.x, around.y * 3.2);
-        float spread = length(tilted);
-        float band = smoothstep(hole.z * 1.2, hole.z * 1.7, spread) * (1.0 - smoothstep(hole.z * 2.4, hole.z * 5.5, spread));
-        float swirl = 0.55 + 0.45 * sin(atan(tilted.y, tilted.x) * 3.0 - time * 2.4 + spread * 0.18);
-        vec3 disk = mix(vec3(1.0), signal, 0.12 + glow * 0.18) * band * swirl * mix(0.07, 1.1, glow);
-        float ring = exp(-abs(distance - hole.z * 1.08) / 0.8) * mix(0.14, 1.0, glow);
-        float horizon = 1.0 - smoothstep(hole.z - 0.8, hole.z + 0.2, distance);
-
-        // pour a stream of water from the cell above into the hole while it blazes, down to drain and up to fill
-        float width = hole.z * 0.45 * glow;
-        float stream = (1.0 - smoothstep(width - 0.6, width + 0.6, abs(around.x))) * step(around.y, 0.0) * step(-hole.w, around.y);
-        float ripple = 0.6 + 0.4 * sin(frag.y * 0.9 - flow * time * 18.0);
-        color = mix(color, mix(vec3(0.55, 0.82, 0.9), vec3(1.0), ripple * 0.5), stream * glow);
-        float front = step(0.0, around.y);
-        color += disk * (1.0 - front);
-        color = mix(color, vec3(0.0), horizon);
-        color += disk * front + vec3(1.0) * ring * (1.0 - horizon);
-    }
-
     color = mix(color, rimColor, rim);
     color = mix(color, inkColor, ink * (1.0 - max(inside, rim)));
 
@@ -331,21 +236,7 @@ export function charge(level: number) {
 /** The pointer anywhere on the page in client pixels. */
 const pagePointer = { x: 0, y: 0, isKnown: false };
 
-/** The island cells, the black hole, and how far the universe has spread, in client pixels. */
-type Terrain = {
-    /** The island cells the goo fills. */
-    islands: readonly Rect[];
-    /** How far the universe has spread past the islands. */
-    spread: number;
-    /** How far the spread has come toward filling the frame, from 0 to 1. */
-    fullness: number;
-    /** The site frame the universe fills. */
-    frame: Rect;
-    /** The cell holding the black hole and the hole's radius, if the page has one. */
-    hole: { cell: Rect; radius: number } | undefined;
-};
-
-/** The site's one goo field: every island cell, the black hole, and the universe that grows out of them. */
+/** The site's one goo field, which draws every island cell. */
 class Field {
     /** The shader that draws the goo. */
     shader: Shader;
@@ -365,16 +256,8 @@ class Field {
     shower: number;
     /** Whether the goo moves at all. */
     isMoving: boolean;
-    /** Return the terrain of the current frame. */
-    terrain: () => Terrain;
-    /** Which way water flows through the black hole: 1 draining into it, -1 welling out of it, 0 still. */
-    flow: () => number;
-    /** The smoothed glow of the disk from 0 to 1. */
-    glow: number;
-    /** The flow on the previous frame. */
-    lastFlow: number;
-    /** The flare as the last of the water goes in, from 1 fading to 0. */
-    flare: number;
+    /** Return the island cells of the current frame, in client pixels. */
+    islands: () => readonly Rect[];
     /** The smoothed page charge from 0 to 1. */
     charge: number;
     /** Where a click last fired a shooting star, in canvas CSS pixels, and when, in milliseconds. */
@@ -383,12 +266,7 @@ class Field {
     bounds: DOMRect | undefined;
 
     /** Create the field on a canvas, or throw when WebGL is unavailable. */
-    constructor(
-        canvas: HTMLCanvasElement,
-        isMoving: boolean,
-        terrain: () => Terrain,
-        flow: () => number,
-    ) {
+    constructor(canvas: HTMLCanvasElement, isMoving: boolean, islands: () => readonly Rect[]) {
         // start the shader and rest the goo until the pointer comes
         this.shader = new Shader(canvas, fragmentSource, 1.25, (now) => this.draw(now));
         this.pointer = { x: 0, y: 0 };
@@ -399,11 +277,7 @@ class Field {
         this.lastTarget = { x: 0, y: 0 };
         this.shower = 0;
         this.isMoving = isMoving;
-        this.terrain = terrain;
-        this.flow = flow;
-        this.glow = 0;
-        this.lastFlow = 0;
-        this.flare = 0;
+        this.islands = islands;
         this.charge = 0;
         this.star = { x: 0, y: 0, at: -1e9 };
         this.bounds = undefined;
@@ -414,12 +288,12 @@ class Field {
 
     /** Upload one frame, and return whether to keep going while the goo moves. */
     draw(now: number) {
-        // read the shader, its place, and the terrain
+        // read the shader, its place, and the islands
         const shader = this.shader;
         const context = shader.context;
         this.bounds ??= shader.canvas.getBoundingClientRect();
         const bounds = this.bounds;
-        const terrain = this.terrain();
+        const cells = this.islands();
         const seconds = now / 1000;
 
         // ease by the time since the last frame, so the goo is as thick at any frame rate
@@ -442,15 +316,12 @@ class Field {
             Math.max(elapsed, 0.001);
         this.lastTarget = { x: target.x, y: target.y };
         const outside = pagePointer.isKnown
-            ? edgeAt(pagePointer.x, pagePointer.y, terrain, seconds)
+            ? outsideAt(pagePointer.x, pagePointer.y, cells)
             : Number.POSITIVE_INFINITY;
         const swell = outside < 0 ? 1 : Math.exp(-outside / 60) * 0.8;
         this.pull += (swell - this.pull) * follow(swell > this.pull ? swellTime : sagTime);
         this.stir += (Math.min(1, speed / fullStir) * swell - this.stir) * follow(stirTime);
-        sound.ooze(this.isMoving ? this.stir : 0);
-        const isOverCell =
-            pagePointer.isKnown && pouredAt(pagePointer.x, pagePointer.y, terrain.islands, 0) < 0;
-        this.shower += ((isOverCell ? 1 : 0) - this.shower) * 0.04;
+        this.shower += ((outside < 0 ? 1 : 0) - this.shower) * 0.04;
         this.charge += (pageCharge.target - this.charge) * 0.08;
 
         // place the sky by page position, far stars shifting less than near ones
@@ -489,9 +360,9 @@ class Field {
             bounds.top + pageScroll.y * 0.7 + lookY,
         );
 
-        // upload the islands, each with its rim outside its cell, and the universe grown out of them
+        // upload the islands, each with its rim outside its cell
         const islands = new Float32Array(islandCapacity * 4);
-        terrain.islands.forEach((island, index) =>
+        cells.forEach((island, index) =>
             islands.set(
                 [
                     island.left + island.width / 2 - bounds.left,
@@ -503,50 +374,25 @@ class Field {
             ),
         );
         context.uniform4fv(shader.uniform("islands"), islands);
-        context.uniform1f(shader.uniform("islandCount"), terrain.islands.length);
-        context.uniform1f(shader.uniform("spread"), terrain.spread);
-        context.uniform1f(shader.uniform("fullness"), terrain.fullness);
-        context.uniform1f(
-            shader.uniform("waterTop"),
-            Math.min(pageWater.top - pageScroll.y - bounds.top, 1e4),
-        );
-        context.uniform4f(
-            shader.uniform("frame"),
-            terrain.frame.left + terrain.frame.width / 2 - bounds.left,
-            terrain.frame.top + terrain.frame.height / 2 - bounds.top,
-            terrain.frame.width / 2 + rimOffset,
-            terrain.frame.height / 2 + rimOffset,
-        );
+        context.uniform1f(shader.uniform("islandCount"), cells.length);
 
-        // light the black hole's disk slowly, and flare once as the last of the water goes in
-        const flow = this.flow();
-        this.glow += (Math.abs(flow) - this.glow) * 0.04;
-        if (this.lastFlow === 1 && flow === 0) {
-            this.flare = 1;
-        }
-        this.lastFlow = flow;
-        this.flare *= 0.94;
-        const hole = terrain.hole;
-        context.uniform4f(
-            shader.uniform("hole"),
-            hole ? hole.cell.left + hole.cell.width * drainAt - bounds.left : 0,
-            hole ? hole.cell.top + hole.cell.height / 2 - bounds.top : 0,
-            hole?.radius ?? 0,
-            hole ? hole.cell.height / 2 + rimOffset : 0,
-        );
-        context.uniform1f(shader.uniform("glow"), Math.min(1.8, this.glow + this.flare * 1.4));
-        context.uniform1f(shader.uniform("flow"), flow === 0 ? 1 : flow);
+        // shade only around the islands, as far as their rim, swell and pull can reach
+        const left = Math.min(...cells.map((cell) => cell.left)) - bounds.left - clipMargin;
+        const top = Math.min(...cells.map((cell) => cell.top)) - bounds.top - clipMargin;
+        const right = Math.max(...cells.map((cell) => cell.right)) - bounds.left + clipMargin;
+        const bottom = Math.max(...cells.map((cell) => cell.bottom)) - bounds.top + clipMargin;
+        shader.clip =
+            cells.length === 0
+                ? { left: 0, top: 0, width: 0, height: 0 }
+                : { left, top, width: right - left, height: bottom - top };
 
-        // twinkle at half the frame rate while nothing moves: no pointer near, no spread, no black hole at work
+        // twinkle at half the frame rate while nothing moves
         const isBusy =
             this.pull > 0.02 ||
             this.stir > 0.02 ||
             now - this.star.at < starLife * 1000 ||
             Math.hypot(this.pointer.x - this.trail.x, this.pointer.y - this.trail.y) > 1 ||
-            this.glow > 0.02 ||
-            this.flare > 0.02 ||
-            Math.abs(this.charge - pageCharge.target) > 0.01 ||
-            (terrain.fullness > 0 && terrain.fullness < 1);
+            Math.abs(this.charge - pageCharge.target) > 0.01;
         shader.pace = isBusy ? 0 : ambientPace;
 
         // announce the first frame to the page, so the cells let the field show through
@@ -559,13 +405,9 @@ class Field {
 }
 
 /** Mark a lattice cell as an island of goo, drawn by the site's one field behind its content. */
-export function Goo(properties: { children?: JSX.Element; hole?: number; style?: stylex.Styles }) {
+export function Goo(properties: { children?: JSX.Element; style?: stylex.Styles }) {
     return (
-        <div
-            data-goo
-            data-hole={properties.hole === undefined ? undefined : String(properties.hole)}
-            {...stylex.attrs(styles.host, properties.style)}
-        >
+        <div data-goo {...stylex.attrs(styles.host, properties.style)}>
             {/* stand in with still stars until the field paints */}
             <span
                 aria-hidden="true"
@@ -578,13 +420,8 @@ export function Goo(properties: { children?: JSX.Element; hole?: number; style?:
     );
 }
 
-/**
- * Draw the site's one goo field behind its content.
- *
- * The field holds every island cell and the black hole, and while open a universe that grows out of the islands until it fills the site frame.
- * As the universe passes each section marked `data-universe`, it draws that section for space.
- */
-export function Universe(properties: { isOpen: boolean; flow: number }) {
+/** Draw the site's one goo field behind its content, filling every island cell. */
+export function GooField() {
     // hold the frame and the canvas
     let frame: HTMLDivElement | undefined;
     let canvas: HTMLCanvasElement | undefined;
@@ -596,16 +433,10 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
             throw new TypeError("the goo rendered without its frame and canvas");
         }
 
-        // hold the spread's motion, the frame's farthest reach, and the sections' schemes
+        // hold the cells and where they sit on the page
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const motion = { from: 0, to: 0, at: -spreadTime };
-        const schemes = new Map<HTMLElement, boolean>();
-        let wasOpen = false;
-        let reach = 1;
-        let sections: { element: HTMLElement; place: Rect }[] = [];
         let cells: HTMLElement[] = [];
         let pageIslands: Rect[] = [];
-        let pageFrame: Rect = { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
         let measuredAt = -Infinity;
 
         // measure again whenever the window or the page itself changes size, as when images load or another page opens
@@ -615,11 +446,10 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
         window.addEventListener("resize", remeasure);
         const pageSize = new ResizeObserver(remeasure);
         pageSize.observe(document.body);
-        let ruleBlend = 0;
 
-        // measure the islands and the frame, and follow the switch: spread just far enough to fill the frame, or back
-        const terrain = (): Terrain => {
-            // measure the cells and the frame
+        // measure the cells in page pixels now and then, and move them with the scroll every frame
+        const islands = () => {
+            // find the cells again once any of them leaves the page
             const now = performance.now();
             if (cells.length === 0 || cells.some((cell) => !cell.isConnected)) {
                 cells = [...document.querySelectorAll<HTMLElement>("[data-goo]")].slice(
@@ -628,79 +458,14 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
                 );
                 measuredAt = -Infinity;
             }
-            // measure the cells and the frame in page pixels now and then, and move them with the scroll every frame
+
+            // measure them in page pixels once the last measurement is stale
             if (now - measuredAt > remeasureTime) {
                 measuredAt = now;
                 pageIslands = cells.map((cell) => onPage(cell.getBoundingClientRect()));
-                pageFrame = onPage(frame.getBoundingClientRect());
-            }
-            const islands = pageIslands.map(onScreen);
-            const bounds = onScreen(pageFrame);
-            const holderIndex = cells.findIndex((cell) => cell.dataset["hole"] !== undefined);
-            const holder = cells[holderIndex];
-            const holderIsland = islands[holderIndex];
-            if (holder !== undefined && holderIsland === undefined) {
-                throw new TypeError("hole cell has no measured island");
             }
 
-            // start a new spread whenever the switch flips
-            const progress = isStill ? 1 : Math.min(1, (now - motion.at) / spreadTime);
-            const spread = motion.from + (motion.to - motion.from) * ease(progress);
-            if (properties.isOpen !== wasOpen) {
-                wasOpen = properties.isOpen;
-                reach = farthest(bounds, islands) + spreadMargin;
-                sections = [
-                    ...document.querySelectorAll<HTMLElement>(
-                        '[data-universe]:not([data-universe="parts"]), [data-universe="parts"] > :not([data-universe="parts"])',
-                    ),
-                ].map((element) => ({ element, place: onPage(element.getBoundingClientRect()) }));
-                Object.assign(motion, { from: spread, to: properties.isOpen ? reach : 0, at: now });
-            }
-            // blend the lattice rules toward faint cream as the universe fills the site, touching the page only on change
-            const fullness = Math.min(1, spread / reach);
-            const blend = Math.round(fullness * 40) / 40;
-            if (blend !== ruleBlend) {
-                ruleBlend = blend;
-                frame.parentElement?.style.setProperty(
-                    "--site-rule",
-                    blend > 0
-                        ? `color-mix(in srgb, ${spaceRule} ${blend * 100}%, var(--destack-color-border))`
-                        : "",
-                );
-            }
-            const result: Terrain = {
-                islands,
-                spread,
-                fullness,
-                frame: bounds,
-                hole:
-                    holder && holderIsland
-                        ? { cell: holderIsland, radius: Number(holder.dataset["hole"]) }
-                        : undefined,
-            };
-
-            // draw each section for space once the universe's edge has passed its centre, touching only changed ones
-            sections.forEach(({ element: section, place }) => {
-                // measure the section's centre against the universe's edge
-                const box = onScreen(place);
-                const x = (box.left + box.right) / 2;
-                const y = (box.top + box.bottom) / 2;
-                const isCovered = spread > 0 && grownAt(x, y, result, now / 1000) < -coverDepth;
-                if (schemes.get(section) !== isCovered) {
-                    schemes.set(section, isCovered);
-                    section.style.colorScheme = isCovered ? "dark" : "";
-
-                    // ease the text into its new scheme, then let hovers answer at once again
-                    section.style.transition = `color ${turnTime}ms ease`;
-                    setTimeout(() => {
-                        if (schemes.get(section) === isCovered) {
-                            section.style.transition = "";
-                        }
-                    }, turnTime);
-                }
-            });
-
-            return result;
+            return pageIslands.map(onScreen);
         };
 
         // follow the pointer across the page
@@ -714,12 +479,7 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
         // start the field, or keep the still stars when WebGL is unavailable
         let field: Field;
         try {
-            field = new Field(
-                canvas,
-                !isStill && !isWeakGraphics(),
-                terrain,
-                () => properties.flow,
-            );
+            field = new Field(canvas, !isStill && !isWeakGraphics(), islands);
         } catch (error) {
             log.error("goo.render.failed", telemetry.exceptionAttributes(error));
             return;
@@ -736,12 +496,12 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
             if (
                 !isEmpty ||
                 !field.isMoving ||
-                edgeAt(event.clientX, event.clientY, terrain(), performance.now() / 1000) >= 0
+                outsideAt(event.clientX, event.clientY, islands()) >= 0
             ) {
                 return;
             }
 
-            // start the star where the click landed, and chime
+            // start the star where the click landed
             const bounds = field.bounds ?? canvas.getBoundingClientRect();
             field.star = {
                 x: event.clientX - bounds.left,
@@ -749,7 +509,6 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
                 at: performance.now(),
             };
             field.shader.request();
-            sound.play("star");
         };
         window.addEventListener("pointerdown", shoot, { passive: true });
 
@@ -770,64 +529,18 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
     );
 }
 
-/** Return how far a client point lies outside the islands poured out by a distance and merged softly, as the shader measures it. */
-function pouredAt(x: number, y: number, islands: readonly Rect[], spread: number) {
-    let merged = 1e5;
+/** Return how far a client point lies outside the nearest island cell and its rim, in CSS pixels. */
+function outsideAt(x: number, y: number, islands: readonly Rect[]) {
+    let nearest = Number.POSITIVE_INFINITY;
     for (const island of islands) {
-        // measure the rounded box, squashed below it and stretched above it outside
-        const offset = y - (island.top + island.bottom) / 2;
         const across =
-            Math.abs(x - (island.left + island.right) / 2) - island.width / 2 - rimOffset + 6;
-        let down = Math.abs(offset) - island.height / 2 - rimOffset + 6;
-        down *= down > 0 ? (offset > 0 ? pourDown : pourUp) : 1;
+            Math.abs(x - (island.left + island.right) / 2) - island.width / 2 - rimOffset;
+        const down = Math.abs(y - (island.top + island.bottom) / 2) - island.height / 2 - rimOffset;
         const outside = Math.hypot(Math.max(across, 0), Math.max(down, 0));
-        const inside = Math.min(Math.max(across, down), 0);
-        const distance = outside + inside - 6 - spread;
-
-        // blend it into the islands so far
-        const blend = Math.max(mergeSoftness - Math.abs(merged - distance), 0) / mergeSoftness;
-        merged = Math.min(merged, distance) - blend * blend * mergeSoftness * 0.25;
+        nearest = Math.min(nearest, outside + Math.min(Math.max(across, down), 0));
     }
 
-    return merged;
-}
-
-/** Return how far a client point lies outside the grown universe, exactly as the shader draws it, in CSS pixels. */
-function grownAt(x: number, y: number, terrain: Terrain, seconds: number) {
-    // push the front out in the same crossing waves the shader uses, and keep it above the water
-    const front = smoothstep(0, 80, terrain.spread) * (1 - smoothstep(0.7, 1, terrain.fullness));
-    const across = (x + pageScroll.x) * raggedScale + seconds * 0.06;
-    const down = (y + pageScroll.y) * raggedScale - seconds * 0.04;
-    const ragged =
-        0.5 +
-        0.22 * Math.sin(across * 1.7 + down * 0.9) +
-        0.14 * Math.sin(across * -1.1 + down * 2.3 + 1.3) +
-        0.09 * Math.sin(across * 3.1 - down * 1.9 + 2.1) +
-        0.05 * Math.sin(across * 5.3 + down * 4.7 + 0.7);
-    const poured = pouredAt(x, y, terrain.islands, terrain.spread);
-    const near = Math.exp(-Math.max(poured, 0) / raggedReach);
-    const grown = poured + (ragged - 0.5) * raggedDepth * front * near;
-
-    return Math.max(grown, y - (pageWater.top - pageScroll.y) - 4);
-}
-
-/** Return how far a client point lies outside the goo, cells or grown universe, in CSS pixels. */
-function edgeAt(x: number, y: number, terrain: Terrain, seconds: number) {
-    return Math.min(pouredAt(x, y, terrain.islands, 0), grownAt(x, y, terrain, seconds));
-}
-
-/** Return how far the universe must spread to reach the farthest point of a frame from its islands, in CSS pixels. */
-function farthest(frame: Rect, islands: readonly Rect[]) {
-    let most = 0;
-    for (let row = 0; row <= reachSamples; row++) {
-        for (let column = 0; column <= reachSamples; column++) {
-            const x = frame.left + (frame.width * column) / reachSamples;
-            const y = frame.top + (frame.height * row) / reachSamples;
-            most = Math.max(most, pouredAt(x, y, islands, 0));
-        }
-    }
-
-    return most;
+    return nearest;
 }
 
 /** A rectangle's edges and size, in page or client pixels. */
@@ -860,18 +573,6 @@ function onPage(rect: Rect) {
 /** Return a page rectangle in client pixels at the current scroll. */
 function onScreen(rect: Rect) {
     return shift(rect, -pageScroll.x, -pageScroll.y);
-}
-
-/** Return a smooth step from 0 to 1 between two edges, as the shader's smoothstep does. */
-function smoothstep(from: number, to: number, value: number) {
-    const progress = Math.max(0, Math.min(1, (value - from) / (to - from)));
-
-    return progress * progress * (3 - 2 * progress);
-}
-
-/** Ease in and out, slow at both ends. */
-function ease(progress: number) {
-    return progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
 }
 
 /** The goo styles. */

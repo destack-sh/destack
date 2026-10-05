@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import type { Orbit } from "../site/mark";
 import { pageScroll } from "./gl";
 
@@ -27,6 +28,7 @@ const bandTone = "#dcedf2";
 const space = "#081723";
 /** The ice tones of the shards. */
 const tones = ["#ffffff", "#e6f3f7", "#cfe7ee"];
+
 /** The soft ink edge of the shards, so they read over the cream page too. */
 const edge = "rgb(18 49 60 / 45%)";
 /** How far behind a flying shard its trail reaches, in frames of motion. */
@@ -111,7 +113,7 @@ export class Debris {
             speed: 0.16 + Math.random() * 0.06,
             spin: (Math.random() - 0.5) * 3,
             size: 1.2 + Math.random() * 1.6,
-            tone: tones[Math.floor(Math.random() * tones.length)],
+            tone: present(tones[Math.floor(Math.random() * tones.length)], "shard tone"),
         }));
         this.request();
     }
@@ -205,19 +207,20 @@ export class Debris {
 
         // draw the band as solid as the share of shards settled into it
         const orbit = this.orbit();
-        const settled = this.shards.map((shard) =>
-            shard.leg === "orbiting" ? Math.min(1, (now - shard.at) / shard.duration) : 0,
-        );
+        const settled = this.shards.map((shard) => ({
+            shard,
+            share: shard.leg === "orbiting" ? Math.min(1, (now - shard.at) / shard.duration) : 0,
+        }));
         const solidity =
-            settled.reduce((sum, share) => sum + share, 0) / Math.max(1, this.shards.length);
+            settled.reduce((sum, { share }) => sum + share, 0) / Math.max(1, this.shards.length);
         if (orbit && solidity > 0) {
             drawBand(context, orbit, solidity, canvas.clientWidth, canvas.clientHeight);
         }
 
         // draw each shard with a short trail, fading into the band as it settles
-        this.shards.forEach((shard, index) => {
+        settled.forEach(({ shard, share }) => {
             // place the shard, remember it for the next trail, and skip it when unseen or behind the globe
-            const alpha = shardAlpha(shard, now, settled[index]);
+            const alpha = shardAlpha(shard, now, share);
             const page = this.placeOf(shard, now, orbit);
             const last = shard.last;
             shard.last = page;
