@@ -7,7 +7,6 @@ import {
     type ResultOf,
 } from "@destack/object";
 import { Vocabulary } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
 import { Version } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { dependency, LATEST_TAG, packageObject, release, tag, type Pack } from "../object/index.ts";
@@ -166,13 +165,7 @@ async function advance(call: PreparedCallOf<typeof release, "create">, pack: Pac
     }
 
     // plan the declarations, refusing a plan that breaks the terms
-    try {
-        Vocabulary.plan(owner.vocabulary, pack.declarations);
-    } catch (error) {
-        throw error instanceof PlanError
-            ? new ServiceError("CONFLICT", { message: error.message, cause: error })
-            : error;
-    }
+    Vocabulary.plan(owner.vocabulary, pack.declarations);
 
     // advance the vocabulary to the release
     await call.invoke(packageObject).advance({

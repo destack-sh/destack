@@ -3,7 +3,7 @@ import { type ObjectReference } from "@destack/sync";
 import { PackageServer } from "@destack/build/store";
 import type { JsonCondition } from "@destack/db";
 import { PackageName } from "@destack/package";
-import { isServiceError, ServiceError } from "@destack/service/error";
+import { ServiceError } from "@destack/service/error";
 import type { ServiceContext } from "@destack/service/server";
 import { SpanStatusCode, telemetry } from "@destack/telemetry";
 import { release, tag, type Release, type Tag } from "../object/index.ts";
@@ -67,10 +67,11 @@ export class NpmServer {
                 // answer client failures with the message npm prints and their code
                 span.setStatus({ code: SpanStatusCode.ERROR });
                 const headers = { "cache-control": "no-store" };
-                if (isServiceError(error) && error.status < 500) {
+                const failure = ServiceError.of(error);
+                if (failure !== undefined && failure.status < 500) {
                     return Response.json(
-                        { error: error.message, code: error.code },
-                        { status: error.status, headers },
+                        { error: failure.message, code: failure.code },
+                        { status: failure.status, headers },
                     );
                 }
 

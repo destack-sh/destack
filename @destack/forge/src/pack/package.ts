@@ -6,7 +6,6 @@ import {
     Publication,
     type PackageId,
 } from "@destack/package";
-import { PackageError } from "@destack/package/error";
 import { PackageFile } from "@destack/package/file";
 import type { PackageDistribution, PackageManifest } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
@@ -225,17 +224,7 @@ export class PackageArchive {
         );
 
         // refuse bytes other than the list names
-        try {
-            await PackageFile.verify(file, contents);
-        } catch (error) {
-            if (!(error instanceof PackageError)) {
-                throw error;
-            }
-            throw new ServiceError("BAD_REQUEST", {
-                message: `file contents differ: ${file.path}`,
-                cause: error,
-            });
-        }
+        await PackageFile.verify(file, contents);
 
         return contents;
     }
