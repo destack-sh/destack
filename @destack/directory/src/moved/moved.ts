@@ -34,24 +34,26 @@ export const Moved = {
             : undefined;
     },
 
-    /** Read the cell a MOVED response points to, absent for other responses. */
+    /** Read the cell a MOVED response points to, absent for other responses such as another origin's 421. */
     async read(response: Response): Promise<Moved | undefined> {
         // skip other statuses without reading their body
         if (response.status !== ServiceError.status("MOVED")) {
             return undefined;
         }
 
-        // read the moved scope of a MOVED answer
-        const body = schema
-            .object({
-                defined: schema.boolean(),
-                code: schema.string(),
-                status: schema.number().int(),
-                message: schema.string(),
-                data: schema.json().exactOptional(),
-            })
-            .parse(await response.clone().json());
+        // skip a body that is no JSON
+        let body: unknown;
+        try {
+            body = await response.clone().json();
+        } catch {
+            return undefined;
+        }
 
-        return body.code === "MOVED" ? Moved.schema.parse(body.data) : undefined;
+        // read the moved scope of a MOVED answer, skipping an answer of another shape
+        const answer = schema
+            .looseObject({ code: schema.literal("MOVED"), data: Moved.schema })
+            .safeParse(body);
+
+        return answer.success ? answer.data.data : undefined;
     },
 };
