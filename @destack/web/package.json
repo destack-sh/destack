@@ -8,6 +8,7 @@
         "./destack.json": "./destack.json",
         "./build": "./src/build/index.ts",
         "./document": "./src/document/index.ts",
+        "./client": "./src/client.d.ts",
         "./head": "./src/head/index.ts",
         "./render": "./src/render/index.ts"
     },
@@ -25,6 +26,7 @@
         "@solidjs/meta": "1.0.0-next.2",
         "@solidjs/web": "2.0.0-rc.8",
         "rolldown": "1.2.9",
+        "sharp": "0.35.4",
         "solid-js": "2.0.0-rc.8"
     },
     "peerDependencies": {

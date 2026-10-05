@@ -7,6 +7,7 @@ import { schema } from "@destack/schema";
 import { type ChildProcessByStdio, spawn } from "node:child_process";
 import type { Readable } from "node:stream";
 import { createInterface } from "node:readline";
+import { RobotsOptions, writeRobots, writeSitemap } from "./sitemap.ts";
 
 /** The longest a request's response may take by default, in milliseconds. */
 const RESPONSE_TIMEOUT = 10_000;
@@ -22,6 +23,10 @@ export const PrerenderOptions = schema.object({
     routes: schema.array(schema.string()).readonly(),
     /** Route returning 404 to publish as 404.html. */
     notFound: schema.string().exactOptional(),
+    /** Publish sitemap.xml listing the rendered routes. */
+    sitemap: schema.boolean().exactOptional(),
+    /** Publish robots.txt with these rules. */
+    robots: RobotsOptions.exactOptional(),
     /** Maximum time per request, including its body, in milliseconds. */
     timeout: schema.number().exactOptional(),
 });
@@ -65,6 +70,16 @@ export async function prerender(
         }
     } finally {
         await rm(directory, { recursive: true });
+    }
+
+    // publish the sitemap of the rendered routes and the crawler rules
+    const encoder = new TextEncoder();
+    if (options.sitemap === true) {
+        files.set("sitemap.xml", encoder.encode(writeSitemap(options.origin, options.routes)));
+    }
+    if (options.robots !== undefined) {
+        const robots = writeRobots(options.origin, options.robots, options.sitemap === true);
+        files.set("robots.txt", encoder.encode(robots));
     }
 
     return files;
