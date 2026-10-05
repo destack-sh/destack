@@ -9,7 +9,7 @@ import type { Plugin } from "../lint/plugin.ts";
 import { CheckError } from "../error/index.ts";
 import { expectationOverrides, readExpectations } from "./expectation.ts";
 import { readManifest } from "./manifest.ts";
-import { Toolchain } from "./toolchain.ts";
+import { Toolchain } from "../toolchain/index.ts";
 import { formatSource } from "./format.ts";
 
 /** Fixed source formatting shared by editors and managed commands. */

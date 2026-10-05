@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { readExpectations, applyExpectations } from "./expectation.ts";
 import { checkConfiguration, lintConfiguration, settingsRoot } from "./configuration.ts";
 import { runTool } from "./tool.ts";
-import { Toolchain } from "./toolchain.ts";
+import { Toolchain } from "../toolchain/index.ts";
 import { CheckResult, type Diagnostic } from "../inspect/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { CheckError } from "../error/index.ts";

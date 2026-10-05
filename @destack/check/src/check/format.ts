@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { checkConfiguration, formatConfiguration } from "./configuration.ts";
 import type { CheckOptions } from "./index.ts";
 import { runTool, type ToolResult } from "./tool.ts";
-import { Toolchain } from "./toolchain.ts";
+import { Toolchain } from "../toolchain/index.ts";
 import { CheckError } from "../error/index.ts";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
