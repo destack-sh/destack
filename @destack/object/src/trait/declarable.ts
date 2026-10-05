@@ -1,13 +1,9 @@
 import { present, type schema } from "@destack/schema";
 import { managerChecks } from "@destack/access";
 import { identifier, integer, text, type Column, type Row } from "@destack/db";
-import { ServiceError } from "@destack/service/error";
-import { defineMethod, type Method } from "../method/method.ts";
-import type { Call } from "../method/call.ts";
-import type { ObjectTable } from "../object/table.ts";
+import { type Method } from "../method/method.ts";
 import {
     type Procedure,
-    RevisionShape,
     type ReplayShape,
     type RevisionField,
     type RowSchema,
@@ -16,6 +12,7 @@ import {
 import type { ObjectType } from "../object/object.ts";
 import type { Gated, Trait } from "./trait.ts";
 
+import { detach, apply } from "../method/declarable.ts";
 /** Decide whether a declaration still manages a record. */
 export function isManaging(row: Row | undefined): boolean {
     return (
@@ -39,14 +36,6 @@ export function managedColumns() {
     };
 }
 
-/** The table of declarable objects: the record columns and the manager's. */
-export type DeclarableTable = ObjectTable<
-    string,
-    unknown,
-    {},
-    { readonly declarable: DeclarableDefinition }
->;
-
 /** The columns naming a record's manager. */
 export interface ManagedColumnMap {
     /** The installation that applied the declaration. */
@@ -64,6 +53,11 @@ export interface DeclarableDefinition<Declared = unknown> {
     /** The schema of one declaration in a stack. */
     readonly schema: schema.Schema<Declared>;
 }
+
+/** The methods declared records take: applying them where their rows live. */
+export type DeclarableMethodMap<Declarable> = [Declarable] extends [undefined]
+    ? {}
+    : { readonly apply: typeof apply };
 
 /** The methods detachable records take. */
 export type DetachableMethodMap<Detach> = [Detach] extends [string]
@@ -83,7 +77,7 @@ export const declarable: Trait<DeclarableDefinition> = {
             managerName: present(columns["managerName"], "the manager name column"),
             detachedAt: present(columns["detachedAt"], "the detachment column"),
         }),
-    methods: () => ({}),
+    methods: () => ({ apply }),
 };
 
 /** Declared records callers detach from their declaration. */
@@ -106,34 +100,10 @@ export const detachable: Trait<Gated> & {
     detach: (permission) => detach(permission),
 };
 
-/** Detach an object from its stack declaration. */
-export function detach<const Permission extends string>(
-    permission: Permission,
-): Method<{ kind: "detach"; permission: Permission; mutates: true }> {
-    return defineMethod<{ kind: "detach"; permission: Permission; mutates: true }>({
-        kind: "detach",
-        permission,
-        mutates: true,
-        target: true,
-        result: "object",
-        procedure: (_name, shapes) => ({
-            route: { method: "POST", path: "/{id}/detach" },
-            input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
-            output: shapes.row,
-        }),
-        handler: (call: Call<DeclarableTable>) => call.update({ detachedAt: call.now }),
-        async execute(call) {
-            // require an object its declaration still manages
-            if (!isManaging(call.target)) {
-                throw new ServiceError("CONFLICT", {
-                    message: `${call.object.name} is not managed by a declaration`,
-                });
-            }
-
-            return this.handler(call);
-        },
-    });
-}
+/** The procedure applying a declared record derives, which only the system calls. */
+export type DeclarableProcedures<Object extends ObjectType> = {
+    apply: Procedure<schema.Object<Readonly<Record<string, schema.Schema>>>, RowSchema<Object>>;
+};
 
 /** The procedure detaching derives. */
 export type DetachableProcedures<Object extends ObjectType> = {

@@ -12,7 +12,6 @@ import {
     type TableColumnMap,
     isNull,
     type Select,
-    sql,
     TABLE,
     type Table,
 } from "@destack/db";
@@ -30,7 +29,7 @@ import { isManaging, managedColumns } from "../trait/declarable.ts";
 import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
 import type { Directory } from "@destack/directory";
-import { Reservation } from "../claim/index.ts";
+import { Reservation } from "./reservation.ts";
 import { Moved } from "@destack/directory";
 import type { ObjectServer } from "./server.ts";
 import type { Invoke, Invoker } from "../method/call.ts";
@@ -68,8 +67,6 @@ export interface ObjectDeclaration<
     resolve?(name: string, declared: Collected, stack: Stack): Promise<Resolved>;
     /** Map a resolved declaration to the columns it determines. */
     values(name: string, resolved: Resolved, stack: Stack): Partial<Insert<Object["table"]>>;
-    /** Write a changed record's revision and update time. */
-    touch?(row: Select<Object["table"]>, now: number): Partial<Insert<Object["table"]>>;
     /** Report changes kept outside the record's own columns. */
     changed?(
         database: DatabaseConnection,
@@ -114,8 +111,8 @@ export interface ApplyOptions {
     readonly policies?: readonly Policy[];
     /** The directory with the claims of unique indexes, kept by the account service. */
     readonly directory?: Directory;
-    /** The object server running the declarations' system calls. */
-    readonly server?: Pick<ObjectServer, "invoker">;
+    /** The object server running the declarations' system calls, applying each record where its rows live. */
+    readonly server?: Pick<ObjectServer, "invoker" | "change">;
     /** Open the build of a package's release in the scope, the installation's when given. */
     readonly release?: Stack["release"];
 }
@@ -254,10 +251,13 @@ export class Stack {
 
     /** Find the identifier of the record declared under a name, or reject the declaration. */
     async require(object: ObjectType | string, name: string): Promise<string> {
+        // wait for a record kept where its rows live until its copy arrives, and refuse an unknown one
         const id = await this.find(object, name);
-        if (id === undefined) {
-            const type = typeof object === "string" ? object : object.name;
-            throw new ObjectError("INVALID_DECLARATION", `unknown ${type}: ${name}`);
+        const target = this.#select(object).object;
+        if (id === undefined && this.database.copies(target.table)) {
+            this.wait(`${target.name} ${name} waits for its copy`);
+        } else if (id === undefined) {
+            throw new ObjectError("INVALID_DECLARATION", `unknown ${target.name}: ${name}`);
         }
 
         return id;
@@ -275,17 +275,7 @@ export class Stack {
 
     /** Call object types' system methods in the stack's transaction as one function. */
     invoker(): Invoke {
-        // refuse every invocation without the server running system calls
-        const { server } = this.#options;
-        if (server === undefined) {
-            return (object) => {
-                throw new TypeError(
-                    `the stack invokes ${object.name}, but no object server runs it`,
-                );
-            };
-        }
-
-        return server.invoker(this);
+        return this.#server().invoker(this);
     }
 
     /** Open the build of a package's release in the scope, the installation's when given. */
@@ -475,31 +465,25 @@ export class Stack {
         values: ReturnType<TypeDeclaration["values"]>,
     ): Promise<Step> {
         // plan the creation
-        const { database, manager, now } = this;
+        const { database, manager } = this;
         const target = Address.join(declaration.object.name, name);
         const step: Step = { action: "create", target, risk: "safe", detail: "declare" };
         if (this.#isDry(declaration)) {
             return step;
         }
 
-        // keep the record through its table's owner, or insert it under the manager
+        // keep the record through its table's owner, or apply it under a fresh identifier where its rows live
+        const { object } = declaration;
         if (declaration.keep) {
             await declaration.keep(this, { ...manager, name }, resolved);
 
             return step;
         }
-        const table = declaration.object.table;
-        const columns: Table = table;
-        const id = declaration.object.generateId();
-        await database.insert(columns).values({
-            id,
-            createdAt: now,
-            updatedAt: now,
-            ...values,
-            scope: this.scope,
-            ...Manager.values({ ...manager, name }),
-        });
-        await declaration.written?.(this, await read(database, table, id), resolved);
+        const id = object.generateId();
+        await this.#applyRecord(object, name, values, id);
+        if (!database.copies(object.table)) {
+            await declaration.written?.(this, await read(database, object.table, id), resolved);
+        }
 
         return step;
     }
@@ -548,42 +532,51 @@ export class Stack {
             return [step];
         }
 
-        // keep the record through its table's owner, or write the declared values as a new revision
+        // keep the record through its table's owner, or apply the declared values as its next revision where its rows live
         if (declaration.keep) {
             await declaration.keep(this, { ...this.manager, name }, resolved);
 
             return [step];
         }
-        await this.#rewrite(declaration, row, values);
-        await declaration.written?.(this, await read(database, table, row.id), resolved);
+        await this.#applyRecord(declaration.object, name, values);
+        if (!database.copies(table)) {
+            await declaration.written?.(this, await read(database, table, row.id), resolved);
+        }
 
         return [step];
     }
 
-    /** Write a declaration's values over an attached record as a new revision, lifting a deletion request. */
-    async #rewrite(
-        declaration: TypeDeclaration,
-        row: Select<ManagedTable>,
+    /** Apply a declared record's values where its rows live, under a fresh identifier for a new record. */
+    async #applyRecord(
+        object: ObjectType,
+        name: string,
         values: ReturnType<TypeDeclaration["values"]>,
+        id?: string,
     ): Promise<void> {
-        // write the values with the next generation and revision
-        const table = declaration.object.table;
-        const columns: Table = table;
-        const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
-        await this.database
-            .update(columns)
-            .set({
-                ...values,
-                ...("generation" in table[TABLE].columns
-                    ? { generation: sql`${table[TABLE].column("generation")} + 1` }
-                    : {}),
-                ...(isDeletable ? { deletionRequestedAt: null, deletedBy: null } : {}),
-                ...(declaration.touch?.(row, this.now) ?? {
-                    revision: row.revision + 1,
-                    updatedAt: this.now,
-                }),
-            })
-            .where(eq(table.id, row.id));
+        const table = object.table;
+        const json = Object.fromEntries(
+            Object.entries(values).map(([column, value]) => [column, jsonOf(table, column, value)]),
+        );
+        await this.change(object, "apply", {
+            ...(id === undefined ? {} : { id }),
+            manager: { ...this.manager, name },
+            values: json,
+        });
+    }
+
+    /** Change an object type's rows as the system in the stack's transaction: here where the database keeps them, else at their source once it commits. */
+    async change(object: ObjectType, name: string, input: JsonObject): Promise<void> {
+        await this.#server().change(this, object, name, input);
+    }
+
+    /** Require the object server running the declarations' system calls. */
+    #server(): Pick<ObjectServer, "invoker" | "change"> {
+        const { server } = this.#options;
+        if (server === undefined) {
+            throw new TypeError("the stack runs system calls, but no object server runs them");
+        }
+
+        return server;
     }
 
     /** Retire attached records the manager no longer declares. */
@@ -595,7 +588,6 @@ export class Stack {
         const isDry = this.#isDry(declaration);
         const { database } = this;
         const table = declaration.object.table;
-        const columns: Table = table;
         const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
         const steps: Step[] = [];
         for (const [name, row] of await this.#records(declaration)) {
@@ -615,16 +607,14 @@ export class Stack {
                 continue;
             }
 
-            // retire, request deletion, or delete
+            // retire through the declaration, or where the record's rows live
             if (declaration.retire) {
                 await declaration.retire.start(this, row);
-            } else if (isDeletable) {
-                await database
-                    .update(columns)
-                    .set({ deletionRequestedAt: this.now, deletedBy: null })
-                    .where(eq(table.id, row.id));
             } else {
-                await database.delete(table).where(eq(table.id, row.id));
+                await this.change(declaration.object, "apply", {
+                    manager: { ...this.manager, name },
+                    values: null,
+                });
             }
         }
 

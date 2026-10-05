@@ -9,12 +9,11 @@ import { aligned, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
-import { ObjectServer, Settlement } from "../src/server/index.ts";
+import { ObjectServer, RecoverableController, Settlement } from "../src/server/index.ts";
 import {
     Call,
     defineObject,
     method,
-    recoverable,
     settlement,
     suspendable,
     type ObjectProcedures,
@@ -628,7 +627,7 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
             revision: stale.revision,
         });
-        expect(await recoverable.purge(server, Date.now() + 60_000)).toBe(1);
+        expect(await RecoverableController.purge(server, Date.now() + 60_000)).toBe(1);
 
         // purge more trash than one batch takes, across several transactions
         const trashed = Array.from({ length: 100 }, () => ({
@@ -637,7 +636,7 @@ test.each(TEST_DIALECTS)(
             deletionRequestedAt: Date.now(),
         }));
         await database.insert(task.table).values(trashed);
-        expect(await recoverable.purge(server, Date.now() + 60_000)).toBe(100);
+        expect(await RecoverableController.purge(server, Date.now() + 60_000)).toBe(100);
 
         // audit each purge as the system's, and each caller's change once
         expect(await purges()).toEqual(Array.from({ length: 101 }, () => "task.purge"));
@@ -1010,7 +1009,7 @@ test("add suspending and detaching through their traits, and refuse them where t
     });
     expect([Object.keys(room.methods).toSorted(), Object.keys(card.methods).toSorted()]).toEqual([
         ["get", "resume", "suspend"],
-        ["detach", "get"],
+        ["apply", "detach", "get"],
     ]);
 
     // refuse suspending objects that are no scope, and detaching records no stack declares
@@ -1021,6 +1020,33 @@ test("add suspending and detaching through their traits, and refuse them where t
     expect(() => defineObject({ ...plain, name: "lamp", detachable: { by: "update" } })).toThrow(
         "object lamp is detachable but not declarable",
     );
+});
+
+test("refuse client methods named like function properties, and keep the system method apply", () => {
+    // refuse a client method that clients would read as the function's own call
+    const plain = {
+        plural: "bells",
+        scope: "universe",
+        fields: {},
+        permissions: ["read"],
+    } as const;
+    expect(() =>
+        defineObject({
+            ...plain,
+            name: "bell",
+            methods: (builder) => ({ call: builder.get("read") }),
+        }),
+    ).toThrow("object bell names a method call, which functions have");
+
+    // keep the system method apply on a declarable type
+    const chime = defineObject({
+        ...plain,
+        name: "chime",
+        plural: "chimes",
+        declarable: { schema: schema.object({}) },
+        methods: (builder) => ({ get: builder.get("read") }),
+    });
+    expect(chime.methods.apply.isSystem).toBe(true);
 });
 
 /** Serve tasks, comments, versions and folders in a space to a scenario's caller. */

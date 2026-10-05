@@ -20,6 +20,8 @@ export const METHOD_KINDS = [
     "withdraw",
     "explain",
     "detach",
+    "apply",
+    "bind",
     "revert",
     "edit",
 ] as const;

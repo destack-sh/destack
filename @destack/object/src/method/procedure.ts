@@ -17,11 +17,12 @@ import type { MethodKind } from "./kind.ts";
 import { kebabCase } from "../object/name.ts";
 import { ClientId } from "../replica/replica.ts";
 import type { Method } from "./method.ts";
-import type { RecordProcedures } from "../trait/record.ts";
+import type { RecordProcedures } from "./record.ts";
 import type { RecoverableProcedures } from "../trait/recoverable.ts";
 import type { NestedProcedures } from "../trait/nested.ts";
 import type { ShareableProcedures } from "../trait/shareable.ts";
-import type { DetachableProcedures } from "../trait/declarable.ts";
+import type { DeclarableProcedures, DetachableProcedures } from "../trait/declarable.ts";
+import type { BindableProcedures } from "../trait/bindable.ts";
 import type { TrackedProcedures } from "../trait/tracked.ts";
 import type { TextProcedures } from "../trait/text.ts";
 import type { TransitionProcedures } from "../trait/transition.ts";
@@ -314,6 +315,8 @@ type MethodProcedureOf<
           NestedProcedures<Object> &
           ShareableProcedures<Object> &
           DetachableProcedures<Object> &
+          DeclarableProcedures<Object> &
+          BindableProcedures &
           TrackedProcedures<Object> &
           TextProcedures<Object>)[Declared["kind"]];
 

@@ -46,9 +46,9 @@ defineObject({
     expiring: [{ after: { days: 90 }, from: "updatedAt" }], // removal by the system once a rule's window passes
     projected: { from: () => memo, to: "recipient", source: "memoId" }, // rows of another type projected into each recipient's home
     versioned: true, // the version number within the parent
-    controlled: { approval: true }, // the desired generation, conditions, deletion request and approved plan
+    controlled: { approval: true }, // the desired generation, conditions, deletion request, approval threshold and approved plan
     bindable: true, // the consumer relation of the installations whose deployments capture the objects
-    provisioned: { kind }, // a resource kind's specification, placement and provider, controlled and bindable
+    provisioned: { kind }, // a resource kind's specification, desired states, placement and provider, declarable, controlled and bindable
     declarable: { schema }, // the stack declaration managing the record
     detachable: { by: "manage" }, // detach
     shareable: { isPublic: true }, // owner, editor, commenter and viewer roles, relationships, invitations and explain
@@ -60,7 +60,7 @@ defineObject({
 
 ## Methods
 
-`methods` receives the builder declaring each method with the permission it requires, and `isSystem: true` keeps a method to the system.
+`methods` declares each method with the permission it requires.
 
 ```ts
 methods: (method) => ({
@@ -77,7 +77,7 @@ methods: (method) => ({
 
 ## Releases
 
-`moved` keeps a renamed field's column and earlier callers' inputs, and `convert` computes fields by the release introducing them.
+`moved` keeps the column of a renamed field.
 
 ```ts
 const note = defineObject({
@@ -114,7 +114,7 @@ export const note = base.note.handle({
 
 ## External work
 
-`prepare` runs before a method's transaction, `handler` in it, and `commit` or `rollback` at least once after it, as the recorded settlement says.
+`prepare` runs before a method's transaction, and `handler` runs inside it.
 
 ```ts
 export const repository = base.repository.handle({
@@ -132,7 +132,7 @@ export const repository = base.repository.handle({
 
 ## Settlement
 
-`commit` and `rollback` take the recorded call and the value `prepare` returned, parsed by the method's `prepared` schema, and pass `call.idempotencyKey` on so the external system does the work once.
+`commit` and `rollback` run after the transaction with the value `prepare` returned.
 
 ```ts
 commit: async (call, prepared) => storage.erase(prepared, { idempotencyKey: call.idempotencyKey }),
@@ -140,7 +140,7 @@ commit: async (call, prepared) => storage.erase(prepared, { idempotencyKey: call
 
 ## Aggregates
 
-`field.count` and the other aggregate fields measure the objects nested in their holder.
+Aggregate fields such as `field.count` measure the objects nested in their holder.
 
 ```ts
 export const notebook = defineObject({ ..., fields: { noteCount: field.count() } });
@@ -179,7 +179,7 @@ export const cursor = defineObject({
 
 ## Tables
 
-`tables` lists a durable type's tables with `serverTables`, which a database declares as its own or as copies.
+`tables` lists the tables of a durable type for a database to declare.
 
 ```ts
 export const accountTables: readonly Table[] = [...account.tables, accountJournal];
@@ -188,7 +188,7 @@ export const database = defineDatabase({ name: "main", tables: [note], copies: a
 
 ## Servers
 
-`ObjectServer` serves the procedures of its object types and runs their controllers, keeping their journal under the `callKey`.
+`ObjectServer` serves the procedures of its object types and runs their controllers.
 
 ```ts
 import { ObjectServer } from "@destack/object/server";
@@ -206,7 +206,7 @@ await server.executeAsSystem(upload, "finish", calls, Date.now());
 
 ## Controllers
 
-`control` sets the controller reconciling a type's pending objects by key as the system.
+`control` sets the controller that reconciles a type's pending objects.
 
 ```ts
 export const reminder = base.reminder.control({
@@ -225,7 +225,7 @@ export const reminder = base.reminder.control({
 
 ## Following controllers
 
-`mode: "follow"` keeps a controller's process running for each key until its objects leave the pending ones.
+`mode: "follow"` keeps a controller running for each key while its objects are pending.
 
 ```ts
 export const host = base.host.control({
@@ -235,9 +235,45 @@ export const host = base.host.control({
 });
 ```
 
+## Resources
+
+`provisioned: { kind }` declares a type's objects as resources of a kind.
+
+```ts
+export const bucket = defineObject({
+    name: "bucket",
+    plural: "buckets",
+    scope: space,
+    provisioned: { kind: BucketKind },
+    fields: {},
+});
+
+const server = new ObjectServer({
+    objects: { bucket },
+    database,
+    callKey,
+    origin,
+    provisioned: { providers: [bucketProvider(host)], host: hostId },
+});
+```
+
+### Specifications
+
+`specify` sets the desired `states` and `approval` threshold of a resource.
+
+```ts
+await client.bucket.specify({
+    spaceId,
+    id,
+    states,
+    drainingStates,
+    approval: "backward-incompatible",
+});
+```
+
 ## Subscriber
 
-`subscriber` lists the subscriptions a server keeps its copies current through, each with its publisher, and the server drops the kept copies no subscription names any longer.
+`subscriber` lists the subscriptions that keep a server's copies current.
 
 ```ts
 const server = new ObjectServer({
@@ -252,7 +288,7 @@ const server = new ObjectServer({
 
 ## Copy admission
 
-`represent` admits a follower as the principal a copied object stands for through its `self` relation where a server lists the type in `standing`, and `replicate` admits it to a chain.
+`represent` admits a follower as the principal its copied object stands for.
 
 ```ts
 export const zone = defineObject({ ..., permissions: { represent: relation("cell") } });
@@ -262,16 +298,35 @@ new ObjectServer({ ..., policies: [zone], standing: [zone] });
 
 ## Copied types
 
-`database.copies` reads the types a database declares as copies, which a server keeps from their owning service and refuses writes to.
+`database.copies` lists the types a database copies from their owning service.
 
 ```ts
 const subscriptions = await server.source.subscriptions(spaceId, { isHome: false }); // the chain, and the universe's rows the space reads
 const isCopied = database.copies(account.table);
 ```
 
+## Copy sources
+
+`sources` lists the servers in this process that serve copied types.
+
+```ts
+const buckets = new ObjectServer({ objects: { bucket }, policies: [space], database, callKey, origin });
+const spaces = new ObjectServer({ ..., policies: [bucket], sources: [buckets] });
+await spaces.change({ database, scope: spaceId, now }, bucket, "create", { id, name, ...definition });
+```
+
+### Declared records
+
+`apply` writes a stack's declared record, and `bind` binds objects to an installation.
+
+```ts
+await objects.change({ database, scope: spaceId, now }, bucket, "apply", { id, manager, values });
+await objects.change({ database, scope: spaceId, now }, bucket, "bind", { installationId, ids });
+```
+
 ## Scope permissions
 
-`through` reads a permission of the scope an object lives in under the scope type's name.
+`through` reads a permission of the scope an object lives in.
 
 ```ts
 export const profile = defineObject({ ..., scope: person, permissions: { read: through("person", "read") } });
@@ -279,7 +334,7 @@ export const profile = defineObject({ ..., scope: person, permissions: { read: t
 
 ## Fields
 
-`guard` requires a permission to read a field, which readers without it see concealed.
+`guard` requires a permission to read a field.
 
 ```ts
 email: field.string().guard({ read: "update" }),
@@ -287,7 +342,7 @@ email: field.string().guard({ read: "update" }),
 
 ## Clients
 
-`ObjectClient` keeps a scope's objects locally, calls their package's service at an endpoint, and confirms local mutations from the server.
+`ObjectClient` keeps a scope's objects locally and calls their service.
 
 ```ts
 import { ObjectClient } from "@destack/object/client";
@@ -323,7 +378,7 @@ const shapes = [
 
 ## Checks
 
-`can` decides the caller's permissions over the copied access rows with the same policies the server compiles.
+`can` checks the caller's permissions against the copied access rows.
 
 ```ts
 if (await client.can(note, id, "edit")) {
@@ -333,7 +388,7 @@ if (await client.can(note, id, "edit")) {
 
 ## Typed views
 
-`of` reads and changes some of a client's object types by key.
+`of` reads and changes a subset of a client's object types.
 
 ```ts
 const { query, mutate } = client.of({ notebook, note });
@@ -342,7 +397,7 @@ await mutate.note.update({ id, title: "Groceries" });
 
 ## Queries
 
-`client.query.<key>` takes db's `FindOptions`, with `deleted` selecting a recoverable root's trash, and reads once when awaited or stays live when subscribed.
+`client.query.<key>` reads once when awaited and stays live when subscribed.
 
 ```ts
 const books = client.query.notebook.findMany({
@@ -361,7 +416,7 @@ const counts = await client.query.note.aggregate({
 
 ## Unions
 
-`union` follows several queries as one list in a shared order and limit, each entry naming its member.
+`union` follows several queries as one ordered list.
 
 ```ts
 const activity = client.union(
@@ -381,7 +436,7 @@ client.redo();
 
 ## Branches
 
-`branch` lets a client edit a checked-out branch live, pushing its edits to the branch.
+`branch` lets a client edit a checked-out branch live.
 
 ```ts
 const client = await ObjectClient.open({
@@ -402,7 +457,7 @@ await client.mutate(branch).merge({ id }).confirmed; // the device shows the mai
 
 ## Branch reads
 
-`branch` and `at` read a branch over the main line, a log position, or both.
+`branch` and `at` read a branch, a log position, or both.
 
 ```ts
 await client.read(note).list({ branch: id });
@@ -411,7 +466,7 @@ await client.read(note).get({ id: noteId, at: position }); // readable then and 
 
 ## Diffs
 
-`diff` follows a branch's changes, one per object, with the written fields that differ.
+`diff` lists the changes of a branch, one per object.
 
 ```ts
 const diff = client.diff(id);
@@ -440,7 +495,7 @@ const notes = await tab.client.query.note.findMany();
 
 ## Stacks
 
-`declare` sets how a stack's declarations of a type become its records, and `Stack.apply` writes a stack's declared records and retires undeclared ones.
+`Stack.apply` writes a stack's declared records and retires undeclared ones.
 
 ```ts
 export const note = base.note.declare({ values: (_name, declared) => ({ title: declared.title }) });
@@ -455,7 +510,7 @@ const { steps, deferred } = await Stack.apply({
 
 ## Claims
 
-`directory` claims the keys of each unique index within its `across` scope type with every write, and `lookup` finds the object owning a key.
+`directory` claims the keys of each unique index, and `lookup` finds the object holding a key.
 
 ```ts
 export const repository = defineObject({
@@ -467,4 +522,14 @@ export const repository = defineObject({
 });
 const server = new ObjectServer({ objects: { repository }, database, callKey, origin, directory });
 const found = await repository.lookup(directory, "name", ["notes"], accountId);
+```
+
+## Errors
+
+An invalid declaration throws an `ObjectError`.
+
+```ts
+import { ObjectError } from "@destack/object";
+
+new ObjectError("CYCLIC_DECLARATION", "note contains itself").toServiceError(); // { code: "INTERNAL_SERVER_ERROR", … }
 ```
