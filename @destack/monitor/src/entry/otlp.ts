@@ -1,9 +1,13 @@
 import { type Identifier, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service";
+import type { OtlpSignal } from "@destack/telemetry/otlp";
 import type { AttributeValue, Entry } from "./entry.ts";
 
-/** The resource attribute naming the workload instance, from the OpenTelemetry semantic conventions. */
-const INSTANCE_ATTRIBUTE = "service.instance.id";
+/** The resource attributes entries keep, by entry field: the workload instance and the build it runs. */
+export const RESOURCE_ATTRIBUTES = {
+    instance: "service.instance.id",
+    build: "destack.build.manifest",
+} as const;
 
 /** A 64-bit integer as OTLP/JSON writes it: a decimal string, or a number when small. */
 const Integer = schema.union([schema.string().regex(/^-?\d+$/u), schema.number().int()]);
@@ -201,10 +205,19 @@ const STATUSES = ["unset", "ok", "error"] as const;
 
 /** Read the entries of OTLP/JSON export requests an installation or a host sent. */
 export const Otlp = {
+    /** Read the entries of a signal's export request. */
+    read(signal: OtlpSignal, body: unknown, installation?: Identifier<"installation">): Entry[] {
+        return signal === "logs"
+            ? Otlp.logs(OtlpLogsRequest.parse(body), installation)
+            : signal === "traces"
+              ? Otlp.traces(OtlpTracesRequest.parse(body), installation)
+              : Otlp.metrics(OtlpMetricsRequest.parse(body), installation);
+    },
+
     /** Read the log records of a logs request with their event name or else body as name. */
     logs(request: OtlpLogsRequest, installation?: Identifier<"installation">): Entry[] {
         return request.resourceLogs.flatMap((group) => {
-            const instance = instanceOf(group.resource.attributes);
+            const emitter = emitterOf(group.resource.attributes);
 
             return group.scopeLogs.flatMap(({ scope, logRecords }) =>
                 logRecords.map((record): Entry => {
@@ -238,7 +251,7 @@ export const Otlp = {
                         name,
                         time: microseconds(time),
                         ...(installation === undefined ? {} : { installation }),
-                        ...(instance === undefined ? {} : { instance }),
+                        ...emitter,
                         source: scope,
                         ...(record.traceId === undefined || record.traceId === ""
                             ? {}
@@ -261,7 +274,7 @@ export const Otlp = {
     /** Read the spans of a traces request. */
     traces(request: OtlpTracesRequest, installation?: Identifier<"installation">): Entry[] {
         return request.resourceSpans.flatMap((group) => {
-            const instance = instanceOf(group.resource.attributes);
+            const emitter = emitterOf(group.resource.attributes);
 
             return group.scopeSpans.flatMap(({ scope, spans }) =>
                 spans.map((span): Entry => {
@@ -274,7 +287,7 @@ export const Otlp = {
                         time: start,
                         duration: Math.max(0, end - start),
                         ...(installation === undefined ? {} : { installation }),
-                        ...(instance === undefined ? {} : { instance }),
+                        ...emitter,
                         source: scope,
                         trace: span.traceId,
                         span: span.spanId,
@@ -292,7 +305,7 @@ export const Otlp = {
     /** Read the points of a metrics request: delta sums, gauges and delta exponential histograms. */
     metrics(request: OtlpMetricsRequest, installation?: Identifier<"installation">): Entry[] {
         return request.resourceMetrics.flatMap((group) => {
-            const instance = instanceOf(group.resource.attributes);
+            const emitter = emitterOf(group.resource.attributes);
 
             return group.scopeMetrics.flatMap(({ scope, metrics }) =>
                 metrics.flatMap((metric): Entry[] => {
@@ -301,7 +314,7 @@ export const Otlp = {
                         kind: "point" as const,
                         name: metric.name,
                         ...(installation === undefined ? {} : { installation }),
-                        ...(instance === undefined ? {} : { instance }),
+                        ...emitter,
                         source: scope,
                         status: "unset" as const,
                         ...(metric.unit === "" ? {} : { unit: metric.unit }),
@@ -393,11 +406,15 @@ function buckets(side: {
     return { offset: side.offset, counts: side.bucketCounts.map(Number) };
 }
 
-/** Read the instance a resource names. */
-function instanceOf(resource: readonly OtlpKeyValue[]): string | undefined {
-    const value = resource.find((attribute) => attribute.key === INSTANCE_ATTRIBUTE)?.value;
+/** Read the instance and build a resource names. */
+function emitterOf(resource: readonly OtlpKeyValue[]): Pick<Entry, "instance" | "build"> {
+    return Object.fromEntries(
+        Object.entries(RESOURCE_ATTRIBUTES).flatMap(([field, key]) => {
+            const value = resource.find((attribute) => attribute.key === key)?.value?.stringValue;
 
-    return value?.stringValue;
+            return value === undefined || value === "" ? [] : [[field, value]];
+        }),
+    );
 }
 
 /** Convert OTLP nanoseconds to microseconds. */

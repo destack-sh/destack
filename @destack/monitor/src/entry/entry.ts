@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Digest, schema } from "@destack/schema";
 
 /** The most entries one search page returns. */
 const PAGE_LIMIT = 1000;
@@ -58,6 +58,8 @@ export const Entry = defineSchema(
         installation: schema.identifier("installation").exactOptional(),
         /** The workload instance that emitted it. */
         instance: schema.string().min(1).exactOptional(),
+        /** The digest of the emitting build's manifest. */
+        build: Digest.exactOptional(),
         /** The instrumenting package or library. */
         source: schema.object({
             /** The package or library name. */
@@ -167,7 +169,9 @@ export const PointSeries = defineSchema(
         before: schema.number().int(),
         /** The step width, in microseconds, at least a minute. */
         step: schema.number().int().min(60_000_000),
-        /** The attributes to group by, every point into one group when empty. */
+        /** The points read, as a filter over their attributes, every point when absent. */
+        filter: schema.string().min(1).max(1000).exactOptional(),
+        /** The attributes to group by, resource attributes such as the build's included, every point into one group when empty. */
         group: schema.array(schema.string().min(1)),
     }),
 );
