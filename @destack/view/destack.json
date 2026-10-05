@@ -41,5 +41,14 @@
     "stamps": {
         "defineView": { "module": 1 },
         "defineCommand": { "module": 1 }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/media/image.tsx"],
+                "rules": ["destack/prevent-abbreviations"],
+                "reason": "src is the image element's attribute name, which images keep"
+            }
+        ]
     }
 }

@@ -12,6 +12,7 @@
         "./form": "./src/form/index.ts",
         "./router": "./src/router/index.ts",
         "./document": "./src/document/index.ts",
+        "./media": "./src/media/index.ts",
         "./render": "./src/render/index.ts",
         "./browser": "./src/browser/index.ts",
         "./runtime": "./src/runtime/index.ts",

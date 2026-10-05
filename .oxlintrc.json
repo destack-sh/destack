@@ -110,6 +110,10 @@
             "rules": { "eslint/no-console": "off" }
         },
         {
+            "files": ["@destack/view/src/media/image.tsx"],
+            "rules": { "destack/prevent-abbreviations": "off" }
+        },
+        {
             "files": [
                 "@platform/release/src/distribution/build.ts",
                 "@platform/release/src/distribution/distribution.ts"
