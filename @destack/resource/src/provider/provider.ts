@@ -1,4 +1,4 @@
-import { defineSchema, type Digest, schema, type Identifier } from "@destack/schema";
+import { defineSchema, type Digest, schema } from "@destack/schema";
 import { ResourceId, type ResourceDeclaration } from "../declare/declaration.ts";
 import type { KindState, ResourceKind } from "../declare/kind.ts";
 import type { Plan } from "../plan/plan.ts";
@@ -8,8 +8,8 @@ import type { Recipient } from "./recipient.ts";
 export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
     /** The persistent resource identifier. */
     readonly id: ResourceId;
-    /** The space the resource lives in. */
-    readonly scope: Identifier<"space">;
+    /** The scope the resource lives in, such as its space. */
+    readonly scope: string;
     /** The declared specification. */
     readonly spec: schema.Infer<Kind["spec"]>;
     /** The provider's reference once provisioned. */
@@ -65,6 +65,7 @@ export type Provider<
     Table = never,
     Row extends object = never,
     Controller = never,
+    Store = never,
 > = {
     /** The resource kind managed. */
     readonly kind: Kind;
@@ -82,6 +83,8 @@ export type Provider<
     readonly rewrap?: Rewrapper<Table, Row>;
     /** Refuse writes into the resources' content while a transfer copies it. */
     readonly fence?: Fence<Kind>;
+    /** Copy the resources' content at a point in time into a content-addressed store, and restore such a copy. */
+    readonly snapshot?: Snapshotter<Kind, Store>;
     /** The controllers the host runs beside the provider, such as a sweep of its resources' content. */
     readonly controllers?: readonly Controller[];
 } & (Kind["state"] extends schema.Schema
@@ -114,6 +117,26 @@ export interface Provisioner<Kind extends ResourceKind = ResourceKind> {
 export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unknown> {
     /** Open the provisioned resource as its desired states describe it. */
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
+}
+
+/** Copy a resource's content at a point in time into a content-addressed store and restore such a copy into another resource of the kind, as a storage driver takes volume snapshots. */
+export interface Snapshotter<Kind extends ResourceKind = ResourceKind, Store = unknown> {
+    /** Copy the resource's content into the store, wrapping its host-bound values for a recipient when given, and answer the digest naming the copy. */
+    snapshot(
+        record: ResourceRecord<Kind>,
+        desired: readonly KindState<Kind>[],
+        store: Store,
+        recipient?: Recipient,
+    ): Promise<Digest>;
+    /** Restore the copy a digest names into a provisioned resource, unwrapping values wrapped for this host's recipient when given, onto the base copy it holds already when given. */
+    restore(
+        record: ResourceRecord<Kind>,
+        desired: readonly KindState<Kind>[],
+        digest: Digest,
+        store: Store,
+        recipient?: Recipient,
+        base?: Digest,
+    ): Promise<void>;
 }
 
 /** Refuse writes into a resource's content while a transfer copies it, as a lease fence refuses a former holder. */

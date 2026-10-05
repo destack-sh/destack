@@ -1,10 +1,10 @@
 # @destack/resource
 
-Declare the resources a package needs, bind their clients, plan their changes and open their content.
+Declare, bind, plan and open the resources a package needs.
 
 ## Declarations
 
-`defineResourceKind` defines a resource kind by the schema of its spec and, for kinds whose providers reconcile it, the schema of its desired state.
+`defineResourceKind` defines a resource kind by the schemas of its spec and desired state.
 
 ```ts
 import { defineResourceKind } from "@destack/resource";
@@ -16,7 +16,7 @@ const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec
 
 ## Kind descriptions
 
-`describeResourceKind` returns a kind's name and the JSON Schemas of its spec and state, which builds record as a `resource-kind` declaration.
+`describeResourceKind` returns the JSON Schemas of a kind's spec and state.
 
 ```ts
 import { describeResourceKind } from "@destack/resource/inspect";
@@ -26,7 +26,7 @@ const { name, spec, state } = describeResourceKind(DatabaseKind);
 
 ## Clients
 
-`ResourceContext.bind` sets the client of a declaration for one invocation, and the declaration's `get` reads it back.
+`ResourceContext.bind` sets the client of a declaration for one invocation.
 
 ```ts
 import { ResourceContext } from "@destack/resource/context";
@@ -37,7 +37,7 @@ await database.get(context).select().from(note);
 
 ## Providers
 
-A `Provider` manages one kind's resources on a host through optional `reconcile`, `provision`, `open`, `rewrap` and `fence` members, and declares the `controllers` the host runs beside it.
+A `Provider` manages one kind's resources on a host.
 
 ```ts
 const record = provider.kind.record(row);
@@ -49,9 +49,19 @@ if (provider.reconcile !== undefined) {
 }
 ```
 
+## Snapshots
+
+`snapshot` copies a resource's content into a content-addressed store.
+
+```ts
+const recipient = await Recipient.generate(); // the restoring host's
+const digest = await provider.snapshot.snapshot(record, desired, store, recipient);
+await target.snapshot.restore(provisioned, desired, digest, store, recipient);
+```
+
 ## Connectors
 
-`connectors` maps a provider code to the `Connector` that opens a client inside a workload for the `ResourceBinding` the host sends.
+`connectors` maps a provider code to the `Connector` that opens its client in a workload.
 
 ```ts
 const binding = {
@@ -69,7 +79,7 @@ const connection = await connector.connect(binding, notes);
 
 ## Moves
 
-`fence.fence` refuses writes while a move captures a resource, `open.open` opens its content, and `rewrap` moves its host-bound keys to another host's `Recipient`.
+`fence` refuses writes to a resource while a move captures it.
 
 ```ts
 await provider.fence?.fence(record);
@@ -81,7 +91,7 @@ const unwrapped = await target.rewrap.unwrap(wrapped, recipient);
 
 ## Plans
 
-A `Plan` lists `Step`s that each apply an action such as `create`, `replace` or `convert` to an address, and `Plan.classify` returns the highest risk.
+A `Plan` lists the `Step`s that change resources.
 
 ```ts
 const plan: Plan = {
@@ -102,7 +112,7 @@ await Plan.digest(plan); // what an approval holds
 
 ## Upgrades
 
-`Upgrade.plan` lists the steps from the package's latest release to the declarations of a build.
+`Upgrade.plan` lists the steps from the latest release to a build.
 
 ```ts
 const history = await History.read(latest.reader, vocabulary);
@@ -114,9 +124,19 @@ const upgrade = Upgrade.plan(history, declarations, (declaration) =>
 
 ## Vocabulary
 
-A `Vocabulary` records the release that added and removed each term, and `Vocabulary.plan` refuses a removed term declared again with another definition.
+A `Vocabulary` records the release that added and removed each term.
 
 ```ts
 Vocabulary.plan(vocabulary, declarations); // PlanError: object/note/relation/editor: removed in 2026.10.0 with another definition; choose a new name
 const advanced = Vocabulary.advance(vocabulary, declarations, "2026.11.0");
+```
+
+## Errors
+
+A missing or duplicate binding throws a `ResourceError`.
+
+```ts
+import { PlanError } from "@destack/resource/error";
+
+new PlanError([{ target: "note", detail: "declare a conversion to version 2" }]).toServiceError(); // { code: "CONFLICT", … }
 ```
