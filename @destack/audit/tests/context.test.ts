@@ -4,7 +4,8 @@ import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
 import { schema } from "@destack/schema";
-import { AuditCaller, AuditRecorder } from "../src/record/index.ts";
+import { AuditCaller } from "../src/record/index.ts";
+import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
 import { principal } from "@destack/access";
 

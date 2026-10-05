@@ -1,5 +1,5 @@
 import { type Table, defineDatabase } from "@destack/db";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { account, connection, host, hostKey, zone } from "@destack/account/object";
 import { dependency, packageObject, reference, release, repository, tag } from "../object/index.ts";
 

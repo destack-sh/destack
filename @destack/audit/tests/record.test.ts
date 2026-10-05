@@ -4,7 +4,7 @@ import { AuditStorage, renameDocument, rename } from "./storage.ts";
 import { AuditCall, defineAuditAction } from "../src/index.ts";
 import { document } from "./stack/index.ts";
 import { schema } from "@destack/schema";
-import { AuditRecorder } from "../src/record/recorder.ts";
+import { AuditRecorder } from "../src/server/index.ts";
 
 test("keep each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();

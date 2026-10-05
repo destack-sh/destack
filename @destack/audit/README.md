@@ -20,16 +20,18 @@ export const renameNote = defineAuditAction({
 
 ## Journal
 
-`Journal` runs each request of one database once in one transaction and replays its outcome to retries.
+`Journal` runs each request of one database once in one transaction and replays its outcome to retries, and `Replay` decides which outcomes a retry replays.
 
 ```ts
-import { Journal, journal } from "@destack/audit";
+import { Replay } from "@destack/audit";
+import { Journal } from "@destack/audit/server";
 
 const calls = new Journal(database, callKey);
 const results = await calls.execute(request, fingerprint, {
     authorize: (transaction) => authorization.within(transaction).require(permission, target),
     run: (transaction) => updateAccount(transaction, input),
 });
+Replay.failure(new ServiceError("CONFLICT", { message: "name is taken" })); // { kind: "failure", error: { code: "CONFLICT", status: 409, … } }
 ```
 
 ## Tables
@@ -37,6 +39,8 @@ const results = await calls.execute(request, fingerprint, {
 `journal` is the table a database with journaled calls includes.
 
 ```ts
+import { journal } from "@destack/audit/stack";
+
 export const main = defineDatabase({ name: "main", tables: [journal, ...note.tables] });
 ```
 
@@ -45,7 +49,7 @@ export const main = defineDatabase({ name: "main", tables: [journal, ...note.tab
 `AuditRecorder` attributes calls to the verified caller and writes them to a journal.
 
 ```ts
-import { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit/server";
 
 const audit = AuditRecorder.service(calls, { package: notes.package, service: "notes" });
 const recorder = audit(spaceId, context);

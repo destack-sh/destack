@@ -1,14 +1,13 @@
-import { AuditCaller } from "./actor.ts";
-import { AuditCall } from "./call.ts";
-import { AuditContext } from "./context.ts";
-import { AuditExecution } from "./execution.ts";
+import { AuditCaller } from "../record/actor.ts";
+import { AuditCall } from "../record/call.ts";
+import { AuditContext } from "../record/context.ts";
+import { AuditExecution } from "../record/execution.ts";
 import { v7 } from "uuid";
 import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
-import { denialOf, isServiceError } from "@destack/service";
+import { denialOf, ServiceError } from "@destack/service";
 import type { Authentication } from "@destack/service/authentication";
 import {
-    domainFailure,
     type ProcedureAudit,
     type ProcedureCall,
     type ServiceContext,
@@ -16,7 +15,7 @@ import {
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import type { AuditAction } from "../declare/action.ts";
 import { AuditError } from "../error/index.ts";
-import { invokeService } from "./action.ts";
+import { invokeService } from "../record/action.ts";
 
 /** The host-selected origin of calls. */
 export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceId">;
@@ -205,16 +204,16 @@ export class AuditRecorder<Transaction = never> {
 
     /** Read the outcome a failed call ends with: a denial for rejected access, a failure otherwise. */
     static outcome(error: unknown): Exclude<Outcome, { kind: "success" }> {
-        // map domain failures to service failures
-        const known = domainFailure(error) ?? error;
-        const denial = isServiceError(known) ? denialOf(known) : undefined;
+        // read the service error a failure is or names
+        const known = ServiceError.of(error);
+        const denial = known === undefined ? undefined : denialOf(known);
 
         // report rejected access as a denial
         if (denial !== undefined) {
             return { kind: "denied", error: Failure.of(denial) };
         }
-        // report a service or audit failure
-        else if (isServiceError(known) || known instanceof AuditError) {
+        // report a service failure
+        else if (known !== undefined) {
             return { kind: "failure", error: Failure.of(known) };
         }
 

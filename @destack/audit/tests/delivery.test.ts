@@ -2,7 +2,8 @@ import { test, expect } from "@destack/test";
 import { testCallKey } from "@destack/service/test";
 import { ControlLoop } from "@destack/service/control";
 import { AuditError } from "../src/error/index.ts";
-import { Journal, journal } from "../src/index.ts";
+import { Journal } from "../src/server/index.ts";
+import { journal } from "../src/stack/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
 
 test("deliver a batch again after its acceptance was lost, the history holding each call once", async () => {

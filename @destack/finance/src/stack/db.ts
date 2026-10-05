@@ -1,4 +1,4 @@
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { account, organisation } from "@destack/account/object";
 import { defineDatabase, type Table } from "@destack/db";
 import {

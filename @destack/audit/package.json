@@ -14,8 +14,7 @@
         "./service": "./src/service/index.ts",
         "./client": "./src/client/index.ts",
         "./server": "./src/server/index.ts",
-        "./error": "./src/error/index.ts",
-        "./journal": "./src/journal/index.ts"
+        "./error": "./src/error/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

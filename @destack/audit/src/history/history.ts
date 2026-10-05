@@ -17,7 +17,13 @@ import {
 import { Subject } from "@destack/sync";
 import { canonicalize, schema } from "@destack/schema";
 import { AuditError } from "../error/index.ts";
-import { AuditBatch, AuditPrune, AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
+import {
+    AuditBatch,
+    AuditPrune,
+    AuditQuery,
+    type AuditPage,
+    type AuditScope,
+} from "../service/query.ts";
 import { auditCall, auditTarget } from "../object/table.ts";
 
 /** The audited calls of each scope. */

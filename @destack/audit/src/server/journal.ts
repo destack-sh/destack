@@ -3,27 +3,18 @@ import {
     and,
     asc,
     eq,
-    integer,
     isNull,
     isNotNull,
     lte,
     min,
     or,
     inArray,
-    text,
-    json,
-    boolean,
-    identifier,
-    defineTable,
-    index,
-    uniqueIndex,
     type DatabaseConnection,
     type TransactionOptions,
     CHAIN_TERMS,
 } from "@destack/db";
 import { Digest, Duration, canonicalize } from "@destack/schema";
-import { errorOf, isServiceError, ServiceError } from "@destack/service/error";
-import { domainFailure } from "@destack/service/server";
+import { errorOf, ServiceError } from "@destack/service/error";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
     RequestId,
@@ -31,14 +22,14 @@ import {
     type RequestIdentity,
 } from "@destack/service/request";
 import type { Controller } from "@destack/service/control";
-import { Failure, type Outcome } from "@destack/sync";
+import type { Outcome } from "@destack/sync";
 import { AuditError } from "../error/index.ts";
 import { AuditHistory } from "../history/history.ts";
 import { AuditCall } from "../record/call.ts";
 import { MAX_EXECUTION_BYTES } from "../record/execution.ts";
+import { Replay } from "../record/replay.ts";
+import { journal } from "../stack/db.ts";
 
-/** The statuses of failures a retry replays instead of running again. */
-const FINAL_STATUSES = new Set([400, 403, 404, 409, 412, 422]);
 /** The most calls one prune removes: about a millisecond of deletes. */
 const MAX_PRUNE_CALLS = 1000;
 /** The most calls one delivery carries by default: a history inserts a hundred in tens of milliseconds. */
@@ -49,47 +40,6 @@ const LIFETIME: Duration = { milliseconds: REQUEST_LIFETIME_MILLISECONDS };
 const READ_CALLS = 1000;
 /** The longest delivery to a history, in milliseconds: well above a hundred-call insert. */
 const DELIVERY_TIMEOUT_MILLISECONDS = 30_000;
-
-/** The calls a service database executed, kept for retries and delivered to the audit history. */
-export const journal = defineTable(
-    "journal",
-    {
-        /** The call's identity. */
-        id: identifier("id", "call").primaryKey(),
-        /** The scope whose history receives the call. */
-        scope: text("scope").notNull(),
-        /** The object type and method, such as page.create. */
-        method: text("method").notNull(),
-        /** The caller of the request the call belongs to, whose clients follow its outcome. */
-        caller: text("caller"),
-        /** The caller, scope and request a retry replays the call under, absent for outcomes a retry runs again. */
-        request: text("request"),
-        /** The call's place in its request. */
-        position: integer("position").notNull(),
-        /** Whether the audit history receives the call. */
-        isAudited: boolean("is_audited").notNull(),
-        /** The complete call with its execution. */
-        call: json("call", AuditCall).notNull(),
-        /** The start time, in UTC epoch milliseconds. */
-        startedAt: integer("started_at").notNull(),
-        /** The end time, in UTC epoch milliseconds, absent while the call runs. */
-        finishedAt: integer("finished_at"),
-        /** The time the call leaves the journal once delivered, in UTC epoch milliseconds. */
-        expiresAt: integer("expires_at").notNull(),
-        /** The time the history accepted the call as it is now, absent while pending. */
-        deliveredAt: integer("delivered_at"),
-    },
-    {
-        log: {},
-        constraints: (entry) => [
-            uniqueIndex("journal_request").on(entry.request, entry.position),
-            index("journal_scope_time").on(entry.scope, entry.startedAt),
-            index("journal_caller").on(entry.scope, entry.caller),
-            index("journal_delivery").on(entry.isAudited, entry.deliveredAt, entry.startedAt),
-            index("journal_expiry").on(entry.expiresAt),
-        ],
-    },
-);
 
 /** The columns of a journal change the journal's controller reads. */
 type JournalTimes = Pick<typeof journal.$inferSelect, "isAudited" | "deliveredAt">;
@@ -177,7 +127,7 @@ export class Journal {
             execution.requestId !== undefined &&
             execution.digest !== undefined &&
             options.caller !== undefined &&
-            Journal.isFinal(execution.outcome)
+            Replay.isFinal(execution.outcome)
                 ? Journal.#request({
                       caller: options.caller,
                       scope: execution.context.scope,
@@ -291,30 +241,6 @@ export class Journal {
         const recorded = await this.#recorded(database, request);
 
         return recorded.at(-1)?.execution.outcome;
-    }
-
-    /** Describe a final failure as the outcome a retry replays, absent for one a retry runs again. */
-    static failure(
-        error: unknown,
-    ): { readonly kind: "failure"; readonly error: Failure } | undefined {
-        const failure = isServiceError(error) ? error : domainFailure(error);
-        const outcome =
-            failure === undefined
-                ? undefined
-                : ({ kind: "failure", error: Failure.of(failure) } as const);
-
-        return Journal.isFinal(outcome) ? outcome : undefined;
-    }
-
-    /** Report whether a retry replays an outcome instead of running the call again. */
-    static isFinal(outcome: Outcome | undefined): boolean {
-        return (
-            outcome !== undefined &&
-            (outcome.kind === "success" ||
-                (outcome.kind !== "cancelled" &&
-                    FINAL_STATUSES.has(outcome.error.status) &&
-                    outcome.error.code !== "INSUFFICIENT_GRANT"))
-        );
     }
 
     /** Remove delivered calls past their lifetime, up to a limit, returning how many. */

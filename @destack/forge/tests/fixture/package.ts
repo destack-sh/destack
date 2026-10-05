@@ -8,7 +8,7 @@ import { inject } from "vitest";
 import { type BuildOptions, PackageBuild, PackageBuilder, readDependencies } from "@destack/build";
 import { PackageStore } from "@destack/build/store";
 import { principal } from "@destack/access";
-import { Journal } from "@destack/audit";
+import { Journal } from "@destack/audit/server";
 import { LocalBucket } from "@destack/bucket/local";
 import type { Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";

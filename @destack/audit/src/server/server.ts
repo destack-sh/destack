@@ -10,8 +10,7 @@ import {
 import { call } from "../object/access.ts";
 import { ServiceError } from "@destack/service";
 import { AuditHistory } from "../history/history.ts";
-import { AuditRecorder } from "../record/index.ts";
-import { AuditError } from "../error/index.ts";
+import { AuditRecorder } from "./recorder.ts";
 import { auditService, AuditScope } from "../service/index.ts";
 
 /** The request authority a host supplies. */

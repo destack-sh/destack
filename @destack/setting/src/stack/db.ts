@@ -1,5 +1,5 @@
 import type { Table } from "@destack/db";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { setting } from "../object/setting.ts";
 
 /** The tables holding setting values beside their journal. */

@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { defineProcedure, defineService, eventIterator } from "@destack/service";
-import { AuditBatch, AuditPrune, AuditQuery, AuditRecord } from "../history/query.ts";
+import { AuditBatch, AuditPrune, AuditQuery, AuditRecord } from "./query.ts";
 import type {} from "@destack/package/import-meta";
 
 /** A procedure that records its call and checks the history permission in its handler. */

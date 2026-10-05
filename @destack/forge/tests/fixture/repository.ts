@@ -3,7 +3,7 @@ import { onTestFinished } from "@destack/test";
 import { principal } from "@destack/access";
 import type { DirectoryClient } from "@destack/account/client";
 import * as hostTest from "@destack/host/test";
-import { Journal } from "@destack/audit";
+import { Journal } from "@destack/audit/server";
 import { LocalBucket } from "@destack/bucket/local";
 import { PackageStore } from "@destack/build/store";
 import type { DatabaseConnection, Dialect } from "@destack/db";
