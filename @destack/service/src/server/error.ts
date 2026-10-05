@@ -114,7 +114,7 @@ export function domainFailure(error: unknown): ServiceError<string, unknown> | u
 
 /** Log a failed reconciliation. */
 export function reportReconciliation(controller: Controller, key: string, error: unknown): void {
-    log.warn("controller.reconcile.failed", {
+    log.error("controller.reconcile.failed", {
         "destack.controller": controller.name,
         "destack.key": key,
         ...telemetry.exceptionAttributes(error),
