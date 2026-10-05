@@ -301,12 +301,17 @@ new AccessError("INSUFFICIENT_AUTHENTICATION", "authenticate again", {
 
 ## Tests
 
-`@destack/access/test` records the scopes, owners and roles a copy of another service's access keeps, for tests of services that follow one.
+`AccessFixture` records the scopes, owners and roles a copy of another service's access keeps in a database, for tests of services that follow one.
 
 ```ts
-import { copyRole, copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 
-await copyScope(database, space.reference(Scope.universe.id, spaceId));
-const editor = { name: "editor", description: "Edit notes", permissions: [note.permission("edit")] };
-await copyRole(database, scope, editor, bob);
+const copies = new AccessFixture(database);
+await copies.copyScope(space.reference(Scope.universe.id, spaceId));
+const editor = {
+    name: "editor",
+    description: "Edit notes",
+    permissions: [note.permission("edit")],
+};
+await copies.copyRole(scope, editor, bob);
 ```

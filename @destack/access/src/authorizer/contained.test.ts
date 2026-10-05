@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import { Authorizer, contained, Policy, principal, type TableMapping } from "../index.ts";
 import { accountTable, fixtureDatabase, groupTable, module4, spaceTable } from "../test/fixture.ts";
-import { copyScope } from "../test/copy.ts";
+import { AccessFixture } from "../test/access.ts";
 
 /** Realms, root scopes holding districts, read by the principals inside them. */
 const realm = new Policy(module4.package, {
@@ -57,7 +57,7 @@ test.for(TEST_DIALECTS)(
             district.reference("far", "outside"),
         ];
         for (const scope of scopes) {
-            await copyScope(database, scope);
+            await new AccessFixture(database).copyScope(scope);
         }
         await database.insert(accountTable).values([
             { id: "near", scope: "universe" },

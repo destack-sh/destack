@@ -1,4 +1,4 @@
-import { copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { accessTables, Authorizer, Policy, principal, relation } from "@destack/access";
@@ -53,7 +53,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await copyScope(storage.database, {
+    await new AccessFixture(storage.database).copyScope({
         packageId: hosting.audience,
         type: "space",
         scope: "universe",

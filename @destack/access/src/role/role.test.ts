@@ -32,7 +32,7 @@ import {
     teamTable,
 } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
-import { copyOwner, copyScope } from "../test/copy.ts";
+import { AccessFixture } from "../test/access.ts";
 
 /** The members of carol's account as a subject set. */
 const carolMembership = { ...account.reference("universe", "account-1"), relation: "member" };
@@ -166,9 +166,10 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
     const { database, readable, defineRole, relate } = await openRoleFixture();
 
     // place the personal scope inside the account its members own
-    await copyScope(database, account.reference("universe", "account-1"));
-    await copyOwner(database, account.reference("universe", "account-1"), carolMembership, 1);
-    await copyScope(database, space.reference("account-1", "personal"));
+    const copies = new AccessFixture(database);
+    await copies.copyScope(account.reference("universe", "account-1"));
+    await copies.copyOwner(account.reference("universe", "account-1"), carolMembership, 1);
+    await copies.copyScope(space.reference("account-1", "personal"));
 
     // bind an editor role including the reader role on the account
     const reader = await defineRole(1, [node.permission("read")], "account-1");
@@ -412,20 +413,20 @@ test("list the spaces an account contains to the account's owner", async () => {
     ]);
 
     // record two accounts, their spaces, and carol as the first account's owner
-    await copyScope(database, account.reference("universe", "account-1"));
-    await copyOwner(
-        database,
+    const accessCopies = new AccessFixture(database);
+    await accessCopies.copyScope(account.reference("universe", "account-1"));
+    await accessCopies.copyOwner(
         account.reference("universe", "account-1"),
         aligned(carol.subjects, 0),
         1,
     );
-    await copyScope(database, account.reference("universe", "account-2"));
+    await accessCopies.copyScope(account.reference("universe", "account-2"));
     for (const [id, owner] of [
         ["space-1", "account-1"],
         ["space-2", "account-1"],
         ["space-3", "account-2"],
     ] as const) {
-        await copyScope(database, space.reference(owner, id));
+        await new AccessFixture(database).copyScope(space.reference(owner, id));
         await database.insert(spaceTable).values({ id, account: owner });
     }
 
@@ -447,7 +448,7 @@ test("list the spaces an account contains to the account's owner", async () => {
     expect(await listed(alice)).toEqual([]);
 
     // list the same spaces from the scope records of every database
-    await copyScope(database, account.reference("account-1", "account-3"));
+    await new AccessFixture(database).copyScope(account.reference("account-1", "account-3"));
     const scopes = new Authorizer(policies, mappings);
     const recorded = await database
         .select({ id: Scope.table.scope })

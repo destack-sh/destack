@@ -8,7 +8,7 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { copyOwner, copyRole, copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import {
     AccountAuthentication,
     ActiveSession,
@@ -27,7 +27,7 @@ import {
     user,
 } from "@destack/account/object";
 import * as accountServer from "@destack/account/server";
-import type { AuditDestination } from "@destack/audit";
+import type { AuditDestination } from "@destack/audit/server";
 import type { ObjectType } from "@destack/object";
 import type { ObjectServer } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
@@ -225,8 +225,9 @@ export class AccountFixture implements AsyncDisposable {
                 email: `${userId}@example.test`,
                 residencyId: "eu",
             });
-            await copyScope(database, person);
-            await copyOwner(database, person, person);
+            const accessCopies = new AccessFixture(database);
+            await accessCopies.copyScope(person);
+            await accessCopies.copyOwner(person, person);
         }
 
         return { owner, operator };
@@ -256,8 +257,8 @@ export class AccountFixture implements AsyncDisposable {
 
             // make the owner the owner of the account
             const scope = account.reference(ids.owner, id);
-            await copyScope(database, scope);
-            ownerRoles.set(id, await copyOwner(database, scope, owner));
+            await new AccessFixture(database).copyScope(scope);
+            ownerRoles.set(id, await new AccessFixture(database).copyOwner(scope, owner));
 
             // let the account's hosts read it
             const hosts = principal.host.reference(id, "*");
@@ -286,8 +287,7 @@ export class AccountFixture implements AsyncDisposable {
         });
 
         // make the operator the server of the region
-        await copyRole(
-            database,
+        await new AccessFixture(database).copyRole(
             Scope.universe,
             {
                 name: "operator",
@@ -462,8 +462,7 @@ export class AccountFixture implements AsyncDisposable {
 
         // bind it a universe role with the permissions
         if (permissions.length > 0) {
-            await copyRole(
-                this.database,
+            await new AccessFixture(this.database).copyRole(
                 Scope.universe,
                 {
                     name: `workload-${id.slice(-12)}`,

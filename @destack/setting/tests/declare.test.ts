@@ -1,6 +1,6 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Scope } from "@destack/sync";
-import { copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
 import { Stack } from "@destack/object/server";
@@ -34,7 +34,9 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await Storage.open(dialect, [editor, template]);
         onTestFinished(() => storage.close());
-        await copyScope(storage.database, space.reference(Scope.universe.id, spaceId));
+        await new AccessFixture(storage.database).copyScope(
+            space.reference(Scope.universe.id, spaceId),
+        );
         const { release } = storage;
         const objects = [servedObjects(release).setting];
         const apply = (settings: JsonObject) =>

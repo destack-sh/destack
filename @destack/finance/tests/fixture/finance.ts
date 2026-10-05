@@ -1,5 +1,5 @@
 import { accessRelationship, principal, Relationship } from "@destack/access";
-import { copyOwner, copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { account, organisation, user } from "@destack/account/object";
 import { asc, eq, type DatabaseConnection, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -123,7 +123,8 @@ export class Finance {
         // copy Acme with its payer, and Carol's and Dave's users
         const test = await TestDatabase.create(dialect, financeDatabase, { isMigrated: true });
         const database = test.database;
-        await copyScope(database, organisation.reference(Scope.universe.id, ids.acme));
+        const copies = new AccessFixture(database);
+        await copies.copyScope(organisation.reference(Scope.universe.id, ids.acme));
         await database.insert(organisation.table).values({
             id: ids.acme,
             scope: Scope.universe.id,
@@ -133,17 +134,17 @@ export class Finance {
             createdAt: 0,
             updatedAt: 0,
         });
-        await copyScope(database, user.reference(Scope.universe.id, people.carol));
-        await copyScope(database, user.reference(Scope.universe.id, people.dave));
+        await copies.copyScope(user.reference(Scope.universe.id, people.carol));
+        await copies.copyScope(user.reference(Scope.universe.id, people.dave));
 
         // copy the accounts, and let Alice, Carol and Dave own theirs
         const buyer = await copyAccount(database, ids.acme, ids.buyer, "acme");
         await copyAccount(database, ids.acme, ids.payer, "acme-billing");
         const shop = await copyAccount(database, people.carol, ids.shop, "shop");
-        await copyOwner(database, buyer, subject("alice"));
+        await copies.copyOwner(buyer, subject("alice"));
         const platform = await copyAccount(database, people.dave, ids.destack, "destack");
-        await copyOwner(database, shop, subject("carol"));
-        await copyOwner(database, platform, subject("dave"));
+        await copies.copyOwner(shop, subject("carol"));
+        await copies.copyOwner(platform, subject("dave"));
 
         // let Bob view the buyer's account
         await database.insert(accessRelationship).values(
@@ -349,7 +350,7 @@ async function copyAccount(
     handle: string,
 ): Promise<ObjectReference> {
     const reference = account.reference(scope, id);
-    await copyScope(database, reference);
+    await new AccessFixture(database).copyScope(reference);
     await database.insert(account.table).values({
         id,
         scope,

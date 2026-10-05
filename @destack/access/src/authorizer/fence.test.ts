@@ -16,8 +16,9 @@ test.for(TEST_DIALECTS)(
         const authorizer = new Authorizer(policies, mappings);
 
         // insert an account and a space inside it
-        await copyScope(database, account.reference(Scope.universe.id, "account-a"));
-        await copyScope(database, space.reference("account-a", "space-a"));
+        const copies = new AccessFixture(database);
+        await copies.copyScope(account.reference(Scope.universe.id, "account-a"));
+        await copies.copyScope(space.reference("account-a", "space-a"));
         const context = {
             subjects: [principal.user.reference("universe", "alice")],
             now: 1000,
@@ -59,7 +60,9 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
             await other.close();
             await storage.close();
         });
-        await copyScope(storage.database, account.reference(Scope.universe.id, "account-a"));
+        await new AccessFixture(storage.database).copyScope(
+            account.reference(Scope.universe.id, "account-a"),
+        );
 
         // keep a write guarding the scope open while a fence starts on another connection
         const events: string[] = [];

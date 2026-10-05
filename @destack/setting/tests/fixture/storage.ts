@@ -1,5 +1,5 @@
 import { outbox } from "@destack/service/outbox";
-import { copyOwner, copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/service/request";
@@ -52,8 +52,9 @@ export class Storage {
 
     /** Let Alice own a scope. */
     async own(scope: ObjectReference): Promise<void> {
-        await copyScope(this.database, scope);
-        await copyOwner(this.database, scope, this.subject);
+        const copies = new AccessFixture(this.database);
+        await copies.copyScope(scope);
+        await copies.copyOwner(scope, this.subject);
     }
 
     /** Call a method as Alice in a scope. */

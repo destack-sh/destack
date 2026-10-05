@@ -19,7 +19,7 @@ import {
     Authorization,
 } from "@destack/access";
 import { accountRecord } from "./stack/index.ts";
-import { copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { call } from "../src/object/index.ts";
 
 /** The accounts whose histories the test reads. */
@@ -92,7 +92,7 @@ test("authorize producers and readers, stream history, and record denied access"
             attributes: {},
         };
         const asOwner = new Authorization(authorizer, database, () => owner);
-        await copyScope(database, principal.user.reference("universe", "owner"));
+        await new AccessFixture(database).copyScope(principal.user.reference("universe", "owner"));
         await database.insert(accountRecord).values({ id: context.scope, scope: "owner" });
         const [subject] = owner.subjects;
         if (subject === undefined) {

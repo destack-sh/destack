@@ -1,4 +1,4 @@
-import { copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
@@ -184,7 +184,12 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await copyScope(database, { packageId, type: "space", scope: "universe", id: spaceId });
+    await new AccessFixture(database).copyScope({
+        packageId,
+        type: "space",
+        scope: "universe",
+        id: spaceId,
+    });
     await database
         .insert(noteTable)
         .values(
@@ -390,7 +395,7 @@ test("decide a host's call as a space its cell represents, with the host as the 
     onTestFinished(() => storage.close());
     const { database } = storage;
     const accountScope = account.reference(Scope.universe.id, accountId);
-    await copyScope(database, accountScope);
+    await new AccessFixture(database).copyScope(accountScope);
     const spaceId = "space-019f7480-0000-7000-8000-000000000005";
     await database
         .insert(zoneTable)

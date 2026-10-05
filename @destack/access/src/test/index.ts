@@ -1,1 +1,1 @@
-export * from "./copy.ts";
+export * from "./access.ts";

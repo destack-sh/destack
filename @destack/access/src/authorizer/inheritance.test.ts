@@ -4,7 +4,7 @@ import type { ObjectReference, Subject } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
-import { copyScope } from "../test/copy.ts";
+import { AccessFixture } from "../test/access.ts";
 import { fixtureDatabase, item, module1 } from "../test/fixture.ts";
 import {
     type AccessContext,
@@ -122,8 +122,9 @@ test.for(TEST_DIALECTS)(
         const { database } = storage;
         const acme = org.reference("universe", "acme");
         const plans = folder.reference("acme", "plans");
-        await copyScope(database, acme);
-        await copyScope(database, plans);
+        const copies = new AccessFixture(database);
+        await copies.copyScope(acme);
+        await copies.copyScope(plans);
         await database.insert(item).values(["a", "b", "c"].map((id) => documentRow(id)));
 
         // make carol an editor of the organisation, dave a viewer of the folder, and erin nothing
@@ -224,7 +225,7 @@ test.for(TEST_DIALECTS)(
             [team, note],
             [{ ...mapping, policy: note, relations: {} }],
         );
-        await copyScope(database, org.reference("universe", "plans"));
+        await new AccessFixture(database).copyScope(org.reference("universe", "plans"));
         await database.insert(item).values({
             id: "a",
             scope: "plans",
@@ -297,8 +298,9 @@ test.for(TEST_DIALECTS)(
         );
         const acme = org.reference("universe", "acme");
         const plans = folder.reference("acme", "plans");
-        await copyScope(database, acme);
-        await copyScope(database, plans);
+        const accessCopies = new AccessFixture(database);
+        await accessCopies.copyScope(acme);
+        await accessCopies.copyScope(plans);
         await database.insert(item).values({
             id: "a",
             scope: "plans",

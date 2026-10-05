@@ -4,7 +4,7 @@ import { Snapshot } from "@destack/db";
 import { aligned } from "@destack/schema";
 import type { Access } from "./access.ts";
 import { account, item, node, rows, space } from "../test/fixture.ts";
-import { copyRole, copyScope, suspendCopy } from "../test/copy.ts";
+import { AccessFixture } from "../test/access.ts";
 import { openFixture, userSubject } from "../test/database.ts";
 
 /** Describe a caller's resolved access in a scope. */
@@ -30,18 +30,19 @@ test.for(TEST_DIALECTS)(
         const fixture = await openFixture(dialect);
         onTestFinished(() => fixture.close());
         const { database, authorizer, bob } = fixture;
-        await copyScope(database, account.reference("universe", "near"));
-        await copyScope(database, account.reference("universe", "far"));
+        const copies = new AccessFixture(database);
+        await copies.copyScope(account.reference("universe", "near"));
+        await copies.copyScope(account.reference("universe", "far"));
         const spaces = ["plain", "shared", "suspended"].map((id) => space.reference("near", id));
         for (const scope of [...spaces, space.reference("far", "outside")]) {
-            await copyScope(database, scope);
+            await new AccessFixture(database).copyScope(scope);
         }
 
         // let bob read the nodes of two spaces through a role, and suspend one of them
         const reader = { name: "reader", description: "", permissions: [node.permission("read")] };
-        await copyRole(database, aligned(spaces, 1), reader, userSubject("bob"), 1);
-        await copyRole(database, aligned(spaces, 2), reader, userSubject("bob"), 1);
-        await suspendCopy(database, "suspended", 1);
+        await copies.copyRole(aligned(spaces, 1), reader, userSubject("bob"), 1);
+        await copies.copyRole(aligned(spaces, 2), reader, userSubject("bob"), 1);
+        await copies.suspendCopy("suspended", 1);
         const nodes = ["plain", "shared", "suspended"].map((scope) => ({
             ...aligned(rows, 0),
             id: `in-${scope}`,
