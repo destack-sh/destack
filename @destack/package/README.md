@@ -4,8 +4,7 @@ Define Destack packages, transform their modules, and read their built manifests
 
 ## Definitions
 
-`destack.json` sets a package's id, language, runtimes, declaration constructors and stamped functions.
-`describes` lists the functions that describe each kind a constructor declares, and `stamps` sets where each stamped function takes the calling module.
+`destack.json` sets a package's id, language, runtimes, describers and stamped functions.
 
 ```json
 {
@@ -36,7 +35,7 @@ Define Destack packages, transform their modules, and read their built manifests
 
 ## Description functions
 
-An entry in `describes` names up to four functions for one kind: `function`, `compare`, `vocabulary` and `symbols`.
+An entry in `describes` lists up to four functions for one kind.
 
 ```jsonc
 {
@@ -54,7 +53,7 @@ An entry in `describes` names up to four functions for one kind: `function`, `co
 
 ## Symbols
 
-A `symbols` function returns a `graph.MemberSymbol` for the declaration and for each member it derives, and the build resolves each relationship target by kind and name in the declaring package unless the target names another package.
+A `symbols` function returns a `graph.MemberSymbol` for a declaration and each member it derives.
 
 ```ts
 export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
@@ -83,7 +82,7 @@ export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSy
 
 ## Workspaces
 
-`workspace` in the root `destack.json` holds the settings the members share, such as `check.expect` with files relative to the root, and `package.json` lists the members.
+`workspace` in the root `destack.json` holds the settings that members share.
 
 ```json
 {
@@ -104,7 +103,7 @@ export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSy
 
 ## Capabilities
 
-`capabilities` in `destack.json` declares what the package uses beyond its sandbox, each with a `reason` that a person reads before consenting.
+`capabilities` in `destack.json` declares what the package uses beyond its sandbox.
 
 ```json
 {
@@ -127,7 +126,7 @@ export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSy
 
 ## Enforcement
 
-The host's sandbox enforces the host capabilities on workloads, and the browser enforces the others as Permissions Policy features on the installation's origin.
+The host's sandbox enforces host capabilities, and the browser enforces Permissions Policy features.
 
 ```text
 the host's sandbox  process, network, listen, fs, env, run
@@ -139,7 +138,7 @@ no capability       the package's file, cache and temporary folders, WebGPU, Web
 
 ## Optional capabilities
 
-`optional` marks a capability, other than `process`, that an installation declines until it allows the capability by name, and the person chooses the directories for `fs` during or after installation.
+`optional` marks a capability that an installation must allow by name.
 
 ```json
 { "fs": { "access": "read", "reason": "indexes the folders you choose", "optional": true } }
@@ -147,7 +146,7 @@ no capability       the package's file, cache and temporary folders, WebGPU, Web
 
 ## Workload capabilities
 
-`capabilities` in `defineWorkload` limits a workload to a subset of its package's host capabilities, and `Capabilities.grant` keeps the required ones and the optional ones an installation allows.
+`capabilities` in `defineWorkload` limits a workload to a subset of its package's capabilities.
 
 ```ts
 import { Capabilities } from "@destack/package";
@@ -160,7 +159,7 @@ const running = Capabilities.grant(description.capabilities, ["fs", "camera"]);
 
 ## Described capabilities
 
-The build writes each workload's capabilities into its `WorkloadDescription` and the package's browser capabilities into each `ViewDescription`.
+The build writes each workload's capabilities into its `WorkloadDescription`.
 
 ```ts
 const { capabilities } = build.manifest.outputs.bun.workloads.indexer; // { network: …, run: … }
@@ -182,14 +181,15 @@ export default definePackage({
 
 ## Modules
 
-The module transform sets `import.meta.destack.package` in each module and passes it to each call of a stamped function.
+The module transform sets `import.meta.destack.package` in each module.
 
 ```ts
 const { id, name, version } = import.meta.destack.package;
 ```
 
-`stamps` in `destack.json` lists the exported functions the transform passes the calling module to, declaration constructors included, by export path and parameter position.
-A stamped function written as a template tag becomes a call passing the module, and its result tags the template.
+### Stamps
+
+`stamps` lists the functions that receive the calling module, by export path and parameter position.
 
 ```jsonc
 {
@@ -202,7 +202,7 @@ A stamped function written as a template tag becomes a call passing the module, 
 
 ## Transforms
 
-`vite` installs the module transform in Vite and Vitest, `bun` in `Bun.build`, and `bun/preload` in every module a Bun process loads.
+`vite` installs the module transform in Vite and Vitest.
 
 ```toml
 # bunfig.toml
@@ -221,7 +221,7 @@ src/page/page.browser.ts   replaces page.ts in browser builds
 
 ## Builds
 
-A dependency's `BuildExtension` transforms, compiles and describes the outputs of the packages whose dependency closure includes it, and `@destack/package/build` exports values every build shares, such as the `TYPE_CHECKS` compiler checks.
+A `BuildExtension` transforms, compiles and describes the outputs of the packages that depend on it.
 
 ```ts
 import type { BuildExtension } from "@destack/package/build";
@@ -234,7 +234,7 @@ export const spaceBuild: BuildExtension = {
 
 ## Manifests
 
-`BuildReader.open` opens a built package, and `declarations` and `declared` list its declarations without their derived members.
+`BuildReader.open` opens a built package and lists its declarations.
 
 ```ts
 import { BuildReader } from "@destack/package/manifest";
@@ -248,9 +248,20 @@ const settings = await reader.declared(
 );
 ```
 
+### Build caches
+
+`BuildCache` keeps a value read from each build, keyed by its graph's digest.
+
+```ts
+import { BuildCache } from "@destack/package/manifest";
+
+const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
+const catalog = await catalogs.read(reader);
+```
+
 ## Graph
 
-`graph.Moniker.of` names a symbol, member or declaration in a build with a moniker that stays the same across builds.
+`graph.Moniker.of` returns a moniker for a symbol that stays the same across builds.
 
 ```ts
 import { graph } from "@destack/package";
@@ -265,7 +276,7 @@ const object = graph.Moniker.of({ packageId, module: "src/note.ts", name: "Note"
 
 ## Graph modules
 
-A `graph.Module` holds a module's symbols, declarations and outgoing edges, and a `graph.Root` names the file of each module by digest.
+A `graph.Module` holds a module's symbols, declarations and outgoing edges.
 
 ```json
 {
@@ -315,7 +326,7 @@ A `graph.Module` holds a module's symbols, declarations and outgoing edges, and 
 
 ## Graph reads
 
-`graph` reads a build's root, and `module` reads one module's file by its digest and verifies the digest.
+`graph` reads a build's root, and `module` reads one module's file by digest.
 
 ```ts
 const root = await reader.graph();
@@ -324,7 +335,7 @@ const module = await reader.module(root.modules["src/server.ts"]);
 
 ## Errors
 
-An invalid package throws a `PackageError`, and a capability no host grants throws a `CapabilityError`, and `toServiceError` names the service error its caller receives.
+An invalid package throws a `PackageError`.
 
 ```ts
 import { PackageError } from "@destack/package/error";
