@@ -3,37 +3,75 @@ import { testCallKey } from "@destack/service/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Authorization, Authorizer, principal } from "@destack/access";
-import { AuditRecorder, Journal } from "@destack/audit";
-import { copyRole, copyScope } from "@destack/access/test";
-import { account } from "@destack/account/object";
+import { accessRole, Authorization, Authorizer, principal } from "@destack/access";
+import { Journal } from "@destack/audit/server";
+import { AccessFixture } from "@destack/access/test";
 import { LocalBucket } from "@destack/bucket/local";
 import { TestDatabase } from "@destack/db/test";
-import { broadcastChannel, type DatabaseConnection } from "@destack/db";
-import { PackageId } from "@destack/package";
+import {
+    and,
+    broadcastChannel,
+    type DatabaseConnection,
+    defineDatabase,
+    eq,
+    Snapshot,
+} from "@destack/db";
+import { activity, announcement, subscription } from "@destack/notification";
+import type { ObjectServer } from "@destack/object/server";
+import { comment, reaction } from "@destack/social";
+import { spaceCopies, spaceTables } from "@destack/space/stack";
+import { alert, alertRule, type AlertRuleDefinition, issue } from "../src/object/index.ts";
+import { Scope } from "@destack/sync";
+import { graph, PackageId } from "@destack/package";
+import { PackageFile } from "@destack/package/file";
+import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { ResourceContext } from "@destack/resource/context";
-import { present, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
+import { RequestId } from "@destack/service/request";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
+import { type Controller, ControlLoop } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
-import { installation, space } from "@destack/space/object";
-import { spaceDatabase } from "@destack/space/stack";
-import { startTelemetry } from "@destack/telemetry/host";
+import { installation, installationRevision, space, SpaceCell } from "@destack/space/object";
+import type { OpenBuild } from "@destack/space/server";
+import { serveObjects } from "@destack/space/server";
+import { openBuild, SpaceFixture } from "@destack/space/test";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { setting } from "@destack/setting/object";
-import {
-    entry,
-    type Entry,
-    Monitor,
-    monitorDatabase,
-    monitorSegment,
-    telemetryRetention,
-} from "../src/index.ts";
+import { entry, type Entry, Monitor, telemetryRetention } from "../src/index.ts";
 import { SegmentController } from "../src/monitor/controller.ts";
 import { implementMonitor } from "../src/server/index.ts";
 import { monitorService } from "../src/service/index.ts";
+import { monitorDatabase, monitorSegment } from "../src/stack/index.ts";
+
+/** A cell's space database copying the issues, alert rules and alerts the monitor keeps, with the comments, subscriptions and notifications on them. */
+const cellDatabase = defineDatabase({
+    name: "space",
+    tables: spaceTables,
+    copies: [
+        ...spaceCopies,
+        ...[issue, alertRule, alert, comment, reaction, subscription, activity, announcement].map(
+            (object) => object.table,
+        ),
+    ],
+});
+
+/** Run some controllers over a database until the test ends, failing it on a reported failure. */
+function run(database: DatabaseConnection, controllers: readonly Controller[]): void {
+    const stopping = new AbortController();
+    const running = new ControlLoop(database, controllers, {
+        report: (_controller, _key, error) => {
+            throw error;
+        },
+    }).run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+}
 
 /** The identities the scenario names. */
 const ids = {
@@ -43,21 +81,29 @@ const ids = {
     notes: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000005"),
+    region: schema.identifier("region").parse("region-01996ab0-0000-7000-8000-000000000003"),
 };
 
 /** The notes package, as its workload names itself. */
 const notes = { id: ids.package, name: "@example/notes", version: "2026.9.0" };
 
+/** How a test serves the monitor: the builds it opens. */
+interface MonitorTestOptions {
+    /** Open a package's build in the space, the space fixture's by default. */
+    readonly openBuild?: OpenBuild;
+}
+
 /** Serve a space's monitor, where alice owns the space and notes is installed, authenticating by bearer name. */
-async function serveMonitor() {
-    // keep the space, owned by alice, with the notes installation
-    const storage = await TestDatabase.create("sqlite", spaceDatabase, { isMigrated: true });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
+async function serveMonitor(options: MonitorTestOptions = {}) {
+    // keep the space, owned by alice, with the notes installation, copying the issues, rules and alerts the monitor keeps
+    const fixture = await SpaceFixture.open({ database: cellDatabase });
+    const database = fixture.database;
     await createSpace(database);
 
     // keep the segment catalog
-    const catalog = await TestDatabase.create("sqlite", monitorDatabase, { isMigrated: true });
+    const catalog = await TestDatabase.create("sqlite", monitorDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => catalog.close());
 
     // store segments in a local bucket
@@ -68,23 +114,27 @@ async function serveMonitor() {
         await rm(directory, { recursive: true, force: true });
     });
     const failures: unknown[] = [];
-    const monitor = new Monitor(catalog.database, bucket, (error) => failures.push(error));
+    const monitor = await Monitor.open(catalog.database, bucket, (error) => failures.push(error));
+    onTestFinished(() => monitor.close());
 
-    // serve it under the space's policies and settings
-    const authorizer = new Authorizer(
-        [space.policy, installation.policy, entry],
-        [space.mapping, installation.mapping],
-    );
+    // serve it following the space's rows, and the space copying its objects back from it
+    let spaces: ObjectServer | undefined;
+    const implementation = implementMonitor({
+        monitor,
+        callKey: testCallKey,
+        cell: SpaceCell.id({ regionId: ids.region }),
+        scopes: [space],
+        uplink: {
+            stream: (followed, signal) =>
+                present(spaces, "the space service").uplink.stream(followed, signal),
+            receive: (mutation) => present(spaces, "the space service").uplink.receive(mutation),
+        },
+        openBuild: options.openBuild ?? openBuild,
+        report: (error) => failures.push(error),
+    });
+    spaces = serveObjects(await fixture.options({ sources: [implementation.objects] }));
     const server = Server.start({
-        ...implementMonitor({
-            monitor,
-            access: { authorizer, database },
-            settings: database,
-            record: AuditRecorder.service(new Journal(database, testCallKey), {
-                package: monitorService.package,
-                service: "test",
-            }),
-        }),
+        ...implementation,
         audience: monitorService.package.id,
         drainTimeout: 1000,
         health: new Health("monitor"),
@@ -94,29 +144,44 @@ async function serveMonitor() {
     });
     onTestFinished(() => server.close());
 
-    return { server, monitor, database, catalog: catalog.database, failures };
+    // copy the monitor's objects into the space, stopping before the server drains
+    run(
+        database,
+        spaces.controllers().filter((controller) => ["sends", "replica"].includes(controller.name)),
+    );
+
+    // wait for the monitor's copies of the space's scope chain and its installation
+    await expect
+        .poll(async () => (await catalog.database.select().from(installation.table)).length)
+        .toBe(1);
+    await expect
+        .poll(async () =>
+            (await Scope.chain(Snapshot.live(catalog.database), ids.space)).map(
+                (link) => link.object.id,
+            ),
+        )
+        .toEqual([ids.space, ids.account, "universe"]);
+
+    return { server, monitor, spaces, database, catalog: catalog.database, failures };
 }
 
-/** Record the space, owned by alice, with the notes installation. */
+/** Make alice an owner of the fixture's space and install notes in it. */
 async function createSpace(database: DatabaseConnection): Promise<void> {
-    // record the space in its account
+    // bind the space's owner role to alice as the fixture's owner
     const now = Date.now();
-    await copyScope(database, account.reference("universe", ids.account));
-    await database.insert(space.table).values({
-        id: ids.space,
-        scope: ids.account,
-        name: "personal",
-        createdAt: now,
-        updatedAt: now,
-    });
-
-    // make alice its owner
-    const alice = principal.user.reference("universe", "alice");
+    const [role] = await database
+        .select({ id: accessRole.id })
+        .from(accessRole)
+        .where(and(eq(accessRole.scope, ids.space), eq(accessRole.name, "owner")));
     await new Authorization(new Authorizer([space.policy], [space.mapping]), database, () => ({
-        subjects: [alice],
+        subjects: [principal.user.reference("universe", "owner")],
         now,
         attributes: {},
-    })).create(space.reference(ids.account, ids.space), { owner: alice });
+    })).grant({
+        object: space.reference(ids.account, ids.space),
+        role: present(role, "the space's owner role").id,
+        subject: principal.user.reference("universe", "alice"),
+    });
 
     // install notes
     await database.insert(installation.table).values({
@@ -199,7 +264,9 @@ test("search, follow and trace an installation's exported entries before and aft
         globalThis.fetch = fetch;
     });
     const telemetry = await startTelemetry(
-        exporter.options(notes, { attributes: { "service.instance.id": "instance-1" } }),
+        exporter.options(notes, {
+            attributes: { "service.instance.id": "instance-1" },
+        }),
     );
     try {
         const { log, span, meter } = telemetry.scope(notes);
@@ -213,7 +280,12 @@ test("search, follow and trace an installation's exported entries before and aft
     }
 
     // search the open records, newest first, and read the trace
-    const window = { ...filter, from: 0, before: Date.now() * 1000 + 1, limit: 10 };
+    const window = {
+        ...filter,
+        from: 0,
+        before: Date.now() * 1000 + 1,
+        limit: 10,
+    };
     const open = await alice.search(window);
     const savedRecord = open.entries.find((found) => found.name === "note.saved");
     if (savedRecord?.trace === undefined) {
@@ -223,9 +295,18 @@ test("search, follow and trace an installation's exported entries before and aft
     const traced = await alice.trace({ ...filter, trace });
 
     // chart the counter and the histogram over the window
-    const metric = { ...filter, from: 0, before: window.before, step: 60_000_000, group: [] };
+    const metric = {
+        ...filter,
+        from: 0,
+        before: window.before,
+        step: 60_000_000,
+        group: [],
+    };
     const saves = await alice.series({ ...metric, name: "note.saves" });
-    const renders = await alice.series({ ...metric, name: "note.render.duration" });
+    const renders = await alice.series({
+        ...metric,
+        name: "note.render.duration",
+    });
 
     // seal the segment and search the stored records the same way
     await monitor.seal(Date.now(), true);
@@ -280,7 +361,9 @@ test("search, follow and trace an installation's exported entries before and aft
         ],
         followed: [conflict],
         sealed: [conflict, saved],
-        saves: { series: [{ attributes: {}, steps: [{ time: anyTime, value: 2 }] }] },
+        saves: {
+            series: [{ attributes: {}, steps: [{ time: anyTime, value: 2 }] }],
+        },
         renders: {
             series: [
                 {
@@ -390,12 +473,11 @@ test("prune an installation's segments past the retention its space's settings p
 });
 
 test("mask sensitive values for readers who may not unmask them, and audit an unmasked read", async () => {
-    const { server, monitor, database } = await serveMonitor();
+    const { server, monitor, database, catalog } = await serveMonitor();
     const now = Date.now();
 
     // let carol read the space's logs without unmasking them
-    await copyRole(
-        database,
+    await new AccessFixture(database).copyRole(
         space.reference(ids.account, ids.space),
         {
             name: "reader",
@@ -404,6 +486,7 @@ test("mask sensitive values for readers who may not unmask them, and audit an un
         },
         principal.user.reference("universe", "carol"),
     );
+    await expect.poll(async () => (await catalog.select().from(accessRole)).length).toBe(2);
 
     // record an invitation naming an address
     monitor.ingest(ids.space, [
@@ -434,7 +517,7 @@ test("mask sensitive values for readers who may not unmask them, and audit an un
     expect({
         masked: masked.entries.map((found) => found.attributes),
         unmasked: unmasked.entries.map((found) => found.attributes),
-        audits: (await new Journal(database, testCallKey).read()).map(({ method, execution }) => ({
+        audits: (await new Journal(catalog, testCallKey).read()).map(({ method, execution }) => ({
             scope: execution.context.scope,
             method,
             category: execution.category,
@@ -458,7 +541,9 @@ test("mask sensitive values for readers who may not unmask them, and audit an un
 
 test("follow and search the entries another instance ingests, through the channel between their monitors", async () => {
     // run two monitors over one database, each reaching the other over its own end of a channel
-    const storage = await TestDatabase.create("sqlite", monitorDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create("sqlite", monitorDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const directory = await mkdtemp(join(tmpdir(), "monitor-"));
     const bucket = await LocalBucket.open(directory, "space-test");
@@ -468,19 +553,16 @@ test("follow and search the entries another instance ingests, through the channe
     });
     const topic = `monitor-${crypto.randomUUID()}`;
     const failures: unknown[] = [];
-    const open = (): Monitor =>
-        new Monitor(
+    const open = (): Promise<Monitor> =>
+        Monitor.open(
             storage.database,
             bucket,
             (error) => failures.push(error),
             broadcastChannel(topic),
         );
-    const [first, second] = [open(), open()];
-    const running = new AbortController();
-    const runs = [first.run(running.signal), second.run(running.signal)];
+    const [first, second] = [await open(), await open()];
     onTestFinished(async () => {
-        running.abort();
-        await Promise.all(runs);
+        await Promise.all([first.close(), second.close()]);
     });
 
     // tail on the second instance once the instances know each other
@@ -510,7 +592,11 @@ test("follow and search the entries another instance ingests, through the channe
         followed,
         searched: (await second.search(ids.space, window())).entries,
         failures,
-    }).toEqual({ followed: record("note.saved"), searched: [record("note.saved")], failures: [] });
+    }).toEqual({
+        followed: record("note.saved"),
+        searched: [record("note.saved")],
+        failures: [],
+    });
 
     /** Search the notes installation's records of the last minute. */
     function window() {
@@ -526,7 +612,9 @@ test("follow and search the entries another instance ingests, through the channe
 
 test("search sealed log records by text and attributes, keeping bodies and records without a severity", async () => {
     // keep one monitor over a database and a bucket
-    const storage = await TestDatabase.create("sqlite", monitorDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create("sqlite", monitorDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const directory = await mkdtemp(join(tmpdir(), "monitor-"));
     const bucket = await LocalBucket.open(directory, "space-test");
@@ -535,7 +623,8 @@ test("search sealed log records by text and attributes, keeping bodies and recor
         await rm(directory, { recursive: true, force: true });
     });
     const failures: unknown[] = [];
-    const monitor = new Monitor(storage.database, bucket, (error) => failures.push(error));
+    const monitor = await Monitor.open(storage.database, bucket, (error) => failures.push(error));
+    onTestFinished(() => monitor.close());
 
     // receive two records over OTLP, one without a severity, and seal them
     const now = Date.now();
@@ -630,4 +719,436 @@ test("search sealed log records by text and attributes, keeping bodies and recor
             message: "a point of metric notes.saved carries no value",
         }),
     );
+});
+
+/** The note module's source: a class whose rename method fails, and the module's path. */
+const NOTE_SOURCE = [
+    "export class Note {",
+    "    rename(title: string) {",
+    "        return check(title);",
+    "    }",
+    "}",
+].join("\n");
+
+/** The digest of the notes build's manifest, as its workload's resource names it. */
+const NOTES_MANIFEST = "b".repeat(64);
+
+/** Encode text as UTF-8. */
+function encode(value: string): Uint8Array<ArrayBuffer> {
+    return new TextEncoder().encode(value);
+}
+
+/** Open the notes build: a workload whose first generated line maps into `Note.rename`, an object method declaration, and the alert rules it declares. */
+async function openNotesBuild(
+    rules: Readonly<Record<string, AlertRuleDefinition>> = {},
+): Promise<BuildReader> {
+    // keep the source, the workload's source map and the note module's graph file
+    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    files.set("src/note.ts", encode(NOTE_SOURCE));
+    files.set(
+        "output/bun/workload.js.map",
+        encode(
+            JSON.stringify({
+                version: 3,
+                sources: ["../../src/note.ts"],
+                names: ["rename"],
+                // generated 1:0 → note.ts 3:8, inside rename
+                mappings: "AAEQA",
+            }),
+        ),
+    );
+    const at = (name: string) =>
+        graph.Moniker.of({ packageId: ids.package, module: "src/note.ts", name });
+    const lineAt = (line: number) =>
+        NOTE_SOURCE.split("\n")
+            .slice(0, line - 1)
+            .reduce((offset, text) => offset + text.length + 1, 0);
+    const module = await graph.Module.file({
+        path: "src/note.ts",
+        digest: await Digest.of(encode(NOTE_SOURCE)),
+        imports: [],
+        exports: [],
+        symbols: [
+            {
+                moniker: at("Note"),
+                kind: "class",
+                source: { file: "src/note.ts", start: 0, end: NOTE_SOURCE.length },
+                signature: "class Note",
+                isExported: true,
+            },
+            {
+                moniker: at("Note.rename"),
+                kind: "method",
+                source: { file: "src/note.ts", start: lineAt(2), end: lineAt(5) - 1 },
+                signature: "rename(title: string)",
+                isExported: true,
+            },
+            ...Object.keys(rules).map((name) => ({
+                moniker: at(name),
+                kind: "variable" as const,
+                source: { file: "src/note.ts", start: 0, end: 0 },
+                signature: `const ${name}`,
+                isExported: true,
+            })),
+        ],
+        declarations: [
+            {
+                moniker: `${at("Note.rename")}:method`,
+                symbol: at("Note"),
+                kind: "method",
+                package: ids.package,
+                name: "rename",
+                description: {},
+            },
+            ...Object.entries(rules).map(([name, rule]) => ({
+                moniker: `${at(name)}:alert-rule`,
+                symbol: at(name),
+                kind: "alert-rule",
+                package: alertRule.package.id,
+                name,
+                description: rule,
+            })),
+        ],
+        edges: [],
+    });
+    files.set(`graph/${module.digest}.json`, module.bytes);
+
+    // list them in the manifest
+    const listed = async (path: string, value: unknown) => {
+        const bytes = encode(JSON.stringify(value));
+        files.set(path, bytes);
+
+        return PackageFile.describe(path, "application/json", bytes);
+    };
+    const manifest = PackageManifest.parse({
+        formatVersion: 1,
+        package: notes,
+        language: "typescript",
+        lists: {
+            dependencies: await listed("manifest/dependencies.json", {}),
+            files: await listed("manifest/files.json", []),
+            sourceMaps: await listed("manifest/sourceMaps.json", [
+                {
+                    generated: "output/bun/workload.js",
+                    map: "output/bun/workload.js.map",
+                },
+            ]),
+            graph: await listed("manifest/graph.json", {
+                modules: { "src/note.ts": module.digest },
+            }),
+        },
+        outputs: {},
+    });
+
+    return new BuildReader(manifest, async (path) =>
+        present(files.get(path), `the notes build's file ${path}`),
+    );
+}
+
+/** Record the notes revision built from the notes manifest at a time, returning its identifier. */
+async function recordNotesRevision(
+    database: DatabaseConnection,
+    now = Date.now(),
+    manifest: string = NOTES_MANIFEST,
+) {
+    const id = schema.identifier("installation-revision").parse(installationRevision.generateId());
+    await database.insert(installationRevision.table).values({
+        id,
+        scope: ids.space,
+        installationId: ids.notes,
+        build: {
+            kind: "release",
+            version: notes.version,
+            manifest,
+        },
+        views: {},
+        settings: [],
+        digest: String(now).padStart(64, "c"),
+        createdAt: now,
+        updatedAt: now,
+    });
+
+    return id;
+}
+
+/** Export log records as the notes workload running the notes build. */
+async function exportLogs(
+    server: Server,
+    records: readonly {
+        readonly time: number;
+        readonly attributes: Readonly<Record<string, string | boolean>>;
+    }[],
+): Promise<void> {
+    const response = await server.fetch(
+        new Request("https://monitor.test/v1/logs", {
+            method: "POST",
+            headers: {
+                authorization: "Bearer notes",
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                resourceLogs: [
+                    {
+                        resource: {
+                            attributes: [
+                                { key: "service.name", value: { stringValue: notes.name } },
+                                {
+                                    key: "destack.build.manifest",
+                                    value: { stringValue: NOTES_MANIFEST },
+                                },
+                            ],
+                        },
+                        scopeLogs: [
+                            {
+                                scope: { name: notes.name, version: notes.version },
+                                logRecords: records.map((record) => ({
+                                    timeUnixNano: String(record.time * 1_000_000),
+                                    severityNumber: 17,
+                                    eventName: "exception",
+                                    attributes: Object.entries(record.attributes).map(
+                                        ([key, value]) => ({
+                                            key,
+                                            value:
+                                                typeof value === "string"
+                                                    ? { stringValue: value }
+                                                    : { boolValue: value },
+                                        }),
+                                    ),
+                                })),
+                            },
+                        ],
+                    },
+                ],
+            }),
+        }),
+    );
+    expect([response.status, await response.json()]).toEqual([200, {}]);
+}
+
+/** A failure of `Note.rename` as the notes workload captures it, for a person. */
+function renameFailure(time: number, person: string) {
+    return {
+        time,
+        attributes: {
+            "error.type": "RangeError",
+            "exception.type": "RangeError",
+            "exception.message": "title is too long\nat most 500 characters",
+            "exception.stacktrace":
+                "RangeError: title is too long\n    at rename (file:///srv/output/bun/workload.js:1:1)",
+            "exception.escaped": true,
+            "enduser.id": person,
+        },
+    };
+}
+
+test("group failures into an issue at the declaration they ran, fire the rule watching new issues, and regress the resolved issue", async () => {
+    // serve the monitor with the notes build
+    const notesBuild = await openNotesBuild();
+    const { server, database, catalog, failures } = await serveMonitor({
+        openBuild: async () => notesBuild,
+    });
+    const revision = await recordNotesRevision(database);
+    await expect
+        .poll(async () => (await catalog.select().from(installationRevision.table)).length)
+        .toBe(1);
+    const alice = client(server, "alice");
+
+    // watch new issues, notifying the rule's subscribers
+    const rule = await alice.alertRule.create({
+        spaceId: ids.space,
+        requestId: RequestId.create(),
+        name: "New issues",
+        condition: { kind: "issue", on: "open" },
+        actions: [{ kind: "notify" }],
+    });
+
+    // fail twice for dana and once for erin, and refuse a missing note, which is a declared outcome
+    const now = Date.now();
+    await exportLogs(server, [
+        renameFailure(now, "dana"),
+        renameFailure(now + 1, "dana"),
+        renameFailure(now + 2, "erin"),
+        {
+            time: now + 3,
+            attributes: {
+                "error.type": "NOT_FOUND",
+                "exception.type": "ServiceError",
+                "exception.message": "no note",
+                "exception.escaped": true,
+            },
+        },
+    ]);
+
+    // group the rename failures into one issue at the method's declaration, counting the people and the revision
+    const issues = async () => (await alice.issue.list({ spaceId: ids.space })).items;
+    await expect
+        .poll(async () =>
+            (await issues()).map((found) => ({
+                title: found.title,
+                errorType: found.errorType,
+                culprit: found.culprit,
+                declaration: found.declaration,
+                level: found.level,
+                status: found.status,
+                count: found.count,
+                people: found.people,
+                firstRevision: found.firstRevisionId,
+                lastRevision: found.lastRevisionId,
+            })),
+        )
+        .toEqual([
+            {
+                title: "RangeError: title is too long",
+                errorType: "RangeError",
+                culprit: `${ids.package}/src/note.ts#Note.rename`,
+                declaration: `${ids.package}/src/note.ts#Note.rename:method`,
+                level: "error",
+                status: "unresolved",
+                count: 3,
+                people: 2,
+                firstRevision: revision,
+                lastRevision: revision,
+            },
+        ]);
+    const [opened] = await issues();
+
+    // copy the issue back into the space, where views read it
+    await expect
+        .poll(
+            async () =>
+                (await database.select({ id: issue.table.id }).from(issue.table)).map(
+                    ({ id }) => id,
+                ),
+            { timeout: 10_000 },
+        )
+        .toEqual([opened?.id]);
+
+    // fire the rule once for the new issue, settled at once
+    const alerts = async () => (await alice.alert.list({ spaceId: ids.space })).items;
+    await expect.poll(async () => (await alerts()).length).toBe(1);
+    expect(
+        (await alerts()).map(({ ruleId, issueId, title, status }) => ({
+            ruleId,
+            issueId,
+            title,
+            status,
+        })),
+    ).toEqual([
+        {
+            ruleId: rule.id,
+            issueId: opened?.id,
+            title: "RangeError: title is too long",
+            status: "resolved",
+        },
+    ]);
+
+    // regress the issue once it fails again after alice resolves it
+    await alice.issue.resolve({
+        spaceId: ids.space,
+        id: present(opened, "the issue").id,
+        requestId: RequestId.create(),
+    });
+    await exportLogs(server, [renameFailure(Date.now(), "dana")]);
+    await expect
+        .poll(async () => (await issues()).map(({ status, count }) => ({ status, count })))
+        .toEqual([{ status: "regressed", count: 4 }]);
+    expect(failures).toEqual([]);
+});
+
+test("roll an installation back through installation.rollBack when a rule watching new issues fires", async () => {
+    // serve the monitor with notes applied at its second revision
+    const notesBuild = await openNotesBuild();
+    const { server, database, catalog, failures } = await serveMonitor({
+        openBuild: async () => notesBuild,
+    });
+    const now = Date.now();
+    const previous = await recordNotesRevision(database, now - 60_000);
+    const current = await recordNotesRevision(database, now);
+    await database
+        .update(installation.table)
+        .set({ revisionId: current, appliedRevisionId: current })
+        .where(eq(installation.table.id, ids.notes));
+    await expect
+        .poll(async () =>
+            (await catalog.select().from(installation.table)).map(
+                ({ appliedRevisionId }) => appliedRevisionId,
+            ),
+        )
+        .toEqual([current]);
+    const alice = client(server, "alice");
+
+    // roll back on every new issue
+    await alice.alertRule.create({
+        spaceId: ids.space,
+        requestId: RequestId.create(),
+        name: "Roll back new issues",
+        condition: { kind: "issue", on: "open" },
+        actions: [{ kind: "call", method: "rollBack" }],
+    });
+    await exportLogs(server, [renameFailure(now, "dana")]);
+
+    // follow the previous revision in the space
+    await expect
+        .poll(
+            async () =>
+                (
+                    await database
+                        .select({ revisionId: installation.table.revisionId })
+                        .from(installation.table)
+                        .where(eq(installation.table.id, ids.notes))
+                ).map(({ revisionId }) => revisionId),
+            { timeout: 10_000 },
+        )
+        .toEqual([previous]);
+    expect(failures).toEqual([]);
+});
+
+test("keep the alert rules an installation's applied revision declares, and retire one a later revision drops", async () => {
+    // serve the monitor with a notes revision declaring a rule, and a later one declaring none
+    const rollback: AlertRuleDefinition = {
+        name: "Roll back new fatal issues",
+        condition: { kind: "issue", on: "open", filter: "level = fatal" },
+        actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+    };
+    const builds = new Map([
+        ["c".repeat(64), await openNotesBuild({ rollback })],
+        ["d".repeat(64), await openNotesBuild()],
+    ]);
+    const { database, catalog } = await serveMonitor({
+        openBuild: async (_packageId, build) =>
+            present(builds.get(build.manifest ?? ""), "the notes build of the revision"),
+    });
+    const revision = async (manifest: string, createdAt: number) => {
+        const id = await recordNotesRevision(database, createdAt, manifest);
+        await database
+            .update(installation.table)
+            .set({ revisionId: id, appliedRevisionId: id })
+            .where(eq(installation.table.id, ids.notes));
+    };
+
+    // keep the declared rule, managed by the notes installation
+    const kept = async () =>
+        (await catalog.select().from(alertRule.table)).map((row) => ({
+            name: row.name,
+            manager: row.managerInstallationId,
+            declaration: row.managerName,
+            isRetiring: row.deletionRequestedAt !== null,
+        }));
+    await revision("c".repeat(64), Date.now() - 60_000);
+    await expect
+        .poll(kept, { timeout: 4000 })
+        .toEqual([
+            {
+                name: "Roll back new fatal issues",
+                manager: ids.notes,
+                declaration: "rollback",
+                isRetiring: false,
+            },
+        ]);
+
+    // retire it once a later revision declares none
+    await revision("d".repeat(64), Date.now());
+    await expect
+        .poll(async () => (await kept()).every((rule) => rule.isRetiring))
+        .toBe(true);
 });

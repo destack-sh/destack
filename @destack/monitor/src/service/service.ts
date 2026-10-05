@@ -1,13 +1,26 @@
 import { schema } from "@destack/schema";
 import { defineProcedure, defineService, eventIterator } from "@destack/service";
 import { Entry, EntryFilter, EntryPage, EntrySearch, PointSeries, Series } from "../entry/index.ts";
+import { activity, announcement, subscription } from "@destack/notification";
+import { comment, reaction } from "@destack/social";
+import { alert, alertRule, issue } from "../object/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** A procedure that checks its entry permission on the installation in its handler. */
 const procedure = defineProcedure({ authentication: "identity", permission: null, audit: false });
 
-/** The monitor service, which searches, follows and traces entries and charts metrics beside OTLP ingestion. */
+/** The monitor service, which searches, follows and traces entries and charts metrics beside OTLP ingestion, and serves issues, alert rules and alerts with their comments and notifications. */
 export const monitorService = defineService("monitor", {
+    objects: {
+        issue,
+        alertRule,
+        alert,
+        comment,
+        reaction,
+        subscription,
+        activity,
+        announcement,
+    },
     series: procedure
         .route({ method: "POST", path: "/monitor/series" })
         .input(PointSeries)

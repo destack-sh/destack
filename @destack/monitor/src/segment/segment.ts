@@ -22,6 +22,7 @@ const SCHEMA = [
     { name: "name", type: "BYTE_ARRAY", converted_type: "UTF8", repetition_type: "REQUIRED" },
     { name: "duration", type: "INT64", repetition_type: "OPTIONAL" },
     { name: "instance", type: "BYTE_ARRAY", converted_type: "UTF8", repetition_type: "OPTIONAL" },
+    { name: "build", type: "FIXED_LEN_BYTE_ARRAY", type_length: 32, repetition_type: "OPTIONAL" },
     { name: "source", type: "BYTE_ARRAY", converted_type: "UTF8", repetition_type: "REQUIRED" },
     { name: "version", type: "BYTE_ARRAY", converted_type: "UTF8", repetition_type: "REQUIRED" },
     { name: "trace", type: "FIXED_LEN_BYTE_ARRAY", type_length: 16, repetition_type: "OPTIONAL" },
@@ -109,6 +110,7 @@ export class Segment {
                 entry.duration === undefined ? null : BigInt(entry.duration),
             ),
             instance: entries.map((entry) => entry.instance ?? null),
+            build: entries.map((entry) => bytes(entry.build)),
             source: entries.map((entry) => entry.source.name),
             version: entries.map((entry) => entry.source.version),
             trace: entries.map((entry) => bytes(entry.trace)),
@@ -177,6 +179,8 @@ interface Row {
     readonly duration: bigint | null;
     /** The entry's instance. */
     readonly instance: string | null;
+    /** The emitting build manifest's bytes. */
+    readonly build: Uint8Array | null;
     /** The source's name. */
     readonly source: string;
     /** The source's version. */
@@ -234,6 +238,7 @@ function entryOf(row: Row, installation: Identifier<"installation"> | undefined)
         ...(row.duration === null ? {} : { duration: Number(row.duration) }),
         ...(installation === undefined ? {} : { installation }),
         ...(row.instance === null ? {} : { instance: row.instance }),
+        ...(row.build === null ? {} : { build: row.build.toHex() }),
         source: { name: row.source, version: row.version },
         ...(row.trace === null ? {} : { trace: row.trace.toHex() }),
         ...(row.span === null ? {} : { span: row.span.toHex() }),

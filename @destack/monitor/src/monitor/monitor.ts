@@ -27,16 +27,13 @@ import {
     type EntryPage,
     EntrySearch,
     Otlp,
-    OtlpLogsRequest,
-    OtlpMetricsRequest,
-    OtlpTracesRequest,
     type PointSeries,
     type Series,
 } from "../entry/index.ts";
 import { aggregate } from "./series.ts";
 import { POINT_BIT, Segment, UNSPECIFIED_BIT } from "../segment/segment.ts";
 
-import { monitorSegment } from "../segment/table.ts";
+import { monitorSegment } from "../stack/db.ts";
 
 /** How long a segment stays open: a minute, the delay before sealed entries reach the bucket. */
 const SEAL_MILLISECONDS = 60_000;
@@ -221,18 +218,53 @@ export class Monitor {
         { waiting: Set<string>; entries: Entry[]; done: () => void }
     >();
 
-    /** Store the catalog in a database and the segments in a bucket, reaching other instances over a channel, reporting failed seals. */
-    constructor(
+    /** The signal that stops sealing and hearing the other instances. */
+    readonly #stopping = new AbortController();
+    /** The sealing loop, settled once the monitor stops. */
+    readonly #running: Promise<void>;
+    /** The close in flight, once closing. */
+    #closing: Promise<void> | undefined;
+
+    /** Keep the catalog, the bucket, the report and the channel, and start sealing. */
+    private constructor(
         database: DatabaseConnection,
         bucket: Bucket,
         report: (error: unknown) => void,
-        channel?: Channel<unknown>,
+        channel: Channel<unknown> | undefined,
     ) {
         // keep the catalog, the bucket, the report and the channel
         this.database = database;
         this.bucket = bucket;
         this.#report = report;
         this.#channel = channel === undefined ? undefined : typedChannel(channel, MonitorMessage);
+
+        // seal due segments until the monitor closes
+        this.#running = this.#run(this.#stopping.signal);
+    }
+
+    /** Open a store over a catalog database and a segment bucket that reaches other instances over a channel. */
+    static async open(
+        database: DatabaseConnection,
+        bucket: Bucket,
+        report: (error: unknown) => void,
+        channel?: Channel<unknown>,
+    ): Promise<Monitor> {
+        return new Monitor(database, bucket, report, channel);
+    }
+
+    /** Stop sealing on an interval and seal every open segment, once. */
+    close(): Promise<void> {
+        this.#closing ??= (async () => {
+            this.#stopping.abort();
+            await this.#running;
+        })();
+
+        return this.#closing;
+    }
+
+    /** Close the monitor. */
+    [Symbol.asyncDispose](): Promise<void> {
+        return this.close();
     }
 
     /** Take a scope's entries: append them to their open segments and pass them to matching tails. */
@@ -273,14 +305,7 @@ export class Monitor {
         signal: OtlpSignal,
         body: unknown,
     ): void {
-        // read the export's entries by signal
-        if (signal === "logs") {
-            this.ingest(scope, Otlp.logs(OtlpLogsRequest.parse(body), installation));
-        } else if (signal === "traces") {
-            this.ingest(scope, Otlp.traces(OtlpTracesRequest.parse(body), installation));
-        } else {
-            this.ingest(scope, Otlp.metrics(OtlpMetricsRequest.parse(body), installation));
-        }
+        this.ingest(scope, Otlp.read(signal, body, installation));
     }
 
     /** Key an installation's entries in a scope, or the scope host's. */
@@ -623,7 +648,7 @@ export class Monitor {
     }
 
     /** Seal due segments every few seconds until the signal aborts, sealing the rest at the end. */
-    async run(signal: AbortSignal): Promise<void> {
+    async #run(signal: AbortSignal): Promise<void> {
         // seal on an interval, and hear and greet the other instances
         const interval = setInterval(() => void this.seal(), SEAL_MILLISECONDS / 12);
         const channel = this.#channel;
@@ -753,10 +778,16 @@ export class Monitor {
 
     /** Take a message from another instance's monitor. */
     #receive(message: MonitorMessage, channel: Channel<MonitorMessage>): void {
-        // keep an alive instance's tails, and forget a stopped one
+        // keep an alive instance's tails and greet a new one
         if (message.kind === "alive") {
+            const isNew = !this.#peers.has(message.instance);
             this.#peers.set(message.instance, { seenAt: Date.now(), tails: message.tails });
-        } else if (message.kind === "gone") {
+            if (isNew) {
+                this.#announce();
+            }
+        }
+        // forget a stopped instance
+        else if (message.kind === "gone") {
             this.#peers.delete(message.instance);
         }
         // pass forwarded entries to the tail they are for, when it is this instance's

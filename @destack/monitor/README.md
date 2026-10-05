@@ -1,64 +1,182 @@
 # @destack/monitor
 
-Store, search and follow the logs, traces and metrics of Destack scopes.
+Store, search and alert on the telemetry of Destack scopes.
 
 ## Ingestion
 
-The monitor's mount accepts OTLP/HTTP JSON from installations by `POST` on one path per signal.
+The monitor accepts OTLP/HTTP JSON from installations, one path per signal.
 
-```text
-POST /v1/logs
-POST /v1/traces
-POST /v1/metrics
+```ts
+const exporter = OtlpExporter.http(
+    `${cell}/@destack/monitor`,
+    () => `Bearer ${installationToken}`,
+    report,
+);
+// POST /v1/logs, /v1/traces and /v1/metrics
 ```
 
 ## Storage
 
-`Monitor` is a telemetry store: it holds open segments in memory, writes full or old ones to the bucket as Parquet files, and catalogs them in a `monitorDatabase` of its own.
+`Monitor.open` writes entries to the bucket as Parquet files and lists them in `monitorDatabase`.
 
 ```ts
-import { AuditRecorder } from "@destack/audit";
-import * as sqlite from "@destack/db/bun";
-import { Monitor, monitorDatabase } from "@destack/monitor";
-import { monitorService } from "@destack/monitor/service";
-import { implementMonitor } from "@destack/monitor/server";
-
-// keep the catalog as its own file
 const catalog = await sqlite.connect(file, monitorDatabase);
-
-// share open entries between instances over the channel
-const monitor = new Monitor(catalog, bucket, report, catalog.channel("monitor"));
-void monitor.run(signal);
-
-// serve it with the owner's policies, retention settings and history
-const record = AuditRecorder.service(journal, {
-    package: monitorService.package,
-    service: "monitor",
-});
-const service = implementMonitor({ monitor, access, settings: database, record });
+await using monitor = await Monitor.open(catalog, bucket, report, catalog.channel("monitor"));
 ```
 
 ## Service
 
-`search` and `tail` read an installation's entries, or the entries of the scope itself without `installation`, and require a permission per signal, such as `read-logs` for `search`.
+`implementMonitor` serves a monitor as a kind service of a cell.
+
+```ts
+const service = implementMonitor({
+    monitor,
+    callKey,
+    cell: hostId,
+    scopes: [space],
+    uplink: spaces,
+    openBuild,
+    report,
+});
+```
+
+## Search
+
+`search` and `tail` read the entries of an installation.
 
 ```ts
 const page = await client.monitor.search({
-    scope: spaceId,
+    scope,
     installation,
     severity: 17,
     from,
-    before: Date.now() * 1000,
+    before,
     limit: 100,
 });
-for await (const entry of await client.monitor.tail({ scope: spaceId, installation })) {
+for await (const entry of await client.monitor.tail({ scope, installation })) {
     render(entry);
 }
 ```
 
+## Series
+
+`series` aggregates a metric per time step.
+
+```ts
+const crashes = await client.monitor.series({
+    scope,
+    installation,
+    name: "session.count",
+    filter: "session.status = crashed",
+    group: ["destack.build.manifest"],
+    from,
+    before,
+    step: 3_600_000_000,
+});
+```
+
+## Issues
+
+The monitor groups each unexpected exception into an `issue` by its error type and in-app frames.
+
+```ts
+const { items } = await client.issue.list({
+    spaceId,
+    where: { status: "unresolved" },
+    orderBy: { lastSeenAt: "desc" },
+});
+// issue.culprit:     "package-…/src/note.ts#Note.rename"
+// issue.declaration: "package-…/src/note.ts#Note.rename:method"
+```
+
+## Issue events
+
+The monitor writes the issue of each exception to `destack.issue`.
+
+```ts
+const events = await client.monitor.search({
+    scope,
+    installation,
+    attributes: { "destack.issue": id },
+    from,
+    before,
+    limit: 50,
+});
+```
+
+## Triage
+
+`issue.update` sets `until`, the condition that reopens a resolved or ignored issue.
+
+```ts
+const until = { kind: "revision", after: issue.lastRevisionId } as const;
+await client.issue.update({ spaceId, requestId, id, until });
+await client.issue.resolve({ spaceId, requestId, id });
+await client.issue.update({ spaceId, requestId, id, until: { kind: "count", count: issue.count + 100 } });
+await client.issue.ignore({ spaceId, requestId, id });
+```
+
+## Alert rules
+
+An `alertRule` fires an `alert` when an issue opens or a series crosses a threshold.
+
+```ts
+await client.alertRule.create({
+    spaceId,
+    requestId,
+    name: "Fatal issues",
+    condition: { kind: "issue", on: "open", filter: "level = fatal" },
+    actions: [{ kind: "notify" }],
+});
+await client.alertRule.create({
+    spaceId,
+    requestId,
+    name: "Crashing sessions",
+    condition: {
+        kind: "series",
+        name: "session.count",
+        filter: "session.status = crashed",
+        per: "session.status = *",
+        aggregate: "value",
+        window: { hours: 1 },
+        comparison: "above",
+        threshold: 0.02,
+    },
+    actions: [{ kind: "notify" }],
+});
+```
+
+### Actions
+
+A `call` action runs a method of the alert's installation, such as `rollBack`.
+
+```ts
+await client.alertRule.create({
+    spaceId,
+    requestId,
+    name: "Fatal issues",
+    condition: { kind: "issue", on: "open", filter: "level = fatal" },
+    actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+});
+```
+
+### Declared rules
+
+`defineAlertRule` declares an alert rule each installation of the package keeps in its space.
+
+```ts
+import { defineAlertRule } from "@destack/monitor/declare";
+
+export const rollback = defineAlertRule({
+    name: "Roll back new fatal issues",
+    condition: { kind: "issue", on: "open", filter: "level = fatal" },
+    actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+});
+```
+
 ## Masking
 
-Reads show `****` for each attribute value under a `sensitive.` key unless the reader has the `unmask` permission, and each unmasked read records a `monitor.unmask` audit event.
+`search`, `tail` and `trace` mask values under `sensitive.` keys unless the caller may `unmask`.
 
 ```ts
 log.info("user.invited", { "sensitive.email": invite.email, role: "editor" });
@@ -66,12 +184,9 @@ log.info("user.invited", { "sensitive.email": invite.email, role: "editor" });
 
 ## Settings
 
-`telemetryRetention` sets how many days a space's entries stay searchable, and `traceSampling` sets the share of traces kept in addition to every failed or slow one.
+`telemetryRetention` sets how many days entries stay searchable.
 
 ```ts
-import { telemetryRetention, traceSampling } from "@destack/monitor";
-import { defineSpace } from "@destack/space";
-
 export const personal = defineSpace({
     settings: {
         retention: { setting: telemetryRetention, value: 90, mode: "set" },

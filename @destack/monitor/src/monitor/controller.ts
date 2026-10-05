@@ -1,7 +1,7 @@
 import type { DatabaseConnection } from "@destack/db";
 import type { Controller } from "@destack/service/control";
 import { SettingValue } from "@destack/setting/object";
-import { monitorSegment } from "../segment/table.ts";
+import { monitorSegment } from "../stack/db.ts";
 import { telemetryRetention } from "../setting/setting.ts";
 import { Monitor } from "./monitor.ts";
 
