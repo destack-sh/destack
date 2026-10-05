@@ -1,20 +1,27 @@
 import { permission, principal, relation, union } from "@destack/access";
 import {
     check,
-    foreignKey,
+    type Select,
     sql,
-    TABLE,
     unique,
     type Column,
     type ColumnMap,
     type Table,
 } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { ResourcePlacement, ResourceRetention, type ResourceKind } from "@destack/resource";
+import type { ResourceState } from "@destack/package/declare";
+import {
+    SpaceResource,
+    ResourcePlacement,
+    ResourceRetention,
+    type KindState,
+    type ResourceKind,
+} from "@destack/resource";
 import { Digest, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { field } from "../field/field.ts";
-import { method, type MethodBuilder } from "../method/method.ts";
+import { ObjectError } from "../error/error.ts";
+import { field, type FieldOf } from "../field/field.ts";
+import { method } from "../method/method.ts";
 import {
     ObjectPermissions,
     ObjectScope,
@@ -25,35 +32,22 @@ import {
     type ScopeIdentityOf,
 } from "../object/object.ts";
 import type { ObjectTable } from "../object/table.ts";
+import type { ObjectDeclaration } from "../server/stack.ts";
 import type { ControlledMethodMap } from "./controlled.ts";
 import type { DeclarableDefinition } from "./declarable.ts";
 import { CONSUMER } from "./bindable.ts";
 import type { RolePermission } from "./shareable.ts";
 import type { Erasure } from "./trait.ts";
 
+import { adopt, specify } from "../method/provisioned.ts";
 /** Objects that are a kind's resources, provisioned by the kind's providers. */
 export interface ProvisionedDefinition<Kind extends ResourceKind = ResourceKind> {
     /** The resource kind, whose specification the objects keep. */
     readonly kind: Kind;
 }
 
-/** The method declarations of provisioned resources. */
-const provisionedMethod: MethodBuilder<ProvisionedTable<unknown>> = method;
-
-/** Make an installation the owner of a retained resource it declares again, or release it, cancelling a deletion. */
-const adopt = provisionedMethod
-    .mutation({
-        permission: null,
-        isSystem: true,
-        input: schema.object({
-            /** The installation owning the resource, absent to release it. */
-            owner: schema.string().min(1).nullable(),
-        }),
-    })
-    .handle((call) => call.update({ owner: call.input.owner, deletionRequestedAt: null }));
-
 /** The fields of a kind's resources. */
-function fields(kind: ResourceKind) {
+function resourceFields(kind: ResourceKind) {
     return {
         /** The space-local name, unique across every kind. */
         name: field.string(),
@@ -65,6 +59,10 @@ function fields(kind: ResourceKind) {
         definitionName: field.string(),
         /** The desired specification. */
         spec: field.json(kind.spec),
+        /** The desired states the active consumers need, which the provider applies. */
+        states: field.json(desiredStates(kind)).default([]),
+        /** The desired states only draining consumers still need, which a recreation drops after stopping them. */
+        drainingStates: field.json(desiredStates(kind)).default([]),
         /** The digest of the desired states the provider applied, absent before the first apply. */
         appliedState: field.string(Digest).optional(),
         /** Whether a host's provider provisions the resource, or its stack declares its reference. */
@@ -86,22 +84,47 @@ function fields(kind: ResourceKind) {
     };
 }
 
+/** Read the schema of a kind's desired states: values of its state, none for a kind without a state. */
+function desiredStates(kind: ResourceKind): schema.Schema<ResourceState[]>;
+/**
+ * Read the schema of a kind's desired states by its state schema.
+ *
+ * @construct a kind's state schema parses the JSON objects its declarations require of a resource.
+ */
+function desiredStates(kind: ResourceKind): schema.Schema {
+    return kind.state === undefined
+        ? schema.array(schema.record(schema.string(), schema.json())).max(0)
+        : schema.array(kind.state);
+}
+
 /** The fields a definition provisioned as a kind's resources takes, none otherwise. */
 export type ProvisionedFieldsOf<Provisioning> = Provisioning extends {
     readonly kind: infer Kind extends ResourceKind;
 }
-    ? Omit<ReturnType<typeof fields>, "spec"> & {
+    ? Omit<ReturnType<typeof resourceFields>, "spec" | "states" | "drainingStates"> & {
           /** The desired specification, typed by the kind. */
           readonly spec: ReturnType<typeof field.json<schema.Output<Kind["spec"]>>>;
+          /** The desired states the active consumers need, typed by the kind. */
+          readonly states: FieldOf<{ value: readonly DesiredStateOf<Kind>[]; default: true }>;
+          /** The desired states only draining consumers still need, typed by the kind. */
+          readonly drainingStates: FieldOf<{
+              value: readonly DesiredStateOf<Kind>[];
+              default: true;
+          }>;
       }
     : {};
+
+/** A desired state of a kind's resources: its state's value, or any state where code is generic over kinds. */
+type DesiredStateOf<Kind extends ResourceKind> = string extends Kind["name"]
+    ? ResourceState
+    : KindState<Kind> & ResourceState;
 
 /** The table of a kind's resources in a scope type, as code generic over kinds reads it. */
 export type ProvisionedTable<Scope> = ObjectTable<
     string,
     ScopeIdentityOf<Scope>,
     ProvisionedFieldsOf<ProvisionedDefinition>,
-    ProvisionedTraitsOf<ProvisionedDefinition> & { readonly declarable: DeclarableDefinition }
+    ProvisionedTraitsOf<ProvisionedDefinition>
 >;
 
 /** A kind's resources in a scope type, as code generic over kinds reads them. */
@@ -115,6 +138,9 @@ export type ProvisionedObject<Scope> =
           }>
         : never;
 
+/** A kind's resource in its space, as code generic over kinds reads it. */
+export type ProvisionedRecord = Select<ProvisionedTable<"space">>;
+
 /** The permission every resource takes, none for other objects. */
 export type ProvisionedPermissionOf<Provisioning> = [Provisioning] extends [undefined]
     ? never
@@ -123,7 +149,11 @@ export type ProvisionedPermissionOf<Provisioning> = [Provisioning] extends [unde
 /** The traits every resource takes, none for other objects. */
 export type ProvisionedTraitsOf<Provisioning> = [Provisioning] extends [undefined]
     ? {}
-    : { readonly controlled: { readonly approval: true }; readonly bindable: true };
+    : {
+          readonly controlled: { readonly approval: true };
+          readonly bindable: true;
+          readonly declarable: DeclarableDefinition<SpaceResource>;
+      };
 
 /** How resources are shared, through the roles, or as a definition declares otherwise. */
 export type ProvisionedSharingOf<Provisioning, Sharing> = [Provisioning] extends [undefined]
@@ -133,9 +163,9 @@ export type ProvisionedSharingOf<Provisioning, Sharing> = [Provisioning] extends
 /** The methods every resource takes, none for other objects. */
 export type ProvisionedMethodsOf<Provisioning> = [Provisioning] extends [undefined]
     ? {}
-    : ReturnType<typeof Provisioned.methods>;
+    : ReturnType<typeof resourceMethods>;
 
-/** The resources of a kind: their fields, name index, constraints, consumers and methods. */
+/** The resources of a kind: their fields, declaration, name index, constraints and methods. */
 export const Provisioned = {
     /** Add what every resource takes to a definition provisioned as a kind's resources. */
     expand<Definition extends ObjectDefinition>(
@@ -144,6 +174,7 @@ export const Provisioned = {
         Definition,
         | "controlled"
         | "bindable"
+        | "declarable"
         | "shareable"
         | "fields"
         | "indexes"
@@ -163,6 +194,13 @@ export const Provisioned = {
             throw new TypeError(`resources ${definition.name} live in exactly one scope type`);
         }
 
+        // require the declaration the kind implies
+        if (definition.declarable !== undefined) {
+            throw new TypeError(
+                `resources ${definition.name} take their declaration from their kind`,
+            );
+        }
+
         // require permissions declared as expressions
         const permissions = definition.permissions ?? {};
         if (ObjectPermissions.isList(permissions)) {
@@ -171,18 +209,19 @@ export const Provisioned = {
             );
         }
 
-        // reconcile, bind, share and adopt the resources as every kind does
+        // declare, reconcile, bind, share and adopt the resources as every kind does
         const declared = definition.constraints;
 
         return {
             ...definition,
             controlled: { approval: true },
             bindable: true,
+            declarable: { schema: SpaceResource },
             shareable: {},
-            fields: { ...fields(provisioned.kind), ...definition.fields },
+            fields: { ...resourceFields(provisioned.kind), ...definition.fields },
             indexes: { ...Provisioned.indexes(scope), ...definition.indexes },
             constraints: (columns: ColumnMap) => [
-                ...Provisioned.constraints(definition.name, scope, columns),
+                ...Provisioned.constraints(definition.name, columns),
                 ...(declared?.(columns) ?? []),
             ],
             permissions: {
@@ -190,7 +229,7 @@ export const Provisioned = {
                 write: union(relation(CONSUMER), permission("edit")),
                 ...permissions,
             },
-            methods: { ...Provisioned.methods(), ...definition.methods },
+            methods: { ...resourceMethods(), ...definition.methods },
         };
     },
 
@@ -206,13 +245,9 @@ export const Provisioned = {
         };
     },
 
-    /** Constrain a kind's resource table, its constraints named after the kind. */
-    constraints(kind: string, scope: ObjectType, columns: Record<string, Column>) {
+    /** Constrain a kind's resource table, its constraints named after the kind, its scope checked by each call against the scope chain this database keeps. */
+    constraints(kind: string, columns: Record<string, Column>) {
         return [
-            foreignKey({
-                columns: [present(columns["scope"], "the scope column")],
-                foreignColumns: [scope.table[TABLE].column("id")],
-            }).onDelete("restrict"),
             unique(`${kind}_scope_name`).on(
                 present(columns["scope"], "the scope column"),
                 present(columns["name"], "the name column"),
@@ -236,30 +271,87 @@ export const Provisioned = {
         ];
     },
 
-    /** Declare the methods every resource takes beside those of its kind. */
-    methods() {
+    /** Declare how a stack's resources of a kind become their records, provisioned or declared at a reference. */
+    declaration(kind: ResourceKind): ObjectDeclaration<ObjectType, SpaceResource, SpaceResource> {
         return {
-            get: method.get("read"),
-            list: method.list("read"),
-            create: method.create(null, {
-                isSystem: true,
-                fields: [
-                    "name",
-                    "definitionPackageId",
-                    "definitionVersion",
-                    "definitionName",
-                    "spec",
-                    "placement",
-                    "retention",
-                    "owner",
-                ],
-            }),
-            update: method.update(null, {
-                isSystem: true,
-                fields: ["definitionVersion", "spec", "retention"],
-            }),
-            delete: method.delete(null, { isSystem: true }),
-            adopt,
+            keys: ["resources"],
+            collect: (document) =>
+                Object.fromEntries(
+                    Object.entries(
+                        schema
+                            .record(schema.string(), SpaceResource)
+                            .parse(document["resources"] ?? {}),
+                    ).filter(([, declared]) => declared.declaration.kind === kind.name),
+                ),
+            values: (name, declared) => declaredValues(name, declared),
         };
     },
+
+    /** Decide whether an object type is a kind's resources. */
+    is(object: ObjectType): object is ProvisionedObject<"space"> {
+        return object.provisioned !== undefined;
+    },
 };
+
+/** Declare the methods every resource takes beside those of its kind. */
+function resourceMethods() {
+    return {
+        get: method.get("read"),
+        list: method.list("read"),
+        create: method.create(null, {
+            isSystem: true,
+            fields: [
+                "name",
+                "definitionPackageId",
+                "definitionVersion",
+                "definitionName",
+                "spec",
+                "placement",
+                "retention",
+                "owner",
+            ],
+        }),
+        update: method.update(null, {
+            isSystem: true,
+            fields: ["definitionVersion", "spec", "retention"],
+        }),
+        delete: method.delete(null, { isSystem: true }),
+        adopt,
+        specify,
+    };
+}
+
+/** Write the record a stack's resource declares, provisioned or declared at a reference. */
+function declaredValues(name: string, declared: SpaceResource) {
+    // TODO #Incomplete: adopt resources from other spaces after ownership and residency checks
+    if (declared.adopt) {
+        throw new ObjectError(
+            "UNSUPPORTED_DECLARATION",
+            `resource adoption is not supported: ${name}`,
+        );
+    }
+
+    // require the provider connecting a resource whose reference the stack declares
+    const { declaration, placement, reference } = declared;
+    const provider = placement?.provider;
+    if (reference !== undefined && provider === undefined) {
+        throw new ObjectError(
+            "INVALID_DECLARATION",
+            `resource ${name} declares its reference without the provider connecting to it`,
+        );
+    }
+
+    return {
+        name,
+        definitionPackageId: declaration.package.id,
+        definitionVersion: declaration.package.version,
+        definitionName: declaration.name,
+        spec: declaration.spec,
+        retention: declared.retention,
+        placement: placement ?? null,
+        ...(reference === undefined || provider === undefined
+            ? { origin: "provisioned" as const }
+            : { origin: "declared" as const, reference, provider }),
+        tags: declared.tags,
+    };
+}
