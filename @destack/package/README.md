@@ -321,3 +321,13 @@ A `graph.Module` holds a module's symbols, declarations and outgoing edges, and 
 const root = await reader.graph();
 const module = await reader.module(root.modules["src/server.ts"]);
 ```
+
+## Errors
+
+An invalid package throws a `PackageError`, and a capability no host grants throws a `CapabilityError`, and `toServiceError` names the service error its caller receives.
+
+```ts
+import { PackageError } from "@destack/package/error";
+
+new PackageError("INVALID_FILE", "file digest mismatch: manifest.json").toServiceError(); // { code: "BAD_REQUEST", … }
+```
