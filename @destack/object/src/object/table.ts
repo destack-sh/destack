@@ -223,7 +223,7 @@ function objectColumns(
 
     return {
         ...record.trait.columns(record.options, object),
-        scope: scopeColumn(definition.scope),
+        scope: scopeColumn(definition.scope ?? []),
         ...Object.fromEntries(
             others.flatMap(({ trait, options }) => Object.entries(trait.columns(options, object))),
         ),
@@ -276,7 +276,7 @@ function holderOf(definition: ObjectDefinition, aggregate: ObjectAggregate, own:
     return holder?.table ?? own;
 }
 
-/** Declare the scope column of objects: any scope for several scope types, the universe, or one scope type's identifiers. */
+/** Declare the scope column of objects: any scope, the universe, or one scope type's identifiers. */
 function scopeColumn(declared: ObjectScope | readonly ObjectScope[]) {
     // take any scope of several types
     if (ObjectScope.isList(declared)) {

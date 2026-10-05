@@ -1,5 +1,6 @@
 import { type Insert, type JsonOf, type Select, TABLE } from "@destack/db";
 import type * as sync from "@destack/sync";
+import { Scope } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { defineProcedure } from "@destack/service/procedure";
 import { RequestId } from "@destack/service/request";
@@ -7,7 +8,6 @@ import { ParentReference } from "../trait/nested.ts";
 import type {
     CallerField,
     GuardedField,
-    ObjectScope,
     ObjectType,
     SensitiveField,
     TextFieldName,
@@ -236,13 +236,12 @@ export interface ScopeRoute {
 
 /** Derive an object's scope route. */
 export function scopeRoute(object: ObjectType): ScopeRoute {
-    // name the scope in a field for objects in several, and route global objects without one
-    const declared: readonly ObjectScope[] = [object.scope].flat();
-    const [single] = object.scopes;
-    if (declared.length > 1) {
-        return { prefix: "", field: "scope" };
-    } else if (single === undefined) {
+    // route universe objects without a scope, and name the scope in a field for several or any
+    const [single, ...others] = object.scopes;
+    if (object.scope === Scope.universe.id) {
         return { prefix: "" };
+    } else if (single === undefined || others.length > 0) {
+        return { prefix: "", field: "scope" };
     }
 
     // name the scope in its type's route and identifier field

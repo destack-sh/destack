@@ -297,8 +297,8 @@ export interface ObjectDefinition<
     readonly identity?: string;
     /** The plural name. */
     readonly plural: string;
-    /** The scope type containing each object, or the types when objects live in several. */
-    readonly scope: Scope;
+    /** The scope types the objects live in, any scope when absent. */
+    readonly scope?: Scope;
     /** Attributes permission expressions read. */
     readonly attributes?: Readonly<Record<string, "string" | "number" | "boolean">>;
     /** Further relations kept in relationships. */
@@ -451,9 +451,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly plural: Configuration["plural"];
     /** The table with one record per object. */
     readonly table: Configuration["table"];
-    /** The scope type containing each object, or the types when objects live in several. */
+    /** The scope types the objects live in, none for any scope. */
     readonly scope: ObjectScope | readonly ObjectScope[];
-    /** The scope types containing the objects, none for objects outside every scope. */
+    /** The scope types the objects live in, none for universe objects and objects in any scope. */
     readonly scopes: readonly ObjectType[];
     /** The object's relations and permissions, evaluated by access. */
     readonly policy: Policy;
@@ -541,8 +541,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.identity = definition.identity;
         this.plural = definition.plural;
         this.table = definition.table;
-        this.scope = definition.scope;
-        this.scopes = ObjectType.#scopeTypes(definition.scope);
+        this.scope = definition.scope ?? [];
+        this.scopes = ObjectType.#scopeTypes(this.scope);
 
         // retain the lifecycle, projection and natural key the definition declares
         this.lifecycle = ObjectType.#lifecycle(definition, owner);
@@ -1430,6 +1430,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.inherited === undefined
             ? [aligned(chain, 0)]
             : chain.filter((scope) => held.safeParse(scope).success);
+    }
+
+    /** Decide whether the objects live in a scope. */
+    livesIn(scope: ObjectReference): boolean {
+        return (
+            this.scope !== Scope.universe.id &&
+            (this.scopes.length === 0 || this.scopes.some((type) => type.policy.is(scope)))
+        );
     }
 
     /** Decide whether another type shares this one's table. */

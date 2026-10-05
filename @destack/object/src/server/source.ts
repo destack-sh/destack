@@ -972,7 +972,7 @@ export class ObjectSource {
         // copy a type living in no copied scope from every scope its rows live in
         const listed = copied.filter(isUnscoped);
         const rows: UniverseParameters["rows"][number][] = listed.map((object) =>
-            object.scopes.length === 0
+            object.scope === Scope.universe.id
                 ? { type: object.typeReference, where: {} }
                 : { type: object.typeReference, where: {}, isEverywhere: true },
         );

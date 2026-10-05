@@ -304,7 +304,7 @@ export const Roles = {
 
     /** List the scope types enclosing a definition's objects that share through the roles. */
     scopes(definition: ObjectDefinition): readonly ObjectType[] {
-        return [definition.scope]
+        return [definition.scope ?? []]
             .flat()
             .filter(
                 (scope): scope is ObjectType =>

@@ -304,15 +304,9 @@ export class Authorization extends access.Authorization {
             return;
         }
 
-        // find the scope's own type
+        // require a scope some of the objects live in
         const own = this.access.scopes[0];
-        const type =
-            own?.id === scope
-                ? objects
-                      .flatMap((object) => object.scopes)
-                      .find((candidate) => candidate.policy.is(own))
-                : undefined;
-        if (own === undefined || type === undefined) {
+        if (own?.id !== scope || !objects.some((object) => object.livesIn(own))) {
             throw new ServiceError("NOT_FOUND", { message: `no scope ${scope}` });
         }
 
@@ -328,9 +322,9 @@ export class Authorization extends access.Authorization {
         const lent = delegates.findIndex((delegate) => delegate.authority === "lent");
         const principal = { ...context, delegates: delegates.slice(0, lent) };
         const isVisible =
-            (await this.#sees(type, own, objects, caller)) ||
+            (await this.#sees(own, objects, caller)) ||
             (lent !== -1 &&
-                (await this.#sees(type, own, objects, (bound) =>
+                (await this.#sees(own, objects, (bound) =>
                     this.authorizer.resolve(this.snapshot, bound, principal),
                 )));
         if (!isVisible) {
@@ -343,14 +337,13 @@ export class Authorization extends access.Authorization {
 
     /** Decide whether an access sees a scope. */
     async #sees(
-        type: ObjectType,
         own: ObjectReference,
         objects: readonly ObjectType[],
         resolve: (scope: string) => Promise<Access>,
     ): Promise<boolean> {
         // see a readable scope
         const container = await resolve(this.authorizer.governingScope(own));
-        const permission = type.permission(SCOPE_READ);
+        const permission = { packageId: own.packageId, type: own.type, name: SCOPE_READ };
         if ((await this.authorizer.check(this.snapshot, permission, own, container)).isAllowed) {
             return true;
         }
@@ -359,7 +352,7 @@ export class Authorization extends access.Authorization {
         const scope = own.id;
         const evaluated = await resolve(scope);
         const inside = objects.filter(
-            (object) => object.storage === "durable" && object.scopes.includes(type),
+            (object) => object.storage === "durable" && object.livesIn(own),
         );
         for (const object of inside) {
             const table = object.table;
@@ -384,8 +377,8 @@ export class Authorization extends access.Authorization {
         const own = this.access.scopes[0];
 
         return this.access.scope === Scope.universe.id
-            ? object.scopes.length === 0
-            : own?.id === this.access.scope && object.scopes.some((type) => type.policy.is(own));
+            ? object.scope === Scope.universe.id
+            : own?.id === this.access.scope && object.livesIn(own);
     }
 
     /** Refuse an object type living outside the admitted scope's type. */

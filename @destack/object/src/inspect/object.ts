@@ -44,7 +44,7 @@ export const ObjectDescription = defineSchema(
         name: schema.string().min(1),
         /** The plural name. */
         plural: schema.string().min(1),
-        /** The scope levels containing the objects. */
+        /** The scope levels the objects live in, none for any scope. */
         scope: schema.array(AccessName),
         /** The SQL name of the table with the records. */
         table: schema.string().min(1),

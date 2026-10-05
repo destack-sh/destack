@@ -190,7 +190,7 @@ export const Provisioned = {
 
         // require one scope type with the resources
         const scope = definition.scope;
-        if (ObjectScope.isList(scope) || scope === Scope.universe.id) {
+        if (scope === undefined || ObjectScope.isList(scope) || scope === Scope.universe.id) {
             throw new TypeError(`resources ${definition.name} live in exactly one scope type`);
         }
 
