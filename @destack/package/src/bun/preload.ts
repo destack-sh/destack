@@ -1,5 +1,5 @@
 /// <reference types="bun" />
-import { modulePlugin } from "./plugin.ts";
+import { registerModulePlugin } from "./plugin.ts";
 
 // inject module metadata into every package source loaded by this process
-await Bun.plugin(modulePlugin);
+registerModulePlugin();

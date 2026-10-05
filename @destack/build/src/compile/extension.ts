@@ -8,6 +8,7 @@ import {
     type TransformContext,
 } from "@destack/package/build";
 import { PackageDefinition, type PackageDescription, PackageExport } from "@destack/package";
+import { registerModulePlugin } from "@destack/package/bun";
 import { PackageLocator } from "@destack/package/transform";
 import { BuildError } from "../error/index.ts";
 import { readPackageDescription, selectExport } from "../source/index.ts";
@@ -179,7 +180,8 @@ async function importExtension(
         throw new BuildError("BUILD_FAILED", `${name} exports no build module at ${subpath}`);
     }
 
-    // read the extension from the module's exports
+    // read the extension from the module's exports, loading package sources with their module metadata
+    registerModulePlugin();
     const module = Exports.parse(await import(join(installed, file)));
     const extension = module[exportName];
     if (typeof extension !== "object" || extension === null) {

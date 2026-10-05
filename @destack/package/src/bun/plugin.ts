@@ -34,3 +34,14 @@ export const modulePlugin: Bun.BunPlugin = {
         });
     },
 };
+
+/** Whether this process loads package sources through the module plugin. */
+let isRegistered = false;
+
+/** Load this process's later package sources through the module plugin, once per process. */
+export function registerModulePlugin(): void {
+    if (!isRegistered) {
+        isRegistered = true;
+        void Bun.plugin(modulePlugin);
+    }
+}
