@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { readOutputs } from "./build.ts";
 
 test("read one module per runtime each export declares", async () => {
-    // declare packages with every runtime, with runtimes per export and without runtimes
+    // declare packages with every runtime, with runtimes per export, with a test layer and without runtimes
     const directory = await mkdtemp(join(tmpdir(), "destack-outputs-"));
     const read = async (exports: object, definition: object) => {
         await writeFile(
@@ -44,6 +44,15 @@ test("read one module per runtime each export declares", async () => {
                 runtimes: ["browser"],
                 exports: { "./server": { runtimes: ["workerd"] } },
             }),
+            await read(
+                { ...exports, "./test": "./src/test.ts" },
+                {
+                    id,
+                    language: "typescript",
+                    runtimes: ["browser"],
+                    exports: { "./test": { runtimes: ["bun"] } },
+                },
+            ),
             await read(exports, { id, language: "typescript" }),
         ]).toEqual([
             {
@@ -55,6 +64,7 @@ test("read one module per runtime each export declares", async () => {
                 browser: { kind: "module", runtime: "browser", bundle: true },
                 workerd: { kind: "module", runtime: "workerd", bundle: true },
             },
+            { browser: { kind: "module", runtime: "browser", bundle: true } },
             "no runtimes declared for export: .",
         ]);
     } finally {

@@ -1,7 +1,7 @@
 import { type DependencyResolution, PackageDefinition } from "@destack/package";
 import type { History } from "@destack/resource";
 import type { PackageStore } from "../store/index.ts";
-import { mapExports, readPackageDescription } from "../source/source.ts";
+import { mapExports, readPackageDescription, TEST_EXPORT } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { type Commit, schema } from "@destack/schema";
@@ -293,7 +293,10 @@ export async function readOutputs(
     const definition = declaration.definition;
     const outputs: Record<string, ModuleOptions> = {};
     for (const name of Object.keys(mapExports(declaration))) {
-        // compile one module per runtime the export compiles for
+        // compile one module per runtime each shipped export compiles for
+        if (name === TEST_EXPORT) {
+            continue;
+        }
         for (const runtime of PackageDefinition.runtimes(definition, name)) {
             outputs[runtime] = { kind: "module", runtime, bundle: true };
         }

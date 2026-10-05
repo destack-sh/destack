@@ -183,6 +183,9 @@ async function readPackageDeclaration(
     };
 }
 
+/** The export of a package's test layer, which serves its dependents' tests and never ships in a build. */
+export const TEST_EXPORT = "./test";
+
 /** Decide whether an output compiles an export, refusing invalid names and selected entries the runtime lacks. */
 function isCompiled(
     name: string,
@@ -199,6 +202,11 @@ function isCompiled(
             "INVALID_DEFINITION",
             `build exports must name concrete modules: ${name}`,
         );
+    }
+
+    // skip the test layer
+    if (name === TEST_EXPORT && !isSelected) {
+        return false;
     }
 
     // skip exports of other runtimes, refusing a selected entry of another runtime
