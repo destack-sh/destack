@@ -3,12 +3,8 @@ import { describeTrigger } from "../inspect/index.ts";
 import { ResourceContext } from "@destack/resource/context";
 import { WebhookOn } from "./webhook.ts";
 import { defineTrigger, Trigger } from "./trigger.ts";
-import {
-    GitHubSignature,
-    StandardSignature,
-    WEBHOOK_SIGNATURES,
-    type WebhookDelivery,
-} from "./webhook.ts";
+import { StandardSignature, type WebhookDelivery } from "./webhook.ts";
+import { GitHubSignature } from "../github/index.ts";
 
 /** Push the delivered branch to the repository its route names. */
 function push(delivery: WebhookDelivery) {
@@ -63,31 +59,21 @@ function digestOf(headers: Headers): string {
     return signature.slice("sha256=".length);
 }
 
-test("sign the Standard Webhooks and GitHub reference examples exactly", async () => {
-    // sign both examples
+test("sign the Standard Webhooks reference example exactly", async () => {
     const standard = await new StandardSignature().sign(
         STANDARD_EXAMPLE.message,
         STANDARD_EXAMPLE.secret,
-    );
-    const github = await new GitHubSignature().sign(
-        { id: "delivery-1", event: "push", body: GITHUB_EXAMPLE.body, sentAt: NOW },
-        GITHUB_EXAMPLE.secret,
     );
     expect([...standard.entries()]).toEqual([
         ["webhook-id", "msg_p5jXN8AQM9LWM0D4loKWxJek"],
         ["webhook-signature", STANDARD_EXAMPLE.signature],
         ["webhook-timestamp", "1614265330"],
     ]);
-    expect([...github.entries()]).toEqual([
-        ["x-github-delivery", "delivery-1"],
-        ["x-github-event", "push"],
-        ["x-hub-signature-256", GITHUB_EXAMPLE.signature],
-    ]);
 });
 
 test("verify a Standard Webhooks delivery and refuse forged, stale and unsigned ones", async () => {
     // accept the reference signature among others
-    const signature = WEBHOOK_SIGNATURES.standard;
+    const signature = new StandardSignature();
     const body = '{"type":"repository.pushed","data":{"ref":"refs/heads/main"}}';
     const message = { ...STANDARD_EXAMPLE.message, body };
     const headers = await signature.sign(message, STANDARD_EXAMPLE.secret);
@@ -116,40 +102,12 @@ test("verify a Standard Webhooks delivery and refuse forged, stale and unsigned 
     ]);
 });
 
-test("verify a GitHub delivery and refuse a signature made with another secret", async () => {
-    // accept the signed push
-    const signature = WEBHOOK_SIGNATURES.github;
-    const body = '{"ref":"refs/heads/main","after":"aa218f56b14c9653891f9e74264a383fa43fefbd"}';
-    const message = {
-        id: "72d3162e-cc78-11e3-81ab-4c9367dc0958",
-        event: "push",
-        body,
-        sentAt: NOW,
-    };
-    const headers = await signature.sign(message, GITHUB_EXAMPLE.secret);
-
-    // know the delivery by its signed body, since GitHub signs no delivery header
-    expect(await signature.verify(post(headers, body), GITHUB_EXAMPLE.secret, {}, NOW)).toEqual({
-        id: digestOf(headers),
-        event: "push",
-        payload: { ref: "refs/heads/main", after: "aa218f56b14c9653891f9e74264a383fa43fefbd" },
-        parameters: {},
-        receivedAt: NOW,
-    });
-
-    // refuse another secret
-    const forged = await signature.sign(message, "another secret");
-    await expect(
-        signature.verify(post(forged, body), GITHUB_EXAMPLE.secret, {}, NOW),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "webhook signature does not match" });
-});
-
 test("describe a declared webhook trigger with its verification and route for the manifest", () => {
     const trigger = defineTrigger({
         name: "github",
         on: {
             webhook: {
-                verification: "github",
+                signature: new GitHubSignature(),
                 route: "/{repository}",
                 secret: async () => "secret",
             },
@@ -170,7 +128,7 @@ test("receive a delivery with its route's parameters and the secret they resolve
         name: "pushes",
         on: {
             webhook: {
-                verification: "github",
+                signature: new GitHubSignature(),
                 route: "/repositories/{repository}",
                 secret: async (parameters) => {
                     requested.push(parameters);
@@ -192,7 +150,7 @@ test("receive a delivery with its route's parameters and the secret they resolve
     // accept the repository's signed delivery
     const body = '{"ref":"refs/heads/main"}';
     const message = { id: "delivery-1", event: "push", body, sentAt: NOW };
-    const headers = await WEBHOOK_SIGNATURES.github.sign(message, GITHUB_EXAMPLE.secret);
+    const headers = await new GitHubSignature().sign(message, GITHUB_EXAMPLE.secret);
     const delivery = await WebhookOn.receive(
         trigger.on.webhook,
         post(headers, body),
@@ -241,7 +199,13 @@ test("refuse webhook routes with malformed segments or a repeated parameter", ()
         try {
             defineTrigger({
                 name: "pushes",
-                on: { webhook: { verification: "github", route, secret: async () => "secret" } },
+                on: {
+                    webhook: {
+                        signature: new GitHubSignature(),
+                        route,
+                        secret: async () => "secret",
+                    },
+                },
                 call: push,
             });
 

@@ -10,7 +10,7 @@ import {
     MAX_LAG_MILLISECONDS,
     type ObjectChange,
 } from "./change.ts";
-import type { WebhookDelivery, WebhookParameters } from "./webhook.ts";
+import type { WebhookDelivery, WebhookParameters, WebhookSignature } from "./webhook.ts";
 import { WebhookOn } from "./webhook.ts";
 import { ScheduleOn } from "./schedule.ts";
 
@@ -92,7 +92,9 @@ export interface WebhookTrigger extends Declaration {
     readonly kind: "trigger";
     /** The signed deliveries that fire. */
     readonly on: {
-        readonly webhook: WebhookOn & {
+        readonly webhook: Pick<WebhookOn, "route"> & {
+            /** The scheme verifying each delivery's signature. */
+            readonly signature: WebhookSignature;
             /** Read the signing secret of a delivery's route parameters from the installation's resources. */
             readonly secret: (
                 parameters: WebhookParameters,
@@ -294,11 +296,11 @@ export function defineTrigger(definition: WrittenTrigger, module?: ModuleMetadat
     }
     // check a webhook's route
     else if (Trigger.is(definition, "webhook")) {
-        const { secret, ...fields } = definition.on.webhook;
-        WebhookOn.parameters(WebhookOn.parse(fields).route);
+        const { signature, route, secret } = definition.on.webhook;
+        WebhookOn.parameters(WebhookOn.parse({ verification: signature.name, route }).route);
         const trigger: WebhookTrigger = {
             ...declared,
-            on: { webhook: { ...fields, secret } },
+            on: { webhook: { signature, route, secret } },
             call: definition.call,
         };
 

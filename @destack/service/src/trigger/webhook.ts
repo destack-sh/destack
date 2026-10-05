@@ -1,9 +1,6 @@
 import type { ResourceContext } from "@destack/resource/context";
-import { aligned, defineSchema, Instant, schema } from "@destack/schema";
+import { aligned, defineSchema, Instant, schema, type JsonValue } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
-
-/** The webhook signature schemes. */
-export const WEBHOOK_VERIFICATIONS = ["standard", "github"] as const;
 
 /** A route of literal and `{name}` segments, or `/` alone. */
 const ROUTE_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/u;
@@ -16,9 +13,6 @@ const STANDARD_SECRET_PREFIX = "whsec_";
 
 /** The version tag of a Standard Webhooks HMAC-SHA256 signature. */
 const STANDARD_SIGNATURE_VERSION = "v1";
-
-/** The prefix of GitHub's HMAC-SHA256 signature header value. */
-const GITHUB_SIGNATURE_PREFIX = "sha256=";
 
 /** The values of a webhook route's parameters, by name. */
 export const WebhookParameters = defineSchema(
@@ -45,14 +39,11 @@ export const WebhookDelivery = defineSchema(
 /** One verified webhook delivery. */
 export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
 
-/** A webhook signature scheme. */
-export type WebhookVerification = (typeof WEBHOOK_VERIFICATIONS)[number];
-
 /** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
 const shape = defineSchema(
     schema.object({
-        /** The signature scheme. */
-        verification: schema.enum(WEBHOOK_VERIFICATIONS),
+        /** The name of the signature scheme, such as standard. */
+        verification: schema.string().min(1),
         /** The path template below the trigger, such as `/{repository}`. */
         route: schema.string().regex(ROUTE_PATTERN),
     }),
@@ -74,7 +65,8 @@ export const WebhookOn = Object.assign(shape, {
 
     /** Verify a request to a path below a trigger's route with its secret, and read its delivery. */
     async receive(
-        on: WebhookOn & {
+        on: Pick<WebhookOn, "route"> & {
+            readonly signature: WebhookSignature;
             secret(parameters: WebhookParameters, resources: ResourceContext): Promise<string>;
         },
         request: Request,
@@ -85,7 +77,7 @@ export const WebhookOn = Object.assign(shape, {
         const parameters = match(on.route, path);
         const secret = await on.secret(parameters, resources);
 
-        return WEBHOOK_SIGNATURES[on.verification].verify(request, secret, parameters, now);
+        return on.signature.verify(request, secret, parameters, now);
     },
 });
 
@@ -151,6 +143,8 @@ export interface WebhookMessage {
 
 /** A webhook signature scheme. */
 export interface WebhookSignature {
+    /** The scheme's name, which the manifest lists as a trigger's verification. */
+    readonly name: string;
     /** Sign a message, returning the headers. */
     sign(message: WebhookMessage, secret: string): Promise<Headers>;
     /** Verify a request's signature and read its delivery. */
@@ -162,8 +156,35 @@ export interface WebhookSignature {
     ): Promise<WebhookDelivery>;
 }
 
+/** The keys and payloads of the signature schemes. */
+export const WebhookSignature = {
+    /** Import raw bytes as an HMAC SHA-256 key. */
+    key(bytes: Uint8Array<ArrayBuffer>, usage: "sign" | "verify"): Promise<CryptoKey> {
+        return crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, [
+            usage,
+        ]);
+    },
+
+    /** Parse a verified body as JSON. */
+    payload(body: string): JsonValue {
+        try {
+            return schema.json().parse(JSON.parse(body));
+        } catch {
+            throw new ServiceError("BAD_REQUEST", { message: "webhook body is not JSON" });
+        }
+    },
+};
+
 /** The Standard Webhooks signature over `id.timestamp.body`. */
 export class StandardSignature implements WebhookSignature {
+    /** The scheme's name. */
+    readonly name: string;
+
+    /** Name the Standard Webhooks scheme. */
+    constructor() {
+        this.name = "standard";
+    }
+
     /** Sign the identifier, timestamp and body. */
     async sign(message: WebhookMessage, secret: string): Promise<Headers> {
         // sign the content in whole seconds
@@ -217,7 +238,7 @@ export class StandardSignature implements WebhookSignature {
         }
 
         // read the event type
-        const payload = parsePayload(body);
+        const payload = WebhookSignature.payload(body);
         const event = schema
             .object({ type: schema.string().min(1) })
             .loose()
@@ -243,71 +264,11 @@ export class StandardSignature implements WebhookSignature {
             throw new TypeError("standard webhook secrets start with whsec_");
         }
 
-        return hmacKey(Uint8Array.fromBase64(secret.slice(STANDARD_SECRET_PREFIX.length)), usage);
+        return WebhookSignature.key(
+            Uint8Array.fromBase64(secret.slice(STANDARD_SECRET_PREFIX.length)),
+            usage,
+        );
     }
-}
-
-/** The GitHub signature over the body. */
-export class GitHubSignature implements WebhookSignature {
-    /** Sign the body. */
-    async sign(message: WebhookMessage, secret: string): Promise<Headers> {
-        // sign the body alone
-        const key = await hmacKey(new TextEncoder().encode(secret), "sign");
-        const content = new TextEncoder().encode(message.body);
-        const digest = new Uint8Array(await crypto.subtle.sign("HMAC", key, content));
-
-        return new Headers({
-            "x-github-delivery": message.id,
-            "x-github-event": message.event,
-            "x-hub-signature-256": `${GITHUB_SIGNATURE_PREFIX}${digest.toHex()}`,
-        });
-    }
-
-    /** Verify the body's signature and read the delivery. */
-    async verify(
-        request: Request,
-        secret: string,
-        parameters: WebhookParameters,
-        now: number,
-    ): Promise<WebhookDelivery> {
-        // require the headers
-        const event = request.headers.get("x-github-event");
-        const signature = request.headers.get("x-hub-signature-256");
-        if (event === null || signature === null) {
-            throw new ServiceError("UNAUTHORIZED", { message: "missing github webhook headers" });
-        }
-
-        // match the signature
-        const body = await request.text();
-        const key = await hmacKey(new TextEncoder().encode(secret), "verify");
-        const digest = signature.startsWith(GITHUB_SIGNATURE_PREFIX)
-            ? decodeHex(signature.slice(GITHUB_SIGNATURE_PREFIX.length))
-            : undefined;
-        const content = new TextEncoder().encode(body);
-        if (digest === undefined || !(await crypto.subtle.verify("HMAC", key, digest, content))) {
-            throw new ServiceError("UNAUTHORIZED", { message: "webhook signature does not match" });
-        }
-
-        // know a GitHub delivery by its signed body
-        return WebhookDelivery.parse({
-            id: digest.toHex(),
-            event,
-            payload: parsePayload(body),
-            parameters,
-            receivedAt: now,
-        });
-    }
-}
-
-/** The signature scheme of each verification. */
-export const WEBHOOK_SIGNATURES: Readonly<Record<WebhookVerification, WebhookSignature>> = {
-    standard: new StandardSignature(),
-    github: new GitHubSignature(),
-};
-
-/** Import raw bytes as an HMAC SHA-256 key. */
-function hmacKey(bytes: Uint8Array<ArrayBuffer>, usage: "sign" | "verify"): Promise<CryptoKey> {
-    return crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, [usage]);
 }
 
 /** Decode a base64 signature. */
@@ -316,23 +277,5 @@ function decodeBase64(value: string | undefined): Uint8Array<ArrayBuffer> | unde
         return value === undefined ? undefined : Uint8Array.fromBase64(value);
     } catch {
         return undefined;
-    }
-}
-
-/** Decode a hexadecimal signature. */
-function decodeHex(value: string): Uint8Array<ArrayBuffer> | undefined {
-    try {
-        return Uint8Array.fromHex(value);
-    } catch {
-        return undefined;
-    }
-}
-
-/** Parse a verified body as JSON. */
-function parsePayload(body: string) {
-    try {
-        return schema.json().parse(JSON.parse(body));
-    } catch {
-        throw new ServiceError("BAD_REQUEST", { message: "webhook body is not JSON" });
     }
 }
