@@ -7,3 +7,4 @@ export * from "./digest/index.ts";
 export * from "./json/index.ts";
 export * from "./collection/index.ts";
 export * from "./presence/index.ts";
+export * from "./report/index.ts";

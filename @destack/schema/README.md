@@ -147,3 +147,19 @@ canonicalize({ b: 1, a: [true] }); // '{"a":[true],"b":1}'
 await Digest.json({ b: 1, a: [true] }); // the SHA-256 of the canonical form, as hex
 Commit.parse(sha); // a SHA-1 or SHA-256 commit in lowercase hex
 ```
+
+## Reportable errors
+
+`ReportableError` is an error whose `toServiceError` returns the `ServiceErrorReport` its caller receives, so packages below the service report failures without depending on it.
+
+```ts
+import { ReportableError, SERVICE_ERROR_STATUSES, type ServiceErrorReport } from "@destack/schema";
+
+class TakenError extends Error implements ReportableError {
+    toServiceError(): ServiceErrorReport {
+        return { code: "CONFLICT", message: this.message };
+    }
+}
+ReportableError.is(new TakenError("name is taken")); // true
+SERVICE_ERROR_STATUSES.CONFLICT; // 409
+```
