@@ -1,10 +1,9 @@
-resource "cloudflare_r2_bucket" "releases" {
-  account_id    = local.account_id
-  name          = "destack-releases"
-  storage_class = "Standard"
+# forget the legacy bucket without deleting its objects
+removed {
+  from = cloudflare_r2_bucket.releases
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 
@@ -21,31 +20,18 @@ resource "cloudflare_r2_bucket" "release" {
   }
 }
 
-resource "cloudflare_r2_custom_domain" "releases" {
-  account_id  = local.account_id
-  bucket_name = cloudflare_r2_bucket.releases.name
-  domain      = "download.destack.sh"
-  zone_id     = cloudflare_zone.domains["destack.sh"].id
-  enabled     = true
-  min_tls     = "1.2"
-}
-
-# route each signed release feed to its bucket through the publication worker
-resource "cloudflare_workers_route" "release" {
-  for_each = toset(["stable", "nightly"])
-
+resource "cloudflare_dns_record" "download" {
   zone_id = cloudflare_zone.domains["destack.sh"].id
-  pattern = "download.destack.sh/${each.key}/*"
-  script  = "destack-release-publication"
+  name    = "download.destack.sh"
+  type    = "AAAA"
+  content = "100::"
+  proxied = true
+  ttl     = 1
 }
 
-resource "cloudflare_r2_bucket_cors" "releases" {
-  account_id  = local.account_id
-  bucket_name = cloudflare_r2_bucket.releases.name
-  rules = [{
-    allowed = {
-      methods = ["GET", "HEAD"]
-      origins = ["*"]
-    }
-  }]
+# serve every download through the publication worker
+resource "cloudflare_workers_route" "release" {
+  zone_id = cloudflare_zone.domains["destack.sh"].id
+  pattern = "download.destack.sh/*"
+  script  = "destack-release-publication"
 }

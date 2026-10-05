@@ -5,9 +5,15 @@ terraform {
       source  = "planetscale/planetscale"
       version = "1.11.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "5.24.0"
+    }
   }
 }
 provider "planetscale" {
   alias    = "database"
   for_each = var.database.organization != null ? toset(["main"]) : toset([])
 }
+
+provider "cloudflare" {}

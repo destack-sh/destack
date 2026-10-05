@@ -9,4 +9,5 @@ module "database" {
   region        = var.database.region
   cluster_size  = var.database.cluster_size
   major_version = var.database.major_version
+  processes     = toset(keys(var.processes))
 }

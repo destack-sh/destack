@@ -5,6 +5,6 @@ residency   = "us"
 database = {
   enabled       = false
   region        = "us-east"
-  cluster_size  = "PS_10_AWS_ARM"
+  cluster_size  = "PS_5_AWS_ARM"
   major_version = "17"
 }

@@ -20,3 +20,18 @@ variable "database" {
     error_message = "An enabled database requires a PlanetScale organization."
   }
 }
+variable "processes" {
+  description = "The processes the placement runs in this deployment, by name, with the workloads each runs and the DNS names its Worker's routes answer."
+  type = map(object({
+    workloads = list(string)
+    names     = list(string)
+  }))
+  validation {
+    condition     = length(var.processes) > 0
+    error_message = "A deployment runs at least one process."
+  }
+}
+variable "account_id" {
+  description = "Cloudflare account containing the universe processes' connections."
+  type        = string
+}

@@ -25,7 +25,7 @@ variable "database" {
   }
 }
 variable "account_id" {
-  description = "Cloudflare account containing regional infrastructure."
+  description = "Cloudflare account containing residency infrastructure."
   type        = string
 }
 variable "residency" {
@@ -43,5 +43,16 @@ variable "package_import_id" {
   validation {
     condition     = var.package_import_id == null || var.package_import_id == "${var.account_id}/destack-${var.environment}-packages-${var.residency}/${var.residency}"
     error_message = "The imported bucket must match this deployment's account, environment, and residency."
+  }
+}
+variable "processes" {
+  description = "The processes the placement runs in this deployment, by name, with the workloads each runs and the DNS names its Worker's routes answer."
+  type = map(object({
+    workloads = list(string)
+    names     = list(string)
+  }))
+  validation {
+    condition     = length(var.processes) > 0
+    error_message = "A deployment runs at least one process."
   }
 }
