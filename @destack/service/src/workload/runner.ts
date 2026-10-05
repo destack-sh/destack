@@ -5,6 +5,7 @@ import { telemetry } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
+import type { BuildReader } from "@destack/package/manifest";
 import { Authentication } from "../authentication/index.ts";
 import type { Service } from "../declare/service.ts";
 import { ServiceError } from "../error/index.ts";
@@ -29,7 +30,7 @@ const AUDIT_ADDRESS = "@destack/audit";
 const MONITOR_ADDRESS = "@destack/monitor";
 
 /** The address of the space service of a workload's holder, relaying the space's access. */
-const SPACE_ADDRESS = "@destack/space";
+export const SPACE_ADDRESS = "@destack/space";
 
 /** The runner's log records. */
 const { log } = telemetry.scope(import.meta.destack.package);
@@ -93,10 +94,11 @@ export class WorkloadRunner implements AsyncDisposable {
         this.#runs = runs;
     }
 
-    /** Start a workload as a host's start asks, with the runtime's telemetry and failure reporting. */
+    /** Start a workload of a build as a host's start asks, with the runtime's telemetry and failure reporting. */
     static async start(
         runner: RunnerOptions,
         start: WorkloadStart,
+        build: BuildReader,
         startTelemetry: (options: TelemetryOptions) => Promise<Pick<Telemetry, "shutdown">>,
         report: (error: unknown) => void,
     ): Promise<WorkloadRunner> {
@@ -115,7 +117,7 @@ export class WorkloadRunner implements AsyncDisposable {
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 history: runner.history(Egress.url(start.egress, AUDIT_ADDRESS), start.secret),
-                installation: WorkloadRunner.#installation(runner, start, space),
+                installation: WorkloadRunner.#installation(runner, start, build, space),
                 runs,
                 callKey: () => callKey,
                 report,
@@ -183,15 +185,17 @@ export class WorkloadRunner implements AsyncDisposable {
         return service;
     }
 
-    /** Describe a started workload's installation: its space's cell, and other installations through the host's egress. */
+    /** Describe a started workload's installation: its build, its space's cell, and other installations through the host's egress. */
     static #installation(
         runner: RunnerOptions,
         start: WorkloadStart,
+        build: BuildReader,
         space: string,
     ): InstallationContext {
         return {
             id: start.installation,
             scope: start.scope,
+            build,
             publisher: runner.publisher(space, start.secret),
             publisherAt: (address) =>
                 runner.publisher(Egress.url(start.egress, address), start.secret),
@@ -275,7 +279,7 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
-    /** Drain the instance, close its resources, then export the telemetry left and stop it. */
+    /** Drain and stop the instance with its resources and its remaining telemetry. */
     async close(): Promise<void> {
         try {
             await this.instance.close();
@@ -296,6 +300,7 @@ export class WorkloadRunner implements AsyncDisposable {
         start: WorkloadStart,
         connections: AsyncDisposableStack,
     ): Promise<ResourceContext> {
+        // connect each binding the start names
         const resources = new ResourceContext();
         for (const [name, binding] of Object.entries(start.bindings)) {
             // require the declaration of the binding's kind and its connector for the provider

@@ -6,6 +6,8 @@ import { WorkloadInstance } from "./instance.ts";
 import { defineService } from "../declare/service.ts";
 import { defineTrigger } from "../trigger/index.ts";
 import type { RunClient } from "../trigger/index.ts";
+import { GitHubSignature } from "../github/index.ts";
+import { emptyBuild } from "../test/build.ts";
 import { hosting } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
 
@@ -30,14 +32,16 @@ const publisher = {
     },
 } satisfies Publisher;
 
-/** The fixture's installation, with publishers streaming none and a directory with no recipients. */
+/** The fixture's installation, with a build of no files, publishers streaming none and a directory with no recipients. */
 const installation: InstallationContext = {
     id: "installation-01996ab0-0000-7000-8000-000000000002",
     scope: "space-01996ab0-0000-7000-8000-000000000001",
+    build: await emptyBuild(first.package),
     publisher,
     publisherAt: () => publisher,
     directory: {
         isHome: async () => false,
+        locale: async () => undefined,
         address: async () => {},
     },
 };
@@ -52,7 +56,9 @@ const runs: RunClient = {
 /** A declared fixture webhook trigger. */
 const github = defineTrigger({
     name: "github",
-    on: { webhook: { verification: "github", route: "/", secret: async () => "secret" } },
+    on: {
+        webhook: { signature: new GitHubSignature(), route: "/", secret: async () => "secret" },
+    },
     call: (delivery) => ({
         method: "repository.push",
         input: { id: delivery.id },

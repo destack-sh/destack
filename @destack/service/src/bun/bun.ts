@@ -1,4 +1,7 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { serve, type Server } from "bun";
+import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import { aligned } from "@destack/schema";
 import { startTelemetry } from "@destack/telemetry/host";
 import { ServiceError } from "../error/index.ts";
@@ -33,7 +36,7 @@ export interface ProcessOptions {
     ready?(addresses: readonly URL[]): Promise<void>;
 }
 
-/** Serve each endpoint until shutdown, then drain and close. */
+/** Serve each endpoint until shutdown and drain it on close. */
 export async function serveProcess(options: ProcessOptions): Promise<void> {
     // shut down on process signals
     const listeners: Server<undefined>[] = [];
@@ -87,9 +90,14 @@ export async function runWorkload(
     }
     const start = WorkloadStart.parse(JSON.parse(first.value));
 
-    // start the workload, reporting failed telemetry exports and background work on standard error
-    await using workload = await WorkloadRunner.start(runner, start, startTelemetry, (error) =>
-        process.stderr.write(`workload failed: ${String(error)}\n`),
+    // start the workload of the build its host wrote into the working directory, reporting failures on standard error
+    const build = await readBuild(process.cwd());
+    await using workload = await WorkloadRunner.start(
+        runner,
+        start,
+        build,
+        startTelemetry,
+        (error) => process.stderr.write(`workload failed: ${String(error)}\n`),
     );
 
     // serve the workload on a loopback port, publishing the port as the first output line
@@ -102,4 +110,16 @@ export async function runWorkload(
         close: () => workload.close(),
         ready: (addresses) => ready({ port: Number(aligned(addresses, 0).port) }),
     });
+}
+
+/** Read the build a host wrote into a directory: its manifest at the root and its files below. */
+async function readBuild(directory: string): Promise<BuildReader> {
+    const manifest = PackageManifest.parse(
+        JSON.parse(await readFile(join(directory, MANIFEST_PATH), "utf8")),
+    );
+
+    return new BuildReader(
+        manifest,
+        async (path) => new Uint8Array(await readFile(join(directory, path))),
+    );
 }

@@ -6,11 +6,13 @@ import { Authentication } from "../authentication/index.ts";
 import { defineService } from "../declare/service.ts";
 import { ServiceMount } from "../service/mount.ts";
 import { startTelemetry } from "@destack/telemetry/host";
+import { emptyBuild } from "../test/build.ts";
 import { WorkloadRunner } from "./runner.ts";
 import type { WorkloadStart } from "./start.ts";
 import { defineWorkload, type CellDirectory } from "./workload.ts";
 import { WEBHOOK_PATH } from "./start.ts";
-import { defineTrigger, WEBHOOK_SIGNATURES, type WebhookParameters } from "../trigger/index.ts";
+import { defineTrigger, type WebhookParameters } from "../trigger/index.ts";
+import { GitHubSignature } from "../github/index.ts";
 import type { RunRequest } from "../trigger/index.ts";
 
 /** The OTLP logs export the monitor receives, down to its resource and each record's event name. */
@@ -158,6 +160,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry n
             }),
         },
         start,
+        await emptyBuild(notes.package),
         startTelemetry,
         (error) => {
             throw error;
@@ -227,7 +230,7 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
             name: "pushes",
             on: {
                 webhook: {
-                    verification: "github",
+                    signature: new GitHubSignature(),
                     route: "/{repository}",
                     secret: async ({ repository }: WebhookParameters) => `secret-${repository}`,
                 },
@@ -276,6 +279,7 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
             }),
         },
         start,
+        await emptyBuild(notes.package),
         async () => ({ shutdown: async () => {} }),
         (error) => {
             throw error;
@@ -285,7 +289,7 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
 
     // accept a signed delivery, and refuse a forged one, an unknown trigger and a missing secret
     const body = JSON.stringify({ ref: "refs/heads/main" });
-    const signed = await WEBHOOK_SIGNATURES.github.sign(
+    const signed = await new GitHubSignature().sign(
         { id: "delivery-1", event: "push", body, sentAt: Date.now() },
         "secret-notes",
     );
@@ -353,8 +357,9 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
     ]);
 });
 
-/** The directory as the fixture's workloads see it: no homes and no addresses. */
+/** The directory as the fixture's workloads see it: no homes, locales or addresses. */
 const directory: CellDirectory = {
     isHome: async () => false,
+    locale: async () => undefined,
     address: async () => {},
 };

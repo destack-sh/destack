@@ -3,6 +3,8 @@ import { type CapabilityName, type ComputeDefinition, ModuleMetadata } from "@de
 import type { Declaration } from "@destack/package/declare";
 import { type Tier, WorkloadDefinition } from "@destack/package/workload";
 import type { ResourceContext } from "@destack/resource/context";
+import type { BuildReader } from "@destack/package/manifest";
+import type { LocaleTag } from "@destack/locale";
 import type { ServiceImplementation } from "../server/index.ts";
 import type { RunClient } from "../trigger/index.ts";
 import type { Trigger } from "../trigger/index.ts";
@@ -54,12 +56,14 @@ export interface WorkloadContext {
     defer(dispose: () => void | PromiseLike<void>): void;
 }
 
-/** The installation a workload runs as: its space, the publishers of its copies, and the directory through its cell. */
+/** The installation a workload runs as: its space, its build, the publishers of its copies, and the directory through its cell. */
 export interface InstallationContext {
     /** The installation's identifier. */
     readonly id: string;
     /** The installation's space. */
     readonly scope: string;
+    /** The build the installation's deployment runs, which reads the package's own files such as its catalogs. */
+    readonly build: BuildReader;
     /** The publisher of the copies of the space's chain and the universe's rows it reads: its cell. */
     readonly publisher: Publisher;
     /** Connect to the installation of the package at an address `<installation>.<space>` as a publisher. */
@@ -68,10 +72,12 @@ export interface InstallationContext {
     readonly directory: CellDirectory;
 }
 
-/** The directory as an installation sees it through its cell: whether people live in a home, and the addresses of projected rows. */
+/** The directory as an installation sees it through its cell: people's homes and locales, and the addresses of projected rows. */
 export interface CellDirectory {
     /** Decide whether a person lives in a space. */
     isHome(subject: string, space: string): Promise<boolean>;
+    /** Read the language and region a person set, absent while unset. */
+    locale(subject: string): Promise<LocaleTag | undefined>;
     /** Record that the installation sends a person projected rows. */
     address(recipient: string): Promise<void>;
 }
