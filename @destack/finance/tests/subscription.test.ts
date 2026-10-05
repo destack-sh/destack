@@ -1,5 +1,5 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { SystemCall } from "@destack/object/server";
+import { SystemCall } from "@destack/object";
 import { aligned } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Price, purchase, subscription, type Subscription } from "../src/object/index.ts";

@@ -32,7 +32,7 @@ import {
     subscriptionItem,
     type SubscriptionItem,
 } from "../../src/object/index.ts";
-import { servedObjects } from "../../src/server/index.ts";
+import { serveFinance } from "../../src/server/index.ts";
 import { financeService } from "../../src/service/index.ts";
 import { financeDatabase } from "../../src/stack/index.ts";
 import type { Feature } from "../../src/feature/index.ts";
@@ -100,7 +100,7 @@ export class Finance {
     /** The isolated database. */
     readonly test: TestDatabase;
     /** The served finance objects. */
-    readonly server: ObjectServer<ReturnType<typeof servedObjects>>;
+    readonly server: ObjectServer<ReturnType<typeof serveFinance>>;
 
     /** Serve the finance objects over a database, opening the storage and hosting packages' releases. */
     private constructor(test: TestDatabase) {
@@ -110,7 +110,7 @@ export class Finance {
             [hosting.id, release(hosting, [domains])],
         ]);
         this.server = new ObjectServer({
-            objects: servedObjects((packageId) => found(releases, packageId)),
+            objects: serveFinance((packageId) => found(releases, packageId)),
             policies: [account, organisation],
             database: test.database,
             callKey: testCallKey,

@@ -1,6 +1,6 @@
 import { eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { SystemCall } from "@destack/object/server";
+import { SystemCall } from "@destack/object";
 import { aligned } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {

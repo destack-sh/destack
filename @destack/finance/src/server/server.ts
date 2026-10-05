@@ -46,15 +46,15 @@ export interface FinanceOptions {
 /** The finance service with the object server executing its methods. */
 export interface FinanceImplementation extends ServiceImplementation {
     /** The object server executing the finance service's methods. */
-    readonly objects: ObjectServer<ReturnType<typeof servedObjects>>;
+    readonly objects: ObjectServer<ReturnType<typeof serveFinance>>;
 }
 
 /** Implement the finance service over a residency's database, following the account service and deriving entitlements under a controller. */
 export function implementFinance(options: FinanceOptions): FinanceImplementation {
     // serve the finance objects, following the account service's copies as the placement
     const { identity } = options;
-    const objects: ObjectServer<ReturnType<typeof servedObjects>> = new ObjectServer({
-        objects: servedObjects(options.release),
+    const objects: ObjectServer<ReturnType<typeof serveFinance>> = new ObjectServer({
+        objects: serveFinance(options.release),
         policies: [account, organisation],
         database: options.database,
         callKey: options.callKey,
@@ -69,9 +69,9 @@ export function implementFinance(options: FinanceOptions): FinanceImplementation
 }
 
 /** Serve the finance objects, checking grants against their features' declarations and deriving entitlements. */
-export function servedObjects(release: OpenRelease) {
+export function serveFinance(release: OpenRelease) {
     return {
-        customer: servedCustomer(release),
+        customer: serveCustomers(release),
         seller,
         product,
         productFeature: productFeature.handle({
@@ -130,7 +130,7 @@ export function servedObjects(release: OpenRelease) {
 }
 
 /** Serve customers, deriving each account's entitlements again after its subscriptions and purchases change. */
-function servedCustomer(release: OpenRelease) {
+function serveCustomers(release: OpenRelease) {
     return customer
         .handle({
             entitle: async (call) => {
