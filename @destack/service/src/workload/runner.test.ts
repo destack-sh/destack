@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { Authentication } from "../authentication/index.ts";
 import { defineService } from "../declare/service.ts";
 import { ServiceMount } from "../service/mount.ts";
-import { startTelemetry } from "@destack/telemetry/host";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { emptyBuild } from "../test/build.ts";
 import { WorkloadRunner } from "./runner.ts";
 import type { WorkloadStart } from "./start.ts";

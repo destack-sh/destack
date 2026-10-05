@@ -3,7 +3,7 @@ import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { aligned } from "@destack/schema";
 import { OtlpExporter } from "../otlp/index.ts";
-import { startTelemetry } from "../host/index.ts";
+import { startTelemetry } from "../bun/index.ts";
 import { Telemetry } from "./telemetry.ts";
 
 /** The instrumented package. */

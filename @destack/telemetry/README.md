@@ -67,7 +67,7 @@ The trace identifier generator writes the creation millisecond into the first 6 
 `OtlpExporter.http` exports every signal as OTLP/JSON to the scope's monitor and passes refused deliveries and SDK failures to `report`.
 
 ```ts
-import { startTelemetry } from "@destack/telemetry/host";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 
 const exporter = OtlpExporter.http(start.monitor, () => `Bearer ${credential}`, report);
@@ -105,7 +105,7 @@ The resource of every signal names the release and the build manifest that emitt
 Each runtime records an uncaught failure as an `exception` log record at `ERROR` in the active trace, with `exception.type`, `exception.message` and `exception.stacktrace`, and exports it at once.
 
 ```text
-/host     uncaughtException and unhandledRejection
+/bun      uncaughtException and unhandledRejection
           waits up to two seconds for the export before raising the failure again,
           ending the process as it would have ended, unless another listener handles it
 /browser  the window's error and unhandledrejection
@@ -116,10 +116,10 @@ Each runtime records an uncaught failure as an `exception` log record at `ERROR`
 
 ## Runtimes
 
-Each runtime's `startTelemetry` propagates context through async local storage on hosts, through the call stack in browsers and through the given context manager in workers.
+Each runtime's `startTelemetry` propagates context through async local storage on Bun, through the call stack in browsers and through the given context manager in workers.
 
 ```ts
-import { startTelemetry } from "@destack/telemetry/host";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { startTelemetry as startBrowser } from "@destack/telemetry/browser";
 import { startTelemetry as startWorker } from "@destack/telemetry/worker";
 

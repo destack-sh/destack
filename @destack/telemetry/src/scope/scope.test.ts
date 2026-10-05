@@ -1,7 +1,7 @@
 import { expect, expectTypeOf, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { startTelemetry } from "../host/index.ts";
+import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 
 /** The instrumented package. */

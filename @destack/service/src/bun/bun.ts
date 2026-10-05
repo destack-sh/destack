@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { serve, type Server } from "bun";
 import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import { aligned } from "@destack/schema";
-import { startTelemetry } from "@destack/telemetry/host";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { ServiceError } from "../error/index.ts";
 import {
     type RunnerOptions,

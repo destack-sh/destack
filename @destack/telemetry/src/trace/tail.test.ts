@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { ROOT_CONTEXT } from "@opentelemetry/api";
 import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { BatchSpanProcessor, SamplingDecision } from "@opentelemetry/sdk-trace";
-import { startTelemetry } from "../host/index.ts";
+import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 import { RatioSampler } from "./sampler.ts";
 import { TailSampler } from "./tail.ts";

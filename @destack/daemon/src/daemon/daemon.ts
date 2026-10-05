@@ -3,7 +3,7 @@ import { writeFile, rename, rm } from "node:fs/promises";
 import { localDirectory, createDirectory } from "./directory.ts";
 import { DaemonError } from "../error/index.ts";
 import { DaemonStore } from "./store.ts";
-import { startTelemetry } from "@destack/telemetry/host";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { SimpleLogRecordProcessor } from "@destack/telemetry/log";
 import { LogExporter } from "../telemetry/log.ts";
 import { TraceExporter } from "../telemetry/trace.ts";

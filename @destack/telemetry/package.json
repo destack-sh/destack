@@ -10,7 +10,7 @@
         "./trace": "./src/trace/index.ts",
         "./metric": "./src/metric/index.ts",
         "./sdk": "./src/sdk/index.ts",
-        "./host": "./src/host/index.ts",
+        "./bun": "./src/bun/index.ts",
         "./browser": "./src/browser/index.ts",
         "./worker": "./src/worker/index.ts",
         "./otlp": "./src/otlp/index.ts"

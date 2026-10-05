@@ -10,7 +10,7 @@
         "./worker": {
             "runtimes": ["bun", "workerd"]
         },
-        "./host": {
+        "./bun": {
             "runtimes": ["bun"]
         }
     },

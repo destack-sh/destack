@@ -2,7 +2,7 @@ import { context, createContextKey, ROOT_CONTEXT, trace } from "@opentelemetry/a
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { OtlpExporter } from "../otlp/index.ts";
-import { startTelemetry } from "../host/index.ts";
+import { startTelemetry } from "../bun/index.ts";
 import { extractContext, injectContext } from "./context.ts";
 
 /** The instrumented package. */

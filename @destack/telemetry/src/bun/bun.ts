@@ -7,7 +7,7 @@ const FATAL_FLUSH_MILLISECONDS = 2000;
 /** The process events reporting an uncaught failure. */
 type FailureEvent = "uncaughtException" | "unhandledRejection";
 
-/** Start host telemetry with asynchronous context propagation, capturing the process's uncaught failures. */
+/** Start telemetry in a Bun process with asynchronous context propagation, capturing the process's uncaught failures. */
 export function startTelemetry(options: TelemetryOptions): Promise<Telemetry> {
     return Telemetry.start(options, new AsyncLocalStorageContextManager(), captureProcess);
 }
