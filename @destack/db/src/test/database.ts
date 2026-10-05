@@ -15,7 +15,7 @@ import { PostgresDatabase } from "../postgres/database.ts";
 import { LOG_EPOCH, LOG_HORIZON, LOG_TABLES } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import type { Channel } from "../channel/channel.ts";
-import { channelHub } from "./channel.ts";
+import { channelHub } from "../channel/channel.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
 
 /** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES has a server address. */

@@ -5,6 +5,7 @@ import type { Model } from "../query/model.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Table } from "../table/table.ts";
 import { socketChannel } from "../channel/socket.ts";
+import { LOG_TOPIC } from "../log/schema.ts";
 import { connect } from "./connection.ts";
 import type { SqliteDatabase } from "../sqlite/database.ts";
 import type { BunClient } from "./client.ts";
@@ -44,5 +45,15 @@ export function open<Models extends Readonly<Record<string, Model>>>(
 ): Promise<SqliteDatabase<BunClient, Models>> {
     const path = fileURLToPath(requireReference(resource.reference));
 
-    return connect(path, tables, { openChannel: (name) => socketChannel(`${path}#${name}`) });
+    return connect(path, tables, { openChannel: (topic) => socketChannel(channelOf(path, topic)) });
+}
+
+/** List the channels a database file's connections share with its other writers: its log's commits. */
+export function sqliteChannels(path: string): readonly string[] {
+    return [channelOf(path, LOG_TOPIC)];
+}
+
+/** Name the channel a database file's connections share for one topic. */
+function channelOf(path: string, topic: string): string {
+    return `${path}#${topic}`;
 }
