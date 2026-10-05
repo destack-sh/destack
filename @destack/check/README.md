@@ -101,3 +101,13 @@ await checkPackage({
     ],
 });
 ```
+
+## Errors
+
+A failed checker, a bad selection or an unsupported package throws a `CheckError` with the code `TOOL`, `CONFIGURATION` or `LANGUAGE`, and `toServiceError` names the service error its caller receives.
+
+```ts
+import { CheckError } from "@destack/check/error";
+
+new CheckError("CONFIGURATION", "unknown command: tidy").toServiceError(); // { code: "BAD_REQUEST", … }
+```
