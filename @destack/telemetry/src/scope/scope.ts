@@ -12,6 +12,15 @@ import {
 } from "@opentelemetry/api";
 import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { Package } from "@destack/package";
+import { ReportableError } from "@destack/schema";
+
+/** The log severity of each capture level. */
+const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> = {
+    fatal: [SeverityNumber.FATAL, "FATAL"],
+    error: [SeverityNumber.ERROR, "ERROR"],
+    warning: [SeverityNumber.WARN, "WARN"],
+    info: [SeverityNumber.INFO, "INFO"],
+};
 
 /** Trace, metric, and log instruments attributed to one package. */
 export interface TelemetryScope {
@@ -27,6 +36,27 @@ export interface TelemetryScope {
     readonly span: SpanRunner;
     /** Declare metric instruments whose attributes take bounded values. */
     readonly metric: MetricFactory;
+    /** Record a failure the package handled as an exception in the active trace. */
+    readonly captureException: (error: unknown, context?: CaptureContext) => void;
+    /** Record a message as an exception-level event in the active trace. */
+    readonly captureMessage: (message: string, context?: CaptureContext) => void;
+}
+
+/** How bad a captured failure is, after Sentry's levels. */
+export type CaptureLevel = "fatal" | "error" | "warning" | "info";
+
+/** What a capture adds to the exception it records. */
+export interface CaptureContext {
+    /** How bad the failure is, error by default. */
+    readonly level?: CaptureLevel;
+    /** Bounded labels to filter and group issues by, such as the feature. */
+    readonly tags?: Readonly<Record<string, string>>;
+    /** The fingerprint grouping the failure into an issue, replacing the one its frames give. */
+    readonly fingerprint?: readonly string[];
+    /** Details beside the tags that issues never group by, such as the failing key. */
+    readonly attributes?: Attributes;
+    /** Whether the failure escaped the code it ran in, such as a request handler, false by default. */
+    readonly isEscaped?: boolean;
 }
 
 /** The values each metric attribute takes: bounded lists, so a metric's series stay bounded. */
@@ -153,7 +183,39 @@ export function instrument(tracer: Tracer, meter: Meter, logger: Logger): Teleme
         log: new Log(logger),
         span: runner(tracer),
         metric: new MetricFactory(meter),
+        captureException: (error, context) =>
+            emitException(logger, exceptionAttributes(error, context?.isEscaped === true), context),
+        captureMessage: (message, context) =>
+            emitException(
+                logger,
+                { "exception.message": message, "exception.escaped": false },
+                context,
+            ),
     };
+}
+
+/** Emit an exception record in the active span's context with its level, details, tags and fingerprint. */
+export function emitException(
+    logger: Logger,
+    attributes: Attributes,
+    context: CaptureContext = {},
+): void {
+    const [severityNumber, severityText] = LEVELS[context.level ?? "error"];
+    logger.emit({
+        eventName: "exception",
+        severityNumber,
+        severityText,
+        attributes: {
+            ...context.attributes,
+            ...attributes,
+            ...Object.fromEntries(
+                Object.entries(context.tags ?? {}).map(([key, value]) => [`tag.${key}`, value]),
+            ),
+            ...(context.fingerprint === undefined
+                ? {}
+                : { "exception.fingerprint": [...context.fingerprint] }),
+        },
+    });
 }
 
 /** Run work in child spans of a tracer. */
@@ -187,13 +249,26 @@ function options(definition: MetricDefinition<AttributeDomain>) {
     };
 }
 
-/** Describe a failure by the OpenTelemetry exception attributes. */
-export function exceptionAttributes(error: unknown): Attributes {
+/** Describe a failure by the OpenTelemetry exception attributes, its error type and whether it escaped the code recording it. */
+export function exceptionAttributes(error: unknown, isEscaped: boolean): Attributes {
     const exception = error instanceof Error ? error : new Error(String(error));
 
     return {
+        "error.type": errorType(exception),
         "exception.type": exception.name,
         "exception.message": exception.message,
         ...(exception.stack === undefined ? {} : { "exception.stacktrace": exception.stack }),
+        "exception.escaped": isEscaped,
     };
+}
+
+/** Read a failure's error type: the service error code it reports, else its own code, else its name. */
+function errorType(exception: Error): string {
+    if (ReportableError.is(exception)) {
+        return exception.toServiceError().code;
+    } else if ("code" in exception && typeof exception.code === "string") {
+        return exception.code;
+    }
+
+    return exception.name;
 }

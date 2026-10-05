@@ -92,3 +92,114 @@ test("declare metrics whose attributes take only their declared values, and expo
         },
     ]);
 });
+
+/** The log records of an export request with their attributes. */
+const ExportedLogs = schema.looseObject({
+    resourceLogs: schema.array(
+        schema.looseObject({
+            scopeLogs: schema.array(
+                schema.looseObject({
+                    logRecords: schema.array(
+                        schema.looseObject({
+                            eventName: schema.string(),
+                            severityText: schema.string(),
+                            attributes: schema.array(
+                                schema.object({
+                                    key: schema.string(),
+                                    value: schema.looseObject({
+                                        stringValue: schema.string().exactOptional(),
+                                        boolValue: schema.boolean().exactOptional(),
+                                        arrayValue: schema.unknown().exactOptional(),
+                                    }),
+                                }),
+                            ),
+                        }),
+                    ),
+                }),
+            ),
+        }),
+    ),
+});
+
+test("capture handled failures and messages as exceptions with their error type, level, tags and fingerprint", async () => {
+    // collect the records each export carries, without stack traces
+    const records: unknown[] = [];
+    const exporter = new OtlpExporter(
+        async (signal, body) => {
+            if (signal === "logs") {
+                const request = ExportedLogs.parse(JSON.parse(new TextDecoder().decode(body)));
+                for (const record of request.resourceLogs.flatMap((group) =>
+                    group.scopeLogs.flatMap((scope) => scope.logRecords),
+                )) {
+                    records.push([
+                        record.eventName,
+                        record.severityText,
+                        Object.fromEntries(
+                            record.attributes
+                                .filter((attribute) => attribute.key !== "exception.stacktrace")
+                                .map((attribute) => [
+                                    attribute.key,
+                                    attribute.value.stringValue ??
+                                        attribute.value.boolValue ??
+                                        attribute.value.arrayValue,
+                                ]),
+                        ),
+                    ]);
+                }
+            }
+        },
+        (error) => {
+            throw error;
+        },
+    );
+    const telemetry = await startTelemetry(exporter.options(source));
+
+    // capture a handled failure with a tag, a refusal of its caller, and a warning message with its own fingerprint
+    try {
+        const scope = telemetry.scope(source);
+        scope.captureException(new RangeError("page 9 of 3"), { tags: { feature: "export" } });
+        scope.captureException(
+            Object.assign(new Error("note is gone"), {
+                toServiceError: () => ({ code: "NOT_FOUND" as const, message: "note is gone" }),
+            }),
+        );
+        scope.captureMessage("quota nearly reached", { level: "warning", fingerprint: ["quota"] });
+        await telemetry.flush();
+    } finally {
+        await telemetry.shutdown();
+    }
+
+    // record each as an exception that did not escape, at its level, the refusal typed by its service code
+    expect(records).toEqual([
+        [
+            "exception",
+            "ERROR",
+            {
+                "error.type": "RangeError",
+                "exception.type": "RangeError",
+                "exception.message": "page 9 of 3",
+                "exception.escaped": false,
+                "tag.feature": "export",
+            },
+        ],
+        [
+            "exception",
+            "ERROR",
+            {
+                "error.type": "NOT_FOUND",
+                "exception.type": "Error",
+                "exception.message": "note is gone",
+                "exception.escaped": false,
+            },
+        ],
+        [
+            "exception",
+            "WARN",
+            {
+                "exception.message": "quota nearly reached",
+                "exception.escaped": false,
+                "exception.fingerprint": { values: [{ stringValue: "quota" }] },
+            },
+        ],
+    ]);
+});

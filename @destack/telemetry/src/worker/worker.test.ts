@@ -23,7 +23,10 @@ const LogsExport = schema.looseObject({
                             attributes: schema.array(
                                 schema.looseObject({
                                     key: schema.string(),
-                                    value: schema.looseObject({ stringValue: schema.string() }),
+                                    value: schema.looseObject({
+                                        stringValue: schema.string().exactOptional(),
+                                        boolValue: schema.boolean().exactOptional(),
+                                    }),
                                 }),
                             ),
                         }),

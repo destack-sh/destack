@@ -9,7 +9,7 @@ import {
     type TextMapPropagator,
     trace,
 } from "@opentelemetry/api";
-import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
+import { type Logger, logs } from "@opentelemetry/api-logs";
 import {
     CompositePropagator,
     W3CBaggagePropagator,
@@ -21,7 +21,12 @@ import { MeterProvider, type MeterProviderOptions } from "@opentelemetry/sdk-met
 import { TracerProvider, type TracerProviderOptions } from "@opentelemetry/sdk-trace";
 import type { Package } from "@destack/package";
 import { ATTR_DESTACK_BUILD_MANIFEST } from "../convention/source.ts";
-import { exceptionAttributes, instrument, type TelemetryScope } from "../scope/index.ts";
+import {
+    emitException,
+    exceptionAttributes,
+    instrument,
+    type TelemetryScope,
+} from "../scope/index.ts";
 import { TraceIdGenerator } from "../trace/generator.ts";
 
 /** Configure one application's identity and its three telemetry providers. */
@@ -59,8 +64,8 @@ export class Telemetry {
     readonly metrics: MeterProvider;
     /** The structured log provider. */
     readonly logs: LoggerProvider;
-    /** The application's logger recording uncaught failures. */
-    private readonly exceptions: Logger;
+    /** The application's own logger, recording uncaught failures. */
+    private readonly logger: Logger;
     /** Remove only registrations made by this instance. */
     private readonly unregister: (() => void)[] = [];
     /** The shared shutdown operation. */
@@ -91,7 +96,7 @@ export class Telemetry {
         });
         this.metrics = new MeterProvider({ ...options.metrics, resource });
         this.logs = new LoggerProvider({ ...options.logs, resource });
-        this.exceptions = this.logs.getLogger(options.name, options.version);
+        this.logger = this.logs.getLogger(options.name, options.version);
     }
 
     /** Attribute instrumentation to a package using this instance's providers. */
@@ -105,12 +110,7 @@ export class Telemetry {
 
     /** Record an uncaught failure as an error log record in the active trace. */
     capture(error: unknown): void {
-        this.exceptions.emit({
-            eventName: "exception",
-            severityNumber: SeverityNumber.ERROR,
-            severityText: "ERROR",
-            attributes: exceptionAttributes(error),
-        });
+        emitException(this.logger, exceptionAttributes(error, true));
     }
 
     /** Register providers, the host's context manager and the realm's capture once per application. */
