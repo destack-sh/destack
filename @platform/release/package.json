@@ -3,7 +3,7 @@
     "version": "2026.9.0",
     "type": "module",
     "exports": {
-        "./catalog": "./src/repository/catalog.ts"
+        "./catalog": "./src/catalog/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
