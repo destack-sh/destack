@@ -12,6 +12,9 @@ export const CATALOG_PATH = "/.destack/catalog";
 /** The same-origin host path streaming a view's display as server-sent events. */
 export const DISPLAY_PATH = "/.destack/display";
 
+/** The same-origin host path below which a browser registers its device and binds its view credential to it. */
+export const DEVICE_PATH = "/.destack/device";
+
 /** The query parameter of the open path with the object to open, as JSON. */
 export const OBJECT_PARAMETER = "object";
 
