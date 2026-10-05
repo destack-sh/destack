@@ -1,7 +1,6 @@
 import { Digest } from "@destack/schema";
 import { PackagePath, type PackageFile } from "@destack/package/file";
-import { PackageError } from "@destack/package/error";
-import { isServiceError } from "@destack/service/error";
+import { ServiceError } from "@destack/service/error";
 import type { PackageStore } from "./store.ts";
 
 /** The most bytes one upload holds: 64 MiB, which bounds its memory. */
@@ -47,17 +46,15 @@ export class PackageServer {
         try {
             return await this.#read(request, access);
         } catch (error) {
-            // answer service and package failures with their code, and rethrow every other failure
-            if (!(isServiceError(error) || error instanceof PackageError)) {
+            // answer service failures and failures that know their service error, rethrowing internal ones
+            const failure = ServiceError.of(error);
+            if (failure === undefined || failure.code === "INTERNAL_SERVER_ERROR") {
                 throw error;
             }
 
             return Response.json(
-                { error: error.code, message: error.message },
-                {
-                    status: isServiceError(error) ? error.status : 400,
-                    headers: { "cache-control": "no-store" },
-                },
+                { error: failure.code, message: failure.message },
+                { status: failure.status, headers: { "cache-control": "no-store" } },
             );
         }
     }

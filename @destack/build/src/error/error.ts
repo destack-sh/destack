@@ -1,4 +1,11 @@
-import { defineSchema, schema } from "@destack/schema";
+import {
+    defineSchema,
+    type ReportableError,
+    schema,
+    SERVICE_ERROR_STATUSES,
+    type ServiceErrorCode,
+    type ServiceErrorReport,
+} from "@destack/schema";
 
 /** Failures during source inspection and compilation. */
 export const BuildErrorCode = defineSchema(schema.enum(["INSPECTION_FAILED", "BUILD_FAILED"]));
@@ -6,24 +13,35 @@ export const BuildErrorCode = defineSchema(schema.enum(["INSPECTION_FAILED", "BU
 /** A machine-readable build failure code. */
 export type BuildErrorCode = schema.Infer<typeof BuildErrorCode>;
 
-/** The HTTP status of a package whose source cannot be built (RFC 9110 15.5.21). */
-const UNPROCESSABLE_STATUS = 422;
+/** The service error code of each build failure: source that cannot be built. */
+const SERVICE_CODES: Readonly<Record<BuildErrorCode, ServiceErrorCode>> = {
+    INSPECTION_FAILED: "UNPROCESSABLE_CONTENT",
+    BUILD_FAILED: "UNPROCESSABLE_CONTENT",
+};
 
 /** The errors a Rolldown bundle failure aggregates. */
 const BundleErrors = schema.array(schema.looseObject({ message: schema.string() })).min(1);
 
 /** A build failure with its original cause. */
-export class BuildError extends Error {
+export class BuildError extends Error implements ReportableError {
     /** The stable failure code. */
     readonly code: BuildErrorCode;
-    /** The HTTP status of the failure: the package's source cannot be built, 422 Unprocessable Content. */
-    readonly status = UNPROCESSABLE_STATUS;
 
     /** Create a build failure. */
     constructor(code: BuildErrorCode, message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "BuildError";
         this.code = code;
+    }
+
+    /** The HTTP status of the service error a caller receives. */
+    get status(): number {
+        return SERVICE_ERROR_STATUSES[SERVICE_CODES[this.code]];
+    }
+
+    /** Convert the failure to the service error a caller receives. */
+    toServiceError(): ServiceErrorReport {
+        return { code: SERVICE_CODES[this.code], message: this.message };
     }
 
     /** Report any failure as a build failure, keeping a build failure as it is. */

@@ -209,7 +209,10 @@ export const viewExtension: BuildExtension = {
 };
 export const styleExtension: BuildExtension = {
     transform: ({ directory }) => [
-        styleX({ ...styleOptions(directory), cssInjectionTarget: (path) => path.includes("entry-client") }),
+        styleX({
+            ...styleOptions(directory),
+            cssInjectionTarget: (path) => path.includes("entry-client"),
+        }),
     ],
 };
 export const webExtension: BuildExtension = { outputs: { web: webOutput } };
@@ -317,4 +320,14 @@ import { Template } from "@destack/build/template";
 
 const template = await Template.read(directory);
 await template.write(destination, { id, name: "@example/notes", dependencies });
+```
+
+## Errors
+
+A failed inspection or build throws a `BuildError`, which a caller receives as `UNPROCESSABLE_CONTENT` with status 422.
+
+```ts
+import { BuildError } from "@destack/build/error";
+
+new BuildError("BUILD_FAILED", "cannot resolve ./missing.ts").toServiceError(); // { code: "UNPROCESSABLE_CONTENT", … }
 ```
