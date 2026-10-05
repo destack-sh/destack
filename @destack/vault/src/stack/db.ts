@@ -1,6 +1,4 @@
-import { defineTable, text, identifier, type Table } from "@destack/db";
-import { journal } from "@destack/audit";
-import { secret, secretVersion, vault } from "../object/secret.ts";
+import { defineTable, text, identifier } from "@destack/db";
 
 /** Each vault's key, wrapped under the holding host's root key. */
 export const vaultKey = defineTable("key", {
@@ -17,10 +15,3 @@ export const vaultKey = defineTable("key", {
     /** The wrapping nonce, encoded as base64. */
     keyNonce: text("key_nonce").notNull(),
 });
-
-/** Vaults, secrets, their sealed versions, the vaults' keys and the journal. */
-export const vaultTables: readonly Table[] = [
-    ...[vault, secret, secretVersion].flatMap((object) => object.tables),
-    vaultKey,
-    journal,
-];

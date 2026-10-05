@@ -7,7 +7,7 @@ import * as spaceObject from "@destack/space/object";
 import { expect, single, test } from "@destack/test";
 import { v7 } from "uuid";
 import { secret, secretVersion } from "../object/index.ts";
-import { VaultFixture } from "../server/tests/fixture.ts";
+import { VaultFixture } from "../test/index.ts";
 import { RemoteVault } from "./remote.ts";
 
 test.each(TEST_DIALECTS)(

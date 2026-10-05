@@ -1,6 +1,7 @@
 import { schema } from "@destack/schema";
 import { VaultError } from "../error/index.ts";
-import type { Keyring, WrappedKey } from "@destack/host/keychain";
+import type { WrappedKey } from "@destack/host";
+import type { Keyring } from "@destack/host/keychain";
 
 /** The protocol every ciphertext authenticates, independent of package metadata. */
 const ENCRYPTION_PROTOCOL = "@destack/vault";

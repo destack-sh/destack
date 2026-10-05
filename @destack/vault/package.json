@@ -15,7 +15,8 @@
         "./error": "./src/error/index.ts",
         "./provider": "./src/provider/index.ts",
         "./server": "./src/server/index.ts",
-        "./account": "./src/account/index.ts"
+        "./account": "./src/account/index.ts",
+        "./test": "./src/test/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
@@ -29,15 +30,15 @@
         "uuid": "14.0.2",
         "@destack/space": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/host": "workspace:*"
+        "@destack/host": "workspace:*",
+        "@destack/directory": "workspace:*",
+        "@destack/sync": "workspace:*"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "@destack/directory": "workspace:*",
-        "@destack/sync": "workspace:*",
         "@destack/test": "workspace:*",
         "jose": "6.2.12"
     }

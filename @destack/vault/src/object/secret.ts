@@ -28,7 +28,7 @@ import type { ClientOptions } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
 import { installation, space } from "@destack/space/object";
 import { SpaceResource } from "@destack/space/declare";
-import { VaultKind } from "../declare/vault.ts";
+import { VaultKind } from "../declare/kind.ts";
 import { SpaceSecret } from "../declare/space.ts";
 import {
     SecretDisclosure,
@@ -114,6 +114,8 @@ export const secret = defineObject({
         enable: method.mutation({ permission: "enable" }),
         promote: method.mutation({ permission: "promote", input: SecretPromotion }),
         select: method.mutation({ permission: null, isSystem: true, input: SecretPromotion }),
+        /** Create a secret an installation's declaration binds, as its space generates it. */
+        own: method.create(null, { isSystem: true, fields: ["name"] }),
         read: method.query({
             permission: "open",
             input: SecretSelection,
@@ -164,6 +166,8 @@ export const secretVersion = defineObject({
         get: method.get("get"),
         list: method.list("list"),
         create: method.create("write", { fields: ["expiresAt"], input: VersionWrite }),
+        /** Store a version as the system, such as the first value a space generates. */
+        store: method.create(null, { isSystem: true, fields: ["expiresAt"], input: VersionWrite }),
         disable: method.mutation({ permission: "disable" }),
         enable: method.mutation({ permission: "enable" }),
         destroy: method.mutation({ permission: "destroy" }),

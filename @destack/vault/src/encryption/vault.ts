@@ -5,7 +5,8 @@ import type { Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { VaultError } from "../error/index.ts";
 import { vaultKey } from "../stack/db.ts";
-import { type Keyring, LocalKeyring, type WrappedKey } from "@destack/host/keychain";
+import type { WrappedKey } from "@destack/host";
+import { type Keyring, LocalKeyring } from "@destack/host/keychain";
 
 /** The protocol the vault key's wrapping authenticates, beside its location and vault. */
 const VAULT_KEY_PROTOCOL = "@destack/vault/key";

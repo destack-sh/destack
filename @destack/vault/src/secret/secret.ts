@@ -1,4 +1,5 @@
 import { schema } from "@destack/schema";
+import type { SecretAlgorithm } from "../declare/secret.ts";
 
 /** The largest decoded secret value: 64 KiB, the limit of common managed secret stores. */
 export const MAX_VALUE_BYTES = 64 * 1024;
@@ -6,8 +7,11 @@ export const MAX_VALUE_BYTES = 64 * 1024;
 /** The longest base64 text of the largest value: four characters per three bytes. */
 const MAX_BASE64_LENGTH = Math.ceil(MAX_VALUE_BYTES / 3) * 4;
 
+/** The algorithm of generated ES256 keys: ECDSA over P-256 (RFC 7518 3.4). */
+const ES256 = { name: "ECDSA", namedCurve: "P-256" } as const;
+
 /** A bounded text or binary value; excluded from logs and metadata. */
-export const SecretValue = schema.discriminatedUnion("encoding", [
+const secretValueSchema = schema.discriminatedUnion("encoding", [
     schema.object({
         encoding: schema.literal("text"),
         value: schema.string().max(MAX_VALUE_BYTES),
@@ -17,8 +21,18 @@ export const SecretValue = schema.discriminatedUnion("encoding", [
         value: schema.base64().max(MAX_BASE64_LENGTH),
     }),
 ]);
+/** A bounded text or binary value; excluded from logs and metadata. */
+export const SecretValue = Object.assign(secretValueSchema, {
+    /** Generate a value with an algorithm: ES256 writes an ECDSA P-256 private key as a JWK (RFC 7518 6.2). */
+    async generate(algorithm: SecretAlgorithm): Promise<SecretValue> {
+        const keys = await crypto.subtle.generateKey(ES256, true, ["sign", "verify"]);
+        const jwk = await crypto.subtle.exportKey("jwk", keys.privateKey);
+
+        return { encoding: "text", value: JSON.stringify({ ...jwk, alg: algorithm }) };
+    },
+});
 /** A secret value crossing the authenticated service transport. */
-export type SecretValue = schema.Infer<typeof SecretValue>;
+export type SecretValue = schema.Infer<typeof secretValueSchema>;
 
 /** A value read from a secret, with the number of its version. */
 export const SecretReading = schema.object({

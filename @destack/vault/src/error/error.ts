@@ -1,11 +1,14 @@
+/** A failure code of vault storage or encryption. */
+export type VaultErrorCode = "KEY_UNAVAILABLE" | "DECRYPTION_FAILED";
+
 /** A vault storage or encryption failure without secret contents. */
 export class VaultError extends Error {
-    /** Machine-readable failure category. */
-    readonly code: "KEY_UNAVAILABLE" | "DECRYPTION_FAILED";
+    /** The stable failure code. */
+    readonly code: VaultErrorCode;
 
-    /** Report a safe failure without propagating cryptographic inputs. */
-    constructor(code: VaultError["code"], message: string) {
-        super(message);
+    /** Report a failure without its cryptographic inputs. */
+    constructor(code: VaultErrorCode, message: string, options?: ErrorOptions) {
+        super(message, options);
         this.name = "VaultError";
         this.code = code;
     }

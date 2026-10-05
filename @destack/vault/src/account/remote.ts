@@ -1,6 +1,6 @@
 import type { Vault } from "@destack/account/server";
 import type { Subject } from "@destack/sync";
-import { ServiceError } from "@destack/service/error";
+import { isServiceError, ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import type { SecretClient } from "../object/index.ts";
 
@@ -90,7 +90,7 @@ async function absent<Value>(
         return await pending;
     } catch (error) {
         // answer the expected failure, and rethrow every other one
-        if (error instanceof ServiceError && error.code === code) {
+        if (isServiceError(error) && error.code === code) {
             return undefined;
         }
         throw error;

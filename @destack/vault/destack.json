@@ -18,11 +18,13 @@
         },
         "./account": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
         "defineSecret": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "secret",
@@ -31,13 +33,20 @@
             ]
         },
         "defineVault": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "resource",
                     "function": "./inspect#describeVault"
                 }
             ]
+        }
+    },
+    "stamps": {
+        "defineSecret": {
+            "module": 1
+        },
+        "defineVault": {
+            "module": 1
         }
     }
 }
