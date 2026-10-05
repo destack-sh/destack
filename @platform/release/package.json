@@ -6,10 +6,7 @@
         "./catalog": "./src/repository/catalog.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json && bun run lint && bun run format-check",
-        "format": "destack-check format src vitest.config.ts",
-        "format-check": "destack-check format-check src vitest.config.ts",
-        "lint": "destack-check check src vitest.config.ts",
+        "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {

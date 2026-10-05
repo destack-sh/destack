@@ -11,9 +11,9 @@
         "./build": "./src/build/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json",
-        "generate": "bun run src/phosphor/generate.ts",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts",
+        "generate": "bun run src/phosphor/generate.ts"
     },
     "dependencies": {
         "@destack/package": "workspace:*",

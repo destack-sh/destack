@@ -18,9 +18,9 @@
         "./tokens.stylex": "./src/token/tokens.stylex.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json",
-        "generate": "bun run src/token/generate.ts",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts",
+        "generate": "bun run src/token/generate.ts"
     },
     "dependencies": {
         "@destack/package": "workspace:*",

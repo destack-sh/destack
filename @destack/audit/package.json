@@ -18,7 +18,7 @@
         "./journal": "./src/journal/index.ts"
     },
     "scripts": {
-        "check": "tsc -p tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {

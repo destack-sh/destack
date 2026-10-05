@@ -9,7 +9,7 @@
         "./build": "./src/build/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "typecheck": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/package": "workspace:*",

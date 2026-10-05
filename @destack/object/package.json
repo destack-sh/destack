@@ -30,7 +30,7 @@
         "@types/bun": "1.4.2"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     }
 }

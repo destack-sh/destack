@@ -28,6 +28,6 @@
         "@destack/resource": "workspace:*"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "typecheck": "tsc --project tsconfig.json"
     }
 }

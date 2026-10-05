@@ -6,7 +6,7 @@
     "description": "Define Destack HTTP services.",
     "sideEffects": false,
     "scripts": {
-        "check": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "exports": {

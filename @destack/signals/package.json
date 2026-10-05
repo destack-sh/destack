@@ -12,7 +12,7 @@
         "./dev": "./src/dev/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "typecheck": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@solidjs/signals": "2.0.0-rc.8"

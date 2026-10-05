@@ -9,9 +9,7 @@
         "./package": "./src/package.ts"
     },
     "scripts": {
-        "lint": "destack-check check",
-        "format": "destack-check format",
-        "check": "tsc --project tsconfig.json"
+        "typecheck": "tsc --project tsconfig.json"
     },
     "devDependencies": {
         "@destack/check": "2026.9.0"
