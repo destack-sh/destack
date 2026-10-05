@@ -19,17 +19,20 @@ just @platform/release/rehearse VERSION ARCHIVE
 
 ## Publication
 
-`release-publish` builds and publishes one channel per run: nightly from main, stable on a pushed `v<version>` tag, either on a manual dispatch.
+`release` builds, publishes and deploys one channel per run: nightly from main every night, stable on a pushed `v<version>` tag after approval, either on a manual dispatch.
 
 ```text
-release-publish   a nightly at the published nightly's commit skips build and only renews
+release         a nightly at the published nightly's commit skips build and only renews
 ├── prepare     select version and work                    github/prepare.ts
-├── check       workspace-check
+├── check       check, on SQLite and PostgreSQL
+├── drift       refuse production drift on a nightly       @platform/stack drift
 ├── build       build, verify, pack, rehearse per target   build.ts, verify.ts, pack.ts, rehearse.ts
 ├── sign        sign and notarize per signed target        sign.ts, apple/credential.ts
 ├── installer   build per installer                        installer/build.ts
 ├── publish     attest archives and installers, sign       github/credential.ts, sign.ts, upload.ts, verify.ts
 │               targets, snapshot and timestamp
+├── deploy      apply and release development after a      @platform/stack deploy, release
+│               nightly, production after a tag
 ├── renew       re-sign every other channel's snapshot     github/credential.ts, renew.ts, submit.ts, verify.ts
 │               and timestamp
 ├── expiry      fail inside a signed role's renewal window expiry.ts
@@ -161,14 +164,14 @@ The publish job attests every published archive and installer with a GitHub buil
 
 ```sh
 gh attestation verify {sha256}.aarch64-apple-darwin.tar.gz --repo destack-sh/destack \
-    --signer-workflow destack-sh/destack/.github/workflows/release-publish.yml
+    --signer-workflow destack-sh/destack/.github/workflows/release.yml
 gh attestation verify {sha256}.universal-apple-darwin.dmg --repo destack-sh/destack \
-    --signer-workflow destack-sh/destack/.github/workflows/release-publish.yml
+    --signer-workflow destack-sh/destack/.github/workflows/release.yml
 ```
 
 ## Platform signing
 
-`release-publish.yml` passes these Apple secrets and variables to signing and notarization.
+`release.yml` passes these Apple secrets and variables to signing and notarization.
 
 ```text
 secrets     APPLE_CERTIFICATE (base64 P12), APPLE_CERTIFICATE_PASSWORD, APPLE_NOTARY_KEY (P8)

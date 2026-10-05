@@ -130,18 +130,18 @@ just release development             # migrate account, forge-eu, forge-us, rela
 
 ## Workflow
 
-The `Deploy stack` workflow plans pull requests with the `destack-plan` role, deploys `development` from `main` and `production` from a `v…` tag once a reviewer approves the `production` environment, each after the workspace check passes.
+The `Release` workflow deploys `development` after each nightly and `production` after each `v…` tag; `Plan stack` plans pull requests.
 
 ```text
-pull request    destack-plan     plan shared and the production deployments it touches, in one comment
-push to main    destack-deploy   check, apply shared and development/{universe,eu,us}, release development
-tag v…          destack-deploy   check, apply production/{universe,eu,us}, release production (approval)
-fork            none             no plan
+pull request    Plan stack   plan shared and the production deployments it touches, in one comment
+nightly         Release      check, refuse production drift, publish nightly, apply shared and development/{universe,eu,us}, release development
+tag v…          Release      check, publish stable (approval), apply production/{universe,eu,us}, release production
+fork            none         no plan
 ```
 
 ## Secrets
 
-The workflow reads these secrets in its `plan`, `development` and `production` environments, and an operator puts each process's own secrets with `just secrets`.
+The workflows read these secrets in their `plan`, `drift`, `development` and `production` environments, and an operator puts each process's own secrets with `just secrets`.
 
 ```text
 CLOUDFLARE_COMPANY_API_TOKEN   Cloudflare, wrangler and the R2 state bucket
