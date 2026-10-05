@@ -23,7 +23,7 @@ import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
 import { profile, profilesDatabase, profilesService } from "./fixture/profile.ts";
 import { none, principal } from "@destack/access";
-import { copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { openSpace } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 
@@ -274,9 +274,13 @@ test.each(TEST_DIALECTS)(
         ];
         for (const [accountId, folderId] of folders) {
             if (folderId !== "folder-2") {
-                await copyScope(storage.database, account.reference(Scope.universe.id, accountId));
+                await new AccessFixture(storage.database).copyScope(
+                    account.reference(Scope.universe.id, accountId),
+                );
             }
-            await copyScope(storage.database, folder.reference(accountId, folderId));
+            await new AccessFixture(storage.database).copyScope(
+                folder.reference(accountId, folderId),
+            );
         }
 
         // claim the same path in each folder

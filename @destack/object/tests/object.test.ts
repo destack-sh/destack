@@ -1,16 +1,30 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { eq } from "@destack/db";
+import { type DatabaseConnection, eq } from "@destack/db";
+import { testCallKey } from "@destack/service/test";
 import { schema, type JsonObject } from "@destack/schema";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { Manager, principal, relation, through, union } from "@destack/access";
-import { Stack } from "../src/server/index.ts";
+import { Scope } from "@destack/sync";
+import { AccessFixture } from "@destack/access/test";
+import { ObjectServer, Stack } from "../src/server/index.ts";
 import { label, note, objectDatabase, task } from "./schema.ts";
 import { space } from "./fixture/space.ts";
 
 /** The space the declared objects live in. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+
+/** Serve the declared objects over a database, applying their records. */
+function serve(database: DatabaseConnection): ObjectServer {
+    return new ObjectServer({
+        objects: { label, note, task },
+        policies: [space],
+        database,
+        callKey: testCallKey,
+        origin: { package: note.package, service: "test" },
+    });
+}
 
 /** The installation and package declaring the objects. */
 const manager = Manager.schema.omit({ name: true }).parse({
@@ -46,8 +60,10 @@ test.each(TEST_DIALECTS)(
                 values: (_name, declared) => ({ title: declared.title }),
             }),
         ];
+        await new AccessFixture(database).copyScope(space.reference(Scope.universe.id, spaceId));
+        const server = serve(database);
         const apply = (document: JsonObject) =>
-            Stack.apply({ database, objects, manager, scope: spaceId, document });
+            Stack.apply({ database, objects, manager, scope: spaceId, document, server });
         const titles = async () =>
             (await database.select().from(note.table).orderBy(note.table.managerName)).map(
                 (row) => [row.managerName, row.title],
@@ -161,6 +177,7 @@ test("refuse declarations that depend on themselves, also next to one depending 
             manager,
             scope: spaceId,
             document: {},
+            server: serve(storage.database),
         }),
     ).rejects.toMatchObject({
         code: "CYCLIC_DECLARATION",

@@ -1,13 +1,13 @@
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 
-import { defineObject, field } from "../src/index.ts";
-import { ObjectServer, SystemCall } from "../src/server/index.ts";
+import { defineObject, field, SystemCall } from "../src/index.ts";
+import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 

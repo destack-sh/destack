@@ -1,7 +1,7 @@
 import { Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";

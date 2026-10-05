@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import {
     bigint,
     binary,

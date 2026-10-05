@@ -1,7 +1,7 @@
 import { present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { asc, eq, unique, type Dialect, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { v7 } from "uuid";

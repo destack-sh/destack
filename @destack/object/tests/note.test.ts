@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { eq } from "@destack/db";
 import { channelHub } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";

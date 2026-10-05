@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { principal, relation, universe } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { defineService } from "@destack/service";

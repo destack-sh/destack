@@ -4,7 +4,7 @@ import { unique, type Dialect, defineDatabase, Expression } from "@destack/db";
 import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { channelHub } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import * as sqlite from "@destack/db/bun";

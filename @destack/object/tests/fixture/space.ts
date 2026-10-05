@@ -1,6 +1,6 @@
 import { accessRelationship, anyone, none, Relationship, relation } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { schema } from "@destack/schema";
 import { v7 } from "uuid";
@@ -26,7 +26,7 @@ export async function openSpace(
 ): Promise<void> {
     // record the space's scope
     const object = space.reference(Scope.universe.id, id);
-    await copyScope(database, object);
+    await new AccessFixture(database).copyScope(object);
 
     // relate anyone to a public space as its reader
     if (visibility === "public") {

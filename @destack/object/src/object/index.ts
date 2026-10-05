@@ -1,3 +1,4 @@
+export { ConditionMap, Observation, observeCondition, StatusCondition } from "./condition.ts";
 export {
     defineObject,
     ObjectType,

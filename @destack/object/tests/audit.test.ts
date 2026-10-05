@@ -1,8 +1,9 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal, relation } from "@destack/access";
-import { AuditCall, AuditRecorder, defineAuditAction, Journal, journal } from "@destack/audit";
+import { AuditCall, defineAuditAction } from "@destack/audit";
+import { AuditRecorder, Journal } from "@destack/audit/server";
+import { auditTables, journal } from "@destack/audit/stack";
 import { AuditHistory } from "@destack/audit/history";
-import { auditTables } from "@destack/audit/stack";
 import { type DatabaseConnection, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";

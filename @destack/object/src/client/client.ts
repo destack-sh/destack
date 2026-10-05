@@ -48,7 +48,7 @@ import { createClient, type ClientOptions } from "@destack/service/client";
 import type { Package } from "@destack/package";
 import { errorOf, ServiceError } from "@destack/service/error";
 import { Moved } from "@destack/directory";
-import { Journal } from "@destack/audit";
+import { Replay } from "@destack/audit";
 import { Authorization, Authorizer, decisionTables } from "@destack/access";
 import { RequestId } from "@destack/service/request";
 import { Observable } from "@destack/service/observable";
@@ -887,7 +887,7 @@ export class ObjectClient<
                     return;
                 } else if (!isConflict) {
                     report(error);
-                    if (Journal.failure(error) !== undefined) {
+                    if (Replay.failure(error) !== undefined) {
                         return;
                     }
                 }
@@ -978,7 +978,7 @@ export class ObjectClient<
                     continue;
                 }
                 report(error);
-                isFinal = Journal.failure(error) !== undefined;
+                isFinal = Replay.failure(error) !== undefined;
             } finally {
                 reshaped.abort();
             }
@@ -1884,7 +1884,7 @@ export class ObjectClient<
             });
         } catch (error) {
             // keep a mutation the server would refuse for good pending unpredicted
-            if (Journal.failure(error) === undefined) {
+            if (Replay.failure(error) === undefined) {
                 throw error;
             }
         }

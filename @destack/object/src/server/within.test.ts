@@ -1,8 +1,8 @@
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { none, principal, relation, through } from "@destack/access";
-import { journal } from "@destack/audit";
-import { copyScope, suspendCopy } from "@destack/access/test";
+import { journal } from "@destack/audit/stack";
+import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier } from "@destack/schema";
@@ -10,6 +10,9 @@ import { schema, present, type Identifier } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import { defineObject, field } from "../index.ts";
 import { ObjectServer, Subscriber, SystemAuthorization } from "./index.ts";
+
+/** Refuse a change sent over the uplink, as these copies receive none. */
+const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
 
 /** The space the copies are kept for. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -78,7 +81,9 @@ test.each(TEST_DIALECTS)(
         const cy = personOf(3);
         const people = [ada, bob, cy];
         for (const id of people) {
-            await copyScope(home.database, person.reference(Scope.universe.id, id));
+            await new AccessFixture(home.database).copyScope(
+                person.reference(Scope.universe.id, id),
+            );
         }
         await home.database.insert(person.table).values(
             people.map((id) => ({
@@ -99,7 +104,7 @@ test.each(TEST_DIALECTS)(
                 updatedAt: now,
             })),
         );
-        await suspendCopy(home.database, cy, now);
+        await new AccessFixture(home.database).suspendCopy(cy, now);
 
         // let the space read ada and the suspended cy
         const served = serve(home.database);
@@ -123,6 +128,7 @@ test.each(TEST_DIALECTS)(
             cell.database,
             Subscriber.of(
                 {
+                    receive: refuseChanges,
                     stream: (asked, signal) =>
                         served.source.replicate(
                             asked,

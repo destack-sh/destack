@@ -1,6 +1,7 @@
-import { method, type Method } from "../method/method.ts";
+import { type Method } from "../method/method.ts";
 import type { Gated, Trait } from "./trait.ts";
 
+import { change } from "../method/suspendable.ts";
 /** The methods suspendable scope objects take. */
 export type SuspendableMethodMap<Suspend> = [Suspend] extends [string]
     ? {
@@ -38,18 +39,3 @@ export const suspendable: Trait<Gated> & {
     suspend: (permission) => change(permission, "suspend", "resume"),
     resume: (permission) => change(permission, "resume", "suspend"),
 };
-
-/** Suspend or resume a scope object on the server. */
-function change<const Permission extends string>(
-    permission: Permission,
-    action: "suspend" | "resume",
-    inverse: "suspend" | "resume",
-): Method<{ kind: "custom"; permission: Permission; mutates: true }> {
-    const handled = method.mutation({ permission, inverse }).handle(async (call) => {
-        await call.requireAuthorization()[action](call.reference());
-
-        return call.target;
-    });
-
-    return { ...handled, isPredicted: false };
-}

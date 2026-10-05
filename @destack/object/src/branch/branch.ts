@@ -10,7 +10,7 @@ import {
     type Snapshot,
 } from "@destack/db";
 import { Subject } from "@destack/sync";
-import { Journal } from "@destack/audit";
+import { Replay } from "@destack/audit";
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
@@ -267,7 +267,7 @@ export class Branch {
         try {
             await database.transaction(run);
         } catch (error) {
-            if (Journal.failure(error) === undefined) {
+            if (Replay.failure(error) === undefined) {
                 throw error;
             }
         }

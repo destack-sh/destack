@@ -10,7 +10,7 @@ import { Feed, Replica, replica, Subject } from "@destack/sync";
 import { none, principal } from "@destack/access";
 import { v7 } from "uuid";
 import { defineObject, field, type ObjectType } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectServer, ScopeProjector } from "../src/server/index.ts";
 import { objectDatabase } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
 
@@ -115,7 +115,13 @@ test.for(TEST_DIALECTS)(
             scope: MEMOS,
             tables: [],
             isRelayed: false,
-            projectors: [present(receipt.projector(HOME), "the receipt's projector")],
+            projectors: [
+                new ScopeProjector(
+                    receipt,
+                    present(receipt.projected, "the receipt's projection"),
+                    HOME,
+                ),
+            ],
         });
         const follow = (from: (after: LogPosition | undefined) => LogPosition | undefined) => {
             const controller = new AbortController();
@@ -230,6 +236,7 @@ test("settle the address of a recipient without a user, and record it again once
             stream: () => {
                 throw new TypeError("the fixture streams no copies");
             },
+            receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
         },
         publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");

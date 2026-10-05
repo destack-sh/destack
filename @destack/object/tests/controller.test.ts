@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { asc, eq, defineDatabase, type Change } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";

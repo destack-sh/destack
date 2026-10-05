@@ -1,5 +1,5 @@
 import { defineObject, field, type ObjectType } from "../src/index.ts";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";

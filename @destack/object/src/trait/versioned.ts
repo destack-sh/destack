@@ -1,15 +1,6 @@
-import { present, schema } from "@destack/schema";
-import {
-    type ColumnBuilder,
-    type DatabaseConnection,
-    desc,
-    eq,
-    integer,
-    unique,
-    TABLE,
-} from "@destack/db";
+import { present } from "@destack/schema";
+import { type ColumnBuilder, integer, unique } from "@destack/db";
 import type { FieldColumn } from "../field/field.ts";
-import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
 /** The options of versioned objects. */
@@ -21,10 +12,7 @@ export type VersionBuilderMap<Versions> = Versions extends VersionsDefinition
     : {};
 
 /** Immutable versions of a parent, numbered within it. */
-export const versioned: Trait<VersionsDefinition> & {
-    /** Read the number following a parent's latest version. */
-    next(object: ObjectType, parentId: string, database: DatabaseConnection): Promise<number>;
-} = {
+export const versioned: Trait<VersionsDefinition> = {
     key: "versioned",
     isDurable: true,
     options: (definition) => definition.versioned,
@@ -48,21 +36,5 @@ export const versioned: Trait<VersionsDefinition> & {
         if (definition.methods && "update" in definition.methods) {
             throw new TypeError(`versions of ${object.name} are immutable and cannot be updated`);
         }
-    },
-    async next(
-        object: ObjectType,
-        parentId: string,
-        database: DatabaseConnection,
-    ): Promise<number> {
-        // read the parent's highest number and count on from it
-        const table = object.table;
-        const [latest] = await database
-            .select({ number: table[TABLE].column("number") })
-            .from(table)
-            .where(eq(table[TABLE].column("parentId"), parentId))
-            .orderBy(desc(table[TABLE].column("number")))
-            .limit(1);
-
-        return latest === undefined ? 1 : schema.number().parse(latest.number) + 1;
     },
 };

@@ -15,7 +15,8 @@ import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
 import type { ResultOf } from "../method/call.ts";
 import type { MethodName } from "../method/procedure.ts";
-import { type ObjectServer, SystemCall } from "../server/server.ts";
+import type { ObjectServer } from "../server/server.ts";
+import { SystemCall } from "../method/system.ts";
 
 /** The fields of a pending object's key, as its key name keeps them. */
 const KeyFields = schema.record(schema.string(), Scalar);

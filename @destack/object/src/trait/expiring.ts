@@ -1,29 +1,8 @@
-import { earliest } from "@destack/access";
 import { Duration } from "@destack/schema";
-import {
-    Change,
-    and,
-    type DatabaseConnection,
-    isNotNull,
-    lte,
-    min,
-    type Row,
-    type Select,
-    TABLE,
-    type Table,
-    Condition,
-} from "@destack/db";
-import type { Controller } from "@destack/service/control";
-import type { Call } from "../method/call.ts";
-import type { ObjectTable } from "../object/table.ts";
-import { defineMethod, type Method } from "../method/method.ts";
-import { Empty } from "../method/procedure.ts";
+import { TABLE, Condition } from "@destack/db";
 import type { ObjectType } from "../object/object.ts";
-import { type ObjectServer, SystemCall } from "../server/server.ts";
+import { expiry } from "../method/expiring.ts";
 import type { Trait } from "./trait.ts";
-
-/** The most rows one expiry removes per transaction: about a millisecond of deletes. */
-const EXPIRE_ROWS = 100;
 
 /** A rule expiring matching objects a window after a time field. */
 export interface ExpiryRule {
@@ -39,13 +18,6 @@ export interface ExpiryRule {
 export const expiring: Trait<readonly ExpiryRule[]> & {
     /** Copy an expiring object type with the rules its host sets. */
     after<Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]): Self;
-    /** Remove expired objects as the system, returning the count. */
-    expire(
-        server: Pick<ObjectServer, "objects" | "database" | "executeAsSystem">,
-        now: number,
-    ): Promise<number>;
-    /** Remove objects as their windows pass. */
-    controller(server: Pick<ObjectServer, "objects" | "database" | "executeAsSystem">): Controller;
 } = {
     key: "expiring",
     isDurable: true,
@@ -68,89 +40,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
 
         return object.with({ lifecycle: { ...object.lifecycle, expiring: rules }, traits });
     },
-    async expire(server, now) {
-        // remove each rule's rows in batches until one comes back short
-        let removed = 0;
-        for (const object of server.objects) {
-            for (const rule of object.lifecycle.expiring ?? []) {
-                for (let batch = EXPIRE_ROWS; batch === EXPIRE_ROWS;) {
-                    const rows = await expired(server.database, object, rule, now);
-                    if (rows.length > 0) {
-                        await server.executeAsSystem(
-                            object,
-                            "expire",
-                            rows.map((row) => SystemCall.of(row)),
-                            now,
-                        );
-                    }
-                    batch = rows.length;
-                    removed += batch;
-                }
-            }
-        }
-
-        return removed;
-    },
-    controller(server) {
-        // watch expiring objects
-        const types = server.objects.filter((object) => object.lifecycle.expiring !== undefined);
-
-        return {
-            name: "expiry",
-            watches: types.map((object) => object.table),
-            keys: (change) => {
-                // look again when a rule's time field changes
-                const object = types.find((type) => type.table === change.table);
-                const after: Row | null = Change.after(change);
-                const before: Row | null = Change.before(change);
-                const isTimed = (object?.lifecycle.expiring ?? []).some(
-                    (rule) =>
-                        after?.[rule.from] !== undefined &&
-                        after[rule.from] !== null &&
-                        before?.[rule.from] !== after[rule.from],
-                );
-
-                return isTimed ? ["expiry"] : [];
-            },
-            list: async () => ["expiry"],
-            reconcile: async () => {
-                // expire and schedule the earliest window end
-                const now = Date.now();
-                await expiring.expire(server, now);
-                const passes = await Promise.all(
-                    types.flatMap((object) =>
-                        (object.lifecycle.expiring ?? []).map((rule) =>
-                            passing(server.database, object, rule),
-                        ),
-                    ),
-                );
-                const next = earliest(passes);
-
-                return next === undefined ? undefined : Math.max(0, next - now);
-            },
-        };
-    },
 };
-
-/** Remove an expired object at any revision, bypassing the trash. */
-const expiry: Method = defineMethod<{ kind: "delete"; permission: null; mutates: true }>({
-    kind: "delete",
-    permission: null,
-    isSystem: true,
-    mutates: true,
-    target: true,
-    result: "value",
-    procedure: (_name, shapes) => ({
-        route: { method: "DELETE", path: "/{id}" },
-        input: shapes.target.extend(shapes.replay),
-        output: Empty,
-    }),
-    handler: async (call: Call<ObjectTable>) => {
-        await call.remove();
-
-        return {};
-    },
-});
 
 /** Require at least one valid rule. */
 function requireRules(object: ObjectType, rules: readonly ExpiryRule[]): void {
@@ -167,58 +57,4 @@ function requireRules(object: ObjectType, rules: readonly ExpiryRule[]): void {
             throw new TypeError(`object ${object.name} expires from unknown field ${rule.from}`);
         }
     }
-}
-
-/** Read a batch of a type's rows a rule's window released. */
-async function expired(
-    database: DatabaseConnection,
-    object: ObjectType,
-    rule: ExpiryRule,
-    now: number,
-): Promise<Select<Table>[]> {
-    const table = object.table;
-
-    return database
-        .select()
-        .from(table)
-        .where(
-            and(
-                lte(table[TABLE].column(rule.from), now - Duration.milliseconds(rule.after)),
-                matching(table, rule),
-            ),
-        )
-        .limit(EXPIRE_ROWS);
-}
-
-/** Read when a rule's window next passes for a type. */
-async function passing(
-    database: DatabaseConnection,
-    object: ObjectType,
-    rule: ExpiryRule,
-): Promise<number | undefined> {
-    // read the earliest time
-    const table = object.table;
-    const column = table[TABLE].column(rule.from);
-    const [row] = await database
-        .select({ from: min(column) })
-        .from(table)
-        .where(and(isNotNull(column), matching(table, rule)));
-    if (row === undefined) {
-        throw new TypeError(`the earliest ${rule.from} of ${object.name} read no row`);
-    }
-
-    // require a time in UTC epoch milliseconds
-    const from = row.from;
-    if (from === null) {
-        return undefined;
-    } else if (typeof from !== "number") {
-        throw new TypeError(`${object.name}.${rule.from} is no time`);
-    }
-
-    return from + Duration.milliseconds(rule.after);
-}
-
-/** Render a rule's condition on its table. */
-function matching(table: Table, rule: ExpiryRule) {
-    return rule.where === undefined ? undefined : Condition.render(rule.where, table);
 }

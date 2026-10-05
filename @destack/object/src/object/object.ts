@@ -85,6 +85,7 @@ import {
     declarable,
     detachable,
     type DeclarableDefinition,
+    type DeclarableMethodMap,
     type DetachableMethodMap,
 } from "../trait/declarable.ts";
 import {
@@ -114,7 +115,7 @@ import {
     type SharingGateOf,
 } from "../trait/shareable.ts";
 import { suspendable, type SuspendableMethodMap } from "../trait/suspendable.ts";
-import { bindable } from "../trait/bindable.ts";
+import { bindable, type BindableMethodMap } from "../trait/bindable.ts";
 import {
     Provisioned,
     type ProvisionedDefinition,
@@ -549,10 +550,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.projecting = definition.projections;
         this.keyed = definition.key;
 
-        // retain auditing, sharing and provisioning
+        // retain auditing, sharing, and provisioning with the declaration it implies
         this.isReadAudited = definition.audited?.reads === true;
         this.roles = Roles.of(definition);
         this.provisioned = definition.provisioned;
+        if (definition.provisioned !== undefined) {
+            this.declaration = Provisioned.declaration(definition.provisioned.kind);
+        }
 
         // retain methods and fields
         this.inherited = definition.inherited;
@@ -731,12 +735,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return relations;
     }
 
-    /** Require method names functions lack, declared permissions, and permissions on record writes outside the system. */
+    /** Require client method names functions lack, declared permissions, and permissions on record writes outside the system. */
     #requireMethods(): void {
-        // refuse method names functions have
-        const shadowed = Object.keys(this.methods).find((name) =>
-            Object.getOwnPropertyNames(Function.prototype).includes(name),
-        );
+        // refuse client method names functions have
+        const shadowed = Object.entries(methodsOf(this)).find(
+            ([name, declared]) =>
+                declared.isSystem !== true &&
+                Object.getOwnPropertyNames(Function.prototype).includes(name),
+        )?.[0];
         if (shadowed !== undefined) {
             throw new TypeError(
                 `object ${this.name} names a method ${shadowed}, which functions have`,
@@ -1552,13 +1558,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return projecting;
     }
 
-    /** Build the projector writing the objects into one scope from their source's rows, absent for objects projecting none. */
-    projector(into: string): sync.Projector | undefined {
-        return this.projected === undefined
-            ? undefined
-            : projected.projector(this, this.projected, into);
-    }
-
     /** List object types with the chunk type their text fields need. */
     static served(objects: readonly ObjectType[]): ObjectType[] {
         const owners = objects.filter((object) => object.text.length > 0);
@@ -1692,6 +1691,8 @@ export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
     NestedMethodMap<TraitOf<Traits, "nested">> &
     ShareableMethodMap<SharingGateOf<TraitOf<Traits, "shareable">>> &
     SuspendableMethodMap<GateOf<TraitOf<Traits, "suspendable">>> &
+    DeclarableMethodMap<TraitOf<Traits, "declarable">> &
+    BindableMethodMap<TraitOf<Traits, "bindable">> &
     DetachableMethodMap<GateOf<TraitOf<Traits, "detachable">>> &
     TrackedMethodMap<TraitOf<Traits, "tracked">> &
     TextMethodMap<Fields>;
@@ -1864,7 +1865,7 @@ export function defineObject<
         : undefined;
     readonly attachments: IdentityOf<Attachments[number]["object"]>;
     readonly storage: Storage;
-    readonly declared: StackDeclarationOf<Traits>;
+    readonly declared: StackDeclarationOf<Traits & ProvisionedTraitsOf<Provisioning>>;
 }>;
 /** Declare an object type over a table another package owns. */
 export function defineObject<

@@ -19,7 +19,7 @@ import {
     type RemoveOptions,
     type UpdateManyOptions,
     type UpdateOptions,
-} from "../trait/record.ts";
+} from "./record.ts";
 import type { MethodKind } from "./kind.ts";
 import type { Step } from "./step.ts";
 import type { BranchCall } from "../branch/branch.ts";

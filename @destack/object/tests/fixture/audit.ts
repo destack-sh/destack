@@ -1,6 +1,7 @@
 import type { DatabaseConnection } from "@destack/db";
 import { testCallKey } from "@destack/service/test";
-import { Journal, AuditCaller } from "@destack/audit";
+import { AuditCaller } from "@destack/audit";
+import { Journal } from "@destack/audit/server";
 
 /** The most calls a test reads from a journal. */
 const READ_CALLS = 1000;

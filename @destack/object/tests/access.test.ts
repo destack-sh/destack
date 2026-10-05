@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";

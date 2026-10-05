@@ -3,13 +3,13 @@ import { Subject } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectServer, RecoverableController } from "../src/server/index.ts";
 import { recoverable } from "../src/trait/recoverable.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
@@ -168,8 +168,8 @@ test.each(TEST_DIALECTS)(
         const server = serve(handled);
         const later = Date.now() + 8 * 24 * 60 * 60 * 1000;
         expect([
-            await recoverable.purge(server, later),
-            await recoverable.purge(server, later),
+            await RecoverableController.purge(server, later),
+            await RecoverableController.purge(server, later),
         ]).toEqual([1, 0]);
         expect(await auditedActions(database, "system")).toEqual(["credential.purge"]);
         const [kept] = await database
@@ -179,7 +179,7 @@ test.each(TEST_DIALECTS)(
         expect(kept).toEqual({ value: null, purgedAt: later });
 
         // look again and purge after the next window ends
-        const controller = recoverable.controller(server);
+        const controller = new RecoverableController(server);
         const pending = await execute(handled, "create", { custodianId: "user-2", value: "later" });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });
         const week = 7 * 24 * 60 * 60 * 1000;

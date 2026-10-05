@@ -1,14 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, expiring, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ExpiringController, ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
@@ -88,7 +88,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // remove the two expired alerts and schedule the third
-        const controller = expiring.controller(server);
+        const controller = new ExpiringController(server);
         expect(Object.keys(alert.procedures).toSorted()).toEqual(["create", "get"]);
         const delay = await controller.reconcile(
             "expiry",

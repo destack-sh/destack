@@ -14,6 +14,7 @@ export {
     type Invoker,
     type NextOf,
     type Lifecycle,
+    type OutboxCall,
     type PreparedCallOf,
     type ResultOf,
 } from "./call.ts";
@@ -24,4 +25,5 @@ export {
     type RowSchema,
 } from "./procedure.ts";
 export { Step } from "./step.ts";
+export { SystemCall } from "./system.ts";
 export { settlement, SettlementCall } from "./settlement.ts";

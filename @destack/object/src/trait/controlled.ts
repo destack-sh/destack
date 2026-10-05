@@ -1,122 +1,11 @@
-import { check, integer, json, sql, text, type Column, TABLE } from "@destack/db";
-import { Plan } from "@destack/resource";
-import { ServiceError } from "@destack/service/error";
-import { defineSchema, Digest, Instant, present, schema } from "@destack/schema";
-import { method, type MethodBuilder } from "../method/method.ts";
-import type { ObjectTable } from "../object/table.ts";
+import { check, integer, json, sql, text, type Column } from "@destack/db";
+import { Plan, RISKS } from "@destack/resource";
+import { present } from "@destack/schema";
 import { deletionColumns } from "./recoverable.ts";
 import type { Trait } from "./trait.ts";
 
-/** A controller's observation of a record. */
-export const StatusCondition = defineSchema(
-    schema.object({
-        /** Whether the condition is true, or has not been established. */
-        status: schema.enum(["true", "false", "unknown"]),
-        /** The desired generation the controller evaluated. */
-        observedGeneration: schema.number().int().min(1),
-        /** The machine-readable explanation. */
-        reason: schema.string().min(1),
-        /** The human-readable explanation. */
-        message: schema.string(),
-        /** The last change of condition status, in UTC epoch milliseconds. */
-        lastTransitionAt: Instant,
-    }),
-);
-/** A controller's observation of a record. */
-export type StatusCondition = schema.Infer<typeof StatusCondition>;
-
-/** Status conditions keyed by their unique domain-specific names. */
-export const ConditionMap = defineSchema(schema.record(schema.string().min(1), StatusCondition));
-
-/** A controller's report on one record: the generation it evaluated, its conditions and observed fields. */
-export const Observation = defineSchema(
-    schema.object({
-        /** The desired generation the controller evaluated. */
-        observedGeneration: schema.number().int().min(0),
-        /** The conditions by name, their transition times kept while their status stays. */
-        conditions: schema.record(
-            schema.string().min(1),
-            StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true }),
-        ),
-        /** The observed fields the controller writes. */
-        fields: schema.record(schema.string(), schema.json()).exactOptional(),
-    }),
-);
-/** A controller's report on one record. */
-export type Observation = schema.Infer<typeof Observation>;
-
-/** The method declarations of controlled objects. */
-const controlledMethod: MethodBuilder<ControlledTable> = method;
-
-/** The method declarations of controlled objects whose risky plans wait for approval. */
-const approvalMethod: MethodBuilder<ApprovalTable> = method;
-
-/** Record a controller's observation of its target at its generation. */
-const observe = controlledMethod
-    .mutation({ permission: null, isSystem: true, input: Observation })
-    .handle(async (call) => {
-        // merge the conditions and keep transition times while their status stays
-        const { observedGeneration, conditions, fields } = call.input;
-        const current = call.target.conditions;
-        const merged = Object.fromEntries(
-            Object.entries(conditions).map(([name, condition]) => [
-                name,
-                controlled.observe(current[name], { ...condition, observedGeneration }, call.now),
-            ]),
-        );
-
-        // write the observed state
-        return call.updateStatus({
-            ...call.object.table[TABLE].decode(fields ?? {}),
-            observedGeneration,
-            conditions: { ...current, ...merged },
-        });
-    });
-
-/** Remove a record with a requested deletion after its controller finishes. */
-const finalize = controlledMethod
-    .mutation({
-        permission: null,
-        isSystem: true,
-        output: schema.object({}),
-    })
-    .handle(async (call) => {
-        // require a requested deletion
-        if (call.target.deletionRequestedAt === null) {
-            throw new ServiceError("CONFLICT", {
-                message: `${call.object.name} is not being deleted`,
-            });
-        }
-
-        // delete at the loaded revision
-        await call.remove();
-
-        return {};
-    });
-
-/** Accept a plan digest for the controller to apply once it plans the same steps again. */
-const approvePlan = approvalMethod
-    .mutation({
-        permission: null,
-        isSystem: true,
-        input: schema.object({
-            /** The digest of the approved plan. */
-            plan: Digest,
-        }),
-    })
-    .handle((call) => call.update({ approvedPlan: call.input.plan }));
-
-/** The table of controlled objects: the record columns, the controller's status and the deletion request. */
-export type ControlledTable = ObjectTable<string, unknown, {}, { readonly controlled: true }>;
-
-/** The table of controlled objects whose risky plans wait for approval. */
-export type ApprovalTable = ObjectTable<
-    string,
-    unknown,
-    {},
-    { readonly controlled: { readonly approval: true } }
->;
-
+import { approvePlan, finalize, observe } from "../method/controlled.ts";
+import { ConditionMap } from "../object/condition.ts";
 /** How a controller reconciles records: alone, or applying risky plans only once approved. */
 export type ControlledDefinition =
     | true
@@ -150,9 +39,11 @@ export function controlledColumns() {
     };
 }
 
-/** Declare the plan waiting for approval and the digest an approver accepted. */
+/** Declare the approval threshold, the plan waiting for approval and the digest an approver accepted. */
 export function approvalColumns() {
     return {
+        /** The least risk of a plan that waits for approval, absent until the record's owner sets it. */
+        approval: text("approval", { enum: RISKS }),
         /** The plan waiting for approval, absent once applied. */
         plan: json("plan", Plan),
         /** The digest of the plan an approver accepted, applied once the controller plans it again. */
@@ -161,14 +52,7 @@ export function approvalColumns() {
 }
 
 /** Records a controller reconciles. */
-export const controlled: Trait<ControlledDefinition> & {
-    /** Record a controller's observation and keep the last transition time while the status stays. */
-    observe(
-        previous: StatusCondition | undefined,
-        observation: Omit<StatusCondition, "lastTransitionAt">,
-        now: number,
-    ): StatusCondition;
-} = {
+export const controlled: Trait<ControlledDefinition> = {
     key: "controlled",
     isDurable: true,
     options: (definition) => definition.controlled,
@@ -184,10 +68,6 @@ export const controlled: Trait<ControlledDefinition> & {
             observedGeneration: present(columns["observedGeneration"], "the observed column"),
         }),
     methods: (options) => ({ observe, finalize, ...(options === true ? {} : { approvePlan }) }),
-    observe: (previous, observation, now) => ({
-        ...observation,
-        lastTransitionAt: previous?.status === observation.status ? previous.lastTransitionAt : now,
-    }),
 };
 
 /** Require valid revisions and generations, and refuse observations of future generations. */

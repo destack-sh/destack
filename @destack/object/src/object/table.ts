@@ -118,6 +118,9 @@ export type ObjectBuilderMap<
     ManagedBuilderMap<TraitOf<Traits, "declarable">> &
     FieldBuilderMap<Fields>;
 
+/** The table of any object with some traits, as code generic over a trait reads the columns the trait adds. */
+export type TraitTable<Traits> = ObjectTable<string, unknown, {}, Traits>;
+
 /** The table derived from an object's name, scope, fields and traits, any object's table without arguments. */
 export type ObjectTable<
     Name extends string = string,

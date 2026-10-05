@@ -8,8 +8,8 @@ import {
     Relationship,
     relation,
 } from "@destack/access";
-import { journal } from "@destack/audit";
-import { copyScope } from "@destack/access/test";
+import { journal } from "@destack/audit/stack";
+import { AccessFixture } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 
@@ -164,7 +164,7 @@ test.each(TEST_DIALECTS)(
         // insert a room anyone reads
         const roomId = schema.identifier("room").parse(`room-${v7()}`);
         const object = room.reference(Scope.universe.id, roomId);
-        await copyScope(database, object);
+        await new AccessFixture(database).copyScope(object);
         await database.insert(accessRelationship).values(
             Relationship.encode(
                 {

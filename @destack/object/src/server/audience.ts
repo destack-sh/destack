@@ -9,7 +9,7 @@ import {
     SyncError,
 } from "@destack/sync";
 import { accessRelationship, earliest, type Permission } from "@destack/access";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import {
     and,
     eq,
