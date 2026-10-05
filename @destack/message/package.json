@@ -1,0 +1,41 @@
+{
+    "name": "@destack/message",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Send messages on a channel, email, push or webhook, as a kind its providers fulfil.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./email": "./src/email/index.ts",
+        "./object": "./src/object/index.ts",
+        "./provider": "./src/provider/index.ts",
+        "./push": "./src/push/index.ts",
+        "./server": "./src/server/index.ts",
+        "./service": "./src/service/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./test": "./src/test/index.ts",
+        "./webhook": "./src/webhook/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/space": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "jose": "6.2.12"
+    },
+    "devDependencies": {
+        "@destack/directory": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
+    }
+}

@@ -1,0 +1,26 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a10cd5-8ec8-7544-8686-f6c4b64d2d17",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./provider": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./push": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        },
+        "./webhook": {
+            "runtimes": ["bun", "workerd"]
+        }
+    }
+}
