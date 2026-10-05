@@ -131,7 +131,7 @@ export class Server implements AsyncDisposable {
         const signal = AbortSignal.any([request.signal, controller.signal]);
         this.#requests.set(controller, request);
         try {
-            // authenticate, then dispatch protocols or procedures
+            // dispatch authenticated protocols or procedures
             const accepted = copyRequest(request, { signal });
             this.#requests.set(controller, accepted);
             const context = await Server.#authenticate(accepted, this.#options);
@@ -295,9 +295,12 @@ export class Server implements AsyncDisposable {
         call: ProcedureCall<ServiceContext>,
         options: ServerOptions,
     ): Promise<void> {
-        // require identity on protected routes
+        // require identity on protected routes, and the space's grant of an installation calling a granted procedure
         if (call.access.authentication !== "public") {
             call.context.requireAuthentication();
+        }
+        if (call.access.granted === true) {
+            call.context.requireCall(call.path.join("."));
         }
 
         // renew the call's access

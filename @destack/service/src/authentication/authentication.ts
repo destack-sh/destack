@@ -41,6 +41,8 @@ export const AuthenticationClaims = Caller.schema.extend({
         kind: schema.string().min(1),
         /** The credential identifier. */
         id: schema.string().min(1),
+        /** The device whose key the credential is bound to, absent for an unbound credential. */
+        device: schema.identifier("device").exactOptional(),
     }),
     /** The receiving package. */
     audience: PackageId,
@@ -54,6 +56,8 @@ export const AuthenticationClaims = Caller.schema.extend({
     attributes: schema.record(schema.string(), Attribute).exactOptional(),
     /** A lending of the caller's authority to the installation it called, which its holder signed, for the calls that installation sends. */
     delegation: schema.string().min(1).exactOptional(),
+    /** The procedures of the audience an installation's space granted it, by their dotted paths, absent when it granted none. */
+    calls: schema.array(schema.string().min(1)).exactOptional(),
 });
 
 /** The header with the authentication a host forwards to a runner. */
@@ -310,6 +314,8 @@ export interface CredentialReference {
     readonly kind: string;
     /** The credential identifier. */
     readonly id: string;
+    /** The device whose key the credential is bound to, absent for an unbound credential. */
+    readonly device?: Identifier<"device">;
 }
 
 /** A caller's session key in access decisions: its credential's kind and identifier. */

@@ -1,3 +1,4 @@
+import { principal } from "@destack/access";
 import { type ObjectReference, type Subject } from "@destack/sync";
 import type { PackageId } from "@destack/package";
 import {
@@ -95,6 +96,19 @@ export class ServiceContext {
                           Math.max(0, Math.ceil(authentication.lapsesAt - this.clock())),
                       ),
                   ]);
+    }
+
+    /** Require an installation caller to hold a grant of a procedure from its space, concealing the procedure from one without it. */
+    requireCall(path: string): Authentication {
+        // admit callers other than installations by their own authority
+        const authentication = this.requireAuthentication();
+        const { subject, calls } = authentication.claims;
+        if (!principal.installation.is(subject) || calls?.includes(path) === true) {
+            return authentication;
+        }
+
+        // refuse an installation its space granted no such call
+        throw new ServiceError("NOT_FOUND", { message: `no procedure ${path}` });
     }
 
     /** Require the caller's authentication, current as of its lapse at latest. */
