@@ -1,27 +1,33 @@
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+
+/** The service error code of each database failure: a conflict, a bad request, a lost history, or the host's. */
+const SERVICE_CODES = {
+    INVALID_MIGRATION: "INTERNAL_SERVER_ERROR",
+    MIGRATION_FAILED: "INTERNAL_SERVER_ERROR",
+    PLAN_CHANGED: "INTERNAL_SERVER_ERROR",
+    NOT_APPLIED: "INTERNAL_SERVER_ERROR",
+    CONNECTION_CLOSED: "SERVICE_UNAVAILABLE",
+    OWNER_CHANGED: "SERVICE_UNAVAILABLE",
+    TRANSACTION_CLOSED: "INTERNAL_SERVER_ERROR",
+    TRANSACTION_REQUIRED: "INTERNAL_SERVER_ERROR",
+    TREE_NOT_FOUND: "INTERNAL_SERVER_ERROR",
+    CHANGES_COMPACTED: "GONE",
+    STALE_EPOCH: "STALE_EPOCH",
+    CONCURRENT_UPDATE: "CONFLICT",
+    DUPLICATE: "CONFLICT",
+    BROKEN_REFERENCE: "CONFLICT",
+    INVALID_RECORD: "BAD_REQUEST",
+    INVALID_QUERY: "BAD_REQUEST",
+    QUERY_FAILED: "INTERNAL_SERVER_ERROR",
+    INVALID_BLOB: "INTERNAL_SERVER_ERROR",
+    NO_CHANNEL: "INTERNAL_SERVER_ERROR",
+} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+
 /** The database failure codes. */
-export type DatabaseErrorCode =
-    | "INVALID_MIGRATION"
-    | "MIGRATION_FAILED"
-    | "PLAN_CHANGED"
-    | "NOT_APPLIED"
-    | "CONNECTION_CLOSED"
-    | "OWNER_CHANGED"
-    | "TRANSACTION_CLOSED"
-    | "TRANSACTION_REQUIRED"
-    | "TREE_NOT_FOUND"
-    | "CHANGES_COMPACTED"
-    | "STALE_EPOCH"
-    | "CONCURRENT_UPDATE"
-    | "DUPLICATE"
-    | "BROKEN_REFERENCE"
-    | "INVALID_RECORD"
-    | "INVALID_QUERY"
-    | "QUERY_FAILED"
-    | "INVALID_BLOB"
-    | "NO_CHANNEL";
+export type DatabaseErrorCode = keyof typeof SERVICE_CODES;
 
 /** A database failure with a stable code. */
-export class DatabaseError extends Error {
+export class DatabaseError extends Error implements ReportableError {
     /** The failure code. */
     readonly code: DatabaseErrorCode;
 
@@ -30,6 +36,11 @@ export class DatabaseError extends Error {
         super(message, options);
         this.name = "DatabaseError";
         this.code = code;
+    }
+
+    /** Convert the failure to the service error a caller receives. */
+    toServiceError(): ServiceErrorReport {
+        return { code: SERVICE_CODES[this.code], message: this.message };
     }
 }
 

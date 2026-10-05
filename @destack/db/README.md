@@ -430,6 +430,16 @@ const stop = await serveBrowserDatabase("notes", channel);
 const database = connectShared(channel, party, main);
 ```
 
+## Errors
+
+A database failure throws a `DatabaseError` with a stable code, and `toServiceError` names the service error its caller receives, such as `DUPLICATE` as `CONFLICT`.
+
+```ts
+import { DatabaseError } from "@destack/db";
+
+new DatabaseError("DUPLICATE", "a record with the same unique key exists").toServiceError(); // { code: "CONFLICT", … }
+```
+
 ## Tests
 
 `TestDatabase.create` opens an isolated database per dialect, and runs PostgreSQL when `DESTACK_TEST_POSTGRES` is set.
