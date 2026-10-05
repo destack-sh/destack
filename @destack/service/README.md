@@ -427,12 +427,12 @@ await runWorkload(runner, lines(process.stdin), async (ready) =>
 
 ### Cloudflare runners
 
-`DurableWorkload` holds one workload in a Durable Object: it starts the workload before the object's first event, hands the object's storage to the workload as its controllers' alarm, and settles each alarm once no controller is due.
+`DurableObjectWorkload` holds one workload in a Durable Object: it starts the workload before the object's first event, hands the object's storage to the workload as its controllers' alarm, and settles each alarm once no controller is due.
 
 ```ts
-import { DurableWorkload } from "@destack/service/cloudflare";
+import { DurableObjectWorkload } from "@destack/service/cloudflare";
 
-export class DurableAccount extends DurableWorkload {
+export class DurableObjectAccount extends DurableObjectWorkload {
     constructor(state: DurableObjectState, environment: Environment) {
         super(state, (alarm) => start(environment, alarm)); // anything with fetch(request) and alarm(deadline)
     }

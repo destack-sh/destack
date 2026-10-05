@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { DurableWorkload } from "./durable.ts";
+import { DurableObjectWorkload } from "./durable.ts";
 
 test("start the workload on the object's alarm before any event, serve requests and run alarms through it for at most ten minutes", async () => {
     // keep the object's alarm and its events in order
@@ -16,7 +16,7 @@ test("start the workload on the object's alarm before any event, serve requests 
     const deadlines: number[] = [];
 
     // start a workload that sets the alarm and serves once the start settles
-    const object = new DurableWorkload(
+    const object = new DurableObjectWorkload(
         {
             storage,
             blockConcurrencyWhile: async (closure) => {

@@ -4,7 +4,7 @@ import type { Alarm } from "../control/index.ts";
 const ALARM_MILLISECONDS = 10 * 60_000;
 
 /** The members of a Durable Object's state a workload object uses: the storage keeping its alarm, and the gate holding its events while it starts. */
-export interface DurableState {
+export interface DurableObjectState {
     /** The object's storage, whose alarm wakes the object. */
     readonly storage: Alarm;
     /** Hold the object's other events until a closure settles, resetting the object when it fails. */
@@ -12,7 +12,7 @@ export interface DurableState {
 }
 
 /** A workload an object serves: its requests, and the controllers the object's alarm wakes. */
-export interface DurableInstance {
+export interface DurableObjectWorkloadInstance {
     /** Serve a request. */
     fetch(request: Request): Promise<Response>;
     /** Run the controllers until no key is due now or reconciling, or until a deadline, keeping the alarm due while keys still run. */
@@ -20,12 +20,15 @@ export interface DurableInstance {
 }
 
 /** A Durable Object holding one workload instance: started before its first event, its controllers woken by the object's alarm. */
-export class DurableWorkload {
+export class DurableObjectWorkload {
     /** The started workload. */
-    readonly #started: Promise<DurableInstance>;
+    readonly #started: Promise<DurableObjectWorkloadInstance>;
 
     /** Start a workload before the object takes any event, keeping its controllers' wake-up on the object's alarm. */
-    constructor(state: DurableState, start: (alarm: Alarm) => Promise<DurableInstance>) {
+    constructor(
+        state: DurableObjectState,
+        start: (alarm: Alarm) => Promise<DurableObjectWorkloadInstance>,
+    ) {
         this.#started = state.blockConcurrencyWhile(() => start(state.storage));
     }
 
