@@ -13,6 +13,7 @@
         "./cloudflare": "./src/cloudflare/index.ts",
         "./tunnel": "./src/tunnel/index.ts",
         "./stack": "./src/stack/index.ts",
+        "./test": "./src/test/index.ts",
         "./workload": "./src/workload/index.ts"
     },
     "dependencies": {

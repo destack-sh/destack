@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { createHash } from "node:crypto";
 import { createServer, type Socket } from "node:net";
 import { Frame, FrameFlag, FrameType, TUNNEL_PROTOCOL } from "../session/index.ts";
-import { freePort, until } from "../../tests/fixture/relay.ts";
+import { freePort, until } from "../test/index.ts";
 import { TunnelClient } from "./client.ts";
 
 /** The GUID a WebSocket server appends to the client's key to accept it, from RFC 6455 section 1.3. */

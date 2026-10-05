@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { aligned } from "@destack/schema";
-import { until } from "../../tests/fixture/relay.ts";
+import { until } from "../test/index.ts";
 import { Frame, FrameFlag, FrameType, MAX_FRAME_BYTES } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
 import { MAX_STREAMS, Session } from "./session.ts";

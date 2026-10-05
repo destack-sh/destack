@@ -106,3 +106,14 @@ Sec-WebSocket-Protocol: destack.tunnel, destack.bearer.<token>
 HTTP/1.1 101 Switching Protocols
 Sec-WebSocket-Protocol: destack.tunnel
 ```
+
+## Tests
+
+`RelayFixture` enrolls a host of a test account with a space, and starts relays and tunnels to it, closed on disposal.
+
+```ts
+import { RelayFixture } from "@destack/relay/test";
+
+await using relay = await RelayFixture.open(accounts, await RelayFixture.workload(accounts));
+await relay.rename("notes-next");
+```

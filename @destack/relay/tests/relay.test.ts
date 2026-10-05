@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { AccountFixture, ids } from "@destack/host/test";
 import { RequestId } from "@destack/service/request";
 import { TUNNEL_PROTOCOL, TunnelProtocol } from "../src/session/index.ts";
-import { freePort, RelayFixture, type RelayWorkload, until } from "./fixture/relay.ts";
+import { freePort, RelayFixture, type RelayWorkload, until } from "../src/test/index.ts";
 
 /** The account service with each scenario's enrolled host. */
 let accounts: AccountFixture;

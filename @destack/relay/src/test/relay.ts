@@ -10,15 +10,15 @@ import { DirectoryStore } from "@destack/directory";
 import { present, schema, type Identifier } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { v7 } from "uuid";
-import { TunnelClient, type TunnelClientOptions } from "../../src/tunnel/index.ts";
-import { BunRelay } from "../../src/bun/index.ts";
-import { relayDatabase } from "../../src/stack/index.ts";
+import { TunnelClient, type TunnelClientOptions } from "../tunnel/index.ts";
+import { BunRelay } from "../bun/index.ts";
+import { relayDatabase } from "../stack/index.ts";
 import { workloadIdentity } from "@destack/account/client";
 import { ResourceContext } from "@destack/resource/context";
 import { testCallKey } from "@destack/service/test";
 import { WorkloadInstance } from "@destack/service/workload";
-import { RELAY_PACKAGE } from "../../src/server/index.ts";
-import { RELAY_ROLE, relayConfiguration, relayWorkload } from "../../src/workload/index.ts";
+import { RELAY_PACKAGE } from "../server/index.ts";
+import { RELAY_ROLE, relayConfiguration, relayWorkload } from "../workload/index.ts";
 
 /** Timings short enough for scenarios to watch renewals and reconnects. */
 export const QUICK = {
