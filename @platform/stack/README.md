@@ -102,7 +102,7 @@ mail: printing sign-in links and codes here, since DESTACK_MAIL_REGION and DESTA
 
 ## Deployment
 
-`just diff` plans a deployment and `just deploy` applies it, asking for confirmation outside CI.
+`just diff` plans a deployment, `just drift` refuses one whose infrastructure differs from its code, and `just deploy` applies it, asking for confirmation outside CI.
 
 ```text
 deployment                    root             processes

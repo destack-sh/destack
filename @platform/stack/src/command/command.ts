@@ -147,14 +147,38 @@ export async function run(arguments_: string[]): Promise<void> {
     }
 
     // select deployment-specific state, plans and credentials
-    if (action !== "init" && action !== "diff" && action !== "deploy") {
+    if (action !== "init" && action !== "diff" && action !== "drift" && action !== "deploy") {
         throw new Error(
-            "use format, format-check, validate, universe, rehearse, release, secrets, migrate, init, diff, or deploy",
+            "use format, format-check, validate, universe, rehearse, release, secrets, migrate, init, diff, drift, or deploy",
         );
     }
     const deployment = new Deployment(selection);
     const environment = await initialize(deployment);
     const directory = `-chdir=${deployment.directory}`;
+
+    // refuse a deployment whose infrastructure differs from its code
+    if (action === "drift") {
+        const plan = spawnSync(
+            "tofu",
+            [
+                directory,
+                "plan",
+                "-input=false",
+                "-lock-timeout=60s",
+                "-detailed-exitcode",
+                ...deployment.variables,
+            ],
+            { cwd: ROOT, stdio: "inherit", env: environment },
+        );
+        if (plan.status === 2) {
+            throw new Error(`${deployment.name} drifted from its code`);
+        }
+        if (plan.status !== 0) {
+            throw new Error(`tofu exited with ${plan.status ?? plan.signal}`);
+        }
+
+        return;
+    }
 
     // apply only the reviewed plan for this deployment
     if (action !== "init") {

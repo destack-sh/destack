@@ -40,6 +40,10 @@ init +deployment:
 diff +deployment:
     bun run src/main.ts diff {{deployment}}
 
+# refuse a deployment whose infrastructure differs from its code
+drift +deployment:
+    bun run src/main.ts drift {{deployment}}
+
 # apply a deployment
 deploy +deployment:
     bun run src/main.ts deploy {{deployment}}
