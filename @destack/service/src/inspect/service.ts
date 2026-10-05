@@ -1,44 +1,17 @@
 import { Address, Plan, type Comparator, type Step } from "@destack/resource";
-import { defineSchema, schema, Version, type JsonSchema, type JsonValue } from "@destack/schema";
+import { schema, Version, type JsonSchema, type JsonValue } from "@destack/schema";
 import type { ServiceRouter } from "../service/index.ts";
-import { describeProcedures, ProcedureDescription } from "./procedure.ts";
+import { describeProcedures } from "./procedure.ts";
+import {
+    ProcedureDescription,
+    RouterDescription,
+    ServiceDescription,
+} from "../service/description.ts";
 import type { Service } from "../declare/service.ts";
-import { DeclarationName, graph } from "@destack/package";
+import { graph } from "@destack/package";
 
 /** The releases a procedure converts earlier callers' inputs at. */
 const CONVERSIONS = schema.record(schema.string(), schema.json());
-
-/** The procedures of a service. */
-export const RouterDescription = defineSchema(
-    schema.object({
-        /** The package-local service name. */
-        name: schema.string().min(1),
-        /** The procedures. */
-        procedures: schema.array(ProcedureDescription),
-    }),
-);
-/** The procedures of a service. */
-export type RouterDescription = schema.Infer<typeof RouterDescription>;
-
-/** A declared service. */
-export const ServiceDescription = defineSchema(
-    schema.object({
-        /** The package-local service name. */
-        name: DeclarationName,
-        /** The oldest caller release the service serves, every release when absent. */
-        since: Version.exactOptional(),
-        /** The service transport. */
-        protocol: schema.literal("http"),
-        /** The service's procedures. */
-        api: RouterDescription,
-        /** The route names of the object types the service serves. */
-        objects: schema.array(schema.string().min(1)),
-        /** The service's own route names beside its objects. */
-        routes: schema.array(schema.string().min(1)),
-    }),
-);
-/** A declared service. */
-export type ServiceDescription = schema.Infer<typeof ServiceDescription>;
 
 /** Describe a service. */
 export function describeService(service: Service): ServiceDescription {

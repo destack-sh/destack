@@ -1,63 +1,7 @@
-import { defineSchema, schema, toJsonSchema } from "@destack/schema";
+import { schema, toJsonSchema, type JsonValue } from "@destack/schema";
 import { type AnySchema, getEventIteratorSchemaDetails, isContractProcedure } from "@orpc/contract";
 import type { ServiceRouter } from "../service/index.ts";
-
-/** A JSON Schema. */
-const JsonSchema = schema.record(schema.string(), schema.json());
-
-/** A procedure's value or event-stream schema. */
-export const PayloadDescription = defineSchema(
-    schema.union([
-        schema.object({
-            /** A single validated value. */
-            kind: schema.literal("value"),
-            /** The value's JSON Schema. */
-            schema: JsonSchema,
-        }),
-        schema.object({
-            /** An event iterator. */
-            kind: schema.literal("stream"),
-            /** The yielded event schema. */
-            yields: JsonSchema,
-            /** The return value schema. */
-            returns: JsonSchema.exactOptional(),
-        }),
-    ]),
-);
-
-/** A procedure's address, payloads and errors. */
-export const ProcedureDescription = defineSchema(
-    schema.object({
-        /** The procedure's key path. */
-        name: schema.array(schema.string().min(1)),
-        /** The HTTP method. */
-        method: schema.string().exactOptional(),
-        /** The HTTP path. */
-        path: schema.string().exactOptional(),
-        /** The OpenAPI operation identifier. */
-        operationId: schema.string().exactOptional(),
-        /** The procedure annotations. */
-        metadata: schema.record(schema.string(), schema.json()).exactOptional(),
-        /** The input. */
-        input: PayloadDescription.exactOptional(),
-        /** The output. */
-        output: PayloadDescription.exactOptional(),
-        /** The error codes and payloads. */
-        errors: schema.record(
-            schema.string(),
-            schema.object({
-                /** The HTTP status. */
-                status: schema.number().int().exactOptional(),
-                /** The default error message. */
-                message: schema.string().exactOptional(),
-                /** The error payload schema. */
-                data: JsonSchema.exactOptional(),
-            }),
-        ),
-    }),
-);
-/** A procedure's address, payloads and errors. */
-export type ProcedureDescription = schema.Infer<typeof ProcedureDescription>;
+import { PayloadDescription, ProcedureDescription } from "../service/description.ts";
 
 /** Describe each procedure of a router. */
 export function describeProcedures(service: ServiceRouter): ProcedureDescription[] {
@@ -183,11 +127,11 @@ export function describePayload(
 }
 
 /** Convert a schema to JSON Schema. */
-function describeSchema(validator: AnySchema): schema.Infer<typeof JsonSchema> {
+function describeSchema(validator: AnySchema): Record<string, JsonValue> {
     // reject validators of other schema libraries
     if (!(validator instanceof schema.Schema)) {
         throw new TypeError("expected a Destack schema");
     }
 
-    return JsonSchema.parse(toJsonSchema(validator));
+    return schema.record(schema.string(), schema.json()).parse(toJsonSchema(validator));
 }

@@ -10,13 +10,15 @@
         "./cloudflare": {
             "runtimes": ["workerd"]
         },
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
         "./test": {
             "runtimes": ["bun"]
         }
     },
     "declarations": {
         "defineService": {
-            "module": 2,
             "describes": [
                 {
                     "kind": "service",
@@ -27,7 +29,6 @@
             ]
         },
         "defineServiceBinding": {
-            "module": 2,
             "describes": [
                 {
                     "kind": "resource",
@@ -37,7 +38,6 @@
             ]
         },
         "defineTrigger": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "trigger",
@@ -47,7 +47,6 @@
             ]
         },
         "defineWorkload": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "workload",
@@ -55,5 +54,11 @@
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineService": { "module": 2 },
+        "defineServiceBinding": { "module": 3 },
+        "defineTrigger": { "module": 1 },
+        "defineWorkload": { "module": 1 }
     }
 }
