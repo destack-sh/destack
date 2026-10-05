@@ -9,7 +9,7 @@ const ACCOUNT = "27c0d00fb3a27a4ccbf46a3cceab9301";
 const UPLOAD_TIMEOUT_MILLISECONDS = 15 * 60 * 1000;
 
 /** Bucket-scoped release transport with conditional object replacement. */
-export class ReleaseBucket {
+export class R2ReleaseBucket {
     /** Native S3 signer configured for one bucket. */
     readonly client: S3Client;
     /** Object prefix corresponding to the selected public feed. */

@@ -29,7 +29,7 @@ interface ServedBody extends ServedObject, StoredDocument {
 }
 
 /** The bucket operations the Worker needs, as R2 offers them. */
-interface ReleaseBucket extends PublicationBucket {
+interface R2ReleaseBucket extends PublicationBucket {
     /** Read an object with its contents, null when absent. */
     get(key: string): Promise<ServedBody | null>;
     /** Read an object's metadata, null when absent. */
@@ -39,9 +39,9 @@ interface ReleaseBucket extends PublicationBucket {
 /** Release buckets bound by the deployment administrator. */
 interface PublicationEnvironment {
     /** Stable releases writable only by approved release jobs and this service. */
-    STABLE_RELEASES: ReleaseBucket;
+    STABLE_RELEASES: R2ReleaseBucket;
     /** Nightly releases writable by unattended nightly jobs and this service. */
-    NIGHTLY_RELEASES: ReleaseBucket;
+    NIGHTLY_RELEASES: R2ReleaseBucket;
 }
 
 /** Serve public downloads and accept only signed freshness renewals. */
@@ -70,7 +70,7 @@ async function fetch(request: Request, environment: PublicationEnvironment): Pro
     if (!PUBLIC_PATH.test(path)) {
         return new Response("not found", { status: 404 });
     }
-    const read = (source: ReleaseBucket, key: string) =>
+    const read = (source: R2ReleaseBucket, key: string) =>
         request.method === "HEAD" ? source.head(key) : source.get(key);
     const object =
         (await read(bucket, `${name}/${path}`)) ??
@@ -83,7 +83,7 @@ async function fetch(request: Request, environment: PublicationEnvironment): Pro
 }
 
 /** Renew the selected repository with the signed snapshot and timestamp of the request. */
-async function renew(request: Request, bucket: ReleaseBucket, name: string): Promise<Response> {
+async function renew(request: Request, bucket: R2ReleaseBucket, name: string): Promise<Response> {
     // authenticate against the root embedded for the channel
     const root = Metadata.fromJSON(MetadataKind.Root, name === "stable" ? stable : nightly);
     const publication = new Publication(bucket, `${name}/`, root);

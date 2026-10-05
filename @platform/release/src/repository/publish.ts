@@ -12,7 +12,7 @@ import { Version } from "@destack/schema";
 import { TargetCustom } from "@destack/update/release";
 import { RepositoryConfiguration } from "./index.ts";
 import { RepositoryRenewal } from "./renewal.ts";
-import { ReleaseBucket } from "../cloudflare/bucket.ts";
+import { R2ReleaseBucket } from "../cloudflare/bucket.ts";
 import { SignedRepository } from "@destack/update/publish";
 import { parseDocument } from "./document.ts";
 import { PUBLIC_PATH } from "./layout.ts";
@@ -34,7 +34,7 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
 export async function publish(directory: string): Promise<void> {
     // select the destination before accessing its publication credential
     const configuration = new RepositoryConfiguration();
-    const bucket = new ReleaseBucket(configuration);
+    const bucket = new R2ReleaseBucket(configuration);
     const files = await list(directory);
     const unexpected = files.find((path) => !PUBLIC_PATH.test(path));
     if (unexpected !== undefined) {
@@ -75,7 +75,7 @@ export async function publish(directory: string): Promise<void> {
 /** Require the files to continue the published repository or form a complete first publication. */
 async function requirePublishable(
     configuration: RepositoryConfiguration,
-    bucket: ReleaseBucket,
+    bucket: R2ReleaseBucket,
     timestamp: Metadata<Timestamp>,
     targets: Metadata<Targets>,
     files: string[],
@@ -106,7 +106,7 @@ async function requirePublishable(
 
 /** Upload the immutable files and replace each mutable file at its read revision. */
 async function upload(
-    bucket: ReleaseBucket,
+    bucket: R2ReleaseBucket,
     directory: string,
     files: string[],
     referenced: ReadonlySet<string>,

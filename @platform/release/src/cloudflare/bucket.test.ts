@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ReleaseBucket } from "./bucket.ts";
+import { R2ReleaseBucket } from "./bucket.ts";
 import { RepositoryConfiguration } from "../repository/configuration.ts";
 import { publish } from "../repository/publish.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
@@ -66,7 +66,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
     Object.assign(process.env, environment);
     try {
         // accept exact retries of an immutable artifact and refuse conflicting bytes
-        const bucket = new ReleaseBucket(new RepositoryConfiguration());
+        const bucket = new R2ReleaseBucket(new RepositoryConfiguration());
         const first = join(directory, "first");
         const second = join(directory, "second");
         await writeFile(first, "first release");
