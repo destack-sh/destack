@@ -10,18 +10,18 @@ import { RequestId } from "@destack/service/request";
 import { space } from "@destack/space/object";
 import { expect, test } from "@destack/test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { vault } from "../../object/index.ts";
-import { SecretClient } from "../../object/index.ts";
+import { vault } from "../object/index.ts";
+import { SecretClient } from "../object/index.ts";
 import { spaceService } from "@destack/space/service";
-import { SPACE, VaultFixture } from "./fixture.ts";
+import { SPACE, VaultFixture } from "../test/index.ts";
 
 test.each(TEST_DIALECTS)(
-    "authorize several spaces through one regional vault on %s",
+    "authorize several spaces through one vault of their cell on %s",
     async (dialect) => {
         await using first = await VaultFixture.open(dialect);
         await using second = await VaultFixture.open(dialect);
 
-        // provision the second tenant in the same regional database
+        // provision the second tenant in the same cell database
         const database = first.database;
         await database.insert(space.table).values(await second.database.select().from(space.table));
         await database.insert(vault.table).values(await second.database.select().from(vault.table));

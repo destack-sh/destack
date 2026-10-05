@@ -1,5 +1,5 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { secretVersion } from "../../object/index.ts";
+import { secretVersion } from "../object/index.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,9 +9,9 @@ import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { expect, single, test } from "@destack/test";
 import { LocalKeyring } from "@destack/host/keychain";
-import { vaultKey } from "../../stack/index.ts";
-import { VaultKey } from "../../encryption/index.ts";
-import { LOCATION, VaultFixture } from "./fixture.ts";
+import { vaultKey } from "../stack/index.ts";
+import { VaultKey } from "../encryption/index.ts";
+import { LOCATION, VaultFixture } from "../test/index.ts";
 
 test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async (dialect) => {
     await using fixture = await VaultFixture.open(dialect);

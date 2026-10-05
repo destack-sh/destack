@@ -5,7 +5,7 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { type Table, and, eq, inArray, type DatabaseConnection, type Dialect } from "@destack/db";
+import { and, eq, inArray, type DatabaseConnection, type Dialect } from "@destack/db";
 import { Scope } from "@destack/sync";
 import * as accountObject from "@destack/account/object";
 import { TestDatabase } from "@destack/db/test";
@@ -25,18 +25,14 @@ import * as spaceObject from "@destack/space/object";
 import { space } from "@destack/space/object";
 import { v7 } from "uuid";
 import { type Keyring, LocalKeyring } from "@destack/host/keychain";
-import { VaultKey } from "../../encryption/index.ts";
-import { secret, secretVersion, vault } from "../../object/index.ts";
-import { SecretClient } from "../../object/index.ts";
+import { VaultKey } from "../encryption/index.ts";
+import { secret, secretVersion, vault } from "../object/index.ts";
+import { SecretClient } from "../object/index.ts";
 import { spaceService } from "@destack/space/service";
-import * as served from "../secret.ts";
-import { vaultTables } from "../../stack/index.ts";
-import { spaceTables } from "@destack/space/stack";
+import * as served from "../server/secret.ts";
+import { spaceDatabase } from "@destack/space/stack";
 
 import { testCallKey } from "@destack/service/test";
-
-/** The tables of a test cell's regional database: the vaults, the spaces and the tables of every object server. */
-export const cellTables: readonly Table[] = [...vaultTables, ...spaceTables];
 
 /** The vault package, declaring the vaults and their permissions. */
 export const VAULT = vault.package;
@@ -85,6 +81,7 @@ export class VaultFixture implements AsyncDisposable {
         close: () => Promise<void>,
         previous?: VaultFixture,
     ) {
+        // keep the database, and reuse the previous fixture's identities and root key
         this.database = database;
         this.#close = close;
         this.spaceId = previous?.spaceId ?? schema.identifier("space").parse(`space-${v7()}`);
@@ -134,7 +131,7 @@ export class VaultFixture implements AsyncDisposable {
     ): Promise<Server> {
         // serve the secrets and versions as a cell does
         const objects = new ObjectServer({
-            objects: served.servedObjects(keyring ?? (await this.keyring()), LOCATION, RECOVERY),
+            objects: served.serveSecrets(keyring ?? (await this.keyring()), LOCATION, RECOVERY),
             policies: [space, vault],
             database: this.database,
             callKey: testCallKey,
@@ -157,7 +154,7 @@ export class VaultFixture implements AsyncDisposable {
     /** Serve the vault's objects to the system, as a host's controllers call them. */
     system(keyring: Keyring) {
         return new ObjectServer({
-            objects: served.servedObjects(keyring, LOCATION, RECOVERY),
+            objects: served.serveSecrets(keyring, LOCATION, RECOVERY),
             policies: [space, vault],
             database: this.database,
             callKey: testCallKey,
@@ -173,7 +170,7 @@ export class VaultFixture implements AsyncDisposable {
         this.#directories.push(directory);
 
         return new ObjectServer({
-            objects: { vault: served.vault, ...served.servedObjects(keyring, LOCATION, RECOVERY) },
+            objects: { vault: served.vault, ...served.serveSecrets(keyring, LOCATION, RECOVERY) },
             policies: [space],
             directory: new DirectoryStore(directory.database),
             database: this.database,
@@ -231,6 +228,7 @@ export class VaultFixture implements AsyncDisposable {
 
     /** Create a secret with a first version of a text value. */
     async createSecret() {
+        // create the secret, then write its first version
         const first = await this.client.secret.create({
             spaceId: this.spaceId,
             parentId: this.vaultId,
@@ -250,15 +248,15 @@ export class VaultFixture implements AsyncDisposable {
 
     /** Claim an isolated migrated database of a dialect, provision the space, its vault and a member role, and host the vault. */
     static async open(dialect: Dialect): Promise<VaultFixture> {
-        const test = await TestDatabase.create(dialect, cellTables, { isMigrated: true });
+        const test = await TestDatabase.create(dialect, spaceDatabase, { isMigrated: true });
 
         return VaultFixture.#start(test.database, () => test.close());
     }
 
     /** Open a SQLite file, migrate it, provision it unless a previous fixture did, and host the vault. */
     static async openFile(file: string, previous?: VaultFixture): Promise<VaultFixture> {
-        const connection = await sqlite.connect(file, cellTables);
-        await connection.migrate(cellTables).catch(async (error: unknown) => {
+        const connection = await sqlite.connect(file, spaceDatabase);
+        await connection.migrate(spaceDatabase.tables).catch(async (error: unknown) => {
             await connection.close();
             throw error;
         });
@@ -292,6 +290,30 @@ export class VaultFixture implements AsyncDisposable {
     async #provision(): Promise<void> {
         // register the space and its vault
         const now = Date.now();
+        await this.#register(now);
+
+        // bind a role to the account's members on the space
+        await this.#bindRole(now);
+
+        // keep the vault's key
+        const keyring = await this.keyring();
+        await VaultKey.provision(this.database, keyring, LOCATION, {
+            id: this.vaultId,
+            scope: this.spaceId,
+        });
+
+        // grant the role every vault permission
+        await this.#grant([
+            ...[vault, secret, secretVersion].flatMap((object) =>
+                object.permissions.map((name) => ({ type: object.name, name })),
+            ),
+            { type: space.name, name: "read", packageId: space.policy.definition.packageId },
+        ]);
+    }
+
+    /** Register the space and its vault. */
+    async #register(now: number): Promise<void> {
+        // register the space
         await this.database.insert(space.table).values({
             id: this.spaceId,
             scope: this.accountId,
@@ -299,6 +321,8 @@ export class VaultFixture implements AsyncDisposable {
             createdAt: now,
             updatedAt: now,
         });
+
+        // register its vault
         await this.database.insert(vault.table).values({
             id: this.vaultId,
             scope: this.spaceId,
@@ -310,8 +334,11 @@ export class VaultFixture implements AsyncDisposable {
             createdAt: now,
             updatedAt: now,
         });
+    }
 
-        // bind a role granting every vault permission to the account's members on the space
+    /** Bind the member role to the account's members on the space. */
+    async #bindRole(now: number): Promise<void> {
+        // create the role
         await this.database.insert(accessRole).values({
             id: this.roleId,
             scope: this.spaceId,
@@ -320,6 +347,8 @@ export class VaultFixture implements AsyncDisposable {
             createdAt: now,
             updatedAt: now,
         });
+
+        // record the space under the account
         await this.database.insert(Scope.table).values({
             scope: this.spaceId,
             parent: this.accountId,
@@ -327,6 +356,8 @@ export class VaultFixture implements AsyncDisposable {
             type: spaceObject.space.name,
             ancestors: [this.accountId],
         });
+
+        // bind the role to the account's members on the space
         await this.database.insert(accessRelationship).values(
             Relationship.encode(
                 {
@@ -343,21 +374,6 @@ export class VaultFixture implements AsyncDisposable {
                 this.spaceId,
             ),
         );
-
-        // keep the vault's key
-        const keyring = await this.keyring();
-        await VaultKey.provision(this.database, keyring, LOCATION, {
-            id: this.vaultId,
-            scope: this.spaceId,
-        });
-
-        // grant the role every vault permission
-        await this.#grant([
-            ...[vault, secret, secretVersion].flatMap((object) =>
-                object.permissions.map((name) => ({ type: object.name, name })),
-            ),
-            { type: space.name, name: "read", packageId: space.policy.definition.packageId },
-        ]);
     }
 
     /** Grant the role permissions in the space, vault permissions unless another package's, in one statement. */

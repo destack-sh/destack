@@ -2,7 +2,7 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import { suspendCopy } from "@destack/access/test";
 import { ServiceError } from "@destack/service/error";
 import { expect, test } from "@destack/test";
-import { VaultFixture } from "./fixture.ts";
+import { VaultFixture } from "../test/index.ts";
 
 /** The value of the fixture's first version. */
 const CREDENTIAL = { version: 1, value: { encoding: "text", value: "credential" } };

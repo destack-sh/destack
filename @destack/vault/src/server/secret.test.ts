@@ -8,8 +8,8 @@ import { expect, refusal, single, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { binding, installation } from "@destack/space/object";
 import { v7 } from "uuid";
-import { secret, secretVersion } from "../../object/index.ts";
-import { SPACE, VAULT, VaultFixture } from "./fixture.ts";
+import { secret, secretVersion } from "../object/index.ts";
+import { SPACE, VAULT, VaultFixture } from "../test/index.ts";
 
 /** The recovery window the fixture's host gives deleted secrets, in milliseconds. */
 const RECOVERY_MILLISECONDS = 30 * 86_400_000;
