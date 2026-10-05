@@ -183,6 +183,29 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "log each replicated change under the origin whose writes it replicates, and read the latest position another origin's follower reaches, on %s",
+    async (dialect) => {
+        // write a note here, then rename it as a replica of another database's writes
+        const { database } = await open(dialect);
+        await database.insert(note).values(first);
+        const own = await database.log.position();
+        await database.transaction((transaction) =>
+            transaction.log.asReplica(async () => {
+                await transaction.update(note).set({ title: "Copied" }).where(eq(note.id, "a"));
+            }, "other"),
+        );
+
+        // tell the replicated change by its origin, which the other database's follower already has
+        const { changes } = await database.log.read({ tables: [note], after: 0 });
+        expect([
+            changes.map((change) => change.origin),
+            await database.log.position("other"),
+            (await database.log.position()).sequence > own.sequence,
+        ]).toEqual([[undefined, "other"], own, true]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "keep the latest sequence once compaction removes every change on %s",
     async (dialect) => {
         const { database } = await open(dialect);

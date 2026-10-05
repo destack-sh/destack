@@ -14,6 +14,7 @@ import * as postgresql from "../postgres/connection.ts";
 import { PostgresDatabase } from "../postgres/database.ts";
 import { LOG_EPOCH, LOG_HORIZON, LOG_TABLES } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
+import { sql } from "../sql/index.ts";
 import type { Channel } from "../channel/channel.ts";
 import { channelHub } from "../channel/channel.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
@@ -147,9 +148,16 @@ export class TestDatabase<
             const open: TestConnector = (connected) =>
                 sqlite.connect(file, connected, { openChannel });
 
-            return new TestDatabase(await open(tables), open, () =>
-                rm(directory, { recursive: true }),
+            // start a logged copy's own epoch as a restore does
+            const database = await open(tables);
+            const [log] = await database.execute(
+                sql`SELECT name FROM sqlite_master WHERE name = ${LOG_EPOCH}`,
             );
+            if (log !== undefined) {
+                await database.log.renew();
+            }
+
+            return new TestDatabase(database, open, () => rm(directory, { recursive: true }));
         }
     }
 

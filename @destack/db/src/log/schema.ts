@@ -16,7 +16,7 @@ export const LOG_SLOT = "__destack_log_slot";
 /** The SQL name of the log's epoch. */
 export const LOG_EPOCH = "__destack_log_epoch";
 
-/** The SQL name of the marker of a transaction writing as a replica. */
+/** The SQL name of the marker of a transaction writing as a replica, with the origin whose writes it replicates. */
 export const LOG_REPLICA = "__destack_log_replica";
 
 /** The SQL name of the open SQLite transaction's identity. */
@@ -110,7 +110,10 @@ export function createEpoch(epoch: string, scope?: string): readonly string[] {
             sequence BIGINT NOT NULL,
             expires_at BIGINT NOT NULL
         )`,
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_REPLICA)} (slot INTEGER PRIMARY KEY CHECK (slot = 1))`,
+        `CREATE TABLE IF NOT EXISTS ${quote(LOG_REPLICA)} (
+            slot INTEGER PRIMARY KEY CHECK (slot = 1),
+            origin TEXT
+        )`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_EPOCH)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             epoch TEXT NOT NULL,

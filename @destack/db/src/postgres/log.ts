@@ -6,6 +6,7 @@ import {
     LOG_CHANNEL,
     LOG_EPOCH,
     LOG_HORIZON,
+    LOG_REPLICA,
     type LogDialect,
 } from "../log/schema.ts";
 
@@ -47,7 +48,8 @@ function createLogTables(): string[] {
             previous JSONB,
             scope TEXT NOT NULL,
             retention TEXT NOT NULL,
-            changed_at BIGINT NOT NULL
+            changed_at BIGINT NOT NULL,
+            origin TEXT
         )`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${log}(retention, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${log}(scope, sequence)`,
@@ -114,6 +116,7 @@ function createRecord(): string {
             previous JSONB;
             now_ms BIGINT := floor(extract(epoch FROM clock_timestamp()) * 1000);
             transaction_id TEXT := pg_current_xact_id()::TEXT;
+            origin TEXT;
             old_row JSONB;
             new_row JSONB;
             old_key JSONB;
@@ -127,6 +130,7 @@ function createRecord(): string {
             IF TG_OP = 'UPDATE' AND old_row = new_row THEN RETURN NULL; END IF;
             ${recordedImage("old")}
             ${recordedImage("new")}
+            SELECT marker.origin INTO origin FROM ${quote(LOG_REPLICA)} AS marker WHERE marker.slot = 1;
             IF scope_column IS NULL THEN
                 SELECT scope INTO database_scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1;
                 IF database_scope IS NULL THEN
@@ -144,14 +148,14 @@ function createRecord(): string {
                 WHERE entry.value IS DISTINCT FROM new_recorded -> entry.key;
             END IF;
             IF TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND (old_key <> new_key OR old_scope IS DISTINCT FROM new_scope)) THEN
-                INSERT INTO ${log}("transaction", "table", key, operation, "row", scope, retention, changed_at)
-                VALUES (transaction_id, TG_TABLE_NAME, old_key, 'delete', old_recorded, old_scope, retention, now_ms);
+                INSERT INTO ${log}("transaction", "table", key, operation, "row", scope, retention, changed_at, origin)
+                VALUES (transaction_id, TG_TABLE_NAME, old_key, 'delete', old_recorded, old_scope, retention, now_ms, origin);
             END IF;
             IF TG_OP <> 'DELETE' THEN
-                INSERT INTO ${log}("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
+                INSERT INTO ${log}("transaction", "table", key, operation, "row", previous, scope, retention, changed_at, origin)
                 VALUES (transaction_id, TG_TABLE_NAME, new_key,
                     CASE WHEN TG_OP = 'INSERT' OR old_key <> new_key OR old_scope IS DISTINCT FROM new_scope THEN 'insert' ELSE 'update' END,
-                    new_recorded, previous, new_scope, retention, now_ms);
+                    new_recorded, previous, new_scope, retention, now_ms, origin);
             END IF;
             RETURN NULL;
         END $$`;

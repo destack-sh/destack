@@ -5,6 +5,7 @@ import {
     LOG,
     LOG_EPOCH,
     LOG_HORIZON,
+    LOG_REPLICA,
     LOG_TRANSACTION,
     type LogDialect,
 } from "../log/schema.ts";
@@ -38,7 +39,8 @@ function createSQLiteLog(epoch: string, scope?: string): readonly string[] {
             previous TEXT,
             scope TEXT NOT NULL,
             retention TEXT NOT NULL,
-            changed_at INTEGER NOT NULL
+            changed_at INTEGER NOT NULL,
+            origin TEXT
         )`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${quote(LOG)}(retention, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${quote(LOG)}(scope, sequence)`,
@@ -102,10 +104,12 @@ function logEntry(
     source: "NEW" | "OLD",
     prior = "NULL",
 ): string {
+    // read the transaction, the time and the origin of the replicated writes inside the trigger
     const transaction = `(SELECT id FROM ${quote(LOG_TRANSACTION)} WHERE slot = 1)`;
     const now = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
+    const origin = `(SELECT origin FROM ${quote(LOG_REPLICA)} WHERE slot = 1)`;
 
-    return `INSERT INTO ${quote(LOG)} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
+    return `INSERT INTO ${quote(LOG)} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at, origin)
             SELECT
                 ${transaction},
                 ${literal(description.table)},
@@ -115,7 +119,8 @@ function logEntry(
                 ${prior},
                 ${rowScope(description, source)},
                 ${literal(description.retention)},
-                ${now};`;
+                ${now},
+                ${origin};`;
 }
 
 /** Read a recorded column of a row image as JSON takes it. */
