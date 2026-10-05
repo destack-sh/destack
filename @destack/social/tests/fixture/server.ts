@@ -1,8 +1,8 @@
 import { anyone, principal } from "@destack/access";
-import { Scope, type TrackerMessage } from "@destack/sync";
-import { copyRole, copyScope } from "@destack/access/test";
+import { Scope, type TrackerMessage, type Uplink } from "@destack/sync";
+import { AccessFixture } from "@destack/access/test";
 import { account } from "@destack/account/object";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import {
     and,
     type DatabaseConnection,
@@ -11,15 +11,17 @@ import {
     isNull,
     defineDatabase,
 } from "@destack/db";
-import { channelHub, TestDatabase } from "@destack/db/test";
+import { channelHub } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
 import type { CallableName, ObjectType } from "@destack/object";
 import { subscription } from "@destack/notification";
-import { ActivityServer } from "@destack/notification/server";
-import { EphemeralStorage, ObjectServer, SystemCall } from "@destack/object/server";
+import { serveNotifications } from "@destack/notification/server";
+import { SystemCall } from "@destack/object";
+import { EphemeralStorage, ObjectServer } from "@destack/object/server";
 import { aligned, type Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import { subjectContext, testCallKey } from "@destack/service/test";
+import { emptyBuild, subjectContext, testCallKey } from "@destack/service/test";
 import { space } from "@destack/space/object";
 import { afterAll, onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
@@ -39,6 +41,15 @@ export const actors = {
 /** A principal the scenarios act as. */
 export type Actor = keyof typeof actors;
 
+/** The installation of the articles' package serving them. */
+const INSTALLATION = "installation-019f5530-8000-7000-8000-0000000000e1";
+
+/** An uplink streaming no copies and refusing changes. */
+const silent: Uplink = {
+    stream: () => (async function* () {})(),
+    receive: () => Promise.reject(new Error("the fixture's cell receives no changes")),
+};
+
 /** A row a change carries, read for its identifier. */
 const RowIdentity = schema.looseObject({ id: schema.string() });
 
@@ -56,7 +67,7 @@ afterAll(async () => {
 });
 
 /** The activity objects answering actions and expanding the comments' announcements into activities. */
-const notifications = new ActivityServer({ notifications: [mention, thread, reply] }).objects();
+const notifications = serveNotifications({ notifications: [mention, thread, reply] });
 
 /** Every social type, served beside the articles taking them and the activity types comments write. */
 const objects = {
@@ -93,12 +104,25 @@ export async function serveArticles(dialect: Dialect) {
 
     // decide every call as the current actor
     let current: Actor = "alice";
+    // serve them as the articles' installation, rendering notifications in no recipient's own locale
     const server = new ObjectServer({
         objects,
         database: storage.database,
         ephemeral: store,
         callKey: testCallKey,
         origin: { package: space.package, service: "social" },
+        installation: {
+            id: INSTALLATION,
+            scope: spaceId,
+            build: await emptyBuild(article.package),
+            publisher: silent,
+            publisherAt: () => silent,
+            directory: {
+                isHome: async () => false,
+                locale: async () => undefined,
+                address: async () => {},
+            },
+        },
     });
 
     return {
@@ -172,12 +196,12 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
     const accountId = schema.identifier("account").parse(`account-${v7()}`);
     const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     const reference = space.reference(accountId, spaceId);
-    await copyScope(database, account.reference(Scope.universe.id, accountId));
-    await copyScope(database, reference);
+    const accessCopies = new AccessFixture(database);
+    await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
+    await accessCopies.copyScope(reference);
 
     // define a role reading the space and bind it to anyone
-    await copyRole(
-        database,
+    await accessCopies.copyRole(
         reference,
         { name: "member", description: "Reads the space", permissions: [space.permission("read")] },
         anyone.reference("*", "*"),

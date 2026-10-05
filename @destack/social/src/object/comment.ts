@@ -6,6 +6,7 @@ import {
     through,
     union,
 } from "@destack/access";
+import { plural, t } from "@destack/locale";
 import { Subject } from "@destack/sync";
 import { index, type Select } from "@destack/db";
 import { type Action, activity, announcement, subscription } from "@destack/notification";
@@ -156,8 +157,8 @@ export const mention = defineNotification({
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: (payload) => ({ title: "New mention", body: payload.text }),
-    summary: (count) => (count === 1 ? "1 mention" : `${count} mentions`),
+    content: (payload) => ({ title: t`New mention`, body: payload.text }),
+    summary: (count) => t`${plural(count, { one: "# mention", other: "# mentions" })}`,
     actions: { reply: answer },
 });
 
@@ -169,8 +170,8 @@ export const thread = defineNotification({
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: (payload) => ({ title: "New thread", body: payload.text }),
-    summary: (count) => (count === 1 ? "1 thread" : `${count} threads`),
+    content: (payload) => ({ title: t`New thread`, body: payload.text }),
+    summary: (count) => t`${plural(count, { one: "# thread", other: "# threads" })}`,
     actions: { reply: answer },
 });
 
@@ -182,7 +183,7 @@ export const reply = defineNotification({
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: (payload) => ({ title: "New reply", body: payload.text }),
-    summary: (count) => (count === 1 ? "1 reply" : `${count} replies`),
+    content: (payload) => ({ title: t`New reply`, body: payload.text }),
+    summary: (count) => t`${plural(count, { one: "# reply", other: "# replies" })}`,
     actions: { reply: answer },
 });

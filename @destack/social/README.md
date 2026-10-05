@@ -4,7 +4,7 @@ Attach comments, reactions, read receipts, favourites and presence to objects.
 
 ## Hosts
 
-Each social type's `attach` adds it to an object type and names the permission it requires on the object, such as `comment` to comment and react.
+`attach` adds a social type to an object type under a permission.
 
 ```ts
 import { activity, announcement, subscription } from "@destack/notification";
@@ -38,7 +38,7 @@ export const article = defineObject({
 
 ## Comments
 
-`threadId` on a reply names the first comment of its thread, and `resolve` marks the thread resolved.
+`threadId` on a reply points to the first comment of its thread.
 
 ```ts
 const parent = { packageId: article.package.id, type: "article", id: articleId };
@@ -53,13 +53,13 @@ client.mutate(comment).resolve({ id: first.id });
 
 ## Notifications
 
-`comment` from `@destack/social/server` subscribes the author to the thread and sends the `mention`, `thread` and `reply` notifications.
+`comment` from `@destack/social/server` sends the `mention`, `thread` and `reply` notifications.
 
 ```ts
-import { ActivityServer } from "@destack/notification/server";
+import { serveNotifications } from "@destack/notification/server";
 import { mention, reply, thread } from "@destack/social";
 import { comment } from "@destack/social/server";
 
-const activities = new ActivityServer({ notifications: [mention, thread, reply] });
-const objects = { ...activities.objects(), comment, reaction, subscription };
+const activities = serveNotifications({ notifications: [mention, thread, reply] });
+const objects = { ...activities, comment, reaction, subscription };
 ```

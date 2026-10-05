@@ -23,6 +23,7 @@
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/space": "workspace:*",
+        "@destack/locale": "workspace:*",
         "uuid": "14.0.2"
     },
     "devDependencies": {
