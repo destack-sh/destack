@@ -52,7 +52,12 @@ export async function release(settings: readonly Setting[]): Promise<BuildReader
         formatVersion: 1,
         package: setting.package,
         language: "typescript",
-        lists: { dependencies: empty, files: empty, sourceMaps: empty, graph: await PackageFile.describe("manifest/graph.json", "application/json", root) },
+        lists: {
+            dependencies: empty,
+            files: empty,
+            sourceMaps: empty,
+            graph: await PackageFile.describe("manifest/graph.json", "application/json", root),
+        },
         outputs: {},
     };
 

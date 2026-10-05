@@ -9,12 +9,11 @@ import {
     compareSetting,
     describeSetting,
     settingVocabulary,
-    SettingCatalog,
     SettingDescription,
 } from "../src/inspect/index.ts";
 import type { SettingValue } from "../src/object/index.ts";
 import { SettingResolution, SettingSelection } from "../src/setting/index.ts";
-import { Setting } from "../src/setting/index.ts";
+import { Setting, SettingCatalog } from "../src/setting/index.ts";
 import {
     account,
     alice,

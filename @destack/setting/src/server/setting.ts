@@ -1,8 +1,7 @@
 import { SpaceSetting } from "../declare/space.ts";
 import { SettingError } from "../error/index.ts";
-import { SettingCatalog } from "../inspect/index.ts";
 import { setting, type SettingValue } from "../object/index.ts";
-import { SettingPlacement } from "../setting/index.ts";
+import { SettingCatalog, SettingPlacement } from "../setting/index.ts";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { schema, type Identifier } from "@destack/schema";

@@ -4,13 +4,15 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
         "./server": {
             "runtimes": ["bun", "workerd"]
         }
     },
     "declarations": {
         "defineSetting": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "setting",
@@ -20,5 +22,8 @@
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineSetting": { "module": 1 }
     }
 }
