@@ -9,7 +9,7 @@
         ".": "./src/index.ts",
         "./store": "./src/store/index.ts",
         "./error": "./src/error/index.ts",
-        "./inspect": "./src/inspect/index.ts"
+        "./dev": "./src/dev/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json"
