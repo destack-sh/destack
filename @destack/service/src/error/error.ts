@@ -6,21 +6,16 @@ import {
 } from "@orpc/client";
 import { type MaybeOptionalOptions, resolveMaybeOptionalOptions } from "@orpc/shared";
 import { ValidationError, type SchemaIssue } from "@orpc/contract";
-import type { JsonValue } from "@destack/schema";
+import {
+    type JsonValue,
+    ReportableError,
+    SERVICE_ERROR_STATUSES,
+    type ServiceErrorCode,
+} from "@destack/schema";
 import type { Failure } from "@destack/sync";
 
 /** The client failures worth attempting again: a request timeout, a request too early, and a throttle (RFC 9110, 8470, 6585). */
 export const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
-
-/** The statuses of Destack's own error codes, beside the common codes oRPC declares (RFC 9110). */
-const SERVICE_STATUSES: Readonly<Record<string, number>> = {
-    INSUFFICIENT_GRANT: 403,
-    MANAGED: 409,
-    GONE: 410,
-    STALE_EPOCH: 410,
-    MOVED: 421,
-    UNAVAILABLE: 503,
-};
 
 /** A service failure: its code, the status the code declares, a message and details. */
 export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Code, Data> {
@@ -30,9 +25,31 @@ export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Co
         super(code, { ...options, status: options.status ?? ServiceError.status(code) });
     }
 
-    /** Read the status a code declares, Destack's own codes before oRPC's common codes, else 500. */
+    /** Read the status a code declares, else 500. */
     static status(code: ORPCErrorCode): number {
-        return SERVICE_STATUSES[code] ?? fallbackORPCErrorStatus(code, undefined);
+        const statuses: Readonly<Record<string, number>> = SERVICE_ERROR_STATUSES;
+
+        return statuses[code] ?? fallbackORPCErrorStatus(code, undefined);
+    }
+
+    /** Read the service error a failure is or names, absent for a failure that names none. */
+    static of(error: unknown): ORPCError<string, unknown> | undefined {
+        // keep a service error
+        if (isServiceError(error)) {
+            return error;
+        }
+        // build the service error a failure names with the failure as its cause
+        else if (ReportableError.is(error)) {
+            const { code, message, data } = error.toServiceError();
+
+            return new ServiceError<ServiceErrorCode, JsonValue | undefined>(code, {
+                message,
+                data,
+                cause: error,
+            });
+        }
+
+        return undefined;
     }
 }
 

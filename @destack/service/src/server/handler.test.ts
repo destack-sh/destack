@@ -1,7 +1,8 @@
-import { none, Policy } from "@destack/access";
+import { AccessError, none, Policy } from "@destack/access";
+import { DatabaseError } from "@destack/db";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { startTelemetry } from "@destack/telemetry/host";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { MetricReader } from "@destack/telemetry/metric";
 import { SimpleSpanProcessor, type ReadableSpan } from "@destack/telemetry/trace";
 import { createClient } from "../client/index.ts";
@@ -350,6 +351,66 @@ test("answer a failure thrown by a handler with the status its code declares", a
         message: "the instance is starting",
     });
     expect(statuses).toEqual([503]);
+});
+
+test("answer a lower package's failure with the service error it names, and an unknown failure as internal", async () => {
+    // throw a database failure, an access challenge and an unknown failure from handlers
+    const service = {
+        read: defineProcedure({ authentication: "public", permission: null, audit: false })
+            .route({ method: "GET", path: "/read" })
+            .input(schema.object({ failure: schema.enum(["duplicate", "challenge", "unknown"]) }))
+            .output(schema.string()),
+    };
+    const failures = {
+        duplicate: new DatabaseError("DUPLICATE", "a record with the same unique key exists"),
+        challenge: new AccessError("INSUFFICIENT_AUTHENTICATION", "authenticate again", {
+            stepUp: { assurance: 2, maxAge: 300_000 },
+        }),
+        unknown: new Error("the disk is full"),
+    };
+    const implementation = implement(service);
+    const router = implementation.router({
+        read: implementation.read.handler(async ({ input }) => {
+            throw failures[input.failure];
+        }),
+    });
+    const handler = new ServiceHandler(router, {
+        service: fixture,
+        health: new Health("read"),
+    });
+    const client = createClient(defineService("fixture", service), {
+        url: "https://test.local",
+        fetch: async (request) => {
+            const result = await handler.handle(request, { context: { request } });
+
+            return result.matched ? result.response : new Response(null, { status: 404 });
+        },
+    });
+
+    // receive each failure's mapped code, status, message and details
+    const received = await Promise.all(
+        (["duplicate", "challenge", "unknown"] as const).map((failure) =>
+            client.read({ failure }).then(
+                () => "done",
+                (error: ServiceError<string, unknown>) => [
+                    error.code,
+                    error.status,
+                    error.message,
+                    error.data,
+                ],
+            ),
+        ),
+    );
+    expect(received).toEqual([
+        ["CONFLICT", 409, "a record with the same unique key exists", undefined],
+        [
+            "INSUFFICIENT_AUTHENTICATION",
+            401,
+            "authenticate again",
+            { assurance: 2, maxAge: 300_000 },
+        ],
+        ["INTERNAL_SERVER_ERROR", 500, "internal server error", undefined],
+    ]);
 });
 
 /** Collect metrics after the calls finish. */

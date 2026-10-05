@@ -1,10 +1,7 @@
 import { telemetry, trace } from "@destack/telemetry";
 import type { Controller } from "../control/index.ts";
 import { ValidationError } from "@orpc/contract";
-import { isServiceError, ServiceError } from "../error/index.ts";
-import { AccessError, type StepUp } from "@destack/access";
-import { SyncError } from "@destack/sync";
-import { DatabaseError } from "@destack/db";
+import { ServiceError } from "../error/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The failure log records. */
@@ -12,18 +9,16 @@ const { log } = telemetry.scope(import.meta.destack.package);
 
 /** Record unexpected failures and return an error safe for clients. */
 export function reportError(error: unknown): ServiceError<string, unknown> {
-    // report a concurrent update as retriable
-    if (error instanceof DatabaseError && error.code === "CONCURRENT_UPDATE") {
-        return new ServiceError("CONFLICT", { message: error.message });
-    }
+    // read the service error a failure is or names
+    const failure = ServiceError.of(error);
 
     // describe invalid input by its issues, leaving invalid output an internal failure
     if (
-        isServiceError(error) &&
-        error.code === "BAD_REQUEST" &&
-        error.cause instanceof ValidationError
+        failure !== undefined &&
+        failure.code === "BAD_REQUEST" &&
+        failure.cause instanceof ValidationError
     ) {
-        const issues = error.cause.issues.map((issue) => {
+        const issues = failure.cause.issues.map((issue) => {
             const path = (issue.path ?? [])
                 .map((key) => (typeof key === "object" ? key.key : key))
                 .join(".");
@@ -35,17 +30,11 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
 
         return new ServiceError("BAD_REQUEST", {
             message: `invalid input: ${issues.join("; ")}`,
-            cause: error.cause,
+            cause: failure.cause,
         });
     }
     // pass client failures on
-    else if (isServiceError(error) && error.status < 500) {
-        return error;
-    }
-
-    // map domain failures
-    const failure = domainFailure(error);
-    if (failure !== undefined) {
+    else if (failure !== undefined && failure.status < 500) {
         return failure;
     }
 
@@ -54,8 +43,8 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
     log.error("service.request.failed", telemetry.exceptionAttributes(error));
 
     // pass deliberate unavailability on, and hide the details of anything unexpected
-    if (isServiceError(error) && error.code !== "INTERNAL_SERVER_ERROR") {
-        return error;
+    if (failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR") {
+        return failure;
     }
 
     return new ServiceError("INTERNAL_SERVER_ERROR", {
@@ -69,47 +58,6 @@ export function refusal(error: unknown): Response {
     const reported = reportError(error);
 
     return Response.json(reported.toJSON(), { status: reported.status });
-}
-
-/** Map a domain failure to a service failure. */
-export function domainFailure(error: unknown): ServiceError<string, unknown> | undefined {
-    // challenge for stronger authentication
-    if (error instanceof AccessError && error.code === "INSUFFICIENT_AUTHENTICATION") {
-        return new ServiceError<string, StepUp | undefined>(error.code, {
-            status: 401,
-            message: error.message,
-            data: error.stepUp,
-        });
-    }
-    // report other access decisions
-    else if (error instanceof AccessError && error.code !== "INVALID_DECLARATION") {
-        const codes: Readonly<Record<string, string>> = {
-            INVALID_CONTEXT: "FORBIDDEN",
-            STALE: "SERVICE_UNAVAILABLE",
-        };
-
-        return new ServiceError(codes[error.code] ?? error.code, { message: error.message });
-    }
-    // report an unknown scope
-    else if (error instanceof SyncError && error.code === "NOT_FOUND") {
-        return new ServiceError("NOT_FOUND", { message: error.message });
-    }
-    // report a duplicate key or a broken reference as a conflict
-    else if (
-        error instanceof DatabaseError &&
-        (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE")
-    ) {
-        return new ServiceError("CONFLICT", { message: error.message });
-    }
-    // report a bad query or record as a bad request
-    else if (
-        error instanceof DatabaseError &&
-        (error.code === "INVALID_QUERY" || error.code === "INVALID_RECORD")
-    ) {
-        return new ServiceError("BAD_REQUEST", { message: error.message });
-    }
-
-    return undefined;
 }
 
 /** Log a failed reconciliation. */

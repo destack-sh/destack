@@ -457,6 +457,14 @@ throw new ServiceError("UNAVAILABLE", { message: "the instance is starting" }); 
 ServiceError.status("MOVED"); // 421
 ```
 
+`ServiceError.of` reads the service error a failure is or names through its `toServiceError`, and `reportError` answers every other failure as `INTERNAL_SERVER_ERROR`.
+
+```ts
+ServiceError.of(new DatabaseError("DUPLICATE", "a record with the same unique key exists")); // CONFLICT 409
+ServiceError.of(new Error("the disk is full")); // undefined
+reportError(new Error("the disk is full")); // INTERNAL_SERVER_ERROR 500, "internal server error"
+```
+
 ## Tests
 
 `@destack/service/test` signs calls as test principals with `subjectContext` and `testCallKey`, and `testInstallation` gives served objects an installation with an empty build, an idle cell and a directory where nobody lives.
