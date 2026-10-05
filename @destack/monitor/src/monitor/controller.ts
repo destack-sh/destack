@@ -1,5 +1,8 @@
+import type { DatabaseConnection } from "@destack/db";
 import type { Controller } from "@destack/service/control";
+import { SettingValue } from "@destack/setting/object";
 import { monitorSegment } from "../segment/table.ts";
+import { telemetryRetention } from "../setting/setting.ts";
 import { Monitor } from "./monitor.ts";
 
 /** How often each installation's segments are compacted, pruned and swept: every ten minutes. */
@@ -13,12 +16,15 @@ export class SegmentController implements Controller {
     readonly watches = [monitorSegment];
     /** The monitor keeping the segments. */
     readonly #monitor: Monitor;
+    /** The owner's database with the setting values of its installations. */
+    readonly #settings: DatabaseConnection;
     /** The last reconciliation of each key, in Unix milliseconds. */
     readonly #reconciledAt = new Map<string, number>();
 
-    /** Keep a monitor's segments. */
-    constructor(monitor: Monitor) {
+    /** Keep a monitor's segments, retained as an owner's settings place them. */
+    constructor(monitor: Monitor, settings: DatabaseConnection) {
         this.#monitor = monitor;
+        this.#settings = settings;
     }
 
     /** List each installation and scope host the catalog has segments of. */
@@ -36,10 +42,23 @@ export class SegmentController implements Controller {
         }
         this.#reconciledAt.set(key, now);
 
-        // merge finished hours, drop expired segments, then delete unnamed files
+        // read the installation's retention setting or the host default
         const { scope, installation } = Monitor.emitter(key);
+        const days =
+            installation === undefined
+                ? telemetryRetention.definition.default
+                : await SettingValue.resolve(this.#settings, telemetryRetention, {
+                      scope,
+                      installation,
+                  });
+
+        // merge finished hours
         await this.#monitor.compact(scope, installation, now);
-        await this.#monitor.prune(scope, installation, now);
+
+        // drop expired segments
+        await this.#monitor.prune(scope, installation, days, now);
+
+        // delete unnamed files
         await this.#monitor.sweep(scope, installation, now);
 
         return INTERVAL_MILLISECONDS;

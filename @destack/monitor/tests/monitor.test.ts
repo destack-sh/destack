@@ -9,17 +9,17 @@ import { copyRole, copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
 import { LocalBucket } from "@destack/bucket/local";
 import { TestDatabase } from "@destack/db/test";
-import { broadcastChannel } from "@destack/db";
+import { broadcastChannel, type DatabaseConnection } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
 import { ServiceError } from "@destack/service/error";
 import { installation, space } from "@destack/space/object";
-import { spaceTables } from "@destack/space/stack";
+import { spaceDatabase } from "@destack/space/stack";
 import { startTelemetry } from "@destack/telemetry/host";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { setting } from "@destack/setting/object";
@@ -27,12 +27,12 @@ import {
     entry,
     type Entry,
     Monitor,
-    monitorTables,
+    monitorDatabase,
     monitorSegment,
     telemetryRetention,
-    traceSampling,
 } from "../src/index.ts";
-import { implementService } from "../src/server/index.ts";
+import { SegmentController } from "../src/monitor/controller.ts";
+import { implementMonitor } from "../src/server/index.ts";
 import { monitorService } from "../src/service/index.ts";
 
 /** The identities the scenario names. */
@@ -51,36 +51,14 @@ const notes = { id: ids.package, name: "@example/notes", version: "2026.9.0" };
 /** Serve a space's monitor, where alice owns the space and notes is installed, authenticating by bearer name. */
 async function serveMonitor() {
     // keep the space, owned by alice, with the notes installation
-    const storage = await TestDatabase.create("sqlite", [...spaceTables, ...monitorTables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create("sqlite", spaceDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    const now = Date.now();
-    await copyScope(database, account.reference("universe", ids.account));
-    await database.insert(space.table).values({
-        id: ids.space,
-        scope: ids.account,
-        name: "personal",
-        createdAt: now,
-        updatedAt: now,
-    });
-    const alice = principal.user.reference("universe", "alice");
-    await new Authorization(new Authorizer([space.policy], [space.mapping]), database, () => ({
-        subjects: [alice],
-        now,
-        attributes: {},
-    })).create(space.reference(ids.account, ids.space), { owner: alice });
-    await database.insert(installation.table).values({
-        id: ids.notes,
-        scope: ids.space,
-        packageId: ids.package,
-        role: "application",
-        alias: "notes",
-        selection: { kind: "release", version: "2026.9.0" },
-        createdAt: now,
-        updatedAt: now,
-    });
+    await createSpace(database);
+
+    // keep the segment catalog
+    const catalog = await TestDatabase.create("sqlite", monitorDatabase, { isMigrated: true });
+    onTestFinished(() => catalog.close());
 
     // store segments in a local bucket
     const directory = await mkdtemp(join(tmpdir(), "monitor-"));
@@ -90,16 +68,18 @@ async function serveMonitor() {
         await rm(directory, { recursive: true, force: true });
     });
     const failures: unknown[] = [];
-    const monitor = new Monitor(database, bucket, (error) => failures.push(error));
+    const monitor = new Monitor(catalog.database, bucket, (error) => failures.push(error));
 
-    // authenticate the installation and the users by the bearer name
+    // serve it under the space's policies and settings
     const authorizer = new Authorizer(
         [space.policy, installation.policy, entry],
         [space.mapping, installation.mapping],
     );
     const server = Server.start({
-        ...implementService(monitor, {
+        ...implementMonitor({
+            monitor,
             access: { authorizer, database },
+            settings: database,
             record: AuditRecorder.service(new Journal(database, testCallKey), {
                 package: monitorService.package,
                 service: "test",
@@ -110,31 +90,71 @@ async function serveMonitor() {
         health: new Health("monitor"),
         resources: new ResourceContext(),
         authorizeHost: async () => {},
-        authenticate: async (request) => {
-            const header = request.headers.get("authorization");
-            if (header === null) {
-                throw new TypeError("a test request carries no authorization");
-            }
-            const name = header.slice("Bearer ".length);
-            const subject =
-                name === "notes"
-                    ? principal.installation.reference(ids.space, ids.notes)
-                    : principal.user.reference("universe", name);
-            const verifiedAt = Date.now();
-
-            return new Authentication({
-                subject,
-                subjects: [subject],
-                credential: { kind: name === "notes" ? "installation" : "user", id: name },
-                audience: monitorService.package.id,
-                verifiedAt,
-                expiresAt: verifiedAt + 60_000,
-            });
-        },
+        authenticate: async (request) => authenticate(request),
     });
     onTestFinished(() => server.close());
 
-    return { server, monitor, database, failures };
+    return { server, monitor, database, catalog: catalog.database, failures };
+}
+
+/** Record the space, owned by alice, with the notes installation. */
+async function createSpace(database: DatabaseConnection): Promise<void> {
+    // record the space in its account
+    const now = Date.now();
+    await copyScope(database, account.reference("universe", ids.account));
+    await database.insert(space.table).values({
+        id: ids.space,
+        scope: ids.account,
+        name: "personal",
+        createdAt: now,
+        updatedAt: now,
+    });
+
+    // make alice its owner
+    const alice = principal.user.reference("universe", "alice");
+    await new Authorization(new Authorizer([space.policy], [space.mapping]), database, () => ({
+        subjects: [alice],
+        now,
+        attributes: {},
+    })).create(space.reference(ids.account, ids.space), { owner: alice });
+
+    // install notes
+    await database.insert(installation.table).values({
+        id: ids.notes,
+        scope: ids.space,
+        packageId: ids.package,
+        role: "application",
+        alias: "notes",
+        selection: { kind: "release", version: "2026.9.0" },
+        createdAt: now,
+        updatedAt: now,
+    });
+}
+
+/** Authenticate the installation and the users by the bearer name. */
+function authenticate(request: Request): Authentication {
+    // read the bearer name
+    const header = request.headers.get("authorization");
+    if (header === null) {
+        throw new TypeError("a test request carries no authorization");
+    }
+    const name = header.slice("Bearer ".length);
+
+    // authenticate notes as its installation and other names as users
+    const subject =
+        name === "notes"
+            ? principal.installation.reference(ids.space, ids.notes)
+            : principal.user.reference("universe", name);
+    const verifiedAt = Date.now();
+
+    return new Authentication({
+        subject,
+        subjects: [subject],
+        credential: { kind: name === "notes" ? "installation" : "user", id: name },
+        audience: monitorService.package.id,
+        verifiedAt,
+        expiresAt: verifiedAt + 60_000,
+    });
 }
 
 /** Open a monitor client acting as a named caller. */
@@ -147,7 +167,7 @@ function client(server: Server, name: string) {
 }
 
 test("search, follow and trace an installation's exported entries before and after sealing", async () => {
-    const { server, monitor, database, failures } = await serveMonitor();
+    const { server, monitor, catalog, failures } = await serveMonitor();
     const alice = client(server, "alice");
     const filter = { scope: ids.space, installation: ids.notes };
 
@@ -192,7 +212,7 @@ test("search, follow and trace an installation's exported entries before and aft
         await telemetry.shutdown();
     }
 
-    // search the open records, newest first, then read the trace
+    // search the open records, newest first, and read the trace
     const window = { ...filter, from: 0, before: Date.now() * 1000 + 1, limit: 10 };
     const open = await alice.search(window);
     const savedRecord = open.entries.find((found) => found.name === "note.saved");
@@ -210,7 +230,7 @@ test("search, follow and trace an installation's exported entries before and aft
     // seal the segment and search the stored records the same way
     await monitor.seal(Date.now(), true);
     const sealed = await alice.search(window);
-    const catalog = await database.select({ rows: monitorSegment.rows }).from(monitorSegment);
+    const segments = await catalog.select({ rows: monitorSegment.rows }).from(monitorSegment);
 
     // refuse a reader without the space's grant
     const denied = await refusal(client(server, "bob").search(window));
@@ -249,7 +269,7 @@ test("search, follow and trace an installation's exported entries before and aft
         sealed: sealed.entries,
         saves,
         renders,
-        catalog,
+        catalog: segments,
         denied,
         failures,
     }).toEqual({
@@ -275,37 +295,8 @@ test("search, follow and trace an installation's exported entries before and aft
     });
 });
 
-test("resolve an installation's trace sampling from its space's values, the installation's own first", async () => {
-    const { monitor, database } = await serveMonitor();
-    const now = Date.now();
-
-    // place a value for the space, then one naming the notes installation
-    const place = (id: string, value: number, placed?: string) =>
-        database.insert(setting.table).values({
-            id: schema.identifier("setting").parse(id),
-            scope: ids.space,
-            packageId: traceSampling.package.id,
-            name: traceSampling.name,
-            ...(placed === undefined
-                ? {}
-                : { installation: schema.identifier("installation").parse(placed) }),
-            mode: "set",
-            value,
-            release: traceSampling.package.version,
-            createdAt: now,
-            updatedAt: now,
-        });
-    const initial = await monitor.sampling(ids.space, ids.notes);
-    await place("setting-01996ab0-0000-7000-8000-000000000011", 0.25);
-    const spaced = await monitor.sampling(ids.space, ids.notes);
-    await place("setting-01996ab0-0000-7000-8000-000000000012", 0.1, ids.notes);
-
-    // take the declared default, then the space's value, then the installation's
-    expect([initial, spaced, await monitor.sampling(ids.space, ids.notes)]).toEqual([1, 0.25, 0.1]);
-});
-
 test("compact an hour's minute segments into one, prune them past retention, and sweep their files", async () => {
-    const { monitor, database } = await serveMonitor();
+    const { monitor, catalog } = await serveMonitor();
     const now = Date.now();
     const hour = Math.floor((now - 3 * 24 * 60 * 60 * 1000) / 3_600_000) * 3_600_000;
 
@@ -327,7 +318,7 @@ test("compact an hour's minute segments into one, prune them past retention, and
 
     // merge them into one hourly segment and find both entries in it
     await monitor.compact(ids.space, ids.notes, now);
-    const compacted = await database
+    const compacted = await catalog
         .select({ level: monitorSegment.level, rows: monitorSegment.rows })
         .from(monitorSegment);
     const search = {
@@ -340,6 +331,45 @@ test("compact an hour's minute segments into one, prune them past retention, and
     const found = (await monitor.search(ids.space, search)).entries.map((each) => each.name);
 
     // keep a day, drop the segment, and sweep every file once the grace passed
+    await monitor.prune(ids.space, ids.notes, 1, now);
+    const pruned = await catalog.select().from(monitorSegment);
+    await monitor.sweep(ids.space, ids.notes, now + 60 * 60 * 1000);
+    const files = await monitor.bucket.list({ prefix: `${ids.space}/` });
+
+    expect({ compacted, found, pruned, files: files.files }).toEqual({
+        compacted: [{ level: 1, rows: 2 }],
+        found: ["note.opened", "note.saved"],
+        pruned: [],
+        files: [],
+    });
+});
+
+test("prune an installation's segments past the retention its space's settings place", async () => {
+    const { monitor, database, catalog } = await serveMonitor();
+    const now = Date.now();
+    const controller = new SegmentController(monitor, database);
+
+    // seal one entry of three days ago
+    monitor.ingest(ids.space, [
+        {
+            kind: "log",
+            name: "note.saved",
+            time: (now - 3 * 24 * 60 * 60 * 1000) * 1000,
+            installation: ids.notes,
+            source: { name: "@example/notes", version: "2026.9.0" },
+            status: "unset",
+            severity: 9,
+            attributes: {},
+        },
+    ]);
+    await monitor.seal(now, true);
+    const [key] = await controller.list();
+
+    // keep it under the default retention of thirty days
+    await controller.reconcile(present(key, "the notes installation's key"));
+    const kept = await catalog.select({ rows: monitorSegment.rows }).from(monitorSegment);
+
+    // drop it once the space keeps a day
     await database.insert(setting.table).values({
         id: schema.identifier("setting").parse("setting-01996ab0-0000-7000-8000-000000000013"),
         scope: ids.space,
@@ -351,17 +381,12 @@ test("compact an hour's minute segments into one, prune them past retention, and
         createdAt: now,
         updatedAt: now,
     });
-    await monitor.prune(ids.space, ids.notes, now);
-    const pruned = await database.select().from(monitorSegment);
-    await monitor.sweep(ids.space, ids.notes, now + 60 * 60 * 1000);
-    const files = await monitor.bucket.list({ prefix: `${ids.space}/` });
+    await new SegmentController(monitor, database).reconcile(
+        present(key, "the notes installation's key"),
+    );
+    const pruned = await catalog.select().from(monitorSegment);
 
-    expect({ compacted, found, pruned, files: files.files }).toEqual({
-        compacted: [{ level: 1, rows: 2 }],
-        found: ["note.opened", "note.saved"],
-        pruned: [],
-        files: [],
-    });
+    expect({ kept, pruned }).toEqual({ kept: [{ rows: 1 }], pruned: [] });
 });
 
 test("mask sensitive values for readers who may not unmask them, and audit an unmasked read", async () => {
@@ -394,7 +419,7 @@ test("mask sensitive values for readers who may not unmask them, and audit an un
         },
     ]);
 
-    // search as carol, then as alice who owns the space
+    // search as carol and as alice who owns the space
     const search = {
         scope: ids.space,
         installation: ids.notes,
@@ -433,7 +458,7 @@ test("mask sensitive values for readers who may not unmask them, and audit an un
 
 test("follow and search the entries another instance ingests, through the channel between their monitors", async () => {
     // run two monitors over one database, each reaching the other over its own end of a channel
-    const storage = await TestDatabase.create("sqlite", monitorTables, { isMigrated: true });
+    const storage = await TestDatabase.create("sqlite", monitorDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const directory = await mkdtemp(join(tmpdir(), "monitor-"));
     const bucket = await LocalBucket.open(directory, "space-test");
@@ -501,7 +526,7 @@ test("follow and search the entries another instance ingests, through the channe
 
 test("search sealed log records by text and attributes, keeping bodies and records without a severity", async () => {
     // keep one monitor over a database and a bucket
-    const storage = await TestDatabase.create("sqlite", monitorTables, { isMigrated: true });
+    const storage = await TestDatabase.create("sqlite", monitorDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const directory = await mkdtemp(join(tmpdir(), "monitor-"));
     const bucket = await LocalBucket.open(directory, "space-test");
@@ -512,7 +537,7 @@ test("search sealed log records by text and attributes, keeping bodies and recor
     const failures: unknown[] = [];
     const monitor = new Monitor(storage.database, bucket, (error) => failures.push(error));
 
-    // receive two records over OTLP, one without a severity, then seal them
+    // receive two records over OTLP, one without a severity, and seal them
     const now = Date.now();
     const record = (event: string, body: string, region: string, severityNumber?: number) => ({
         timeUnixNano: String(now * 1_000_000),
@@ -542,7 +567,7 @@ test("search sealed log records by text and attributes, keeping bodies and recor
     });
     await monitor.seal(now, true);
 
-    // find the record without a severity, then filter by text, by attribute and by severity
+    // find the record without a severity and filter by text, by attribute and by severity
     const search = (filter: object) =>
         monitor
             .search(ids.space, {

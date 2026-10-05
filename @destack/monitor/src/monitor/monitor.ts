@@ -34,10 +34,7 @@ import {
     type Series,
 } from "../entry/index.ts";
 import { aggregate } from "./series.ts";
-import { SettingValue } from "@destack/setting/object";
 import { POINT_BIT, Segment, UNSPECIFIED_BIT } from "../segment/segment.ts";
-import { telemetryRetention, traceSampling } from "../setting/setting.ts";
-import type { Setting } from "@destack/setting";
 
 import { monitorSegment } from "../segment/table.ts";
 
@@ -143,6 +140,48 @@ interface Subscriber extends Tail {
 export type EntryStream = AsyncIteratorObject<Entry, undefined, void> & {
     return(): Promise<IteratorResult<Entry, undefined>>;
 };
+
+/** The entries a tail received before its reader asked, and the read waiting for the next one. */
+class TailQueue {
+    /** The received entries no read has taken yet. */
+    readonly #entries: Entry[] = [];
+    /** The read waiting for the next entry. */
+    #waiting: ((result: IteratorResult<Entry, undefined>) => void) | undefined;
+    /** Whether the tail stopped receiving. */
+    #isClosed = false;
+
+    /** Hand an entry to the waiting read, or queue it. */
+    push(entry: Entry): void {
+        const read = this.#waiting;
+        this.#waiting = undefined;
+        if (read === undefined) {
+            this.#entries.push(entry);
+        } else {
+            read({ done: false, value: entry });
+        }
+    }
+
+    /** Take the next queued entry, end after closing, or wait for one. */
+    next(): Promise<IteratorResult<Entry, undefined>> {
+        const entry = this.#entries.shift();
+        if (entry !== undefined) {
+            return Promise.resolve({ done: false, value: entry });
+        } else if (this.#isClosed) {
+            return Promise.resolve({ done: true, value: undefined });
+        } else {
+            return new Promise((resolve) => {
+                this.#waiting = resolve;
+            });
+        }
+    }
+
+    /** Stop receiving and release a read waiting for more. */
+    close(): void {
+        this.#isClosed = true;
+        this.#waiting?.({ done: true, value: undefined });
+        this.#waiting = undefined;
+    }
+}
 
 /** One open segment and the time it opened. */
 interface Open {
@@ -302,7 +341,7 @@ export class Monitor {
             )
             .orderBy(desc(monitorSegment.to));
 
-        // collect matching records from the open segment, then from each sealed one, newest first
+        // collect matching records from the open segment and from each sealed one, newest first
         const query: EntryQuery = { kind: "search", search };
         const isWanted = Monitor.#wanted(query, search.installation);
         const collected = await this.#recent(scope, search.installation, window, query);
@@ -334,38 +373,26 @@ export class Monitor {
 
     /** Follow a scope's entries matching a filter from now on, until the signal aborts or the reader stops. */
     tail(filter: EntryFilter, signal: AbortSignal): EntryStream {
-        // queue entries between reads, or hand one to the waiting read
-        const queue: Entry[] = [];
-        let waiting: ((result: IteratorResult<Entry>) => void) | undefined;
-        let isClosed = false;
+        // queue entries between reads
+        const queue = new TailQueue();
         const subscriber: Subscriber = {
             id: crypto.randomUUID(),
             filter,
-            push: (entry) => {
-                const read = waiting;
-                waiting = undefined;
-                if (read === undefined) {
-                    queue.push(entry);
-                } else {
-                    read({ done: false, value: entry });
-                }
-            },
+            push: (entry) => queue.push(entry),
         };
 
         // unsubscribe once, ending the waiting read
         const close = () => {
-            // stop receiving, then release a read waiting for more
-            isClosed = true;
+            // end the waiting read before stopping receiving
+            queue.close();
             this.#subscribers.delete(subscriber);
             this.#announce();
             signal.removeEventListener("abort", close);
-            waiting?.({ done: true, value: undefined });
-            waiting = undefined;
         };
 
         // subscribe at once, unless already stopped
         if (signal.aborted) {
-            isClosed = true;
+            queue.close();
         } else {
             this.#subscribers.add(subscriber);
             this.#announce();
@@ -373,18 +400,7 @@ export class Monitor {
         }
 
         return {
-            next: () => {
-                const entry = queue.shift();
-                if (entry !== undefined) {
-                    return Promise.resolve({ done: false, value: entry });
-                } else if (isClosed) {
-                    return Promise.resolve({ done: true, value: undefined });
-                } else {
-                    return new Promise((resolve) => {
-                        waiting = resolve;
-                    });
-                }
-            },
+            next: () => queue.next(),
             return: () => {
                 close();
 
@@ -430,14 +446,6 @@ export class Monitor {
         found.push(...(await this.#recent(scope, installation, window, query)));
 
         return found.toSorted((first, second) => first.time - second.time);
-    }
-
-    /** Resolve the share of traces an installation keeps. */
-    sampling(
-        scope: Identifier<"space">,
-        installation: Identifier<"installation">,
-    ): Promise<number> {
-        return this.#resolve(traceSampling, scope, installation);
     }
 
     /** Merge each finished hour's minute segments of an installation, or of the scope's host, into one. */
@@ -492,7 +500,7 @@ export class Monitor {
             merged.append(entry);
         }
 
-        // store the merged file, then replace the minute rows with its row
+        // store the merged file before replacing the minute rows with its row
         const id = schema.identifier("segment").parse(`segment-${v7()}`);
         const key = `${scope}/${installation ?? "host"}/${merged.from}-${id}.parquet`;
         const body = await merged.encode();
@@ -520,14 +528,14 @@ export class Monitor {
         });
     }
 
-    /** Drop the segments of an installation, or of the scope's host, older than its retention. */
+    /** Drop the segments of an installation, or of the scope's host, older than its retention in days. */
     async prune(
         scope: string,
         installation: Identifier<"installation"> | undefined,
+        days: number,
         now = Date.now(),
     ): Promise<void> {
         // keep the entries of the retained days
-        const days = await this.#resolve(telemetryRetention, scope, installation);
         const before = (now - days * DAY_MILLISECONDS) * 1000;
         await this.database
             .delete(monitorSegment)
@@ -575,20 +583,6 @@ export class Monitor {
         } while (cursor !== undefined);
     }
 
-    /** Resolve a space setting for an installation from the values placed along its space's chain, or its default for a host. */
-    async #resolve<Value extends schema.Schema>(
-        declared: Setting<Value>,
-        scope: string,
-        installation: Identifier<"installation"> | undefined,
-    ): Promise<schema.Infer<Value>> {
-        // take the default for the host's entries
-        if (installation === undefined) {
-            return declared.definition.default;
-        }
-
-        return SettingValue.resolve(this.database, declared, { scope, installation });
-    }
-
     /** Aggregate a metric's points in a window into steps per attribute group, across sealed and open segments. */
     async series(scope: string, request: PointSeries): Promise<Series> {
         // read the sealed segments with points in the window
@@ -628,7 +622,7 @@ export class Monitor {
         await Promise.all(this.#sealing);
     }
 
-    /** Seal due segments every few seconds until the signal aborts, then seal the rest. */
+    /** Seal due segments every few seconds until the signal aborts, sealing the rest at the end. */
     async run(signal: AbortSignal): Promise<void> {
         // seal on an interval, and hear and greet the other instances
         const interval = setInterval(() => void this.seal(), SEAL_MILLISECONDS / 12);
@@ -658,7 +652,7 @@ export class Monitor {
         this.#open.delete(key);
         const { segment, scope } = open;
 
-        // write the file, then name it in the catalog
+        // write the file before naming it in the catalog
         const id = schema.identifier("segment").parse(`segment-${v7()}`);
         const file = `${scope}/${segment.installation ?? "host"}/${segment.from}-${id}.parquet`;
         const sealing = (async () => {

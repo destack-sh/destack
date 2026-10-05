@@ -1,4 +1,4 @@
-import { defineTable, identifier, index, integer, text } from "@destack/db";
+import { defineDatabase, defineTable, identifier, index, integer, text } from "@destack/db";
 
 /** The sealed segments of each scope's entries: the catalog searches prune by. */
 export const monitorSegment = defineTable(
@@ -38,5 +38,5 @@ export const monitorSegment = defineTable(
     },
 );
 
-/** The monitor's tables. */
-export const monitorTables = [monitorSegment];
+/** The monitor's database: the segment catalog. */
+export const monitorDatabase = defineDatabase({ name: "main", tables: [monitorSegment] });

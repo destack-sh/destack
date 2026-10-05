@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { Scope, type ObjectReference } from "@destack/sync";
-import { Snapshot } from "@destack/db";
+import { Snapshot, type DatabaseConnection } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { OtlpSignal } from "@destack/telemetry/otlp";
 import { ServiceError } from "@destack/service";
@@ -27,29 +27,38 @@ const OTLP_PATHS: ReadonlyMap<string, OtlpSignal> = new Map([
     ["/v1/metrics", "metrics"],
 ]);
 
-/** The access and audit a host supplies to the monitor service. */
-export interface MonitorServerOptions {
-    /** The host's policies. */
+/** The store, access, settings and audit an owner serves the monitor service with. */
+export interface MonitorOptions {
+    /** The telemetry store the service reads and receives into. */
+    readonly monitor: Monitor;
+    /** The owner's policies. */
     readonly access: ServiceAccess;
+    /** The owner's database with its installations' retention settings. */
+    readonly settings: DatabaseConnection;
     /** Create the recorder of unmasked reads in a scope's history. */
     record(scope: string, context: ServiceContext): Pick<AuditRecorder, "record">;
 }
 
+/** The monitor service with the telemetry store it serves. */
+export interface MonitorImplementation extends ServiceImplementation {
+    /** The telemetry store the service reads and receives into. */
+    readonly monitor: Monitor;
+}
+
 /** Implement the monitor service on a monitor, deciding reads by the host's policies. */
-export function implementService(
-    monitor: Monitor,
-    options: MonitorServerOptions,
-): ServiceImplementation {
+export function implementMonitor(options: MonitorOptions): MonitorImplementation {
+    const { monitor } = options;
     const implementation = implement(monitorService.router).$context<ServiceContext>();
 
     return {
         service: monitorService,
+        monitor,
         access: options.access,
         audit: AuditRecorder.procedure(({ context }) =>
             options.record(context.scope ?? Scope.universe.id, context),
         ),
         route: (request, context) => receive(monitor, request, context),
-        controllers: [new SegmentController(monitor)],
+        controllers: [new SegmentController(monitor, options.settings)],
         router: implementation.router({
             series: implementation.series.handler(async ({ input, context }) => {
                 // aggregate as the caller may read metrics
@@ -129,7 +138,7 @@ async function receive(
 /** Decide how a read shows sensitive values: unmasked and audited for a caller who may unmask them, else masked. */
 async function unmasking(
     context: ServiceContext,
-    options: MonitorServerOptions,
+    options: MonitorOptions,
     target: { readonly scope: string },
     emitter: ObjectReference,
     operation: "search" | "tail" | "trace",
