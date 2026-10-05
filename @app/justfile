@@ -1,27 +1,32 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
+# half the machine's cores, which checks run on at a low priority
+jobs := `echo $(( $(getconf _NPROCESSORS_ONLN) / 2 ))`
+
 _default:
     @just --list --unsorted
 
-# check
-check:
-    cd .. && bun run --filter './@app/*' --if-present check
+# typecheck every package on half the cores
+typecheck:
+    ls */package.json | xargs -n 1 dirname | xargs -P {{jobs}} -I{} nice -n 10 sh -c 'cd {} && bun run typecheck'
+
+# lint every package's sources, tests and README, each set in one program
+lint:
+    GOMAXPROCS={{jobs}} nice -n 10 bun run destack-check check */src
+    GOMAXPROCS={{jobs}} nice -n 10 bun run destack-check check $(ls -d */tests 2>/dev/null | grep -v '^build/') */README.md
+
+# check every package's formatting
+format-check:
+    bun run destack-check format-check */src $(ls -d */tests 2>/dev/null | grep -v '^build/') */package.json */destack.json
+
+# typecheck, lint and check formatting
+check: typecheck lint format-check
 
 # test
 test:
-    cd .. && bun run --bun --sequential --no-exit-on-error --filter './@app/*' --if-present test
+    cd .. && nice -n 10 bun run --bun --sequential --no-exit-on-error --filter './@app/*' --if-present test
 
-# lint
-lint:
-    bun run destack-check check */src
-
-# format
+# format every package
 format:
-    bun run destack-check format */src
-
-# check formatting
-format-check:
-    bun run destack-check format-check */src
-
-alias fmt := format
+    bun run destack-check format */src $(ls -d */tests 2>/dev/null | grep -v '^build/') */package.json */destack.json

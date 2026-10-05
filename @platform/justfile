@@ -6,52 +6,53 @@ set dotenv-filename := "../.env.local"
 _default:
     @just --list --unsorted
 
-# build
-build:
-    just site/build
-    just stack/check
+# typecheck
+typecheck:
+    just site/typecheck
+    just stack/typecheck
+    just release/typecheck
+
+# lint
+lint:
+    just site/lint
+    just stack/lint
+    just release/lint
+
+# check formatting
+format-check:
+    just site/format-check
+    just stack/format-check
+    just release/format-check
+
+# typecheck, lint and check formatting
+check: typecheck lint format-check
+
+# test
+test:
+    just site/test
+    just stack/test
+    just release/test
 
 # format
 format:
     just site/format
     just stack/format
+    just release/format
 
-# check formatting
-format-check:
-    just site/format-check
+# build the site and the release
+build:
+    just site/build
+    just release/build
 
-# lint
-lint:
-    just site/lint
-
-# test
-test:
-    just site/test
-
-# check
-check:
-    just check-quick
-
-# check quick
-check-quick:
-    just format-check
-    just lint
-    just test
-    just stack/check
-
-# check full
-check-full:
-    just check-quick
-
-# diff
+# plan a stack deployment
 diff +deployment:
     just stack/diff {{deployment}}
 
-# deploy
+# deploy the site
 deploy:
     just site/build
     just site/deploy
 
-# clean
+# clean the site's outputs
 clean:
     just site/clean

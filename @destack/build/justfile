@@ -1,17 +1,32 @@
 set shell := ["bash", "-cu"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
-# check
-check:
-    bun run check
+_default:
+    @just --list --unsorted
+
+# typecheck
+typecheck:
+    bun run typecheck
+
+# lint
+lint:
+    bun run destack-check check src tests vitest.config.ts README.md
+
+# check formatting
+format-check:
+    bun run destack-check format-check src tests vitest.config.ts package.json destack.json
+
+# typecheck, lint and check formatting
+check: typecheck lint format-check
 
 # test
 test:
     bun run test
 
+# format
+format *args:
+    bun run destack-check format {{args}} src tests vitest.config.ts package.json destack.json
+
 # update fixtures
 update:
     UPDATE_BUILD_FIXTURES=1 bun run test --update
-
-# format authored source, tests and fixture inputs, leaving generated expected outputs exact
-format:
-    bun run destack-check format src package.json destack.json tests/*.ts tests/fixture/*/request.ts tests/fixture/*/source/src tests/fixture/*/source/*.json tests/fixture/template

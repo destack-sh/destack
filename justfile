@@ -17,21 +17,26 @@ update:
 # build
 build:
     just @platform/build
-    just @platform/release/build
 
 # generate
 generate:
     just @platform/site/generate
 
-# format
-format:
-    just @destack/format
-    just @app/format
-    just @template/format
-    just @platform/format
-    just @platform/release/format
+# typecheck
+typecheck:
+    just @destack/typecheck
+    just @app/typecheck
+    just @template/typecheck
+    just @platform/typecheck
 
-alias fmt := format
+# lint the workflows, every scope and the repository's documents
+lint:
+    actionlint
+    just @destack/lint
+    just @app/lint
+    just @template/lint
+    just @platform/lint
+    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog
 
 # check formatting
 format-check:
@@ -39,22 +44,24 @@ format-check:
     just @app/format-check
     just @template/format-check
     just @platform/format-check
-    just @platform/release/format-check
 
-# lint
-lint:
-    just check-hygiene
-    bun run destack-check check @destack/*/src @app/*/src @template/*/src @platform/*/src
-    bun run destack-check check $(ls -d @destack/*/tests @app/*/tests | grep -v '^@destack/build/')
-    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog @destack/*/README.md @app/*/README.md @template/*/README.md
-    just @platform/lint
-    just @platform/release/lint
+# typecheck, lint and check formatting
+check: typecheck lint format-check
 
 # test
 test:
     just @destack/test
     just @app/test
     just @platform/test
+
+# format
+format:
+    just @destack/format
+    just @app/format
+    just @template/format
+    just @platform/format
+
+alias fmt := format
 
 # test the packages the changes since a base commit affect, with their dependents
 test-affected base="origin/main":
@@ -64,7 +71,6 @@ test-affected base="origin/main":
     # run everything when a change reaches every package
     if [ "$directories" = "*" ]; then
         just test
-        just @platform/release/test
         exit 0
     fi
     filters=()
@@ -87,23 +93,6 @@ postgres action:
         "$bin/initdb" --pgdata "$data" --username postgres --auth trust --encoding UTF8 >/dev/null
     fi
     "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "-p 55432 -k /tmp" --wait "{{action}}"
-
-# check
-check:
-    just check-hygiene
-    just @destack/check
-    just @app/check
-    just @template/check
-    just @platform/site/check
-    just @platform/stack/check
-    just @platform/release/check
-
-alias check-quick := check
-alias check-full := check
-
-# check hygiene
-check-hygiene:
-    actionlint
 
 # serve the dev universe on local PostgreSQL
 universe:
