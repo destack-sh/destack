@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { createHash } from "node:crypto";
 import { createServer, type Socket } from "node:net";
 import { Frame, FrameFlag, FrameType, TUNNEL_PROTOCOL } from "../session/index.ts";
-import { freePort, until } from "../server/test/fixture.ts";
+import { freePort, until } from "../../tests/fixture/relay.ts";
 import { TunnelClient } from "./client.ts";
 
 /** The GUID a WebSocket server appends to the client's key to accept it, from RFC 6455 section 1.3. */
@@ -56,7 +56,7 @@ function clientFrames(chunks: readonly Buffer[]): ClientFrame[] {
 
 /** Accept WebSocket upgrades and leave every later frame unanswered, recording each connection. */
 async function silentRelay() {
-    // answer each upgrade with the tunnel protocol, then count the bytes it sends
+    // answer each upgrade with the tunnel protocol and count the bytes it sends
     const connections: SilentConnection[] = [];
     const sockets = new Set<Socket>();
     const server = createServer((socket) => {
@@ -160,7 +160,7 @@ test("keep dialing after the issuer grants no token, reporting each failed dial"
 });
 
 test("drop a tunnel whose relay stops answering, dialing again and closing without its close answered", async () => {
-    // dial a relay that accepts the upgrade and then answers nothing
+    // dial a relay that accepts the upgrade and answers nothing after
     await using relay = await silentRelay();
     const reports: unknown[] = [];
     const client = TunnelClient.open({
@@ -173,13 +173,13 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
         report: (error) => reports.push(error),
     });
 
-    // dial again after the unanswered heartbeat drops the socket, then close while connected to a peer that never answers the close
+    // dial again after the unanswered heartbeat drops the socket and close while connected to a peer that never answers the close
     await until(() => relay.connections.length >= 2);
     await client.close();
     const [first] = relay.connections;
     const head = { method: "PUT", url: relay.url, headers: [["authorization", "Bearer token"]] };
 
-    // offer the token, ping, send the unanswered renewal, then close normally, reporting the tunnel that never opened
+    // offer the token, ping and send the unanswered renewal before closing normally, reporting the tunnel that never opened
     expect({
         protocols: first?.protocols,
         frames: clientFrames(first?.chunks ?? []),

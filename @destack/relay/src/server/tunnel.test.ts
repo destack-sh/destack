@@ -2,8 +2,8 @@ import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import type { Alarm } from "@destack/service/control";
-import { MAX_STREAMS, Session } from "../../session/index.ts";
-import { Tunnel } from "../tunnel.ts";
+import { MAX_STREAMS, Session } from "../session/index.ts";
+import { Tunnel } from "./tunnel.ts";
 
 /** The host whose tunnel the scenarios keep. */
 const hostId = schema.identifier("host").parse("host-01996ab0-0000-7000-8000-0000000000d1");
@@ -70,7 +70,7 @@ test("forward through the newest tunnel, close each tunnel once its token lapses
     await connect(tunnel, "newer", 2000);
     const both = [await forward(tunnel, "/a"), alarm.at];
 
-    // close the older at its lapse, then the newer at its own
+    // close the older at its lapse and the newer at its own
     await tunnel.lapse(1000);
     const newer = [await forward(tunnel, "/b"), alarm.at];
     await tunnel.lapse(2000);
@@ -99,7 +99,7 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
     });
     const host = await connect(tunnel, "host", 1000);
 
-    // renew with a fresh token, reach no other path, then close the tunnel on a stale one
+    // renew with a fresh token and reach no other path before closing the tunnel on a stale one
     const renew = (path: string, token: string) =>
         host
             .fetch(
@@ -152,7 +152,7 @@ test("refuse a request beyond a host's open requests, and time out the ones the 
         Number.MAX_SAFE_INTEGER,
     );
 
-    // fill the host's open requests, refuse one more, then time the open ones out
+    // fill the host's open requests, refuse one more and time the open ones out
     const open = Array.from({ length: MAX_STREAMS }, () => forward(tunnel, "/slow"));
     const refused = await forward(tunnel, "/one-more");
     const timedOut = new Set(await Promise.all(open));

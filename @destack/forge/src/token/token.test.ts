@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { JsonWebToken } from "../src/token/token.ts";
+import { JsonWebToken } from "./token.ts";
 
 /** Decode an unpadded base64url segment as JSON. */
 function decode(segment: string): unknown {

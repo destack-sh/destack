@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@destack/test";
-import { Source } from "../src/token/source.ts";
-import { TOKENS, TokenTree } from "../src/token/token.ts";
+import { Source } from "../token/source.ts";
+import { TOKENS, TokenTree } from "../token/token.ts";
 
 /** Read a package file. */
 function read(path: string): Promise<string> {
-    return readFile(new URL(`../${path}`, import.meta.url), "utf8");
+    return readFile(new URL(`../../${path}`, import.meta.url), "utf8");
 }
 
 /** List the constant keys of a token family. */

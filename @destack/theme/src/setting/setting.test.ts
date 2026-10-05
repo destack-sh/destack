@@ -1,10 +1,10 @@
 import { Package } from "@destack/package";
 import { describeSetting } from "@destack/setting/inspect";
 import { expect, test } from "@destack/test";
-import { defineTheme } from "../src/declare/index.ts";
-import { describeTheme } from "../src/inspect/index.ts";
-import { PRESET_NAMES } from "../src/palette/index.ts";
-import { accent, appearance, contrast, density, motion, textSize } from "../src/setting/index.ts";
+import { defineTheme } from "../declare/index.ts";
+import { describeTheme } from "../inspect/index.ts";
+import { PRESET_NAMES } from "../palette/index.ts";
+import { accent, appearance, contrast, density, motion, textSize } from "../setting/index.ts";
 
 /** The package release declaring the fixture's theme. */
 const notes = Package.parse({

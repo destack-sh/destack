@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { aligned } from "@destack/schema";
-import { until } from "../server/test/fixture.ts";
+import { until } from "../../tests/fixture/relay.ts";
 import { Frame, FrameFlag, FrameType, MAX_FRAME_BYTES } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
 import { MAX_STREAMS, Session } from "./session.ts";
@@ -240,7 +240,7 @@ test("reset a stream answered with no response head, keeping the session", async
 test("end both sides of a stream whose request body the host answered without reading", async () => {
     const { relay, host, accepted } = pair();
 
-    // answer a large request at once, then stop its unread body
+    // answer a large request at once and stop its unread body
     const answering = until(() => accepted.length === 1).then(async () => {
         const request = aligned(accepted, 0).request();
         await aligned(accepted, 0).respond(new Response("early"));

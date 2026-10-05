@@ -1,7 +1,7 @@
 import { Package } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
-import { defineTheme } from "../src/declare/index.ts";
-import { apca, Color, GRAY_PRESETS, PRESET_NAMES, Scale } from "../src/palette/index.ts";
+import { defineTheme } from "../declare/index.ts";
+import { apca, Color, GRAY_PRESETS, PRESET_NAMES, Scale } from "../palette/index.ts";
 import {
     DEFAULT_PREFERENCES,
     ROLE_NAMES,
@@ -10,8 +10,8 @@ import {
     SurfaceLevel,
     Theme,
     type ThemeStyle,
-} from "../src/theme/index.ts";
-import { TOKENS } from "../src/token/index.ts";
+} from "../theme/index.ts";
+import { TOKENS } from "../token/index.ts";
 
 /** The package release declaring the fixture's themes. */
 const notes = Package.parse({

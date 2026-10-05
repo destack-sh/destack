@@ -8,7 +8,7 @@ import {
     STEPS,
     type Scheme,
     type Step,
-} from "../src/palette/index.ts";
+} from "../palette/index.ts";
 
 /** Seeds across hues, lightness and chroma. */
 const SEEDS = ["#3e63dd", "#f76b15", "#ffc53d", "#46a758", "#ff0000", "#7c3aed", "#888888"];

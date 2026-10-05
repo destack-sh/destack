@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
-import type { Entry, Histogram } from "../src/entry/index.ts";
-import { aggregate, merge, quantile } from "../src/monitor/series.ts";
+import type { Entry, Histogram } from "../entry/index.ts";
+import { aggregate, merge, quantile } from "./series.ts";
 
 /** Values 3, 5, 6 and 12 at scale 0, where bucket i counts (2^i, 2^(i+1)]. */
 const coarse: Histogram = {

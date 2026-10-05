@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import type { Entry } from "../src/entry/index.ts";
-import { Segment } from "../src/segment/index.ts";
+import type { Entry } from "../entry/index.ts";
+import { Segment } from "./index.ts";
 
 /** The installation emitting the entries. */
 const notes = schema
@@ -94,14 +94,14 @@ const latency: Entry = {
 const entries = [span, saved, conflict, open, latency];
 
 test("roundtrip a segment's entries through Parquet and read a time window and a trace of them", async () => {
-    // append out of order, then encode
+    // append out of order and encode
     const segment = new Segment(notes);
     for (const entry of [latency, conflict, open, span, saved]) {
         segment.append(entry);
     }
     const file = (await segment.encode()).buffer;
 
-    // read every entry, then only the window around the span
+    // read every entry and only the window around the span
     const every = await Segment.decode(file, notes, { from: 0, to: 10_000 });
     const early = await Segment.decode(file, notes, { from: 1_000, to: 1_500 });
     const traced = await Segment.decode(

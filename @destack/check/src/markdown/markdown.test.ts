@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { checkMarkdown, fixMarkdown } from "../src/markdown/index.ts";
+import { checkMarkdown, fixMarkdown } from "./index.ts";
 
 /** Codes reported for a Markdown document. */
 function codes(text: string): string[] {
