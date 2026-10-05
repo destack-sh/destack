@@ -1,7 +1,7 @@
 import { AuditActor } from "../record/actor.ts";
 import { AuditCall } from "../record/call.ts";
 import { defineSchema, Instant, schema } from "@destack/schema";
-import { AuditActionName } from "../action/index.ts";
+import { AuditActionName } from "../declare/index.ts";
 import { PackageId } from "@destack/package";
 
 /** The most calls one page returns, one batch carries or one prune removes. */

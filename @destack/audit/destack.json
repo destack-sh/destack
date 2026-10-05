@@ -4,13 +4,13 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
-        "./outbox": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./history": {
             "runtimes": ["bun", "workerd"]
         },
         "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
             "runtimes": ["bun", "workerd"]
         }
     },
@@ -26,6 +26,8 @@
         }
     },
     "stamps": {
-        "defineAuditAction": { "module": 1 }
+        "defineAuditAction": {
+            "module": 1
+        }
     }
 }

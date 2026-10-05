@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { defineAuditAction } from "../action/index.ts";
+import { defineAuditAction } from "../declare/index.ts";
 
 /** The scope whose history an action reads or prunes. */
 const historyTarget = schema.object({

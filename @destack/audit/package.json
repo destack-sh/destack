@@ -6,7 +6,7 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
-        "./declare": "./src/action/index.ts",
+        "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./object": "./src/object/index.ts",
         "./history": "./src/history/index.ts",

@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { defineAuditAction } from "../action/index.ts";
+import { defineAuditAction } from "../declare/index.ts";
 
 /** Invoke a service procedure. */
 export const invokeService = defineAuditAction({

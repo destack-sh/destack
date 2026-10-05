@@ -1,5 +1,5 @@
 import { defineSchema, schema, toJsonSchema, type JsonValue } from "@destack/schema";
-import { AuditActionName, type AuditAction } from "../action/index.ts";
+import { AuditActionName, type AuditAction } from "../declare/index.ts";
 import { Package } from "@destack/package";
 
 /** A serializable action declaration. */

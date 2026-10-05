@@ -4,7 +4,7 @@ import { test, expect } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Health } from "@destack/service/health";
 import { AuditRecorder } from "../src/record/index.ts";
-import { defineAuditAction } from "../src/action/index.ts";
+import { defineAuditAction } from "../src/declare/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
 import { implementAudit } from "../src/server/index.ts";
 import { Server } from "@destack/service/server";
