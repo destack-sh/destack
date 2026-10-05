@@ -1,0 +1,16 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-00000000-0000-7000-8000-0000000000f1",
+    "language": "typescript",
+    "runtimes": ["bun"],
+    "publication": {
+        "outputs": {
+            "server": {
+                "runtime": "bun"
+            }
+        },
+        "conditions": {
+            "default": "server"
+        }
+    }
+}

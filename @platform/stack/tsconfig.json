@@ -1,5 +1,26 @@
 {
-    "extends": "../../tsconfig.json",
-    "compilerOptions": { "types": ["bun"] },
-    "files": ["src/main.ts"]
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "Preserve",
+        "moduleResolution": "Bundler",
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noUncheckedSideEffectImports": true,
+        "erasableSyntaxOnly": true,
+        "verbatimModuleSyntax": true,
+        "lib": ["ESNext"],
+        "types": ["bun"]
+    },
+    "include": ["src", "tests", "*.config.ts"],
+    "exclude": ["tests/fixture/hello"]
 }

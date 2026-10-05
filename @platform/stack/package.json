@@ -1,13 +1,41 @@
 {
-    "name": "@destack/platform",
-    "private": true,
+    "name": "@platform/stack",
     "version": "2026.9.0",
     "license": "MIT",
     "type": "module",
     "description": "Destack operated platform stack",
+    "exports": {
+        "./universe": "./src/universe/index.ts"
+    },
     "scripts": {
-        "check": "just check",
-        "plan": "just diff",
-        "apply": "just deploy"
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*",
+        "@destack/daemon": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/directory": "workspace:*",
+        "@destack/host": "workspace:*",
+        "@destack/mail": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/forge": "workspace:*",
+        "@destack/relay": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2",
+        "wrangler": "4.134.0"
     }
 }

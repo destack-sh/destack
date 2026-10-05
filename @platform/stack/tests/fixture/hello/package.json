@@ -1,0 +1,8 @@
+{
+    "name": "@smoke/hello",
+    "version": "2026.10.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    }
+}

@@ -5,3 +5,4 @@
 crash.log
 !deployment/**/*.tfvars
 !deployment/shared.tfvars
+.wrangler/
