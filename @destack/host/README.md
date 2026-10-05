@@ -19,12 +19,47 @@ await identity.enroll(connect({ url: issuer, headers: { authorization: `Bearer $
 });
 ```
 
-## Keys
+### Keys
 
 `rotate` registers a new host key with a proof of possession and revokes the host's other keys.
 
 ```ts
 await identity.rotate(accounts, accountId);
+```
+
+### Host tokens
+
+`token` exchanges a single-use assertion signed by the host key for a 60-second universe token, and `fetch` adds such a token to each call.
+
+```ts
+const accounts = ServiceMount.url(issuer, accountService.package.id);
+const relay = identity.fetch(fetch, relayService.package.id, accounts);
+const { accessToken } = await identity.token(relayService.package.id, accounts, fetch); // cached until shortly before expiry
+const registry = identity.fetch(fetch, accountService.package.id, accounts, { placementId }); // as the placement's workload (RFC 8693)
+```
+
+### Space tokens
+
+`SpaceToken.verify` checks a space token against the signing space's identity in the directory.
+
+```ts
+import { SpaceToken } from "@destack/host/identity";
+
+if (SpaceToken.accepts(request)) {
+    const authentication = await SpaceToken.verify(request, { directory, audience, spaceId });
+}
+```
+
+## Keychains
+
+A `Keychain` keeps a host's secrets by name, `MemoryKeychain` in memory and `SystemKeychain` from `@destack/host/bun` in the operating system's keychain, and `Keychain.update` changes one secret with compare-and-set retries.
+
+```ts
+import { Keychain } from "@destack/host/keychain";
+import { SystemKeychain } from "@destack/host/bun";
+
+const keychain = new SystemKeychain("app.destack.host");
+const kept = await Keychain.update(keychain, "token", (token) => token ?? generate()); // a racing writer's token wins
 ```
 
 ## Keyring
@@ -39,14 +74,11 @@ const wrapped = await keyring.wrap(dataKey, context);
 const unwrapped = await keyring.unwrap(wrapped, context);
 ```
 
-## Host tokens
-
-`token` exchanges a single-use assertion signed by the host key for a 60-second universe token, and `fetch` adds such a token to each call.
-
 ```ts
-const accounts = ServiceMount.url(issuer, accountService.package.id);
-const relay = identity.fetch(fetch, relayService.package.id, accounts);
-const { accessToken } = await identity.token(relayService.package.id, accounts, fetch); // cached until shortly before expiry
+const [first, second] = await Promise.all([
+    LocalKeyring.open(keychain, hostId),
+    LocalKeyring.open(keychain, hostId),
+]); // first.active === second.active
 ```
 
 ## Addresses
@@ -54,10 +86,11 @@ const { accessToken } = await identity.token(relayService.package.id, accounts, 
 `InstallationOrigin.parse` reads the alias, space and handle from an installation's origin, which serves its views and serves its service at `SERVICE_PATH`.
 
 ```ts
-import { DOMAINS, InstallationOrigin, SERVICE_PATH } from "@destack/host";
+import { DOMAINS, InstallationOrigin, SERVICE_PATH, SpaceOrigin } from "@destack/host";
 
 InstallationOrigin.parse("notes.personal.florian.destack.space", DOMAINS.space); // { alias, space, handle }
 const url = `https://notes.personal.florian.${DOMAINS.space}${SERVICE_PATH}`;
+SpaceOrigin.format({ branch: "feature-x", space: "personal", handle: "florian" }, DOMAINS.space); // feature-x--personal.florian.destack.space
 ```
 
 ## Runtimes
@@ -78,7 +111,7 @@ await runtime.start(spec, exited); // exited(code) reports an exit nobody asked 
 const response = await runtime.fetch(instanceId, "/notes/list", request, authentication);
 ```
 
-## Workload sandbox
+### Workload sandbox
 
 `WorkloadSandbox.options` adds sandbox rules for each capability of an instance to the output, data, cache and resource files, the egress and the loopback that every runner has.
 
@@ -92,7 +125,7 @@ run               read access to the path of each named command on the host
 browser-gated     nothing, since the browser enforces them on the installation's origin
 ```
 
-## Refused capabilities
+### Refused capabilities
 
 `start` throws a `CapabilityError` for a capability the host cannot grant, such as connecting to any host, and the cell records it on the instance.
 
@@ -115,17 +148,28 @@ import { Router } from "@destack/host/router";
 
 const router = new Router({ runtimes: [runtime], routes, sign, fetch });
 await router.ingress(installationId, "/notes/list", request, authentication);
-await router.egress(request); // <egress>/<address>/<path> with the instance's secret
+await router.egress(request); // <egress>/<address>/<path> with the instance's secret, resent once after MOVED
 ```
 
-## Space tokens
+## Errors
 
-`SpaceToken.verify` checks a space token against the signing space's identity in the directory.
+A failure of a host's keys throws a `HostError` with a stable code and without the keys' bytes.
 
 ```ts
-import { SpaceToken } from "@destack/host/identity";
+import { HostError } from "@destack/host/error";
 
-if (SpaceToken.accepts(request)) {
-    const authentication = await SpaceToken.verify(request, { directory, audience, spaceId });
-}
+await LocalKeyring.retire(keychain, hostId, keyring.active); // HostError INVALID_KEY: cannot retire the active root key
+```
+
+## Tests
+
+`AccountFixture` serves the account service with accounts, hosts and the platform's region, `LocalRuntime` runs instances in the test's process, and `memoryBuild` keeps a build in memory.
+
+```ts
+import { AccountFixture, ids, LocalRuntime, memoryBuild } from "@destack/host/test";
+
+await using accounts = await AccountFixture.open();
+const identity = await accounts.enroll(ids.account);
+const local = new LocalRuntime({ egress, callKey, report, runner: (spec) => runners(spec) });
+const build = await memoryBuild(definition, outputs, files);
 ```

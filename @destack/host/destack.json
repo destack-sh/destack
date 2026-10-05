@@ -10,14 +10,8 @@
         "./keychain": {
             "runtimes": ["bun", "workerd"]
         },
-        "./server": {
-            "runtimes": ["bun", "workerd"]
-        },
-        "./stack": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./test": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun"]
         },
         "./runtime": {
             "runtimes": ["bun", "workerd"]
@@ -27,6 +21,9 @@
         },
         "./router": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./error": {
+            "runtimes": ["browser", "bun", "workerd"]
         }
     }
 }

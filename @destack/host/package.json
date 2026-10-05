@@ -12,13 +12,16 @@
         "./test": "./src/test/index.ts",
         "./runtime": "./src/runtime/index.ts",
         "./bun": "./src/bun/index.ts",
-        "./router": "./src/router/index.ts"
+        "./router": "./src/router/index.ts",
+        "./error": "./src/error/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/directory": "workspace:*",
+        "@destack/fs": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
@@ -34,7 +37,6 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "@destack/directory": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1"
     }
