@@ -26,7 +26,7 @@ interface Upgrade extends ResponseInit {
 }
 
 /** A relay in a Durable Object: its names, and its hosts' tunnels over WebSockets the object accepts and keeps open. */
-export class WorkerdRelay {
+export class DurableObjectRelayServer {
     /** The relay the object serves. */
     readonly relay: Relay;
     /** The server ends of the open tunnels. */

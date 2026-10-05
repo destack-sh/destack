@@ -19,7 +19,7 @@ macbook.flotothemoon.destack.computer                 the host macbook of flotot
 ```ts
 import { implementRelay } from "@destack/relay/server";
 import { BunRelay } from "@destack/relay/bun";
-import { WorkerdRelay } from "@destack/relay/cloudflare";
+import { DurableObjectRelayServer } from "@destack/relay/cloudflare";
 
 const service = implementRelay({
     origin: "https://relay.destack.space",
@@ -29,7 +29,7 @@ const service = implementRelay({
     report,
 });
 const listener = BunRelay.listen(service.relay, { hostname: "0.0.0.0", port: 443, tls }); // a Bun process
-const object = new WorkerdRelay(service.relay); // a Durable Object: object.fetch(request) accepts tunnels as WebSockets
+const object = new DurableObjectRelayServer(service.relay); // a Durable Object: object.fetch(request) accepts tunnels as WebSockets
 ```
 
 ## Workload
