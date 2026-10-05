@@ -1,5 +1,6 @@
 import type { ChangeDescription } from "../log/description.ts";
 import { literal, quote } from "../dialect/quote.ts";
+import { relation } from "../table/namespace.ts";
 import {
     createEpoch,
     LOG,
@@ -18,18 +19,22 @@ const JSON_PAIR_LIMIT = Math.floor((FUNCTION_ARGUMENT_LIMIT - 1) / 2);
 
 /** The SQLite log: its tables and a table's change triggers. */
 export const sqliteLog: LogDialect = {
-    create: (epoch, scope) => createSQLiteLog(epoch, scope),
-    install: (description) => sqliteLogTriggers(description),
-    remove: (description) =>
+    create: (epoch, scope, namespace) => createSQLiteLog(epoch, scope, namespace),
+    install: (table, description, namespace) =>
+        sqliteLogTriggers(table, description, (name) => quote(relation(name, namespace))),
+    remove: (table) =>
         ["insert", "update", "move", "delete"].map(
-            (suffix) => `DROP TRIGGER IF EXISTS ${quote(`${description.table}__change_${suffix}`)}`,
+            (suffix) => `DROP TRIGGER IF EXISTS ${quote(`${table}__change_${suffix}`)}`,
         ),
 };
 
-/** Create the SQLite log, its horizon and the transaction identity. */
-function createSQLiteLog(epoch: string, scope?: string): readonly string[] {
+/** Create the SQLite log, its horizon and the transaction identity within the database's namespace. */
+function createSQLiteLog(epoch: string, scope?: string, namespace?: string): readonly string[] {
+    const name = (table: string) => quote(relation(table, namespace));
+    const log = name(LOG);
+
     return [
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG)} (
+        `CREATE TABLE IF NOT EXISTS ${log} (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
             "transaction" TEXT,
             "table" TEXT NOT NULL,
@@ -42,29 +47,33 @@ function createSQLiteLog(epoch: string, scope?: string): readonly string[] {
             changed_at INTEGER NOT NULL,
             origin TEXT
         )`,
-        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${quote(LOG)}(retention, changed_at)`,
-        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${quote(LOG)}(scope, sequence)`,
-        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_transaction_sequence`)} ON ${quote(LOG)}("transaction", sequence)`,
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_HORIZON)} (
+        `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_compaction`)} ON ${log}(retention, changed_at)`,
+        `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_scope`)} ON ${log}(scope, sequence)`,
+        `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_transaction_sequence`)} ON ${log}("transaction", sequence)`,
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_HORIZON)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             sequence INTEGER NOT NULL
         )`,
-        `INSERT INTO ${quote(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_TRANSACTION)} (
+        `INSERT INTO ${name(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_TRANSACTION)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             id TEXT NOT NULL
         )`,
-        ...createEpoch(epoch, scope),
+        ...createEpoch(epoch, scope, namespace),
     ];
 }
 
-/** Generate the SQLite triggers recording one table's changes. */
-function sqliteLogTriggers(description: ChangeDescription): string[] {
+/** Generate the SQLite triggers on a table's relation recording its changes under its SQL name, naming the log's relations. */
+function sqliteLogTriggers(
+    target: string,
+    description: ChangeDescription,
+    name: (table: string) => string,
+): string[] {
     // abort a change of a table taking the database's scope while the database has none
-    const table = quote(description.table);
+    const table = quote(target);
     const scoped =
         description.scope === undefined
-            ? `SELECT RAISE(ABORT, ${literal(`the database has no scope for the rows of ${description.table}`)}) WHERE ${databaseScope()} IS NULL;`
+            ? `SELECT RAISE(ABORT, ${literal(`the database has no scope for the rows of ${description.table}`)}) WHERE ${databaseScope(name)} IS NULL;`
             : "";
 
     // tell updates from key or scope changes
@@ -73,26 +82,26 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
         ...description.key,
         ...(description.scope === undefined ? [] : [description.scope]),
     ]);
-    const prefix = `${description.table}__change`;
+    const prefix = `${target}__change`;
 
     // record a key or scope change as a deletion and an insertion
     return [
         `CREATE TRIGGER ${quote(`${prefix}_insert`)} AFTER INSERT ON ${table} BEGIN
             ${scoped}
-            ${logEntry(description, "'insert'", "NEW")}
+            ${logEntry(description, "'insert'", "NEW", name)}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_update`)} AFTER UPDATE ON ${table} WHEN (${changed}) AND NOT (${moved}) BEGIN
             ${scoped}
-            ${logEntry(description, "'update'", "NEW", previousValues(description))}
+            ${logEntry(description, "'update'", "NEW", name, previousValues(description))}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_move`)} AFTER UPDATE ON ${table} WHEN ${moved} BEGIN
             ${scoped}
-            ${logEntry(description, "'delete'", "OLD")}
-            ${logEntry(description, "'insert'", "NEW")}
+            ${logEntry(description, "'delete'", "OLD", name)}
+            ${logEntry(description, "'insert'", "NEW", name)}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_delete`)} AFTER DELETE ON ${table} BEGIN
             ${scoped}
-            ${logEntry(description, "'delete'", "OLD")}
+            ${logEntry(description, "'delete'", "OLD", name)}
         END`,
     ];
 }
@@ -102,14 +111,15 @@ function logEntry(
     description: ChangeDescription,
     operation: string,
     source: "NEW" | "OLD",
+    name: (table: string) => string,
     prior = "NULL",
 ): string {
     // read the transaction, the time and the origin of the replicated writes inside the trigger
-    const transaction = `(SELECT id FROM ${quote(LOG_TRANSACTION)} WHERE slot = 1)`;
+    const transaction = `(SELECT id FROM ${name(LOG_TRANSACTION)} WHERE slot = 1)`;
     const now = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
-    const origin = `(SELECT origin FROM ${quote(LOG_REPLICA)} WHERE slot = 1)`;
+    const origin = `(SELECT origin FROM ${name(LOG_REPLICA)} WHERE slot = 1)`;
 
-    return `INSERT INTO ${quote(LOG)} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at, origin)
+    return `INSERT INTO ${name(LOG)} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at, origin)
             SELECT
                 ${transaction},
                 ${literal(description.table)},
@@ -117,7 +127,7 @@ function logEntry(
                 ${operation},
                 ${recordedRow(description, source)},
                 ${prior},
-                ${rowScope(description, source)},
+                ${rowScope(description, source, name)},
                 ${literal(description.retention)},
                 ${now},
                 ${origin};`;
@@ -179,15 +189,19 @@ function previousValues(description: ChangeDescription): string {
 }
 
 /** Read a row image's scope. */
-function rowScope(description: ChangeDescription, source: "NEW" | "OLD"): string {
+function rowScope(
+    description: ChangeDescription,
+    source: "NEW" | "OLD",
+    name: (table: string) => string,
+): string {
     return description.scope === undefined
-        ? databaseScope()
+        ? databaseScope(name)
         : `CAST(${source}.${quote(description.scope)} AS TEXT)`;
 }
 
 /** Read the database's scope. */
-function databaseScope(): string {
-    return `(SELECT scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1)`;
+function databaseScope(name: (table: string) => string): string {
+    return `(SELECT scope FROM ${name(LOG_EPOCH)} WHERE slot = 1)`;
 }
 
 /** Match a row whose columns changed in any of some columns. */

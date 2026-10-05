@@ -38,21 +38,21 @@ export function headFields(dialect: Dialect): {
     readonly horizon: SQL<number>;
 } {
     // read SQLite's latest entry outside the open transaction
-    const log = sql.identifier(LOG);
+    const log = sql.relation(LOG);
     const logged =
         dialect === "sqlite"
             ? sql`(SELECT sequence FROM ${log} AS entry
-                WHERE NOT EXISTS (SELECT 1 FROM ${sql.identifier(LOG_TRANSACTION)} AS marker
+                WHERE NOT EXISTS (SELECT 1 FROM ${sql.relation(LOG_TRANSACTION)} AS marker
                     WHERE marker.slot = 1 AND marker.id = entry."transaction")
                 ORDER BY sequence DESC LIMIT 1)`
             : sql`(SELECT max(sequence) FROM ${log})`;
 
     return {
-        epoch: sql`(SELECT epoch FROM ${sql.identifier(LOG_EPOCH)} WHERE slot = 1)`.mapWith(
-            (value) => schema.string().parse(value),
+        epoch: sql`(SELECT epoch FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1)`.mapWith((value) =>
+            schema.string().parse(value),
         ),
         logged: logged.mapWith((value) => LogInteger.nullable().parse(value)),
-        horizon: sql`(SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1)`.mapWith(
+        horizon: sql`(SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1)`.mapWith(
             (value) => LogInteger.parse(value),
         ),
     };

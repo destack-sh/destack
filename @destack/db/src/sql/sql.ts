@@ -13,6 +13,8 @@ export type Chunk =
     | Parameter
     | Placeholder
     | Name
+    | RelationName
+    | CommonTable
     | DialectSQL
     | SQLWrapper
     | readonly Chunk[];
@@ -140,6 +142,36 @@ export class Name {
     }
 }
 
+/** A quoted relation name, such as a log table's, within its database's namespace. */
+export class RelationName {
+    /** The relation's SQL name outside a namespace. */
+    readonly value: string;
+
+    /** Create the relation name. */
+    constructor(value: string) {
+        this.value = value;
+    }
+}
+
+/** A named query its statement defines once at its start, which every part of the statement reads by name, the name standing for one query. */
+export class CommonTable implements SQLWrapper {
+    /** The name the statement reads it by. */
+    readonly name: string;
+    /** The query. */
+    readonly query: SQL;
+
+    /** Name a query. */
+    constructor(name: string, query: SQL) {
+        this.name = name;
+        this.query = query;
+    }
+
+    /** Read the query by its name. */
+    getSQL(): SQL {
+        return new SQL([this]);
+    }
+}
+
 /** A fragment with SQL for each dialect. */
 export class DialectSQL {
     /** The fragment for each dialect. */
@@ -157,9 +189,9 @@ export const sql = Object.assign(
         strings: TemplateStringsArray,
         ...values: readonly unknown[]
     ): SQL<Value> {
-        // interleave the text with each value's chunk
+        // interleave the template's compacted text with each value's chunk
         const chunks: Chunk[] = [];
-        for (const [index, text] of strings.entries()) {
+        for (const [index, text] of compacted(strings).entries()) {
             chunks.push(text);
             if (index < values.length) {
                 chunks.push(chunkOf(values[index]));
@@ -189,6 +221,14 @@ export const sql = Object.assign(
         identifier(value: string): SQL {
             return new SQL([new Name(value)]);
         },
+        /** Read a query its statement defines once under a name standing for that query. */
+        common(name: string, query: SQL): CommonTable {
+            return new CommonTable(name, query);
+        },
+        /** Quote a relation's name within its database's namespace. */
+        relation(value: string): SQL {
+            return new SQL([new RelationName(value)]);
+        },
         /** Bind a value, encoded by a column. */
         param<Value>(value: Value, encoder?: Column): SQL<Value> {
             return new SQL<Value>([new Parameter(value, encoder)]);
@@ -207,6 +247,33 @@ export const sql = Object.assign(
 /** Declare a fragment with SQL for each dialect. */
 export function dialectSQL<Value = unknown>(fragments: Readonly<Record<Dialect, SQL>>): SQL<Value> {
     return new SQL<Value>([new DialectSQL(fragments)]);
+}
+
+/** The text of each template, its runs of whitespace outside quotes collapsed to one space. */
+const COMPACTED = new WeakMap<TemplateStringsArray, readonly string[]>();
+
+/** Read a template's text with its whitespace collapsed outside quotes, once per template, leaving a part with an unclosed quote as it is. */
+function compacted(strings: TemplateStringsArray): readonly string[] {
+    // reuse the template's compacted text
+    const known = COMPACTED.get(strings);
+    if (known !== undefined) {
+        return known;
+    }
+
+    // collapse each part's whitespace between its quoted runs
+    const parts = strings.map((text) => {
+        const runs = text.split(/('[^']*'|"[^"]*")/u);
+        const isClosed = runs.every((run, index) => index % 2 === 1 || !/['"]/u.test(run));
+
+        return isClosed
+            ? runs
+                  .map((run, index) => (index % 2 === 1 ? run : run.replaceAll(/\s+/gu, " ")))
+                  .join("")
+            : text;
+    });
+    COMPACTED.set(strings, parts);
+
+    return parts;
 }
 
 /** Report whether a value renders as SQL. */

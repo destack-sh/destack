@@ -200,7 +200,9 @@ export class MutationQuery<
     async execute(): Promise<unknown> {
         // render the mutation for the driver's dialect
         const state = this.state;
-        const statement = fill(render(this.#sql(), state.driver.dialect));
+        const statement = fill(
+            render(this.#sql(), state.driver.dialect, state.driver.state.namespace),
+        );
 
         // run without rows, or read and decode the returned rows
         if (state.returning === undefined) {

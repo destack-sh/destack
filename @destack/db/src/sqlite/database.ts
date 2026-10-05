@@ -22,12 +22,13 @@ export class SqliteDatabase<
     /** The SQLite connection client. */
     readonly $client: Client;
 
-    /** Bind tables to a SQLite connection. */
+    /** Bind tables to a SQLite connection, within a namespace of a store several databases share when given. */
     constructor(
         client: Client,
         tables: declaration.Database<Models> | readonly Table[],
         locality: Locality,
         openChannel: ((name: string) => Channel<unknown>) | undefined,
+        namespace?: string,
     ) {
         // declare the tables with their tree tables
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
@@ -40,6 +41,7 @@ export class SqliteDatabase<
                     openChannel,
                     "connection",
                     "tables" in tables ? tables.spec.copies : [],
+                    namespace,
                 ),
             ),
             declared,

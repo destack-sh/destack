@@ -12,7 +12,7 @@ import { AggregateDescription } from "../aggregate/description.ts";
 import { DependentDescription } from "../dependent/description.ts";
 import { describeTable } from "../table/description.ts";
 import { dialectSQL, inline } from "../sql/index.ts";
-import { qualify } from "../table/namespace.ts";
+import { qualify, relation } from "../table/namespace.ts";
 import { describeLog, loggedKey } from "../log/schema.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -188,9 +188,64 @@ export function declareState(
     });
 }
 
-/** Create the state table. */
-export function createState(): string {
-    return `CREATE TABLE IF NOT EXISTS ${quote(STATE)} (
+/** Name a state's relations within a database's namespace, keeping the SQL name its log records changes under. */
+export function namespaceState(state: TableState, namespace: string | undefined): TableState {
+    // keep a database of its own as it is
+    if (namespace === undefined) {
+        return state;
+    }
+
+    // name the table, its indexes and the tables its keys, tree, aggregates and dependents name
+    const name = (table: string) => relation(table, namespace);
+    const { table, tree, aggregates, dependents, moved } = state;
+
+    return {
+        ...state,
+        table: {
+            ...table,
+            name: name(table.name),
+            constraints: table.constraints.map((constraint) =>
+                constraint.kind === "foreignKey"
+                    ? { ...constraint, table: name(constraint.table) }
+                    : constraint,
+            ),
+            indexes: table.indexes.map((index) => ({ ...index, name: name(index.name) })),
+        },
+        ...(tree === undefined
+            ? {}
+            : {
+                  tree: {
+                      ...tree,
+                      table: name(tree.table),
+                      ancestors: name(tree.ancestors),
+                      revision: name(tree.revision),
+                  },
+              }),
+        ...(aggregates === undefined
+            ? {}
+            : {
+                  aggregates: aggregates.map((aggregate) => ({
+                      ...aggregate,
+                      table: name(aggregate.table),
+                      source: name(aggregate.source),
+                  })),
+              }),
+        ...(dependents === undefined
+            ? {}
+            : {
+                  dependents: dependents.map((dependent) => ({
+                      ...dependent,
+                      table: name(dependent.table),
+                      source: name(dependent.source),
+                  })),
+              }),
+        ...(moved?.table === undefined ? {} : { moved: { ...moved, table: name(moved.table) } }),
+    };
+}
+
+/** Create the state table within a database's namespace. */
+export function createState(namespace?: string): string {
+    return `CREATE TABLE IF NOT EXISTS ${quote(relation(STATE, namespace))} (
         "table" TEXT PRIMARY KEY,
         package_id TEXT NOT NULL,
         state TEXT NOT NULL,
@@ -198,11 +253,14 @@ export function createState(): string {
     )`;
 }
 
-/** Read the table names of a connected database. */
+/** Read the table names of a connected database, those within its namespace in a shared SQLite store. */
 export async function readTables(database: DatabaseConnection): Promise<string[]> {
+    // list the tables whose names start with the namespace's prefix, every one outside a namespace
+    const { namespace } = database.state;
+    const prefix = relation("", namespace);
     const rows = await database.execute(
         dialectSQL({
-            sqlite: sql`SELECT name FROM sqlite_schema WHERE type = 'table'`,
+            sqlite: sql`SELECT name FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, ${prefix.length}) = ${prefix}`,
             postgresql: sql`SELECT c.relname AS name FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
                 WHERE d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_namespace'::regclass
                     AND d.refobjid = current_schema()::regnamespace AND c.relkind IN ('r', 'p')`,
@@ -216,34 +274,35 @@ export async function readTables(database: DatabaseConnection): Promise<string[]
 /** Read every managed table's applied state. */
 export async function readState(database: DatabaseConnection): Promise<TableState[]> {
     // find the state table
-    if (!(await readTables(database)).includes(STATE)) {
+    const tables = await readTables(database);
+    if (!tables.includes(relation(STATE, database.state.namespace))) {
         return [];
     }
 
     // decode each table in name order
     const rows = await database.execute(
-        sql`SELECT state FROM ${sql.identifier(STATE)} ORDER BY "table"`,
+        sql`SELECT state FROM ${sql.relation(STATE)} ORDER BY "table"`,
         schema.object({ state: schema.string() }),
     );
 
     return rows.map((row) => TableState.parse(JSON.parse(row.state)));
 }
 
-/** Record the applied state of one table. */
-export function writeState(state: TableState, appliedAt: number): string {
+/** Record the applied state of one table within a database's namespace. */
+export function writeState(state: TableState, appliedAt: number, namespace?: string): string {
     // drop the conversions, keeping the moves a later rollback reads
     const { conversions: _conversions, ...applied } = state;
     const encoded = literal(JSON.stringify(applied));
 
-    return `INSERT INTO ${quote(STATE)} ("table", package_id, state, applied_at)
+    return `INSERT INTO ${quote(relation(STATE, namespace))} ("table", package_id, state, applied_at)
         VALUES (${literal(state.table.name)}, ${literal(state.package.id)}, ${encoded}, ${appliedAt})
         ON CONFLICT ("table") DO UPDATE SET package_id = excluded.package_id,
             state = excluded.state, applied_at = excluded.applied_at`;
 }
 
-/** Forget the applied state of a dropped table. */
-export function deleteState(table: string): string {
-    return `DELETE FROM ${quote(STATE)} WHERE "table" = ${literal(table)}`;
+/** Forget the applied state of a dropped table within a database's namespace. */
+export function deleteState(table: string, namespace?: string): string {
+    return `DELETE FROM ${quote(relation(STATE, namespace))} WHERE "table" = ${literal(table)}`;
 }
 
 /** Describe a table's previous names in SQL terms. */

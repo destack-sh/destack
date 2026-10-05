@@ -38,6 +38,11 @@ export function qualify(owner: Package, name: string): string {
     return qualified;
 }
 
+/** Name a relation within its database's namespace in a SQLite store several databases share, the name itself outside one. */
+export function relation(name: string, namespace: string | undefined): string {
+    return namespace === undefined ? name : `${namespace}.${name}`;
+}
+
 /** Fit a derived SQL name and a reserved suffix within the identifier limit, ending in a hash. */
 export function boundedName(name: string, reserved = 0): string {
     // keep names that fit

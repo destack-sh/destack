@@ -78,11 +78,14 @@ export class Column<
     readonly definition: Definition;
     /** The SQL table name. */
     readonly table: TableName;
+    /** Whether the table name is a query alias, which no namespace qualifies. */
+    readonly isAliased: boolean;
 
-    /** Create the column. */
-    constructor(table: TableName, definition: Definition) {
+    /** Create the column of a table or of a query alias. */
+    constructor(table: TableName, definition: Definition, isAliased = false) {
         this.table = table;
         this.definition = definition;
+        this.isAliased = isAliased;
     }
 
     /** Report whether a value is a column. */

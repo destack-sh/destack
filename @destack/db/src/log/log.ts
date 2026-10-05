@@ -186,7 +186,9 @@ export class Log {
     /** Create the log once, with the scope of the rows in tables without a scope column, such as a resource's space. */
     async create(scope?: string): Promise<void> {
         await this.database.executeScript(
-            createLog(this.database.dialect, v7(), scope).join(";\n"),
+            createLog(this.database.dialect, v7(), scope, this.database.state.namespace).join(
+                ";\n",
+            ),
         );
     }
 
@@ -313,7 +315,7 @@ export class Log {
 
         // read the latest change of another origin, or the horizon once compacted
         const [other] = await this.database.execute(sql`
-            SELECT max(sequence) AS sequence FROM ${sql.identifier(LOG)}
+            SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
             WHERE origin IS NULL OR origin <> ${origin}
         `);
         const { sequence } = SequenceRow.parse(other);
@@ -335,8 +337,8 @@ export class Log {
 
         // reach past the open SQLite transaction's entries
         const [row] = await this.database.execute(sql`
-            SELECT max(sequence) AS sequence FROM ${sql.identifier(LOG)}
-            WHERE "transaction" = (SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)
+            SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
+            WHERE "transaction" = (SELECT id FROM ${sql.relation(LOG_TRANSACTION)} WHERE slot = 1)
         `);
         const { sequence } = SequenceRow.parse(row);
 
@@ -356,7 +358,7 @@ export class Log {
         const dialect = this.database.dialect;
         if (dialect === "sqlite") {
             return this.database.state.isLogged
-                ? sql`(SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)`
+                ? sql`(SELECT id FROM ${sql.relation(LOG_TRANSACTION)} WHERE slot = 1)`
                 : sql`NULL`;
         }
         // read PostgreSQL's transaction identifier
@@ -375,7 +377,7 @@ export class Log {
         if (!this.database.driver.transaction) {
             throw new TypeError("write as a replica inside a transaction");
         }
-        const marker = sql.identifier(LOG_REPLICA);
+        const marker = sql.relation(LOG_REPLICA);
         await this.database.execute(
             sql`INSERT INTO ${marker} (slot, origin) VALUES (1, ${origin ?? null})`,
         );
@@ -388,7 +390,7 @@ export class Log {
     /** Read the log's epoch. */
     async epoch(): Promise<string> {
         const [row] = await this.database.execute(
-            sql`SELECT epoch FROM ${sql.identifier(LOG_EPOCH)} WHERE slot = 1`,
+            sql`SELECT epoch FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1`,
         );
 
         return schema.looseObject({ epoch: schema.string() }).parse(row).epoch;
@@ -398,7 +400,7 @@ export class Log {
     async renew(): Promise<string> {
         const epoch = v7();
         await this.database.execute(
-            sql`UPDATE ${sql.identifier(LOG_EPOCH)} SET epoch = ${epoch} WHERE slot = 1`,
+            sql`UPDATE ${sql.relation(LOG_EPOCH)} SET epoch = ${epoch} WHERE slot = 1`,
         );
 
         return epoch;
@@ -482,7 +484,7 @@ export class Log {
                 : sql`true ORDER BY sequence`;
         const rows = await this.database.execute(sql`
             SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at, origin
-            FROM ${sql.identifier(LOG)}
+            FROM ${sql.relation(LOG)}
             WHERE "transaction" = ${transaction} AND "table" IN (${names}) AND ${written}
         `);
 
@@ -528,7 +530,7 @@ export class Log {
 
     /** Move a consumer's slot to a position, keeping the changes after it until a time, as a PostgreSQL replication slot keeps its WAL. */
     async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
-        const table = sql.identifier(LOG_SLOT);
+        const table = sql.relation(LOG_SLOT);
         await this.database.execute(sql`
             INSERT INTO ${table} (name, sequence, expires_at)
             VALUES (${slot}, ${sequence}, ${expiresAt})
@@ -539,7 +541,7 @@ export class Log {
     /** Read the position of a consumer's slot, absent without one. */
     async slot(slot: string): Promise<number | undefined> {
         const [row] = await this.database.execute(
-            sql`SELECT sequence FROM ${sql.identifier(LOG_SLOT)} WHERE name = ${slot}`,
+            sql`SELECT sequence FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`,
         );
 
         return row === undefined
@@ -550,7 +552,7 @@ export class Log {
     /** Drop a consumer's slot, keeping no more changes for it. */
     async drop(slot: string): Promise<void> {
         await this.database.execute(
-            sql`DELETE FROM ${sql.identifier(LOG_SLOT)} WHERE name = ${slot}`,
+            sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`,
         );
     }
 
@@ -558,7 +560,7 @@ export class Log {
     async compact(before: number, now = Date.now()): Promise<void> {
         await this.database.transaction(async (transaction) => {
             // find the newest removable change
-            const log = sql.identifier(LOG);
+            const log = sql.relation(LOG);
             const [newestRow] = await transaction.execute(sql`
                 SELECT max(sequence) AS sequence
                 FROM ${log}
@@ -574,8 +576,8 @@ export class Log {
             // keep the changes slots keep
             const [keptRow] = await transaction.execute(sql`
                 SELECT
-                    (SELECT min(sequence) FROM ${sql.identifier(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
-                    (SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1) AS horizon
+                    (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
+                    (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
             const kept = SequenceRow.extend({ horizon: LogInteger }).parse(keptRow);
             const cap = kept.sequence === null ? newest : Math.min(newest, kept.sequence);
@@ -603,7 +605,7 @@ export class Log {
                     AND sequence <= ${sequence}
             `);
             await transaction.execute(sql`
-                UPDATE ${sql.identifier(LOG_HORIZON)} SET sequence = ${sequence}
+                UPDATE ${sql.relation(LOG_HORIZON)} SET sequence = ${sequence}
                 WHERE slot = 1 AND sequence < ${sequence}
             `);
         });
@@ -612,7 +614,7 @@ export class Log {
     /** Read the positions and times of a change's transaction. */
     async bounds(sequence: number): Promise<TransactionBounds> {
         // read the transaction's first and last change
-        const log = sql.identifier(LOG);
+        const log = sql.relation(LOG);
         const [row] = await this.database.execute(sql`
             SELECT min(sequence) AS first, max(sequence) AS last,
                 min(changed_at) AS "startedAt", max(changed_at) AS "committedAt"
@@ -681,13 +683,13 @@ function entryRead(isScoped: boolean, isRest: boolean): Statement {
     }
 
     // select the bounds and entries
-    const log = sql.identifier(LOG);
+    const log = sql.relation(LOG);
     const statement = new Statement(
         (value) => sql`
             WITH bounds AS (
                 SELECT
                     (SELECT max(sequence) FROM ${log}) AS logged,
-                    (SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1) AS horizon
+                    (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             ), entries AS (
                 SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at, origin
                 FROM ${log}

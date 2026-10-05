@@ -672,7 +672,7 @@ function aliasColumns(source: Table, name: string): ColumnMap {
     return Object.fromEntries(
         Object.entries(source[TABLE].columns).map(([property, column]) => [
             property,
-            new Column(name, column.definition),
+            new Column(name, column.definition, true),
         ]),
     );
 }

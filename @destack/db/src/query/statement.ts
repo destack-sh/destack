@@ -8,19 +8,18 @@ import {
     type SQLWrapper,
 } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverValue } from "../table/column.ts";
 
 /**
- * A statement rendered once per dialect and run with named values.
+ * A statement rendered once per dialect and namespace and run with named values.
  *
  * Its constant text lets SQLite reuse its prepared statement and PostgreSQL its plan.
  */
 export class Statement {
     /** Build the statement from named values. */
     readonly #build: (value: (name: string) => SQLWrapper) => SQL;
-    /** The rendered statement of each dialect. */
-    readonly #rendered = new Map<Dialect, StatementTemplate>();
+    /** The rendered statement of each dialect and namespace. */
+    readonly #rendered = new Map<string, StatementTemplate>();
 
     /** Create the statement. */
     constructor(build: (value: (name: string) => SQLWrapper) => SQL) {
@@ -32,7 +31,7 @@ export class Statement {
         database: DatabaseConnection,
         values: Readonly<Record<string, DriverValue>> = {},
     ): Promise<Record<string, unknown>[]> {
-        return database.driver.all(fill(this.#render(database.dialect), values));
+        return database.driver.all(fill(this.#render(database), values));
     }
 
     /** Read every row as an array of values with the values. */
@@ -40,21 +39,25 @@ export class Statement {
         database: DatabaseConnection,
         values: Readonly<Record<string, DriverValue>> = {},
     ): Promise<unknown[][]> {
-        return database.driver.values(fill(this.#render(database.dialect), values));
+        return database.driver.values(fill(this.#render(database), values));
     }
 
-    /** Render the statement once per dialect. */
-    #render(dialect: Dialect): StatementTemplate {
-        // reuse the dialect's rendering
-        const known = this.#rendered.get(dialect);
+    /** Render the statement once per dialect and namespace. */
+    #render(database: DatabaseConnection): StatementTemplate {
+        // reuse the rendering of the database's dialect and namespace
+        const { dialect } = database;
+        const { namespace } = database.state;
+        const key = namespace === undefined ? dialect : `${dialect}:${namespace}`;
+        const known = this.#rendered.get(key);
         if (known !== undefined) {
             return known;
         }
         const rendered = render(
             this.#build((name) => sql.placeholder(name)),
             dialect,
+            namespace,
         );
-        this.#rendered.set(dialect, rendered);
+        this.#rendered.set(key, rendered);
 
         return rendered;
     }

@@ -113,7 +113,7 @@ export class DatabaseDriver {
                 const isMarked = await openTransaction(transaction, this.state);
                 const result = await operation(transaction);
                 if (isMarked) {
-                    await closeTransaction(transaction);
+                    await closeTransaction(transaction, this.state);
                 }
 
                 return result;

@@ -3,6 +3,7 @@ import type { Session } from "../database/session.ts";
 import { v7 } from "uuid";
 import type { ConnectionState } from "../database/connection.ts";
 import { LOG_TRANSACTION } from "./schema.ts";
+import { relation } from "../table/namespace.ts";
 
 /** Identify a SQLite transaction to the change triggers. */
 export async function openTransaction(
@@ -13,19 +14,24 @@ export async function openTransaction(
     if (!connection.isLogged) {
         const found = await session.values(
             "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?",
-            [LOG_TRANSACTION],
+            [relation(LOG_TRANSACTION, connection.namespace)],
         );
         if (found.length === 0) {
             return false;
         }
         connection.isLogged = true;
     }
-    await session.run(`INSERT INTO ${quote(LOG_TRANSACTION)} (slot, id) VALUES (1, ?)`, [v7()]);
+    const marker = quote(relation(LOG_TRANSACTION, connection.namespace));
+    await session.run(`INSERT INTO ${marker} (slot, id) VALUES (1, ?)`, [v7()]);
 
     return true;
 }
 
 /** Clear the transaction identity before commit. */
-export async function closeTransaction(session: Session): Promise<void> {
-    await session.run(`DELETE FROM ${quote(LOG_TRANSACTION)} WHERE slot = 1`, []);
+export async function closeTransaction(
+    session: Session,
+    connection: ConnectionState,
+): Promise<void> {
+    const marker = quote(relation(LOG_TRANSACTION, connection.namespace));
+    await session.run(`DELETE FROM ${marker} WHERE slot = 1`, []);
 }

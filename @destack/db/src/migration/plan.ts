@@ -62,6 +62,8 @@ export interface PlanInput {
     readonly conflicts?: Merge["conflicts"];
     /** The database's dialect. */
     readonly dialect: Dialect;
+    /** The database's namespace in a SQLite store several databases share, whose names the states already carry. */
+    readonly namespace?: string;
 }
 
 /** Plan a database's migration, or name every problem to fix. */
@@ -86,7 +88,7 @@ export function planTables(input: PlanInput): TablePlan {
         steps.push(
             step("delete", Address.join("table", name), "destructive", "drop table", [
                 statement.dropTable(name),
-                deleteState(name),
+                deleteState(name, input.namespace),
             ]),
         );
     }
@@ -97,7 +99,13 @@ export function planTables(input: PlanInput): TablePlan {
     }
 
     // reinstall every generated trigger around the steps
-    const triggers = reinstallTriggers(applied, declared, dialect, steps.length > 0);
+    const triggers = reinstallTriggers(
+        applied,
+        declared,
+        dialect,
+        steps.length > 0,
+        input.namespace,
+    );
 
     return { dialect, steps, ...triggers, state: declared, dropped };
 }
@@ -397,12 +405,13 @@ function droppedTables(
         .map((previous) => previous.table.name);
 }
 
-/** Remove every applied generated trigger before changed steps and install the declared ones after. */
+/** Remove every applied generated trigger before changed steps and install the declared ones after, within the database's namespace. */
 function reinstallTriggers(
     applied: readonly TableState[],
     declared: readonly TableState[],
     dialect: Dialect,
     isChanged: boolean,
+    namespace: string | undefined,
 ): { readonly before: string[]; readonly after: string[] } {
     // leave the triggers of an unchanged database
     if (!isChanged) {
@@ -414,10 +423,10 @@ function reinstallTriggers(
             TRIGGERS.flatMap((triggers) => triggers.remove(state, dialect)),
         ),
         after: [
-            ...createLog(dialect, v7()),
-            createState(),
+            ...createLog(dialect, v7(), undefined, namespace),
+            createState(namespace),
             ...declared.flatMap((state) =>
-                TRIGGERS.flatMap((triggers) => triggers.install(state, dialect)),
+                TRIGGERS.flatMap((triggers) => triggers.install(state, dialect, namespace)),
             ),
         ],
     };

@@ -5,16 +5,17 @@ import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";
 import type { AggregateDescription } from "./description.ts";
 import { LOG_REPLICA } from "../log/schema.ts";
-import { boundedName } from "../table/namespace.ts";
+import { boundedName, relation } from "../table/namespace.ts";
 
 /** The longest suffix an aggregate trigger name takes. */
 const SUFFIX = "_maintain";
 
 /** Generate the triggers keeping an aggregate current. */
-function install(aggregate: AggregateDescription, dialect: Dialect): string[] {
+function install(aggregate: AggregateDescription, dialect: Dialect, namespace?: string): string[] {
     // build the trigger names and the replica guard
     const prefix = triggerPrefix(aggregate);
-    const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)})`;
+    const replica = quote(relation(LOG_REPLICA, namespace));
+    const idle = `NOT EXISTS (SELECT 1 FROM ${replica})`;
 
     // adjust counts and sums by difference, and recompute extremes
     if (dialect === "sqlite") {
@@ -34,7 +35,7 @@ function install(aggregate: AggregateDescription, dialect: Dialect): string[] {
     else if (dialect === "postgresql") {
         return [
             `CREATE OR REPLACE FUNCTION ${quote(`${prefix}_maintain`)}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
-                IF EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)}) THEN RETURN NULL; END IF;
+                IF EXISTS (SELECT 1 FROM ${replica}) THEN RETURN NULL; END IF;
                 IF TG_OP = 'UPDATE' AND NOT (${changed(aggregate, "IS DISTINCT FROM")}) THEN RETURN NULL; END IF;
                 IF TG_OP <> 'INSERT' THEN ${adjust(aggregate, "OLD", -1, dialect)} END IF;
                 IF TG_OP <> 'DELETE' THEN ${adjust(aggregate, "NEW", 1, dialect)} END IF;
@@ -141,8 +142,8 @@ function changed(aggregate: AggregateDescription, operator: "IS NOT" | "IS DISTI
 
 /** The triggers keeping aggregates current. */
 export const aggregateTriggers: Triggers = {
-    install: (state, dialect) =>
-        (state.aggregates ?? []).flatMap((aggregate) => install(aggregate, dialect)),
+    install: (state, dialect, namespace) =>
+        (state.aggregates ?? []).flatMap((aggregate) => install(aggregate, dialect, namespace)),
     remove: (state, dialect) =>
         (state.aggregates ?? []).flatMap((aggregate) => remove(aggregate, dialect)),
 };

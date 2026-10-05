@@ -83,7 +83,7 @@ async function applySteps(
         // record the declared state
         await runScript(transaction, [
             ...pending,
-            ...plan.state.map((state) => writeState(state, appliedAt)),
+            ...plan.state.map((state) => writeState(state, appliedAt, database.state.namespace)),
         ]);
 
         // require valid references after a rebuild

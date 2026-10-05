@@ -191,6 +191,15 @@ const pool = await connectPostgres(process.env.DATABASE_URL, main);
 const storage = connectStorage(state.storage, main);
 ```
 
+## Shared stores
+
+`namespace` keeps a database's tables, log and state apart in a SQLite store several databases share.
+
+```ts
+const space = connect(storage, spaceDatabase, { namespace: "space" });
+const vault = connect(storage, vaultDatabase, { namespace: "vault" });
+```
+
 ## Sole writers
 
 A pool that writes its database alone connects as the `sole` writer without `LISTEN`.

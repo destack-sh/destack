@@ -8,6 +8,7 @@ import { SelectBuilder } from "../query/select.ts";
 import { MutationQuery } from "../query/mutation.ts";
 import {
     declareState,
+    namespaceState,
     readState,
     readTables,
     unappliedTables,
@@ -26,7 +27,7 @@ import { LOG_TOPIC } from "../log/schema.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
-import { qualify } from "../table/namespace.ts";
+import { qualify, relation } from "../table/namespace.ts";
 import { Relations } from "../query/relation.ts";
 import { RelationalQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
@@ -206,7 +207,9 @@ export class DatabaseConnection<
      * @construct each row is parsed by the schema when one is given, and is the driver's record by column name otherwise.
      */
     async execute(statement: SQLWrapper, row?: schema.Schema): Promise<unknown[]> {
-        const rows = await this.driver.all(fill(render(statement, this.dialect)));
+        const rows = await this.driver.all(
+            fill(render(statement, this.dialect, this.state.namespace)),
+        );
 
         return row === undefined ? rows : rows.map((value) => row.parse(value));
     }
@@ -225,12 +228,12 @@ export class DatabaseConnection<
 
     /** Run SQL and read its rows as an array of values. */
     values(statement: SQLWrapper): Promise<unknown[][]> {
-        return this.driver.values(fill(render(statement, this.dialect)));
+        return this.driver.values(fill(render(statement, this.dialect, this.state.namespace)));
     }
 
     /** Run a SQL write. */
     run(statement: SQLWrapper): Promise<void> {
-        return this.driver.execute(fill(render(statement, this.dialect)));
+        return this.driver.execute(fill(render(statement, this.dialect, this.state.namespace)));
     }
 
     /** Plan and apply tables at once, beside the tables of declared states, such as a database resource's desired ones. */
@@ -246,19 +249,31 @@ export class DatabaseConnection<
         return plan;
     }
 
-    /** List the tables with an unapplied declaration. */
+    /** List the tables with an unapplied declaration, by their names within the database's namespace. */
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
-        return unappliedTables(await readState(this), declareState(tables, this.dialect, options));
+        const { namespace } = this.state;
+        const declared = declareState(tables, this.dialect, options);
+
+        return unappliedTables(
+            await readState(this),
+            declared.map((entry) => namespaceState(entry, namespace)),
+        );
     }
 
-    /** Plan the migration from the applied tables to declared ones. */
+    /** Plan the migration from the applied tables to declared ones, named within the database's namespace. */
     async plan(state: Pick<Merge, "declared"> & Partial<Merge>): Promise<TablePlan> {
+        const { namespace } = this.state;
+
         return planTables({
             applied: await readState(this),
             existing: await readTables(this),
-            declared: state.declared,
-            conflicts: state.conflicts ?? [],
+            declared: state.declared.map((entry) => namespaceState(entry, namespace)),
+            conflicts: (state.conflicts ?? []).map((conflict) => ({
+                ...conflict,
+                table: relation(conflict.table, namespace),
+            })),
             dialect: this.dialect,
+            ...(namespace === undefined ? {} : { namespace }),
         });
     }
 
@@ -303,7 +318,7 @@ export class DatabaseConnection<
                         (await openTransaction(session, this.state));
                     const result = await this.#transact(session, operation, signal);
                     if (isMarked) {
-                        await closeTransaction(session);
+                        await closeTransaction(session, this.state);
                     }
 
                     return result;
@@ -380,6 +395,8 @@ export class ConnectionState {
     readonly commits: CommitWatch;
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
     readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
+    /** The database's namespace in a SQLite store several databases share, absent for a database of its own. */
+    readonly namespace: string | undefined;
     /** Whether the database keeps a log. */
     isLogged = false;
     /** The submitted statements and transactions. */
@@ -397,11 +414,13 @@ export class ConnectionState {
         openChannel: ((name: string) => Channel<unknown>) | undefined,
         announcer: Announcer,
         copies: readonly string[],
+        namespace?: string,
     ) {
-        // keep the channels, and watch commits on the log channel
+        // keep the channels and the namespace, and watch commits on the log channel
         this.locality = locality;
         this.copies = new Set(copies);
         this.openChannel = openChannel;
+        this.namespace = namespace;
         this.commits = new CommitWatch(
             openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
             announcer,

@@ -5,16 +5,17 @@ import { assertNever } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import type { DependentDescription } from "./description.ts";
 import { LOG_REPLICA } from "../log/schema.ts";
-import { boundedName } from "../table/namespace.ts";
+import { boundedName, relation } from "../table/namespace.ts";
 
 /** The message refusing a deletion, classified as a broken reference. */
 const RESTRICTED = "FOREIGN KEY constraint failed";
 
 /** Generate the trigger cascading or refusing a row's deletion for its dependents. */
-function install(dependent: DependentDescription, dialect: Dialect): string[] {
+function install(dependent: DependentDescription, dialect: Dialect, namespace?: string): string[] {
     // build the trigger name and the replica guard
     const name = triggerName(dependent);
-    const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)})`;
+    const replica = quote(relation(LOG_REPLICA, namespace));
+    const idle = `NOT EXISTS (SELECT 1 FROM ${replica})`;
     const source = quote(dependent.source);
     const rows = `${source} WHERE ${[
         `${source}.${quote(dependent.key)} = OLD.${quote(dependent.id)}`,
@@ -46,7 +47,7 @@ function install(dependent: DependentDescription, dialect: Dialect): string[] {
 
         return [
             `CREATE OR REPLACE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
-                IF EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)}) THEN RETURN NULL; END IF;
+                IF EXISTS (SELECT 1 FROM ${replica}) THEN RETURN NULL; END IF;
                 ${effect}
                 RETURN NULL;
             END $$`,
@@ -85,8 +86,8 @@ function triggerName(dependent: DependentDescription): string {
 
 /** The triggers keeping dependents consistent. */
 export const dependentTriggers: Triggers = {
-    install: (state, dialect) =>
-        (state.dependents ?? []).flatMap((dependent) => install(dependent, dialect)),
+    install: (state, dialect, namespace) =>
+        (state.dependents ?? []).flatMap((dependent) => install(dependent, dialect, namespace)),
     remove: (state, dialect) =>
         (state.dependents ?? []).flatMap((dependent) => remove(dependent, dialect)),
 };

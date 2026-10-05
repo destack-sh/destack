@@ -3,6 +3,7 @@ import type { Column } from "../table/column.ts";
 import type { ChangeDescription } from "./description.ts";
 import { DatabaseError } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
+import { relation } from "../table/namespace.ts";
 
 /** The SQL name of the database's log. */
 export const LOG = "__destack_log";
@@ -103,34 +104,36 @@ export function loggedKey(table: Table): readonly Column[] {
 }
 
 /** Create the log's first epoch once, with the scope of the rows in tables without a scope column, and keep existing state. */
-export function createEpoch(epoch: string, scope?: string): readonly string[] {
+export function createEpoch(epoch: string, scope?: string, namespace?: string): readonly string[] {
+    const name = (table: string) => quote(relation(table, namespace));
+
     return [
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_SLOT)} (
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_SLOT)} (
             name TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL,
             expires_at BIGINT NOT NULL
         )`,
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_REPLICA)} (
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_REPLICA)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             origin TEXT
         )`,
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_EPOCH)} (
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_EPOCH)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             epoch TEXT NOT NULL,
             scope TEXT
         )`,
-        `INSERT INTO ${quote(LOG_EPOCH)} (slot, epoch, scope)
+        `INSERT INTO ${name(LOG_EPOCH)} (slot, epoch, scope)
             VALUES (1, ${literal(epoch)}, ${scope === undefined ? "NULL" : literal(scope)})
             ON CONFLICT (slot) DO NOTHING`,
     ];
 }
 
-/** The log of one dialect: its tables and change triggers. */
+/** The log of one dialect: its tables and change triggers, within the database's namespace in a SQLite store several databases share. */
 export interface LogDialect {
     /** Create the log once per database at a first epoch, with the scope of the rows in tables without a scope column. */
-    create(epoch: string, scope?: string): readonly string[];
-    /** Generate the triggers recording one table's changes. */
-    install(description: ChangeDescription): string[];
-    /** Remove the triggers recording one table's changes. */
-    remove(description: ChangeDescription): string[];
+    create(epoch: string, scope?: string, namespace?: string): readonly string[];
+    /** Generate the triggers on a table's relation recording its changes under its SQL name. */
+    install(table: string, description: ChangeDescription, namespace?: string): string[];
+    /** Remove the triggers on a table's relation recording its changes. */
+    remove(table: string): string[];
 }

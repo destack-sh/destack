@@ -20,10 +20,8 @@ const COMMIT_LOCK = 471_026_381;
 /** The PostgreSQL log: its tables, functions and triggers. */
 export const postgresLog: LogDialect = {
     create: (epoch, scope) => createPostgresLog(epoch, scope),
-    install: (description) => postgresLogTriggers(description),
-    remove: (description) => [
-        `DROP TRIGGER IF EXISTS ${quote("destack_change")} ON ${quote(description.table)}`,
-    ],
+    install: (table, description) => postgresLogTriggers(table, description),
+    remove: (table) => [`DROP TRIGGER IF EXISTS ${quote("destack_change")} ON ${quote(table)}`],
 };
 
 /** Create the PostgreSQL log, its horizon and its functions. */
@@ -181,10 +179,10 @@ function recordedImage(side: "old" | "new"): string {
             END IF;`;
 }
 
-/** Generate a table's trigger calling the shared PostgreSQL function. */
-function postgresLogTriggers(description: ChangeDescription): string[] {
+/** Generate the trigger on a table's relation calling the shared PostgreSQL function. */
+function postgresLogTriggers(target: string, description: ChangeDescription): string[] {
     // write the column lists as array literals
-    const table = quote(description.table);
+    const table = quote(target);
 
     // pass the retention, the column lists and the scope column when the table has one
     const parameters = [
