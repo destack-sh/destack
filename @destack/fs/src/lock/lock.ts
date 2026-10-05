@@ -8,7 +8,7 @@ const POLL_INTERVAL = 25;
 /**
  * An exclusive operating-system file lock.
  *
- * Use a persistent lock file in a trusted directory; keep its path intact while locks can exist.
+ * Its lock file belongs in a trusted directory that keeps the file's path intact while locks exist.
  */
 export class FileLock implements AsyncDisposable {
     /** The locked file's absolute path. */
@@ -45,7 +45,7 @@ export class FileLock implements AsyncDisposable {
         }
     }
 
-    /** Open or create a file; return undefined on contention and throw on filesystem failure. */
+    /** Open or create a file and lock it, absent on contention and throwing on a filesystem failure. */
     static async tryAcquire(path: string): Promise<FileLock | undefined> {
         // retain the file only after acquiring ownership
         const native = await open(path);
@@ -82,7 +82,7 @@ export interface FileLockOptions {
 }
 
 /** Platform implementations share acquisition and closure operations. */
-type NativeLock = import("./unix.ts").NativeLock | import("../windows/lock.ts").NativeLock;
+type NativeLock = import("../unix/lock.ts").NativeLock | import("../windows/lock.ts").NativeLock;
 
 /** Open a lock file through the current operating system. */
 async function open(path: string): Promise<NativeLock> {
@@ -98,7 +98,7 @@ async function open(path: string): Promise<NativeLock> {
     if (process.platform === "win32") {
         return await (await import("../windows/lock.ts")).NativeLock.open(absolute);
     } else if (process.platform === "darwin" || process.platform === "linux") {
-        return await (await import("./unix.ts")).NativeLock.open(absolute);
+        return await (await import("../unix/lock.ts")).NativeLock.open(absolute);
     } else {
         throw new FileSystemError("lock", absolute, "ENOTSUP");
     }
