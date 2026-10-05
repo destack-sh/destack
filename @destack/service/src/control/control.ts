@@ -268,7 +268,7 @@ export class ControlLoop {
                         // enqueue the keys each change names
                         else {
                             for (const change of changes) {
-                                for (const key of (await controller.keys?.(change)) ?? []) {
+                                for (const key of await this.#keys(controller, change)) {
                                     this.enqueue(controller, key);
                                 }
                             }
@@ -281,6 +281,17 @@ export class ControlLoop {
                     throw error;
                 }
             }
+        }
+    }
+
+    /** List the keys a change names, reporting a failing key function and listing every key of its controller again in their place. */
+    async #keys(controller: Controller, change: Change): Promise<readonly string[]> {
+        try {
+            return (await controller.keys?.(change)) ?? [];
+        } catch (error) {
+            this.#report(controller, change.table[TABLE].name, error);
+
+            return controller.list();
         }
     }
 

@@ -81,6 +81,51 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
     expect(reported).toEqual(["flaky: unavailable"]);
 });
 
+test("report a key function that fails on a change and reconcile every listed key in its place, following later changes", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+
+    // name each changed job, failing on the broken one
+    const reconciled: string[] = [];
+    const reported: string[] = [];
+    const controller: Controller = {
+        name: "job",
+        watches: [job],
+        keys: (change) => {
+            const id = Change.of(change, job) ? Change.image(change).id : "";
+            if (id === "broken") {
+                throw new Error("unreadable change");
+            }
+
+            return [id];
+        },
+        list: async () => (await database.select().from(job)).map((row) => row.id),
+        reconcile: async (key) => {
+            reconciled.push(key);
+
+            return undefined;
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], {
+        report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
+    });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+    await loop.idle();
+
+    // report the failing change, reconcile the listed keys instead, and keep following
+    await database.insert(job).values({ id: "broken", scope: "space", runs: 1 });
+    await expect.poll(() => reconciled).toEqual(["broken"]);
+    await database.insert(job).values({ id: "later", scope: "space", runs: 1 });
+    await expect.poll(() => reconciled.toSorted()).toEqual(["broken", "later"]);
+    expect(reported).toEqual(["controller_job: unreadable change"]);
+});
+
 test("reconcile keys up to a controller's concurrency, never one key twice at once", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
