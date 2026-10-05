@@ -9,6 +9,7 @@ import type {
 import type { SourceRange } from "@destack/package/source";
 import { BuildError } from "../error/index.ts";
 import { DeclarationGraph } from "./declaration.ts";
+import { TestGraph, type TestSource } from "./test.ts";
 import { compareText } from "../build/serialization.ts";
 
 /** The symbol kind of each language declaration kind. */
@@ -94,27 +95,38 @@ class Edges {
     }
 }
 
-/** Describe each module's graph file from the checker's descriptions and the evaluated declarations. */
+/** Describe each module's graph file from the checker's descriptions, the evaluated declarations and the tests. */
 export function describeGraph(
     source: Package,
     modules: readonly ModuleDescription[],
     declarations: readonly DeclarationDescription[],
+    tests: TestSource,
 ): graph.Module[] {
     // collect the symbols any module of the package exports
     const declared = new DeclarationGraph(source, declarations);
+    const tested = new TestGraph(source, tests);
     const exported = new Set(
         modules.flatMap((module) => module.exports.map((entry) => monikerOf(source, entry.symbol))),
     );
 
-    return modules.map((module) => describeModule(source, module, declared, exported));
+    return modules.map((module) => describeModule(source, module, { declared, tested, exported }));
+}
+
+/** The package-wide graph inputs each module's graph file draws on. */
+interface PackageGraph {
+    /** The package's declarations and their edges. */
+    readonly declared: DeclarationGraph;
+    /** The package's tests. */
+    readonly tested: TestGraph;
+    /** The symbols any module of the package exports. */
+    readonly exported: ReadonlySet<graph.Moniker>;
 }
 
 /** Describe one module's symbols, declarations and outgoing edges. */
 function describeModule(
     source: Package,
     module: ModuleDescription,
-    declared: DeclarationGraph,
-    exported: ReadonlySet<graph.Moniker>,
+    { declared, tested, exported }: PackageGraph,
 ): graph.Module {
     // name the module and its exports
     const moniker = graph.Moniker.of({ packageId: source.id, module: module.path });
@@ -132,18 +144,33 @@ function describeModule(
     const described = symbols.list();
     const edges = symbols.edges;
 
-    // attribute calls and globals to their innermost enclosing symbol
-    const enclosing = (range: SourceRange) => enclose(described, range) ?? moniker;
+    // attribute calls and globals to their innermost enclosing symbol or test
+    const tests = tested.describe(module.path);
+    const covering = new Set(tests.map((test) => test.declaration.moniker));
+    const enclosings = [
+        ...described,
+        ...tests.map((test) => ({ moniker: test.declaration.moniker, source: test.source })),
+    ];
+    const attribute = (range: SourceRange, kind: "calls" | "references", to?: graph.Moniker) => {
+        const from = enclose(enclosings, range) ?? moniker;
+        edges.add(from, kind, to);
+        if (to !== undefined && covering.has(from) && isCovered(source, tested, to)) {
+            edges.add(from, "covers", to);
+            for (const declaration of declared.at(to)) {
+                edges.add(from, "covers", declaration);
+            }
+        }
+    };
     for (const description of module.errors) {
         for (const call of description.calls) {
             if (call.target !== undefined) {
-                edges.add(enclosing(call.source), "calls", symbols.name(call.target));
+                attribute(call.source, "calls", symbols.name(call.target));
             }
         }
     }
     for (const global of module.globals) {
         if (global.symbol !== undefined) {
-            edges.add(enclosing(global.source), "references", symbols.name(global.symbol));
+            attribute(global.source, "references", symbols.name(global.symbol));
         }
     }
 
@@ -154,8 +181,11 @@ function describeModule(
         }
     }
 
-    // describe the module's declarations and their edges
-    const declarations = declared.describe(module.path);
+    // describe the module's declarations and tests with their edges
+    const declarations = [
+        ...declared.describe(module.path),
+        ...tests.map((test) => test.declaration),
+    ].toSorted((left, right) => compareText(left.moniker, right.moniker));
     for (const edge of declared.edges(module.path)) {
         edges.add(edge.from, edge.kind, edge.to);
     }
@@ -311,6 +341,20 @@ export function monikerOf(source: Package, reference: SymbolReference): graph.Mo
         module: symbol.module,
         ...(symbol.name === "*" ? {} : { name: symbol.name }),
     });
+}
+
+/** Report whether a symbol is one of the package's own outside its test modules. */
+function isCovered(source: Package, tested: TestGraph, symbol: graph.Moniker): boolean {
+    // keep the package's own symbols
+    const prefix = `${source.id}/`;
+    if (!symbol.startsWith(prefix)) {
+        return false;
+    }
+
+    // leave symbols of the test modules themselves
+    const path = symbol.slice(prefix.length).split("#")[0] ?? "";
+
+    return !tested.has(path);
 }
 
 /** Report whether a qualified name passes through a symbol the compiler names internally, such as `__function`. */

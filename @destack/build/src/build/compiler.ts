@@ -1,4 +1,5 @@
 import { readFile, realpath, writeFile } from "node:fs/promises";
+import type { TestDeclaration } from "@destack/test/inspect";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -54,12 +55,7 @@ import { BuildFiles } from "./file.ts";
 import { readCatalogs } from "./catalog.ts";
 import { comparePath, stringifyInspection } from "./serialization.ts";
 import { describeGraph } from "../graph/module.ts";
-import {
-    encodeDescription,
-    MANIFEST_LISTS,
-    serializeTests,
-    type ManifestDescription,
-} from "./manifest.ts";
+import { encodeDescription, MANIFEST_LISTS, type ManifestDescription } from "./manifest.ts";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -578,8 +574,7 @@ export class BuildCompiler implements AsyncDisposable {
         // share equal tests across outputs
         const modules = new Map<string, ModuleDescription>();
         const evaluated = new Set<DeclarationDescription>();
-        const tests = new SharedValues<ManifestDescription["tests"][number]>();
-        const selections: ManifestDescription["selections"] = new Map();
+        const tests = new SharedValues<TestDeclaration>();
         const resolved: Record<string, DependencyResolution> = {};
         for (const [name, { output, inspection: description }] of compiled.outputs) {
             // check the output's dependency declarations and runtime
@@ -594,26 +589,26 @@ export class BuildCompiler implements AsyncDisposable {
             // keep each module's first description and every evaluated declaration for the graph
             retainGraphInputs(entry, modules, evaluated);
 
-            // select the output's tests by their shared index
-            selections.set(
-                name,
-                entry.inspection.tests.map((value) => tests.retain(value)),
-            );
+            // keep each test once across outputs
+            for (const test of entry.inspection.tests) {
+                tests.retain(test);
+            }
         }
 
-        // describe the package's graph from its modules and every evaluated declaration
+        // describe the package's graph from its modules, every evaluated declaration and its tests
         const described = describeGraph(
             sourcePackage(inspected),
             [...modules.values()],
             [...evaluated],
+            {
+                package: await findPackage("@destack/test", this.#packages),
+                declarations: tests.values,
+            },
         );
 
         return {
             manifest: {
                 graph: described,
-                tests: tests.values,
-                testPackage: await findPackage("@destack/test", this.#packages),
-                selections,
             },
             resolved,
         };
@@ -939,11 +934,10 @@ async function writeManifest(
     files: BuildFiles,
     locator: PackageLocator,
 ): Promise<PackageBuild> {
-    // serialize the tests each output selects
+    // collect the outputs by name
     const outputs = Object.fromEntries(
         [...compiled.outputs].map(([name, { output }]) => [name, output]),
     );
-    const manifest = await serializeTests(description.manifest, outputs);
 
     // write the retained sources and each module's graph file by its digest
     await files.flush();
@@ -957,9 +951,6 @@ async function writeManifest(
         sourceMaps: await writeList(files, "sourceMaps", compiled.sourceMaps),
         graph: await writeList(files, "graph", root),
     };
-    for (const [path, bytes] of manifest.files) {
-        await files.write(path, bytes);
-    }
 
     // keep the upgrade from the published release in a file of its kind
     const upgraded =
@@ -972,7 +963,6 @@ async function writeManifest(
         language: "typescript",
         ...(commit === undefined ? {} : { commit }),
         lists: references,
-        ...(manifest.tests === undefined ? {} : { tests: manifest.tests }),
         ...(upgraded === undefined ? {} : { upgrade: upgraded }),
         outputs,
     };

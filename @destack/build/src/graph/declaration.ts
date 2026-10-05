@@ -25,6 +25,8 @@ export class DeclarationGraph {
     readonly #declarations = new Map<string, graph.Declaration[]>();
     /** The edges from the package's declarations, by module path. */
     readonly #edges = new Map<string, graph.Edge[]>();
+    /** The package's declarations, by the symbol declaring them. */
+    readonly #symbols = new Map<graph.Moniker, graph.Moniker[]>();
     /** Every declaration and member the build holds, by package, kind and name. */
     readonly #referents = new Map<string, Referent[]>();
 
@@ -68,6 +70,11 @@ export class DeclarationGraph {
         );
     }
 
+    /** List the package's declarations at a symbol. */
+    at(symbol: graph.Moniker): readonly graph.Moniker[] {
+        return this.#symbols.get(symbol) ?? [];
+    }
+
     /** List the edges from a module's declarations. */
     edges(path: string): readonly graph.Edge[] {
         return this.#edges.get(path) ?? [];
@@ -101,6 +108,12 @@ export class DeclarationGraph {
         const declarations = [described, ...members.values()];
         this.#declarations.set(path, [...(this.#declarations.get(path) ?? []), ...declarations]);
         this.#edges.set(path, [...(this.#edges.get(path) ?? []), ...edges]);
+        for (const kept of declarations) {
+            this.#symbols.set(kept.symbol, [
+                ...(this.#symbols.get(kept.symbol) ?? []),
+                kept.moniker,
+            ]);
+        }
     }
 
     /** Name every declaration or member a reference matches, none when the build holds none. */

@@ -40,6 +40,7 @@ test("bind a secret", () => {
             {
                 kind: "test",
                 name: "bind a secret",
+                suites: [],
                 file: "src/resource.test.ts",
                 start: source.indexOf('test("'),
                 end: source.lastIndexOf(";"),
