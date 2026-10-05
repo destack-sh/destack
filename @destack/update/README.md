@@ -89,14 +89,12 @@ timestamp    14 days   re-signed by every publication and renewal
 
 ## Errors
 
-A failed check, download, activation or installation throws an `UpdateError` with a code naming the failed step.
+A failed check, download, activation or installation throws an `UpdateError` with a code naming the failed step, and `toServiceError` names the service error its caller receives.
 
 ```ts
 import { UpdateError } from "@destack/update/error";
 
-if (error instanceof UpdateError && error.code === "BUSY") {
-    report("another process is updating this installation");
-}
+new UpdateError("BUSY", "another process is updating this installation").toServiceError(); // { code: "CONFLICT", … }
 ```
 
 ## Tests
