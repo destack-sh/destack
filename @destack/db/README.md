@@ -166,12 +166,14 @@ const isCopied = database.copies(accountTable);
 
 ## Providers
 
-`databaseProvider.sqlite` manages a host's SQLite files, and a workload opens one through the `sqlite` connector of its declaration.
+`databaseProvider` manages a host's databases, `SqliteDatabaseHost` keeps them as SQLite files, and a workload opens one through the `sqlite` connector of its declaration.
 
 ```ts
-import { databaseProvider } from "@destack/db/bun";
+import { databaseProvider } from "@destack/db";
+import { SqliteDatabaseHost } from "@destack/db/bun";
 
-const provider = databaseProvider.sqlite(new URL("file:///var/destack/databases/"), databaseObject);
+const host = new SqliteDatabaseHost(new URL("file:///var/destack/databases/"));
+const provider = databaseProvider(host, databaseObject);
 await using connection = await main.connectors["sqlite"]?.connect(binding, main); // SQLite on Bun
 ```
 
