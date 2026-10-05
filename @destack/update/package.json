@@ -11,7 +11,7 @@
         "./apple": "./src/apple/index.ts",
         "./error": "./src/error/index.ts",
         "./publish": "./src/publish/index.ts",
-        "./test": "./src/update/tests/repository.ts"
+        "./test": "./src/test/index.ts"
     },
     "dependencies": {
         "@destack/fs": "workspace:*",

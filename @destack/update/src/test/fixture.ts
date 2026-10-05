@@ -3,14 +3,14 @@ import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { UpdaterOptions } from "../updater.ts";
-import { SignedRepository, SigningKey, TrustedRoot } from "../../publish/index.ts";
+import type { UpdaterOptions } from "../update/updater.ts";
+import { SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
 
 /** The Git commit every fixture distribution claims to be built from. */
 export const COMMIT = "2c9f1e7d5b3a8f60c4e1d2b7a9f0e3c5d8b1a4f6";
 
 /** A real signed repository and isolated installation served over loopback. */
-export class Repository implements AsyncDisposable {
+export class UpdateFixture implements AsyncDisposable {
     /** Temporary files owned by this scenario. */
     readonly directory: string;
     /** Published metadata and archives. */
@@ -93,10 +93,10 @@ export class Repository implements AsyncDisposable {
         fixture: string,
         rootKeys: SigningKey[],
         version: string,
-    ): Promise<Repository> {
+    ): Promise<UpdateFixture> {
         // copy shared immutable inputs into an independent scenario directory
         const directory = await mkdtemp(join(tmpdir(), "destack-updater-"));
-        const repository = new Repository(directory, rootKeys);
+        const repository = new UpdateFixture(directory, rootKeys);
         try {
             await cp(join(fixture, "source"), repository.source, { recursive: true });
             await cp(join(fixture, "release.tar.gz"), repository.archive);

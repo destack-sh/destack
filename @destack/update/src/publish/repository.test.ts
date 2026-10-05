@@ -7,7 +7,7 @@ import { SigningKey } from "./key.ts";
 import { TrustedRoot } from "./root.ts";
 import { parseObject } from "./json.ts";
 import { SignedRepository } from "./repository.ts";
-import { COMMIT } from "../update/tests/repository.ts";
+import { COMMIT } from "../test/index.ts";
 
 test("renew freshness while preserving exact targets authorization", async () => {
     // prepare independent roles and a quorum using disposable keys
