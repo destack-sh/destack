@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Health, health } from "../health/index.ts";
-import { implementHealth } from "../health/server.ts";
+import { implementHealth } from "./health.ts";
 import { createClient } from "../client/index.ts";
 import { defineService } from "../declare/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
