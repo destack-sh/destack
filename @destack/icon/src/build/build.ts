@@ -11,7 +11,7 @@ export const iconExtension: BuildExtension = {
 };
 
 /** Pass each icon named by a literal its bodies from a static import of the icon's module. */
-export function iconPlugin(): Plugin {
+function iconPlugin(): Plugin {
     return {
         name: ICON_PACKAGE,
         enforce: "pre",
