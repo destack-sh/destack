@@ -1,12 +1,13 @@
 import { principal, relation, union } from "@destack/access";
 import { Subject } from "@destack/sync";
-import { defineObject, field, method } from "@destack/object";
+import { defineObject, field } from "@destack/object";
+import { Message, plural } from "@destack/locale";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { defineNotification } from "../../src/declare/index.ts";
 import { nameOf } from "./actor.ts";
-import { announcement, notification, Subscription, subscription } from "../../src/index.ts";
+import { activity, announcement, Subscription, subscription } from "../../src/index.ts";
 
 /** The package release declaring the fixture's notifications. */
 export const notes = Package.parse({
@@ -15,7 +16,18 @@ export const notes = Package.parse({
     version: "2026.9.0",
 });
 
-/** Someone mentions the recipient in a remark to answer from the notification. */
+/** Write a message of the fixture's package, which its catalogs translate. */
+const write = Message.context("", { package: notes });
+
+/** The headline of a change. */
+export const changed = write`Document changed`;
+
+/** Summarize a thread's changes. */
+export function summarizeChanges(count: number): Message {
+    return write`${plural(count, { one: "# change", other: "# changes" })}`;
+}
+
+/** Someone mentions the recipient in a remark to answer from the activity. */
 export const mention = defineNotification(
     {
         name: "mention",
@@ -25,18 +37,23 @@ export const mention = defineNotification(
         interruption: "active",
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         content: (payload) => ({ title: `${payload.author} mentioned you`, body: payload.excerpt }),
-        summary: (count) => (count === 1 ? "1 mention" : `${count} mentions`),
+        summary: (count) => write`${plural(count, { one: "# mention", other: "# mentions" })}`,
         actions: {
             reply: {
                 title: "Reply",
                 text: { placeholder: "Reply", button: "Send" },
-                effect: ({ source }, call, text) =>
-                    call.invoke(document, "remark", {
-                        spaceId: source.scope,
+                effect: async ({ source }, call, text) => {
+                    // remark with the reply's text
+                    if (text === undefined) {
+                        throw new TypeError("reply action needs its text");
+                    }
+
+                    return call.invoke(document).remark({
                         id: source.id,
-                        text: text!,
+                        text,
                         mentions: [],
-                    }),
+                    });
+                },
             },
         },
     },
@@ -53,12 +70,12 @@ export const review = defineNotification(
         interruption: "timeSensitive",
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         content: (payload) => ({ title: "Approval requested", body: payload.title }),
-        summary: (count) => `${count} approvals requested`,
+        summary: (count) =>
+            write`${plural(count, { one: "# approval requested", other: "# approvals requested" })}`,
         actions: {
             approve: {
                 title: "Approve",
-                effect: ({ source }, call) =>
-                    call.invoke(document, "approve", { spaceId: source.scope, id: source.id }),
+                effect: ({ source }, call) => call.invoke(document).approve({ id: source.id }),
             },
         },
     },
@@ -74,8 +91,8 @@ export const change = defineNotification(
         payload: schema.object({ summary: schema.string() }),
         interruption: "active",
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-        content: (payload) => ({ title: "Document changed", body: payload.summary }),
-        summary: (count) => (count === 1 ? "1 change" : `${count} changes`),
+        content: (payload) => ({ title: changed, body: payload.summary }),
+        summary: summarizeChanges,
     },
     { package: notes },
 );
@@ -90,7 +107,8 @@ export const status = defineNotification(
         interruption: "passive",
         preference: { channels: ["desktop", "push"], delivery: "immediate" },
         content: (payload) => ({ title: "Publishing", body: payload.state }),
-        summary: (count) => `${count} publishing updates`,
+        summary: (count) =>
+            write`${plural(count, { one: "# publishing update", other: "# publishing updates" })}`,
     },
     { package: notes },
 );
@@ -106,7 +124,7 @@ const Remark = schema.object({
     mentions: schema.array(Subject),
 });
 
-/** Documents their owner shares with editors and viewers, taking notifications, announcements and subscriptions. */
+/** Documents their owner shares with editors and viewers, taking activities, announcements and subscriptions. */
 export const document = defineObject({
     name: "document",
     plural: "documents",
@@ -130,33 +148,40 @@ export const document = defineObject({
     },
     shareable: { by: "manage" },
     attachments: [
-        notification.attach({ by: "read" }),
+        activity.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
     ],
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         create: method.create("manage", { fields: ["title"] }),
-        remark: method({ permission: "read", input: Remark }),
-        publish: method({
+        remark: method.mutation({ permission: "read", input: Remark }),
+        publish: method.mutation({
             permission: "edit",
             input: schema.object({ state: schema.enum(["publishing", "published", "failed"]) }),
         }),
-        request: method({ permission: "edit", input: schema.object({ reviewer: Subject }) }),
-        approve: method({ permission: "edit" }),
-        edit: method({ permission: "edit", input: schema.object({ summary: schema.string() }) }),
-        broadcast: method({
+        request: method.mutation({
+            permission: "edit",
+            input: schema.object({ reviewer: Subject }),
+        }),
+        approve: method.mutation({ permission: "edit" }),
+        edit: method.mutation({
+            permission: "edit",
+            input: schema.object({ summary: schema.string() }),
+        }),
+        broadcast: method.mutation({
             permission: "manage",
             input: schema.object({
                 audience: schema.enum(["subscribers", "members", "editors"]),
-                excluded: schema.array(Subject).optional(),
+                excluded: schema.array(Subject).exactOptional(),
             }),
         }),
-    },
+    }),
 }).handle({
     remark: async (call) => {
         // subscribe and notify the principals a remark mentions
-        const { text, mentions } = call.input as schema.Infer<typeof Remark>;
+        const { text, mentions } = call.input;
+        const author = call.requireCaller();
         for (const mentioned of mentions) {
             await Subscription.add(call, call.reference(), mentioned, "mention");
         }
@@ -164,17 +189,17 @@ export const document = defineObject({
             source: call.reference(),
             recipients: mentions,
             reason: "mention",
-            payload: { author: nameOf(call.caller!), excerpt: text },
+            payload: { author: nameOf(author), excerpt: text },
         });
 
         return call.target;
     },
     publish: async (call) => {
         // tell the owner the latest publishing state
-        const { state } = call.input as { readonly state: "publishing" | "published" | "failed" };
+        const { state } = call.input;
         await status.notify(call, {
             source: call.reference(),
-            recipients: [Subject.read(call.target!.owner as string)],
+            recipients: [Subject.read(call.target.owner)],
             reason: "author",
             payload: { state },
             key: "publishing",
@@ -184,21 +209,21 @@ export const document = defineObject({
     },
     request: async (call) => {
         // ask a reviewer for approval
-        const { reviewer } = call.input as { readonly reviewer: Subject };
+        const { reviewer } = call.input;
         await review.notify(call, {
             source: call.reference(),
             recipients: [reviewer],
             reason: "assigned",
-            payload: { title: String(call.target!.title) },
+            payload: { title: call.target.title },
             key: "review",
         });
 
         return call.target;
     },
-    approve: async (call) => call.update({ approvedBy: Subject.key(call.caller!) }),
+    approve: async (call) => call.update({ approvedBy: Subject.key(call.requireCaller()) }),
     edit: async (call) => {
         // tell the document's subscribers about the change
-        const { summary } = call.input as { readonly summary: string };
+        const { summary } = call.input;
         const subscribers = await Subscription.list(call, call.reference(), { limit: 100 });
         await change.notify(call, {
             source: call.reference(),
@@ -211,10 +236,7 @@ export const document = defineObject({
     },
     broadcast: async (call) => {
         // announce the document to its subscribers, the space's members or its editors
-        const { audience, excluded } = call.input as {
-            readonly audience: "subscribers" | "members" | "editors";
-            readonly excluded?: readonly Subject[];
-        };
+        const { audience, excluded } = call.input;
         await change.announce(call, {
             source: call.reference(),
             audience:
@@ -223,7 +245,7 @@ export const document = defineObject({
                     : audience === "members"
                       ? { kind: "members", reason: "mention" }
                       : { kind: "subscribers" },
-            payload: { summary: `${String(call.target!.title)} is out` },
+            payload: { summary: `${call.target.title} is out` },
             ...(excluded === undefined ? {} : { excluded }),
         });
 

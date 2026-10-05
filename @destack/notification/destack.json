@@ -6,11 +6,28 @@
     "exports": {
         "./server": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./package": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./view": {
+            "runtimes": ["browser"]
+        },
+        "./workload": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
         "defineNotification": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "notification",
@@ -23,6 +40,11 @@
                     "function": "./inspect#describeNotificationPreference"
                 }
             ]
+        }
+    },
+    "stamps": {
+        "defineNotification": {
+            "module": 1
         }
     }
 }

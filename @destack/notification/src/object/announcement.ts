@@ -1,14 +1,14 @@
 import { through } from "@destack/access";
 import { AccessName } from "@destack/sync";
 import { unique, type Select } from "@destack/db";
-import { defineObject, field, method } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { space } from "@destack/space/object";
-import { NOTIFY_RECIPIENTS, NotificationKey, NotificationName } from "./notification.ts";
+import { NOTIFY_RECIPIENTS, NotificationKey, NotificationName } from "./activity.ts";
 import { REASONS } from "./subscription.ts";
 
-/** The principals an announcement reaches. */
+/** The principals an announcement notifies. */
 export const Audience = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -31,19 +31,19 @@ export const Audience = defineSchema(
         }),
     ]),
 );
-/** The principals an announcement reaches. */
+/** The principals an announcement notifies. */
 export type Audience = schema.Infer<typeof Audience>;
 
-/** One notification to an audience, expanded into recipients' notifications in batches. */
+/** One notification to an audience, expanded into its recipients' activities in batches. */
 export const announcement = defineObject({
     name: "announcement",
     plural: "announcements",
     scope: space,
     nested: { in: "any", receive: "announce" },
     fields: {
-        /** The principal who announced it. */
-        author: field.subject().personal(),
-        /** The principals it reaches. */
+        /** The principal who announced it, absent for the system. */
+        author: field.subject().personal().optional(),
+        /** The principals it notifies. */
         audience: field.json(Audience),
         /** The subject keys it skips beside its author. */
         excluded: field
@@ -57,7 +57,7 @@ export const announcement = defineObject({
         name: field.string(NotificationName),
         /** The identity a later announcement with the same key replaces, absent for one never replaced. */
         key: field.string(NotificationKey).optional(),
-        /** The thread its notifications group in. */
+        /** The thread its activities group in. */
         thread: field.string(NotificationKey),
         /** The values its content renders. */
         payload: field.json(schema.json()),
@@ -68,27 +68,27 @@ export const announcement = defineObject({
         /** When the last batch was expanded. */
         expandedAt: field.time().optional(),
     },
-    constraints: (announcement) => [
+    constraints: (entry) => [
         unique("announcement_key").on(
-            announcement.scope,
-            announcement.packageId,
-            announcement.name,
-            announcement.parentPackageId,
-            announcement.parentType,
-            announcement.parentId,
-            announcement.key,
+            entry.scope,
+            entry.packageId,
+            entry.name,
+            entry.parentPackageId,
+            entry.parentType,
+            entry.parentId,
+            entry.key,
         ),
     ],
     permissions: { read: through("parent", "read") },
-    // keep an expanded announcement 30 days, as long as read notifications
+    // keep an expanded announcement 30 days
     expiring: [{ after: { days: 30 }, from: "expandedAt" }],
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         post: method.create(null, { isSystem: true }),
         replace: method.update(null, { isSystem: true }),
-        expand: method({ permission: null, isSystem: true }),
-    },
+        expand: method.mutation({ permission: null, isSystem: true }),
+    }),
 });
 
 /** An announcement as its table stores it. */

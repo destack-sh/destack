@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
-import { type Circumstances, decide, focus, summary, Window } from "../src/index.ts";
+import { schema } from "@destack/schema";
+import { type Contact, decide, focus, type Settings, summary, Window } from "../src/index.ts";
 import { notes } from "./fixture/document.ts";
 
 /** How long an email waits in the scenarios: a quarter hour. */
@@ -19,86 +20,130 @@ test("end quiet hours in a time zone after the night the clocks go back", () => 
     expect([inside, outside]).toEqual([Date.UTC(2026, 9, 25, 6, 0), undefined]);
 });
 
-test("decide each channel by the first rule that applies, from access down to presence", () => {
+/** A push endpoint the recipient's phone has. */
+const PHONE = schema
+    .identifier("push-endpoint")
+    .parse("push-endpoint-019f5530-8000-7000-8000-0000000000a1");
+
+/** The desktop the recipient signed in. */
+const LAPTOP = schema.identifier("device").parse("device-019f5530-8000-7000-8000-0000000000a2");
+
+test("decide each channel by the first rule that applies, from read state down to the email delay", () => {
     // start from an unread, active mention the recipient receives everywhere, with nothing quiet
-    const base: Circumstances = {
+    const delivery: Parameters<typeof decide>[0] = {
+        id: schema.identifier("delivery").parse("delivery-019f5530-8000-7000-8000-0000000000a3"),
         channel: "push",
-        emailDelay: EMAIL_DELAY,
-        notification: {
-            parentPackageId: notes.id,
-            occurredAt: SATURDAY,
-            readAt: null,
-            snoozedUntil: null,
-        },
+        device: null,
+        endpoint: PHONE,
+        isSummarized: false,
+        dueAt: SATURDAY,
+    };
+    const notified: Parameters<typeof decide>[1] = {
+        packageId: notes.id,
+        occurredAt: SATURDAY,
+        readAt: null,
+        snoozedUntil: null,
         interruption: "active",
+    };
+    const contact: Contact = {
+        desktops: [LAPTOP],
+        endpoints: [
+            { id: PHONE, url: "https://push.example/phone", keys: { p256dh: "key", auth: "auth" } },
+        ],
+        email: "dana@example.com",
+        timeZone: "UTC",
+        locale: "en",
+    };
+    const settings: Settings = {
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         focus: focus.definition.default,
         summary: summary.definition.default,
-        timeZone: "UTC",
-        isReadable: true,
-        isAddressed: true,
-        isPresent: false,
-        isSummaryDue: false,
-        now: SATURDAY,
     };
     const focused = { ...focus.definition.default, until: SATURDAY + HOUR };
-    const cases: readonly [string, Partial<Circumstances>][] = [
-        ["unreadable", { isReadable: false }],
-        ["read", { notification: { ...base.notification, readAt: SATURDAY } }],
-        ["unaddressed", { isAddressed: false }],
-        ["snoozed", { notification: { ...base.notification, snoozedUntil: SATURDAY + HOUR } }],
+    const desktop: Changes["delivery"] = { channel: "desktop", device: LAPTOP, endpoint: null };
+    const email: Changes["delivery"] = { channel: "email", endpoint: null };
+    const cases: readonly [string, Changes][] = [
+        ["read", { notification: { readAt: SATURDAY } }],
+        ["unaddressed", { contact: { endpoints: [] } }],
+        ["snoozed", { notification: { snoozedUntil: SATURDAY + HOUR } }],
         [
             "critical in a focus, turned off",
             {
-                interruption: "critical",
-                focus: focused,
-                preference: { channels: [], delivery: "immediate" },
+                notification: { interruption: "critical" },
+                settings: { focus: focused, preference: { channels: [], delivery: "immediate" } },
             },
         ],
-        ["turned off", { preference: { channels: ["desktop"], delivery: "immediate" } }],
-        ["passive", { interruption: "passive" }],
+        [
+            "turned off",
+            { settings: { preference: { channels: ["desktop"], delivery: "immediate" } } },
+        ],
+        ["passive", { notification: { interruption: "passive" } }],
         [
             "summarized",
             {
-                preference: { channels: ["push"], delivery: "summary" },
-                summary: { times: ["18:00"], channels: ["push"] },
+                settings: {
+                    preference: { channels: ["push"], delivery: "summary" },
+                    summary: { times: ["18:00"], channels: ["push"] },
+                },
             },
         ],
         [
             "summarized and due",
             {
-                preference: { channels: ["push"], delivery: "summary" },
-                summary: { times: ["18:00"], channels: ["push"] },
-                isSummaryDue: true,
+                delivery: { isSummarized: true },
+                settings: {
+                    preference: { channels: ["push"], delivery: "summary" },
+                    summary: { times: ["18:00"], channels: ["push"] },
+                },
             },
         ],
         [
             "summarized on the desktop",
-            { channel: "desktop", preference: { channels: ["desktop"], delivery: "summary" } },
+            {
+                delivery: desktop,
+                settings: { preference: { channels: ["desktop"], delivery: "summary" } },
+            },
         ],
         [
             "time-sensitive, summarized",
             {
-                interruption: "timeSensitive",
-                preference: { channels: ["push"], delivery: "summary" },
+                notification: { interruption: "timeSensitive" },
+                settings: { preference: { channels: ["push"], delivery: "summary" } },
             },
         ],
-        ["in a focus", { focus: focused }],
-        ["in a focus allowing the app", { focus: { ...focused, allowed: [notes.id] } }],
-        ["time-sensitive in a focus", { interruption: "timeSensitive", focus: focused }],
+        ["in a focus", { settings: { focus: focused } }],
+        [
+            "in a focus allowing the app",
+            { settings: { focus: { ...focused, allowed: [notes.id] } } },
+        ],
+        [
+            "time-sensitive in a focus",
+            { notification: { interruption: "timeSensitive" }, settings: { focus: focused } },
+        ],
         [
             "time-sensitive in a strict focus",
-            { interruption: "timeSensitive", focus: { ...focused, isTimeSensitiveAllowed: false } },
+            {
+                notification: { interruption: "timeSensitive" },
+                settings: { focus: { ...focused, isTimeSensitiveAllowed: false } },
+            },
         ],
-        ["email", { channel: "email" }],
-        ["email after the delay", { channel: "email", now: SATURDAY + EMAIL_DELAY }],
-        ["present elsewhere", { isPresent: true }],
-        ["present elsewhere, on the desktop", { channel: "desktop", isPresent: true }],
+        ["email", { delivery: email }],
+        ["email after the delay", { delivery: email, now: SATURDAY + EMAIL_DELAY }],
     ];
 
     // decide each case
-    expect(cases.map(([name, changes]) => [name, decide({ ...base, ...changes })])).toEqual([
-        ["unreadable", { action: "skip", reason: "withheld" }],
+    const decided = cases.map(([name, changes]) => [
+        name,
+        decide(
+            { ...delivery, ...changes.delivery },
+            { ...notified, ...changes.notification },
+            { ...contact, ...changes.contact },
+            { ...settings, ...changes.settings },
+            EMAIL_DELAY,
+            changes.now ?? SATURDAY,
+        ),
+    ]);
+    expect(decided).toEqual([
         ["read", { action: "skip", reason: "read" }],
         ["unaddressed", { action: "skip", reason: "unaddressed" }],
         ["snoozed", { action: "defer", until: SATURDAY + HOUR, isSummarized: false }],
@@ -121,7 +166,19 @@ test("decide each channel by the first rule that applies, from access down to pr
         ],
         ["email", { action: "defer", until: SATURDAY + EMAIL_DELAY, isSummarized: false }],
         ["email after the delay", { action: "send" }],
-        ["present elsewhere", { action: "skip", reason: "present" }],
-        ["present elsewhere, on the desktop", { action: "send" }],
     ]);
 });
+
+/** What one case changes of the base scenario. */
+interface Changes {
+    /** The delivery's changed fields. */
+    readonly delivery?: Partial<Parameters<typeof decide>[0]>;
+    /** The notification's changed fields. */
+    readonly notification?: Partial<Parameters<typeof decide>[1]>;
+    /** The contact's changed fields. */
+    readonly contact?: Partial<Contact>;
+    /** The changed settings. */
+    readonly settings?: Partial<Settings>;
+    /** The changed time of the decision. */
+    readonly now?: number;
+}

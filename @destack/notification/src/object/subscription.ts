@@ -1,7 +1,8 @@
 import { type ObjectReference, Subject } from "@destack/sync";
 import { intersection, relation, through } from "@destack/access";
 import { and, eq, gt, lte, unique, type Select } from "@destack/db";
-import { type Call, defineObject, field, method } from "@destack/object";
+import { type Call, defineObject, field } from "@destack/object";
+import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 
 /** Why a principal hears about an object, as GitHub's notification reasons. */
@@ -22,21 +23,21 @@ export const subscription = defineObject({
         /** Why the principal is subscribed. */
         reason: field.enum(REASONS).default("subscribed" satisfies Reason),
     },
-    constraints: (subscription) => [
+    constraints: (entry) => [
         unique("subscription_owner").on(
-            subscription.parentPackageId,
-            subscription.parentType,
-            subscription.parentId,
-            subscription.owner,
+            entry.parentPackageId,
+            entry.parentType,
+            entry.parentId,
+            entry.owner,
         ),
     ],
     permissions: { own: intersection(relation("owner"), through("parent", "subscribe")) },
-    methods: {
+    methods: (method) => ({
         list: method.list("own"),
         create: method.create("own", { fields: [] }),
         add: method.create(null, { isSystem: true }),
         delete: method.delete("own"),
-    },
+    }),
 });
 
 /** A subscription as its table stores it. */
@@ -74,7 +75,7 @@ export const Subscription = {
                 ),
             );
         if (existing === undefined) {
-            await call.invoke(subscription, "add", {
+            await call.invoke(subscription).add({
                 parent: { packageId: host.packageId, type: host.type, id: host.id },
                 owner: Subject.key(owner),
                 reason,
@@ -104,7 +105,9 @@ export const Subscription = {
                     eq(table.parentPackageId, host.packageId),
                     eq(table.parentType, host.type),
                     eq(table.parentId, host.id),
-                    page.after === undefined ? undefined : gt(table.id, page.after as never),
+                    page.after === undefined
+                        ? undefined
+                        : gt(table.id, schema.identifier("subscription").parse(page.after)),
                     page.until === undefined ? undefined : lte(table.createdAt, page.until),
                 ),
             )

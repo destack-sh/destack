@@ -1,9 +1,10 @@
-import type { InstanceOf } from "@destack/object";
 import { TimeZone } from "@destack/schema";
-import type { notification } from "../object/notification.ts";
-import type { Channel, SkipReason } from "../object/delivery.ts";
-import type { Focus, InterruptionLevel, Preference, Summary } from "../preference/preference.ts";
+import type { Delivery, SkipReason } from "../object/delivery.ts";
+import type { Notification } from "../object/activity.ts";
+import type { Preference } from "../preference/preference.ts";
 import { Window } from "../preference/window.ts";
+import type { Focus, Summary } from "../setting/setting.ts";
+import { Contact } from "./contact.ts";
 
 /** What a channel does with a notification now. */
 export type Decision =
@@ -11,50 +12,53 @@ export type Decision =
     | { readonly action: "defer"; readonly until: number; readonly isSummarized: boolean }
     | { readonly action: "skip"; readonly reason: SkipReason };
 
-/** What a decision reads. */
-export interface Circumstances {
-    /** The channel. */
-    readonly channel: Channel;
-    /** The notification. */
-    readonly notification: Pick<
-        InstanceOf<typeof notification>,
-        "parentPackageId" | "occurredAt" | "readAt" | "snoozedUntil"
-    >;
-    /** The interruption level. */
-    readonly interruption: InterruptionLevel;
-    /** The recipient's preference. */
+/** The settings a recipient placed that a decision follows, resolved for one notification. */
+export interface Settings {
+    /** How the recipient receives the notification. */
     readonly preference: Preference;
-    /** The recipient's focus. */
+    /** When the recipient's notifications stay quiet. */
     readonly focus: Focus;
-    /** The recipient's scheduled summary. */
+    /** When the recipient's scheduled summary goes out. */
     readonly summary: Summary;
-    /** The recipient's time zone. */
-    readonly timeZone: string;
-    /** Whether the recipient may read the notification. */
-    readonly isReadable: boolean;
-    /** Whether the recipient has an address on the channel. */
-    readonly isAddressed: boolean;
-    /** Whether the recipient is active on another device. */
-    readonly isPresent: boolean;
-    /** Whether the summary goes out now. */
-    readonly isSummaryDue: boolean;
-    /** How long an email waits for the notification to be read elsewhere, in milliseconds. */
-    readonly emailDelay: number;
-    /** The time of the decision, in UTC epoch milliseconds. */
-    readonly now: number;
 }
 
-/** Decide what a channel does with a notification now. */
-export function decide(circumstances: Circumstances): Decision {
-    // read the circumstances
-    const { channel, notification, interruption, preference, now } = circumstances;
+/** The fields of a delivery a decision reads. */
+type Decided = Pick<Delivery, "id" | "channel" | "device" | "endpoint" | "isSummarized" | "dueAt">;
 
-    // skip unreadable, read and unaddressed notifications
-    if (!circumstances.isReadable) {
-        return { action: "skip", reason: "withheld" };
-    } else if (notification.readAt !== null) {
+/** The fields of a notification a decision reads. */
+type Notified = Pick<
+    Notification,
+    "packageId" | "occurredAt" | "readAt" | "snoozedUntil" | "interruption"
+>;
+
+/** Decide what a delivery's channel does with its notification now, the email waiting a delay in milliseconds. */
+export function decide(
+    delivery: Decided,
+    notification: Notified,
+    contact: Contact,
+    settings: Settings,
+    emailDelay: number,
+    now: number,
+): Decision {
+    return (
+        screen(delivery, notification, contact, settings, now) ??
+        summarize(delivery, notification, contact, settings, now) ??
+        interrupt(delivery, notification, contact, settings, emailDelay, now)
+    );
+}
+
+/** Settle read, unaddressed, snoozed, critical and turned-off notifications, absent otherwise. */
+function screen(
+    delivery: Decided,
+    notification: Notified,
+    contact: Contact,
+    settings: Settings,
+    now: number,
+): Decision | undefined {
+    // skip read and unaddressed notifications
+    if (notification.readAt !== null) {
         return { action: "skip", reason: "read" };
-    } else if (!circumstances.isAddressed) {
+    } else if (!Contact.addresses(contact, delivery)) {
         return { action: "skip", reason: "unaddressed" };
     }
     // wait out a snooze
@@ -62,62 +66,85 @@ export function decide(circumstances: Circumstances): Decision {
         return { action: "defer", until: notification.snoozedUntil, isSummarized: false };
     }
     // send critical notifications at once
-    else if (interruption === "critical") {
+    else if (notification.interruption === "critical") {
         return { action: "send" };
     }
     // skip channels the recipient turned off
-    else if (!preference.channels.includes(channel)) {
+    else if (!settings.preference.channels.includes(delivery.channel)) {
         return { action: "skip", reason: "preference" };
     }
 
+    return undefined;
+}
+
+/** Hold passive notifications and summarized preferences for the summary, absent otherwise. */
+function summarize(
+    delivery: Decided,
+    notification: Notified,
+    contact: Contact,
+    settings: Settings,
+    now: number,
+): Decision | undefined {
     // summarize passive notifications and summarized preferences
+    const { channel } = delivery;
+    const { interruption } = notification;
     const isSummarized =
         interruption === "passive" ||
-        (preference.delivery === "summary" && interruption !== "timeSensitive");
-    if (
-        isSummarized &&
-        (channel === "desktop" || !circumstances.summary.channels.includes(channel))
-    ) {
+        (settings.preference.delivery === "summary" && interruption !== "timeSensitive");
+
+    // skip channels the summary leaves out
+    if (isSummarized && (channel === "desktop" || !settings.summary.channels.includes(channel))) {
         return { action: "skip", reason: "preference" };
-    } else if (isSummarized && circumstances.isSummaryDue) {
+    }
+    // send with a due summary
+    else if (isSummarized && delivery.isSummarized && delivery.dueAt <= now) {
         return { action: "send" };
-    } else if (isSummarized) {
-        const until = TimeZone.next(circumstances.timeZone, circumstances.summary.times, now);
+    }
+    // wait for the next summary
+    else if (isSummarized) {
+        const until = TimeZone.next(contact.timeZone, settings.summary.times, now);
 
         return { action: "defer", until, isSummarized: true };
     }
 
+    return undefined;
+}
+
+/** Wait out a focus and the email delay, or send. */
+function interrupt(
+    delivery: Decided,
+    notification: Notified,
+    contact: Contact,
+    settings: Settings,
+    emailDelay: number,
+    now: number,
+): Decision {
     // wait out a focus unless allowed through
-    const end = focusEnd(circumstances);
+    const { focus } = settings;
+    const end = focusEnd(focus, contact.timeZone, now);
     const isAllowed =
-        (interruption === "timeSensitive" && circumstances.focus.isTimeSensitiveAllowed) ||
-        (notification.parentPackageId !== null &&
-            circumstances.focus.allowed.includes(notification.parentPackageId));
+        (notification.interruption === "timeSensitive" && focus.isTimeSensitiveAllowed) ||
+        focus.allowed.includes(notification.packageId);
     if (end !== undefined && !isAllowed) {
         return { action: "defer", until: end, isSummarized: false };
     }
     // email once unread for a while
-    else if (channel === "email" && notification.occurredAt + circumstances.emailDelay > now) {
+    else if (delivery.channel === "email" && notification.occurredAt + emailDelay > now) {
         return {
             action: "defer",
-            until: notification.occurredAt + circumstances.emailDelay,
+            until: notification.occurredAt + emailDelay,
             isSummarized: false,
         };
-    }
-    // skip push while the recipient is active elsewhere
-    else if (channel === "push" && circumstances.isPresent) {
-        return { action: "skip", reason: "present" };
     }
 
     return { action: "send" };
 }
 
-/** Read when the recipient's focus ends, absent outside one. */
-function focusEnd(circumstances: Circumstances): number | undefined {
+/** Read when a focus ends in a time zone, absent outside one. */
+function focusEnd(focus: Focus, timeZone: string, now: number): number | undefined {
     // take the later of the manual and scheduled ends
-    const { focus, now } = circumstances;
     const manual = focus.until !== undefined && focus.until > now ? focus.until : undefined;
-    const scheduled = Window.end(circumstances.timeZone, focus.schedules, now);
+    const scheduled = Window.end(timeZone, focus.schedules, now);
     const ends = [manual, scheduled].filter((end) => end !== undefined);
 
     return ends.length === 0 ? undefined : Math.max(...ends);

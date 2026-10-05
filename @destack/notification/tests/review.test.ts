@@ -1,89 +1,99 @@
 import { TEST_DIALECTS } from "@destack/db/test";
+import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { focus, notification, subscription } from "../src/index.ts";
+import { activity, focus, notification, subscription } from "../src/index.ts";
 import { document, review } from "./fixture/document.ts";
-import { actors, serveSpace } from "./fixture/space.ts";
+import { actors, documentParent, serveSpace } from "./fixture/space.ts";
 
 /** Bob's phone. */
-const PHONE = "push-endpoint-019f5530-8000-7000-8000-00000000000b";
+const PHONE = schema
+    .identifier("push-endpoint")
+    .parse("push-endpoint-019f5530-8000-7000-8000-00000000000b");
 
 test.for(TEST_DIALECTS)(
     "answer a review request from its notification, which breaks through a focus that defers a change until a snooze ends, on %s",
     async (dialect) => {
-        const { call, as, homes, pushes, dispatch, inbox, deliveries, wait, now, host } =
-            await serveSpace(dialect);
+        const fixture = await serveSpace(dialect);
 
         // give bob a phone and a focus for the next two hours, and let him subscribe to a document he edits
-        const bob = Subject.key(actors.bob);
-        homes.endpoints.set(bob, [
-            {
-                id: PHONE as never,
-                url: "https://push.example/bob",
-                keys: {
-                    p256dh: "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4",
-                    auth: "BTBZMqHH6r4Tts7J_aSIgg",
-                },
-                device: null,
+        await fixture.subscribe("bob", {
+            id: PHONE,
+            url: "https://push.example/bob",
+            keys: {
+                p256dh: "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4",
+                auth: "BTBZMqHH6r4Tts7J_aSIgg",
             },
-        ]);
-        const end = now() + 120 * 60_000;
-        homes.set("bob", focus, {
+        });
+        const end = fixture.now() + 120 * 60_000;
+        await fixture.set("bob", focus, {
             schedules: [],
             allowed: [],
             isTimeSensitiveAllowed: true,
             until: end,
         });
-        const plan = await call("create", { title: "Launch plan" });
-        await call("grant", { id: plan.id, relation: "editor", subject: actors.bob });
-        as("bob");
-        await call("create", host(plan.id), subscription);
-        const box = inbox("bob");
+        const plan = await fixture.call(document, "create", { title: "Launch plan" });
+        await fixture.call(document, "grant", {
+            id: plan.id,
+            relation: "editor",
+            subject: actors.bob,
+        });
+        fixture.as("bob");
+        await fixture.call(subscription, "create", documentParent(plan.id));
+        const box = fixture.inbox("bob");
 
         // ask bob for approval and change the document, alerting his phone only for the time-sensitive request
-        as("alice");
-        await call("request", { id: plan.id, reviewer: actors.bob });
-        await call("edit", { id: plan.id, summary: "Rewrote the intro" });
+        fixture.as("alice");
+        await fixture.call(document, "request", { id: plan.id, reviewer: actors.bob });
+        await fixture.call(document, "edit", { id: plan.id, summary: "Rewrote the intro" });
         await box.until((state) => state.unread === 2);
-        await dispatch();
+        await fixture.dispatch();
         const rows = [...box.rows.values()];
-        const request = rows.find((row) => review.is(row))!;
-        const change = rows.find((row) => !review.is(row))!;
+        const request = rows.find((row) => review.is(row));
+        const change = rows.find((row) => !review.is(row));
+        if (request === undefined || change === undefined) {
+            throw new TypeError("bob lacks the review request or the change");
+        }
         expect([
-            pushes.requests.map((pushed) => [pushed.urgency, pushed.topic]),
-            (await deliveries(change.id)).map((row) => [row.channel, row.state, row.dueAt]),
+            fixture.pushes.requests.map((pushed) => [pushed.urgency, pushed.topic]),
+            (await fixture.deliveries(change.id)).map((row) => [row.channel, row.state, row.dueAt]),
         ]).toEqual([
             [["high", request.id.slice("notification-".length).replaceAll("-", "")]],
             [
-                ["email", "skipped", now()],
+                ["email", "skipped", fixture.now()],
                 ["push", "pending", end],
             ],
         ]);
 
-        // approve from the notification on the server: the action's call and reading it, as one call
-        as("bob");
+        // approve on the activity in the document's space, then read the notification in the home
+        fixture.as("bob");
         await expect(
-            call("act", { id: request.id, action: "approve", text: "looks good" }, notification),
+            fixture.call(activity, "act", {
+                id: request.source.id,
+                action: "approve",
+                text: "looks good",
+            }),
         ).rejects.toMatchObject({
             code: "BAD_REQUEST",
             message: "action approve of review takes text only where it asks for it",
         });
-        await call("act", { id: request.id, action: "approve" }, notification);
+        await fixture.call(activity, "act", { id: request.source.id, action: "approve" });
+        await fixture.call(notification, "read", { id: request.id });
         await box.until((state) => state.unread === 1);
         expect([
-            (await call("get", { id: plan.id }, document)).approvedBy,
-            (await call("get", { id: request.id }, notification)).readAt,
-        ]).toEqual([Subject.key(actors.bob), now()]);
+            (await fixture.call(document, "get", { id: plan.id }))["approvedBy"],
+            (await fixture.call(notification, "get", { id: request.id }))["readAt"],
+        ]).toEqual([Subject.key(actors.bob), fixture.now()]);
 
         // snooze the change past the focus and keep it from the badge and the phone
         const until = end + 60 * 60_000;
-        await call("snooze", { id: change.id, until }, notification);
+        await fixture.call(notification, "snooze", { id: change.id, until });
         await box.until((state) => state.unread === 0);
-        wait(120);
-        await dispatch();
+        fixture.wait(120);
+        await fixture.dispatch();
         expect([
-            pushes.requests.length,
-            (await deliveries(change.id)).map((row) => [row.channel, row.state, row.dueAt]),
+            fixture.pushes.requests.length,
+            (await fixture.deliveries(change.id)).map((row) => [row.channel, row.state, row.dueAt]),
         ]).toEqual([
             1,
             [
@@ -93,12 +103,16 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // wake the change once the snooze ends, badging and alerting again
-        wait(60);
-        await dispatch();
+        fixture.wait(60);
+        await fixture.dispatch();
         await box.until((state) => state.unread === 1);
         expect([
-            pushes.requests.map((pushed) => pushed.urgency),
-            (await deliveries(change.id)).map((row) => [row.channel, row.state, row.reason]),
+            fixture.pushes.requests.map((pushed) => pushed.urgency),
+            (await fixture.deliveries(change.id)).map((row) => [
+                row.channel,
+                row.state,
+                row.reason,
+            ]),
         ]).toEqual([
             ["high", "normal"],
             [

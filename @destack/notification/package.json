@@ -4,17 +4,21 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Declare notifications, notify recipients, watch objects and deliver to devices and mail.",
+    "description": "Declare notifications, notify recipients, watch objects and deliver them as messages.",
     "exports": {
         ".": "./src/index.ts",
-        "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
+        "./destack.json": "./destack.json",
         "./inspect": "./src/inspect/index.ts",
+        "./object": "./src/object/index.ts",
+        "./package": "./src/package.ts",
         "./server": "./src/server/index.ts",
         "./service": "./src/service/index.ts",
+        "./setting": "./src/setting/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./package": "./src/package.ts",
-        "./setting": "./src/setting/index.ts"
+        "./view": "./src/view/index.ts",
+        "./workload": "./src/workload/index.ts",
+        "./test": "./src/test/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -25,7 +29,6 @@
         "@destack/account": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
@@ -33,7 +36,16 @@
         "@destack/setting": "workspace:*",
         "@destack/space": "workspace:*",
         "@destack/sync": "workspace:*",
-        "jose": "6.2.12"
+        "@destack/ui": "workspace:*",
+        "@destack/view": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "uuid": "14.0.2",
+        "@destack/message": "workspace:*",
+        "@destack/mail": "workspace:*",
+        "@destack/host": "workspace:*"
     },
     "devDependencies": {
         "@destack/directory": "workspace:*",

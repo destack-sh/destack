@@ -1,14 +1,10 @@
-import { PackageId } from "@destack/package";
-import { defineSchema, PlainTime, schema } from "@destack/schema";
-import { defineSetting } from "@destack/setting/declare";
-import { CHANNELS } from "../object/delivery.ts";
-import { Window } from "./window.ts";
+import { defineSchema, schema } from "@destack/schema";
 
-/** The most quiet windows one focus schedules: two per day for a week. */
-const WINDOW_COUNT = 14;
+/** The channels that alert beside the inbox. */
+export const CHANNELS = ["desktop", "push", "email"] as const;
 
-/** The most summaries a day, as Apple allows twelve. */
-const SUMMARY_COUNT = 12;
+/** A channel that alerts. */
+export type Channel = (typeof CHANNELS)[number];
 
 /** How strongly a notification interrupts, as Apple's interruption levels. */
 export const INTERRUPTION_LEVELS = ["passive", "active", "timeSensitive", "critical"] as const;
@@ -27,47 +23,3 @@ export const Preference = defineSchema(
 );
 /** How a recipient receives one declared notification. */
 export type Preference = schema.Infer<typeof Preference>;
-
-/** When notifications stay quiet, as Apple's Focus. */
-export const focus = defineSetting({
-    name: "focus",
-    title: "Focus",
-    description: "When notifications wait in the inbox instead of alerting you.",
-    schema: schema.object({
-        /** The quiet hours. */
-        schedules: schema.array(Window).max(WINDOW_COUNT),
-        /** When a manual focus ends, absent while off. */
-        until: schema.number().int().nonnegative().optional(),
-        /** The packages that alert during a focus. */
-        allowed: schema.array(PackageId),
-        /** Whether time-sensitive notifications alert during a focus. */
-        isTimeSensitiveAllowed: schema.boolean(),
-    }),
-    default: { schedules: [], allowed: [], isTimeSensitiveAllowed: true },
-    scope: "user",
-    overrides: ["device"],
-    apply: "immediate",
-});
-
-/** When the scheduled summary goes out, and on which channels. */
-export const summary = defineSetting({
-    name: "summary",
-    title: "Scheduled summary",
-    description: "When notifications set to arrive in a summary are sent, and how.",
-    schema: schema.object({
-        /** The times of day it goes out. */
-        times: schema.array(PlainTime).min(1).max(SUMMARY_COUNT),
-        /** The channels other than the desktop. */
-        channels: schema.array(schema.enum(CHANNELS).exclude(["desktop"])),
-    }),
-    default: { times: ["08:00", "18:00"], channels: ["email"] },
-    scope: "user",
-    overrides: ["space"],
-    apply: "immediate",
-});
-
-/** When notifications stay quiet. */
-export type Focus = schema.Infer<typeof focus.definition.schema>;
-
-/** When the scheduled summary goes out, and how. */
-export type Summary = schema.Infer<typeof summary.definition.schema>;

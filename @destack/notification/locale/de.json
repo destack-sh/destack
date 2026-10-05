@@ -1,0 +1,12 @@
+{
+    "package": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
+    "locale": "de",
+    "messages": {
+        "fp21yr62itna": "Geplante Zusammenfassung",
+        "gu13ooczcf55": "Benachrichtigungen",
+        "6i0kak1is29s": "Keine Benachrichtigungen",
+        "gq3fr028sdg": "Ungelesen",
+        "1tihfnnddhszm": ".input {$p0 :number}\n.match $p0\none {{{$p0} ungelesene Benachrichtigung}}\n* {{{$p0} ungelesene Benachrichtigungen}}"
+    },
+    "drafts": ["fp21yr62itna", "gu13ooczcf55", "6i0kak1is29s", "gq3fr028sdg", "1tihfnnddhszm"]
+}

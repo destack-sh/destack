@@ -1,8 +1,10 @@
+import { plural, t } from "@destack/locale";
 import { expect, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { found, schema } from "@destack/schema";
 import { defineNotification } from "../src/declare/index.ts";
 import { PackageFile } from "@destack/package/file";
-import { BuildReader, type PackageManifest } from "@destack/package/manifest";
+import { BuildReader } from "@destack/package/manifest";
+import { graph } from "@destack/package";
 import { notification } from "../src/index.ts";
 import {
     describeNotification,
@@ -11,6 +13,9 @@ import {
     readNotifications,
 } from "../src/inspect/index.ts";
 import { mention, notes } from "./fixture/document.ts";
+
+/** A notification description read back from its JSON. */
+const Described = schema.record(schema.string(), schema.json());
 
 test("describe a declared notification for manifests with its actions, and its preference as a setting", () => {
     // describe the notification
@@ -32,9 +37,9 @@ test("describe a declared notification for manifests with its actions, and its p
     });
 
     // fix the notification's name in stored notifications with its payload's shape
-    const described = JSON.parse(JSON.stringify(describeNotification(mention)));
+    const described = Described.parse(JSON.parse(JSON.stringify(describeNotification(mention))));
     expect(notificationVocabulary(described)).toEqual({
-        mention: { payload: described.payload },
+        mention: { payload: described["payload"] },
     });
 
     // describe the preference as the user setting notification.mention of the declaring package
@@ -64,38 +69,6 @@ test("describe a declared notification for manifests with its actions, and its p
 });
 
 test("refuse declarations whose names cannot identify a setting, and unlabeled actions", () => {
-    const declare = (name: string, action: string, title: string) => () =>
-        defineNotification(
-            {
-                name,
-                title: "Reviews",
-                description: "A review waits for you.",
-                payload: schema.object({}),
-                interruption: "active",
-                preference: { channels: [], delivery: "immediate" },
-                content: () => ({ title: "Review", body: "" }),
-                summary: (count) => `${count} reviews`,
-                actions: {
-                    [action]: {
-                        title,
-                        effect: async () => undefined,
-                    },
-                },
-            },
-            { package: notes },
-        );
-
-    // read the issues a refused declaration names, by code and path
-    const issues = (build: () => unknown) => {
-        try {
-            build();
-        } catch (error) {
-            return (error as schema.Error).issues.map((issue) => [issue.code, issue.path]);
-        }
-
-        return [];
-    };
-
     // accept camel case names, and refuse kebab case names and empty action titles
     expect([
         declare("reviewRequested", "approve", "Approve")().preference.name,
@@ -110,33 +83,97 @@ test("refuse declarations whose names cannot identify a setting, and unlabeled a
     ]);
 });
 
-test("read the notifications a build declares from this package's description collection, and none from a build declaring none", async () => {
-    // keep a manifest with the mention in its notification collection and one without
-    const declaration = {
+test("read the notifications a build declares from its graph, and none another package declares", async () => {
+    // declare the mention, and a notification of the notes package's kind beside it
+    const symbol = graph.Moniker.of({
+        packageId: notes.id,
+        module: "src/notification.ts",
         name: "mention",
+    });
+    const declaration = (packageId: typeof notes.id): graph.Declaration => ({
+        moniker: graph.Moniker.parse(`${symbol}:notification`),
+        symbol,
         kind: "notification",
-        package: notification.package,
-        constructor: {
-            package: notification.package,
-            symbol: { module: "src/declare/notification.ts", name: "defineNotification" },
-        },
-        symbol: { package: notes, symbol: { module: "src/notification.ts", name: "mention" } },
-        source: { file: "src/notification.ts", line: 0, column: 0 },
+        package: packageId,
+        name: "mention",
         description: describeNotification(mention),
-    };
-    const bytes = new TextEncoder().encode(JSON.stringify([declaration]));
-    const file = await PackageFile.describe(
-        "manifest/notification.json",
-        "application/json",
-        bytes,
-    );
-    const reader = (descriptions: PackageManifest["descriptions"]) =>
-        // only the descriptions matter to reading notifications
-        new BuildReader({ descriptions } as PackageManifest, async () => bytes);
+    });
+    const module = await graph.Module.file({
+        path: "src/notification.ts",
+        digest: "0".repeat(64),
+        imports: [],
+        exports: [],
+        symbols: [],
+        declarations: [declaration(notification.package.id), declaration(notes.id)],
+        edges: [],
+    });
 
-    // read the described mention, and nothing where no collection names this package
-    expect([
-        await readNotifications(reader({ notification: { package: notification.package, file } })),
-        await readNotifications(reader({ notes: { package: notes, file } })),
-    ]).toEqual([[describeNotification(mention)], []]);
+    // keep the module's graph file under the root, and the manifest's other files empty
+    const files = new Map([[`graph/${module.digest}.json`, module.bytes]]);
+    const root = new TextEncoder().encode(
+        JSON.stringify({ modules: { "src/notification.ts": module.digest } }),
+    );
+    files.set("manifest/graph.json", root);
+    const empty = await PackageFile.describe(
+        "manifest/empty.json",
+        "application/json",
+        new Uint8Array(),
+    );
+    const reader = new BuildReader(
+        {
+            formatVersion: 1,
+            package: notes,
+            language: "typescript",
+            lists: {
+                dependencies: empty,
+                files: empty,
+                sourceMaps: empty,
+                graph: await PackageFile.describe("manifest/graph.json", "application/json", root),
+            },
+            outputs: {},
+        },
+        async (path) => found(files, path),
+    );
+
+    // read the described mention once, leaving the notes package's kind out
+    expect(await readNotifications(reader)).toEqual([describeNotification(mention)]);
 });
+
+/** Declare a review notification under a name with one action, deferred until called. */
+function declare(name: string, action: string, title: string) {
+    return () =>
+        defineNotification(
+            {
+                name,
+                title: "Reviews",
+                description: "A review waits for you.",
+                payload: schema.object({}),
+                interruption: "active",
+                preference: { channels: [], delivery: "immediate" },
+                content: () => ({ title: "Review", body: "" }),
+                summary: (count) => t`${plural(count, { one: "# review", other: "# reviews" })}`,
+                actions: {
+                    [action]: {
+                        title,
+                        effect: async () => undefined,
+                    },
+                },
+            },
+            { package: notes },
+        );
+}
+
+/** Read the issues a refused declaration names, by code and path. */
+function issues(build: () => unknown) {
+    try {
+        build();
+    } catch (error) {
+        // read a schema refusal, and rethrow anything else
+        if (error instanceof schema.Error) {
+            return error.issues.map((issue) => [issue.code, issue.path]);
+        }
+        throw error;
+    }
+
+    return [];
+}

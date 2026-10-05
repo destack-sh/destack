@@ -1,5 +1,27 @@
 {
-    "extends": "../../tsconfig.json",
-    "compilerOptions": { "types": ["bun"], "lib": ["ESNext", "DOM", "DOM.Iterable"] },
-    "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "Preserve",
+        "moduleResolution": "Bundler",
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noUncheckedSideEffectImports": true,
+        "erasableSyntaxOnly": true,
+        "verbatimModuleSyntax": true,
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "types": ["bun"],
+        "jsx": "preserve",
+        "jsxImportSource": "@destack/view"
+    },
+    "include": ["src", "tests", "*.config.ts"]
 }

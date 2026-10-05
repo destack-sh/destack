@@ -1,41 +1,50 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { Subject } from "@destack/sync";
+import { aligned } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { notification, subscription } from "../src/index.ts";
-import { actors, serveSpace } from "./fixture/space.ts";
+import { document } from "./fixture/document.ts";
+import { actors, documentParent, serveSpace } from "./fixture/space.ts";
 
 test.for(TEST_DIALECTS)(
     "replace a keyed notification as unread and collapse a thread's burst into one with a count, on %s",
     async (dialect) => {
-        const { call, as, dispatch, inbox, wait, now, notifications, deliveries, host, homes } =
-            await serveSpace(dialect);
-        homes.emails.set(Subject.key(actors.alice), "alice@example.com");
-        const plan = await call("create", { title: "Launch plan" });
-        await call("grant", { id: plan.id, relation: "editor", subject: actors.bob });
-        await call("create", host(plan.id), subscription);
-        const box = inbox("alice");
+        const fixture = await serveSpace(dialect);
+        await fixture.reach("alice", { email: "alice@example.com" });
+        const plan = await fixture.call(document, "create", { title: "Launch plan" });
+        await fixture.call(document, "grant", {
+            id: plan.id,
+            relation: "editor",
+            subject: actors.bob,
+        });
+        await fixture.call(subscription, "create", documentParent(plan.id));
+        const box = fixture.inbox("alice");
 
         // publish as bob and replace the owner's notification by its key
-        as("bob");
-        await call("publish", { id: plan.id, state: "publishing" });
-        await dispatch();
-        const [status] = await notifications();
-        as("alice");
-        await call("read", { id: status!.id }, notification);
-        as("bob");
-        wait(1);
-        await call("publish", { id: plan.id, state: "published" });
+        fixture.as("bob");
+        await fixture.call(document, "publish", { id: plan.id, state: "publishing" });
+        await fixture.dispatch();
+        const status = aligned(await fixture.notifications(), 0);
+        fixture.as("alice");
+        await fixture.call(notification, "read", { id: status.id });
+        fixture.as("bob");
+        fixture.wait(1);
+        await fixture.call(document, "publish", { id: plan.id, state: "published" });
         await box.until((state) => state.unread === 1);
-        await dispatch();
-        const [replaced] = await notifications();
+        await fixture.dispatch();
+        const replaced = aligned(await fixture.notifications(), 0);
         expect([
-            replaced!.id === status!.id,
-            [replaced!.payload, replaced!.count, replaced!.readAt, replaced!.occurredAt === now()],
-            (await deliveries(replaced!.id)).map((row) => [
+            replaced.id === status.id,
+            [
+                aligned(await fixture.activities(), 0).payload,
+                replaced.count,
+                replaced.readAt,
+                replaced.occurredAt === fixture.now(),
+            ],
+            (await fixture.deliveries(replaced.id)).map((row) => [
                 row.channel,
                 row.state,
                 row.reason,
-                row.dueAt === now(),
+                row.dueAt === fixture.now(),
             ]),
         ]).toEqual([
             true,
@@ -44,16 +53,21 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // collapse three changes within the burst window into one notification, and start another after it
-        await call("edit", { id: plan.id, summary: "First" });
-        wait(5);
-        await call("edit", { id: plan.id, summary: "Second" });
-        wait(5);
-        await call("edit", { id: plan.id, summary: "Third" });
-        wait(6);
-        await call("edit", { id: plan.id, summary: "Fourth" });
+        await fixture.call(document, "edit", { id: plan.id, summary: "First" });
+        fixture.wait(5);
+        await fixture.call(document, "edit", { id: plan.id, summary: "Second" });
+        fixture.wait(5);
+        await fixture.call(document, "edit", { id: plan.id, summary: "Third" });
+        fixture.wait(6);
+        await fixture.call(document, "edit", { id: plan.id, summary: "Fourth" });
         await box.until((state) => state.unread === 3);
         expect(
-            (await notifications()).map((row) => [row.name, row.payload, row.count, row.reason]),
+            (await fixture.activities()).map((row) => [
+                row.name,
+                row.payload,
+                row.count,
+                row.reason,
+            ]),
         ).toEqual([
             ["status", { state: "published" }, 1, "author"],
             ["change", { summary: "Third" }, 3, "subscribed"],
