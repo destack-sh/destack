@@ -9,7 +9,10 @@ import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service";
 import { Authentication, AUTHENTICATION_HEADER } from "@destack/service/authentication";
 import { Scope } from "@destack/sync";
-import { BunRuntime } from "../src/runtime/bun.ts";
+import { BunRuntime } from "../src/bun/runtime.ts";
+import { LocalRuntime } from "../src/test/runtime.ts";
+import { defineService } from "@destack/service";
+import { defineWorkload } from "@destack/service/workload";
 import type { InstanceSpec } from "../src/runtime/index.ts";
 import { memoryBuild } from "../src/test/build.ts";
 import { testCallKey } from "@destack/service/test";
@@ -57,7 +60,7 @@ const server = Bun.serve({
 console.log(JSON.stringify({ port: server.port }));
 `;
 
-test("spec an instance as a Bun process: bind services at the egress with its secret, serve forwarded callers and webhooks without forged callers, identify it by its secret, report a crash, and stop it", async () => {
+test("spec an instance as a Bun process: bind service addresses at the egress with its secret and space, serve forwarded callers and webhooks without forged callers, identify it by its secret, report a crash, and stop it", async () => {
     // spec instances below a scratch directory
     const directory = await mkdtemp(join(tmpdir(), "destack-runtime-"));
     onTestFinished(() => rm(directory, { recursive: true }));
@@ -117,6 +120,7 @@ test("spec an instance as a Bun process: bind services at the egress with its se
         workload: "notes",
         capabilities: {},
         directories: [],
+        secrets: [],
         scope,
         resources: [
             {
@@ -247,6 +251,7 @@ test("spec an instance as a Bun process: bind services at the egress with its se
                     provider: "http",
                     reference: "http://127.0.0.1:7470/.destack/egress/notes",
                     credential: secret,
+                    scope,
                 },
             },
             egress: "http://127.0.0.1:7470/.destack/egress",
@@ -348,6 +353,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
             network: { connect: [allowed.url.host], reason: "reads the allowed host" },
         },
         directories: [],
+        secrets: [],
         resources: [],
     };
     const owner = principal.user.reference(Scope.universe.id, "user-owner");
@@ -397,4 +403,73 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
         { status: 200, text: "allowed" },
         { status: 403, text: null },
     ]);
+});
+
+test("start one in-process workload for two starts of an instance at once", async () => {
+    // run a workload that counts its starts and serves its package's one service
+    const service = defineService("notes", {});
+    const starts: string[] = [];
+    const runtime = new LocalRuntime({
+        egress: "http://127.0.0.1:7470/.destack/egress",
+        callKey: testCallKey,
+        report: (error) => {
+            throw error;
+        },
+        runner: () => ({
+            workload: defineWorkload(
+                {
+                    name: "main",
+                    start: async () => {
+                        starts.push("start");
+
+                        return { services: [{ service, router: {} }] };
+                    },
+                },
+                { package: service.package },
+            ),
+            resources: {},
+            history: () => ({ ingest: async () => ({ events: 0 }) }),
+            publisher: () => ({
+                stream: () => {
+                    throw new Error("the fixture publisher streams no copies");
+                },
+            }),
+            directory: () => ({
+                isHome: async () => false,
+                locale: async () => undefined,
+                address: async () => {},
+            }),
+            runs: () => ({
+                send: async () => {
+                    throw new Error("the fixture records no runs");
+                },
+            }),
+        }),
+    });
+    onTestFinished(() => runtime.close());
+
+    // start the instance twice at once
+    const instanceId = schema
+        .identifier("instance")
+        .parse("instance-01996ab0-0000-7000-8000-0000000000f2");
+    const spec: InstanceSpec = {
+        instanceId,
+        installationId: schema
+            .identifier("installation")
+            .parse("installation-01996ab0-0000-7000-8000-0000000000f1"),
+        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f4"),
+        deploymentId: schema
+            .identifier("deployment")
+            .parse("deployment-01996ab0-0000-7000-8000-0000000000f3"),
+        build: await memoryBuild(service.package, {}, new Map()),
+        output: "bun",
+        workload: "main",
+        capabilities: {},
+        directories: [],
+        resources: [],
+        secrets: [],
+    };
+    await Promise.all([runtime.start(spec), runtime.start(spec)]);
+
+    expect([starts, runtime.isRunning(instanceId)]).toEqual([["start"], true]);
 });

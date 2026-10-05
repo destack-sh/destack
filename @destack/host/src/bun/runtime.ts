@@ -1,19 +1,19 @@
 import { mkdir, realpath, writeFile } from "node:fs/promises";
-import { constants, tmpdir } from "node:os";
+import { constants } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
-import type { PackageOutput } from "@destack/package/manifest";
-import { Sandbox, type SandboxExit } from "@destack/sandbox";
+import { runtimeDirectory } from "@destack/fs";
+import { MANIFEST_PATH } from "@destack/package/manifest";
+import { Sandbox, type SandboxExit, type SandboxOptions } from "@destack/sandbox";
 import type { Identifier } from "@destack/schema";
-import { Egress, ServiceMount } from "@destack/service";
-import { ServiceKind } from "@destack/service/declare";
+import { ServiceMount } from "@destack/service";
 import { AUTHENTICATION_HEADER, type Authentication } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { CallKey } from "@destack/service/request";
 import { WEBHOOK_PATH, WorkloadReady, type WorkloadStart } from "@destack/service/workload";
-import type { InstanceSpec, Runtime } from "./runtime.ts";
-import { WorkloadSandbox } from "./sandbox.ts";
+import { InstanceSpec, InstanceStarts, type Runtime } from "../runtime/runtime.ts";
+import { type InstanceDirectories, WorkloadSandbox } from "./sandbox.ts";
 
 /** How long a runner may take to serve, in milliseconds: a Bun start and a workload's migrations under load. */
 const START_TIMEOUT_MILLISECONDS = 10_000;
@@ -23,16 +23,6 @@ const STOP_TIMEOUT_MILLISECONDS = 15_000;
 
 /** The bytes of the secret a host and a runner prove each other's requests with: 256 bits. */
 const SECRET_BYTES = 32;
-
-/** The folders an instance runs in: its files, and its installation's data and cache. */
-interface InstanceFolders {
-    /** The instance's directory with the output's files. */
-    readonly directory: string;
-    /** The installation's data folder. */
-    readonly data: string;
-    /** The installation's cache folder. */
-    readonly cache: string;
-}
 
 /** A runner process of one instance. */
 interface Child {
@@ -67,10 +57,10 @@ export class BunRuntime implements Runtime {
     readonly #callKey: CallKey;
     /** The running processes, by instance. */
     readonly #children = new Map<string, Child>();
-    /** The starts in progress, by instance. */
-    readonly #starting = new Map<string, Promise<void>>();
+    /** The starts in progress, which concurrent starts of one instance join. */
+    readonly #starts = new InstanceStarts();
     /** The running processes, by the secret they prove requests with. */
-    readonly #secrets = new Map<string, Child>();
+    readonly #secrets = new Map<string, InstanceSpec>();
 
     /** Run instances below a directory, calling addresses through the host's egress. */
     constructor(options: {
@@ -98,20 +88,12 @@ export class BunRuntime implements Runtime {
 
     /** Start an instance's runner and resolve when it serves, joining a start in progress and leaving a serving one as it is. */
     async start(spec: InstanceSpec, exited: (code: number) => Promise<void>): Promise<void> {
-        // join a start in progress, and leave a serving runner as it is
-        const instanceId = spec.instanceId;
-        const pending = this.#starting.get(instanceId);
-        if (pending !== undefined) {
-            return pending;
-        } else if (this.#children.has(instanceId)) {
-            return;
-        }
-
-        // spawn the runner once, forgetting the start when it settles
-        const spawning = this.#spawn(spec, exited).finally(() => this.#starting.delete(instanceId));
-        this.#starting.set(instanceId, spawning);
-
-        return spawning;
+        // spawn the runner unless it serves, joining a start in progress
+        return this.#starts.join(spec.instanceId, async () => {
+            if (!this.#children.has(spec.instanceId)) {
+                await this.#spawn(spec, exited);
+            }
+        });
     }
 
     /** Report whether an instance's runner serves now. */
@@ -121,13 +103,13 @@ export class BunRuntime implements Runtime {
 
     /** Find the spec of the instance whose runner has a secret. */
     identify(secret: string): InstanceSpec | undefined {
-        return this.#secrets.get(secret)?.spec;
+        return this.#secrets.get(secret);
     }
 
     /** Stop an instance after any start in progress, draining its runner before killing it. */
     async stop(instanceId: Identifier<"instance">): Promise<void> {
         // wait for a start in progress, whose caller sees its failure
-        await Promise.allSettled([this.#starting.get(instanceId)]);
+        await this.#starts.settle(instanceId);
 
         // forget the child, so its exit reads as asked for
         const child = this.#children.get(instanceId);
@@ -198,33 +180,33 @@ export class BunRuntime implements Runtime {
         return fetch(new Request(target, new Request(request, { headers, redirect: "manual" })));
     }
 
-    /** Extract an instance's server output, start its runner, and wait until it serves. */
+    /** Extract an instance's build, start its runner, and wait until it serves. */
     async #spawn(spec: InstanceSpec, exited: (code: number) => Promise<void>): Promise<void> {
-        // confine the runner to its files, its installation's folders, its resources and the egress
-        const { output, runner } = BunRuntime.#entry(spec);
-        const folders = await this.#folders(spec);
+        // confine the runner to its build, its installation's directories, its resources and the egress
+        const runner = BunRuntime.#entry(spec);
+        const directories = await this.#directories(spec);
         const options = WorkloadSandbox.options(spec, {
             executable: process.execPath,
-            ...folders,
+            directories,
             runner,
-            runtime: await realpath(process.env["XDG_RUNTIME_DIR"] ?? tmpdir()),
+            runtime: await realpath(await runtimeDirectory()),
             egress: this.#egress,
             environment: process.env,
             which: (command) => Bun.which(command) ?? undefined,
         });
 
-        // write the output's files, then start the runner with its input and wait until it serves
-        await BunRuntime.#extract(spec, output.directory, folders);
+        // write the build's files, then start the runner with its input, identifying the calls it sends while it starts
+        await BunRuntime.#extract(spec, directories);
         const start = await this.#start(spec);
-        const sandbox = await Sandbox.start(options);
-        void this.#capture(spec, sandbox.stderr);
-        sandbox.stdin.write(`${JSON.stringify(start)}\n`);
-        const port = await BunRuntime.#serving(sandbox);
+        this.#secrets.set(start.secret, spec);
+        const { sandbox, port } = await this.#run(options, start, spec).catch((error: unknown) => {
+            this.#secrets.delete(start.secret);
+            throw error;
+        });
 
         // report an exit nobody asked for, and a sandbox failing as an exit
         const child: Child = { spec, exited, sandbox, port, secret: start.secret };
         this.#children.set(spec.instanceId, child);
-        this.#secrets.set(child.secret, child);
         void sandbox.exited.then(
             (exit) => this.#exited(child, BunRuntime.#code(exit)),
             (error: unknown) => {
@@ -235,11 +217,22 @@ export class BunRuntime implements Runtime {
         );
     }
 
-    /** Find the output and the runner file of an instance's workload, refusing an output without its entry. */
-    static #entry(spec: InstanceSpec): {
-        readonly output: PackageOutput;
-        readonly runner: string;
-    } {
+    /** Start a runner's sandbox with its input and wait until it serves on its port. */
+    async #run(
+        options: SandboxOptions,
+        start: WorkloadStart,
+        spec: InstanceSpec,
+    ): Promise<{ readonly sandbox: Sandbox; readonly port: number }> {
+        // start the sandbox, write the start to its input and record what it reports
+        const sandbox = await Sandbox.start(options);
+        void this.#capture(spec, sandbox.stderr);
+        sandbox.stdin.write(`${JSON.stringify(start)}\n`);
+
+        return { sandbox, port: await BunRuntime.#serving(sandbox) };
+    }
+
+    /** Find the runner file of an instance's workload, refusing an output without its entry. */
+    static #entry(spec: InstanceSpec): string {
         // find the workload's entry among the output's exports
         const output = spec.build.manifest.outputs[spec.output];
         const entrypoint = output?.workloads[spec.workload]?.entrypoint;
@@ -250,57 +243,46 @@ export class BunRuntime implements Runtime {
             });
         }
 
-        return { output, runner };
+        return runner;
     }
 
-    /** Place an instance's directory and its installation's data and cache folders below the runtime's directory. */
-    async #folders(spec: InstanceSpec): Promise<InstanceFolders> {
+    /** Place an instance's build directory and its installation's data and cache directories below the runtime's directory. */
+    async #directories(spec: InstanceSpec): Promise<InstanceDirectories> {
         await mkdir(this.#directory, { recursive: true });
         const root = await realpath(this.#directory);
 
         return {
-            directory: join(root, spec.instanceId),
+            build: join(root, spec.instanceId),
             data: join(root, spec.installationId, "data"),
             cache: join(root, spec.installationId, "cache"),
         };
     }
 
-    /** Create an instance's folders and write the files of a build's output directory below its directory. */
-    static async #extract(
-        spec: InstanceSpec,
-        output: string,
-        folders: InstanceFolders,
-    ): Promise<void> {
-        // create each folder
-        for (const folder of [folders.directory, folders.data, folders.cache]) {
-            await mkdir(folder, { recursive: true });
+    /** Create an instance's directories and write its build into the build directory: the manifest at the root and every distributed file. */
+    static async #extract(spec: InstanceSpec, directories: InstanceDirectories): Promise<void> {
+        // create each directory
+        for (const directory of [directories.build, directories.data, directories.cache]) {
+            await mkdir(directory, { recursive: true });
         }
 
-        // write the output's files
+        // write the manifest, then each distributed file at its path
+        const manifest = JSON.stringify(spec.build.manifest);
+        await writeFile(join(directories.build, MANIFEST_PATH), manifest);
         for (const file of await spec.build.distributed()) {
-            if (file.path.startsWith(`${output}/`)) {
-                const path = join(folders.directory, file.path);
-                await mkdir(dirname(path), { recursive: true });
-                await writeFile(path, await spec.build.load(file.path));
-            }
+            const path = join(directories.build, file.path);
+            await mkdir(dirname(path), { recursive: true });
+            await writeFile(path, await spec.build.load(file.path));
         }
     }
 
-    /** Describe a runner's start: its instance, its resources by name, the egress with a fresh secret, its sampling and its journal key. */
+    /** Describe a runner's start with a fresh secret. */
     async #start(spec: InstanceSpec): Promise<WorkloadStart> {
-        const secret = crypto.getRandomValues(new Uint8Array(SECRET_BYTES)).toHex();
-
-        return {
-            instance: spec.instanceId,
-            scope: spec.scope,
-            installation: spec.installationId,
-            ...(spec.manifest === undefined ? {} : { manifest: spec.manifest }),
-            bindings: BunRuntime.#bindings(spec, this.#egress, secret),
-            secret,
+        return InstanceSpec.start(spec, {
             egress: this.#egress,
+            secret: crypto.getRandomValues(new Uint8Array(SECRET_BYTES)).toHex(),
             sampling: await this.#sampling(spec.scope, spec.installationId),
-            callKey: (await CallKey.derive(await this.#callKey(), spec.installationId)).toHex(),
-        };
+            callKey: this.#callKey,
+        });
     }
 
     /** Wait for a started runner's port, killing a runner that exits or stays silent. */
@@ -352,37 +334,6 @@ export class BunRuntime implements Runtime {
         if (rest !== "") {
             this.#output(spec, rest);
         }
-    }
-
-    /** Bind the running package's resources by their declared names, services at the egress with the secret, and refuse unprovisioned or foreign ones. */
-    static #bindings(
-        spec: InstanceSpec,
-        egress: string,
-        secret: string,
-    ): WorkloadStart["bindings"] {
-        // bind each resource of the running package under its declared name
-        const packageId = spec.build.manifest.package.id;
-        const bindings: WorkloadStart["bindings"] = {};
-        for (const bound of spec.resources) {
-            // refuse a resource of another package or one not provisioned
-            if (bound.packageId !== packageId || bound.reference === null) {
-                throw new ServiceError("PRECONDITION_FAILED", {
-                    message: `resource ${bound.id} binds no provisioned resource of ${packageId}`,
-                });
-            }
-
-            // bind a service at the host's egress with the secret, and any other resource at its reference
-            const isService = bound.kind === ServiceKind.name;
-            bindings[bound.name] = {
-                resource: bound.id,
-                kind: bound.kind,
-                provider: bound.provider,
-                reference: isService ? Egress.url(egress, bound.reference) : bound.reference,
-                ...(isService ? { credential: secret } : {}),
-            };
-        }
-
-        return bindings;
     }
 
     /** Read a runner's first output line after it serves, discarding what it writes after. */
