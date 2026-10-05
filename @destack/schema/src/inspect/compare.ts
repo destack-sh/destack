@@ -146,6 +146,10 @@ class Inclusion {
         else if (Array.isArray(inner.type) && inner.type.length > 1) {
             return inner.type.every((type) => this.includes(outer, { ...inner, type }));
         }
+        // narrow through any part of an inner conjunction, such as an inner alternative nested in another
+        else if (inner.allOf !== undefined && this.#includesPart(outer, inner)) {
+            return true;
+        }
         // find one outer alternative including every inner value
         else if (outerBranches !== undefined) {
             const { anyOf, oneOf, ...rest } = outer;
@@ -155,14 +159,19 @@ class Inclusion {
                 outerBranches.some((branch) => this.includes(branch, inner))
             );
         }
-        // narrow through any part of an inner conjunction
+        // refuse an inner conjunction no part of which the outer includes
         else if (inner.allOf !== undefined) {
-            const { allOf, ...rest } = inner;
-
-            return [rest, ...allOf].some((part) => this.includes(outer, part));
+            return false;
         }
 
         return this.#includesTyped(outer, inner);
+    }
+
+    /** Report whether outer keywords accept every value of some part of an inner conjunction. */
+    #includesPart(outer: JsonSchema, inner: JsonSchema): boolean {
+        const { allOf = [], ...rest } = inner;
+
+        return [rest, ...allOf].some((part) => this.includes(outer, part));
     }
 
     /** Report whether single-alternative outer keywords accept every value of each inner type. */

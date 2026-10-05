@@ -57,6 +57,22 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
         "wider",
     ],
     ["drop null", schema.string().nullable(), schema.string(), "narrower"],
+    [
+        "keep a nullable discriminated union",
+        schema
+            .discriminatedUnion("kind", [
+                schema.object({ kind: schema.literal("a") }).strict(),
+                schema.object({ kind: schema.literal("b"), size: schema.number() }).strict(),
+            ])
+            .nullable(),
+        schema
+            .discriminatedUnion("kind", [
+                schema.object({ kind: schema.literal("a") }).strict(),
+                schema.object({ kind: schema.literal("b"), size: schema.number() }).strict(),
+            ])
+            .nullable(),
+        "same",
+    ],
 
     // objects
     [
