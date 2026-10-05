@@ -1,31 +1,39 @@
-import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
+import { modulePlugin } from "@destack/package/bun";
 import { expect, onTestFinished, test } from "@destack/test";
 
-test("migrate, write and read a Durable Object's SQLite storage, rolling back only a failed nested transaction", async () => {
-    // bundle the scenario and run it in the Workers runtime with one Durable Object
-    const compiled = await build({
-        entryPoints: [fileURLToPath(new URL("./test/scenario.ts", import.meta.url))],
-        bundle: true,
-        write: false,
+/** Run the scenario in the Workers runtime with one Durable Object, disposed after the test. */
+async function start(): Promise<Miniflare> {
+    // bundle the scenario with its declarations' module metadata
+    const compiled = await Bun.build({
+        entrypoints: [fileURLToPath(new URL("./test/scenario.ts", import.meta.url))],
         format: "esm",
-        platform: "browser",
+        target: "browser",
         conditions: ["workerd", "worker", "browser"],
         external: ["node:*", "cloudflare:*"],
+        plugins: [modulePlugin],
     });
-    const [output] = compiled.outputFiles;
+    const [output] = compiled.outputs;
     if (output === undefined) {
         throw new Error("the scenario bundled into no file");
     }
+
+    // run it with one Durable Object
     const worker = new Miniflare({
         modules: true,
-        script: output.text,
+        script: await output.text(),
         compatibilityDate: "2026-07-30",
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: { NOTES: { className: "Notes", useSQLite: true } },
     });
     onTestFinished(() => worker.dispose());
+
+    return worker;
+}
+
+test("migrate, write and read a Durable Object's SQLite storage, rolling back only a failed nested transaction", async () => {
+    const worker = await start();
 
     // keep the written and the outer rows, without the inner one
     const response = await worker.dispatchFetch("https://notes.test/");
@@ -36,4 +44,45 @@ test("migrate, write and read a Durable Object's SQLite storage, rolling back on
             { id: "b", title: "Outer" },
         ],
     ]);
+});
+
+test("keep two databases of one declaration in a Durable Object's storage, each namespace with its own rows, log and plan", async () => {
+    const worker = await start();
+
+    // read each namespace's own row, its own logged insert in its own scope, and a plan dropping only its own table
+    const response = await worker.dispatchFetch("https://notes.test/namespaces");
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        [1, 2].map((index) => ({
+            rows: [{ id: "a", title: `Entry ${index}` }],
+            changes: [["insert", `space-${index}`, { id: "a", title: `Entry ${index}` }]],
+            steps: [`table/${index === 1 ? "first" : "second"}.destack__durable_scenario__entry`],
+        })),
+    ]);
+});
+
+test("provision, plan, apply and destroy a workload's database in a Durable Object, opening it through the workload's connector", async () => {
+    const worker = await start();
+
+    // name the database in its object, create its table, keep the written row and drop every relation
+    const response = await worker.dispatchFetch("https://notes.test/host");
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        {
+            reference: "durable-object:database-01996ab0-0000-7000-8000-00000000d002",
+            steps: [
+                "table/database-01996ab0-0000-7000-8000-00000000d002.destack__durable_scenario__entry",
+            ],
+            rows: [{ id: "a", title: "Kept" }],
+            remaining: [{ count: 0 }],
+        },
+    ]);
+});
+
+test("write and read rows in statements binding more values than a Durable Object's storage takes at once", async () => {
+    const worker = await start();
+
+    // keep 80 rows written in one statement of 160 values and read in one of 80, quotes and markers in their text intact
+    const response = await worker.dispatchFetch("https://notes.test/parameters");
+    expect([response.status, await response.json()]).toEqual([200, { isEqual: true }]);
 });

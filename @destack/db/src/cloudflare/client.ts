@@ -23,6 +23,12 @@ export interface DurableObjectStorage {
     transaction<Value>(closure: () => Promise<Value>): Promise<Value>;
 }
 
+/** The most parameters a Durable Object's SQLite storage binds to one statement, as Cloudflare limits it. */
+const MAX_PARAMETERS = 100;
+
+/** The work queue of each object's storage, shared by the databases it keeps since its one SQLite connection runs one transaction at a time. */
+const QUEUES = new WeakMap<DurableObjectStorage, WorkQueue>();
+
 /** Statements over a Durable Object's SQLite storage. */
 export class DurableObjectQuery implements QueryClient {
     /** The storage. */
@@ -38,18 +44,18 @@ export class DurableObjectQuery implements QueryClient {
 
     /** Read every row as an array of values, integers as the storage returns them. */
     values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
-        return this.#schedule(async () => [...this.storage.sql.exec(sql, ...parameters).raw()]);
+        return this.#schedule(async () => [...this.#exec(sql, parameters).raw()]);
     }
 
     /** Read every row by column name. */
     all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]> {
-        return this.#schedule(async () => this.storage.sql.exec(sql, ...parameters).toArray());
+        return this.#schedule(async () => this.#exec(sql, parameters).toArray());
     }
 
     /** Run a statement for its effect. */
     async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
         await this.#schedule(async () => {
-            this.storage.sql.exec(sql, ...parameters).toArray();
+            this.#exec(sql, parameters).toArray();
         });
     }
 
@@ -70,20 +76,29 @@ export class DurableObjectQuery implements QueryClient {
         return this.storage.transaction(() => operation(this));
     }
 
+    /** Execute a statement, writing its values into its text when it binds more than the storage takes. */
+    #exec(sql: string, parameters: readonly DriverValue[]): DurableObjectCursor {
+        return parameters.length <= MAX_PARAMETERS
+            ? this.storage.sql.exec(sql, ...parameters)
+            : this.storage.sql.exec(inlined(sql, parameters));
+    }
+
     /** Run work behind the queue, or at once within a transaction. */
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
         return this.queue === undefined ? work() : this.queue.run(work);
     }
 }
 
-/** A connection client over a Durable Object's SQLite storage, one transaction at a time. */
+/** A connection client over a Durable Object's SQLite storage, one transaction at a time across the databases it keeps. */
 export class DurableObjectClient extends DurableObjectQuery implements ConnectionClient {
-    /** The work queue. */
+    /** The storage's work queue. */
     readonly #queue: WorkQueue;
 
-    /** Create the client. */
+    /** Create the client, queueing behind the other clients of the storage. */
     constructor(storage: DurableObjectStorage) {
-        const queue = new WorkQueue();
+        // share the storage's queue with its other clients
+        const queue = QUEUES.get(storage) ?? new WorkQueue();
+        QUEUES.set(storage, queue);
         super(storage, queue);
         this.#queue = queue;
     }
@@ -102,4 +117,53 @@ export class DurableObjectClient extends DurableObjectQuery implements Connectio
 
         return { deferred: begin, immediate: begin, exclusive: begin };
     }
+}
+
+/** Write a statement's values into its text in place of its numbered parameter markers, skipping quoted text and names. */
+function inlined(sql: string, parameters: readonly DriverValue[]): string {
+    // copy the text, replacing each numbered marker outside quotes with its value
+    let text = "";
+    let quote: string | undefined;
+    for (let index = 0; index < sql.length; index += 1) {
+        const character = sql.charAt(index);
+        const number = /^\?(\d+)/u.exec(sql.slice(index, index + 8))?.[1];
+
+        // track the quoted text and names the markers stay out of
+        if (quote !== undefined) {
+            quote = character === quote ? undefined : quote;
+            text += character;
+        } else if (character === "'" || character === '"') {
+            quote = character;
+            text += character;
+        }
+        // write the value a marker numbers
+        else if (number !== undefined) {
+            text += literalOf(parameters[Number(number) - 1]);
+            index += number.length;
+        } else {
+            text += character;
+        }
+    }
+
+    return text;
+}
+
+/** Write a driver value as a SQLite literal. */
+function literalOf(value: DriverValue | undefined): string {
+    // write scalars
+    if (value === null) {
+        return "NULL";
+    } else if (typeof value === "string") {
+        return `'${value.replaceAll("'", "''")}'`;
+    } else if (typeof value === "number" || typeof value === "bigint") {
+        return value.toString();
+    } else if (typeof value === "boolean") {
+        return value ? "1" : "0";
+    }
+    // write bytes as a blob
+    else if (value instanceof Uint8Array) {
+        return `X'${value.toHex()}'`;
+    }
+
+    throw new TypeError("a statement numbers a marker it binds no value for");
 }

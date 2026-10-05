@@ -200,6 +200,17 @@ const space = connect(storage, spaceDatabase, { namespace: "space" });
 const vault = connect(storage, vaultDatabase, { namespace: "vault" });
 ```
 
+## Durable Objects
+
+`DurableObjectDatabaseHost` keeps a host's databases in one Durable Object's storage, which `durableObjectConnector` opens inside a workload.
+
+```ts
+import { DurableObjectDatabaseHost, durableObjectConnector } from "@destack/db/cloudflare";
+
+const host = new DurableObjectDatabaseHost(state.storage);
+const connector = durableObjectConnector(state.storage);
+```
+
 ## Sole writers
 
 A pool that writes its database alone connects as the `sole` writer without `LISTEN`.

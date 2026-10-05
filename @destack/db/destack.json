@@ -11,7 +11,7 @@
             "runtimes": ["bun"]
         },
         "./cloudflare": {
-            "runtimes": ["workerd"]
+            "runtimes": ["bun", "workerd"]
         },
         "./test": {
             "runtimes": ["bun"]
