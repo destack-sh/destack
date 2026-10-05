@@ -1,5 +1,7 @@
 import { DatabaseError } from "../error/error.ts";
-import type { Comparable, JsonCondition } from "./condition.ts";
+import { type Comparable, Condition, type JsonCondition } from "./condition.ts";
+import { Predicate } from "./predicate.ts";
+import type { Row } from "../table/row.ts";
 
 /** The comparison operators of a restriction, longest first so `<=` reads before `<`. */
 const COMPARATORS = ["<=", ">=", "!=", "=", "<", ">", ":"] as const;
@@ -28,6 +30,8 @@ export interface FilterOptions {
     readonly values?: Readonly<Record<string, Comparable>>;
     /** Convert a field's literal, such as a date for a time field, keeping it when absent. */
     readonly convert?: (path: readonly string[], literal: Comparable) => Comparable;
+    /** Whether a dotted name walks relations, true by default, or names one field such as an attribute key. */
+    readonly isRelational?: boolean;
 }
 
 /** Filters in AIP-160's syntax with SQL's precedence, read into conditions. */
@@ -40,6 +44,18 @@ export const Filter = {
      */
     parse(filter: string, options: FilterOptions = {}): JsonCondition {
         return new FilterReader(tokenize(filter), filter, options).read();
+    },
+
+    /** Read a filter over plain rows, such as attribute maps, into a match deciding as SQL decides. */
+    compile(
+        filter: string,
+        options: Omit<FilterOptions, "isRelational"> = {},
+    ): (row: Row) => boolean {
+        // name every restriction's whole name as a field
+        const condition = Filter.parse(filter, { ...options, isRelational: false });
+        const match = Predicate.compile(Condition.resolve(condition, namesOf(condition)));
+
+        return (row) => Predicate.matches(match, row);
     },
 };
 
@@ -137,7 +153,7 @@ class FilterReader {
         if (field?.kind !== "word" || KEYWORDS.has(field.text) || field.text.startsWith("@")) {
             throw this.#refuse("expected a field", field?.start ?? this.#filter.length);
         }
-        const path = field.text.split(".");
+        const path = this.#options.isRelational === false ? [field.text] : field.text.split(".");
         const [name] = path;
         if (
             name === undefined ||
@@ -335,6 +351,29 @@ function nest(path: readonly string[], entry: Comparable | JsonCondition): JsonC
     }
 
     return { [name]: rest.length === 0 ? entry : nest(rest, entry) };
+}
+
+/** Collect the field names a condition compares, inside its combinations. */
+function namesOf(condition: JsonCondition): Set<string> {
+    const names = new Set<string>();
+    for (const [name, entry] of Object.entries(condition)) {
+        // descend into combinations and keep the other names
+        if (name === "AND" || name === "OR" || name === "NOT") {
+            const combined = Array.isArray(entry) ? entry : [entry];
+            for (const each of combined.filter(isCondition)) {
+                namesOf(each).forEach((found) => names.add(found));
+            }
+        } else {
+            names.add(name);
+        }
+    }
+
+    return names;
+}
+
+/** Report whether a condition's entry is itself a condition, as combinations hold. */
+function isCondition(entry: unknown): entry is JsonCondition {
+    return typeof entry === "object" && entry !== null && !Array.isArray(entry);
 }
 
 /** Read the comparator starting at an offset, absent for none. */

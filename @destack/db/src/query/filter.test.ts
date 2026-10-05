@@ -69,6 +69,29 @@ test("escape pattern characters and convert literals for their fields", () => {
     ]);
 });
 
+test("nest dotted names under relations, or name one field when a filter reads attribute keys", () => {
+    // walk the relation, or keep the dotted key whole
+    expect([
+        Filter.parse("project.status = open"),
+        Filter.parse("session.status = crashed", { isRelational: false }),
+    ]).toEqual([{ project: { status: "open" } }, { "session.status": "crashed" }]);
+});
+
+test("decide a filter over plain rows as SQL decides it, dotted keys named whole", () => {
+    // match crashed sessions of one release, and anything but them
+    const crashed = Filter.compile('session.status = crashed AND release = "2026.10.1"');
+    const healthy = Filter.compile("NOT session.status = crashed");
+    const rows = [
+        { "session.status": "crashed", release: "2026.10.1" },
+        { "session.status": "crashed", release: "2026.10.0" },
+        { "session.status": "ok", release: "2026.10.1" },
+    ];
+    expect([rows.map(crashed), rows.map(healthy)]).toEqual([
+        [true, false, false],
+        [false, false, true],
+    ]);
+});
+
 test("produce conditions the condition schema accepts", () => {
     // validate a combined filter's condition
     const condition = Filter.parse('status = open AND (title:"q4 plan" OR -priority < 2)');

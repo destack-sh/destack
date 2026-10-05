@@ -22,7 +22,7 @@ const [removed] = await database.delete(note).where(eq(note.id, id)).returning()
 
 ## Differences from Drizzle
 
-`alias`, `Select`, `Insert`, `Key`, `.primaryKey()` and `execute` with a schema differ from Drizzle, and every other query builder, operator and `sql` function matches it.
+`alias`, `Select`, `Insert`, `Key`, `.primaryKey()` and `execute` differ from Drizzle.
 
 ```ts
 // alias a table, and name the alias with from(table) where a query reads it
@@ -45,7 +45,7 @@ const rows = await database.execute(
 
 ## Typed rows
 
-Each column parses the values it reads with its schema, so a row written outside Destack reads as typed values or throws.
+Each column parses the values it reads with its schema.
 
 ```ts
 const [row] = await database.execute(
@@ -56,7 +56,7 @@ const [row] = await database.execute(
 
 ## Relations
 
-`defineRelations` declares each table's relations as in Drizzle's relational queries v2, and `database.query` reads rows with them.
+`defineRelations` declares each table's relations as in Drizzle's relational queries v2.
 
 ```ts
 export const relations = defineRelations({ project, task, tag, taskTag }, (r) => ({
@@ -87,7 +87,7 @@ const first = await database.query.task.findFirst({ where: { title: "Plan" } });
 
 ## Relation reads
 
-`with` includes a relation's rows, and a condition on a relation tests for a related row.
+`with` includes the rows of a relation.
 
 ```ts
 // relate a tree table to its descendants and ancestors through its index, without declaring them
@@ -108,7 +108,7 @@ await database.query.task.findMany({
 
 ## Namespaces
 
-`relations.namespace` resolves relation names in conditions and extras, so `Condition.render` renders them for a plain `select`.
+`relations.namespace` resolves relation names in conditions and extras.
 
 ```ts
 const namespace = relations.namespace(task, {
@@ -122,7 +122,7 @@ await database
 
 ## Tables
 
-`defineTable` declares a table's columns, constraints, log retention and the row conversions of its releases, and the columns marked `.primaryKey()` form its key in declaration order.
+`defineTable` declares a table's columns, constraints, log retention and release conversions.
 
 ```ts
 export const note = defineTable(
@@ -146,7 +146,7 @@ export const note = defineTable(
 
 ## Text order
 
-Text compares by its UTF-8 bytes on every dialect, so PostgreSQL text columns use the `C` collation and a column created under another collation changes to it in one safe step.
+Text compares by its UTF-8 bytes on every dialect.
 
 ```sql
 ALTER TABLE "note" ALTER COLUMN "title" TYPE text COLLATE "C"
@@ -154,7 +154,7 @@ ALTER TABLE "note" ALTER COLUMN "title" TYPE text COLLATE "C"
 
 ## Databases
 
-`defineDatabase` declares the tables a service owns and the tables it copies from their owning service, and `copies` tells them apart.
+`defineDatabase` declares the tables a service owns and the tables it copies.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [note], copies: [accountTable] });
@@ -166,7 +166,7 @@ const isCopied = database.copies(accountTable);
 
 ## Providers
 
-`databaseProvider` manages a host's databases, `SqliteDatabaseHost` keeps them as SQLite files, and a workload opens one through the `sqlite` connector of its declaration.
+`databaseProvider` manages a host's databases.
 
 ```ts
 import { databaseProvider } from "@destack/db";
@@ -193,7 +193,7 @@ const storage = connectStorage(state.storage, main);
 
 ## Sole writers
 
-A pool that writes its database alone connects as the `sole` writer without `LISTEN`, and `postgresConnector` opens a migrated database that way by URL.
+A pool that writes its database alone connects as the `sole` writer without `LISTEN`.
 
 ```ts
 import { connect, postgresConnector } from "@destack/db/postgres";
@@ -207,7 +207,7 @@ await using placed = await postgresConnector.connect(
 
 ## Writes
 
-`transaction` runs queries in a transaction, `upsert` writes rows as they are, `remove` deletes rows by key, and `rehearse` runs a transaction and rolls it back.
+`transaction` runs queries in a transaction, and `rehearse` runs one and rolls it back.
 
 ```ts
 const database = await connect("notes.db", main);
@@ -233,7 +233,7 @@ await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
 
 ## Conditions
 
-A `Condition` is plain JSON in the shape of Drizzle's relational filters, typed by its row, and `Condition.render` turns it into SQL.
+A `Condition` is plain JSON in the shape of Drizzle's relational filters.
 
 ```ts
 const where: Condition<Select<typeof note>> = {
@@ -246,7 +246,7 @@ await database.select().from(note).where(Condition.render(where, note));
 
 ## Filters
 
-`Filter.parse` reads a filter in AIP-160's syntax with SQL's precedence into a condition: `AND` and adjacency bind tighter than `OR`, `NOT` or `-` negates, `:` contains ignoring case, `*` matches any run in an equality, and `@name` reads a named value.
+`Filter.parse` reads an AIP-160 filter into a condition.
 
 ```ts
 Filter.parse('status = open AND (due < @friday OR priority = high) -title:"draft"', {
@@ -258,7 +258,7 @@ Filter.parse('status = open AND (due < @friday OR priority = high) -title:"draft
 
 ## Patterns
 
-`like` and `ilike` match `%` against any run of characters and `_` against one character, `\` escapes the next character, and `ilike` ignores ASCII case only, on every dialect and in memory.
+`like` and `ilike` match the same way on every dialect and in memory.
 
 ```ts
 const discounts: Condition<Select<typeof note>> = { title: { like: "100\\%" } };
@@ -267,7 +267,7 @@ const quarters: Condition<Select<typeof note>> = { title: { ilike: "q_ report" }
 
 ## Predicates
 
-`Condition.resolve` turns a condition into a `Predicate` against a `Namespace` of fields and relations, and `Predicate.matches` tests a row against it in memory.
+`Condition.resolve` turns a condition into a `Predicate` that tests rows in memory.
 
 ```ts
 const predicate = Condition.resolve(where, Namespace.fields(note));
@@ -276,7 +276,7 @@ Predicate.matches(Predicate.compile(predicate, note), row);
 
 ## Expressions
 
-An `Expression` computes a value from one row, `Expression.evaluate` runs it in memory, and `Expression.render` renders it as SQL.
+An `Expression` computes a value from one row, in memory or as SQL.
 
 ```ts
 const mode = Expression.scalar(
@@ -293,7 +293,7 @@ await database.select({ value: Expression.render(converted, setting) }).from(set
 
 ## Migrations
 
-`plan` lists the steps from the applied tables to the declared ones by paths below `table/<name>`, and `apply` runs them.
+`plan` lists the steps from the applied tables to the declared ones, and `apply` runs them.
 
 ```ts
 await database.migrate([note]);
@@ -315,7 +315,7 @@ rollback  applied 2026.10.0, declared 2026.9.0       -> nothing when 2026.9.0 st
 
 ## Log
 
-`database.log.follow` reads the committed changes of logged tables in commit order without sensitive columns, and `advance` and `drop` manage a named reader position.
+`database.log.follow` reads the committed changes of logged tables in commit order.
 
 ```ts
 const position = await database.log.position();
@@ -327,9 +327,18 @@ await database.log.advance("notes/published", consumed, Date.now() + maxLag);
 await database.log.drop("notes/published");
 ```
 
+## Log origins
+
+`log.asReplica` logs each change it writes under the origin it replicates.
+
+```ts
+await transaction.log.asReplica(() => write(transaction), sourceEpoch); // changes carry origin sourceEpoch
+const reached = await database.log.position(sourceEpoch); // what a follower of origin sourceEpoch still needs
+```
+
 ## Log scopes
 
-The log files a change under its row's scope column, or under the scope `log.create` gives the database for a table without one.
+The log files each change under its row's scope.
 
 ```ts
 await database.log.create(spaceId); // once, when a space's resource database is created
@@ -353,7 +362,7 @@ await snapshot.windows(comment, {
 
 ## Overlays
 
-`layer` puts an overlay on a snapshot that reads another layer's rows, such as a branch's, in place of the database's.
+`layer` reads another layer's rows, such as a branch's, over a snapshot.
 
 ```ts
 const branched = Snapshot.live(database).layer(async (table) => rowsByKey.get(table) ?? new Map());
@@ -361,7 +370,7 @@ const branched = Snapshot.live(database).layer(async (table) => rowsByKey.get(ta
 
 ## Channels
 
-`openChannel` gives a connection a `Channel` on which other writers announce commits, which wakes its log readers as PostgreSQL's `LISTEN` and `NOTIFY` do.
+`openChannel` wakes a connection's log readers when other writers commit.
 
 ```ts
 // share a SQLite file between processes on one machine, meeting in the person's runtime directory
@@ -394,7 +403,7 @@ await database.insert(attachment).values({ id, content: digest });
 
 ## Retired blobs
 
-A `BlobStore` deletes the blobs no row references, so a writer holds it while it writes blobs and retires the blobs of the rows it deletes.
+A `BlobStore` deletes the blobs that no row references.
 
 ```ts
 await using _held = await blobs.hold();
@@ -405,7 +414,7 @@ await blobs.retire([previous]);
 
 ## Aggregates
 
-`aggregates` keeps counts, sums, minimums and maximums of the referencing rows in a column of the referenced table.
+`aggregates` keeps counts, sums, minimums and maximums of referencing rows in the referenced table.
 
 ```ts
 aggregates: [
@@ -416,7 +425,7 @@ aggregates: [
 
 ## Dependents
 
-`dependents` cascades or restricts the deletion of a row to the rows that reference it under a condition.
+`dependents` cascades or restricts deletes to the rows that reference a row.
 
 ```ts
 dependents: [{ from: () => comment, key: "parentId", where: { parentType: "note" }, onDelete: "cascade" }],
@@ -434,7 +443,7 @@ export const folder = defineTable("folder", columns, {
 
 ## Shared databases
 
-`serveBrowserDatabase` serves a browser tab's SQLite database on a channel, and `connectShared` connects to it from another tab or worker.
+`serveBrowserDatabase` shares a tab's SQLite database with other tabs and workers.
 
 ```ts
 const channel = broadcastChannel("notes");
@@ -444,7 +453,7 @@ const database = connectShared(channel, party, main);
 
 ## Errors
 
-A database failure throws a `DatabaseError` with a stable code, and `toServiceError` names the service error its caller receives, such as `DUPLICATE` as `CONFLICT`.
+A database failure throws a `DatabaseError` with a stable code.
 
 ```ts
 import { DatabaseError } from "@destack/db";
@@ -454,7 +463,7 @@ new DatabaseError("DUPLICATE", "a record with the same unique key exists").toSer
 
 ## Tests
 
-`TestDatabase.create` opens an isolated database per dialect, and runs PostgreSQL when `DESTACK_TEST_POSTGRES` is set.
+`TestDatabase.create` opens an isolated database per dialect.
 
 ```ts
 test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
