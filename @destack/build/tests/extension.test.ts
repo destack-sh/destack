@@ -139,3 +139,47 @@ test("apply the extension of a transitive dependency once in a build of a packag
         await rm(root, { recursive: true });
     }
 });
+
+test("load a development dependency's own extension in development without walking its dependencies", async () => {
+    // write a tool requiring the leaf, declaring its own extension, which the application requires in development
+    const root = await writeApplication();
+    await writePackage(
+        join(root, "tool"),
+        {
+            name: "@fixture/tool",
+            exports: { ".": "./src/index.ts", "./build": "./src/build.ts" },
+            dependencies: { "@fixture/leaf": "2026.9.0" },
+        },
+        {
+            id: "package-01a10b00-0000-7000-8000-000000000005",
+            exports: { "./build": { runtimes: ["bun"] } },
+            build: "./build#toolExtension",
+        },
+        { "index.ts": "export {};\n", "build.ts": "export const toolExtension = {};\n" },
+    );
+    await link(root, "tool", "leaf");
+    await writePackage(
+        join(root, "site"),
+        {
+            name: "@fixture/site",
+            exports: { ".": "./src/index.ts" },
+            devDependencies: { "@fixture/tool": "2026.9.0" },
+        },
+        { id: "package-01a10b00-0000-7000-8000-000000000006" },
+        { "index.ts": "export {};\n" },
+    );
+    await link(root, "site", "tool");
+    const directory = join(root, "site");
+    try {
+        // load the site's extensions in development and in a release build
+        const declaration = await readPackageDescription(directory);
+        const development = await loadExtensions(directory, declaration, { development: true });
+        const release = await loadExtensions(directory, declaration);
+        expect([
+            development.map((entry) => entry.directory),
+            release.map((entry) => entry.directory),
+        ]).toEqual([[await realpath(join(root, "tool"))], []]);
+    } finally {
+        await rm(root, { recursive: true });
+    }
+});

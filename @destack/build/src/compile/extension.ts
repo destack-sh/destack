@@ -51,25 +51,18 @@ export interface LoadedExtension {
     readonly extension: BuildExtension;
 }
 
-/** Load each extension of the package's dependency closure once in name order, its development dependencies included in development. */
+/** Load each extension of the package's runtime dependency closure once in name order, and of its own development dependencies in development. */
 export async function loadExtensions(
     directory: string,
     declaration: PackageDescription,
     options: { readonly development?: boolean } = {},
 ): Promise<LoadedExtension[]> {
-    // walk the Destack packages the package requires, directly or through each other
+    // walk the Destack packages the package requires at runtime, directly or through each other
     const own = declaration.package.name;
     const locator = new PackageLocator();
     const packages = new Map<string, { directory: string; definition: PackageDefinition }>();
-    const requirements: Requirements =
-        options.development === true
-            ? {
-                  ...declaration,
-                  dependencies: { ...declaration.devDependencies, ...declaration.dependencies },
-              }
-            : declaration;
     const pending: { name: string; directory: string; requirements: Requirements }[] = [
-        { name: own, directory, requirements },
+        { name: own, directory, requirements: declaration },
     ];
     packages.set(own, { directory, definition: declaration.definition });
     for (let entry = pending.pop(); entry !== undefined; entry = pending.pop()) {
@@ -100,6 +93,18 @@ export async function loadExtensions(
             packages.set(name, { directory: installed, definition });
             const manifest = await readManifest(installed);
             pending.push({ name, directory: installed, requirements: manifest });
+        }
+    }
+
+    // add the package's own development dependencies in development, without walking through them
+    if (options.development === true) {
+        for (const name of Object.keys(declaration.devDependencies)) {
+            const installed = packages.has(name) ? undefined : locator.directory(name, directory);
+            const path = installed === undefined ? undefined : join(installed, "destack.json");
+            if (installed !== undefined && path !== undefined && existsSync(path)) {
+                const definition = PackageDefinition.read(await readFile(path, "utf8"));
+                packages.set(name, { directory: installed, definition });
+            }
         }
     }
 
