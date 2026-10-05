@@ -217,6 +217,9 @@ const styles = style.create({
     skeletonText: {
         flex: 1,
     },
+    skeletonWidth: (width: string) => ({
+        width,
+    }),
     skeletonLine: {
         width: "100%",
         height: space[4],
@@ -776,7 +779,7 @@ export function SidebarMenuSkeleton(
             <Show when={properties.showIcon === true}>
                 <Skeleton data-sidebar="menu-skeleton-icon" style={styles.skeletonIcon} />
             </Show>
-            <div style={{ width }} {...style.attrs(styles.skeletonText)}>
+            <div {...style.attrs(styles.skeletonText, styles.skeletonWidth(width))}>
                 <Skeleton data-sidebar="menu-skeleton-text" style={styles.skeletonLine} />
             </div>
         </div>

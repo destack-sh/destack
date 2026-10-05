@@ -2,12 +2,7 @@ import { expect, test } from "@destack/test";
 import type { JSX } from "@solidjs/web";
 import manifest from "../package.json" with { type: "json" };
 import { renderToString } from "@solidjs/web";
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarProvider,
-    SidebarTrigger,
-} from "../src/sidebar/index.ts";
+import { Sidebar, SidebarContent, SidebarProvider, SidebarTrigger } from "../src/sidebar/index.ts";
 import { Toaster } from "../src/toast/index.ts";
 
 /** The class attributes StyleX writes, whose names hash the styles. */
@@ -43,12 +38,10 @@ test("render every exported component's examples to strings without a browser", 
     // render the examples of each component the package exports
     const rendered: string[] = [];
     for (const name of Object.keys(manifest.exports).map((path) => path.slice(2))) {
-        const examples: Record<string, () => JSX.Element> = await import(
-            `../src/${name}/${name}.example.tsx`
-        );
-        for (const [example, render] of Object.entries(examples)) {
+        const examples: unknown = await import(`../src/${name}/${name}.example.tsx`);
+        for (const [example, render] of Object.entries(examples ?? {})) {
             // skip the module URL the server compile adds to component modules
-            if (!example.endsWith("Example")) {
+            if (!example.endsWith("Example") || !isExample(render)) {
                 continue;
             }
             expect(renderToString(render), example).not.toBe("");
@@ -59,3 +52,8 @@ test("render every exported component's examples to strings without a browser", 
     // each component shows at least one example
     expect(new Set(rendered).size).toBe(Object.keys(manifest.exports).length);
 });
+
+/** Report whether an export is an example component, which takes no properties. */
+function isExample(value: unknown): value is () => JSX.Element {
+    return typeof value === "function" && value.length === 0;
+}

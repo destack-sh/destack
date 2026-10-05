@@ -41,6 +41,9 @@ const styles = style.create({
     item: {
         outlineStyle: "none",
     },
+    indent: (level: number) => ({
+        paddingInlineStart: `calc(${level - 1} * ${space[4]})`,
+    }),
     row: {
         display: "flex",
         alignItems: "center",
@@ -356,9 +359,9 @@ function TreeItemRow(properties: {
     return (
         <div
             data-slot="tree-item-row"
-            style={{ "padding-inline-start": `calc(${properties.level - 1} * ${space[4]})` }}
             {...style.attrs(
                 styles.row,
+                styles.indent(properties.level),
                 properties.isFocused && styles.focused,
                 properties.isSelected && styles.selected,
                 properties.style,
