@@ -77,6 +77,8 @@ export class Telemetry {
     private readonly unregister: (() => void)[] = [];
     /** The shared shutdown operation. */
     private shutdownPromise?: Promise<void>;
+    /** The flush in progress, settled. */
+    private flushing: Promise<void> = Promise.resolve();
 
     /** Construct providers without changing process globals. */
     constructor(options: TelemetryOptions) {
@@ -220,17 +222,19 @@ export class Telemetry {
         return telemetry;
     }
 
-    /** Export buffered signals before a request or application finishes. */
-    async flush(): Promise<void> {
+    /** Export buffered signals before a request or application finishes, after the flush in progress. */
+    flush(): Promise<void> {
         if (this.shutdownPromise) {
-            throw new Error("telemetry is shut down");
+            return Promise.reject(new Error("telemetry is shut down"));
         }
 
-        await complete([
-            this.traces.forceFlush(),
-            this.metrics.forceFlush(),
-            this.logs.forceFlush(),
-        ]);
+        // run after the flush in progress, whose processors skip a concurrent one
+        const flushing = this.flushing.then(() =>
+            complete([this.traces.forceFlush(), this.metrics.forceFlush(), this.logs.forceFlush()]),
+        );
+        this.flushing = flushing.catch(() => {});
+
+        return flushing;
     }
 
     /** Remove global registrations, export buffered signals, and stop providers. */
