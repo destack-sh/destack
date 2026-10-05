@@ -1,6 +1,5 @@
 import { BuildReader } from "@destack/package/manifest";
-import { found, schema } from "@destack/schema";
-import { TestDeclaration } from "@destack/test/inspect";
+import { found } from "@destack/schema";
 import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -220,18 +219,6 @@ export async function expectManifest(build: PackageBuild, destination: string): 
         );
         expect(records).toEqual(expected);
         expect(loaded).toEqual([reference.path]);
-    }
-
-    // load the test declarations alone and bound each output's selection
-    loaded.length = 0;
-    const tests = build.manifest.tests
-        ? await reader.read(build.manifest.tests.file, schema.array(TestDeclaration))
-        : [];
-    expect(loaded).toEqual(build.manifest.tests ? [build.manifest.tests.file.path] : []);
-    for (const output of Object.values(build.manifest.outputs)) {
-        for (const index of output.tests) {
-            expect(index).toBeLessThan(tests.length);
-        }
     }
 
     // load the graph root alone, then each module's graph file alone by its digest

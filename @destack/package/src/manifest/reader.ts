@@ -59,12 +59,11 @@ export class BuildReader {
 
     /** List the files the manifest names directly. */
     references(): PackageFile[] {
-        // collect lists, the graph root, the test file and the upgrade
+        // collect the lists and the upgrade
         const manifest = this.manifest;
-        const tests = manifest.tests ? [manifest.tests.file] : [];
         const upgrade = manifest.upgrade ? [manifest.upgrade.file] : [];
 
-        return [...Object.values(manifest.lists), ...tests, ...upgrade];
+        return [...Object.values(manifest.lists), ...upgrade];
     }
 
     /** Collect all distributed file records for complete downloads and verification. */

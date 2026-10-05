@@ -337,7 +337,6 @@ function describeSide(build: WebBuild, side: "client" | "server", output: string
         emit: !isServer || emitted,
         workloads: {},
         views: {},
-        tests: [],
         directory: `output/${output}`,
         exports: sideExports(application, side, output),
         dependencies: {},

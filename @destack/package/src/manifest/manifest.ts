@@ -42,8 +42,6 @@ export const PackageManifest = defineSchema(
         language: Language,
         /** The commit the build compiled, absent for a working tree with uncommitted changes. */
         commit: Commit.exactOptional(),
-        /** Static test declarations qualified by the package defining their format. */
-        tests: DescriptionReference.exactOptional(),
         /** The upgrade from the package's previous release, qualified by the package defining its format. */
         upgrade: DescriptionReference.exactOptional(),
         /** The list files listing the build's dependencies, files, source maps and graph modules. */

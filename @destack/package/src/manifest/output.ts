@@ -17,8 +17,6 @@ export const PackageOutput = defineSchema(
         workloads: schema.record(DeclarationName, WorkloadDescription),
         /** The views this output mounts, keyed by their declared names. */
         views: schema.record(DeclarationName, ViewDescription),
-        /** Selected test declaration indices. */
-        tests: schema.array(schema.number().int().min(0)),
         /** The output directory within the build. */
         directory: PackagePath,
         /** Generated entrypoints keyed by their exported names. */

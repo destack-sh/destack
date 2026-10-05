@@ -211,7 +211,7 @@ function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<st
     }
 }
 
-/** List an output's exported files, refusing one outside its directory or tests the build lacks. */
+/** List an output's exported files, refusing one outside its directory. */
 function exportedPaths(
     manifest: PackageManifest,
     output: PackageManifest["outputs"][string],
@@ -222,11 +222,6 @@ function exportedPaths(
         if (!path.startsWith(`${output.directory}/`)) {
             throw new PackageError("INVALID_FILE", `export is outside its output: ${path}`);
         }
-    }
-
-    // refuse selected tests without test declarations
-    if (output.tests.length && !manifest.tests) {
-        throw new PackageError("INVALID_FILE", "output selects absent test declarations");
     }
 
     return exported;

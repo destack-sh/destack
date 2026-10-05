@@ -231,7 +231,6 @@ export class OutputCompilation implements Compilation {
             emit: true,
             workloads: {},
             views: {},
-            tests: [],
             directory: `output/${this.name}`,
             exports: {},
             dependencies: {},
