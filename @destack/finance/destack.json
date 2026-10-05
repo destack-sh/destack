@@ -12,6 +12,9 @@
         },
         "./workload": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {

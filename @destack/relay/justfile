@@ -8,4 +8,4 @@ test:
 
 # format
 format:
-    bun run destack-check format src
+    bun run destack-check format src tests

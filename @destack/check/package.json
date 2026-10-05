@@ -13,7 +13,7 @@
         "./lint": "./src/lint/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./error": "./src/error/index.ts",
-        "./toolchain": "./src/check/toolchain.ts",
+        "./toolchain": "./src/toolchain/index.ts",
         "./workspace": "./src/workspace/index.ts",
         "./bun": "./src/bun/index.ts"
     },

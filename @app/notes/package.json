@@ -11,7 +11,8 @@
         "./service": "./src/service/index.ts",
         "./stack": "./src/stack/index.ts",
         "./package": "./src/package.ts",
-        "./view": "./src/view/index.ts"
+        "./view": "./src/view/index.ts",
+        "./object": "./src/object/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",

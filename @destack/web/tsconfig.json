@@ -19,7 +19,7 @@
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
         "lib": ["ESNext", "DOM", "DOM.Iterable"],
-        "types": ["@destack/build/browser", "vite/client"]
+        "types": ["vite/client"]
     },
     "include": ["src", "tests", "*.config.ts"]
 }

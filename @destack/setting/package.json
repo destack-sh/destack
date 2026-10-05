@@ -12,7 +12,8 @@
         "./inspect": "./src/inspect/index.ts",
         "./stack": "./src/stack/index.ts",
         "./server": "./src/server/index.ts",
-        "./object": "./src/object/index.ts"
+        "./object": "./src/object/index.ts",
+        "./error": "./src/error/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",

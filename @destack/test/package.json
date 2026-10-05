@@ -12,9 +12,7 @@
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts",
-        "publish:dry": "npm publish --dry-run --access public",
-        "publish:live": "npm publish --access public"
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
         "@destack/package": "workspace:*",

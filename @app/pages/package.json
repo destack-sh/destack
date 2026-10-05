@@ -10,7 +10,8 @@
         "./destack.json": "./destack.json",
         "./service": "./src/service/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./package": "./src/package.ts"
+        "./package": "./src/package.ts",
+        "./object": "./src/object/index.ts"
     },
     "dependencies": {
         "@destack/audit": "workspace:*",

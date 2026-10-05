@@ -9,6 +9,9 @@
         },
         "./server": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
         }
     },
     "declarations": {
