@@ -381,3 +381,32 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
+
+test.each(TEST_DIALECTS)(
+    "let a grant lapse once the latest release of its feature's package no longer declares the feature on %s",
+    async (dialect) => {
+        const { finance, offer } = await open(dialect);
+
+        // grant the plan's features to an active subscription
+        await transition(
+            finance,
+            "activate",
+            await finance.subscribe(offer, { start: START, end: END }),
+        );
+        await finance.entitle();
+        const features = async () =>
+            derived(await finance.entitlements(ids.buyer)).map(([feature]) => feature);
+        expect(await features()).toEqual([
+            "api.calls",
+            "seats",
+            "storage.quota",
+            "support",
+            "sync",
+        ]);
+
+        // drop the support entitlement once a later release of storage stops declaring it
+        finance.publish(storage, "2026.10.0", [requests, stored, sync, seats, calls, quota]);
+        await finance.entitle();
+        expect(await features()).toEqual(["api.calls", "seats", "storage.quota", "sync"]);
+    },
+);

@@ -54,14 +54,19 @@ export class FeatureCatalog {
 
     /** Find a declared feature and refuse an undeclared one. */
     feature(reference: FeatureReference): Feature {
-        // look the feature up by its key
-        const key = FeatureReference.key(reference);
-        const feature = this.#features.get(key);
+        const feature = this.find(reference);
         if (feature === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `feature ${key} is not declared` });
+            throw new ServiceError("NOT_FOUND", {
+                message: `feature ${FeatureReference.key(reference)} is not declared`,
+            });
         }
 
         return feature;
+    }
+
+    /** Find a declared feature, absent once a release no longer declares it. */
+    find(reference: FeatureReference): Feature | undefined {
+        return this.#features.get(FeatureReference.key(reference));
     }
 
     /** Find a declared meter and refuse an undeclared one. */

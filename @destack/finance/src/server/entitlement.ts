@@ -70,7 +70,9 @@ export async function entitle(
     for (const source of await readSources(call.database, scope)) {
         for (const grant of source.grants) {
             const draft = await derive(call.database, scope, source, grant, catalog);
-            derived.set(keyOf(draft), draft);
+            if (draft !== undefined) {
+                derived.set(keyOf(draft), draft);
+            }
         }
     }
 
@@ -124,9 +126,9 @@ export async function measure(
     const counting: { readonly row: Entitlement; readonly reset: FeatureReset }[] = [];
     for (const row of rows) {
         const reference = { packageId: row.packageId, name: row.feature };
-        const definition = (await catalog(row.packageId)).feature(reference).definition;
+        const definition = (await catalog(row.packageId)).find(reference)?.definition;
         if (
-            definition.kind === "metered" &&
+            definition?.kind === "metered" &&
             MeterReference.key(definition.meter) === MeterReference.key(counted)
         ) {
             counting.push({ row, reset: definition.reset });
@@ -226,17 +228,20 @@ async function readSources(database: DatabaseConnection, scope: AccountId): Prom
     ];
 }
 
-/** Derive the entitlement a source gives to one feature its product grants. */
+/** Derive the entitlement a source gives to one feature its product grants, absent once the feature's package no longer declares it. */
 async function derive(
     database: DatabaseConnection,
     scope: AccountId,
     source: Source,
     grant: FeatureGrant,
     catalog: (packageId: PackageId) => Promise<FeatureCatalog>,
-): Promise<Draft> {
-    // read the feature's declaration
+): Promise<Draft | undefined> {
+    // read the feature's declaration, letting the grant lapse once its package removed it
     const reference = { packageId: grant.packageId, name: grant.feature };
-    const feature = (await catalog(grant.packageId)).feature(reference);
+    const feature = (await catalog(grant.packageId)).find(reference);
+    if (feature === undefined) {
+        return undefined;
+    }
     const definition = feature.definition;
     const granted = {
         packageId: grant.packageId,

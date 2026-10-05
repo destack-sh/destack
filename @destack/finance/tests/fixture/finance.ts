@@ -291,6 +291,11 @@ export class Finance {
         );
     }
 
+    /** Publish a later release of a package declaring some features and meters, which becomes its latest. */
+    publish(owner: Package, version: string, declared: Parameters<typeof release>[1]): void {
+        this.#releases.set(owner.id, release({ ...owner, version }, declared));
+    }
+
     /** Close the database. */
     close(): Promise<void> {
         return this.test.close();
