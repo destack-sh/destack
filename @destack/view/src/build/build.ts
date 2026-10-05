@@ -5,8 +5,7 @@ import type {
     Plugin,
 } from "@destack/package/build";
 import { BROWSER_CAPABILITIES, Capabilities } from "@destack/package";
-import { ViewDescription, ViewObjectType } from "@destack/package/manifest";
-import { schema } from "@destack/schema";
+import { ViewDescription } from "@destack/package/manifest";
 import { SolidApplication } from "./application.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
 
@@ -53,7 +52,6 @@ export const viewExtension: BuildExtension = {
                 permissions: view.permissions,
                 capabilities,
                 presents: view.presents,
-                ...(view.home.length === 0 ? {} : { home: view.home }),
             };
         }
 
@@ -79,12 +77,10 @@ function requireOneTheme(compilation: Compilation, views: number): void {
 interface LocatedView extends DeclarationModule {
     /** The view's name. */
     readonly name: string;
-    /** The permissions the view requests. */
+    /** The permissions the view requests, by the scope they apply in. */
     readonly permissions: ViewDescription["permissions"];
     /** The object types the view presents. */
     readonly presents: ViewDescription["presents"];
-    /** The object types the view opens in the person's home. */
-    readonly home: NonNullable<ViewDescription["home"]>;
 }
 
 /** Locate the views the package declares through the modules exporting them. */
@@ -105,17 +101,15 @@ function locate(compilation: Compilation): LocatedView[] {
             throw new TypeError(`duplicate view: ${declaration.name}`);
         }
 
-        // keep the module exporting the view, its permissions and the types it presents and opens in the home
+        // keep the module exporting the view, its permissions and the types it presents
         const { description } = declaration;
         const permissions = ViewDescription.shape.permissions.parse(description["permissions"]);
         const presents = ViewDescription.shape.presents.parse(description["presents"]);
-        const home = schema.array(ViewObjectType).parse(description["home"] ?? []);
         views.push({
             name: declaration.name,
             ...compilation.locate(declaration),
             permissions,
             presents,
-            home,
         });
     }
 

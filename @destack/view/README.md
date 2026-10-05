@@ -14,14 +14,20 @@ import { render } from "@destack/view/render";
 ## Views
 
 `defineView` declares a view with the object types it opens, the permissions it requests and the object types it presents, and opening an object picks the view that presents its type.
+Each permission sits under the scope it applies in, relative to the view's context: `space` for the space the view runs in, `home` for the person's home and `account` for the space's account.
+The view opens each object type in the scopes it requests permissions on that type in, and requests each permission in one scope only.
 
 ```ts
 import { defineView } from "@destack/view/declare";
 
 export const notes = defineView({
     name: "notes",
-    objects: [notebook, note],
-    permissions: [note.permission("read")],
+    objects: [notebook, note, notification, member],
+    permissions: {
+        space: [notebook.permission("read"), note.permission("read")],
+        home: [notification.permission("read")],
+        account: [member.permission("read")],
+    },
     presents: [{ object: note, priority: "default" }],
     component: () => import("./app.tsx"),
 });
@@ -80,7 +86,7 @@ await space.undo().confirmed;
 const notes = useQuery(() => space.query.note.findMany()); // a failure goes to the nearest error boundary
 await space.mutate.note.update({ id, title }).confirmed; // predicted at once, confirmed by the server
 await space.mutation(async (mutation) => edit(mutation)).predicted; // one atomic step that undo reverts together
-const account = useAccount({ repository }); // the account's objects, read as useSpace reads the space's
+const account = useAccount({ member }); // the account's objects its account permissions grant
 const body = useText(note, id, "body"); // one text field, with every keystroke shared live
 ```
 
@@ -97,12 +103,17 @@ if (await space.can("write")) {
 
 ## Home
 
-`useHome` reads the object types a view declares in `home` from the person's home space, which the host opens beside the view's space and account.
+`useHome` reads the object types the view's `home` permissions grant from the person's home, which the host opens beside the view's space and account.
 
 ```tsx
 import { useHome } from "@destack/view";
 
-export const inbox = defineView({ name: "inbox", home: [notification], component });
+export const inbox = defineView({
+    name: "inbox",
+    objects: [notification],
+    permissions: { home: [notification.permission("read")] },
+    component,
+});
 const home = useHome({ notification });
 const unread = useQuery(() => home.query.notification.aggregate(UNREAD));
 ```

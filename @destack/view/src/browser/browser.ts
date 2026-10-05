@@ -2,6 +2,7 @@ import "@destack/theme/theme.css";
 import { Catalog } from "@destack/locale";
 import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
+import { ViewScope } from "@destack/package/manifest";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import {
@@ -13,7 +14,6 @@ import {
 } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
 import { renderView } from "../page/mount.ts";
-import { scopeOf } from "../page/view.ts";
 
 /** How long to wait before following the display again after its stream drops. */
 const RECONNECT_MILLISECONDS = 1000;
@@ -200,24 +200,21 @@ async function fetchCatalogs(references: readonly CatalogReference[]): Promise<C
     );
 }
 
-/** Open the tabs of the scopes holding a view's object types and its home types over the page's endpoint, each once its tables exist. */
+/** Open a tab for each scope a view requests permissions in over the page's endpoint, each once its tables exist. */
 async function openTabs(
     context: ViewContext,
     endpoint: string,
     view: View,
 ): Promise<Map<string, BrowserTab>> {
-    // group the view's object types by the scope holding them
+    // group the object types by the scope each opens in, merging a home that is the view's space
     const byScope = new Map<string, Readonly<Record<string, ObjectType>>>();
-    for (const object of view.objects) {
-        const scope = scopeOf(context, object);
-        byScope.set(scope, { ...byScope.get(scope), [object.name]: object });
-    }
-
-    // open the home types beside the view's own in the person's home when the host opens one
-    const home = context.home;
-    if (home !== undefined && view.home.length > 0) {
-        const homeTypes = Object.fromEntries(view.home.map((object) => [object.name, object]));
-        byScope.set(home, { ...byScope.get(home), ...homeTypes });
+    for (const name of ViewScope.options) {
+        const scope = context[name];
+        const objects = view.opens(name);
+        if (scope !== undefined && objects.length > 0) {
+            const named = Object.fromEntries(objects.map((object) => [object.name, object]));
+            byScope.set(scope, { ...byScope.get(scope), ...named });
+        }
     }
 
     // open each scope's tab over the origin's endpoint

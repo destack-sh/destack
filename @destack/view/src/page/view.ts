@@ -1,6 +1,6 @@
 import { createContext, useContext } from "solid-js";
-import type { ObjectType } from "@destack/object";
 import type { ObjectClient } from "@destack/object/client";
+import type { ViewScope } from "@destack/package/manifest";
 import type { ObjectReference } from "@destack/sync";
 import {
     OBJECT_PARAMETER,
@@ -13,7 +13,7 @@ import {
 export interface ViewMount {
     /** What the host gives the view. */
     readonly context: ViewContext;
-    /** The clients of the view's space and account, by scope. */
+    /** The clients of the scopes the view opens, by scope. */
     readonly clients: ReadonlyMap<string, ObjectClient>;
 }
 
@@ -25,17 +25,12 @@ export function useView(): ViewContext {
     return useContext(ViewMountContext).context;
 }
 
-/** Read the scope of a view holding an object type: its space or its account, by the type of the object's scope. */
-export function scopeOf(
-    context: Pick<ViewContext, "space" | "account">,
-    object: ObjectType,
-): string {
-    // take the space or the account the object's scope type names
-    const found = [context.space, context.account].find((scope) =>
-        object.scopes.some((type) => type.identifies(scope)),
-    );
+/** Read the identifier of one of a view's scopes, refusing a home the host opens none for. */
+export function scopeOf(context: ViewContext, scope: ViewScope): string {
+    // require a scope the host opens
+    const found = context[scope];
     if (found === undefined) {
-        throw new TypeError(`the view's space and account hold no ${object.name} objects`);
+        throw new TypeError(`the host opens no ${scope} for this view`);
     }
 
     return found;

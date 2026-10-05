@@ -2,7 +2,7 @@ import type { ObjectType } from "@destack/object";
 import type { Mutation, ObjectAccess, ObjectClient, Submission } from "@destack/object/client";
 import type { JsonObject } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { useClient, useView } from "../page/view.ts";
+import { scopeOf, useClient, useView } from "../page/view.ts";
 
 /** An object of a scope: its type and its identifier. */
 export interface ScopeObject {
@@ -31,34 +31,29 @@ export interface ScopeAccess<Objects extends Readonly<Record<string, ObjectType>
     redo(): Submission<boolean>;
 }
 
-/** Read and change object types of the view's space by key. */
+/** Read and change object types of the view's space by key, as its space permissions grant. */
 export function useSpace<const Objects extends Readonly<Record<string, ObjectType>>>(
     objects: Objects,
 ): ScopeAccess<Objects> {
     const view = useView();
 
-    return access(useClient(view.space), objects, view.target);
+    return access(useClient(scopeOf(view, "space")), objects, view.target);
 }
 
-/** Read and change object types of the view's account by key. */
+/** Read and change object types of the view's account by key, as its account permissions grant. */
 export function useAccount<const Objects extends Readonly<Record<string, ObjectType>>>(
     objects: Objects,
 ): ScopeAccess<Objects> {
     const view = useView();
 
-    return access(useClient(view.account), objects, view.target);
+    return access(useClient(scopeOf(view, "account")), objects, view.target);
 }
 
-/** Read and change object types of the person's home space by key, refusing a view the host opens no home for. */
+/** Read and change object types of the person's home by key, as the view's home permissions grant. */
 export function useHome<const Objects extends Readonly<Record<string, ObjectType>>>(
     objects: Objects,
 ): ScopeAccess<Objects> {
-    const home = useView().home;
-    if (home === undefined) {
-        throw new TypeError("the host opens no home space for this view");
-    }
-
-    return access(useClient(home), objects, undefined);
+    return access(useClient(scopeOf(useView(), "home")), objects, undefined);
 }
 
 /** Give one scope's client as the access to some of its object types. */

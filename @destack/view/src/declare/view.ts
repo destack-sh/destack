@@ -1,6 +1,6 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
-import type { ViewPresentationPriority } from "@destack/package/manifest";
-import type { Permission } from "@destack/access";
+import { ViewScope, type ViewPresentationPriority } from "@destack/package/manifest";
+import { type Permission, PermissionReference } from "@destack/access";
 import type { ObjectType } from "@destack/object";
 import type { Component } from "solid-js";
 
@@ -8,12 +8,10 @@ import type { Component } from "solid-js";
 export interface ViewDefinition {
     /** The name, unique among the package's views. */
     readonly name: string;
-    /** The object types the view reads and changes, opened in their scopes before it renders. */
+    /** The object types the view reads and changes, opened before it renders in each scope it requests their permissions in. */
     readonly objects?: readonly ObjectType[];
-    /** The object types the view opens in the person's home space, such as their notifications. */
-    readonly home?: readonly ObjectType[];
-    /** The permissions the view requests. */
-    readonly permissions?: readonly Permission[];
+    /** The permissions the view requests, by the scope they apply in relative to its context. */
+    readonly permissions?: { readonly [Scope in ViewScope]?: readonly Permission[] };
     /** The object types the view presents, and how strongly, so opening an object picks its view. */
     readonly presents?: readonly Presentation[];
     /** Load the module whose default export is the root component. */
@@ -36,10 +34,8 @@ export class View {
     readonly name: string;
     /** The object types the view reads and changes. */
     readonly objects: readonly ObjectType[];
-    /** The object types the view opens in the person's home space. */
-    readonly home: readonly ObjectType[];
-    /** The permissions the view requests. */
-    readonly permissions: readonly Permission[];
+    /** The permissions the view requests, by the scope they apply in. */
+    readonly permissions: NonNullable<ViewDefinition["permissions"]>;
     /** The object types the view presents. */
     readonly presents: readonly Presentation[];
     /** Load the module whose default export is the root component. */
@@ -51,10 +47,18 @@ export class View {
         this.package = owner;
         this.name = definition.name;
         this.objects = definition.objects ?? [];
-        this.home = definition.home ?? [];
-        this.permissions = definition.permissions ?? [];
+        this.permissions = definition.permissions ?? {};
         this.presents = definition.presents ?? [];
         this.component = definition.component;
+    }
+
+    /** List the object types the view opens in a scope: those it requests permissions on there. */
+    opens(scope: ViewScope): ObjectType[] {
+        const permissions = this.permissions[scope] ?? [];
+
+        return this.objects.filter((object) =>
+            permissions.some((permission) => isPermissionOf(permission, object)),
+        );
     }
 }
 
@@ -64,28 +68,46 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     const owner = ModuleMetadata.require(module, "defineView").package;
     DeclarationName.parse(definition.name);
 
-    // refuse a type opened both in the view's scopes and in the person's home
+    // list each requested permission with its scope
     const objects = definition.objects ?? [];
-    const home = definition.home ?? [];
-    const twice = home.find((type) => objects.some((opened) => opened.same(type)));
+    const requested = ViewScope.options.flatMap((scope) =>
+        (definition.permissions?.[scope] ?? []).map((permission) => ({ scope, permission })),
+    );
+
+    // refuse a permission requested in two scopes
+    const twice = requested.find((entry) =>
+        requested.some(
+            (other) =>
+                other.scope !== entry.scope &&
+                PermissionReference.key(other.permission) ===
+                    PermissionReference.key(entry.permission),
+        ),
+    );
     if (twice !== undefined) {
+        const { type, name } = twice.permission;
         throw new TypeError(
-            `view ${definition.name} opens ${twice.name} both in its scopes and in the home`,
+            `view ${definition.name} requests ${type} ${name} in more than one scope`,
         );
     }
 
     // require each permission to be one of an object type the view opens
-    const unopened = (definition.permissions ?? []).find(
-        (permission) =>
-            ![...objects, ...home].some(
-                ({ typeReference }) =>
-                    typeReference.packageId === permission.packageId &&
-                    typeReference.type === permission.type,
-            ),
+    const unopened = requested.find(
+        ({ permission }) => !objects.some((object) => isPermissionOf(permission, object)),
     );
     if (unopened !== undefined) {
+        const { type, name } = unopened.permission;
         throw new TypeError(
-            `view ${definition.name} requests ${unopened.type} ${unopened.name} but opens no ${unopened.type} objects`,
+            `view ${definition.name} requests ${type} ${name} but opens no ${type} objects`,
+        );
+    }
+
+    // require each opened object type to have a permission placing it in a scope
+    const unplaced = objects.find(
+        (object) => !requested.some(({ permission }) => isPermissionOf(permission, object)),
+    );
+    if (unplaced !== undefined) {
+        throw new TypeError(
+            `view ${definition.name} opens ${unplaced.name} but requests no ${unplaced.name} permission`,
         );
     }
 
@@ -100,4 +122,12 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     }
 
     return new View(owner, definition);
+}
+
+/** Report whether a permission is one of an object type's. */
+function isPermissionOf(permission: Permission, object: ObjectType): boolean {
+    return (
+        object.typeReference.packageId === permission.packageId &&
+        object.typeReference.type === permission.type
+    );
 }

@@ -1,38 +1,33 @@
 import { graph } from "@destack/package";
-import { ViewPresentation, type ViewDescription, type ViewObjectType } from "@destack/package/manifest";
+import { ViewPresentation, type ViewDescription } from "@destack/package/manifest";
 import { schema, type JsonObject } from "@destack/schema";
 import type { View } from "../declare/view.ts";
 
 /** The object types a view's description presents, beside its name and permissions. */
 const Presents = schema.looseObject({ presents: schema.array(ViewPresentation) });
 
-/** Describe a view by its name, the permissions it requests, the object types it presents and those it opens in the home. */
+/** Describe a view by its name, the permissions it requests by scope and the object types it presents. */
 export function describeView(view: View): {
     readonly name: string;
     readonly permissions: ViewDescription["permissions"];
     readonly presents: readonly ViewPresentation[];
-    readonly home?: readonly ViewObjectType[];
 } {
+    // describe the permissions of each scope as plain references
+    const permissions: ViewDescription["permissions"] = Object.fromEntries(
+        Object.entries(view.permissions).map(([scope, requested]) => [
+            scope,
+            requested.map(({ packageId, type, name }) => ({ packageId, type, name })),
+        ]),
+    );
+
     return {
         name: view.name,
-        permissions: view.permissions.map(({ packageId, type, name }) => ({
-            packageId,
-            type,
-            name,
-        })),
+        permissions,
         presents: view.presents.map(({ object, priority }) => ({
             packageId: object.package.id,
             type: object.name,
             priority,
         })),
-        ...(view.home.length === 0
-            ? {}
-            : {
-                  home: view.home.map((object) => ({
-                      packageId: object.package.id,
-                      type: object.name,
-                  })),
-              }),
     };
 }
 

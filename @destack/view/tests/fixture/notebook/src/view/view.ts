@@ -5,6 +5,6 @@ import { notebook } from "../object/index.ts";
 export const notebooks = defineView({
     name: "notebooks",
     objects: [notebook],
-    permissions: [notebook.permission("read")],
+    permissions: { space: [notebook.permission("read")] },
     component: () => import("./app.tsx"),
 });

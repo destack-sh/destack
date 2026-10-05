@@ -25,13 +25,24 @@ const note = defineObject({
     methods: (method) => ({ list: method.list("read") }),
 });
 
+/** The reminders a view opens in the person's home. */
+const reminder = defineObject({
+    name: "reminder",
+    plural: "reminders",
+    scope: Scope.universe.id,
+    isScope: true,
+    fields: {},
+    permissions: { read: none() },
+    methods: (method) => ({ list: method.list("read") }),
+});
+
 test("describe a declared view by its name and permissions without loading its component", () => {
     // declare a view of notes whose component never loads
     const view = defineView(
         {
             name: "notes",
             objects: [note],
-            permissions: [note.permission("read")],
+            permissions: { space: [note.permission("read")] },
             presents: [{ object: note, priority: "default" }],
             component: () => Promise.reject(new Error("loaded")),
         },
@@ -44,39 +55,60 @@ test("describe a declared view by its name and permissions without loading its c
         [note],
         {
             name: "notes",
-            permissions: [{ packageId: note.package.id, type: "note", name: "read" }],
+            permissions: { space: [{ packageId: note.package.id, type: "note", name: "read" }] },
             presents: [{ packageId: note.package.id, type: "note", priority: "default" }],
         },
     ]);
 });
 
-test("describe the object types a view opens in the person's home, and refuse a type opened twice", () => {
-    // declare a view reading notes in the person's home
+test("open each object type in the scopes the view requests its permissions in", () => {
+    // read notes in the view's space and reminders in the person's home
     const view = defineView(
         {
             name: "inbox",
-            home: [note],
-            permissions: [note.permission("read")],
+            objects: [note, reminder],
+            permissions: {
+                space: [note.permission("read")],
+                home: [reminder.permission("read")],
+            },
             component: () => Promise.reject(new Error("loaded")),
         },
         { package: notes },
     );
-    const twice = () =>
+    expect([view.opens("space"), view.opens("home"), view.opens("account")]).toEqual([
+        [note],
+        [reminder],
+        [],
+    ]);
+});
+
+test("refuse a view requesting one permission in two scopes", () => {
+    // read notes in the view's space and in the person's home
+    const refusal = () =>
         defineView(
             {
                 name: "notes",
                 objects: [note],
-                home: [note],
+                permissions: { space: [note.permission("read")], home: [note.permission("read")] },
                 component: () => Promise.reject(new Error("loaded")),
             },
             { package: notes },
         );
+    expect(refusal).toThrow(new TypeError("view notes requests note read in more than one scope"));
+});
 
-    // name the home type beside its permission, and refuse the type in both lists
-    expect(describeView(view).home).toEqual([{ packageId: note.package.id, type: "note" }]);
-    expect(twice).toThrow(
-        new TypeError("view notes opens note both in its scopes and in the home"),
-    );
+test("refuse a view opening an object type it requests no permission on", () => {
+    // open notes without requesting a permission on them
+    const refusal = () =>
+        defineView(
+            {
+                name: "notes",
+                objects: [note],
+                component: () => Promise.reject(new Error("loaded")),
+            },
+            { package: notes },
+        );
+    expect(refusal).toThrow(new TypeError("view notes opens note but requests no note permission"));
 });
 
 test("refuse a view presenting an object type it opens none of", () => {
@@ -123,7 +155,7 @@ test("refuse a view requesting a permission of an object type it opens none of",
         defineView(
             {
                 name: "notes",
-                permissions: [note.permission("read")],
+                permissions: { account: [note.permission("read")] },
                 component: () => Promise.reject(new Error("loaded")),
             },
             { package: notes },
@@ -157,10 +189,10 @@ test("accept a view requesting a permission of an opened object representing ano
         {
             name: "devices",
             objects: [device],
-            permissions: [device.permission("read")],
+            permissions: { account: [device.permission("read")] },
             component: () => Promise.reject(new Error("loaded")),
         },
         { package: notes },
     );
-    expect(view.permissions).toEqual([device.permission("read")]);
+    expect(view.opens("account")).toEqual([device]);
 });

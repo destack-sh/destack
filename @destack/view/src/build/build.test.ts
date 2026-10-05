@@ -127,7 +127,7 @@ test("generate the module mounting a view from the export declaring it, and desc
         symbol: { package: owner, symbol: { module: "src/view.ts", name: "main" } },
         source: { file: "src/view.ts", line: 0, column: 0 },
         description: {
-            permissions: [],
+            permissions: {},
             presents: [{ packageId: owner.id, type: "note", priority: "default" }],
         },
     };
@@ -177,7 +177,7 @@ test("generate the module mounting a view from the export declaring it, and desc
             views: {
                 main: {
                     entrypoint: "output/browser/view-main.js",
-                    permissions: [],
+                    permissions: {},
                     capabilities: { camera: { reason: "scans receipts", optional: true } },
                     presents: [{ packageId: owner.id, type: "note", priority: "default" }],
                 },
