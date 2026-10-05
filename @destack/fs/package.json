@@ -15,5 +15,8 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*"
     }
 }

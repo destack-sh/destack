@@ -43,7 +43,7 @@ const text = await readOptional("/path/to/installation.json"); // undefined befo
 
 ## Errors
 
-A failed operation throws a `FileSystemError` with the operation, the path and the operating-system error code.
+A failed operation throws a `FileSystemError` with the operation, the path and the operating-system error code, and a caller receives it as an internal server error.
 
 ```ts
 import { FileSystemError } from "@destack/fs/error";
@@ -51,4 +51,5 @@ import { FileSystemError } from "@destack/fs/error";
 if (error instanceof FileSystemError && error.code === "EACCES") {
     report(`cannot ${error.operation} ${error.path}`);
 }
+new FileSystemError("read", "/notes/today.md", "ENOENT").toServiceError(); // { code: "INTERNAL_SERVER_ERROR", … }
 ```

@@ -1,5 +1,7 @@
+import type { ReportableError, ServiceErrorReport } from "@destack/schema";
+
 /** A failed host filesystem operation. */
-export class FileSystemError extends Error {
+export class FileSystemError extends Error implements ReportableError {
     /** The failed filesystem operation. */
     readonly operation: string;
     /** The affected absolute path. */
@@ -15,5 +17,10 @@ export class FileSystemError extends Error {
         this.path = path;
         this.code = code;
         this.name = "FileSystemError";
+    }
+
+    /** Report every host filesystem failure as the host's own. */
+    toServiceError(): ServiceErrorReport {
+        return { code: "INTERNAL_SERVER_ERROR", message: this.message };
     }
 }
