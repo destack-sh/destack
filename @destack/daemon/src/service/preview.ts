@@ -6,7 +6,7 @@ import { page, PageRequest } from "@destack/service/page";
 import { eventIterator } from "@destack/service";
 import { ResourceName } from "@destack/resource";
 import { OperationError } from "@destack/service/operation";
-import { ViewDefinition } from "@destack/package/view";
+import { ViewDefinition } from "@destack/package/manifest";
 import { PackagePath } from "@destack/package/file";
 
 /** A named frontend compiled within a development preview. */

@@ -1,5 +1,5 @@
 import { ComputeDefinition } from "@destack/package";
-import { WorkloadDefinition } from "@destack/package/workload";
+import { WorkloadDefinition } from "@destack/package/manifest";
 import type { Workload } from "../workload/index.ts";
 
 /** Describe a workload. */

@@ -1,9 +1,8 @@
 import { type Publisher } from "@destack/sync";
 import { type CapabilityName, type ComputeDefinition, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
-import { type Tier, WorkloadDefinition } from "@destack/package/workload";
+import { type BuildReader, type Tier, WorkloadDefinition } from "@destack/package/manifest";
 import type { ResourceContext } from "@destack/resource/context";
-import type { BuildReader } from "@destack/package/manifest";
 import type { LocaleTag } from "@destack/locale";
 import type { ServiceImplementation } from "../server/index.ts";
 import type { RunClient } from "../trigger/index.ts";

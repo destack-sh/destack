@@ -8,7 +8,7 @@ import type {
     Plugin,
 } from "@destack/package/build";
 import { type DeclarationReference, reference } from "@destack/package/declare";
-import { WorkloadDefinition, WorkloadDescription } from "@destack/package/workload";
+import { WorkloadDefinition, WorkloadDescription } from "@destack/package/manifest";
 import { qualify, TABLE } from "@destack/db";
 import { DatabaseDeclaration } from "@destack/db/inspect";
 import { JournalDescription, ServiceDescription } from "@destack/service/inspect";

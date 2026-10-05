@@ -5,7 +5,7 @@ import type {
     Plugin,
 } from "@destack/package/build";
 import { BROWSER_CAPABILITIES, Capabilities } from "@destack/package";
-import { ViewDescription, ViewObjectType } from "@destack/package/view";
+import { ViewDescription, ViewObjectType } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { SolidApplication } from "./application.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";

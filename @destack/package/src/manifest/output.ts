@@ -2,8 +2,8 @@ import { defineSchema, schema } from "@destack/schema";
 import { DependencyName, DependencyRelease } from "../definition/index.ts";
 import { PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
-import { WorkloadDescription } from "../workload/index.ts";
-import { ViewDescription } from "../view/index.ts";
+import { WorkloadDescription } from "./workload.ts";
+import { ViewDescription } from "./view.ts";
 import { DeclarationName } from "../definition/package.ts";
 
 /** Compiled files and dependencies for one runtime. */

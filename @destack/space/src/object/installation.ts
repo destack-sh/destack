@@ -15,7 +15,7 @@ import {
 import { defineObject, field, method, ObjectError, type ObjectType } from "@destack/object";
 import type { Stack } from "@destack/object/server";
 import { ComputeDefinition, DeclarationName, PackageId } from "@destack/package";
-import { ViewDescription } from "@destack/package/view";
+import { ViewDescription } from "@destack/package/manifest";
 import { Digest } from "@destack/package/file";
 import { Plan } from "@destack/resource";
 import { type Identifier, identifier, schema } from "@destack/schema";

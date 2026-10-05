@@ -12,7 +12,7 @@ import {
 import { ConditionMap, defineObject, field, method, type ObjectType } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { ServerRuntime } from "@destack/package/runtime";
-import { WorkloadDescription } from "@destack/package/workload";
+import { WorkloadDescription } from "@destack/package/manifest";
 import { identifier, schema, Version } from "@destack/schema";
 import { PolicySelection } from "../policy/selection.ts";
 import { installation, installationRevision } from "./installation.ts";

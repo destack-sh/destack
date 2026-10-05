@@ -1,5 +1,5 @@
 import { graph } from "@destack/package";
-import { ViewPresentation, type ViewDescription, type ViewObjectType } from "@destack/package/view";
+import { ViewPresentation, type ViewDescription, type ViewObjectType } from "@destack/package/manifest";
 import { schema, type JsonObject } from "@destack/schema";
 import type { View } from "../declare/view.ts";
 

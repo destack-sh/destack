@@ -1,6 +1,6 @@
 import type { ObjectType } from "@destack/object";
 import { graph } from "@destack/package";
-import { CommandDescription } from "@destack/package/view";
+import { CommandDescription } from "@destack/package/manifest";
 import { schema, type JsonObject } from "@destack/schema";
 import type { Command } from "../declare/command.ts";
 

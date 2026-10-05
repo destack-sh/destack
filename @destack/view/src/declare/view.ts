@@ -1,5 +1,5 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
-import type { ViewPresentationPriority } from "@destack/package/view";
+import type { ViewPresentationPriority } from "@destack/package/manifest";
 import type { Permission } from "@destack/access";
 import type { ObjectType } from "@destack/object";
 import type { Component } from "solid-js";
