@@ -1,12 +1,9 @@
-import type { ContextManager } from "@opentelemetry/api";
 import { Telemetry, type TelemetryOptions } from "../sdk/index.ts";
+import { StorageContextManager } from "./context.ts";
 
-/** Start telemetry once per worker isolate using its host's context manager. */
-export function startTelemetry(
-    options: TelemetryOptions,
-    manager: ContextManager,
-): Promise<Telemetry> {
-    return Telemetry.start(options, manager);
+/** Start telemetry once per worker isolate, keeping context in the AsyncLocalStorage workerd provides under nodejs_compat. */
+export function startTelemetry(options: TelemetryOptions): Promise<Telemetry> {
+    return Telemetry.start(options, new StorageContextManager());
 }
 
 /** Extend an invocation until its exports finish. */
