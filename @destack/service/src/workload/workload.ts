@@ -1,4 +1,4 @@
-import { type Publisher } from "@destack/sync";
+import type { Publisher, Uplink } from "@destack/sync";
 import { type CapabilityName, type ComputeDefinition, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { type BuildReader, type Tier, WorkloadDefinition } from "@destack/package/manifest";
@@ -63,8 +63,8 @@ export interface InstallationContext {
     readonly scope: string;
     /** The build the installation's deployment runs, which reads the package's own files such as its catalogs. */
     readonly build: BuildReader;
-    /** The publisher of the copies of the space's chain and the universe's rows it reads: its cell. */
-    readonly publisher: Publisher;
+    /** The publisher of the copies of the space's chain and the universe's rows it reads, receiving their changes: its cell. */
+    readonly publisher: Uplink;
     /** Connect to the installation of the package at an address `<installation>.<space>` as a publisher. */
     publisherAt(address: string): Publisher;
     /** The directory, through the space's cell. */

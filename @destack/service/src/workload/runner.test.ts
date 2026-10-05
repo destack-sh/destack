@@ -1,4 +1,4 @@
-import { type Publisher } from "@destack/sync";
+import { type Uplink } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
@@ -123,10 +123,11 @@ test("serve a forwarded caller below the package's mount, and export telemetry n
     });
 
     // start a workload with a service that answers with the path and the caller
-    const publisher: Publisher = {
+    const publisher: Uplink = {
         stream: () => {
             throw new Error("the fixture publisher streams no copies");
         },
+        receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
     };
     const runner = await WorkloadRunner.start(
         {
@@ -270,6 +271,8 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
                 stream: () => {
                     throw new Error("the fixture publisher streams no copies");
                 },
+                receive: () =>
+                    Promise.reject(new Error("the fixture publisher receives no changes")),
             }),
             directory: () => directory,
             runs: () => ({

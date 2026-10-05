@@ -1,15 +1,16 @@
 import type { Package } from "@destack/package";
-import type { Publisher } from "@destack/sync";
+import type { Uplink } from "@destack/sync";
 import type { CellDirectory, InstallationContext } from "../workload/workload.ts";
 import { until } from "../timer/timer.ts";
 import { emptyBuild } from "./build.ts";
 
-/** A publisher streaming nothing until stopped, as a cell with no chain to copy. */
-const IDLE: Publisher = {
+/** An uplink streaming nothing until stopped and refusing changes, as a cell with no chain to copy. */
+const IDLE: Uplink = {
     async *stream(_subscription, signal) {
         await until(signal);
         yield* [];
     },
+    receive: () => Promise.reject(new Error("the idle cell receives no changes")),
 };
 
 /** A directory in which nobody lives anywhere, has set a locale, or receives projected rows. */

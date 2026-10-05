@@ -4,8 +4,8 @@ import { ValidationError } from "@orpc/contract";
 import { ServiceError } from "../error/index.ts";
 import type {} from "@destack/package/import-meta";
 
-/** The failure log records. */
-const { log } = telemetry.scope(import.meta.destack.package);
+/** The instruments capturing unexpected failures. */
+const instruments = telemetry.scope(import.meta.destack.package);
 
 /** Record unexpected failures and return an error safe for clients. */
 export function reportError(error: unknown): ServiceError<string, unknown> {
@@ -38,9 +38,9 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
         return failure;
     }
 
-    // record unexpected failures
+    // capture unexpected failures as escaping their request
     trace.getActiveSpan()?.recordException(error instanceof Error ? error : String(error));
-    log.error("service.request.failed", telemetry.exceptionAttributes(error));
+    instruments.captureException(error, { isEscaped: true });
 
     // pass deliberate unavailability on, and hide the details of anything unexpected
     if (failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR") {
@@ -60,11 +60,11 @@ export function refusal(error: unknown): Response {
     return Response.json(reported.toJSON(), { status: reported.status });
 }
 
-/** Log a failed reconciliation. */
+/** Capture a failed reconciliation as escaping its controller, tagged by the controller. */
 export function reportReconciliation(controller: Controller, key: string, error: unknown): void {
-    log.error("controller.reconcile.failed", {
-        "destack.controller": controller.name,
-        "destack.key": key,
-        ...telemetry.exceptionAttributes(error),
+    instruments.captureException(error, {
+        isEscaped: true,
+        tags: { controller: controller.name },
+        attributes: { "destack.key": key },
     });
 }

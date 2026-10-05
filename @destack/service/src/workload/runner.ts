@@ -1,4 +1,4 @@
-import { type Publisher } from "@destack/sync";
+import type { Uplink } from "@destack/sync";
 import type { ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { telemetry } from "@destack/telemetry";
@@ -44,7 +44,7 @@ export interface RunnerOptions {
     /** Connect to an audit service through the host's egress with the runner's secret. */
     history(url: string, secret: string): AuditHistory;
     /** Connect to a publisher of an installation's copies, its space's cell or another installation of its package, through the host's egress with the runner's secret. */
-    publisher(url: string, secret: string): Publisher;
+    publisher(url: string, secret: string): Uplink;
     /** Connect to the directory through the space's cell, at the host's egress with the runner's secret. */
     directory(url: string, secret: string): CellDirectory;
     /** Connect to the cell recording the installation's runs, through the host's egress with the runner's secret. */

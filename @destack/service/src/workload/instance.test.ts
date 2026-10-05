@@ -1,4 +1,4 @@
-import { type Publisher } from "@destack/sync";
+import { type Uplink } from "@destack/sync";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { defineWorkload, type InstallationContext } from "./workload.ts";
@@ -30,7 +30,8 @@ const publisher = {
     stream: () => {
         throw new Error("the fixture publisher streams no copies");
     },
-} satisfies Publisher;
+    receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
+} satisfies Uplink;
 
 /** The fixture's installation, with a build of no files, publishers streaming none and a directory with no recipients. */
 const installation: InstallationContext = {
