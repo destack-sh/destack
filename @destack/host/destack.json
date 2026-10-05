@@ -19,11 +19,23 @@
         "./bun": {
             "runtimes": ["bun"]
         },
+        "./cloudflare": {
+            "runtimes": ["bun", "workerd"]
+        },
         "./router": {
             "runtimes": ["bun", "workerd"]
         },
         "./error": {
             "runtimes": ["browser", "bun", "workerd"]
         }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/cloudflare/instance.ts"],
+                "rules": ["destack/prevent-abbreviations"],
+                "reason": "env is the Worker Loader's name for a loaded worker's bindings, which its code object keeps"
+            }
+        ]
     }
 }

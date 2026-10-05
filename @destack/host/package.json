@@ -12,6 +12,7 @@
         "./test": "./src/test/index.ts",
         "./runtime": "./src/runtime/index.ts",
         "./bun": "./src/bun/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts",
         "./router": "./src/router/index.ts",
         "./error": "./src/error/index.ts"
     },

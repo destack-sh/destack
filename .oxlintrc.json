@@ -94,7 +94,7 @@
             }
         },
         {
-            "files": ["@destack/account/src/authentication/database.ts"],
+            "files": ["@destack/account/src/better-auth/database.ts"],
             "rules": { "typescript/no-unnecessary-type-parameters": "off" }
         },
         {
@@ -102,12 +102,12 @@
             "rules": { "eslint/no-console": "off", "typescript/no-unsafe-call": "off" }
         },
         {
-            "files": ["@destack/package/src/declare/package.test.ts"],
-            "rules": { "destack/valid-package-handle": "off" }
+            "files": ["@destack/host/src/cloudflare/instance.ts"],
+            "rules": { "destack/prevent-abbreviations": "off" }
         },
         {
-            "files": ["@destack/web/src/document/script.tsx", "@destack/web/src/document/font.tsx"],
-            "rules": { "destack/prevent-abbreviations": "off" }
+            "files": ["@destack/package/src/declare/package.test.ts"],
+            "rules": { "destack/valid-package-handle": "off" }
         },
         {
             "files": ["@destack/telemetry/src/browser/devtools.ts"],
@@ -115,6 +115,10 @@
         },
         {
             "files": ["@destack/view/src/media/image.tsx"],
+            "rules": { "destack/prevent-abbreviations": "off" }
+        },
+        {
+            "files": ["@destack/web/src/document/script.tsx", "@destack/web/src/document/font.tsx"],
             "rules": { "destack/prevent-abbreviations": "off" }
         },
         {
