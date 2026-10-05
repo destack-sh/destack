@@ -1,4 +1,4 @@
-import { Link, Meta, Title } from "@destack/view/document";
+import { Link, Meta, Title } from "@destack/web/head";
 
 import { tagline } from "../content/site";
 

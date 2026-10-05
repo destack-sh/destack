@@ -6,7 +6,9 @@
     "sideEffects": false,
     "exports": {
         "./destack.json": "./destack.json",
-        "./build": "./src/build/index.ts"
+        "./build": "./src/build/index.ts",
+        "./head": "./src/head/index.ts",
+        "./render": "./src/render/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -16,6 +18,7 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/view": "workspace:*",
+        "@solidjs/meta": "1.0.0-next.2",
         "rolldown": "1.2.9"
     },
     "peerDependencies": {

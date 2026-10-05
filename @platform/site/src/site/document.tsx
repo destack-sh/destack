@@ -1,5 +1,5 @@
 import type { ParentProps } from "@destack/view";
-import { HydrationScript } from "@destack/view/render";
+import { HydrationScript } from "@destack/web/render";
 import { createTheme } from "@destack/theme";
 import ibmPlexMono from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url";
 import ibmPlexMonoSemibold from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2?url";

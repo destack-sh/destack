@@ -42,7 +42,7 @@ const AUTHORED_MODULES: Readonly<Record<string, string>> = {
     ].join("\n"),
     "src/document.tsx": [
         'import type { ParentProps } from "solid-js";',
-        'import { HydrationScript } from "@destack/view/render";',
+        'import { HydrationScript } from "@destack/web/render";',
         "",
         "export default function Document(properties: ParentProps) {",
         "    return (",
@@ -56,7 +56,7 @@ const AUTHORED_MODULES: Readonly<Record<string, string>> = {
         "}",
     ].join("\n"),
     "src/entry-server.tsx": [
-        'import { renderToStream } from "@destack/view/render";',
+        'import { renderToStream } from "@destack/web/render";',
         'import App from "./app.tsx";',
         'import Document from "./document.tsx";',
         "",
@@ -69,7 +69,7 @@ const AUTHORED_MODULES: Readonly<Record<string, string>> = {
         "}",
     ].join("\n"),
     "src/entry-client.tsx": [
-        'import { hydrate } from "@destack/view/render";',
+        'import { hydrate } from "@destack/web/render";',
         'import App from "./app.tsx";',
         'import Document from "./document.tsx";',
         "",
@@ -155,14 +155,15 @@ async function writeApplication(): Promise<{
     return { root, application, dependency };
 }
 
-/** Write an application rendering with view through authored entries into a fresh directory, returning the directories. */
+/** Write an application rendering with view and web through authored entries into a fresh directory, returning the directories. */
 async function writeAuthoredApplication(): Promise<{ root: string; application: string }> {
-    // link view and its Solid into the application's installation
+    // link view, web and their Solid into the application's installation
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-web-entry-")));
     const application = join(root, "application");
     await mkdir(join(application, "src"), { recursive: true });
     await mkdir(join(application, "node_modules", "@destack"), { recursive: true });
     await symlink(VIEW, join(application, "node_modules", "@destack", "view"));
+    await symlink(PACKAGE, join(application, "node_modules", "@destack", "web"));
     await symlink(
         join(VIEW, "node_modules", "solid-js"),
         join(application, "node_modules", "solid-js"),
@@ -175,7 +176,11 @@ async function writeAuthoredApplication(): Promise<{ root: string; application: 
             name: "@fixture/authored",
             version: "2026.9.0",
             type: "module",
-            dependencies: { "@destack/view": "2026.9.0", "solid-js": "2.0.0-rc.8" },
+            dependencies: {
+                "@destack/view": "2026.9.0",
+                "@destack/web": "2026.9.0",
+                "solid-js": "2.0.0-rc.8",
+            },
         }),
     );
     await writeFile(join(application, "destack.json"), definition(AUTHORED, {}));
