@@ -158,7 +158,7 @@ export function deriveTable(
         key: definition.key,
     };
 
-    // build the columns, then gather the dependents, aggregates and tree the traits keep
+    // build the columns and gather the dependents, aggregates and tree the traits keep
     const builders = objectColumns(definition, applied, object);
     const kept = applied.map(({ trait, options }) => trait.table?.(options, object) ?? {});
     const tree = kept.find((traitTable) => traitTable.tree !== undefined)?.tree;

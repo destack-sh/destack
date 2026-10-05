@@ -109,7 +109,7 @@ export interface FieldRelation {
 
 /** Check mapped columns against their declared attribute and relation types. */
 function validate(authorizer: Authorizer, mapping: TableMapping): void {
-    // check the columns, then the relations, trees and parent against the policy
+    // check the columns and the relations, trees and parent against the policy
     validateKeys(mapping);
     validateAttributes(mapping);
     validateReferenceColumns(mapping);

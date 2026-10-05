@@ -80,7 +80,7 @@ export interface SliderProperties extends Omit<
 
 /** Render a native range input, filled up to its value, that arrow keys, Page Up, Page Down, Home and End move. */
 export function Slider(properties: SliderProperties): JSX.Element {
-    // follow the passed value, then each value the person moves to
+    // follow the passed value and each value the person moves to
     const rest = omit(properties, "style", "onInput");
     const minimum = (): number => Number(properties.min ?? RANGE.min);
     const maximum = (): number => Number(properties.max ?? RANGE.max);

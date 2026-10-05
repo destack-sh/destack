@@ -364,7 +364,7 @@ test.for(TEST_DIALECTS)(
         const tasks = (from: number, count: number) =>
             Array.from({ length: count }, (_, index) => ({ ...TASK, id: `t${from + index}` }));
 
-        // commit one transaction of 1500 tasks, then two of 700
+        // commit one transaction of 1500 tasks and two of 700
         for (const [from, count] of [
             [0, 1500],
             [1500, 700],

@@ -96,7 +96,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
         page,
     );
     try {
-        // fail with an uncaught error, then with an unhandled rejection
+        // fail with an uncaught error and with an unhandled rejection
         page.dispatchEvent(new ErrorEvent("error", { error: new TypeError("note is missing") }));
         const thrown = await exported();
         page.dispatchEvent(

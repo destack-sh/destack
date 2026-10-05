@@ -359,7 +359,7 @@ test("refuse placements and writes a setting does not permit", () => {
 });
 
 test("skip stored values a changed schema rejects, falling through to the next source", () => {
-    // skip Alice's value for the recommendation, then the default, and list it as invalid
+    // skip Alice's value for the recommendation and the default, listing it as invalid
     const upgraded = defineSetting(
         { ...editor.definition, schema: schema.enum(["standard", "emacs"]), default: "standard" },
         { package: { ...notes, version: "2026.10.0" } },

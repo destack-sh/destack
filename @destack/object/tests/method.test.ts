@@ -331,7 +331,7 @@ test.each(TEST_DIALECTS)(
         });
         act("user-1");
 
-        // challenge a viewer for step-up authentication, then admit them
+        // challenge a viewer for step-up authentication and admit them after
         await execute("grant", {
             id: created.id,
             requestId: RequestId.create(),
@@ -402,7 +402,7 @@ test.each(TEST_DIALECTS)(
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
         act("user-1");
 
-        // challenge a lent agent for a missing grant, then admit it
+        // challenge a lent agent for a missing grant and admit it after
         const agent = principal.installation.reference(spaceId, "assistant");
         delegate(agent);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
@@ -589,7 +589,7 @@ test.each(TEST_DIALECTS)(
             message: "task is managed by its stack; detach it before changing it",
         });
 
-        // delete once detached: hidden from lists, listed in the trash, restorable, then purged
+        // delete once detached: hidden from lists, listed in the trash, restorable and purged at last
         await database
             .update(task.table)
             .set({ detachedAt: Date.now() })

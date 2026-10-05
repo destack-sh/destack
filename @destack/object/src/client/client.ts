@@ -459,7 +459,7 @@ export class ObjectClient<
         };
     }
 
-    /** Create the local tables, then keep one scope's objects in the database. */
+    /** Create the local tables and keep one scope's objects in the database. */
     static async open<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
         /** The local database. */
         readonly database: DatabaseConnection;
@@ -1544,7 +1544,7 @@ export class ObjectClient<
         members: Readonly<Record<string, RelationalQuery<readonly object[]>>>,
         options: Omit<UnionOptions, "orderBy"> & { readonly orderBy: unknown },
     ): LiveQuery<readonly { readonly name: string; readonly row: NestedItem }[]> {
-        // refuse members ordering or limiting themselves, then follow each in the union's order and limit
+        // refuse members ordering or limiting themselves, and follow each in the union's order and limit
         for (const [name, member] of Object.entries(members)) {
             if (member.options.orderBy !== undefined || member.options.limit !== undefined) {
                 throw new TypeError(`union member ${name} orders or limits itself`);
@@ -1563,7 +1563,7 @@ export class ObjectClient<
         }));
         const byName = new Map(followed.map((member) => [member.name, member]));
         const merge = (lists: readonly (readonly Item[])[]) => {
-            // order the members' rows, then select each row's item
+            // order the members' rows and select each row's item
             const items = new Map(lists.flatMap((list) => list.map((item) => [item.row, item])));
             const merged = Order.merge(
                 Order.of(orderBy),

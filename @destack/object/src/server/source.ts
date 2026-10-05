@@ -726,7 +726,7 @@ export class ObjectSource {
                 const audience = await ObjectAudience.of(this.server, scope, context, { storage });
                 const watching = this.#watchAccess(audience.chain, since, revised, signal);
 
-                // follow until access changes, then from a snapshot
+                // follow until access changes, and from a snapshot after
                 yield* follow(audience, signal, isFirst);
                 revised.abort();
                 await watching;
@@ -921,7 +921,7 @@ export class ObjectSource {
             if (copy.action === "follow") {
                 await this.#followCopy(key, copy, listed, list, revised);
             }
-            // drop a kept copy no request names, then wait for a request naming it again
+            // drop a kept copy no request names and wait for a request naming it again
             else {
                 await this.replicaOf(copy.subscription).drop(this.server.database);
                 await until(revised);
@@ -993,7 +993,7 @@ export class ObjectSource {
         return rows;
     }
 
-    /** List the subscriptions a placed workload keeps: the universe's rows, then one copy of its scopes' chains. */
+    /** List the subscriptions a placed workload keeps: the universe's rows and one copy of its scopes' chains. */
     async workloadSubscriptions(placement: string): Promise<sync.Subscription[]> {
         // read the copied scopes the served objects live in while the universe's copy includes them
         const living = this.server.copied.filter((scope) =>
@@ -1034,7 +1034,7 @@ export class ObjectSource {
         below: string,
         options: { readonly isHome: boolean },
     ): Promise<sync.Subscription[]> {
-        // copy the chain, then the rows of the universe the scope reads
+        // copy the chain and the rows of the universe the scope reads
         const chain = await this.server.authorizer.chain(this.server.database, below, options);
         const universe = this.universeSubscription(below);
 

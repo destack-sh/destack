@@ -119,7 +119,7 @@ export class Stream {
                 const resumed = yield* this.#resume(position, signal);
                 position = { epoch: position.epoch, sequence: resumed };
             }
-            // publish the decided pages, then wait or move on
+            // publish the decided pages before waiting or moving on
             else {
                 const { pages, sequence } = await decided;
                 await nextTask();
@@ -149,7 +149,7 @@ export class Stream {
 
     /** Send a snapshot at the latest position and what followed, returning the sequence reached. */
     async *#snapshot(epoch: string, signal: AbortSignal): AsyncGenerator<Page, number> {
-        // walk the queries, then catch up
+        // walk the queries before catching up
         const start = { epoch, sequence: (await this.#feed.database.log.position()).sequence };
         this.#evaluation.forget(start);
         const last = yield* this.#evaluation.walk(

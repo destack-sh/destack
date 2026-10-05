@@ -167,7 +167,7 @@ export class Stack {
         this.#writing = writing;
     }
 
-    /** Apply a stack: write each object type's declared records, then retire undeclared ones, as steps addressed `<type>/<name>`. */
+    /** Apply a stack: write each object type's declared records and retire undeclared ones, as steps addressed `<type>/<name>`. */
     static async apply(options: ApplyOptions): Promise<Plan> {
         // pair each object type with its declaration
         const declared = options.objects.map((object) => {
@@ -301,7 +301,7 @@ export class Stack {
         return release(packageId, installation);
     }
 
-    /** Write each object type's declarations, then retire undeclared records. */
+    /** Write each object type's declarations and retire undeclared records. */
     async #apply(): Promise<Plan> {
         // write each type in order
         const steps: Step[] = [];
@@ -309,7 +309,7 @@ export class Stack {
         for (const declaration of this.#ordered) {
             try {
                 await this.#transact(declaration, async (stack) => {
-                    // resolve, then write the difference
+                    // resolve before writing the difference
                     const desired = new Map<string, unknown>();
                     for (const [name, declared] of Object.entries(
                         collect(declaration, this.document),

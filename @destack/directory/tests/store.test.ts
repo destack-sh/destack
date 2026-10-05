@@ -23,7 +23,7 @@ test.each(TEST_DIALECTS)(
         });
         await directory.replace(owned("notes"), "request-1");
 
-        // follow the log, then answer repeated lookups without reading the database again
+        // follow the log and answer repeated lookups without reading the database again
         const following = new AbortController();
         const followed = directory.follow(following.signal);
         onTestFinished(async () => {
@@ -96,7 +96,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "advance a zone's epoch in its own cell, ending its move and refusing every step of the earlier epoch, on %s",
     async (dialect) => {
-        // place a zone in host-1 moving to host-2, then advance its epoch in host-1
+        // place a zone in host-1 moving to host-2 and advance its epoch in host-1
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);

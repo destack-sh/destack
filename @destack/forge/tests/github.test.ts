@@ -87,7 +87,7 @@ test("identify a repository and mint installation tokens limited to it and to th
         fetch: github.fetch,
     });
 
-    // identify the repository by name, then lease writing to it by identifier
+    // identify the repository by name and lease writing to it by identifier
     const fullName = GitHubApp.fullName("https://github.com/acme/site.git");
     expect([
         await app.repository(String(INSTALLATION), fullName),

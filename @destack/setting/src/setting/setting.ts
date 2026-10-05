@@ -315,7 +315,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
                 "a value set in another scope reached the resolution",
             );
         }
-        // rank a recommendation or requirement of an enclosing scope by its depth, then its installation
+        // rank a recommendation or requirement of an enclosing scope by its depth and its installation
         else {
             this.requirePlacement({ ...placement, mode: value.mode }, "enclosing");
             const depth = chain.indexOf(value.scope);
@@ -385,7 +385,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     }
 }
 
-/** A candidate's precedence: its tier, then its weight within the tier. */
+/** A candidate's precedence: its tier, and its weight within the tier. */
 type Rank = readonly [tier: number, weight: number];
 
 /** A value competing for a resolution at a rank. */

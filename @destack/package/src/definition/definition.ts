@@ -8,7 +8,7 @@ import { Publication } from "./publication.ts";
 import { Capabilities } from "./capability.ts";
 import { PackageError } from "../error/index.ts";
 
-/** A finding the package accepts in named files, with its reason; checking fails once nothing matches it. */
+/** A finding the package accepts in named files with its reason, failing the check once nothing matches it. */
 export const Expectation = defineSchema(
     schema.object({
         /** The files the findings are in, relative to the package. */

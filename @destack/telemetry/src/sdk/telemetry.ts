@@ -34,7 +34,7 @@ export interface TelemetryOptions {
     manifest?: string;
     /** Deployment attributes shared by every exported signal. */
     attributes?: Attributes;
-    /** HTTP propagation; defaults to W3C trace context and baggage. */
+    /** The HTTP propagator, W3C trace context and baggage by default. */
     propagator?: TextMapPropagator;
     /** Trace processors, sampling, and limits. */
     traces: Omit<TracerProviderOptions, "resource">;

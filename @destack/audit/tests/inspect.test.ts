@@ -32,7 +32,7 @@ const details = {
 };
 
 test("describe an action with its package and call shapes, and list its term from the description", () => {
-    // describe the action, then read its term from the serialized description
+    // describe the action and read its term from the serialized description
     const described = describeAuditAction(renameDocument);
     const serialized = schema
         .record(schema.string(), schema.json())

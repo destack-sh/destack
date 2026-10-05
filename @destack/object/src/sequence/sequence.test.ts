@@ -152,7 +152,7 @@ test.for([5, 23, 77])(
 );
 
 test("restore only the elements a deletion hid, leaving another party's earlier deletion in place", () => {
-    // delete "quick " as one party, then "the quick brown" as another, and undo only the second
+    // delete "quick " as one party and "the quick brown" as another, undoing only the second
     const base = new Sequence().apply({ insert: "the quick brown fox", run: "base.1" });
     const first = base.apply({ delete: { from: element(4), to: element(9) } });
     const second = { delete: { from: element(0), to: element(14) } } as const;
@@ -195,7 +195,7 @@ test("resolve annotations over edits by their boundaries: bold grows at its end,
         end: { element: at(10), side: "after" },
     };
 
-    // type at both ends of each range, then delete inside the bold range
+    // type at both ends of each range and delete inside the bold range
     const edited = text
         .apply({ insert: "!", run: "b.1", after: at(4) })
         .apply({ insert: "?", run: "b.2", after: at(10) })
@@ -213,7 +213,7 @@ test("resolve annotations over edits by their boundaries: bold grows at its end,
 });
 
 test("cover overlapping annotations in one stretch each, keeping boundaries on deleted elements in place", () => {
-    // annotate overlapping ranges, then delete the comment's first element
+    // annotate overlapping ranges and delete the comment's first element
     const text = new Sequence().apply({ insert: "the quick brown fox", run: "a.1" });
     const comment: Annotation = {
         id: "comment",

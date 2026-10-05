@@ -296,7 +296,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
             return call.input;
         }
 
-        // assign each later release's fields, then drop the fields this release no longer declares
+        // assign each later release's fields and drop the fields this release no longer declares
         const converted = Expression.upgrade(conversions, call.input, call.release, served);
 
         return shape === undefined

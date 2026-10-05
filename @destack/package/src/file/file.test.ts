@@ -3,7 +3,7 @@ import { PackageError } from "../error/error.ts";
 import { PackageFile } from "./file.ts";
 
 test("verify a file's exact size and digest", async () => {
-    // describe a file, then accept its exact bytes
+    // describe a file and accept its exact bytes
     const bytes = new TextEncoder().encode("export {};");
     const file = await PackageFile.describe("src/index.js", "text/javascript", bytes);
     await expect(PackageFile.verify(file, bytes)).resolves.toBeUndefined();

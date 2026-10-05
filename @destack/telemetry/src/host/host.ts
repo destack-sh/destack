@@ -12,7 +12,7 @@ export function startTelemetry(options: TelemetryOptions): Promise<Telemetry> {
     return Telemetry.start(options, new AsyncLocalStorageContextManager(), captureProcess);
 }
 
-/** Record and export a process's uncaught exceptions and unhandled rejections, then end it as it would have ended. */
+/** Record and export a process's uncaught exceptions and unhandled rejections, ending it as it would have ended. */
 export function captureProcess(telemetry: Telemetry): () => void {
     // record a failure and export it, ending the process when no other listener handles it
     const fail = (event: FailureEvent, error: unknown, raise: () => void) => {

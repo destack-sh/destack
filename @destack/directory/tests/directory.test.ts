@@ -48,7 +48,7 @@ test.each(TEST_DIALECTS)(
         await directory.place(zone);
         await expect(directory.place(moved)).rejects.toMatchObject(unmoved);
 
-        // take it over in the region its move targets, then refuse the stale host and a rival at that epoch
+        // take it over in the region its move targets, refusing the stale host and a rival at that epoch
         await directory.move(zone, "region-1");
         await directory.place(moved);
         await expect(directory.place(zone)).rejects.toMatchObject({
@@ -160,7 +160,7 @@ test.each(TEST_DIALECTS)(
             { indexes: [index], objectId: "space-1", claims: [claim("notes", "space-1")] },
         ]);
 
-        // refuse another object's replacement, then rename the object, releasing the old name
+        // refuse another object's replacement and rename the object, releasing the old name
         const taken = await directory.replace(
             { indexes: [index], objectId: "space-2", claims: [claim("notes", "space-2")] },
             "request-3",
@@ -211,7 +211,7 @@ test.each(TEST_DIALECTS)(
                 : Response.json(zone);
         });
 
-        // follow the move once, then stay at the new cell
+        // follow the move once and stay at the new cell
         expect([
             await client.locate({ scope: "space-1" }),
             await client.locate({ scope: "space-1" }),
@@ -280,7 +280,7 @@ test.each(TEST_DIALECTS)(
         const second = await IdentityOperation.sign({ ...owned, rotationKeys }, cell.privateKey);
         await directory.apply(second);
 
-        // let the cell's key replace the signing key, then the owner's key nullify that and refuse the cell's retry
+        // let the cell's key replace the signing key and the owner's key nullify that, refusing the cell's retry
         const unrecoverable = new ServiceError("CONFLICT", {
             message: "the operation cannot nullify the later operations of space-1",
         });

@@ -2,26 +2,7 @@
 
 Sell products with features, bill accounts for subscriptions and purchases, and derive their entitlements.
 
-## Objects
-
-Every object lives in an account: a seller's account keeps its products, and a buyer's account keeps its customer, subscriptions, purchases, entitlements, meter events and invoices.
-
-```text
-account
-├── customer { email, name, address?, taxIds, providerId? }                       one per account
-├── seller { provider, providerId?, status, chargesEnabled, payoutsEnabled, country }   one per account
-├── product { name, description, active }
-│   ├── product-feature { packageId, feature, value? }
-│   └── price { currency, unitAmount?, type, recurring?, billingScheme, tiers?, lookupKey?, active }
-├── subscription { seller, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, trialEnd?, canceledAt?, providerId? }
-│   └── subscription-item { price, quantity, terms, grants }
-├── purchase { seller, price, quantity, terms, grants, amount, status, paidAt?, providerId? }
-├── entitlement { packageId, feature, kind, value?, limit?, usage?, resetAt?, source, sourceId }
-├── meter-event { eventId, source, packageId, meter, value, time }               unique per source and eventId
-└── invoice { number, status, currency, subtotal, tax, total, amountPaid, periodStart?, periodEnd?, hostedUrl?, pdfUrl?, issuedAt, providerId }
-```
-
-## Features
+## Declarations
 
 `defineFeature` declares what a product grants (access alone, a fixed value of a schema, or usage of a meter up to a limit), and later releases keep each feature's kind.
 
@@ -49,6 +30,25 @@ export const calls = defineFeature({
     meter: requests.reference,
     reset: "period", // or never
 });
+```
+
+## Objects
+
+Every object lives in an account: a seller's account keeps its products, and a buyer's account keeps its customer, subscriptions, purchases, entitlements, meter events and invoices.
+
+```text
+account
+├── customer { email, name, address?, taxIds, providerId? }                       one per account
+├── seller { provider, providerId?, status, chargesEnabled, payoutsEnabled, country }   one per account
+├── product { name, description, active }
+│   ├── product-feature { packageId, feature, value? }
+│   └── price { currency, unitAmount?, type, recurring?, billingScheme, tiers?, lookupKey?, active }
+├── subscription { seller, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, trialEnd?, canceledAt?, providerId? }
+│   └── subscription-item { price, quantity, terms, grants }
+├── purchase { seller, price, quantity, terms, grants, amount, status, paidAt?, providerId? }
+├── entitlement { packageId, feature, kind, value?, limit?, usage?, resetAt?, source, sourceId }
+├── meter-event { eventId, source, packageId, meter, value, time }               unique per source and eventId
+└── invoice { number, status, currency, subtotal, tax, total, amountPaid, periodStart?, periodEnd?, hostedUrl?, pdfUrl?, issuedAt, providerId }
 ```
 
 ## Selling
@@ -169,10 +169,39 @@ const paying = await Customer.payer(database, accountId);
 
 ## Service
 
-`financeWorkload` serves the objects once per residency over `financeDatabase`, which copies the residency's accounts and organisations.
+`implementFinance` serves the finance objects over a residency's database, following the account service's copies and deriving entitlements under a controller.
+
+```ts
+import { implementFinance } from "@destack/finance/server";
+
+const finance = implementFinance({ database, identity, callKey, release, report });
+```
+
+## Client
+
+`connect` returns a client of the finance service's objects.
+
+```ts
+import { connect } from "@destack/finance/client";
+
+const finance = connect({ url, headers: { authorization } });
+await finance.customer.list({ accountId });
+```
+
+## Workload
+
+`financeWorkload` serves the objects once per residency over `financeDatabase`, the `workloadIdentity` and `financeConfiguration`.
 
 ```ts
 import { financeConfiguration, financeWorkload } from "@destack/finance/workload";
 
 resources.bind(financeConfiguration, { release: (packageId) => openRelease(packageId) });
+```
+
+## Tables
+
+`financeDatabase` holds `financeTables` beside copies of the residency's accounts and organisations, whose payers customers record.
+
+```ts
+import { financeDatabase, financeTables } from "@destack/finance/stack";
 ```

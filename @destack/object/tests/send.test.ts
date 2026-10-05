@@ -30,7 +30,7 @@ const member = defineObject({
         welcome: method.update("write", { fields: ["name"] }),
     }),
 }).handle({
-    // sign up, sending the welcome, then refuse a sign-up of the refused name after sending
+    // sign up, sending the welcome, and refuse a sign-up of the refused name after sending
     create: async (call, next) => {
         const name = call.input.name;
         await call.send({ call: member.calls().welcome({ id: "member-1", name }) });

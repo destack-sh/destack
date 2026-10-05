@@ -241,7 +241,7 @@ export class Journal {
 
         try {
             return await this.database.transaction(async (transaction) => {
-                // authorize, then replay a recorded request
+                // authorize before replaying a recorded request
                 const authorized = await steps.authorize(transaction);
                 const previous = await this.#recorded(transaction, request);
                 if (previous.length > 0) {
@@ -358,7 +358,7 @@ export class Journal {
             return 0;
         }
 
-        // deliver what the history keeps within a timeout, then mark the delivered versions
+        // deliver what the history keeps within a timeout and mark the delivered versions
         const timeout = AbortSignal.timeout(DELIVERY_TIMEOUT_MILLISECONDS);
         await history.ingest(
             { calls: rows.map((row) => AuditHistory.kept(row.call)) },
@@ -426,7 +426,7 @@ export class Journal {
                     return delivered === this.batch ? 0 : undefined;
                 }
 
-                // remove a batch, then look again at the earliest removable expiry, or a lifetime on when no later call expires sooner
+                // remove a batch and look again at the earliest removable expiry, or a lifetime on when no later call expires sooner
                 const now = Date.now();
                 if ((await this.prune(MAX_PRUNE_CALLS, now)) === MAX_PRUNE_CALLS) {
                     return 0;

@@ -217,7 +217,7 @@ function show(title: string, options?: ToastOptions): string {
     return store.show(title, "default", options);
 }
 
-/** Show a loading toast while a promise is pending, then its outcome, and return the promise. */
+/** Show a loading toast while a promise is pending and its outcome once it settles, returning the promise. */
 function follow<Value>(
     promise: Promise<Value>,
     messages: ToastPromiseMessages<Value>,

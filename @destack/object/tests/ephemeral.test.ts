@@ -305,7 +305,7 @@ test.for(TEST_DIALECTS)(
         onTestFinished(() => listening.abort());
         const received = bob.client.broadcasts(board, plans.id, listening.signal).next();
 
-        // grant him the board, then deliver her reaction once his copy has it
+        // grant him the board and deliver her reaction once his copy has it
         await east.call("alice", board, "grant", {
             requestId: RequestId.create(),
             id: plans.id,
@@ -528,7 +528,7 @@ async function serveBoards(dialect: Dialect) {
                 let wake = idle;
                 const reading = (async () => {
                     for await (const page of pages) {
-                        // start over from a snapshot that resets, then apply the page's changes
+                        // start over from a snapshot that resets and apply the page's changes
                         if (page.reset) {
                             rows.clear();
                         }

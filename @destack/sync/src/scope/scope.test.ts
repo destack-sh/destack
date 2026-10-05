@@ -46,7 +46,7 @@ test.for(TEST_DIALECTS)(
             code: "NOT_FOUND",
         });
 
-        // fence a scope for its target cell, then lift the fence
+        // fence a scope for its target cell and lift the fence
         await Scope.fence(database, "space", "cell-b", 1000);
         const moved = async () =>
             (await Scope.chain(Snapshot.live(database), "space")).map((link) => link.movedTo);

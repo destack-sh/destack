@@ -133,7 +133,7 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
         ];
     }
 
-    /** Answer probes, then dispatch. */
+    /** Answer probes before dispatching. */
     override async handle(
         ...args: Parameters<OpenAPIHandler<State>["handle"]>
     ): ReturnType<OpenAPIHandler<State>["handle"]> {

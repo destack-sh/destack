@@ -49,7 +49,7 @@ The sampler keeps the `ratio` of traces the exporter options name, and every tra
 ```text
 a root whose random bits fall below the ratio   kept
 a child span                                    kept as its parent decided
-a local trace that failed or ran slow           buffered with its records until its root ends, then kept
+a local trace that failed or ran slow           buffered with its records and kept once its root ends
 a buffered trace evicted undecided              dropped, and counted in telemetry.tail.evicted
 ```
 
@@ -106,7 +106,7 @@ Each runtime records an uncaught failure as an `exception` log record at `ERROR`
 
 ```text
 /host     uncaughtException and unhandledRejection
-          waits up to two seconds for the export, then raises the failure again,
+          waits up to two seconds for the export before raising the failure again,
           ending the process as it would have ended, unless another listener handles it
 /browser  the window's error and unhandledrejection
           leaves the browser's reporting, and exports again on pagehide and on visibilitychange to hidden

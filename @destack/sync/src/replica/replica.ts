@@ -176,7 +176,7 @@ export class Replica {
     readonly everywhere: ReadonlySet<Table>;
     /** The parent tables of each table copied across scopes: each of its rows lives in the scope of a parent row's `id`. */
     readonly within: ReadonlyMap<Table, readonly Table[]>;
-    /** Whether the source may keep a copy itself, which the copy then follows to its home. */
+    /** Whether the source may keep a copy itself, which the copy follows to its home. */
     readonly isRelayed: boolean;
     /** The source tables whose rows the copy projects into rows of its own, by SQL name. */
     readonly #projectors: ReadonlyMap<string, Projector>;
@@ -1004,7 +1004,7 @@ export class Replica {
         // batch each table's writes and each projected table's rows
         const { batches, projected, origin } = await this.#collect(page, delivered, unwrap);
 
-        // take the removed rows out of the copy children first, then write the kept rows parents first
+        // take the removed rows out of the copy children first and write the kept rows parents first
         const ordered = this.tables.flatMap((table): [Table, Batch][] => {
             const batch = batches.get(table);
 

@@ -107,7 +107,7 @@ test("relay an account's access through the space's database into an app's, and 
         subject: aligned(carol.subjects, 1),
     });
 
-    // copy the account into the cell's database, then create the space there
+    // copy the account into the cell's database and create the space there
     const accountFeed = new Feed(global.database, [...accessTables, policyTable]);
     await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
     await regional.database.insert(spaceTable).values({ id: "personal", account: "account-1" });

@@ -216,7 +216,7 @@ test.each(TEST_DIALECTS)(
         const alice = connect("alice");
         const device = await Device.open("alice", endpoint("alice"));
         device.online();
-        // create a note, then retitle it and write its text, both confirmed
+        // create a note, retitle it and write its text, both confirmed
         const created = device.client.mutate(note).create({ title: "Draft" });
         const { id } = await created.predicted;
         await created.confirmed;
@@ -323,7 +323,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
         client.push(stopping.signal, (error) => errors.push(error)),
     ];
 
-    // create a tally beyond the exact range of numbers, then change its count and label
+    // create a tally beyond the exact range of numbers and change its count and label
     const created = client.mutate(tally).create({ count: (2n ** 62n).toString(), label: "a" });
     const { id } = await created.predicted;
     await created.confirmed;
@@ -382,7 +382,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         client.push(stopping.signal, (error) => errors.push(error)),
     ];
 
-    // create a stamp of every byte value, then change its bytes and label
+    // create a stamp of every byte value and change its bytes and label
     const original = Uint8Array.from({ length: 256 }, (_, index) => index);
     const created = client.mutate(stamp).create({ bytes: original.toBase64(), label: "a" });
     const { id } = await created.predicted;

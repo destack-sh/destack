@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { RetryPolicy } from "./retry.ts";
 
 test("grow waits by the coefficient up to the maximum, spread below the interval with full jitter", () => {
-    // double up to four seconds, then jitter
+    // double up to four seconds and jitter
     const policy = RetryPolicy.of({ maximumInterval: 4000 });
     const jittered = { ...policy, jitter: "full" as const };
     expect([

@@ -398,7 +398,7 @@ export class Forge {
 
     /** Find the package with a global name `@<account handle>/<name>` through the directory. */
     async #named(name: string): Promise<ObjectReference> {
-        // resolve the account handle, then the name within the account
+        // resolve the account handle and the name within the account
         const [handle, local] = PackageName.parse(name).slice(1).split("/");
         if (handle === undefined || local === undefined) {
             throw new TypeError(`package name has no account handle: ${name}`);

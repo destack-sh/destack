@@ -128,7 +128,7 @@ export class NpmServer {
             return new Response(null, { status: 404 });
         }
 
-        // find the package the caller may read, then answer an archive or a document
+        // find the package the caller may read and answer an archive or a document
         const selected = groups?.["selected"];
         const found = await this.#forge.find(name, context);
         const file =

@@ -59,7 +59,7 @@ export async function temporary(prefix: string): Promise<string> {
     return directory;
 }
 
-/** A developer's working tree, committing and tagging, then pushing to a remote. */
+/** A developer's working tree that commits, tags and pushes to a remote. */
 export class Worktree {
     /** The working tree's directory. */
     readonly directory: string;

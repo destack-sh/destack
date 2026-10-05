@@ -6,7 +6,7 @@ import { PackageBuild } from "@destack/build";
 import { schema } from "@destack/schema";
 import { readJson, PackageFixture, run } from "./fixture/package.ts";
 
-/** Each package manager: how it installs a project, and how it runs the installed code; deno accepts the versions just published. */
+/** Each package manager with how it installs a project and runs the installed code, deno accepting the versions just published. */
 const MANAGERS = {
     npm: {
         install: (cache: string) => [
@@ -40,7 +40,7 @@ test.for(MANAGER_NAMES)(
     "install Destack packages and their Destack dependencies from the registry with %s",
     { timeout: 120_000 },
     async (manager) => {
-        // publish a package, then one built against it from the registry
+        // publish a package and one built against it from the registry
         await using forge = await PackageFixture.open("sqlite");
         const answer = await forge.publish("answer");
         const greeting = await forge.publish("greeting");

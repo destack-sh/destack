@@ -127,7 +127,7 @@ export class TailSampler {
         }
     }
 
-    /** Pass a kept trace's spans on as sampled, then its log records. */
+    /** Pass a kept trace's spans on as sampled, followed by its log records. */
     #keep(pending: PendingTrace): void {
         for (const span of pending.spans) {
             this.#spans.onEnd(sampled(span));

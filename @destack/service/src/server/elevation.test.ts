@@ -120,7 +120,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         fetch: (request) => server.fetch(request),
     });
 
-    // challenge a single factor, then rename after elevation
+    // challenge a single factor and rename after elevation
     await expect(client.rename({ id: "main" })).rejects.toMatchObject({
         code: "INSUFFICIENT_AUTHENTICATION",
         status: 401,

@@ -95,7 +95,7 @@ test.each(TEST_DIALECTS)(
             deferred: "note later is not declared yet",
         });
 
-        // detach one note, then retire labels before notes and keep it
+        // detach one note and retire labels before notes, keeping it
         await database
             .update(note.table)
             .set({ detachedAt: 1 })

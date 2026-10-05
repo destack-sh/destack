@@ -16,7 +16,7 @@ interface ServerSocket {
     ): void;
 }
 
-/** The pair of WebSocket ends workerd creates for an upgrade: the client's, then the server's. */
+/** The pair of WebSocket ends workerd creates for an upgrade, the client's first. */
 declare const WebSocketPair: new () => { readonly 0: unknown; readonly 1: ServerSocket };
 
 /** What workerd answers an upgrade with: the switch, and the client's end of the WebSocket. */

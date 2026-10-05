@@ -114,7 +114,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
             },
             list: async () => ["expiry"],
             reconcile: async () => {
-                // expire, then schedule the earliest window end
+                // expire and schedule the earliest window end
                 const now = Date.now();
                 await expiring.expire(server, now);
                 const passes = await Promise.all(

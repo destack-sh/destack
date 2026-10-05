@@ -253,7 +253,7 @@ test.for(TEST_DIALECTS)(
             });
         };
 
-        // type past one chunk, then paste into the middle, splitting evenly
+        // type past one chunk and paste into the middle, splitting evenly
         await edit(0, 0, digits(3000));
         expect((await chunks(database)).map((row) => row.characters)).toEqual(
             Array.from({ length: 8 }, () => 375),

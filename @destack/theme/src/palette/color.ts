@@ -126,7 +126,7 @@ export class Color {
 
     /** Convert to linear sRGB at a chroma. */
     rgb(chroma: number): Vector {
-        // convert OKLCH to OKLab, then through cone responses to linear sRGB
+        // convert OKLCH through OKLab and cone responses to linear sRGB
         const radians = (this.hue * Math.PI) / 180;
         const lab: Vector = [
             this.lightness,

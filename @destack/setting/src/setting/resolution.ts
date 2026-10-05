@@ -44,7 +44,7 @@ export const SettingResolution = Object.assign(
             selection: SettingSelection,
             /** The effective value. */
             value: schema.json(),
-            /** The agreeing requirements or the winning sources, then the skipped invalid values. */
+            /** The agreeing requirements or the winning sources, followed by the skipped invalid values. */
             sources: schema.array(SettingSource).min(1),
             /** The other applicable sources in ascending precedence. */
             overridden: schema.array(SettingSource),

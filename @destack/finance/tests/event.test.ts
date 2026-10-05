@@ -12,7 +12,7 @@ test.each(TEST_DIALECTS)(
         const finance = await Finance.open(dialect);
         onTestFinished(() => finance.close());
 
-        // append an event and the same id from another source, then refuse a repeat of either pair
+        // append an event and the same id from another source, refusing a repeat of either pair
         const event = {
             eventId: "request-1",
             packageId: storage.id,

@@ -126,7 +126,7 @@ export class ServiceTelemetry {
             attributes["error.type"] = isServiceError(error) ? String(error.status) : "internal";
         }
 
-        // mark failed calls, then record the call
+        // mark failed calls before recording the call
         if (attributes["error.type"] !== undefined) {
             span.setStatus({ code: SpanStatusCode.ERROR });
         }

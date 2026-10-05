@@ -181,7 +181,7 @@ export class DataTableControl<Row> {
 
     /** Select or deselect rows by id and tell the change handler. */
     select(ids: readonly string[], isSelected: boolean): void {
-        // add or remove each id, then report the selection
+        // add or remove each id and report the selection
         const next = new Set(this.selected());
         for (const id of ids) {
             if (isSelected) {

@@ -367,7 +367,7 @@ export class AuditRecorder<Transaction = never> {
         let outcome: Outcome = CANCELLED;
         let cause: unknown;
 
-        // pass on the values, then record how the stream ended
+        // pass on the values and record how the stream ended
         try {
             yield* source();
             outcome = { kind: "success" };

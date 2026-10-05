@@ -183,7 +183,7 @@ test.each(TEST_DIALECTS)(
             Scope.universe.id,
         ]);
 
-        // create through credentials restricted to the space or another one, and unrestricted, then list as alice
+        // create through credentials restricted to the space, to another one and unrestricted, and list as alice
         const create = async (user: string, title: string, restricted?: string) => {
             // restrict the caller's permissions to one scope when the credential asks
             const context = userContext(
@@ -295,7 +295,7 @@ test("keep one copy record per followed space of one account, and drop one space
 });
 
 test("drop a copy no request names under the lease its follow holds, whichever of two controllers on the database follows it", async () => {
-    // follow a space's chain on a cell through one control loop, then start another over the same database
+    // follow a space's chain on a cell through one control loop and start another over the same database
     const { home, cell, server, requested } = await openCopies();
     requested.add(spaceId);
     const controller = new AbortController();
@@ -356,7 +356,7 @@ test("drop a copy once its source refuses its follow and no request names it any
         await Replica.reach(cell.database, scope, head, controller.signal);
     }
 
-    // stop requesting the chain without a change the controller watches, then refuse the cell at home
+    // stop requesting the chain without a change the controller watches, and refuse the cell at home
     requested.delete(spaceId);
     refuse();
     await cell.database.log.until(
@@ -516,7 +516,7 @@ test("copy the chains of a workload's two spaces in one copy via both, requiring
     const head = await home.database.log.position();
     await Replica.reach(workload.database, Scope.universe.id, head, controller.signal);
 
-    // request the universe's rows, then one copy of both spaces' chains via them
+    // request the universe's rows and one copy of both spaces' chains via them
     const requests = await copying.source.workloadSubscriptions(placementId);
     const chains = present(requests[1], "the chains' request");
 

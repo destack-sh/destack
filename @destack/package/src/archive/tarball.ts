@@ -26,7 +26,7 @@ export interface TarballEntry {
 
 /** A gzip-compressed ustar archive of regular files, equal entries always giving equal bytes. */
 export const Tarball = {
-    /** Stream entries as one gzip member: each file's ustar blocks, then the two end blocks. */
+    /** Stream entries as one gzip member: each file's ustar blocks followed by the two end blocks. */
     stream(entries: AsyncIterable<TarballEntry>): ReadableStream<Uint8Array<ArrayBuffer>> {
         // pull one chunk at a time, stopping the entries when the reader cancels
         const chunks = compress(entries);
@@ -90,7 +90,7 @@ async function* compress(
     }
 }
 
-/** Write each entry's tar blocks, then the two zero blocks ending the archive. */
+/** Write each entry's tar blocks followed by the two zero blocks ending the archive. */
 async function* archive(
     entries: AsyncIterable<TarballEntry>,
 ): AsyncGenerator<Uint8Array<ArrayBuffer>> {

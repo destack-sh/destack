@@ -129,7 +129,7 @@ test("disable a disabled field's control", () => {
 });
 
 test("style an invalid field's controls as controls marked invalid themselves", () => {
-    // draw each control in an invalid field, then marked invalid outside a field
+    // draw each control in an invalid field and marked invalid outside a field
     const inField = draw(() => (
         <>
             <Field invalid>

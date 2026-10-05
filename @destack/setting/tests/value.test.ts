@@ -26,7 +26,7 @@ test.each(TEST_DIALECTS)(
                 ...input,
             });
 
-        // write a personal value, an override on the laptop in Bob's installation, then change it
+        // write a personal value and an override on the laptop in Bob's installation, and change it
         const base = await create({});
         const override = await create({
             installation,

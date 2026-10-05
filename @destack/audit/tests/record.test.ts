@@ -74,7 +74,7 @@ test("commit and roll back application changes with their recorded calls", async
 test("record a running call, then its outcome once, accepting repeats and refusing changes", async () => {
     let storage = await AuditStorage.open();
     try {
-        // persist a prepared call only on append, then its outcome in the same record
+        // persist a prepared call only on append, with its outcome in the same record
         const running = storage.recorder.begin(renameDocument, rename);
         expect(await storage.journal.read()).toEqual([]);
         await storage.recorder.append(running);

@@ -159,7 +159,7 @@ test.for(TEST_DIALECTS)(
                 row.revision,
             ]);
 
-        // project the memos under identifiers of their own, then keep a retitle's title and note while clearing its seen time in a new revision
+        // project the memos under identifiers of their own, keeping a retitle's title and note while clearing its seen time in a new revision
         const stop = follow((after) => after);
         await reach();
         await database.update(receipt.table).set({ note: "Noted", seenAt: 5 });
@@ -271,7 +271,7 @@ test("settle the address of a recipient without a user, and record it again once
         await running;
     });
 
-    // settle the recipient without retrying, then record it again for a new memo naming them
+    // settle the recipient without retrying and record it again for a new memo naming them
     await recordedTimes(1);
     await loop.idle();
     const settled = [...recorded];

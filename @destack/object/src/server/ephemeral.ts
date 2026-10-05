@@ -176,7 +176,7 @@ export class EphemeralStorage implements AsyncDisposable {
         this.tracker.close();
     }
 
-    /** Stop replicating, then close the memory database this store opened. */
+    /** Stop replicating and close the memory database this store opened. */
     async [Symbol.asyncDispose](): Promise<void> {
         this.close();
         await this.#owned?.close();

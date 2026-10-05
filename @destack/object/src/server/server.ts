@@ -1242,7 +1242,7 @@ export class ObjectServer<
             throw new TypeError(`${object.name}.${name} is no system method without external work`);
         }
 
-        // guard the scope, then execute as the system
+        // guard the scope before executing as the system
         const { database, scope, now } = context;
         const chain = await Scope.guard(database, scope);
         const authorization = await SystemAuthorization.open(
@@ -1745,7 +1745,7 @@ export class ObjectServer<
             });
         }
 
-        // parse the input, then build the call in its scope through the view a read names
+        // parse the input and build the call in its scope through the view a read names
         const { fields, id, revision, at, branch } = ObjectServer.#fields(object, name, input);
         const scope = this.#scope(object, input);
         authorization.requireScopeOf(object);
@@ -1950,7 +1950,7 @@ export class ObjectServer<
                     continue;
                 }
 
-                // reserve, then prepare
+                // reserve before preparing
                 const reserved = await this.#reserve(await build());
                 settlements.push(reserved.settlement);
                 prepared.push(await this.#prepareOne(reserved.call, reserved.settlement));
@@ -2077,7 +2077,7 @@ export class ObjectServer<
             run: this.#invoker(transaction, authorization, scope, call.now, context, options),
         });
 
-        // authorize a caller unless prepared, then execute
+        // authorize a caller unless prepared, and execute
         if (prepared === undefined && !(authorization instanceof SystemAuthorization)) {
             await method.authorize?.(called);
         }

@@ -254,7 +254,7 @@ export class PackageArchive {
         const source = PackageArchive.#source(manifest, files);
         const publication = PackageArchive.#publication(manifest, files);
 
-        // declare the source exports' TypeScript, then each loaded output's exports and dependencies
+        // declare the source exports' TypeScript and each loaded output's exports and dependencies
         const metadata = PackageArchive.#metadata(source, commit);
         PackageArchive.#declareTypes(metadata, source, paths);
         const dependencies = PackageArchive.#declareOutputs(

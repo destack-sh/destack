@@ -30,7 +30,7 @@ export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Co
         super(code, { ...options, status: options.status ?? ServiceError.status(code) });
     }
 
-    /** Read the status a code declares: Destack's own codes first, then oRPC's common codes, else 500. */
+    /** Read the status a code declares, Destack's own codes before oRPC's common codes, else 500. */
     static status(code: ORPCErrorCode): number {
         return SERVICE_STATUSES[code] ?? fallbackORPCErrorStatus(code, undefined);
     }

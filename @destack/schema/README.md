@@ -141,7 +141,7 @@ zip(ids, rows); // [[id, row], ...], or RangeError for lists of different length
 `canonicalize` writes JSON with sorted object keys, `Digest.json` hashes that form, and `Commit` validates a Git object identifier.
 
 ```ts
-import { canonicalize, Digest } from "@destack/schema";
+import { canonicalize, Commit, Digest } from "@destack/schema";
 
 canonicalize({ b: 1, a: [true] }); // '{"a":[true],"b":1}'
 await Digest.json({ b: 1, a: [true] }); // the SHA-256 of the canonical form, as hex

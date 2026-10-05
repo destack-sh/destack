@@ -141,7 +141,7 @@ export class Branch {
             stored.map((entry) => BranchWrite.read(entry)).map((entry) => [named(entry), entry]),
         );
 
-        // update or create each row, then delete the rows no longer changed
+        // update or create each row and delete the rows no longer changed
         for (const entry of replaced) {
             const existing = byName.get(named(entry));
             byName.delete(named(entry));
@@ -219,7 +219,7 @@ export class Branch {
         const tables = this.types.tables(call.objects);
 
         return this.database.rehearse(async (savepoint) => {
-            // write the rows, then each call apart, skipping refused calls and external work
+            // write the rows and each call apart, skipping refused calls and external work
             const before = (await savepoint.log.written([...tables.values()])).length;
             await BranchWrite.write(savepoint, tables, over);
             const reach = new Set(over.map((row) => row.table));

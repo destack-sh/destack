@@ -162,7 +162,7 @@ export class Authorizer {
             this.#policies.set(policyKey(type), type);
         }
 
-        // add contributing types to open relations, then validate every named permission
+        // add contributing types to open relations and validate every named permission
         for (const type of types) {
             this.#registerContributions(type);
         }
@@ -1353,7 +1353,7 @@ export class Authorizer {
         return { permitted: new Set(permitted), ...(until === undefined ? {} : { until }) };
     }
 
-    /** Explain whether a caller has a permission on one object: the gate, then each grant and why it fails, per authority. */
+    /** Explain whether a caller has a permission on one object: the gate and each grant with why it fails, per authority. */
     async explain(
         snapshot: Snapshot,
         permission: PermissionReference,

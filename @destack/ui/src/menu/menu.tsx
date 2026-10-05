@@ -223,7 +223,7 @@ export class MenuControl {
 
     /** Open the menu beside its trigger, or at a point for a context menu, focusing an item. */
     open(focus: MenuFocus, point?: MenuPoint): void {
-        // remember what to focus, then open and join the parent's open submenus
+        // remember what to focus before opening and joining the parent's open submenus
         this.#focus = focus;
         this.#setPoint(point);
         this.#setOpen(true);
@@ -473,7 +473,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
             data-slot="menu-checkbox-item"
             {...rest}
             onClick={(event) => {
-                // flip the check of an enabled item, then run its action
+                // flip the check of an enabled item and run its action
                 if (properties.disabled !== true) {
                     properties.onCheckedChange?.(!properties.checked);
                 }
@@ -548,7 +548,7 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
             data-slot="menu-radio-item"
             {...rest}
             onClick={(event) => {
-                // select the value of an enabled item, then run its action
+                // select the value of an enabled item and run its action
                 if (properties.disabled !== true) {
                     radio.select(properties.value);
                 }
@@ -761,7 +761,7 @@ function choose(
         return;
     }
 
-    // run the action, then close the chain of menus and return the focus to its trigger
+    // run the action before closing the chain of menus and returning the focus to its trigger
     properties.onSelect?.(event);
     if (!event.defaultPrevented) {
         control.root().close(true);

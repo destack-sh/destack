@@ -105,7 +105,7 @@ function money(amount: number, currency: string, tag: LocaleTag): string {
         return `${new Intl.NumberFormat(tag).format(amount)} ${currency.slice(2)}`;
     }
 
-    // shift the minor unit by the currency's digits, then write it
+    // write the amount shifted by the currency's minor unit digits
     const formatter = new Intl.NumberFormat(tag, { style: "currency", currency });
     const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
 

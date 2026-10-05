@@ -159,7 +159,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => finance.close());
         const offer = await finance.offer();
 
-        // take the monthly price off sale, then the plan
+        // take the monthly price off sale before the plan
         const snapshot = () => refusal(Price.snapshot(finance.test.database, offer.monthly));
         const before = await snapshot();
         await finance.call("carol", price, "update", ids.shop, {

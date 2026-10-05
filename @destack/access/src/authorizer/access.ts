@@ -244,7 +244,7 @@ export class Access {
         const chain = new Set(this.#links.map((link) => link.object.id));
         const rows = new Map<string, Select<typeof Scope.table>>();
         for (let wanted = scopes.filter((id) => !chain.has(id)); wanted.length > 0;) {
-            // read the wanted rows, then their parents
+            // read the wanted rows and their parents
             const read = await snapshot.select(
                 Scope.table,
                 ["scope"],

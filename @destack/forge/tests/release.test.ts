@@ -130,7 +130,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "publish releases in order, each planned from the latest release, on %s",
     async (dialect) => {
-        // refuse a release planned from one the package never published, then publish both in order
+        // refuse a release planned from one the package never published and publish both in order
         await using forge = await PackageFixture.open(dialect);
         const next = await fixtureBuild("answer", "2026.9.1");
         const early = await refusal(forge.release("answer", next));
@@ -250,7 +250,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "keep package names unique within an account and resolve global names to tagged and exact releases on %s",
     async (dialect) => {
-        // publish a package, then claim its name again under another identity
+        // publish a package and claim its name again under another identity
         await using forge = await PackageFixture.open(dialect);
         await forge.publish("answer");
         const taken = await refusal(
@@ -448,7 +448,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "drop an account's copied rows once it moves to another residency, refusing its former owner's publish here, on %s",
     async (dialect) => {
-        // publish a package of the eu account and push its next build, then move the account to the us
+        // publish a package of the eu account, push its next build and move the account to the us
         await using forge = await PackageFixture.open(dialect);
         const answer = await forge.publish("answer");
         const next = await forge.push(await fixtureBuild("answer", "2026.9.1"));

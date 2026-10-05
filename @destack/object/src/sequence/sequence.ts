@@ -65,7 +65,7 @@ export class Sequence {
 
     /** Translate a text change at offsets into edits naming elements. */
     change(change: TextChange, run: string): SequenceEdit[] {
-        // delete, then insert
+        // delete before inserting
         const deleted: SequenceEdit[] =
             change.to > change.from
                 ? [

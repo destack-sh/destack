@@ -118,7 +118,7 @@ export function servedObjects(release: OpenRelease) {
         entitlement,
         meterEvent: meterEvent.handle({
             create: async (call, next) => {
-                // keep the event, then count it into its meter's entitlements
+                // keep the event and count it into its meter's entitlements
                 const event = await next();
                 await measure(call, event, release);
 

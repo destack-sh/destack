@@ -241,7 +241,7 @@ test("restart the server with the application's own definition once it changes",
         const before = server.vite;
         const loaded = await load(server, "/src/own.ts");
 
-        // wait for the watcher to follow the application's definition, then stamp its label
+        // wait for the watcher to follow the application's definition before stamping its label
         await expect
             .poll(() => server.vite.watcher.getWatched()[application]?.includes("destack.json"), {
                 timeout: 500,

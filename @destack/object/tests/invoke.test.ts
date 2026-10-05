@@ -88,7 +88,7 @@ const shelf = defineObject({
 
         return call.target;
     },
-    // issue a slip to the borrower as the system, then close it
+    // issue a slip to the borrower as the system and close it
     lend: async (call) => {
         const issued = schema.looseObject({ id: schema.string() }).parse(
             await call.invoke(slip).issue({

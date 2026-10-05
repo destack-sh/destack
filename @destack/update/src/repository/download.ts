@@ -53,7 +53,7 @@ export interface DownloadOptions {
     archive?: string;
     /** Cancel an in-progress download. */
     signal?: AbortSignal;
-    /** Report received bytes; completion still requires signature and digest verification. */
+    /** Report received bytes, the completion still requiring signature and digest verification. */
     onProgress?: (progress: DownloadProgress) => void;
 }
 

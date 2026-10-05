@@ -499,7 +499,7 @@ export class Authorization {
         page: InvitationPage,
     ): Promise<Invitation[]> {
         return this.database.transaction(async (transaction) => {
-            // require the grant permission, then read the object's invitations after the cursor
+            // require the grant permission before reading the object's invitations after the cursor
             const context = this.context(this.authorizer.governingScope(request.object));
             await this.within(transaction).#requireGrant(request.object, request.relation);
             const rows = await transaction

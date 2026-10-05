@@ -100,7 +100,7 @@ test.for(TEST_DIALECTS)(
             ["destack__access__relationship", "insert", "owner"],
         ]);
 
-        // keep a new role at once, then its binding to a member
+        // keep a new role at once and its binding to a member
         const reviewer = await server.call(
             role,
             "create",

@@ -439,7 +439,7 @@ test("decide a host's call as a space its cell represents, with the host as the 
         },
         router: implementation.router({
             me: implementation.me.handler(({ context }) => {
-                // read the subject the call is decided for, then each actor
+                // read the subject the call is decided for and each actor
                 const { claims } = context.requireAuthentication();
 
                 return [

@@ -104,7 +104,7 @@ test.for(TEST_DIALECTS)(
         const denied = await refusal(call("carol", branch, "merge", { id: packing.id }));
         const open = await call("alice", branch, "get", { id: packing.id });
 
-        // merge as bob, answering the merged branch and keeping alice as the notes' author, then refuse pushing to it
+        // merge as bob, answering the merged branch and keeping alice as the notes' author, and refuse pushing to it
         const answered = await call("bob", branch, "merge", { id: packing.id });
         const notes = await server.call(
             note,
@@ -218,7 +218,7 @@ test("edit a branch on two devices live, read it on the server, and merge it wit
     await bob.client.mutate(note).create({ parentId, title: "Charger" }).confirmed;
     const preview = await titles(bob);
 
-    // merge from the checked-out branch as bob, whose device then shows the main line
+    // merge from the checked-out branch as bob, whose device shows the main line after
     await bob.client.mutate(branch).merge({ id }).confirmed;
     await expect.poll(() => bob.client.checkedOut()).toBeUndefined();
     const [merged] = (await bob.client.read(branch).list({})).items;

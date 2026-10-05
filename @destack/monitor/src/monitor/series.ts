@@ -34,7 +34,7 @@ export function aggregate(points: readonly Entry[], request: PointSeries): Serie
         });
     }
 
-    // group each point, then fold it into its step
+    // group each point and fold it into its step
     const groups = new Map<
         string,
         { attributes: Record<string, AttributeValue>; steps: Map<number, Step> }
@@ -154,7 +154,7 @@ export function quantile(histogram: Histogram, fraction: number): number | undef
     const rank = fraction * (histogram.count - 1);
     const base = 2 ** (2 ** -histogram.scale);
 
-    // order the negative buckets from the largest magnitude, then zero, then the positive ones
+    // order the negative buckets from the largest magnitude, followed by zero and the positive ones
     const { negative, positive } = histogram;
     const buckets = [
         ...negative.counts

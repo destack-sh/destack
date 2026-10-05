@@ -72,7 +72,7 @@ async function chains(
     snapshot: Snapshot,
     scopes: readonly string[],
 ): Promise<Map<string, ScopeLink[]>> {
-    // read the scopes' rows, then their ancestors' rows by key
+    // read the scopes' rows and their ancestors' rows by key
     const rows = new Map<string, RowImage<typeof scopeTable>>();
     for (let wanted = [...new Set(scopes)]; wanted.length > 0;) {
         const read = await snapshot.select(

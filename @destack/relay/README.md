@@ -12,7 +12,7 @@ notes.feature-x--personal.flotothemoon.destack.space  the same cell, for the bra
 macbook.flotothemoon.destack.computer                 the host macbook of flotothemoon
 ```
 
-## Relays
+## Service
 
 `implementRelay` copies the accounts, hosts, host keys and zones names resolve with from the account service under its controllers, and its `Relay` keeps its hosts' tunnels in memory.
 
@@ -45,6 +45,14 @@ const resources = new ResourceContext()
         tokens,
         serve: (relay) => BunRelay.listen(relay, listener),
     }); // operators bind the workload RELAY_ROLE, reading accounts, hosts, host keys and zones
+```
+
+## Tables
+
+`relayDatabase` keeps the relay's copies of the accounts, hosts, host keys and zones next to the object server's own tables.
+
+```ts
+import { relayDatabase } from "@destack/relay/stack";
 ```
 
 ## Tunnels

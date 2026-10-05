@@ -53,7 +53,7 @@ export class Materialization {
             return sorted;
         }
 
-        // keep the unchanged keys in their order, then place each row that changed or arrived since
+        // keep the unchanged keys in their order and place each row that changed or arrived since
         const { sources } = ordered;
         const present = new Set(keys);
         const changed = keys.filter((key) => sources.get(key) !== rowOf(key));

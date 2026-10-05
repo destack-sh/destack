@@ -107,7 +107,7 @@ test.for(TEST_DIALECTS)(
             ]);
         };
 
-        // read nothing, then each notebook after its prediction
+        // read nothing before the predictions and each notebook after its own
         expect(await shelf()).toEqual([]);
         const work = await device.client.mutate(notebook).create({ name: "Work" }).predicted;
         expect(await shelf()).toEqual([["Work", [], { notes: 0 }]]);
@@ -394,7 +394,7 @@ test.for(TEST_DIALECTS)(
         await book("Work", ["Plan"]);
         await book("Home", ["Garden", "Budget"]);
 
-        // sort by the notebook's name, then the title, on the server and in a device's copy
+        // sort by the notebook's name and the title, on the server and in a device's copy
         const query = {
             extras: { notebook: Expression.lookup("parent", "name") },
             orderBy: { notebook: "asc", title: "asc" } as const,
@@ -457,7 +457,7 @@ test.for(TEST_DIALECTS)(
             requestId: RequestId.create(),
         });
 
-        // order them by their pinned notes, then by name, on the server and in a device's copy
+        // order them by their pinned notes and by name, on the server and in a device's copy
         const query = {
             extras: {
                 pinned: Expression.rollup("count", "notes", undefined, { pinned: true }),
@@ -526,7 +526,7 @@ test.for(TEST_DIALECTS)(
         const names = async () =>
             (await database.select().from(notebook.table)).map((row) => row.name).toSorted();
 
-        // keep home always and every notebook for a minute, then close both
+        // keep home always and every notebook for a minute, and close both
         const home = { where: { name: "Home" } };
         const always = device.client.query.notebook.findMany(home).subscribe({ keep: "always" });
         const minute = device.client.query.notebook
@@ -535,7 +535,7 @@ test.for(TEST_DIALECTS)(
         await Promise.all([always.ready, minute.ready]);
         await Promise.all([always.close(), minute.close()]);
 
-        // evict notebooks beyond the budget, then home once released
+        // evict notebooks beyond the budget, and home once released
         const waiting = new AbortController();
         onTestFinished(() => waiting.abort());
         const isEvicted = await database.log.until(
@@ -561,7 +561,7 @@ test.for(TEST_DIALECTS)(
         const device = await Device.open("alice", endpoint("alice"), [], { storage: { rows: 10 } });
         device.online();
 
-        // follow the notebooks, then keep them always once closed
+        // follow the notebooks and keep them always once closed
         const notebooks = device.client.query.notebook.findMany({}).subscribe({ keep: "always" });
         await notebooks.ready;
         await notebooks.close();

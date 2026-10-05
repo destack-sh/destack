@@ -63,7 +63,7 @@ export const PackageLocation = defineSchema(
         manifest: Digest,
         /** Base URL serving this package's manifest, files and archive. */
         url: schema.url(),
-        /** Expiry time in Unix milliseconds; absent for retained packages. */
+        /** The expiry time in Unix milliseconds, absent for retained packages. */
         expiresAt: Instant.exactOptional(),
     }),
 );

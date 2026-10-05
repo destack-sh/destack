@@ -27,6 +27,22 @@ export const notes = defineView({
 });
 ```
 
+## Commands
+
+`defineCommand` names a call of one method that the shell offers in its command menu, menus, shortcuts, the terminal and agents.
+
+```ts
+import { defineCommand } from "@destack/view/declare";
+
+export const archive = defineCommand({
+    name: "archive-note",
+    title: "Archive note",
+    object: note,
+    method: "archive",
+    keybinding: "mod+shift+a",
+});
+```
+
 ## Context
 
 `useView` returns what the host gives the view: its installation, space, account, name, person, home space, locale and the object it opens for.
@@ -81,11 +97,12 @@ if (await space.can("write")) {
 
 ## Home
 
-`useHome` reads the person's home space, which the host opens beside the view's space and account.
+`useHome` reads the object types a view declares in `home` from the person's home space, which the host opens beside the view's space and account.
 
 ```tsx
 import { useHome } from "@destack/view";
 
+export const inbox = defineView({ name: "inbox", home: [notification], component });
 const home = useHome({ notification });
 const unread = useQuery(() => home.query.notification.aggregate(UNREAD));
 ```
@@ -204,22 +221,6 @@ import { defineTheme } from "@destack/theme/declare";
 export const theme = defineTheme({ name: "notes", gray: "sand", accent: "orange" });
 ```
 
-## Commands
-
-`defineCommand` names a call of one method that the shell offers in its command menu, menus, shortcuts, the terminal and agents.
-
-```ts
-import { defineCommand } from "@destack/view/declare";
-
-export const archive = defineCommand({
-    name: "archive-note",
-    title: "Archive note",
-    object: note,
-    method: "archive",
-    keybinding: "mod+shift+a",
-});
-```
-
 ## Launch
 
 `ViewLaunch` parses the JSON in the page's `destack-view` script element, and mounting a view starts the page's telemetry with its `release` and `manifest`.
@@ -229,17 +230,6 @@ import { ViewLaunch } from "@destack/view/declare";
 
 const launch = ViewLaunch.parse(JSON.parse(element.textContent));
 // { installation, space, account, view, user, home?, target?, locale?, release, manifest?, endpoint, catalogs }
-```
-
-## Tests
-
-`defineConfiguration` from `@destack/view/test` compiles components with the transforms of the package's dependency closure as builds do, and `renderView` renders a component as a mounted view over its scopes' clients.
-
-```tsx
-import { defineConfiguration, renderView } from "@destack/view/test";
-
-export default defineConfiguration({ test: { include: ["tests/*.test.tsx"] } });
-const unmount = renderView(Notes, element, context, { [context.space]: client }, catalogs);
 ```
 
 ## Document
@@ -265,4 +255,15 @@ export function Metadata() {
 
 ```ts
 const { entrypoint, permissions, presents } = build.manifest.outputs.browser.views.notes;
+```
+
+## Tests
+
+`defineConfiguration` from `@destack/view/test` compiles components with the transforms of the package's dependency closure as builds do, and `renderView` renders a component as a mounted view over its scopes' clients.
+
+```tsx
+import { defineConfiguration, renderView } from "@destack/view/test";
+
+export default defineConfiguration({ test: { include: ["tests/*.test.tsx"] } });
+const unmount = renderView(Notes, element, context, { [context.space]: client }, catalogs);
 ```

@@ -52,7 +52,7 @@ export const RoleRequest = defineSchema(
 /** The name, purpose and permissions of a role to define or change. */
 export type RoleRequest = schema.Infer<typeof RoleRequest>;
 
-/** A role: its schema and the reads of its rows; writes go through `Authorization`. */
+/** A role: its schema and the reads of its rows, with writes going through `Authorization`. */
 export const Role = {
     /** The schema of a role. */
     schema: roleSchema,

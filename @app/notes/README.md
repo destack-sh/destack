@@ -2,9 +2,9 @@
 
 Keep notes in notebooks, shared with the people who need them.
 
-## Notes
+## Objects
 
-`note.create` creates a note in the notebook `parentId` names, or outside any notebook without it, and `note.grant` gives a person a role on the note.
+`notebook` and `note` are the package's object types, and a note in a notebook inherits the grants of the notebook.
 
 ```ts
 const created = await client.note.create({
@@ -16,7 +16,7 @@ const created = await client.note.create({
 await client.note.grant({ spaceId, id: created.id, requestId, relation: "editor", subject: bob });
 ```
 
-## Trash
+### Trash
 
 `note.delete` moves a note to the trash for 30 days, and `note.restore` brings it back for a person who manages it.
 
@@ -25,7 +25,15 @@ await client.note.delete({ spaceId, id: created.id, requestId });
 await client.note.restore({ spaceId, id: created.id, requestId });
 ```
 
-## View
+## Service
+
+`notesService` serves notebooks and notes with their branches.
+
+```ts
+import { notesService } from "@app/notes/service";
+```
+
+## Views
 
 The `notes` view lists notebooks and notes and opens a note in a live editor.
 
@@ -33,9 +41,9 @@ The `notes` view lists notebooks and notes and opens a note in a live editor.
 import { notes } from "@app/notes/view";
 ```
 
-## Installation
+## Tables
 
-`install(notes, …)` installs the package with its `main` database, and `notesTables` adds the note tables to another package's database.
+`notesTables` adds the note tables to another package's database, and `install(notes, …)` installs the package with its `main` database.
 
 ```ts
 import notes from "@app/notes/package";

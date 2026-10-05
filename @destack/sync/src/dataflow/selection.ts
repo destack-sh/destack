@@ -43,7 +43,7 @@ export class Selection extends Pipeline {
 
     /** Forget everything. */
     override forget(): void {
-        // forget the partitions and members, then the windows and chains
+        // forget the partitions and members, the windows and the chains
         super.forget();
         this.#arranged.clear();
         this.#windowed = 0;

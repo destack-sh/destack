@@ -220,7 +220,18 @@ GET /npm/@acme/tools/latest                   the version a tag or a version sel
 GET /npm/@acme/tools/-/tools-2026.10.0.tgz    archive
 ```
 
-## Serving
+## GitHub
+
+`GitHubHosting` keeps the repositories of the GitHub App's installations: `identify` finds a remote's repository, `open` leases it, and `receive` verifies a webhook delivery with `GitHubSignature` and reads the repositories it changes.
+
+```ts
+import { GitHubApp, GitHubHosting } from "@destack/forge/github";
+
+const github = new GitHubHosting(new GitHubApp({ id, key, api }), database);
+const change = await github.receive(request, secret); // null for the ping
+```
+
+## Service
 
 `implementForge` serves the forge's objects, the npm endpoints below `NPM_PATH` and the builds below `BUILDS_PATH` of its `endpoint`, and its `forge.receive` refreshes the repositories a verified GitHub App webhook delivery changes.
 
@@ -242,15 +253,15 @@ const service = implementForge({
 await service.forge.receive(request, secret); // npm reads <endpoint>/npm/@acme/notes
 ```
 
-## GitHub
+## Client
 
-`GitHubHosting` keeps the repositories of the GitHub App's installations: `identify` finds a remote's repository, `open` leases it, and `receive` verifies a webhook delivery with `GitHubSignature` and reads the repositories it changes.
+`connect` returns a client of the forge's objects and procedures, and the directory finds the forge serving an account.
 
 ```ts
-import { GitHubApp, GitHubHosting } from "@destack/forge/github";
+import { connect } from "@destack/forge/client";
 
-const github = new GitHubHosting(new GitHubApp({ id, key, api }), database);
-const change = await github.receive(request, secret); // null for the ping
+const forge = connect({ url, headers: { authorization } });
+const { manifest } = await forge.manifests.find({ packageId, version });
 ```
 
 ## Workload
@@ -280,4 +291,12 @@ const instance = await WorkloadInstance.start(forgeWorkload, {
 // clients find an account's forge through the directory: the region running it for the account's residency
 const forge = await new DirectoryClient(accounts).placed(forgeService, accountId, fetch);
 await forge.release.create({ accountId, requestId, parentId: packageId, manifest });
+```
+
+## Tables
+
+`forgeDatabase` holds `forgeTables` beside copies of the residency's accounts, connections, hosts, host keys and zones.
+
+```ts
+import { forgeDatabase, forgeTables } from "@destack/forge/stack";
 ```

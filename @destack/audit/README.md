@@ -2,7 +2,7 @@
 
 Declare audit actions, record every executed call once in a journal, and query a scope's history.
 
-## Actions
+## Declarations
 
 `defineAuditAction` declares a `noun.verb` action with its affected objects and recorded details.
 
@@ -122,4 +122,14 @@ await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
 import { auditTables } from "@destack/audit/stack";
 
 export const histories = defineDatabase({ name: "history", tables: auditTables });
+```
+
+## Errors
+
+A refused or failed audit operation throws an `AuditError`, and `toServiceError` answers it as the service error a caller receives.
+
+```ts
+import { AuditError } from "@destack/audit/error";
+
+throw new AuditError("NOT_FOUND", "audited call not found").toServiceError(); // NOT_FOUND
 ```

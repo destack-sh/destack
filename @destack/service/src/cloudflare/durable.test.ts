@@ -41,7 +41,7 @@ test("start the workload on the object's alarm before any event, serve requests 
         },
     );
 
-    // hold the first request until the start settles, then serve it and an alarm
+    // hold the first request until the start settles before serving it and an alarm
     const answering = object.fetch(new Request("https://object.test/served"));
     events.push("requested");
     started.resolve();

@@ -2,9 +2,9 @@
 
 Write pages in nested trees, shared with people or published by link.
 
-## Pages
+## Objects
 
-`page.create` with a `parentId` creates a subpage, and a subpage inherits the grants of the pages above it.
+`page` is the package's object type, and a subpage inherits the grants of the pages above it.
 
 ```ts
 const root = await client.page.create({ spaceId, requestId, title: "Handbook" });
@@ -16,7 +16,7 @@ const child = await client.page.create({
 });
 ```
 
-## Order
+### Order
 
 `position` orders a page among its siblings as a fractional index.
 
@@ -24,7 +24,7 @@ const child = await client.page.create({
 await client.page.update({ spaceId, id: child.id, requestId, position: "a1" });
 ```
 
-## Trash
+### Trash
 
 `page.delete` moves a page to the trash for 30 days, and `page.restore` brings it back for a person who manages it.
 
@@ -33,7 +33,7 @@ await client.page.delete({ spaceId, id: child.id, requestId });
 await client.page.restore({ spaceId, id: child.id, requestId });
 ```
 
-## Links
+### Links
 
 `page.grant` with the `viewer` relation, the `anyone` subject and a link secret condition publishes a page and its subpages to everyone with the link.
 
@@ -51,9 +51,17 @@ await client.page.grant({
 });
 ```
 
-## Installation
+## Service
 
-`install(pages, …)` installs the package with its `main` database, and `pagesTables` adds the page tables to another package's database.
+`pagesService` serves pages with their trees, sharing, links and trash.
+
+```ts
+import { pagesService } from "@app/pages/service";
+```
+
+## Tables
+
+`pagesTables` adds the page tables to another package's database, and `install(pages, …)` installs the package with its `main` database.
 
 ```ts
 import pages from "@app/pages/package";

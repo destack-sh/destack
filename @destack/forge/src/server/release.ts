@@ -31,7 +31,7 @@ async function publish(
     call: PreparedCallOf<typeof release, "create">,
     next: NextOf<typeof release, "create">,
 ): Promise<ResultOf<typeof release, "create">> {
-    // require the next version, then plan and advance the vocabulary
+    // require the next version before planning and advancing the vocabulary
     const pack = call.prepared;
     await requireNextVersion(call, pack);
     await advance(call, pack);
@@ -87,7 +87,7 @@ async function unpublish(
         });
     }
 
-    // refuse while another package's published release requires it, then delete its tags
+    // refuse while another package's published release requires it, else delete its tags
     await requireNoDependents(call.database, unpublished);
     const pointing = await untag(call, unpublished);
 

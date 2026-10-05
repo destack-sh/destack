@@ -100,7 +100,7 @@ export const Settlement = {
         await database.delete(settlement).where(eq(settlement.id, id));
     },
 
-    /** Settle one claimed settlement as its row records: commit a committed call's work, roll back any other, then forget it. */
+    /** Settle one claimed settlement as its row records, committing a committed call's work and rolling back any other before forgetting it. */
     async settle(
         server: Pick<ObjectServer, "objects" | "database">,
         row: Settlement,

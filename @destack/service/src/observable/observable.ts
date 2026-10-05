@@ -92,7 +92,7 @@ export class Observable<Value> {
         }
     }
 
-    /** Yield the value, then the latest value after each change. */
+    /** Yield the value now and the latest value after each change. */
     async *watch(signal?: AbortSignal): AsyncGenerator<Value> {
         // start before the first revision
         let revision = -1;

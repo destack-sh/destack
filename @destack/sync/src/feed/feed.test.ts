@@ -322,7 +322,7 @@ test.for(TEST_DIALECTS)(
             { ...first, id: "b", title: "Done" },
         ]);
 
-        // read the first result, then commit a change outside it and one inside it
+        // read the first result and commit a change outside it and one inside it
         const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
         const initial = await nextValue(watching);
         await database.update(note).set({ summary: "Unrelated" }).where(eq(note.id, "b"));
@@ -352,7 +352,7 @@ test.for(TEST_DIALECTS)(
             { ...first, id: "c", title: "Cheese" },
         ]);
 
-        // read the rows, then rename the first one past the others
+        // read the rows and rename the first one past the others
         const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
         const initial = await nextValue(watching);
         await database.update(note).set({ title: "Dates" }).where(eq(note.id, "a"));
@@ -402,7 +402,7 @@ test.for(TEST_DIALECTS)(
                 taskOf("report", "work", 1),
             ]);
 
-        // read both projects, then move the first home task last
+        // read both projects and move the first home task last
         const watching = feed.watch("projects", query, AbortSignal.timeout(5000));
         const initial = await nextValue(watching);
         await database.update(task).set({ rank: 3 }).where(eq(task.id, "dishes"));
@@ -477,7 +477,7 @@ test.for(TEST_DIALECTS)(
         const reading = feed.subscribe({ notes: query }, undefined, signal);
         const snapshot = await nextValue(reading);
 
-        // commit to another table, then resume from the snapshot's position
+        // commit to another table and resume from the snapshot's position
         await database.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
         const [resumed] = await take(
             feed.subscribe({ notes: query }, snapshot.position, signal),

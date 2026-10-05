@@ -110,7 +110,7 @@ test("compile a Bun package with Solid's terminal renderer against DOM and the r
 test("refuse a hand-edited tsconfig.json", async () => {
     const directory = await writePackage(["bun"], { name: "@example/server" }, {});
     try {
-        // accept the written configuration, then refuse an edited option
+        // accept the written configuration and refuse an edited option
         await configurePackage(directory);
         await checkConfiguration(directory);
         const path = join(directory, "tsconfig.json");

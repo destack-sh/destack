@@ -248,7 +248,7 @@ export const Chunk = {
         // apply each edit, inverting it against the text before
         const { sequence, inverse } = applyEdits(rows, edits, field);
 
-        // cut the runs back into the chunks, then write and index them
+        // cut the runs back into the chunks and write and index them
         const chunks = await recut(call, parent, rows, sequence.runs);
         await writeChunks(call, chunks);
 

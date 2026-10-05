@@ -21,7 +21,7 @@ const HEARTBEAT_MILLISECONDS = 15_000;
 /** The missed heartbeats before the others drop an instance's rows. */
 const MISSED_HEARTBEATS = 3;
 
-/** A row's name: its table's SQL name, then each key value in JSON form. */
+/** A row's name: its table's SQL name followed by each key value in JSON form. */
 const KeyName = schema.tuple([schema.string()], schema.json());
 
 /** A change of one tracked row between instances. */

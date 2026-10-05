@@ -60,7 +60,7 @@ test("refuse an existing key with other contents, and a transaction on another d
     const sender = new Outbox(storage.database);
     const mail = collecting("mail", 2);
 
-    // append a key, then append other contents under it
+    // append a key and other contents under it
     await sender.append(mail, "mail-first", { text: "first" });
     await expect(sender.append(mail, "mail-first", { text: "other" })).rejects.toMatchObject({
         code: "CONFLICT",

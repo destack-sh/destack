@@ -43,7 +43,7 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
         name: string,
     ): void {
         for (const key of Object.keys(keyed)) {
-            // refuse a key that is no release, then one after the declaring release
+            // refuse a key that is no release or one after the declaring release
             if (!Version.safeParse(key).success) {
                 throw new TypeError(`conversion key of ${name} is no release: ${key}`);
             } else if (Version.compare(key, release) > 0) {

@@ -270,7 +270,7 @@ export const first = {
     attachment: new Uint8Array([1, 2, 3]),
 };
 
-/** Take pages from a subscription until one satisfies a condition, then stop. */
+/** Take pages from a subscription until one satisfies a condition. */
 export async function take(
     pages: AsyncGenerator<Page>,
     isLast: (page: Page) => boolean,

@@ -266,7 +266,7 @@ test.for(TEST_DIALECTS)(
         const projects = new Replica({ name: "work", scope: "inbox", tables: [project] });
         await source.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
 
-        // copy projects, then projects and tasks
+        // copy projects, and projects with tasks
         const controller = new AbortController();
         const following = projects.follow(
             copy,
@@ -612,7 +612,7 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await following;
 
-        // complete the snapshot, then resume twice from its position
+        // complete the snapshot and resume twice from its position
         expect({
             requested,
             received: received.slice(0, 2),
@@ -667,7 +667,7 @@ test.for(TEST_DIALECTS)(
             [],
         ]);
 
-        // keep the shared row while one copy still includes it, then delete it
+        // keep the shared row while one copy still includes it, and delete it after
         await replicate(left, copy, snapshot(2, ["a"]));
         const kept = await stored();
         await replicate(right, copy, snapshot(2, ["z"]));

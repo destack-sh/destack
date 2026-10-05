@@ -218,7 +218,7 @@ test("follow each listed key until its list drops it or the loop stops", async (
     });
     const running = loop.run(stopping.signal);
 
-    // start both, then stop the one the list drops and start the one it adds
+    // start both, stop the one the list drops and start the one it adds
     await expect.poll(() => started.toSorted()).toEqual(["dropped", "kept"]);
     await database.delete(job).where(eq(job.id, "dropped"));
     await database.insert(job).values({ id: "added", scope: "space", runs: 1 });
@@ -276,7 +276,7 @@ test("follow a key again once its list names it after it failed and was dropped"
     const database = storage.database;
     await database.insert(job).values({ id: "flaky", scope: "space", runs: 1 });
 
-    // fail the first follow, then follow until stopped, throwing the abort reason as streams do
+    // fail the first follow and follow until stopped, throwing the abort reason as streams do
     const started: string[] = [];
     const controller: Controller = {
         name: "flaky",
@@ -305,7 +305,7 @@ test("follow a key again once its list names it after it failed and was dropped"
         await running;
     });
 
-    // retry the failed follow, drop the key, then follow it again once listed
+    // retry the failed follow, drop the key and follow it again once listed
     await expect.poll(() => started).toEqual(["flaky", "flaky"]);
     await database.delete(job);
     await database.insert(job).values({ id: "other", scope: "space", runs: 1 });
@@ -349,7 +349,7 @@ test("keep the host's alarm at the earliest due or skipped key, clear it once no
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
 
-    // settle once both keys ran: the alarm stayed at "soon" while "later" ran, then waking the instance for "later"
+    // settle once both keys ran: the alarm stayed at "soon" while "later" ran, waking the instance for "later" after
     await loop.idle();
     const settled = [reconciled.toSorted(), alarms.length];
 
@@ -385,7 +385,7 @@ test("settle an alarm at its deadline while a follow runs, keep the alarm due, a
         list: async () => ["copy"],
         reconcile: async (key, { signal }) => {
             follows++;
-            // apply the events after the recorded position, then follow until stopped
+            // apply the events after the recorded position and follow until stopped
             const row = await database.select().from(job).where(eq(job.id, key)).get();
             applied.push(...source.slice(row?.runs ?? 0));
             await database.update(job).set({ runs: source.length }).where(eq(job.id, key));

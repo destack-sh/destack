@@ -86,3 +86,27 @@ targets     365 days   signed with each release
 snapshot     14 days   re-signed by every publication and renewal
 timestamp    14 days   re-signed by every publication and renewal
 ```
+
+## Errors
+
+A failed check, download, activation or installation throws an `UpdateError` with a code naming the failed step.
+
+```ts
+import { UpdateError } from "@destack/update/error";
+
+if (error instanceof UpdateError && error.code === "BUSY") {
+    report("another process is updating this installation");
+}
+```
+
+## Tests
+
+`UpdateFixture` serves a signed repository and an isolated installation over loopback, and `COMMIT` is the commit its releases claim.
+
+```ts
+import { createRootKey, UpdateFixture } from "@destack/update/test";
+
+const rootKeys = [createRootKey(), createRootKey(), createRootKey()];
+await using fixture = await UpdateFixture.open(compiled, rootKeys, "2026.9.1"); // publishes the compiled distribution
+const updater = await Updater.open(fixture.options);
+```

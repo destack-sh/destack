@@ -14,22 +14,28 @@ POST /v1/metrics
 
 ## Storage
 
-`Monitor` holds open segments in memory and writes full or old ones to the bucket as Parquet files, and the optional `channel` argument shares open entries between instances.
+`Monitor` is a telemetry store: it holds open segments in memory, writes full or old ones to the bucket as Parquet files, and catalogs them in a `monitorDatabase` of its own.
 
 ```ts
 import { AuditRecorder } from "@destack/audit";
-import { Monitor } from "@destack/monitor";
+import * as sqlite from "@destack/db/bun";
+import { Monitor, monitorDatabase } from "@destack/monitor";
 import { monitorService } from "@destack/monitor/service";
-import { implementService } from "@destack/monitor/server";
+import { implementMonitor } from "@destack/monitor/server";
 
-const monitor = new Monitor(database, bucket, report, database.channel("monitor"));
+// keep the catalog as its own file
+const catalog = await sqlite.connect(file, monitorDatabase);
+
+// share open entries between instances over the channel
+const monitor = new Monitor(catalog, bucket, report, catalog.channel("monitor"));
 void monitor.run(signal);
 
+// serve it with the owner's policies, retention settings and history
 const record = AuditRecorder.service(journal, {
     package: monitorService.package,
     service: "monitor",
 });
-const service = implementService(monitor, { access, record });
+const service = implementMonitor({ monitor, access, settings: database, record });
 ```
 
 ## Service

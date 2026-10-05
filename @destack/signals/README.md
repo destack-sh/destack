@@ -24,3 +24,11 @@ createRoot(() => {
 ```ts
 import { createStore, reconcile } from "@destack/signals/store";
 ```
+
+## Development
+
+`@destack/signals/dev` exports Solid's development hooks and diagnostics for tools that observe reactive state.
+
+```ts
+import { DEV } from "@destack/signals/dev";
+```

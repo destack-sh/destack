@@ -9,7 +9,7 @@ export const MAX_FRAME_BYTES = HEADER_BYTES + MAX_PAYLOAD_BYTES;
 
 /** What a frame carries, as yamux calls its frame types. */
 export const FrameType = {
-    /** Bytes of a stream; a SYN data frame opens the stream and carries its header instead. */
+    /** Bytes of a stream, which a SYN data frame opens while carrying its header instead. */
     data: 0,
     /** Credit for more bytes of a stream, the value in bytes. */
     window: 1,
@@ -101,7 +101,7 @@ export class Frame {
 
     /** Write the frame as one message. */
     encode(): Uint8Array<ArrayBuffer> {
-        // write the header's fields, then the payload
+        // write the header's fields and the payload after them
         const message = new Uint8Array(HEADER_BYTES + this.payload.length);
         const view = new DataView(message.buffer);
         message[0] = this.type;

@@ -199,7 +199,7 @@ export class Authorization extends access.Authorization {
             return row;
         }
 
-        // challenge for step-up authentication, then a lent delegate for a missing grant
+        // challenge for step-up authentication first and for a lent delegate's missing grant second
         const stepUp = await this.authorizer.challenge(
             this.snapshot,
             permission,
@@ -323,7 +323,7 @@ export class Authorization extends access.Authorization {
         const caller = (bound: string) =>
             isNamed ? this.authorizer.resolve(this.snapshot, bound, person) : this.in(bound);
 
-        // decide for the caller, then for the lending principal
+        // decide for the caller and for the lending principal
         const delegates = context.delegates ?? [];
         const lent = delegates.findIndex((delegate) => delegate.authority === "lent");
         const principal = { ...context, delegates: delegates.slice(0, lent) };

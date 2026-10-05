@@ -19,7 +19,7 @@ const GERMAN = Catalog.of(
     t`Saved`.package,
 );
 
-/** Commit a value to a field's control as a person does: type, then leave. */
+/** Commit a value to a field's control as a person does, typing and leaving. */
 function commit(control: Element | null, value: string): void {
     if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement) {
         control.value = value;

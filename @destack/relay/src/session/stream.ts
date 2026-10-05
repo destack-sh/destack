@@ -128,7 +128,7 @@ export class Stream {
         }
     }
 
-    /** Answer the peer's request with a response: its head, then its body. */
+    /** Answer the peer's request with a response, its head before its body. */
     async respond(response: Response): Promise<void> {
         // send the head
         const head = Head.response(response);

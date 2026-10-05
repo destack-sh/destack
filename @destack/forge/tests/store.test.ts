@@ -55,7 +55,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "refuse a manifest push from a caller who may not publish its package on %s",
     async (dialect) => {
-        // publish the package as its owner, then push its next build's files as a stranger
+        // publish the package as its owner and push its next build's files as a stranger
         await using forge = await PackageFixture.open(dialect);
         await forge.publish("answer");
         const build = await fixtureBuild("answer", "2026.9.1");
@@ -97,7 +97,7 @@ test.each(TEST_DIALECTS)(
                 }),
             );
 
-        // refuse the stranger, then grant them publishing at the account service and push once the copy follows
+        // refuse the stranger, grant them publishing at the account service and push once the copy follows
         const refused = await push();
         const owner = forge.accounts.user(ids.owner);
         const role = await owner.role.create({
@@ -145,7 +145,7 @@ test.each(TEST_DIALECTS)(
             unreleased: await store.contains(unreleased),
         });
 
-        // keep the unreleased build within the window, and mark it after, then drop it an interval later
+        // keep the unreleased build within the window, mark it after and drop it an interval later
         await forge.forge.sweep(Date.now());
         const within = await stored();
         const after = Date.now() + UNRELEASED_MILLISECONDS;
@@ -182,7 +182,7 @@ test.each(TEST_DIALECTS)(
         const after = Date.now() + UNRELEASED_MILLISECONDS + 1000;
         await forge.forge.sweep(after);
 
-        // release the marked build, then sweep an interval later
+        // release the marked build and sweep an interval later
         const released = await forge.release("answer", build);
         await forge.forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
 

@@ -202,7 +202,7 @@ export function DialogTrigger(properties: DialogButtonProperties): JSX.Element {
             aria-controls={control.id}
             {...properties}
             onClick={(event) => {
-                // run the caller's handler, then open the dialog
+                // run the caller's handler before opening the dialog
                 properties.onClick?.(event);
                 control.open();
             }}
@@ -219,7 +219,7 @@ export function DialogClose(properties: DialogButtonProperties): JSX.Element {
             data-slot="dialog-close"
             {...properties}
             onClick={(event) => {
-                // run the caller's handler, then close the dialog
+                // run the caller's handler before closing the dialog
                 properties.onClick?.(event);
                 control.close();
             }}

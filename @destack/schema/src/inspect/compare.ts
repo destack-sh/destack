@@ -95,7 +95,7 @@ class Inclusion {
             return true;
         }
 
-        // prove the pair under its own assumption, then drop the assumption
+        // prove the pair under its own assumption and drop the assumption after
         this.#assumed.set(outerNode, pairs.add(innerNode));
         const isIncluded = this.#includesNode(outerNode, innerNode);
         pairs.delete(innerNode);
@@ -167,7 +167,7 @@ class Inclusion {
 
     /** Report whether single-alternative outer keywords accept every value of each inner type. */
     #includesTyped(outer: JsonSchema, inner: JsonSchema): boolean {
-        // accept an identical schema, then refuse unreadable outer keywords and unmatched value lists
+        // accept an identical schema and refuse unreadable outer keywords or unmatched value lists
         const isListed = outer.const !== undefined || outer.enum !== undefined;
         const isUnreadable = Object.keys(outer).some((keyword) => !isKnown(keyword));
         if ((isListed || isUnreadable) && equals(outer, inner)) {
@@ -208,7 +208,7 @@ class Inclusion {
             return false;
         }
 
-        // compare every position either side fixes, then the rest
+        // compare every position either side fixes and the rest
         const outerPrefix = outer.prefixItems ?? [];
         const innerPrefix = inner.prefixItems ?? [];
         const positions = Math.max(outerPrefix.length, innerPrefix.length);

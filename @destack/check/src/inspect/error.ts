@@ -135,7 +135,7 @@ async function callTargets(
     calls: readonly (CallExpression | NewExpression)[],
     inspector: ErrorInspector,
 ): Promise<Map<Node, Call>> {
-    // resolve the callee symbols, then each one's declaration
+    // resolve the callee symbols and each one's declaration
     const expressions = calls.map((node) => node.expression);
     const symbols =
         expressions.length === 0

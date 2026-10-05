@@ -32,7 +32,7 @@ test("read a workspace's members from its lockfile and walk their workspace depe
     );
     await mkdir(join(root, "packages/app/src"), { recursive: true });
 
-    // read from a directory inside a member, then walk from the library and the app
+    // read from a directory inside a member and walk from the library and the app
     const workspace = await Workspace.read(join(root, "packages/app/src"));
     if (workspace === undefined) {
         throw new TypeError("the fixture has a lockfile");

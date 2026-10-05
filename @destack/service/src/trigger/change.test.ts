@@ -63,7 +63,7 @@ test("derive each event's request, ordering changes as the log orders them", () 
         changeRequest("e1", 42, "note-1"),
     ]).toEqual(["0001700000000000", "/notes d-1", "e1/0000000000000042/note-1"]);
 
-    // order changes by epoch, then sequence across digit counts, then snapshot row
+    // order changes by epoch, by sequence across digit counts and by snapshot row
     const ordered = [
         changeRequest("e1", 9),
         changeRequest("e1", 10),

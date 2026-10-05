@@ -83,7 +83,7 @@ test("keep failed and slow unsampled traces with their records, warnings alone, 
         },
     });
 
-    // run a quiet trace, a failed one, a slow one and a quiet one with a warning, then log outside any trace
+    // run a quiet trace, a failed one, a slow one and a quiet one with a warning, and log outside any trace
     try {
         const { log, span } = telemetry.scope(source);
         await span("quiet", {}, () => log.info("quiet.saved"));

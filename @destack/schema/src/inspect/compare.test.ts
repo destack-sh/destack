@@ -21,7 +21,7 @@ const NodeSchema: schema.Schema<Node> = schema.lazy(() =>
         .strict(),
 );
 
-/** Schema pairs by their expected change, before then after. */
+/** Schema pairs by their expected change, the old schema first. */
 const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaComparison])[] = [
     // strings
     ["keep a string", schema.string(), schema.string(), "same"],

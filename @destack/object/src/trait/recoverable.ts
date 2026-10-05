@@ -229,7 +229,7 @@ export const recoverable: Trait<RecoverableDefinition> & {
             },
             list: async () => ["trash"],
             reconcile: async () => {
-                // purge, then schedule the earliest window end
+                // purge and schedule the earliest window end
                 const now = Date.now();
                 await recoverable.purge(server, now);
                 const ends = await Promise.all(

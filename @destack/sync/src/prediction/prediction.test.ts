@@ -220,7 +220,7 @@ test("rebase predictions only onto pages changing a table they read", async () =
         return { calls, result: undefined };
     });
 
-    // apply a page of tags, then a page of notes
+    // apply a page of tags and a page of notes
     const tags: Page = {
         reset: false,
         complete: true,
@@ -314,7 +314,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
             (row) => row.title,
         );
 
-    // write on the main line, then edit a checked-out branch
+    // write on the main line and edit a checked-out branch
     await add(IDS[0], "m");
     await prediction.checkout(client, "branch-1");
     await add(IDS[1], "c");
@@ -337,7 +337,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
     await replicate(notes, client, [announced], prediction);
     const received = await titles();
 
-    // write on the main line below the branch, then show the main line alone
+    // write on the main line below the branch and show the main line alone
     await add(IDS[2], "n", true);
     const below = await titles();
     await prediction.checkout(client, undefined);

@@ -17,7 +17,7 @@ export const Diagnostic = defineSchema(
         severity: schema.enum(["error", "warning", "advice"]),
         /** The source filename. */
         filename: schema.string(),
-        /** Annotated source spans; offsets and lengths use UTF-8 bytes. */
+        /** The annotated source spans, their offsets and lengths in UTF-8 bytes. */
         labels: schema.array(
             schema.object({
                 /** Optional explanation attached to the span. */

@@ -12,7 +12,7 @@ const KEYS = 1500;
 /** A row the random moves place. */
 type ScoreRow = { readonly id: string; readonly score: number };
 
-/** Sort rows by score descending, then by key. */
+/** Sort rows by score descending and by key. */
 function compare(left: Row, right: Row): number {
     return scoreOf(right) - scoreOf(left) || idOf(left).localeCompare(idOf(right));
 }

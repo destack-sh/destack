@@ -90,3 +90,13 @@ export const accountDatabase = defineDatabase({
     tables: [...accountTables, ...directoryTables],
 });
 ```
+
+## Tests
+
+`keyPair` from `@destack/directory/test` generates a P-256 key pair whose public half signs identity operations.
+
+```ts
+import { keyPair } from "@destack/directory/test";
+
+const { key, privateKey } = await keyPair();
+```

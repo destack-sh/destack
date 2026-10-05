@@ -40,7 +40,7 @@ export class Workload {
 
     /** Insert every project and a number of extra tasks and comments. */
     async seed(database: DatabaseConnection, count: number): Promise<void> {
-        // insert projects, then tasks and comments in batches
+        // insert projects followed by tasks and comments in batches
         const random = this.#random;
         await database.insert(project).values(
             this.#projects.map((id) => ({

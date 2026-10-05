@@ -95,7 +95,7 @@ test.each(TEST_DIALECTS)(
         );
         const observed = present(await read(), "the machine");
 
-        // delete it through its controller: request, then finalize inside an open transaction
+        // delete it through its controller, requesting and finalizing inside an open transaction
         await server.executeAsSystem(machine, "delete", [SystemCall.of(observed)], 4_000);
         const requested = present(await read(), "the machine");
         await storage.database.transaction(async (transaction) => {

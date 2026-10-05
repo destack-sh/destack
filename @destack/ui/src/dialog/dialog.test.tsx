@@ -73,7 +73,7 @@ test("close a dialog from a close button and report each change", () => {
     find(container, "[data-slot=dialog-close]").click();
     flush();
 
-    // the dialog starts open, then closes once, without a description to point at
+    // start the dialog open and close it once, without a description to point at
     expect([wasOpen, dialog.open, changes]).toEqual([true, false, [false]]);
     expect(dialog.hasAttribute("aria-describedby")).toBe(false);
 });

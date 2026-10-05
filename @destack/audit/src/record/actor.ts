@@ -36,7 +36,7 @@ const auditCaller = defineSchema(
             type: schema.literal("subject"),
             /** The represented subject. */
             subject: Subject,
-            /** The principals acting for the subject in order; the last sent the call. */
+            /** The principals acting for the subject in order, the last one sending the call. */
             delegates: schema.array(Delegate).exactOptional(),
             /** The represented subject's display name captured when recording. */
             name: schema.string().exactOptional(),

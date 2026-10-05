@@ -216,7 +216,7 @@ function move<const Permission extends string>(
             call.update(call.object.table[TABLE].values(call.parentColumns())),
         inverse: (step) => moveBack(step, nesting),
         async execute(call) {
-            // require a valid destination, then move
+            // require a valid destination before moving
             await requireDestination(call, nesting);
 
             return this.handler(call);

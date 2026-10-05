@@ -123,7 +123,7 @@ test.each(TEST_DIALECTS)(
             await outcome(stranger.repository.get({ accountId, id: created.id })),
         ]).toEqual([["site"], "accepted", "FORBIDDEN", "FORBIDDEN", "NOT_FOUND", "NOT_FOUND"]);
 
-        // push a commit and an annotated tag, then observe them and the default branch on refresh
+        // push a commit and an annotated tag and observe them and the default branch on refresh
         const origin = remotePath(created.remote);
         const history = new History();
         history.tag("v1", history.commit("main", "README.md", "# Site\n"));
@@ -429,7 +429,7 @@ test.each(TEST_DIALECTS)(
             return page.value;
         };
 
-        // follow main, then select next as well from main's position
+        // follow main and select next as well from main's position
         const snapshot = await first([main]);
         const reshaped = await first([main, next], {
             after: snapshot.position,
@@ -642,7 +642,7 @@ test.each(TEST_DIALECTS)(
         const owner = region.connect(ids.owner);
         const accountId = ids.account;
 
-        // commit the repository though its storage fails to create it once, then purge it
+        // commit the repository though its storage fails to create it once, and purge it
         const create = region.storage.create.bind(region.storage);
         region.storage.create = async () => {
             region.storage.create = create;

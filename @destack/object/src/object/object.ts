@@ -884,7 +884,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** The input conversions of a method: renamed fields, the object's conversions, then the method's own. */
+    /** The input conversions of a method: renamed fields, the object's conversions and the method's own, in order. */
     conversions(name: string): Readonly<Record<Version, Readonly<Record<string, Expression>>>> {
         // rename previous field names in calls of releases before this one
         const renames = Object.fromEntries(
@@ -995,7 +995,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return { ...this.intrinsic, policy: this.policy, ...inherited };
         }
 
-        // map each declared relation to its field, then add trait mappings
+        // map each declared relation to its field and add trait mappings
         const relations = fieldRelations(this);
         const placed: Partial<Pick<TableMapping, "parent" | "trees">> = {};
         for (const { relations: traitRelations, ...rest } of traitMappings(this)) {

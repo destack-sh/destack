@@ -33,6 +33,6 @@ test("fill a slider's track as far as the value moves through its range", () => 
     flush();
     fills.push(slider?.style.getPropertyValue("--destack-slider-fill"));
 
-    // halfway, then three quarters, telling the caller's handler the new value
+    // move halfway and to three quarters, telling the caller's handler the new value
     expect([fills, values]).toEqual([["50%", "75%"], ["21"]]);
 });

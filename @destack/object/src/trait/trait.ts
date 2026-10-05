@@ -55,7 +55,7 @@ export interface Gated<Permission extends string = string> {
 export type GateOf<Definition> =
     Definition extends Gated<infer Permission> ? Permission : undefined;
 
-/** A definition whose trait rewrote some of its members, each then typed as any definition's. */
+/** A definition whose trait rewrote some of its members, each typed as any definition's after the rewrite. */
 export type Erasure<Definition, Keys extends keyof ObjectDefinition> = Omit<Definition, Keys> &
     Pick<ObjectDefinition, Keys>;
 

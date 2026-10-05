@@ -121,3 +121,26 @@ import { servedObjects } from "@destack/setting/server";
 const { setting } = servedObjects(release); // release opens the package release a value names
 const server = new ObjectServer({ objects: { setting, ...others }, database, callKey, origin });
 ```
+
+## Tables
+
+`settingTables` adds the setting values and their journal to the database of the service serving them.
+
+```ts
+import { settingTables } from "@destack/setting/stack";
+
+export const spaceDatabase = defineDatabase({
+    name: "main",
+    tables: [...settingTables, ...others],
+});
+```
+
+## Errors
+
+A setting failure throws a `SettingError`, and `toServiceError` answers it as the service error a caller receives.
+
+```ts
+import { SettingError } from "@destack/setting/error";
+
+throw new SettingError("UNDECLARED", "no setting editor.mode").toServiceError(); // NOT_FOUND
+```

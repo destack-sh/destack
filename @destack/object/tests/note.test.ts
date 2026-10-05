@@ -261,7 +261,7 @@ test.each(TEST_DIALECTS)(
         ]);
         expect([device.errors, bob.errors]).toEqual([[], []]);
 
-        // push again a note the server confirmed, then lost when its database was restored
+        // push again a note the server confirmed and lost when its database was restored
         await device.offline();
         device.push();
         const lost = device.client.mutate(note).create({ parentId: book.id, title: "Tickets" });
@@ -334,7 +334,7 @@ test.each(TEST_DIALECTS)(
         });
         await expect.poll(() => device.titles()).toEqual(["Packing"]);
 
-        // add the work notebook with its notes, then stop following travel
+        // add the work notebook with its notes and stop following travel
         const workBook = device.client.query.notebook
             .findMany({ where: { name: "Work" }, with: { notes: true } })
             .subscribe();

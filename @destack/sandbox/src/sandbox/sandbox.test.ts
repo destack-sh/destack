@@ -306,7 +306,7 @@ test("stop the workload when its supervising client disconnects", async () => {
         // wait for the launcher to reap its workload and release the proxies
         expect(await closed, await errors).toEqual([0, null]);
 
-        // find no process of ours under the pid; another user's process may already reuse it
+        // find no process of ours under the pid, which another user's process may already reuse
         let code: unknown;
         try {
             process.kill(pid, 0);

@@ -152,7 +152,7 @@ export class HoverPopover {
 
     /** Open the popover now, anchored to its trigger. */
     open(): void {
-        // cancel a pending change, then open a closed and mounted popover
+        // cancel a pending change and open a closed, mounted popover
         clearTimeout(this.#timer);
         if (this.#isOpen || this.#content === undefined || this.#trigger === undefined) {
             return;
@@ -163,7 +163,7 @@ export class HoverPopover {
 
     /** Close the popover now. */
     close(): void {
-        // cancel a pending change, then close an open popover
+        // cancel a pending change and close an open popover
         clearTimeout(this.#timer);
         if (!this.#isOpen || this.#content === undefined) {
             return;

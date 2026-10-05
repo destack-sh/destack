@@ -138,7 +138,7 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
 
     // select a day in the calendar's mode and tell the change handler
     const select = (day: PlainDate) => {
-        // compute the selection after the click, then keep, focus and report it
+        // compute the selection after the click and keep, focus and report it
         const next = nextValue(properties, value(), day);
         setValue(next);
         setFocused(day);

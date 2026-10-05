@@ -45,7 +45,7 @@ export interface Distribution {
     commit: string;
     /** Local archive containing the CLI and desktop. */
     archive: string;
-    /** Download format; update archives use tar.gz. */
+    /** The download format, tar.gz for update archives. */
     format?: "dmg" | "exe";
 }
 
@@ -127,7 +127,7 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     return { root, timestamp, snapshot, targets };
 }
 
-/** Write a complete signed repository, returning its signed targets; publish timestamp.json after its referenced files. */
+/** Write a complete signed repository with timestamp.json after the files it names, returning its signed targets. */
 async function createRepository(
     directory: string,
     revision: number,

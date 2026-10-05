@@ -524,7 +524,7 @@ test("keep a role by name, replace its purpose and permissions, then keep it ide
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
 
-    // keep the role, keep it again under the same name with other permissions, then once more alike
+    // keep the role, keep it again under the same name with other permissions, and once more alike
     const created = await owner(1000).keepRole(place, {
         name: "editor",
         description: "Read nodes",
@@ -557,7 +557,7 @@ test("assign a role to one subject alone, revoking the previous subject and keep
         permissions: [],
     });
 
-    // assign the role to carol, then to dave, then to dave again
+    // assign the role to carol, to dave and to dave again
     const dave = principal.user.reference("universe", "dave");
     await owner(1000).assign(place, reader.id, aligned(carol.subjects, 0));
     const assigned = await owner(2000).assign(place, reader.id, dave);

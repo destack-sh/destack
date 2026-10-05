@@ -18,7 +18,7 @@ function status(): string {
 }
 
 test("render messages in the source language outside a provider, and in a locale a page provides", () => {
-    // read the status alone, then inside a provided German locale
+    // read the status alone and inside a provided German locale
     let provided = "";
     const alone = createRoot((dispose) => {
         const text = status();

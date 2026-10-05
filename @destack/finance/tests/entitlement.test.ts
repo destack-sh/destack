@@ -264,7 +264,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const { finance, offer } = await open(dialect);
 
-        // subscribe to the plan, then to an add-on of more calls and unlimited storage a fortnight later, and buy the pack
+        // subscribe to the plan and a fortnight later to an add-on of more calls and unlimited storage, and buy the pack
         await transition(
             finance,
             "activate",
@@ -348,7 +348,7 @@ test.each(TEST_DIALECTS)(
         );
         await finance.entitle();
 
-        // change the item's support grant behind the controller, then append requests in and after the period
+        // change the item's support grant behind the controller and append requests in and after the period
         await finance.test.database
             .update(subscriptionItem.table)
             .set({

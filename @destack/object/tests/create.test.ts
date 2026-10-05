@@ -147,7 +147,7 @@ test("create an object the caller has the permission on only as the creator its 
     });
     const context = userContext("alice", spaceId);
 
-    // create a team as its owner, then read it as that owner
+    // create a team as its owner and read it as that owner
     const created = await server.call(
         team,
         "create",

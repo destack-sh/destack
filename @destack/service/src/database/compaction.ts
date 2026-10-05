@@ -27,7 +27,7 @@ export class CompactionController implements Controller {
         return [LOG];
     }
 
-    /** Compact the log, then look again after the compaction interval. */
+    /** Compact the log and look again after the compaction interval. */
     async reconcile(): Promise<number> {
         await this.#database.log.compact(Date.now() - CHANGE_WINDOW_MILLISECONDS);
 

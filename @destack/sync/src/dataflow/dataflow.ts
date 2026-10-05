@@ -540,7 +540,7 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Step every pipeline with work, then show the relation groups. */
+    /** Step every pipeline with work and show the relation groups. */
     async #settle(run: Run): Promise<void> {
         for (const pipeline of this.#steps) {
             const work = run.work.get(pipeline);

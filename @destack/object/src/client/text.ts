@@ -11,7 +11,7 @@ export interface LiveText {
     readonly ready: Promise<void>;
     /** Read the text's sequence, predictions included. */
     read(): Promise<Sequence>;
-    /** Yield the sequence, then again after each change. */
+    /** Yield the sequence now and again after each change. */
     watch(signal: AbortSignal): AsyncGenerator<Sequence>;
     /** Replace the text between two offsets, after every earlier change, as one predicted edit. */
     change(change: TextChange): Promise<Submission<Undo>>;

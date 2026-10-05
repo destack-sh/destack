@@ -86,7 +86,7 @@ test.each(TEST_DIALECTS)(
             .map((row) => `${row.owner} ${row.list} ${String(row.done)} ${row.revision}`)
             .toSorted();
 
-        // claim user-1's unassigned home chores, then none are left
+        // claim user-1's unassigned home chores, leaving none
         const claimed = await call("claim", {
             where: { list: "home", assignee: null },
             assignee: "carol",

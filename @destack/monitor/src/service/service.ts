@@ -6,7 +6,7 @@ import type {} from "@destack/package/import-meta";
 /** A procedure that checks its entry permission on the installation in its handler. */
 const procedure = defineProcedure({ authentication: "identity", permission: null, audit: false });
 
-/** The monitor service: search, follow and trace entries, and chart metrics; OTLP arrives beside it. */
+/** The monitor service, which searches, follows and traces entries and charts metrics beside OTLP ingestion. */
 export const monitorService = defineService("monitor", {
     series: procedure
         .route({ method: "POST", path: "/monitor/series" })

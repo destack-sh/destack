@@ -78,7 +78,7 @@ test.for(TEST_DIALECTS)(
         });
         await call(page, "update", { id: created.id, body: "outline" });
 
-        // write it as bob, then as alice again once her session ended
+        // write it as bob and as alice again once her session ended
         as("bob");
         at(2 * MINUTE);
         await call(page, "update", { id: created.id, title: "Roadmap" });

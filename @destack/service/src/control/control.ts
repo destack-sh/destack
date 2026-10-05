@@ -72,7 +72,7 @@ export const Reconciliation = {
             }
         })();
 
-        // run the work until it settles, then stop checking
+        // run the work until it settles and stop checking
         try {
             return await work(AbortSignal.any([ended.signal, reconciliation.signal]));
         } finally {
@@ -230,7 +230,7 @@ export class ControlLoop {
         this.#wake();
     }
 
-    /** List every controller, then follow the watched logged tables. */
+    /** List every controller and follow the watched logged tables. */
     async #follow(signal: AbortSignal): Promise<void> {
         const tables = [
             ...new Set(this.controllers.flatMap((controller) => controller.watches ?? [])),

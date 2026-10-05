@@ -42,7 +42,7 @@ export class Aggregation extends Pipeline {
 
     /** Forget every group. */
     override forget(): void {
-        // forget the partitions and members, then the groups
+        // forget the partitions, members and groups
         super.forget();
         this.tallies.clear();
         this.contributions.clear();
@@ -684,7 +684,7 @@ export class Mirror extends Pipeline {
             }
         }
 
-        // let go of the gone groups, then send the changed ones
+        // let go of the gone groups and send the changed ones
         for (const [name, { group }] of this.#shown) {
             if (!groups.has(name)) {
                 this.#shown.delete(name);

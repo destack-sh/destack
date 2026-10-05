@@ -53,7 +53,7 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
     );
     const telemetry = await startTelemetry(exporter.options(source));
 
-    // log inside a span, then export both
+    // log inside a span and export both
     try {
         const { log, span } = telemetry.scope(source);
         await span("note.render", { blocks: 12 }, () => log.info("note.saved", { length: 5 }));

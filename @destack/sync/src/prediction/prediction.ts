@@ -170,7 +170,7 @@ export class Prediction {
                     ? stack.findIndex((entry) => entry.kind === "branch")
                     : stack.length;
 
-            // revert the layers above it, predict it, then predict them again on top
+            // revert the layers above it and predict it with them again on top
             await transaction.log.asReplica(() => this.#revertFrom(transaction, index + 1));
             const recorded = await this.#record(transaction, predict);
             await this.#append(transaction, { id, origin, calls: recorded.calls, branch });
@@ -230,7 +230,7 @@ export class Prediction {
         await this.#revertFrom(transaction, 1);
     }
 
-    /** Settle the queue a copy's completed page reaches, then predict the stack again over the reverted copy. */
+    /** Settle the queue a copy's completed page reaches and predict the stack again over the reverted copy. */
     async replay(
         transaction: DatabaseConnection,
         reached?: { readonly position: LogPosition; readonly isSnapshot: boolean },
@@ -253,7 +253,7 @@ export class Prediction {
         await this.#apply(transaction, await this.#stack(transaction), 1, undefined);
     }
 
-    /** List the layers in the order they apply: the main line, then the checked-out branch's rows and edits. */
+    /** List the layers in the order they apply: the main line before the checked-out branch's rows and edits. */
     async #stack(transaction: DatabaseConnection): Promise<Layer[]> {
         // read the branch shown and the queue
         const branch = await this.checkedOut(transaction);

@@ -286,3 +286,27 @@ const { permitted } = await authorizer.checkRows(
     below,
 );
 ```
+
+## Errors
+
+A refused or invalid access decision throws an `AccessError`, whose code services answer as their own refusal.
+
+```ts
+import { AccessError } from "@destack/access/error";
+
+if (error instanceof AccessError && error.code === "INSUFFICIENT_AUTHENTICATION") {
+    challenge(error.stepUp);
+}
+```
+
+## Tests
+
+`@destack/access/test` records the scopes, owners and roles a copy of another service's access keeps, for tests of services that follow one.
+
+```ts
+import { copyRole, copyScope } from "@destack/access/test";
+
+await copyScope(database, space.reference(Scope.universe.id, spaceId));
+const editor = { name: "editor", description: "Edit notes", permissions: [note.permission("edit")] };
+await copyRole(database, scope, editor, bob);
+```

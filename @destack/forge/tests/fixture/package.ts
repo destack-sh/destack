@@ -233,7 +233,7 @@ export class PackageFixture implements AsyncDisposable {
             this.#created.add(packageId);
         }
 
-        // push the build, then release it
+        // push the build and release it
         const manifest = await this.push(build);
         const release = await owner.release.create({
             accountId: ACCOUNT_ID,
@@ -341,7 +341,7 @@ export class FixtureSource implements AsyncDisposable {
         return new FixtureSource(name, directory, await PackageBuilder.start(directory));
     }
 
-    /** Install the dependencies through an npm configuration, then build each version's published outputs, rebuilding only what the version changes. */
+    /** Install the dependencies through an npm configuration and build each version's published outputs, rebuilding only what the version changes. */
     async build(npmrc: string, versions: readonly string[]): Promise<PackageBuild[]> {
         // install the dependencies
         await writeFile(join(this.directory, ".npmrc"), npmrc);

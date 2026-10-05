@@ -192,7 +192,7 @@ export class GitHubInstallations implements ConnectionProvider {
 
 /** Encode a repository's upload-pack advertisement like GitHub. */
 function advertise(repository: StandInRepository): Uint8Array<ArrayBuffer> {
-    // name HEAD's commit and branch, then each reference, following tag objects to their commit
+    // name HEAD's commit and branch and each reference, following tag objects to their commit
     const head = `refs/heads/${repository.defaultBranch}`;
     const lines = [
         `${found(repository.references, head).sha} HEAD\0symref=HEAD:${head} agent=git/github-7c1a`,
