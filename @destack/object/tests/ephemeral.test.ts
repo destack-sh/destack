@@ -5,7 +5,8 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit";
-import { channelHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { channelHub } from "@destack/db";
+import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import * as sqlite from "@destack/db/bun";
 
 import { subjectContext, testCallKey } from "@destack/service/test";
@@ -470,7 +471,7 @@ async function serveBoards(dialect: Dialect) {
         const store = present(
             await EphemeralStorage.open(
                 [presence, board, profile],
-                durable,
+                EphemeralStorage.channel(durable),
                 (tables) => sqlite.connect(":memory:", tables),
                 {
                     heartbeat: 1000,

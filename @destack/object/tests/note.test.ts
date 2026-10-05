@@ -1,7 +1,8 @@
 import { expect, test } from "@destack/test";
 import { journal } from "@destack/audit";
 import { eq } from "@destack/db";
-import { channelHub, TEST_DIALECTS } from "@destack/db/test";
+import { channelHub } from "@destack/db";
+import { TEST_DIALECTS } from "@destack/db/test";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";

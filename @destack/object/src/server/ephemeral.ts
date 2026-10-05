@@ -71,10 +71,10 @@ export class EphemeralStorage implements AsyncDisposable {
         );
     }
 
-    /** Keep the ephemeral types among some objects in a migrated memory database, replicated over a durable database's channel. */
+    /** Keep the ephemeral types among some objects in a migrated memory database, replicated over a channel. */
     static async open(
         objects: readonly ObjectType[],
-        durable: DatabaseConnection,
+        channel: Channel<unknown>,
         memory: (
             tables: readonly Table[],
         ) => Promise<DatabaseConnection & { close(): Promise<void> }>,
@@ -91,16 +91,16 @@ export class EphemeralStorage implements AsyncDisposable {
         const database = await memory(tables);
         await database.migrate(tables);
 
-        // replicate them between the durable database's connections, closing the memory with the store
-        const storage = new EphemeralStorage(
-            database,
-            ephemeral,
-            durable.channel(EPHEMERAL_CHANNEL),
-            options,
-        );
+        // replicate them over the channel, closing the memory with the store
+        const storage = new EphemeralStorage(database, ephemeral, channel, options);
         storage.#owned = database;
 
         return storage;
+    }
+
+    /** Open the channel replicating ephemeral objects between the connections of a durable database. */
+    static channel(durable: DatabaseConnection): Channel<unknown> {
+        return durable.channel(EPHEMERAL_CHANNEL);
     }
 
     /** Name the owner of a client's rows of one object type. */
