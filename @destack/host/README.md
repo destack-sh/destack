@@ -153,12 +153,13 @@ await router.egress(request); // <egress>/<address>/<path> with the instance's s
 
 ## Errors
 
-A failure of a host's keys throws a `HostError` with a stable code and without the keys' bytes.
+A failure of a host's keys throws a `HostError` with a stable code and without the keys' bytes, which callers receive as an internal server error.
 
 ```ts
 import { HostError } from "@destack/host/error";
 
 await LocalKeyring.retire(keychain, hostId, keyring.active); // HostError INVALID_KEY: cannot retire the active root key
+new HostError("KEY_UNAVAILABLE", "required root key is unavailable").toServiceError(); // { code: "INTERNAL_SERVER_ERROR", … }
 ```
 
 ## Tests
