@@ -29,6 +29,10 @@ export const ResourceBinding = defineSchema(
         reference: schema.string().min(1),
         /** The credential the host lends the workload for the resource, absent when the reference needs none. */
         credential: schema.string().min(1).exactOptional(),
+        /** The space keeping a bound object its service serves, such as a secret. */
+        scope: schema.identifier("space").exactOptional(),
+        /** The version of the bound object the deployment captured, such as a secret's. */
+        version: schema.number().int().positive().exactOptional(),
     }),
 );
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
