@@ -1,3 +1,4 @@
+import { Filter } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import type {
     AttributeValue,
@@ -7,6 +8,7 @@ import type {
     Series,
     SeriesStep,
 } from "../entry/index.ts";
+import { RESOURCE_ATTRIBUTES } from "../entry/otlp.ts";
 
 /** The buckets of one side of a histogram. */
 type Buckets = Histogram["positive"];
@@ -34,15 +36,20 @@ export function aggregate(points: readonly Entry[], request: PointSeries): Serie
         });
     }
 
-    // group each point and fold it into its step
+    // group each point the filter selects and fold it into its step
+    const isSelected = request.filter === undefined ? () => true : Filter.compile(request.filter);
     const groups = new Map<
         string,
         { attributes: Record<string, AttributeValue>; steps: Map<number, Step> }
     >();
     for (const point of points) {
+        const selectable = attributesOf(point);
+        if (!isSelected(selectable)) {
+            continue;
+        }
         const attributes = Object.fromEntries(
             request.group.flatMap((key) => {
-                const value = point.attributes[key];
+                const value = selectable[key];
 
                 return value === undefined ? [] : [[key, value]];
             }),
@@ -70,6 +77,15 @@ export function aggregate(points: readonly Entry[], request: PointSeries): Serie
                 .toSorted((first, second) => first.time - second.time)
                 .map((step) => close(step, metric)),
         })),
+    };
+}
+
+/** Read a point's attributes with the resource attributes it keeps as entry fields, such as its build. */
+function attributesOf(point: Entry): Record<string, AttributeValue> {
+    return {
+        ...point.attributes,
+        ...(point.instance === undefined ? {} : { [RESOURCE_ATTRIBUTES.instance]: point.instance }),
+        ...(point.build === undefined ? {} : { [RESOURCE_ATTRIBUTES.build]: point.build }),
     };
 }
 
