@@ -108,6 +108,13 @@
         {
             "files": ["@destack/telemetry/src/browser/devtools.ts"],
             "rules": { "eslint/no-console": "off" }
+        },
+        {
+            "files": [
+                "@platform/release/src/distribution/build.ts",
+                "@platform/release/src/distribution/distribution.ts"
+            ],
+            "rules": { "destack/no-manifest-import": "off" }
         }
     ],
     "options": { "denyWarnings": true, "typeAware": true, "respectEslintDisableDirectives": false }
