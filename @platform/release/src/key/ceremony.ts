@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join, isAbsolute } from "node:path";
 import { Key, type Metadata, type Root } from "@tufjs/models";
-import { HardwareKey } from "./hardware.ts";
+import { HardwareKey } from "../yubico/hardware.ts";
 import { readPublicKey, SignedRepository, TrustedRoot } from "@destack/update/publish";
 import { schema } from "@destack/schema";
 import { print } from "../output/index.ts";

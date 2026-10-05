@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { COMMANDS, type Installer, version } from "../distribution/index.ts";
-import { MacSigning } from "../signing/apple.ts";
+import { MacSigning } from "./signing.ts";
 import { run } from "../distribution/command.ts";
 import { selectedChannel } from "../distribution/identity.ts";
 
@@ -132,7 +132,7 @@ async function compileDispatcher(
         architecture,
         "-mmacosx-version-min=11.0",
         `-DDESTACK_COMMAND="${name}"`,
-        fileURLToPath(new URL("command.c", import.meta.url)),
+        fileURLToPath(new URL("../installer/command.c", import.meta.url)),
         "-o",
         command,
     ]);

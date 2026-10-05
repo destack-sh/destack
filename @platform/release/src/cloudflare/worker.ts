@@ -1,10 +1,10 @@
 import { Metadata, MetadataKind } from "@tufjs/models";
 import stable from "../../../../@destack/cli/src/update/root.json" with { type: "json" };
 import nightly from "../../../../@destack/cli/src/update/nightly.json" with { type: "json" };
-import { Publication, type PublicationBucket, type StoredDocument } from "./publication.ts";
+import { Publication, type PublicationBucket, type StoredDocument } from "../server/publication.ts";
 import { PUBLIC_PATH } from "../repository/layout.ts";
 
-/** The bootstrap files served at the root, from stable, and from nightly until stable has them. */
+/** The bootstrap files the root serves from stable, or from nightly until stable has them. */
 const ROOT_FILES = new Set(["/install", "/downloads.json"]);
 
 /** Maximum renewal request size, in bytes. */

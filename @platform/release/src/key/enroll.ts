@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import { Bitwarden, type HardwareCredential } from "./bitwarden.ts";
-import { invokePiv } from "./piv.ts";
+import { Bitwarden, type HardwareCredential } from "../bitwarden/bitwarden.ts";
+import { invokePiv } from "../yubico/piv.ts";
 import { schema } from "@destack/schema";
 import { print } from "../output/index.ts";
 

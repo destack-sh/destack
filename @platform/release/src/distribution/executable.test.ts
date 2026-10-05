@@ -108,7 +108,7 @@ test.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
                 });
                 built = [build.manifest.package.name, Object.keys(build.manifest.outputs)];
             }
-            expect(built).toEqual(["@template/stack", ["bun", "workerd"]]);
+            expect(built).toEqual(["@template/stack", ["bun", "workerd", "browser"]]);
 
             // inspect it through the compiled daemon, which starts the compiler beside it
             const registered: unknown = JSON.parse(

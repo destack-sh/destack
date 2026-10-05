@@ -13,7 +13,7 @@ import { print } from "../output/index.ts";
 /** Repository directory containing the distribution build outputs. */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
-// load only the automated signing keys; the root private key stays offline
+// load the online signing keys without the offline root key
 /** Online keys authorized for the selected repository. */
 const keys = await readReleaseKeys();
 /** Publication destination selected by this invocation. */

@@ -1,9 +1,12 @@
 import { S3Client } from "bun";
 import { createHash } from "node:crypto";
-import type { RepositoryConfiguration } from "./configuration.ts";
+import { RepositoryConfiguration } from "../repository/configuration.ts";
+
+/** The Cloudflare account keeping the release buckets. */
+const ACCOUNT = "27c0d00fb3a27a4ccbf46a3cceab9301";
 
 /** Maximum duration of a streamed release upload, in milliseconds. */
-const UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+const UPLOAD_TIMEOUT_MILLISECONDS = 15 * 60 * 1000;
 
 /** Bucket-scoped release transport with conditional object replacement. */
 export class ReleaseBucket {
@@ -14,6 +17,17 @@ export class ReleaseBucket {
 
     /** Require the selected environment's bucket-scoped S3 credentials. */
     constructor(configuration: RepositoryConfiguration) {
+        // select the channel's R2 bucket over an encrypted S3 endpoint
+        const account = process.env["CLOUDFLARE_ACCOUNT_ID"] ?? ACCOUNT;
+        const bucket =
+            process.env["DESTACK_RELEASE_BUCKET"] ?? `destack-releases-${configuration.channel}`;
+        const endpoint = new URL(
+            process.env["DESTACK_RELEASE_S3_URL"] ?? `https://${account}.r2.cloudflarestorage.com`,
+        );
+        if (!RepositoryConfiguration.isClean(endpoint) || endpoint.pathname !== "/") {
+            throw new Error("release storage requires a clean HTTPS origin");
+        }
+
         // keep publication credentials separate from Cloudflare administration tokens
         const accessKeyId = process.env["CLOUDFLARE_RELEASE_ACCESS_KEY_ID"];
         const secretAccessKey = process.env["CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY"];
@@ -28,8 +42,8 @@ export class ReleaseBucket {
         this.client = new S3Client({
             accessKeyId,
             secretAccessKey,
-            bucket: configuration.bucket,
-            endpoint: configuration.endpoint.href,
+            bucket,
+            endpoint: endpoint.href,
             region: "auto",
         });
         this.prefix = configuration.url.pathname.slice(1);
@@ -85,7 +99,7 @@ export class ReleaseBucket {
             headers,
             body: Bun.file(file),
             redirect: "error",
-            signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+            signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MILLISECONDS),
         });
         await response.body?.cancel();
 

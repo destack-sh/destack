@@ -12,7 +12,7 @@ import { Version } from "@destack/schema";
 import { TargetCustom } from "@destack/update/release";
 import { RepositoryConfiguration } from "./index.ts";
 import { RepositoryRenewal } from "./renewal.ts";
-import { ReleaseBucket } from "./bucket.ts";
+import { ReleaseBucket } from "../cloudflare/bucket.ts";
 import { SignedRepository } from "@destack/update/publish";
 import { parseDocument } from "./document.ts";
 import { PUBLIC_PATH } from "./layout.ts";
@@ -104,7 +104,7 @@ async function requirePublishable(
     return revision;
 }
 
-/** Upload the immutable files, then replace each mutable file at its read revision. */
+/** Upload the immutable files and replace each mutable file at its read revision. */
 async function upload(
     bucket: ReleaseBucket,
     directory: string,

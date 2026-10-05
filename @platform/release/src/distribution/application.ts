@@ -24,7 +24,7 @@ export async function configureApplication(
             [
                 "-module-cache-path",
                 join(directory, "swift"),
-                join(root, "@platform/release/src/icon/macos.swift"),
+                join(root, "@platform/release/src/apple/icon.swift"),
                 join(root, `@platform/brand/icon/icon${identity.suffix}-rounded.png`),
                 artwork,
             ],

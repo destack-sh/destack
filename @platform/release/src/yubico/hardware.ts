@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Key, Signature } from "@tufjs/models";
 import { schema } from "@destack/schema";
-import { Bitwarden } from "./bitwarden.ts";
+import { Bitwarden } from "../bitwarden/bitwarden.ts";
 import { invokePiv } from "./piv.ts";
 
 /** An RSA root key held in a YubiKey PIV signature slot. */

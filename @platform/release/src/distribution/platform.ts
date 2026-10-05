@@ -1,4 +1,4 @@
-import { InstallerFormat } from "../repository/catalog.ts";
+import { InstallerFormat } from "../catalog/index.ts";
 import type { Target } from "@destack/update/release";
 
 /** The code signers of the platforms that sign their applications. */

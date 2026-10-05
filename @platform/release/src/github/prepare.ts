@@ -1,9 +1,9 @@
 import { appendFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { CHANNELS, type Channel, Release } from "@destack/update/release";
-import { run } from "./command.ts";
-import { readCommit } from "./distribution.ts";
-import { listInstallers, PLATFORMS } from "./platform.ts";
+import { run } from "../distribution/command.ts";
+import { readCommit } from "../distribution/distribution.ts";
+import { listInstallers, PLATFORMS } from "../distribution/platform.ts";
 import { RepositoryConfiguration } from "../repository/configuration.ts";
 import { RepositoryRenewal } from "../repository/renewal.ts";
 import { print } from "../output/index.ts";

@@ -20,13 +20,13 @@ const PackageManifest = schema
 
 /** A package the compiler reads at run time, found through the chain of packages depending on it. */
 interface ToolchainPackage {
-    /** The workspace package, then each package depending on the next, ending in the package itself. */
+    /** The chain of packages from the workspace package to the package itself. */
     readonly chain: readonly string[];
     /** Whether the package's dependencies come along, or only its package.json and destack.json. */
     readonly contents: "dependencies" | "metadata";
 }
 
-/** Lay out the compiler's toolchain for a target: the packages it reads at run time, installed flat, and the lint rules. */
+/** Lay out the compiler's flat run time packages and lint rules for a target. */
 export async function buildToolchain(
     root: string,
     target: Target,

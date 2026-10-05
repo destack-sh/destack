@@ -2,11 +2,11 @@ import { cp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { COMMANDS } from "../distribution/distribution.ts";
 import type { Platform } from "../distribution/platform.ts";
-import { MacSigning } from "./apple.ts";
+import { MacSigning } from "../apple/signing.ts";
 
 /** The code signer of one platform's applications and executables. */
 export interface Signer {
-    /** Sign every executable of an application, then the application itself. */
+    /** Sign every executable of an application before the application itself. */
     sign(application: string): Promise<void>;
     /** Notarize or timestamp a signed application. */
     notarize(application: string): Promise<void>;

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Key, Metadata, Root } from "@tufjs/models";
 import { Updater, type UpdaterOptions } from "tuf-js";
-import { HardwareKey } from "./hardware.ts";
+import { HardwareKey } from "../yubico/hardware.ts";
 import {
     type Distribution,
     readPublicKey,
@@ -101,7 +101,7 @@ function serveRepository(repository: string): Bun.Server<undefined> {
     });
 }
 
-/** Create a root and sign it first with the hardware key, then with the disposable signers. */
+/** Create a root signed by the hardware key and the disposable signers. */
 function signRoot(
     version: number,
     roots: Key[],

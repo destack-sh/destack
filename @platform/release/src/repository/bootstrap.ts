@@ -3,10 +3,10 @@ import { join } from "node:path";
 import type { Metadata, Targets } from "@tufjs/models";
 import { Release } from "@destack/update/release";
 import { TargetCustom } from "@destack/update/release";
-import type { Catalog, CatalogDistribution } from "./catalog.ts";
-import { INSTALLER_FORMATS, InstallerFormat } from "./catalog.ts";
+import type { Catalog, CatalogDistribution } from "../catalog/index.ts";
+import { INSTALLER_FORMATS, InstallerFormat } from "../catalog/index.ts";
 
-/** A signed target path: a target or installer name, then the update archive or an installer format. */
+/** A signed target path of a target or installer name with its archive or installer extension. */
 const TARGET_PATH = new RegExp(`^([a-z0-9_-]+)\\.(tar\\.gz|${INSTALLER_FORMATS.join("|")})$`, "u");
 
 /** Generate download links and bootstrap installers from signed target metadata. */

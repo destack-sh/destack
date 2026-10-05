@@ -69,7 +69,7 @@ async function verifyInstallation(): Promise<void> {
     }
 }
 
-/** Stage, install and restart the published release, then check its update selection. */
+/** Install and restart the published release and check its update selection. */
 async function verifyRelease(
     configuration: RepositoryConfiguration,
     target: Target,

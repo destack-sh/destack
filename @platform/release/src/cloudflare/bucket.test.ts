@@ -5,8 +5,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ReleaseBucket } from "./bucket.ts";
-import { RepositoryConfiguration } from "./configuration.ts";
-import { publish } from "./publish.ts";
+import { RepositoryConfiguration } from "../repository/configuration.ts";
+import { publish } from "../repository/publish.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
 import { COMMIT } from "@destack/update/test";
 
@@ -47,7 +47,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
                 return new Response(null, { status: 404 });
             }
 
-            return new Response(request.method === "HEAD" ? null : current.bytes, {
+            return new Response(request.method === "HEAD" ? null : new Uint8Array(current.bytes), {
                 headers: { etag: current.revision, "content-length": String(current.bytes.length) },
             });
         },
@@ -65,7 +65,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
     const previous = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
     Object.assign(process.env, environment);
     try {
-        // stream an immutable artifact, accept exact retries, and refuse conflicting bytes
+        // accept exact retries of an immutable artifact and refuse conflicting bytes
         const bucket = new ReleaseBucket(new RepositoryConfiguration());
         const first = join(directory, "first");
         const second = join(directory, "second");
@@ -120,7 +120,7 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
         const catalog = JSON.stringify({ version: "2026.9.1" });
         await writeFile(join(repository, "downloads.json"), catalog);
 
-        // resume after the public timestamp advances, then accept a completed retry unchanged
+        // resume after the public timestamp advances and accept a completed retry unchanged
         shouldRejectCatalog = true;
         await expect(publish(repository)).rejects.toThrow(
             "release upload failed: downloads.json (503)",

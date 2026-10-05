@@ -90,7 +90,7 @@ async function buildMacIcon(
         [
             "-module-cache-path",
             join(temporary, "swift"),
-            join(ROOT, "@platform/release/src/icon/macos.swift"),
+            join(ROOT, "@platform/release/src/apple/icon.swift"),
             join(directory, "icon.png"),
             padded,
         ],

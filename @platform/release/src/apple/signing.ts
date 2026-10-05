@@ -4,11 +4,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "../distribution/command.ts";
 import { APPLE_BUNDLE } from "../distribution/platform.ts";
-import type { Signer } from "./signer.ts";
+import type { Signer } from "../signing/signer.ts";
 
 /** Apple code signing and notarization selected for a release build. */
 export class MacSigning implements Signer {
-    /** Keychain identity; '-' selects an explicitly local development build. */
+    /** The keychain identity, or '-' for a local development build. */
     readonly identity: string;
     /** Keychain profile configured for notarization of public releases. */
     readonly profile: string | undefined;

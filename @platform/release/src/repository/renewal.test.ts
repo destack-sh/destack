@@ -21,7 +21,9 @@ test("recover expired freshness through signed metadata without accepting change
         fetch(request) {
             const bytes = files.get(new URL(request.url).pathname);
 
-            return bytes ? new Response(bytes) : new Response(null, { status: 404 });
+            return bytes
+                ? new Response(new Uint8Array(bytes))
+                : new Response(null, { status: 404 });
         },
     });
     try {

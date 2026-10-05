@@ -1,5 +1,5 @@
 import { listInstallers } from "../distribution/index.ts";
-import { buildMacInstaller } from "./macos.ts";
+import { buildMacInstaller } from "../apple/installer.ts";
 import { print } from "../output/index.ts";
 
 /** The installers of the released platforms. */

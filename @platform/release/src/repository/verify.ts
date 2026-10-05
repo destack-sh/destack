@@ -44,7 +44,7 @@ try {
         throw new Error("published update revision differs from the signed release");
     }
 
-    // verify newly uploaded archives with bounded memory; renewals contain no target files
+    // verify newly uploaded archives with bounded memory
     const targets = Metadata.fromJSON(
         MetadataKind.Targets,
         parseDocument(await readFile(join(metadata, "targets.json"), "utf8")),
@@ -66,7 +66,7 @@ try {
         if (!response.ok || !response.body) {
             throw new Error(`cannot verify published target: ${path} (${response.status})`);
         }
-        await target.verify(Readable.fromWeb(response.body));
+        await target.verify(Readable.from(response.body));
     }
     const revision = Metadata.fromJSON(MetadataKind.Timestamp, actualDocument).signed.version;
     print(`Verified published update revision ${revision}.`);

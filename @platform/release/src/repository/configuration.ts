@@ -14,12 +14,6 @@ export class RepositoryConfiguration {
     readonly channel: Channel;
     /** Public repository URL, including its feed directory. */
     readonly url: URL;
-    /** Cloudflare account containing the release bucket. */
-    readonly account: string;
-    /** Bucket reserved for public releases. */
-    readonly bucket: string;
-    /** S3 endpoint used for conditional uploads and authoritative reads. */
-    readonly endpoint: URL;
 
     /** Select a channel's repository, by default the environment's channel. */
     constructor(name = process.env["DESTACK_RELEASE_CHANNEL"]) {
@@ -32,18 +26,9 @@ export class RepositoryConfiguration {
         const origin = process.env["DESTACK_RELEASE_ORIGIN"];
         this.url =
             origin === undefined ? ReleaseChannel.of(channel).feed : new URL(`${channel}/`, origin);
-        this.account = process.env["CLOUDFLARE_ACCOUNT_ID"] ?? "27c0d00fb3a27a4ccbf46a3cceab9301";
-        this.bucket = process.env["DESTACK_RELEASE_BUCKET"] ?? `destack-releases-${channel}`;
-        this.endpoint = new URL(
-            process.env["DESTACK_RELEASE_S3_URL"] ??
-                `https://${this.account}.r2.cloudflarestorage.com`,
-        );
 
-        // require encrypted remote storage and an unambiguous repository directory
-        if (!isClean(this.endpoint) || this.endpoint.pathname !== "/") {
-            throw new Error("release storage requires a clean HTTPS origin");
-        }
-        if (!isClean(this.url) || !this.url.pathname.endsWith("/")) {
+        // require an unambiguous repository directory
+        if (!RepositoryConfiguration.isClean(this.url) || !this.url.pathname.endsWith("/")) {
             throw new Error("release repository requires a clean HTTPS directory URL");
         }
     }
@@ -63,18 +48,18 @@ export class RepositoryConfiguration {
 
         return root;
     }
-}
 
-/** Report whether a URL uses HTTPS, or HTTP on loopback, without credentials, query or fragment. */
-function isClean(url: URL): boolean {
-    const isLoopback = LOOPBACK_HOSTS.has(url.hostname);
-    const isSecure = url.protocol === "https:" || (isLoopback && url.protocol === "http:");
+    /** Report whether a URL uses HTTPS, or HTTP on loopback, without credentials, query or fragment. */
+    static isClean(url: URL): boolean {
+        const isLoopback = LOOPBACK_HOSTS.has(url.hostname);
+        const isSecure = url.protocol === "https:" || (isLoopback && url.protocol === "http:");
 
-    return (
-        isSecure &&
-        url.username === "" &&
-        url.password === "" &&
-        url.search === "" &&
-        url.hash === ""
-    );
+        return (
+            isSecure &&
+            url.username === "" &&
+            url.password === "" &&
+            url.search === "" &&
+            url.hash === ""
+        );
+    }
 }

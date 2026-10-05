@@ -49,7 +49,7 @@ export const COMPILER = {
     plugins: [toolchainPlugin()],
 } satisfies Pick<ExecutableOptions, "external" | "isLoadingSources" | "plugins">;
 
-/** Bundle modules and their directory assets, then embed them in one executable. */
+/** Embed bundled modules and their directory assets in one executable. */
 export async function buildExecutable(options: ExecutableOptions): Promise<void> {
     // isolate generated modules beside the destination until compilation finishes
     await mkdir(dirname(options.outfile), { recursive: true });
