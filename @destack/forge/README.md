@@ -4,7 +4,7 @@ Host the Git repositories of accounts and publish the Destack packages built fro
 
 ## Objects
 
-A `repository` keeps the references of one Git origin, and a `package` keeps the releases its `destack.json` id names, so one repository may yield many packages.
+A `repository` holds the references of one Git origin, and a `package` holds the releases of one package id.
 
 ```text
 account
@@ -18,7 +18,7 @@ account
 
 ## Repositories
 
-`repository.refresh` reads a repository's references from its origin, and `repository.open` leases a checkout URL and headers until `expiresAt`.
+`repository.refresh` reads a repository's references from its origin.
 
 ```ts
 const client = connect({ url, fetch });
@@ -38,7 +38,7 @@ const lease = await client.repository.open({ accountId, id: site.id, mode: "writ
 
 ## Hosting
 
-`hosting` sets where a repository's references come from and how checkouts access it, and each value takes different fields.
+`hosting` sets where a repository's references come from.
 
 ```ts
 const origins: RepositoryOrigin[] = [
@@ -52,7 +52,7 @@ const origins: RepositoryOrigin[] = [
 
 ## Repository permissions
 
-Account roles grant repository permissions, and the account's spaces `read` and `pull` its repositories through `contained(principal.space)`.
+Account roles grant the repository permissions.
 
 ```ts
 import { repository } from "@destack/forge/object";
@@ -72,7 +72,7 @@ await authorization.createRole(account, {
 
 ## Leased checkouts
 
-`GitLease.checkout` fetches one commit through a read lease into a new working tree, as a cell building a commit does.
+`GitLease.checkout` fetches one commit through a read lease into a new working tree.
 
 ```ts
 import { GitLease } from "@destack/forge/local";
@@ -83,7 +83,7 @@ await GitLease.checkout(lease, commit, directory, signal);
 
 ## Reports
 
-`repository.report` records the references a host observed in a repository it keeps.
+`repository.report` records the references a host observed in a repository.
 
 ```ts
 await client.repository.report({
@@ -97,7 +97,7 @@ await client.repository.report({
 
 ## Trash
 
-`repository.delete` moves a repository to the trash for 30 days, and a caller with `delete` restores or purges it.
+`repository.delete` moves a repository to the trash for 30 days.
 
 ```ts
 await client.repository.delete({ accountId, id: site.id, requestId });
@@ -106,7 +106,7 @@ await client.repository.restore({ accountId, id: site.id, requestId });
 
 ## Storage
 
-`LocalGitStorage` keeps platform repositories in a local directory, and `ArtifactsStorage` keeps them in Cloudflare Artifacts.
+`LocalGitStorage` stores repositories in a local directory.
 
 ```ts
 import { ArtifactsStorage } from "@destack/forge/cloudflare";
@@ -118,7 +118,7 @@ const artifacts = new ArtifactsStorage({ account, namespace: "repositories", tok
 
 ## Followed references
 
-A cell serving a space follows the references the space selects as the space through `referenceShape`.
+A cell follows the references a space selects through `referenceShape`.
 
 ```ts
 // the forge copies the zones of its residency's accounts, which name the spaces their cells serve
@@ -132,7 +132,7 @@ const subscription = referenceShape.subscription({
 
 ## Package visibility
 
-Anyone reads a `public` or `unlisted` package and lists a `public` one, and the account's roles read and list every package.
+Anyone can read a `public` or `unlisted` package, and lists show only `public` packages.
 
 ```ts
 permissions: {
@@ -144,7 +144,7 @@ permissions: {
 
 ## Pushes
 
-`push` uploads each file of a build the forge lacks and then the manifest, which the forge takes only from a caller with `publish` on the package it names.
+`push` uploads the missing files of a build and then its manifest.
 
 ```ts
 await store.push(manifest, `${forge}/builds/`, fetch);
@@ -152,7 +152,7 @@ await store.push(manifest, `${forge}/builds/`, fetch);
 
 ## Releases
 
-`release.create` publishes a pushed build at its version once, in version order, and sets npm's `gitHead` to the manifest's commit.
+`release.create` publishes a pushed build at its version.
 
 ```ts
 await client.release.create({ accountId, requestId, parentId: packageId, manifest, tag: "next" });
@@ -160,7 +160,7 @@ await client.release.create({ accountId, requestId, parentId: packageId, manifes
 
 ## Tags
 
-`tag.create` and `tag.update` point a tag at a published release, and `release.create` moves `latest` unless it names another `tag`.
+`tag.create` and `tag.update` point a tag at a published release.
 
 ```ts
 await client.tag.create({
@@ -175,7 +175,7 @@ await client.tag.update({ accountId, requestId, id: tagId, version: "2026.11.1" 
 
 ## Deprecation
 
-`release.deprecate` sets the warning installers show, and `release.unpublish` removes a release within 72 hours of publication unless another package's release requires it.
+`release.deprecate` sets the warning that installers show.
 
 ```ts
 await client.release.deprecate({ accountId, requestId, id: releaseId, message: "use 2026.11.0" });
@@ -184,15 +184,16 @@ await client.release.unpublish({ accountId, requestId, id: releaseId });
 
 ## Manifests
 
-`manifests.find` returns the manifest digest of a published release by package and version.
+`manifests.find` returns the manifest digest of a release by version or distribution tag.
 
 ```ts
-const { manifest } = await client.manifests.find({ packageId, version });
+const { manifest } = await client.manifests.find({ packageId, release: "2026.9.0" });
+const { manifest: latest } = await client.manifests.find({ packageId, release: "latest" });
 ```
 
 ## Builds
 
-The `/builds/` mount serves the build of each published release by its manifest digest to the readers of its package and takes files from signed-in callers.
+The `/builds/` mount serves the build of each published release by its manifest digest.
 
 ```text
 GET /builds/<digest>/manifest.json            the manifest
@@ -204,7 +205,7 @@ PUT /builds/<digest>/manifest.json            a pushed manifest, once its files 
 
 ## Sweeps
 
-`Forge.sweep` deletes the manifests and files no release names once they are a day old, and the forge runs it every hour.
+`sweep` deletes unreleased manifests and files after a day.
 
 ```ts
 await forge.sweep(Date.now());
@@ -212,7 +213,7 @@ await forge.sweep(Date.now());
 
 ## npm
 
-npm, bun and deno install from the `/npm/` mount, which answers every write with 405.
+npm, bun and deno install packages from the `/npm/` mount.
 
 ```text
 GET /npm/@acme/tools                          packument
@@ -222,7 +223,7 @@ GET /npm/@acme/tools/-/tools-2026.10.0.tgz    archive
 
 ## GitHub
 
-`GitHubHosting` keeps the repositories of the GitHub App's installations: `identify` finds a remote's repository, `open` leases it, and `receive` verifies a webhook delivery with `GitHubSignature` and reads the repositories it changes.
+`GitHubHosting` hosts the repositories of GitHub App installations.
 
 ```ts
 import { GitHubApp, GitHubHosting } from "@destack/forge/github";
@@ -233,7 +234,7 @@ const change = await github.receive(request, secret); // null for the ping
 
 ## Service
 
-`implementForge` serves the forge's objects, the npm endpoints below `NPM_PATH` and the builds below `BUILDS_PATH` of its `endpoint`, and its `forge.receive` refreshes the repositories a verified GitHub App webhook delivery changes.
+`implementForge` serves the forge's objects, its npm mount and its builds mount.
 
 ```ts
 import { PackageStore } from "@destack/build/store";
@@ -255,18 +256,31 @@ await service.forge.receive(request, secret); // npm reads <endpoint>/npm/@acme/
 
 ## Client
 
-`connect` returns a client of the forge's objects and procedures, and the directory finds the forge serving an account.
+`connect` returns a client of the forge's objects and procedures.
 
 ```ts
 import { connect } from "@destack/forge/client";
 
 const forge = connect({ url, headers: { authorization } });
-const { manifest } = await forge.manifests.find({ packageId, version });
+const { manifest } = await forge.manifests.find({ packageId, release: version });
+```
+
+## Registry
+
+`Registry` reads the published releases of a package from its account's forge.
+
+```ts
+import { Registry } from "@destack/forge/client";
+
+const registry = Registry.of(directory, fetch);
+const reader = await registry.open(packageId, LATEST_TAG); // the build of the latest release
+const pinned = await registry.read(packageId, manifest); // a build by its manifest's digest
+const { location } = await registry.locate(packageId, manifest); // where the forge serves its files
 ```
 
 ## Workload
 
-`forgeWorkload` runs the forge once per residency over `forgeDatabase`, the `workloadIdentity` and `forgeConfiguration`, which the process placing it binds.
+`forgeWorkload` runs the forge once per residency.
 
 ```ts
 import { workloadIdentity } from "@destack/account/client";
@@ -295,7 +309,7 @@ await forge.release.create({ accountId, requestId, parentId: packageId, manifest
 
 ## Tables
 
-`forgeDatabase` holds `forgeTables` beside copies of the residency's accounts, connections, hosts, host keys and zones.
+`forgeDatabase` holds `forgeTables` and copies of the residency's accounts, hosts and zones.
 
 ```ts
 import { forgeDatabase, forgeTables } from "@destack/forge/stack";

@@ -8,7 +8,8 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import { found, Identifier, schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { PackageId } from "@destack/package";
-import { packageObject, release } from "../src/object/index.ts";
+import { Registry } from "../src/client/index.ts";
+import { LATEST_TAG, packageObject, release } from "../src/object/index.ts";
 import { PackageArchive } from "../src/pack/index.ts";
 import {
     ACCOUNT_ID,
@@ -107,6 +108,40 @@ test.each(TEST_DIALECTS)(
             ["CONFLICT", `build ${dirty} compiled a working tree with uncommitted changes`],
             ["CONFLICT", "the build is another package's"],
             ["NOT_FOUND", `no scope ${ACCOUNT_ID}`],
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "find a published release's manifest by version and by the tag pointing at it, and open its build through the releases on %s",
+    async (dialect) => {
+        // publish a release, which latest points at, and read releases as its owner
+        await using forge = await PackageFixture.open(dialect);
+        const answer = await forge.publish("answer");
+        const owner = forge.client("owner");
+        const releases = new Registry(async () => ({
+            url: forge.origin,
+            fetch: (request) => {
+                const headers = new Headers(request.headers);
+                headers.set("authorization", "Bearer owner");
+
+                return fetch(new Request(request, { headers }));
+            },
+        }));
+
+        // name the same manifest by version and by tag, open its build, and refuse a tag pointing nowhere
+        const { packageId } = answer;
+        const reader = await releases.open(packageId, LATEST_TAG);
+        expect([
+            (await owner.manifests.find({ packageId, release: "2026.9.0" })).manifest,
+            await releases.find(packageId, LATEST_TAG),
+            await reader.distributed(),
+            await refusal(owner.manifests.find({ packageId, release: "next" })),
+        ]).toEqual([
+            answer.manifest,
+            answer.manifest,
+            await answer.build.reader.distributed(),
+            ["NOT_FOUND", `${packageId} has no release next`],
         ]);
     },
 );

@@ -9,17 +9,17 @@ export const BUILDS_PATH = "/builds/";
 /** The path below the forge's mount serving npm's reads of published releases. */
 export const NPM_PATH = "/npm/";
 
-/** The manifests of published releases, by package and version. */
+/** The manifests of published releases, by package and version or distribution tag. */
 export const manifests = {
-    /** Find the digest of the manifest a package's published release names. */
+    /** Find the digest of the manifest a package's published release names, by its version or a distribution tag pointing at it, as npm resolves `<name>@<tag>`. */
     find: defineProcedure({ authentication: "identity", permission: null, audit: "access" })
-        .route({ method: "GET", path: "/packages/{packageId}/releases/{version}/manifest" })
+        .route({ method: "GET", path: "/packages/{packageId}/releases/{release}/manifest" })
         .input(
             schema.object({
                 /** The package. */
                 packageId: PackageId,
-                /** The released version. */
-                version: schema.string().min(1),
+                /** The release's version, or a distribution tag pointing at it, such as latest. */
+                release: schema.string().min(1),
             }),
         )
         .output(

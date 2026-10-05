@@ -5,7 +5,8 @@ import type { Resolver } from "@destack/account/directory";
 import { PackageServer, type PackageStore } from "@destack/build/store";
 import { and, eq, isNull, type DatabaseConnection, type Select } from "@destack/db";
 import type { CallOf } from "@destack/object";
-import { ObjectServer, Subscriber, SystemCall } from "@destack/object/server";
+import { SystemCall } from "@destack/object";
+import { ObjectServer, Subscriber } from "@destack/object/server";
 import { PackageName, type PackageId } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { LeaseMode, Upgrade, type Lease } from "@destack/resource";
@@ -31,6 +32,7 @@ import {
     release,
     repository,
     RepositoryOrigin,
+    TagName,
 } from "../object/index.ts";
 import { PackageArchive } from "../pack/index.ts";
 import { BUILDS_PATH, forgeService, manifests } from "../service/index.ts";
@@ -282,10 +284,24 @@ export class Forge {
         });
     }
 
-    /** Answer the manifest of a published release a caller reads. */
+    /** Answer the manifest of a published release a caller reads, by version or distribution tag. */
     manifests() {
         return implementation.router({
             find: implementation.find.handler(async ({ input, context }) => {
+                // read the version a distribution tag points at
+                const [tagged] = TagName.safeParse(input.release).success
+                    ? await this.objects.database
+                          .select({ version: tag.table.version })
+                          .from(tag.table)
+                          .where(
+                              and(
+                                  eq(tag.table.parentId, input.packageId),
+                                  eq(tag.table.name, input.release),
+                              ),
+                          )
+                    : [];
+                const version = tagged?.version ?? input.release;
+
                 // find the published release of the version
                 const table = release.table;
                 const [published] = await this.objects.database
@@ -294,14 +310,14 @@ export class Forge {
                     .where(
                         and(
                             eq(table.parentId, input.packageId),
-                            eq(table.version, input.version),
+                            eq(table.version, version),
                             isNull(table.unpublishedAt),
                         ),
                     )
                     .limit(1);
                 if (published === undefined) {
                     throw new ServiceError("NOT_FOUND", {
-                        message: `${input.packageId} has no release ${input.version}`,
+                        message: `${input.packageId} has no release ${input.release}`,
                     });
                 }
 
