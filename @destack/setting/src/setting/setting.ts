@@ -165,6 +165,11 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         required.sort(compareSources);
         invalid.sort((left, right) => compareCanonical(left, right));
 
+        // combine each key from its own nearest placement for a setting merging keys
+        if (this.definition.merge === "key") {
+            return this.#mergeKeys(selection, ordinary, required, invalid);
+        }
+
         // reject equally ranked candidates other than agreeing recommendations
         for (let index = 1; index < ordinary.length; index++) {
             const previous = aligned(ordinary, index - 1);
@@ -208,6 +213,88 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             sources: [...winners.map((candidate) => candidate.source), ...invalid],
             overridden: overridden.map((candidate) => candidate.source),
             enforcement: required.length > 0 ? "required" : "ordinary",
+        };
+    }
+
+    /** Resolve each key of a record value from the highest-ranked candidate setting it, requirements fixing theirs. */
+    #mergeKeys(
+        selection: SettingSelection,
+        ordinary: readonly Candidate[],
+        required: readonly Candidate[],
+        invalid: readonly SettingSource[],
+    ): SettingResolution<unknown> {
+        // collect the candidates setting each key, ordinary ones in ascending rank, then the requirements
+        const setting = new Map<string, { ordinary: Candidate[]; required: Candidate[] }>();
+        for (const [candidates, kind] of [
+            [ordinary, "ordinary"],
+            [required, "required"],
+        ] as const) {
+            for (const candidate of candidates) {
+                for (const key of Object.keys(recordOf(candidate.value))) {
+                    const entry = setting.get(key) ?? { ordinary: [], required: [] };
+                    entry[kind].push(candidate);
+                    setting.set(key, entry);
+                }
+            }
+        }
+
+        // decide each key: an agreeing requirement, or else the highest-ranked ordinary candidate
+        const value: Record<string, JsonValue> = {};
+        const keys: NonNullable<SettingResolution["keys"]> = {};
+        for (const [key, candidates] of setting) {
+            const entryOf = (candidate: Candidate) => recordOf(candidate.value)[key] ?? null;
+            const [requirement] = candidates.required;
+            if (
+                requirement !== undefined &&
+                candidates.required.some(
+                    (candidate) => !equalValue(entryOf(candidate), entryOf(requirement)),
+                )
+            ) {
+                throw new SettingError("CONFLICT", `required values of ${key} disagree`);
+            }
+            const winner =
+                requirement ?? aligned(candidates.ordinary, candidates.ordinary.length - 1);
+            const tied = candidates.ordinary.filter(
+                (candidate) => candidate !== winner && compareRanks(candidate, winner) === 0,
+            );
+            if (
+                requirement === undefined &&
+                tied.some((candidate) => !equalValue(entryOf(candidate), entryOf(winner)))
+            ) {
+                throw new SettingError(
+                    "CONFLICT",
+                    `multiple values of ${key} have the same precedence`,
+                );
+            }
+            value[key] = entryOf(winner);
+            keys[key] = {
+                source: winner.source,
+                overridden: [...candidates.ordinary, ...candidates.required]
+                    .filter((candidate) => candidate !== winner)
+                    .map((candidate) => candidate.source),
+                enforcement: requirement === undefined ? "ordinary" : "required",
+            };
+        }
+
+        // report the default and the candidates deciding a key as sources, the rest as overridden
+        const decided = new Set(Object.values(keys).map((key) => key.source));
+        const candidates = [...ordinary, ...required];
+        const isSource = (candidate: Candidate) =>
+            candidate.source.kind === "default" || decided.has(candidate.source);
+
+        return {
+            setting: this.reference,
+            selection,
+            value,
+            sources: [
+                ...candidates.filter(isSource).map((candidate) => candidate.source),
+                ...invalid,
+            ],
+            overridden: candidates
+                .filter((candidate) => !isSource(candidate))
+                .map((candidate) => candidate.source),
+            enforcement: required.length > 0 ? "required" : "ordinary",
+            keys,
         };
     }
 
@@ -440,4 +527,9 @@ function compareCanonical(left: unknown, right: unknown): number {
 /** Compare JSON values independently of key order. */
 function equalValue(left: unknown, right: unknown): boolean {
     return canonicalize(left) === canonicalize(right);
+}
+
+/** Read a merged setting's value as its record of keys. */
+function recordOf(value: unknown): Readonly<Record<string, JsonValue>> {
+    return schema.record(schema.string(), schema.json()).parse(value);
 }

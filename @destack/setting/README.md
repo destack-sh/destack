@@ -22,6 +22,29 @@ export const editorMode = defineSetting({
 });
 ```
 
+### Merged keys
+
+`merge: "key"` resolves each key of a record value from its own nearest placement, so a device override of one key keeps the person's other keys and a requirement fixes only the keys it sets.
+
+```ts
+export const keybindings = defineSetting({
+    name: "view.keybindings",
+    title: "Key bindings",
+    description: "The keys running each command, or none to unbind it.",
+    schema: schema.record(schema.string(), schema.string().nullable()),
+    default: {},
+    scope: "user",
+    overrides: ["space", "device"],
+    apply: "immediate",
+    merge: "key",
+});
+// personal { "note.archive": "mod+e" } + device { "note.search": "mod+k" } → both keys
+resolution.keys["note.search"];
+// { source: { kind: "value", deviceId, … }, overridden: [], enforcement: "ordinary" }
+```
+
+A merged setting's resolution carries `keys`: each key's deciding source, the sources it overrode and whether a requirement fixes it, as a settings view shows them.
+
 ### Releases
 
 `convert` upgrades a setting's earlier values by the release narrowing its schema.

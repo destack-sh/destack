@@ -38,3 +38,19 @@ export const lineNumbers = defineSetting(
     },
     { package: notes },
 );
+
+/** The person's key bindings of commands, each command's binding resolved from its own nearest placement. */
+export const keybindings = defineSetting(
+    {
+        name: "editor.keybindings",
+        title: "Key bindings",
+        description: "The keys running each command, or none to unbind it.",
+        schema: schema.record(schema.string(), schema.string().nullable()),
+        default: { "note.archive": "mod+shift+a" },
+        scope: "user",
+        overrides: ["space", "installation", "device"],
+        apply: "immediate",
+        merge: "key",
+    },
+    { package: notes },
+);

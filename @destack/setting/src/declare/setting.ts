@@ -1,4 +1,4 @@
-import { defineSchema, schema, Version } from "@destack/schema";
+import { defineSchema, schema, toJsonSchema, Version } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { ModuleMetadata, Package } from "@destack/package";
 import { Setting, SettingName } from "../setting/setting.ts";
@@ -44,6 +44,8 @@ export const SettingMetadata = defineSchema(
         apply: schema.enum(["immediate", "restart"]),
         /** The migration guidance of a deprecated setting. */
         deprecated: schema.string().min(1).exactOptional(),
+        /** How placed values combine: the nearest whole value, or each key of a record from its nearest placement. */
+        merge: schema.enum(["value", "key"]).exactOptional(),
     }),
 );
 
@@ -87,6 +89,14 @@ export function defineSetting<Value extends schema.Schema>(
     defineSchema(valueSchema);
     valueSchema.parse(defaultValue);
     schema.json().parse(defaultValue);
+
+    // require a record value for a setting merging its keys
+    const described = toJsonSchema(valueSchema);
+    if (metadata.merge === "key" && (described["type"] !== "object" || "properties" in described)) {
+        throw new TypeError(
+            `setting ${definition.name} merges the keys of a value that is no record`,
+        );
+    }
 
     return new Setting(owner, definition);
 }

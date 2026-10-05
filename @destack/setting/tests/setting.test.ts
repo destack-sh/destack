@@ -28,7 +28,7 @@ import {
     source,
     space,
 } from "./fixture/index.ts";
-import { editor, notes, release } from "./fixture/setting/index.ts";
+import { editor, keybindings, notes, release } from "./fixture/setting/index.ts";
 
 /** The package whose releases the entries declare. */
 const PACKAGE = {
@@ -138,6 +138,62 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
             message: "setting scope does not match the selected scope",
         },
     ]);
+});
+
+test("resolve each key of a merged setting from its own nearest placement, requirements fixing theirs", () => {
+    // bind one command personally, another on the device, and require a third in the space
+    const bindings = { ...personal, ...named(keybindings) };
+    const mine = { ...bindings, value: { "note.archive": "mod+e", "note.pin": "mod+p" } };
+    const laptop = { ...override, ...named(keybindings), value: { "note.search": "mod+k" } };
+    const fixed = { ...required, ...named(keybindings), value: { "note.pin": null } };
+    const resolved = keybindings.resolve(selection, [laptop, fixed, mine], chain);
+
+    // keep every key from the placement deciding it, the device override leaving the personal keys
+    expect(resolved).toEqual({
+        setting: keybindings.reference,
+        selection,
+        value: { "note.archive": "mod+e", "note.pin": null, "note.search": "mod+k" },
+        sources: [{ kind: "default", package: notes }, source(mine), source(laptop), source(fixed)],
+        overridden: [],
+        enforcement: "required",
+        keys: {
+            "note.archive": {
+                source: source(mine),
+                overridden: [{ kind: "default", package: notes }],
+                enforcement: "ordinary",
+            },
+            "note.pin": {
+                source: source(fixed),
+                overridden: [source(mine)],
+                enforcement: "required",
+            },
+            "note.search": { source: source(laptop), overridden: [], enforcement: "ordinary" },
+        },
+    });
+
+    // refuse equally placed values disagreeing on a key
+    expect(
+        failure(() =>
+            keybindings.resolve(
+                selection,
+                [mine, { ...mine, id: laptop.id, value: { "note.archive": "mod+r" } }],
+                chain,
+            ),
+        ),
+    ).toEqual({
+        code: "CONFLICT",
+        message: "multiple values of note.archive have the same precedence",
+    });
+});
+
+test("refuse merging the keys of a value that is no record", () => {
+    // refuse a merged setting of a plain text value
+    expect(() =>
+        defineSetting(
+            { ...editor.definition, name: "editor.keys", merge: "key" },
+            { package: notes },
+        ),
+    ).toThrow(new TypeError("setting editor.keys merges the keys of a value that is no record"));
 });
 
 test("compare required structured values independently of key order", () => {

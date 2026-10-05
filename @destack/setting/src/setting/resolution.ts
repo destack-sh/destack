@@ -48,8 +48,22 @@ export const SettingResolution = Object.assign(
             sources: schema.array(SettingSource).min(1),
             /** The other applicable sources in ascending precedence. */
             overridden: schema.array(SettingSource),
-            /** Whether a requirement fixes the value. */
+            /** Whether a requirement fixes the value, or some key of a merged value. */
             enforcement: schema.enum(["ordinary", "required"]),
+            /** How each key of a merged value resolved, absent for a setting merging whole values. */
+            keys: schema
+                .record(
+                    schema.string(),
+                    schema.object({
+                        /** The source deciding the key. */
+                        source: SettingSource,
+                        /** The other sources setting the key, in ascending precedence. */
+                        overridden: schema.array(SettingSource),
+                        /** Whether a requirement fixes the key. */
+                        enforcement: schema.enum(["ordinary", "required"]),
+                    }),
+                )
+                .exactOptional(),
         }),
     ),
     {
