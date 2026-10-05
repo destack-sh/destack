@@ -1,36 +1,32 @@
+import * as stylex from "@destack/style";
 import { createSignal } from "@destack/view";
 
-import { travel } from "../effect/water";
-import { Apps } from "../home/apps";
-import { Closing } from "../home/closing";
-import { Hero } from "../home/hero";
-import { Parts } from "../home/parts";
+import { Adjective } from "../home/adjective";
+import { Noun } from "../home/noun";
+import { Participle } from "../home/participle";
+import { Verb } from "../home/verb";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
+import { lattice } from "../style/lattice.stylex";
 
 /** Render the public Destack homepage: the word in its forms, from verb to participle. */
 export function HomePage() {
-    // hold the open stack, the black hole flow, and its settle timer
+    // hold whether the stack is open, which every figure follows
     const [isOpen, setIsOpen] = createSignal(false);
-    const [flow, setFlow] = createSignal(0);
-    let settle: ReturnType<typeof setTimeout> | undefined;
-
-    // run the water through the black hole while the figure drains or fills
-    const change = (isOpening: boolean) => {
-        // open or close the universe with the stack
-        setIsOpen(isOpening);
-        clearTimeout(settle);
-        setFlow(isOpening ? 1 : -1);
-        settle = setTimeout(() => setFlow(0), travel);
-    };
 
     return (
-        <Shell flow={flow()} universe={isOpen()}>
+        <Shell>
             <Seo />
-            <Hero isOpen={isOpen()} onChange={change} />
-            <Parts />
-            <Apps />
-            <Closing />
+            <Verb isOpen={isOpen()} onChange={setIsOpen} />
+            <Noun isOpen={isOpen()} />
+            <Adjective isOpen={isOpen()} />
+            <Participle />
+            <Interval />
         </Shell>
     );
+}
+
+/** Space the last section apart from the footer inside the frame, so its edges run on to it. */
+function Interval() {
+    return <div aria-hidden="true" {...stylex.attrs(lattice.frame, lattice.interval)} />;
 }

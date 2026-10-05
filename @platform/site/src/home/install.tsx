@@ -1,31 +1,21 @@
+import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createSignal, type JSX } from "@destack/view";
 
 import { agentPrompt, installCommand } from "../content/site";
+import { lattice } from "../style/lattice.stylex";
+import { plate } from "../style/plate.stylex";
 import { paper } from "../style/paper.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { systemOf, systems } from "./download/catalog";
 import { createDownloads } from "./download/download";
-import { Caption, Window } from "./window";
+import { Mark } from "../site/mark";
 
-/** The media query for screens narrower than the desktop frame, where the frames stack. */
+/** The media query for screens narrower than the desktop frame, where the ways stack. */
 const narrow = "@media (max-width: 1099px)";
 
 /** How long a copy key says it copied, in milliseconds. */
 const copiedTime = 1600;
-
-/** The terminal session the install frame shows: commands and their output. */
-const terminalLines: readonly (readonly ["command" | "output", string])[] = [
-    ["command", installCommand],
-    ["output", "Destack installed in ~/.destack"],
-    ["command", "destack login"],
-    ["output", "Signed in as ada"],
-];
-
-/** The muted ink inside the cream windows. */
-const quietInk = "#5d7076";
-/** The muted ink of command output on the terminal's dark ground. */
-const outputInk = "#8aa3ab";
 
 /** Download the published build for this machine, or open the setup guide when none fits. */
 function DownloadKey() {
@@ -49,7 +39,7 @@ function DownloadKey() {
 }
 
 /** Copy a text, and say so on the key for a moment. */
-function CopyKey(properties: { text: string }) {
+function CopyKey(properties: { name: string; text: string }) {
     // hold whether the text was just copied
     const [isCopied, setIsCopied] = createSignal(false);
 
@@ -62,143 +52,188 @@ function CopyKey(properties: { text: string }) {
                     setTimeout(() => setIsCopied(false), copiedTime);
                 })
             }
-            {...stylex.attrs(paper.key, paper.small)}
+            {...stylex.attrs(paper.key)}
         >
-            {isCopied() ? "Copied" : "Copy"}
+            {isCopied() ? "Copied" : `Copy ${properties.name}`}
         </button>
     );
 }
 
-/** Frame one way to install: a window holding its control, and a caption under it. */
-function Frame(properties: { verb: string; rest: string; title: string; children: JSX.Element }) {
-    return (
-        <article {...stylex.attrs(styles.frame)}>
-            <Window title={properties.title}>{properties.children}</Window>
-            <Caption verb={properties.verb} rest={properties.rest} />
-        </article>
-    );
-}
+/** The three ways to install, set as the figures set their ledgers: a label, a claim with its plates, a line under it, what it shows, and its key. */
+const ways: readonly {
+    label: string;
+    claim: string;
+    plates: readonly string[];
+    note: string;
+    body: () => JSX.Element;
+    key: () => JSX.Element;
+}[] = [
+    {
+        label: "Desktop",
+        claim: "Download the app",
+        plates: ["macOS", "Linux"],
+        note: "your apps and data on this machine",
+        body: () => (
+            <span {...stylex.attrs(styles.download)}>
+                <Mark style={styles.icon} />
+                <span {...stylex.attrs(styles.product)}>
+                    <b {...stylex.attrs(styles.productName)}>Destack</b>
+                    <span {...stylex.attrs(styles.productNote)}>for {systems}</span>
+                </span>
+            </span>
+        ),
+        key: () => <DownloadKey />,
+    },
+    {
+        label: "Terminal",
+        claim: "Run one command",
+        plates: ["macOS", "Linux"],
+        note: "installs into ~/.destack",
+        body: () => (
+            <code {...stylex.attrs(styles.code, styles.dark)}>
+                <span>
+                    <span {...stylex.attrs(styles.prompt)}>$ </span>
+                    {installCommand}
+                </span>
+            </code>
+        ),
+        key: () => <CopyKey name="command" text={installCommand} />,
+    },
+    {
+        label: "Agent",
+        claim: "Ask your agent",
+        plates: ["one prompt"],
+        note: "it follows the setup guide",
+        body: () => <code {...stylex.attrs(styles.code)}>{agentPrompt}</code>,
+        key: () => <CopyKey name="prompt" text={agentPrompt} />,
+    },
+];
 
-/** Frame the three ways to install: the desktop app, the terminal and an agent. */
-export function InstallFrames() {
+/** Show the three ways to install side by side, each with its key at the foot. */
+export function InstallWays() {
     return (
         <>
-            <Frame verb="Download" rest=" the app" title="Destack">
-                <div {...stylex.attrs(styles.desktop)}>
-                    <DownloadKey />
-                    <span {...stylex.attrs(styles.quiet)}>{systems}</span>
-                </div>
-            </Frame>
-            <Frame verb="Paste" rest=" one line" title="Terminal">
-                <div {...stylex.attrs(styles.terminal)}>
-                    <pre {...stylex.attrs(styles.lines)}>
-                        {terminalLines.map(([kind, line]) => (
-                            <span
-                                {...stylex.attrs(styles.line, kind === "output" && styles.output)}
-                            >
-                                {kind === "command" && (
-                                    <span {...stylex.attrs(styles.prompt)}>$ </span>
-                                )}
-                                {line}
-                            </span>
-                        ))}
-                    </pre>
-                    <CopyKey text={installCommand} />
-                </div>
-            </Frame>
-            <Frame verb="Ask" rest=" your agent" title="Agent">
-                <div {...stylex.attrs(styles.chat)}>
-                    <p {...stylex.attrs(styles.bubble, styles.mine)}>{agentPrompt}</p>
-                    <p {...stylex.attrs(styles.bubble, styles.theirs)}>
-                        Reading the setup guide and installing Destack.
-                    </p>
-                    <CopyKey text={agentPrompt} />
-                </div>
-            </Frame>
+            {ways.map((way, index) => (
+                <article {...stylex.attrs(lattice.cell, styles.way)}>
+                    <span {...stylex.attrs(styles.label)}>
+                        {String(index + 1).padStart(2, "0")} {way.label}
+                    </span>
+                    <span {...stylex.attrs(styles.claim)}>
+                        <b {...stylex.attrs(styles.name)}>{way.claim}</b>
+                        <span {...stylex.attrs(styles.plates)}>
+                            {way.plates.map((name) => (
+                                <span {...stylex.attrs(plate.plate)}>{name}</span>
+                            ))}
+                        </span>
+                    </span>
+                    <span {...stylex.attrs(styles.note)}>{way.note}</span>
+                    {way.body()}
+                </article>
+            ))}
+            {ways.map((way) => (
+                <div {...stylex.attrs(lattice.cell, styles.key)}>{way.key()}</div>
+            ))}
         </>
     );
 }
 
-/** The install frame styles. */
+/** The install styles. */
 const styles = stylex.create({
-    frame: {
-        alignContent: "center",
-        borderBottomWidth: 0,
-        borderColor: tokens.rule,
-        borderLeftWidth: 0,
-        borderRightWidth: { default: tokens.hairline, ":nth-of-type(3n)": 0, [narrow]: 0 },
-        borderStyle: "solid",
-        borderTopWidth: 0,
+    way: {
+        alignContent: "start",
         display: "grid",
-        gap: "1.125rem",
         gridColumn: "span 4",
-        gridTemplateRows: `calc(${tokens.stage} * 2.5 - 7rem) auto`,
-        minWidth: 0,
-        paddingBottom: "3rem",
-        paddingInline: tokens.inset,
-        [narrow]: { gridColumn: "1 / -1", paddingBottom: "2rem" },
+        gridTemplateRows: "auto auto auto minmax(0, 1fr)",
+        padding: `1.5rem ${tokens.inset}`,
+        rowGap: "0.25rem",
+        [narrow]: { gridColumn: "1 / -1" },
     },
-    desktop: {
-        alignContent: "center",
+    key: {
         display: "grid",
-        gap: "0.75rem",
-        justifyItems: "center",
+        gridColumn: "span 4",
+        padding: `1rem ${tokens.inset}`,
+        [narrow]: { gridColumn: "1 / -1" },
     },
-    quiet: {
-        color: quietInk,
+    label: {
+        color: tokens.signal,
         fontFamily: tokens.monoFont,
-        fontSize: "0.72rem",
+        fontSize: "0.6875rem",
+        letterSpacing: "0.1em",
+        lineHeight: "1rem",
+        textTransform: "uppercase",
     },
-    terminal: {
-        alignContent: "space-between",
-        backgroundColor: tokens.signalInk,
+    claim: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.5rem",
+    },
+    name: {
+        fontSize: "1rem",
+        fontWeight: 600,
+        lineHeight: "1.375rem",
+    },
+    plates: {
+        display: "flex",
+        gap: "0.25rem",
+        marginLeft: "auto",
+    },
+    note: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.75rem",
+        letterSpacing: "0.02em",
+        lineHeight: "1.125rem",
+        marginBottom: "1rem",
+        opacity: 0.8,
+    },
+    download: {
+        alignItems: "center",
+        backgroundColor: color.card,
+        borderColor: tokens.rule,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        display: "flex",
+        gap: "0.875rem",
+        paddingBlock: "0.75rem",
+        paddingInline: "0.875rem",
+    },
+    icon: {
+        height: "2.5rem",
+        width: "2.5rem",
+    },
+    product: {
         display: "grid",
-        justifyItems: "start",
-        padding: "0.875rem",
     },
-    lines: {
-        color: tokens.cream,
+    productName: {
+        fontSize: "1rem",
+        fontWeight: 700,
+    },
+    productNote: {
+        color: color.mutedForeground,
+        fontSize: "0.8125rem",
+    },
+    code: {
+        alignItems: "center",
+        display: "flex",
+        backgroundColor: color.card,
+        borderColor: tokens.rule,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        color: color.cardForeground,
         fontFamily: tokens.monoFont,
-        fontSize: "0.74rem",
-        lineHeight: 1.7,
-        margin: 0,
+        fontSize: "0.75rem",
+        lineHeight: 1.6,
         overflowWrap: "anywhere",
-        whiteSpace: "pre-wrap",
+        paddingBlock: "0.75rem",
+        paddingInline: "0.875rem",
     },
-    line: {
-        display: "block",
+    dark: {
+        backgroundColor: tokens.signalInk,
+        borderColor: tokens.signalInk,
+        color: tokens.cream,
     },
     prompt: {
         color: tokens.signal,
-    },
-    output: {
-        color: outputInk,
-    },
-    chat: {
-        alignContent: "end",
-        display: "grid",
-        fontSize: "0.88rem",
-        gap: "0.5rem",
-        justifyItems: "start",
-        padding: "0.75rem",
-    },
-    bubble: {
-        lineHeight: 1.35,
-        margin: 0,
-        maxWidth: "88%",
-        overflowWrap: "anywhere",
-        paddingBlock: "0.5rem",
-        paddingInline: "0.625rem",
-    },
-    mine: {
-        backgroundColor: tokens.space,
-        color: tokens.cream,
-        justifySelf: "end",
-    },
-    theirs: {
-        borderColor: tokens.signalInk,
-        borderStyle: "solid",
-        borderWidth: "1.5px",
-        color: quietInk,
     },
 });

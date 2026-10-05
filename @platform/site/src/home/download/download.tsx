@@ -1,6 +1,6 @@
 import { createSignal, For, onSettled, Show } from "@destack/view";
 import * as stylex from "@destack/style";
-import { text } from "@destack/theme/tokens.stylex";
+import { color, text } from "@destack/theme/tokens.stylex";
 
 import { tokens } from "../../style/tokens.stylex";
 import { type Download, readDownloads, selectDownload } from "./catalog.ts";
@@ -228,12 +228,13 @@ const styles = stylex.create({
         ":hover": { backgroundColor: "#ffffff26" },
     },
     menu: {
-        backgroundColor: tokens.cream,
-        borderColor: tokens.signalInk,
+        backgroundColor: color.popover,
+        borderColor: tokens.rule,
+        borderRadius: "8px",
         borderStyle: "solid",
-        borderWidth: "2px",
-        boxShadow: `4px 4px 0 ${tokens.signal}`,
-        color: tokens.signalInk,
+        borderWidth: tokens.hairline,
+        boxShadow: "0 12px 32px rgb(8 23 35 / 14%)",
+        color: color.popoverForeground,
         minWidth: "18rem",
         position: "absolute",
         right: 0,

@@ -1,55 +1,54 @@
+import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 
 import { tokens } from "./tokens.stylex";
 
-/** The cream paper of the drawings: cards with an ink rim and offset shadow, and the keys pressed on the page. */
+/** The flat surfaces of the figures: hairline cards and the keys pressed on the page. */
 export const paper = stylex.create({
-    /** A cream card with an ink rim and an offset shadow. */
+    /** A card with a hairline rim, in the theme's card colour. */
     card: {
-        backgroundColor: tokens.cream,
-        borderColor: tokens.signalInk,
+        backgroundColor: color.card,
+        borderColor: tokens.rule,
+        borderRadius: "8px",
         borderStyle: "solid",
-        borderWidth: "2px",
-        boxShadow: `4px 4px 0 var(--card-shadow, ${tokens.signalInk})`,
-        color: tokens.signalInk,
+        borderWidth: tokens.hairline,
+        color: color.cardForeground,
     },
 
-    /** A key: a card-like button with a small offset shadow that lifts on hover. */
+    /** A key: a flat button with a hairline rim that darkens on hover. */
     key: {
         alignItems: "center",
-        backgroundColor: tokens.cream,
-        borderColor: tokens.signalInk,
+        backgroundColor: { default: color.background, ":hover": color.muted },
+        borderColor: tokens.rule,
+        borderRadius: "6px",
         borderStyle: "solid",
-        borderWidth: "2px",
-        boxShadow: {
-            default: `3px 3px 0 var(--card-shadow, ${tokens.signalInk})`,
-            ":hover": `4px 4px 0 var(--card-shadow, ${tokens.signalInk})`,
-        },
-        color: tokens.signalInk,
+        borderWidth: tokens.hairline,
+        color: color.foreground,
         cursor: "pointer",
         display: "inline-flex",
         fontFamily: "inherit",
-        fontSize: "1rem",
+        fontSize: "0.9375rem",
         fontWeight: 600,
-        height: "2.875rem",
+        height: "2.5rem",
         justifyContent: "center",
-        paddingInline: "1.25rem",
+        paddingInline: "1.125rem",
         textDecoration: "none",
-        transform: { default: "none", ":hover": "translate(-1px, -1px)" },
-        transitionDuration: "80ms",
-        transitionProperty: "transform, box-shadow",
+        transitionDuration: "120ms",
+        transitionProperty: "background-color, border-color",
         whiteSpace: "nowrap",
     },
 
     /** The signal fill of the primary key. */
     primary: {
-        backgroundColor: tokens.signal,
+        backgroundColor: { default: tokens.signal, ":hover": "#ff8a47" },
+        borderColor: tokens.signal,
+        color: tokens.signalInk,
     },
 
-    /** A smaller key for actions inside a cell. */
+    /** A smaller key for actions inside a figure. */
     small: {
-        fontSize: "0.875rem",
-        height: "2.125rem",
-        paddingInline: "0.875rem",
+        fontSize: "0.8125rem",
+        height: "2rem",
+        paddingInline: "0.75rem",
     },
 });

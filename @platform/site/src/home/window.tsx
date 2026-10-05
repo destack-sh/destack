@@ -1,91 +1,62 @@
+import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
-import type { JSX } from "@destack/view";
+import { children, type JSX } from "@destack/view";
 
-import { paper } from "../style/paper.stylex";
 import { tokens } from "../style/tokens.stylex";
 
-/** Draw a small app window: a cream card with a title bar of three lights, a title, and an optional tag. */
+/** Draw an app window: a card in the theme's card colour with a title bar of three lights and a title. */
 export function Window(properties: {
-    title: string;
-    tag?: string;
-    isBranch?: boolean;
+    title: JSX.Element;
     style?: stylex.Styles;
     children: JSX.Element;
 }) {
+    // resolve the title once, so it renders the same on the server and in the browser
+    const title = children(() => properties.title);
+
     return (
-        <div {...stylex.attrs(paper.card, styles.window, properties.style)}>
+        <div {...stylex.attrs(styles.window, properties.style)}>
             <p {...stylex.attrs(styles.chrome)}>
                 <span aria-hidden="true" {...stylex.attrs(styles.lights)} />
-                {properties.title}
-                {properties.tag !== undefined && (
-                    <em
-                        {...stylex.attrs(styles.tag, properties.isBranch === true && styles.branch)}
-                    >
-                        {properties.tag}
-                    </em>
-                )}
+                {title()}
             </p>
             {properties.children}
         </div>
     );
 }
 
-/** Caption a window with its step: the verb in bold, then the rest as written. */
-export function Caption(properties: { verb: string; rest: string }) {
-    return (
-        <p {...stylex.attrs(styles.caption)}>
-            <b {...stylex.attrs(styles.verb)}>{properties.verb}</b>
-            {properties.rest}
-        </p>
-    );
-}
-
 /** The window styles. */
 const styles = stylex.create({
-    caption: {
-        margin: 0,
-    },
-    verb: {
-        fontWeight: 600,
-    },
     window: {
+        backgroundColor: color.card,
+        borderColor: tokens.rule,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        color: color.cardForeground,
         display: "grid",
-        gridTemplateRows: "2.125rem minmax(0, 1fr)",
+        fontSize: "0.84375rem",
+        gridTemplateRows: "2.5rem minmax(0, 1fr)",
         overflow: "hidden",
     },
     chrome: {
         alignItems: "center",
-        borderBottomColor: tokens.signalInk,
+        borderBottomColor: tokens.rule,
         borderBottomStyle: "solid",
-        borderBottomWidth: "2px",
+        borderBottomWidth: tokens.hairline,
+        color: color.mutedForeground,
         display: "flex",
-        fontFamily: tokens.monoFont,
-        fontSize: "0.74rem",
-        fontWeight: 600,
-        gap: "0.5rem",
+        fontSize: "0.78rem",
+        gap: "0.75rem",
         margin: 0,
-        paddingInline: "0.75rem",
+        paddingInline: "0.875rem",
     },
     lights: {
-        backgroundImage: `radial-gradient(circle, transparent 2.2px, ${tokens.signalInk} 2.6px, ${tokens.signalInk} 3.6px, transparent 4px)`,
+        backgroundImage: `radial-gradient(circle, transparent 3.5px, ${tokens.rule} 4px, ${tokens.rule} 5px, transparent 5.5px)`,
         backgroundPosition: "0 50%",
         backgroundRepeat: "repeat-x",
-        backgroundSize: "10px 8px",
+        backgroundSize: "16px 11px",
         flexShrink: 0,
-        height: "8px",
-        width: "28px",
-    },
-    tag: {
-        borderColor: tokens.signalInk,
-        borderStyle: "solid",
-        borderWidth: "1px",
-        fontStyle: "normal",
-        fontWeight: 400,
-        marginLeft: "auto",
-        paddingBlock: "3px",
-        paddingInline: "7px",
-    },
-    branch: {
-        backgroundColor: tokens.signal,
+        height: "11px",
+        width: "44px",
     },
 });

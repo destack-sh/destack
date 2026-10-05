@@ -9,6 +9,5 @@
   stroke-linecap="square"
   stroke-linejoin="miter"
 >
-  <path d="M10 3.5l6 3v7l-6 3-6-3v-7l6-3Z" />
-  <path d="M4 6.5l6 3 6-3M10 9.5v7" />
+  <path d="M2.5 10.5h3.5l2-5 4 9 2-4h3.5" />
 </svg>

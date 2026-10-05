@@ -11,9 +11,19 @@ import { Mark } from "../site/mark";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
-import { pendingLinks, primaryLinks } from "./navigation";
-import { SoundToggle } from "./sound";
+import { pendingLinks, primaryLinks, socialLinks } from "./navigation";
 import { ThemeToggle } from "./theme";
+
+/** The source repository link, from the community destinations. */
+const github = (() => {
+    // find the link, or refuse a navigation table without it
+    const link = socialLinks.find((candidate) => candidate.label === "GitHub");
+    if (link === undefined) {
+        throw new Error("the social links lack GitHub");
+    }
+
+    return link;
+})();
 
 /** The media query for screens too narrow for navigation labels, which show only their icons. */
 const narrow = "@media (max-width: 1099px)";
@@ -61,11 +71,7 @@ export function TopBar() {
                 </Goo>
 
                 {/* give each destination one two-column cell: packages, then documentation and blog */}
-                <nav
-                    data-universe="parts"
-                    aria-label="Primary navigation"
-                    {...stylex.attrs(styles.navigation)}
-                >
+                <nav aria-label="Primary navigation" {...stylex.attrs(styles.navigation)}>
                     {pendingLinks.map(({ label, icon }) => (
                         <button
                             type="button"
@@ -107,12 +113,23 @@ export function TopBar() {
                 {/* offer the desktop download in the brand's colour, opposite the brand */}
                 <DownloadCell style={styles.download} />
 
-                {/* keep search, theme, sound, and sign in together on the right edge */}
+                {/* keep search, theme, the source, and sign in together on the right edge */}
                 {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
-                <div data-universe {...stylex.attrs(styles.tools)}>
+                <div {...stylex.attrs(styles.tools)}>
                     <CommandPalette />
                     <ThemeToggle />
-                    <SoundToggle />
+                    <a
+                        href={github.href}
+                        aria-label="Source on GitHub"
+                        title="Source on GitHub"
+                        {...stylex.attrs(styles.source)}
+                    >
+                        <span
+                            aria-hidden="true"
+                            innerHTML={github.icon}
+                            {...stylex.attrs(styles.icon)}
+                        />
+                    </a>
                     <button
                         type="button"
                         disabled
@@ -339,6 +356,14 @@ const styles = stylex.create({
         cursor: "not-allowed",
         fontFamily: text.family,
         fontSize: "var(--size-navigation)",
+    },
+    source: {
+        alignItems: "center",
+        color: { default: color.mutedForeground, ":hover": color.foreground },
+        display: "inline-flex",
+        height: "2.75rem",
+        justifyContent: "center",
+        width: "2.75rem",
     },
     signIn: {
         alignItems: "center",

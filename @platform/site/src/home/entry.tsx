@@ -1,19 +1,21 @@
 import { color, text } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
+import type { JSX } from "@destack/view";
 
+import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 
-/** One sense of a form: its definition, the passages underlined in it, and the sentence under it. */
-export type Sense = {
+/** One sense of a form: its definition, the passages underlined in it, and the phrase under it. */
+type Sense = {
     /** The definition. */
     definition: string;
     /** The passages of the definition drawn underlined, in order: whole words, phrases or parts of words. */
     highlight: readonly string[];
-    /** The plain sentence that says what the definition means. */
-    sentence: string;
+    /** The plain phrase under the definition that says what it means. */
+    sentence: JSX.Element;
 };
 
-/** One dictionary form of the word: its syllables, pronunciation, part of speech and senses. */
+/** One dictionary form of the word: its syllables, pronunciation, part of speech and sense. */
 export type Form = {
     /** The headword's syllables, set with the dictionary dot between them. */
     syllables: readonly string[];
@@ -21,8 +23,8 @@ export type Form = {
     pronunciation: string;
     /** The part of speech, such as verb or noun. */
     partOfSpeech: string;
-    /** The senses, numbered when there are several. */
-    senses: readonly Sense[];
+    /** The sense this section shows. */
+    sense: Sense;
 };
 
 /** Set a headword's syllables with the dictionary dot between them. */
@@ -43,23 +45,10 @@ export function Syllables(properties: { syllables: readonly string[] }) {
     );
 }
 
-/** Head a section with a dictionary entry: the headword line, then each sense with its sentence under it. */
+/** Head a section with a dictionary entry: the headword line, the definition, and the phrase under it. */
 export function Entry(properties: { form: Form; isTitle?: boolean }) {
-    const isNumbered = () => properties.form.senses.length > 1;
-    const senses = () => (
-        <span {...stylex.attrs(styles.senses)}>
-            {properties.form.senses.map((sense, index) => (
-                <span {...stylex.attrs(styles.sense, isNumbered() && styles.numbered)}>
-                    {isNumbered() && <span {...stylex.attrs(styles.number)}>{index + 1}</span>}
-                    <Definition sense={sense} />
-                    <span {...stylex.attrs(styles.sentence)}>{sense.sentence}</span>
-                </span>
-            ))}
-        </span>
-    );
-
     return (
-        <header {...stylex.attrs(styles.entry)}>
+        <header {...stylex.attrs(lattice.cell, styles.entry)}>
             <p {...stylex.attrs(styles.kicker)}>
                 <b {...stylex.attrs(styles.headword)}>
                     <Syllables syllables={properties.form.syllables} />
@@ -68,11 +57,29 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                 <i>{properties.form.partOfSpeech}</i>
             </p>
             {properties.isTitle === true ? (
-                <h1 {...stylex.attrs(styles.statement)}>{senses()}</h1>
+                <h1 {...stylex.attrs(styles.definition)}>
+                    <Definition sense={properties.form.sense} />
+                </h1>
             ) : (
-                <h2 {...stylex.attrs(styles.statement)}>{senses()}</h2>
+                <h2 {...stylex.attrs(styles.definition)}>
+                    <Definition sense={properties.form.sense} />
+                </h2>
             )}
+            <p {...stylex.attrs(styles.sentence)}>{properties.form.sense.sentence}</p>
         </header>
+    );
+}
+
+/** Label the figure under an entry with its number and title, as a reference book does. */
+export function FigureLabel(properties: { number: number; title: string; children?: JSX.Element }) {
+    return (
+        <div {...stylex.attrs(lattice.cell, styles.label)}>
+            <span>
+                <span {...stylex.attrs(styles.figure)}>Fig. {properties.number}</span>
+                {properties.title}
+            </span>
+            <span {...stylex.attrs(styles.labelControl)}>{properties.children}</span>
+        </div>
     );
 }
 
@@ -99,7 +106,7 @@ function Definition(properties: { sense: Sense }) {
     };
 
     return (
-        <>
+        <span>
             {runs().map((run) =>
                 run.isHighlighted ? (
                     <span {...stylex.attrs(styles.highlight)}>{run.text}</span>
@@ -107,19 +114,46 @@ function Definition(properties: { sense: Sense }) {
                     run.text
                 ),
             )}
-        </>
+        </span>
     );
 }
 
 /** The entry styles. */
 const styles = stylex.create({
     entry: {
+        display: "grid",
+        alignContent: "start",
         gridColumn: "1 / -1",
-        minWidth: 0,
-        paddingBottom: "1.5rem",
+        minHeight: { default: tokens.entry, "@media (max-width: 1099px)": "auto" },
+        paddingBlock: "3rem 2rem",
         paddingInline: tokens.inset,
-        paddingTop: "4rem",
-        "@media (max-width: 767px)": { paddingBottom: "1.75rem", paddingTop: "2.75rem" },
+        rowGap: "0.75rem",
+        "@media (max-width: 767px)": { paddingBlock: "2.5rem 1.75rem" },
+    },
+    label: {
+        alignItems: "center",
+        display: "flex",
+        flexWrap: "wrap",
+        fontSize: "0.9375rem",
+        fontWeight: 600,
+        gap: "1rem",
+        gridColumn: "1 / -1",
+        margin: 0,
+        paddingBlock: "0.875rem",
+        paddingInline: tokens.inset,
+    },
+    labelControl: {
+        marginLeft: "auto",
+    },
+    figure: {
+        color: tokens.signal,
+        marginRight: "1rem",
+        whiteSpace: "nowrap",
+        fontFamily: tokens.monoFont,
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
     },
     kicker: {
         alignItems: "baseline",
@@ -130,7 +164,6 @@ const styles = stylex.create({
         fontSize: "0.9375rem",
         gap: "0.25rem 0.625rem",
         margin: 0,
-        marginBottom: "1rem",
     },
     headword: {
         color: tokens.signal,
@@ -140,40 +173,21 @@ const styles = stylex.create({
     interpunct: {
         marginInline: "0.05em",
     },
-    statement: {
-        fontSize: "clamp(1.5rem, 2.2vw, 1.875rem)",
+    definition: {
+        fontSize: "clamp(1.75rem, 3vw, 2.375rem)",
         fontWeight: 500,
-        letterSpacing: "-0.015em",
-        lineHeight: 1.22,
+        letterSpacing: "-0.02em",
+        lineHeight: 1.15,
         margin: 0,
-        maxWidth: "56rem",
-        textWrap: "pretty",
-    },
-    senses: {
-        display: "grid",
-        rowGap: "0.9em",
-    },
-    sense: {
-        display: "block",
-    },
-    numbered: {
-        paddingLeft: "1.5em",
-        position: "relative",
-    },
-    number: {
-        color: tokens.signal,
-        fontWeight: 700,
-        left: 0,
-        position: "absolute",
+        textWrap: "balance",
     },
     sentence: {
         color: color.mutedForeground,
-        display: "block",
-        fontSize: "0.75em",
-        fontWeight: 400,
-        lineHeight: 1.3,
-        marginTop: "0.4em",
-        textWrap: "balance",
+        fontSize: "clamp(1rem, 1.3vw, 1.1875rem)",
+        lineHeight: 1.45,
+        margin: 0,
+        maxWidth: "64rem",
+        textWrap: "pretty",
     },
     highlight: {
         textDecorationColor: tokens.signal,

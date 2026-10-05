@@ -21,7 +21,9 @@
         --site-column: calc(var(--site-width) / 12);
         --site-bar: 56px;
         --site-row: calc(var(--site-column) * 0.95);
-        --site-stage: calc(var(--site-row) * 9.4 / 6);
+        --site-section: clamp(720px, calc(100svh - var(--site-bar)), 1080px);
+        --site-entry: 12.5rem;
+        --site-stage: calc((var(--site-section) - var(--site-entry) - 50px) / 6);
         --site-cell: calc(var(--site-column) * 8 / 88);
         --site-cell-row: calc(var(--site-stage) / 9);
         --site-inset: 24px;
@@ -908,14 +910,6 @@
     }
 }
 
-/* redraw text in its own section's scheme, which the universe eases as it turns each section */
-@layer reset {
-    [data-universe]:not([data-universe="parts"]),
-    [data-universe="parts"] > :not([data-universe="parts"]) {
-        color: var(--destack-color-foreground);
-    }
-}
-
 /* let the goo field show through its cells once it has painted */
 :root[data-field="painted"] [data-goo-backdrop] {
     opacity: 0;
@@ -925,16 +919,19 @@
     opacity: 1;
 }
 
-/* paint a card's inside only while the searchlight touches it */
-[data-inside]:not([data-lit]) {
-    display: none;
-}
-
-/* fade the tile and words of a shared item the scene does not use, but never what the searchlight shows inside it */
-[data-item]:not([data-live]) > :not([data-inside]) {
+/* fade the tile and words of a shared item the scene does not use */
+[data-item]:not([data-live]) > * {
     filter: grayscale(1);
     opacity: 0.45;
     transition:
         filter 500ms ease,
         opacity 500ms ease;
+}
+
+/* hold every animation of a figure that has scrolled off screen */
+[data-asleep],
+[data-asleep] *,
+[data-asleep] *::before,
+[data-asleep] *::after {
+    animation-play-state: paused !important;
 }

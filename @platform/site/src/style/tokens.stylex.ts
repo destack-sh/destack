@@ -10,8 +10,12 @@ export const tokens = stylex.defineConsts({
     bar: "var(--site-bar)",
     /** The homepage stack figure's row height, a fixed share of a column. */
     row: "var(--site-row)",
-    /** The taller row height of the homepage stack figure. */
+    /** The stack figure's row height: six rows fill the screen under the entry and its figure label. */
     stage: "var(--site-stage)",
+    /** The height of one homepage section on desktop: the screen under the top bar. */
+    section: "var(--site-section)",
+    /** The height of every dictionary entry on desktop, so the sections line up. */
+    entry: "var(--site-entry)",
     /** The breadboard hole pitch across: the stack figure's drawing is 88 cells over eight columns. */
     cell: "var(--site-cell)",
     /** The breadboard hole pitch down: nine cells to a stage row. */
@@ -20,7 +24,7 @@ export const tokens = stylex.defineConsts({
     inset: "var(--site-inset)",
     /** The lattice rule width. */
     hairline: "1px",
-    /** The lattice rule color, blended toward faint cream while the universe fills the site. */
+    /** The lattice rule color. */
     rule: "var(--site-rule)",
     /** The bright fill used for primary actions in both themes. */
     signal: "#ff792e",
