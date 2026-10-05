@@ -1,31 +1,28 @@
 import { SpaceSetting } from "../declare/space.ts";
 import { setting, type SettingValue } from "../object/index.ts";
 import { SettingCatalog, SettingPlacement } from "../setting/index.ts";
-import type { PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
-import { schema, type Identifier } from "@destack/schema";
-
-/** Open the build of a package's release in a scope, the installation's when given. */
-export type OpenRelease = (
-    scope: string,
-    packageId: PackageId,
-    installation?: Identifier<"installation">,
-) => Promise<BuildReader>;
+import { BuildCache } from "@destack/package/manifest";
+import { schema } from "@destack/schema";
+import type { OpenRelease } from "@destack/space/server";
 
 /** Serve declared values, checking each written value and each value a stack places against its declaration. */
 export function serveSettings(release: OpenRelease) {
+    // read each release's settings once
+    const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
+
     return {
         setting: setting
             .handle({
                 create: {
                     authorize: (call) =>
-                        requireDeclared({ ...call.input, scope: call.scope }, release),
+                        requireDeclared({ ...call.input, scope: call.scope }, release, catalogs),
                 },
                 update: {
                     authorize: (call) =>
                         requireDeclared(
                             { ...call.target, ...call.input, scope: call.scope },
                             release,
+                            catalogs,
                         ),
                 },
             })
@@ -39,7 +36,7 @@ export function serveSettings(release: OpenRelease) {
                         stack.manager.packageId,
                         stack.manager.installationId,
                     );
-                    const declared = (await SettingCatalog.read(reader)).get(desired.setting);
+                    const declared = (await catalogs.read(reader)).get(desired.setting);
 
                     // require a declared value at a placement the space permits, stamped with its release
                     const write = {
@@ -67,6 +64,7 @@ async function requireDeclared(
     value: Parameters<typeof SettingPlacement.of>[0] &
         Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
     release: OpenRelease,
+    catalogs: BuildCache<SettingCatalog>,
 ): Promise<void> {
     // check it against the release its placement selects
     const placement = SettingPlacement.of(value);
@@ -75,7 +73,7 @@ async function requireDeclared(
         placement.package ?? value.packageId,
         placement.installation,
     );
-    const catalog = await SettingCatalog.read(reader);
+    const catalog = await catalogs.read(reader);
     catalog
         .get({ packageId: value.packageId, name: value.name })
         .requireWrite(

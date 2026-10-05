@@ -7,9 +7,6 @@ import { SettingMetadata, SettingScope } from "../declare/setting.ts";
 import { SettingError } from "../error/error.ts";
 import { Setting, SettingReference } from "./setting.ts";
 
-/** The catalog read from each build so far. */
-const READ = new WeakMap<BuildReader, Promise<SettingCatalog>>();
-
 /** The serializable fields of a setting description beside its scope. */
 const description = SettingMetadata.extend({
     /** The declaring package. */
@@ -60,38 +57,20 @@ export class SettingCatalog {
         );
     }
 
-    /** Read the settings a build declares once per build. */
-    static read(reader: BuildReader): Promise<SettingCatalog> {
-        // build each release's validators once
-        let catalog = READ.get(reader);
-        if (catalog === undefined) {
-            catalog = reader
-                .declared(import.meta.destack.package.id, "setting", SettingDescription)
-                .then(
-                    (descriptions) =>
-                        new SettingCatalog(
-                            descriptions.map(
-                                ({
-                                    description: {
-                                        package: owner,
-                                        schema: valueSchema,
-                                        ...definition
-                                    },
-                                }) =>
-                                    new Setting(owner, {
-                                        ...definition,
-                                        schema: fromJsonSchema(valueSchema),
-                                    }),
-                            ),
-                        ),
-                );
-            READ.set(reader, catalog);
+    /** Read the settings a build declares. */
+    static async read(reader: BuildReader): Promise<SettingCatalog> {
+        const descriptions = await reader.declared(
+            import.meta.destack.package.id,
+            "setting",
+            SettingDescription,
+        );
 
-            // read again after a failed read
-            catalog.catch(() => READ.delete(reader));
-        }
-
-        return catalog;
+        return new SettingCatalog(
+            descriptions.map(
+                ({ description: { package: owner, schema: valueSchema, ...definition } }) =>
+                    new Setting(owner, { ...definition, schema: fromJsonSchema(valueSchema) }),
+            ),
+        );
     }
 
     /** Find a declared setting and refuse an undeclared one. */

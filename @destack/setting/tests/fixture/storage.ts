@@ -12,7 +12,8 @@ import { ObjectServer } from "@destack/object/server";
 
 import { settingTables } from "../../src/stack/index.ts";
 import { setting } from "../../src/object/index.ts";
-import { type OpenRelease, serveSettings } from "../../src/server/index.ts";
+import type { OpenRelease } from "@destack/space/server";
+import { serveSettings } from "../../src/server/index.ts";
 import { defineService } from "@destack/service";
 import type { Setting } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./setting/index.ts";
