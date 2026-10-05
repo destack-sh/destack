@@ -14,7 +14,7 @@ const verb: Form = {
         definition: "to take back your software",
         highlight: ["back"],
         sentence:
-            "Run every app on one open, standardised stack, on your machine, keeping your data yours.",
+            "Build and run every app on one open, standardised stack, on your machine, keeping your data yours.",
     },
 };
 

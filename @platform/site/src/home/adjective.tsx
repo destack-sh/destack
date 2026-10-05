@@ -1,14 +1,16 @@
 import * as stylex from "@destack/style";
-import { createSignal } from "@destack/view";
 
 import { lattice } from "../style/lattice.stylex";
-import { tokens } from "../style/tokens.stylex";
 import { Entry, FigureLabel, type Form } from "./entry";
-import { BudgetApp, moments } from "./budget";
+import { services, WeekApp } from "./week";
+import { Inspector } from "./inspector";
 import { Label } from "./label";
-import { Ledger } from "./ledger";
+import { createStagger } from "./stagger";
 import { StackSwitch } from "./switch";
 import { Window } from "./window";
+
+/** The milliseconds between the steps of the figure's switch, one per service. */
+const stepTime = 150;
 
 /** The media query for screens narrower than the desktop frame, where the cells stack. */
 const narrow = "@media (max-width: 1099px)";
@@ -21,20 +23,14 @@ const destackable: Form = {
     sense: {
         definition: "malleable, just-in-time software you can trust",
         highlight: ["malleable", "just-in-time"],
-        sentence: "Make any app your way, and trust the ones you’re sent.",
+        sentence: "Made your way, yours to change, yours to keep, and built to trust.",
     },
 };
 
-/** Show the adjective at work: the same request answered as a chat artifact, or as an app in your space remixed from standard components. */
+/** Show the adjective at work: the same request answered as a chat artifact kept up by hand, or as an app in your space that works with the rest of it. */
 export function Adjective(properties: { isOpen: boolean }) {
-    // hold the part pointed at, in the app or in the ledger
-    const [lit, setLit] = createSignal<number | undefined>(undefined);
-    const lighting = {
-        get lit() {
-            return lit();
-        },
-        onLight: setLit,
-    };
+    // switch the chat first and then the app's parts in service order
+    const isOpenAt = createStagger(() => properties.isOpen, services.length + 1, stepTime);
 
     return (
         <section
@@ -47,53 +43,23 @@ export function Adjective(properties: { isOpen: boolean }) {
             )}
         >
             <Entry form={destackable} />
-            <FigureLabel
-                number={3}
-                title="The same request, as a chat artifact and as an app in your space"
-            >
+            <FigureLabel number={3} title="An app made by asking">
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>A household budget, built on request</Label>
+                <Label>My week, built and changed in one chat</Label>
                 <Window
                     title={
                         <span {...stylex.attrs(styles.title)}>
-                            {properties.isOpen ? "Budget" : "Chat"}
-                            <span
-                                {...stylex.attrs(
-                                    styles.branch,
-                                    properties.isOpen && styles.branchOn,
-                                )}
-                            >
-                                {properties.isOpen ? "branch budget" : "artifact"}
-                            </span>
+                            {isOpenAt(0) ? "Destack" : "Chat"}
                         </span>
                     }
                     style={styles.window}
                 >
-                    <BudgetApp isOpen={properties.isOpen} lighting={lighting} />
+                    <Inspector isOpen={isOpenAt(services.length + 1)} services={services}>
+                        <WeekApp isOpenAt={isOpenAt} />
+                    </Inspector>
                 </Window>
-            </div>
-            <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.key)}>
-                <Label>
-                    {properties.isOpen
-                        ? "Its life as an app in your space"
-                        : "Its life as a chat artifact"}
-                </Label>
-                <Ledger
-                    items={moments.map((moment) =>
-                        properties.isOpen ? moment.destacked : moment.stacked,
-                    )}
-                    total={
-                        properties.isOpen
-                            ? ["1 app", "every change reviewed"]
-                            : ["1 chat", "every change starts over"]
-                    }
-                    lighting={lighting}
-                    isOpen={properties.isOpen}
-                    isSingle
-                    isNoted
-                />
             </div>
         </section>
     );
@@ -106,14 +72,8 @@ const styles = stylex.create({
         [narrow]: { gridTemplateRows: "auto" },
     },
     stage: {
-        gridColumn: "1 / 8",
+        gridColumn: "1 / -1",
         gridTemplateRows: "auto minmax(0, 1fr)",
-        [narrow]: { gridColumn: "1 / -1" },
-    },
-    key: {
-        gridColumn: "8 / -1",
-        gridTemplateRows: "auto minmax(0, 1fr)",
-        [narrow]: { gridColumn: "1 / -1" },
     },
     window: {
         minHeight: 0,
@@ -125,21 +85,5 @@ const styles = stylex.create({
         flexGrow: 1,
         fontWeight: 600,
         gap: "0.375rem",
-    },
-    branch: {
-        borderColor: tokens.rule,
-        borderRadius: "999px",
-        borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.72rem",
-        fontWeight: 400,
-        marginLeft: "auto",
-        paddingBlock: "1px",
-        paddingInline: "0.625rem",
-    },
-    branchOn: {
-        backgroundColor: "rgb(255 121 46 / 16%)",
-        borderColor: tokens.signal,
     },
 });

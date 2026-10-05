@@ -69,7 +69,16 @@ export const entities: Record<string, Entity> = {
     calendly: { label: "Calendly", icon: "calendly", role: "$16/seat/mo", tint: "#006bff" },
     linear: { label: "Linear", icon: "linear", role: "$16/seat/mo + credits", tint: "#5e6ad2" },
     github: { label: "GitHub", icon: "github", role: "$21/seat/mo + credits", tint: "#24292f" },
-    homemade: { label: "Your app", icon: "tasks", role: "Homemade", tint: "#b8862b" },
+    // homemade apps, each built with an app builder on rented services
+    tracker: {
+        label: "Launch tracker",
+        icon: "tasks",
+        role: "Built with Lovable",
+        tint: "#b8862b",
+    },
+    portal: { label: "Client portal", icon: "pages", role: "Built with v0", tint: "#3d6fb0" },
+    pipeline: { label: "Hiring board", icon: "user", role: "Built with Replit", tint: "#5b7f2e" },
+    budget: { label: "Family budget", icon: "table", role: "Built with Bolt", tint: "#a0485f" },
 
     // apps
     pages: { label: "Pages", icon: "pages", role: "App", tint: "#3d6fb0" },
@@ -137,9 +146,9 @@ const remixes: Readonly<Record<string, readonly string[]>> = {
 const ids = Object.keys(entities);
 /** The silos each iceberg carries in turn, from the left berg to the right. */
 export const slotApps: readonly (readonly string[])[] = [
-    ["notion", "figma", "typeform", "airtable", "dropbox"],
-    ["slack", "loom", "calendly", "gdocs"],
-    ["linear", "github", "homemade"],
+    ["notion", "figma", "typeform", "airtable", "dropbox", "github"],
+    ["slack", "loom", "calendly", "gdocs", "linear"],
+    ["tracker", "portal", "pipeline", "budget"],
 ];
 /** The iceberg each silo rides. */
 const slots = new Map(slotApps.flatMap((apps, slot) => apps.map((id) => [id, slot] as const)));
@@ -170,63 +179,63 @@ type Scene = {
 export const todayScenes: readonly Scene[] = [
     locked(
         ["you", "cofounder", "designer", "agent"],
-        ["notion", "slack", "linear"],
-        ["notion", "slack", "linear", "linear"],
+        ["notion", "slack", "tracker"],
+        ["notion", "slack", "tracker", "tracker"],
     ),
     locked(
         ["you", "cofounder", "designer", "agent"],
-        ["notion", "slack", "github"],
-        ["notion", "slack", "slack", "github"],
+        ["notion", "linear", "tracker"],
+        ["notion", "linear", "linear", "tracker"],
     ),
     locked(
         ["you", "cofounder", "designer", "agent"],
-        ["figma", "slack", "github"],
-        ["github", "slack", "figma", "github"],
+        ["github", "linear", "tracker"],
+        ["github", "linear", "tracker", "github"],
     ),
     locked(
         ["you", "cofounder", "designer", "claude"],
-        ["figma", "loom", "github"],
-        ["figma", "loom", "figma", "github"],
+        ["figma", "loom", "tracker"],
+        ["figma", "loom", "figma", "tracker"],
     ),
     locked(
         ["you", "cofounder", "client", "claude"],
-        ["figma", "loom", "github"],
-        ["loom", "github", "figma", "github"],
+        ["figma", "loom", "portal"],
+        ["loom", "portal", "portal", "figma"],
     ),
     locked(
         ["you", "cofounder", "client", "claude"],
-        ["typeform", "loom", "linear"],
-        ["linear", "loom", "typeform", "linear"],
+        ["typeform", "loom", "portal"],
+        ["portal", "loom", "typeform", "portal"],
     ),
     locked(
         ["you", "cofounder", "candidate", "claude"],
-        ["typeform", "calendly", "linear"],
-        ["calendly", "linear", "typeform", "calendly"],
+        ["typeform", "calendly", "pipeline"],
+        ["pipeline", "calendly", "typeform", "pipeline"],
     ),
     locked(
         ["you", "cofounder", "investor", "chatgpt"],
-        ["airtable", "calendly", "homemade"],
-        ["airtable", "homemade", "calendly", "airtable"],
+        ["airtable", "calendly", "portal"],
+        ["airtable", "portal", "portal", "airtable"],
     ),
     locked(
         ["you", "cofounder", "investor", "chatgpt"],
-        ["airtable", "gdocs", "homemade"],
-        ["homemade", "gdocs", "gdocs", "airtable"],
+        ["airtable", "gdocs", "portal"],
+        ["portal", "gdocs", "gdocs", "airtable"],
     ),
     locked(
         ["you", "partner", "roommate", "chatgpt"],
-        ["airtable", "gdocs", "homemade"],
-        ["airtable", "gdocs", "airtable", "homemade"],
+        ["airtable", "gdocs", "budget"],
+        ["airtable", "gdocs", "budget", "budget"],
     ),
     locked(
         ["you", "partner", "roommate", "chatgpt"],
-        ["dropbox", "gdocs", "homemade"],
-        ["dropbox", "gdocs", "dropbox", "homemade"],
+        ["dropbox", "gdocs", "budget"],
+        ["dropbox", "gdocs", "budget", "budget"],
     ),
     locked(
         ["you", "partner", "roommate", "agent"],
-        ["dropbox", "slack", "linear"],
-        ["slack", "dropbox", "slack", "linear"],
+        ["dropbox", "slack", "budget"],
+        ["slack", "dropbox", "budget", "budget"],
     ),
 ];
 

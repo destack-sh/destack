@@ -3,15 +3,21 @@ import { createSignal } from "@destack/view";
 
 import { lattice } from "../style/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "./entry";
+import { Fade } from "./fade";
+import { Inspector } from "./inspector";
 import { Label } from "./label";
 import { Ledger } from "./ledger";
 import { Tile } from "./tile";
 import { PagesApp, services } from "./page";
+import { createStagger } from "./stagger";
 import { StackSwitch } from "./switch";
 import { Window } from "./window";
 
 /** The media query for screens narrower than the desktop frame, where the cells stack. */
 const narrow = "@media (max-width: 1099px)";
+
+/** The milliseconds between the steps of the figure's switch, one per service. */
+const stepTime = 70;
 
 /** The noun. */
 const noun: Form = {
@@ -19,10 +25,10 @@ const noun: Form = {
     pronunciation: "/ˈdiːstak/",
     partOfSpeech: "noun",
     sense: {
-        definition: "a software engine, absurdly integrated",
-        highlight: ["software engine", "absurdly integrated"],
+        definition: "a complete software engine, absurdly integrated",
+        highlight: ["complete", "integrated"],
         sentence:
-            "Integrated building blocks replace the thousand little rented silos every app glues together.",
+            "One open software engine with every library and service your apps need, fully standardised.",
     },
 };
 
@@ -37,6 +43,9 @@ export function Noun(properties: { isOpen: boolean }) {
         onLight: setLit,
     };
 
+    // switch the app's parts and the ledger's rows in service order before the rest
+    const isOpenAt = createStagger(() => properties.isOpen, services.length + 1, stepTime);
+
     return (
         <section
             {...stylex.attrs(
@@ -48,7 +57,7 @@ export function Noun(properties: { isOpen: boolean }) {
             )}
         >
             <Entry form={noun} />
-            <FigureLabel number={2} title="The humble modern docs app, deconstructed">
+            <FigureLabel number={2} title="A modern docs app and what it runs on">
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
@@ -62,24 +71,29 @@ export function Noun(properties: { isOpen: boolean }) {
                     }
                     style={styles.window}
                 >
-                    <PagesApp isOpen={properties.isOpen} lighting={lighting} />
+                    <Inspector
+                        isOpen={isOpenAt(services.length + 1)}
+                        lighting={lighting}
+                        services={services.map((service) => service.destacked.name)}
+                    >
+                        <PagesApp isOpenAt={isOpenAt} />
+                    </Inspector>
                 </Window>
             </div>
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.key)}>
-                <Label>
-                    {properties.isOpen ? "One software engine" : "Rented and glued together"}
-                </Label>
+                <Fade isOpen={isOpenAt(0)}>
+                    <Label>
+                        {isOpenAt(0) ? "One software engine" : "Rented and glued together"}
+                    </Label>
+                </Fade>
                 <Ledger
-                    items={services.map((service) =>
-                        properties.isOpen ? service.destacked : service.stacked,
-                    )}
-                    total={
-                        properties.isOpen
-                            ? ["1 engine", "1 account · 1 bill"]
-                            : ["12 vendors", "12 accounts · 12 bills"]
-                    }
+                    entries={services}
+                    total={{
+                        stacked: ["12 vendors", "12 accounts · 12 bills"],
+                        destacked: ["1 engine", "1 account · 1 bill"],
+                    }}
                     lighting={lighting}
-                    isOpen={properties.isOpen}
+                    isOpenAt={isOpenAt}
                 />
             </div>
         </section>

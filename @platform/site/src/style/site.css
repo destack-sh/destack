@@ -935,3 +935,21 @@
 [data-asleep] *::after {
     animation-play-state: paused !important;
 }
+
+/* flip each rebuilt part of a figure in once the stack has switched */
+@keyframes flip-in {
+    from {
+        opacity: 0;
+        transform: perspective(40rem) rotateX(-90deg);
+    }
+}
+
+:root[data-switched] [data-fade] {
+    animation: flip-in 450ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root[data-switched] [data-fade] {
+        animation: none;
+    }
+}

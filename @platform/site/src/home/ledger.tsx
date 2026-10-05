@@ -3,6 +3,7 @@ import * as stylex from "@destack/style";
 
 import { plate } from "../style/plate.stylex";
 import { tokens } from "../style/tokens.stylex";
+import type { Stagger } from "./stagger";
 
 /** What marks an item: a vendor's logo under `/logos`, or an icon under `/diagram` on a tinted tile. */
 type ItemMark = { logo: string } | { icon: string; tint: string };
@@ -23,7 +24,7 @@ export type Item = {
 /** How a ledger's items light together with the figure beside it: the lit number, and how to light one or none. */
 export type Lighting = { lit: number | undefined; onLight: (number: number | undefined) => void };
 
-/** Return a callout number with two digits, as the stack figure numbers its rows. */
+/** Return a row number with two digits, as the stack figure numbers its rows. */
 export function numberOf(number: number) {
     return String(number).padStart(2, "0");
 }
@@ -50,25 +51,49 @@ function ItemBadge(properties: { mark: ItemMark }) {
     );
 }
 
-/** Draw a numbered ledger of a figure's items in the stack figure's legend style, in two columns or one, closed by a total row. */
+/** One row of a ledger in both states of the stack. */
+export type Entry = { stacked: Item; destacked: Item };
+
+/** A ledger's closing line in both states of the stack. */
+export type Total = Record<"stacked" | "destacked", readonly [label: string, value: string]>;
+
+/**
+ * Draw a numbered ledger of a figure's items in the stack figure's legend style, in two columns, closed by a total.
+ *
+ * Each row keeps its number and label in place, and flips its claim from the stacked item to the destacked one on its own step.
+ */
 export function Ledger(properties: {
-    items: readonly Item[];
-    total: readonly [label: string, value: string];
-    isOpen: boolean;
+    entries: readonly Entry[];
+    total: Total;
+    isOpenAt: Stagger;
     lighting?: Lighting;
-    isSingle?: boolean;
-    isNoted?: boolean;
 }) {
+    // draw one face of a row shown in its state and hidden in the other
+    const face = (item: Item, isRented: boolean, step: number) => (
+        <span
+            aria-hidden={properties.isOpenAt(step) === isRented ? "true" : undefined}
+            {...stylex.attrs(
+                styles.face,
+                properties.isOpenAt(step) === isRented && styles.faceHidden,
+            )}
+        >
+            <span {...stylex.attrs(styles.claim)}>
+                <ItemBadge mark={item.mark} />
+                <b {...stylex.attrs(styles.name)}>{item.name}</b>
+                <span {...stylex.attrs(styles.plates)}>
+                    {item.chips.map((chip) => (
+                        <span {...stylex.attrs(plate.plate, isRented && plate.closed)}>{chip}</span>
+                    ))}
+                </span>
+            </span>
+            <span {...stylex.attrs(styles.note)}>{item.note}</span>
+        </span>
+    );
+
     return (
-        <div {...stylex.attrs(styles.ledger, properties.isNoted === true && styles.packed)}>
-            <ol
-                {...stylex.attrs(
-                    styles.rows,
-                    properties.isSingle === true && styles.single,
-                    properties.isNoted === true && styles.packedRows,
-                )}
-            >
-                {properties.items.map((item, index) => (
+        <div {...stylex.attrs(styles.ledger)}>
+            <ol {...stylex.attrs(styles.rows)}>
+                {properties.entries.map((entry, index) => (
                     <li
                         onPointerEnter={() => properties.lighting?.onLight(index + 1)}
                         onPointerLeave={() => properties.lighting?.onLight(undefined)}
@@ -80,42 +105,34 @@ export function Ledger(properties: {
                         <span
                             {...stylex.attrs(
                                 styles.label,
-                                (properties.isOpen || properties.lighting?.lit === index + 1) &&
+                                (properties.isOpenAt(index + 1) ||
+                                    properties.lighting?.lit === index + 1) &&
                                     styles.labelLit,
                             )}
                         >
-                            {numberOf(index + 1)} {item.label}
+                            {numberOf(index + 1)} {entry.destacked.label}
                         </span>
-                        <span {...stylex.attrs(styles.claim)}>
-                            <ItemBadge mark={item.mark} />
-                            <b {...stylex.attrs(styles.name)}>{item.name}</b>
-                            <span {...stylex.attrs(styles.plates)}>
-                                {item.chips.map((chip) => (
-                                    <span
-                                        {...stylex.attrs(
-                                            plate.plate,
-                                            !properties.isOpen && plate.closed,
-                                        )}
-                                    >
-                                        {chip}
-                                    </span>
-                                ))}
-                            </span>
-                        </span>
-                        <span
-                            {...stylex.attrs(
-                                styles.note,
-                                properties.isNoted === true && styles.noted,
-                            )}
-                        >
-                            {item.note}
+                        <span {...stylex.attrs(styles.faces)}>
+                            {face(entry.stacked, true, index + 1)}
+                            {face(entry.destacked, false, index + 1)}
                         </span>
                     </li>
                 ))}
             </ol>
             <p {...stylex.attrs(styles.total)}>
-                <span>{properties.total[0]}</span>
-                <span>{properties.total[1]}</span>
+                {(["stacked", "destacked"] as const).map((state) => (
+                    <span
+                        {...stylex.attrs(
+                            styles.face,
+                            styles.totalFace,
+                            properties.isOpenAt(properties.entries.length + 1) ===
+                                (state === "stacked") && styles.faceHidden,
+                        )}
+                    >
+                        <span>{properties.total[state][0]}</span>
+                        <span>{properties.total[state][1]}</span>
+                    </span>
+                ))}
             </p>
         </div>
     );
@@ -124,6 +141,10 @@ export function Ledger(properties: {
 /** The ledger styles. */
 const styles = stylex.create({
     ledger: {
+        borderBlockColor: tokens.rule,
+        borderBlockStyle: "solid",
+        borderBlockWidth: tokens.hairline,
+        boxSizing: "border-box",
         display: "grid",
         gridTemplateRows: "minmax(0, 1fr) auto",
         minHeight: 0,
@@ -139,20 +160,9 @@ const styles = stylex.create({
         padding: 0,
         "@media (max-width: 767px)": { gridTemplateColumns: "minmax(0, 1fr)" },
     },
-    packed: {
-        alignContent: "start",
-        gridTemplateRows: "auto auto",
-        rowGap: "0.75rem",
-    },
-    packedRows: {
-        gridAutoRows: "auto",
-        rowGap: "0.75rem",
-    },
-    single: {
-        gridTemplateColumns: "minmax(0, 1fr)",
-    },
     row: {
         alignContent: "center",
+        backgroundColor: "rgb(255 121 46 / 0%)",
         borderRadius: "6px",
         cursor: "default",
         display: "grid",
@@ -160,6 +170,7 @@ const styles = stylex.create({
         paddingBlock: "0.625rem",
         paddingInline: "0.75rem",
         rowGap: "0.3125rem",
+        transition: "background-color 250ms ease",
     },
     rowLit: {
         backgroundColor: "rgb(255 121 46 / 10%)",
@@ -171,6 +182,7 @@ const styles = stylex.create({
         letterSpacing: "0.1em",
         lineHeight: "1rem",
         textTransform: "uppercase",
+        transition: "color 250ms ease",
         whiteSpace: "nowrap",
     },
     labelLit: {
@@ -179,15 +191,14 @@ const styles = stylex.create({
     claim: {
         alignItems: "center",
         display: "flex",
-        gap: "0.5rem",
+        flexWrap: "wrap",
+        gap: "0.25rem 0.5rem",
         minWidth: 0,
     },
     name: {
         fontSize: "1rem",
         fontWeight: 600,
         lineHeight: "1.375rem",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
         whiteSpace: "nowrap",
     },
     plates: {
@@ -206,10 +217,6 @@ const styles = stylex.create({
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-    },
-    noted: {
-        display: "block",
-        whiteSpace: "normal",
     },
     logo: {
         borderRadius: "5px",
@@ -235,16 +242,39 @@ const styles = stylex.create({
         maskSize: "contain",
         width: "0.875rem",
     },
+    faces: {
+        display: "grid",
+        minWidth: 0,
+    },
+    face: {
+        display: "grid",
+        gridArea: "1 / 1",
+        minWidth: 0,
+        rowGap: "0.3125rem",
+        transitionDuration: "450ms",
+        transitionProperty: "opacity, transform",
+        transitionTimingFunction: "cubic-bezier(0.6, 0, 0.2, 1)",
+    },
+    faceHidden: {
+        opacity: 0,
+        pointerEvents: "none",
+        transform: "perspective(40rem) rotateX(90deg)",
+    },
+    totalFace: {
+        display: "flex",
+        justifyContent: "space-between",
+    },
     total: {
+        alignItems: "center",
         borderTopColor: tokens.rule,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
-        display: "flex",
+        boxSizing: "border-box",
+        display: "grid",
         fontFamily: tokens.monoFont,
         fontSize: "0.875rem",
         fontWeight: 700,
-        justifyContent: "space-between",
+        height: "2.25rem",
         margin: 0,
-        paddingTop: "0.625rem",
     },
 });

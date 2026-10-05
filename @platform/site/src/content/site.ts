@@ -2,7 +2,7 @@ import type { SearchEntry } from "./search.ts";
 
 /** The one sentence that says what Destack is, shared by search and link previews. */
 export const tagline =
-    "Take back your software: run every app on one open, standardised stack, on your machines or ours.";
+    "Take back your software: build and run every app on one open, standardised stack, on your machines or ours.";
 
 /** The public installation command. */
 export const installCommand = "curl -fsSL https://destack.sh/install | sh";

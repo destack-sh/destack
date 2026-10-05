@@ -34,6 +34,8 @@ export type Entity = {
     tint?: string;
     /** The icon's colour on its tile, or cream by default. */
     glyph?: string;
+    /** The logos under `/logos` of the products the entity rents, shown in place of its tile. */
+    logos?: readonly string[];
 };
 
 /** Render an entity as a card with an icon chip and a label. */
@@ -53,7 +55,15 @@ export function Card(properties: {
                 ).class
             }
         >
-            <Tile entity={properties.entity} isLocked={properties.kind === "locked"} />
+            {properties.entity.logos === undefined ? (
+                <Tile entity={properties.entity} isLocked={properties.kind === "locked"} />
+            ) : (
+                <span {...stylex.attrs(styles.logos)}>
+                    {properties.entity.logos.map((logo) => (
+                        <img alt="" src={`/logos/${logo}`} {...stylex.attrs(styles.logo)} />
+                    ))}
+                </span>
+            )}
             <span {...stylex.attrs(styles.text)}>
                 <span {...stylex.attrs(styles.role)}>{properties.entity.role}</span>
                 <span {...stylex.attrs(styles.label)}>{properties.entity.label}</span>
@@ -329,6 +339,17 @@ const styles = stylex.create({
         justifyContent: "center",
         width: "1.625rem",
         [mobile]: { gridColumn: 1, gridRow: 1, marginTop: "0.375rem" },
+    },
+    logos: {
+        display: "flex",
+        flexShrink: 0,
+        gap: "0.1875rem",
+    },
+    logo: {
+        borderRadius: "4px",
+        filter: "saturate(0.7)",
+        height: "1.25rem",
+        width: "1.25rem",
     },
     lockedChip: {
         backgroundColor: "transparent",

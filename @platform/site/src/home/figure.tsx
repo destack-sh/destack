@@ -144,23 +144,46 @@ const layers: readonly Layer[] = [
 
 /** The layers each vendor keeps under water, one per submerged row. */
 const locked: Readonly<Record<string, readonly Entity[]>> = {
-    notion: sunk("Theirs", ["API: 10 req/s", "Export: zip", "Closed source", "Their cloud"]),
-    figma: sunk("Theirs", ["Plugin sandbox", "Files: .fig only", "Closed source", "Their cloud"]),
-    typeform: sunk("Theirs", [
-        "Paid webhooks",
-        "Responses: theirs",
-        "Closed source",
-        "Their cloud",
-    ]),
-    airtable: sunk("Theirs", ["API: 5 req/s", "Export: CSV", "Closed source", "Their cloud"]),
-    dropbox: sunk("Theirs", ["App review", "Links: theirs", "Closed source", "Their cloud"]),
-    slack: sunk("Theirs", ["API throttled", "Export: owners", "Closed source", "Their cloud"]),
-    loom: sunk("Theirs", ["No open API", "Video: theirs", "Closed source", "Their cloud"]),
-    calendly: sunk("Theirs", ["Paid webhooks", "Invitees: theirs", "Closed source", "Their cloud"]),
-    gdocs: sunk("Theirs", ["API quotas", "No Vault", "Closed source", "Google cloud"]),
-    linear: sunk("Theirs", ["API: 2.5k/h", "Export: CSV", "Closed source", "Their cloud"]),
-    github: sunk("Theirs", ["API: 5k/h", "Repos only", "Closed platform", "Their cloud"]),
-    homemade: sunk("Rented", ["Supabase edge", "Supabase DB", "Private repo", "Vercel only"]),
+    notion: sunk("Theirs", ["API: 10 req/s", "Export: zip", "Closed source", "On AWS"], "aws.svg"),
+    figma: sunk(
+        "Theirs",
+        ["Plugin sandbox", "Files: .fig only", "Closed source", "On AWS"],
+        "aws.svg",
+    ),
+    typeform: sunk(
+        "Theirs",
+        ["Paid webhooks", "Responses: theirs", "Closed source", "On AWS"],
+        "aws.svg",
+    ),
+    airtable: sunk("Theirs", ["API: 5 req/s", "Export: CSV", "Closed source", "On AWS"], "aws.svg"),
+    dropbox: sunk("Theirs", ["App review", "Links: theirs", "Closed source", "Own data centres"]),
+    slack: sunk(
+        "Theirs",
+        ["API throttled", "Export: owners", "Closed source", "On AWS"],
+        "aws.svg",
+    ),
+    loom: sunk("Theirs", ["No open API", "Video: theirs", "Closed source", "On AWS"], "aws.svg"),
+    calendly: sunk(
+        "Theirs",
+        ["Paid webhooks", "Invitees: theirs", "Closed source", "On GCP"],
+        "googlecloud.svg",
+    ),
+    gdocs: sunk("Theirs", ["API quotas", "No Vault", "Closed source", "On GCP"], "googlecloud.svg"),
+    linear: sunk(
+        "Theirs",
+        ["API: 2.5k/h", "Export: CSV", "Closed source", "On GCP"],
+        "googlecloud.svg",
+    ),
+    github: sunk("Theirs", ["API: 5k/h", "Repos only", "Closed platform", "Own data centres"]),
+    tracker: rented(
+        ["supabase.svg"],
+        ["supabase.svg"],
+        ["github.png"],
+        ["vercel.png", "sentry.png"],
+    ),
+    portal: rented(["clerk.png", "stripe.svg"], ["neon.svg"], ["github.png"], ["vercel.png"]),
+    pipeline: rented(["replit.svg", "resend.svg"], ["neon.svg"], ["replit.svg"], ["replit.svg"]),
+    budget: rented(["firebase.svg"], ["firebase.svg"], ["stackblitz.svg"], ["netlify.svg"]),
 };
 
 /** The milliseconds each silo rides its iceberg before the next swap. */
@@ -322,6 +345,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const [isAdrift, setIsAdrift] = createSignal(false);
     const [today, setToday] = createSignal(0);
     const [surfacedAt, setSurfacedAt] = createSignal(0);
+    const [lit, setLit] = createSignal<number>();
     const isOpen = createMemo(() => stack() === "destack");
     const count = createMemo((): Count => {
         // count the people and vendors in the scene on screen
@@ -423,8 +447,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     // stir the water when the pointer skims it, harder the closer it comes
     let stirredAt: number | undefined;
     const skim = (event: PointerEvent) => {
-        // measure the pointer against the waterline
+        // light the layer on the pointer's row over the drawing or the legend
         const bounds = elements().figure.getBoundingClientRect();
+        const row = Math.floor(((event.clientY - bounds.top) / bounds.height) * layers.length);
+        const layer = Math.max(0, Math.min(layers.length - 1, row));
+        setLit(layer);
+
+        // measure the pointer against the waterline
         const x = event.clientX - bounds.left;
         const distance = Math.abs(event.clientY - bounds.top - surface);
         if (!isOpen() && distance < stirRange) {
@@ -482,17 +511,19 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             setIsAdrift(false);
         }
 
-        // spray sparks where the ice breaks
+        // spray sparks where the ice breaks while that line is on screen
         if (next === "destack" && sparks) {
             const bounds = elements().drawing.getBoundingClientRect();
             const origin = elements().sparkCanvas.getBoundingClientRect();
             const y = frame.offset + (frame.height * dryRows) / layers.length;
-            for (const centre of columnCentres) {
-                sparks.burst(
-                    bounds.left - origin.left + (bounds.width * centre) / boardCells,
-                    y,
-                    14,
-                );
+            if (origin.top + y > 0 && origin.top + y < window.innerHeight) {
+                for (const centre of columnCentres) {
+                    sparks.burst(
+                        bounds.left - origin.left + (bounds.width * centre) / boardCells,
+                        y,
+                        14,
+                    );
+                }
             }
         }
 
@@ -797,6 +828,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             ref={figureElement}
             aria-label="Apps today compared with Destack"
             onPointerMove={skim}
+            onPointerLeave={() => setLit(undefined)}
             style={{
                 "--reveal-2": "0",
                 "--reveal-3": "0",
@@ -818,7 +850,12 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         }}
                         {...stylex.attrs(styles.claim)}
                     >
-                        <span {...stylex.attrs(styles.number, isOpen() && styles.numberLit)}>
+                        <span
+                            {...stylex.attrs(
+                                styles.number,
+                                (isOpen() || lit() === index()) && styles.numberLit,
+                            )}
+                        >
                             0{index() + 1} {layer.name}
                         </span>
                         {/* set the verb and the things the layer is made of on one baseline */}
@@ -981,6 +1018,15 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             {/* glow sparks over the water */}
             <canvas ref={sparkCanvasElement} aria-hidden="true" {...stylex.attrs(styles.sparks)} />
 
+            {/* tint the lit layer across the drawing and its legend row, fading from row to row */}
+            {[...layers.keys()].map((index) => (
+                <span
+                    aria-hidden="true"
+                    style={{ "grid-row": String(index + 1) }}
+                    {...stylex.attrs(styles.lit, lit() !== index && styles.litGone)}
+                />
+            ))}
+
             {/* draw the frame and the legend's rule over the water, so no line breaks where it rises */}
             <span aria-hidden="true" {...stylex.attrs(styles.frameRules)} />
             <span aria-hidden="true" {...stylex.attrs(styles.columnRule)} />
@@ -1073,16 +1119,34 @@ function growOutOfPlates(reveal: string): JSX.CSSProperties {
     };
 }
 
-/** Return the four layers a silo keeps under water, each labelled with who holds it. */
+/** Return the four layers a silo keeps under water, each labelled with who holds it, the last with the cloud it runs on when known. */
 function sunk(
     role: string,
     [services, storage, source, cloud]: readonly [string, string, string, string],
+    host?: string,
 ): Entity[] {
     return [
         { label: services, icon: "services", role },
         { label: storage, icon: "storage", role },
         { label: source, icon: "source", role },
-        { label: cloud, icon: "cloud", role },
+        host === undefined
+            ? { label: cloud, icon: "cloud", role }
+            : { label: cloud, icon: "cloud", role, logos: [host] },
+    ];
+}
+
+/** Return the four layers a homemade silo rents under water, each showing the logos of the products behind it. */
+function rented(
+    services: readonly string[],
+    data: readonly string[],
+    source: readonly string[],
+    hosting: readonly string[],
+): Entity[] {
+    return [
+        { label: "Services", icon: "services", role: "Rented", logos: services },
+        { label: "Data", icon: "storage", role: "Rented", logos: data },
+        { label: "Source", icon: "source", role: "Rented", logos: source },
+        { label: "Hosting", icon: "cloud", role: "Rented", logos: hosting },
     ];
 }
 
@@ -1237,6 +1301,17 @@ const styles = stylex.create({
         fontWeight: 600,
         lineHeight: "1.375rem",
         whiteSpace: "nowrap",
+    },
+    lit: {
+        backgroundColor: "rgb(255 121 46 / 8%)",
+        gridColumn: "1 / -1",
+        pointerEvents: "none",
+        transition: `opacity 300ms ${easing}`,
+        zIndex: 3,
+        [narrow]: { display: "none" },
+    },
+    litGone: {
+        opacity: 0,
     },
     frameRules: {
         borderColor: tokens.rule,

@@ -26,7 +26,11 @@ export function StackSwitch(properties: { isOpen: boolean }) {
             aria-label="Destack"
             aria-checked={properties.isOpen ? "true" : "false"}
             title={properties.isOpen ? "Restack" : "Destack"}
-            onClick={() => document.dispatchEvent(new CustomEvent(commandEvents.switchStack))}
+            onClick={() => {
+                // flip the figures' rebuilt parts in from now on and switch every figure
+                document.documentElement.dataset["switched"] = "";
+                document.dispatchEvent(new CustomEvent(commandEvents.switchStack));
+            }}
             onPointerEnter={() => charge(properties.isOpen ? 0 : hoverCharge)}
             onPointerLeave={() => charge(0)}
             onPointerDown={() => {

@@ -2,11 +2,12 @@ import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
-import type { Item, Lighting } from "./ledger";
+import { Fade } from "./fade";
+import type { Item } from "./ledger";
+import type { Stagger } from "./stagger";
 import { Tile } from "./tile";
-import { Callout } from "./callout";
 
-/** The twelve services a docs app runs on, numbered as its callouts: rented one by one, or built into one engine. */
+/** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: rented one by one, or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
     {
         stacked: {
@@ -202,16 +203,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
     },
 ];
 
-/** The pages in the sidebar, with the open one first. */
-const pages: readonly string[] = [
-    "Launch plan",
-    "Clients",
-    "Hiring loop",
-    "Pricing",
-    "Reading list",
-    "Offsite",
-];
-
 /** The checklist before launch: each item and whether it is done. */
 const checklist: readonly (readonly [item: string, isDone: boolean])[] = [
     ["Freeze the pricing page", true],
@@ -219,10 +210,35 @@ const checklist: readonly (readonly [item: string, isDone: boolean])[] = [
     ["Schedule the announcement", false],
 ];
 
+/** The other apps beside Pages in its rail: rented from other vendors, each opening elsewhere, or in your space, drawn alike. */
+const railApps: Record<
+    "stacked" | "destacked",
+    readonly (readonly [name: string, label: string])[]
+> = {
+    stacked: [
+        ["linear", "Linear"],
+        ["slack", "Slack"],
+        ["github", "GitHub"],
+        ["figma", "Figma"],
+    ],
+    destacked: [
+        ["tasks", "Tasks"],
+        ["calendar", "My week"],
+        ["mail", "Mail"],
+        ["bucket", "Files"],
+    ],
+};
+
+/** The tasks blocked by another once owned, in the column you added: the task and its blocker. */
+const blockers: Readonly<Record<string, string>> = { "LCH-13": "LCH-15", "LCH-16": "LCH-14" };
+
 /** How far a task has come. */
 type Status = "todo" | "started" | "done";
 
-/** The launch tasks in the page's table: id, title, status, assignee and their tint, and due date. */
+/** A task's change of code: its pull request while rented, its branch once owned, and whether its checks pass. */
+type Change = readonly [pull: string, branch: string, isPassing: boolean];
+
+/** The launch tasks in the page's table: id, title, status, assignee and their tint, due date, and change of code. */
 const tasks: readonly (readonly [
     id: string,
     title: string,
@@ -230,142 +246,374 @@ const tasks: readonly (readonly [
     assignee: string,
     tint: string,
     due: string,
+    change?: Change,
 ])[] = [
-    ["LCH-12", "Pricing page", "done", "Ada", "#6b5ca5", "Mon 20"],
+    ["LCH-12", "Pricing page", "done", "Ada", "#6b5ca5", "Mon 20", ["#408", "pricing-page", true]],
+    [
+        "LCH-13",
+        "Turn on the new prices",
+        "todo",
+        "Ada",
+        "#6b5ca5",
+        "Fri 24",
+        ["#412", "new-prices", false],
+    ],
     ["LCH-14", "Record the demo", "started", "You", "#2f7d8c", "Thu 23"],
     ["LCH-15", "Draft the launch post", "todo", "Agent", "#b8862b", "Thu 23"],
     ["LCH-16", "Email the waitlist", "todo", "Kai", "#5b7f2e", "Fri 24"],
 ];
 
-/** The words of each status. */
-const statusNames: Record<Status, string> = { todo: "Todo", started: "In progress", done: "Done" };
+/** Name the state of a change's checks: as last synced while rented, live once owned. */
+function checksOf(change: Change, isOpen: boolean) {
+    if (isOpen) {
+        return change[2] ? "passed" : "running";
+    }
 
-/** Draw the Pages app with the launch plan open, each service it runs on marked by its number and badge. */
-export function PagesApp(properties: { isOpen: boolean; lighting: Lighting }) {
-    // mark the place of one service, dashed while stacked
-    const at = (number: number) => ({
-        number,
-        isOpen: properties.isOpen,
-        lighting: properties.lighting,
-    });
+    return change[2] ? "merged" : "CI failing";
+}
 
+/**
+ * Draw the Pages app with the launch plan open, every part named for the inspector, and the twelve services marked where they show.
+ *
+ * While rented, the page shows its seams: vendor apps in its rail, an edit conflict, a key to paste, a failed automation, an embed behind seats, and a preview on another site.
+ * Once owned, the same page sits among your other apps and holds its tasks, prices, agent, code and previews natively, with a column you added, each switching on the step of its service.
+ */
+export function PagesApp(properties: { isOpenAt: Stagger }) {
     return (
         <div {...stylex.attrs(styles.app)}>
-            <nav {...stylex.attrs(styles.sidebar)}>
-                <Callout {...at(1)}>
-                    <span {...stylex.attrs(styles.row, styles.strong)}>
+            <nav data-component="AppRail" {...stylex.attrs(styles.rail)}>
+                <span
+                    data-component="AccountMenu"
+                    data-service="1"
+                    title="Your space"
+                    {...stylex.attrs(styles.avatar, styles.railAvatar)}
+                    style={{ "background-color": "#2f7d8c" }}
+                >
+                    Y
+                </span>
+                <span
+                    data-component="SearchButton"
+                    data-service="5"
+                    title="Search"
+                    {...stylex.attrs(styles.railButton)}
+                >
+                    <span
+                        style={{ "mask-image": "url(/diagram/search.svg)" }}
+                        {...stylex.attrs(styles.glyph)}
+                    />
+                </span>
+                <span
+                    data-component="InboxButton"
+                    data-service="6"
+                    title="Inbox"
+                    {...stylex.attrs(styles.railButton)}
+                >
+                    <span
+                        style={{ "mask-image": "url(/diagram/notify.svg)" }}
+                        {...stylex.attrs(styles.glyph)}
+                    />
+                    <span {...stylex.attrs(styles.badge, styles.railBadge)}>3</span>
+                </span>
+                <span aria-hidden="true" {...stylex.attrs(styles.railRule)} />
+                <span
+                    data-component="PagesButton"
+                    title="Pages"
+                    {...stylex.attrs(styles.railButton, styles.selected)}
+                >
+                    {properties.isOpenAt(1) ? (
                         <span
-                            {...stylex.attrs(styles.avatar)}
-                            style={{ "background-color": "#2f7d8c" }}
-                        >
-                            Y
-                        </span>
-                        Your space
-                    </span>
-                </Callout>
-                <Callout {...at(5)}>
-                    <span {...stylex.attrs(styles.search)}>
-                        Search
-                        <span {...stylex.attrs(styles.shortcut)}>⌘K</span>
-                    </span>
-                </Callout>
-                <Callout {...at(6)}>
-                    <span {...stylex.attrs(styles.row)}>
-                        <span
-                            style={{ "mask-image": "url(/diagram/notify.svg)" }}
-                            {...stylex.attrs(styles.glyph)}
+                            style={{ "mask-image": "url(/diagram/pages.svg)" }}
+                            {...stylex.attrs(styles.glyph, styles.glyphOn)}
                         />
-                        Inbox
-                        <span {...stylex.attrs(styles.badge)}>3</span>
-                    </span>
-                </Callout>
-                <p {...stylex.attrs(styles.group)}>Pages</p>
-                <span {...stylex.attrs(styles.pageList)}>
-                    {pages.map((page, index) => (
-                        <p {...stylex.attrs(styles.pageItem, index === 0 && styles.selected)}>
+                    ) : (
+                        <Tile name="pages" />
+                    )}
+                </span>
+                <Fade
+                    isOpen={properties.isOpenAt(1)}
+                    component={properties.isOpenAt(1) ? "SpaceApps" : "VendorApps"}
+                    style={styles.railApps}
+                >
+                    {railApps[properties.isOpenAt(1) ? "destacked" : "stacked"].map(
+                        ([name, label]) => (
                             <span
-                                style={{ "mask-image": "url(/diagram/file.svg)" }}
-                                {...stylex.attrs(styles.glyph)}
-                            />
-                            {page}
-                        </p>
-                    ))}
-                </span>
-                <span {...stylex.attrs(styles.agent)}>
-                    <Callout {...at(9)} isBlock>
-                        <span {...stylex.attrs(styles.agentCard)}>
-                            <span {...stylex.attrs(styles.row, styles.strong)}>
-                                <Tile name="agent" />
-                                Agent
+                                data-component="AppButton"
+                                data-service="1"
+                                title={label}
+                                {...stylex.attrs(styles.railButton)}
+                            >
+                                {properties.isOpenAt(1) ? (
+                                    <span
+                                        style={{ "mask-image": `url(/diagram/${name}.svg)` }}
+                                        {...stylex.attrs(styles.glyph)}
+                                    />
+                                ) : (
+                                    <>
+                                        <Tile name={name} />
+                                        <span {...stylex.attrs(styles.away)}>↗</span>
+                                    </>
+                                )}
                             </span>
-                            <span {...stylex.attrs(styles.quiet)}>
-                                Drafted LCH-15 and asked Kai to review it
-                            </span>
-                        </span>
-                    </Callout>
-                </span>
+                        ),
+                    )}
+                </Fade>
             </nav>
             <div {...stylex.attrs(styles.main)}>
-                <article {...stylex.attrs(styles.page)}>
-                    <p {...stylex.attrs(styles.toolbar)}>
-                        <b {...stylex.attrs(styles.title)}>Launch plan</b>
-                        <span {...stylex.attrs(styles.tools)}>
-                            <span {...stylex.attrs(styles.quiet, styles.nowrap)}>38 versions</span>
-                            <Callout {...at(2)}>
-                                <span {...stylex.attrs(styles.share)}>Share</span>
-                            </Callout>
-                        </span>
-                    </p>
-                    <p {...stylex.attrs(styles.properties)}>
-                        <span {...stylex.attrs(styles.property)}>
-                            <span {...stylex.attrs(styles.state, styles.started)} />
+                <article data-component="Page" {...stylex.attrs(styles.page)}>
+                    <div data-component="PageHeader" {...stylex.attrs(styles.toolbar)}>
+                        <b data-component="PageTitle" {...stylex.attrs(styles.title)}>
+                            Launch plan
+                        </b>
+                        <div {...stylex.attrs(styles.tools)}>
+                            <Fade
+                                isOpen={properties.isOpenAt(11)}
+                                style={styles.roomy}
+                                component={
+                                    properties.isOpenAt(11) ? "PreviewButton" : "VercelPreviewLink"
+                                }
+                            >
+                                <span data-service="11" {...stylex.attrs(styles.preview)}>
+                                    {properties.isOpenAt(11)
+                                        ? "Preview branch"
+                                        : "Preview on Vercel ↗"}
+                                </span>
+                            </Fade>
+                            <Fade
+                                isOpen={properties.isOpenAt(12)}
+                                component={
+                                    properties.isOpenAt(12) ? "EditAppButton" : "FeedbackLink"
+                                }
+                            >
+                                <span
+                                    data-service="12"
+                                    {...stylex.attrs(
+                                        styles.preview,
+                                        properties.isOpenAt(12) && styles.editApp,
+                                    )}
+                                >
+                                    {properties.isOpenAt(12) ? "Edit app" : "Send feedback"}
+                                </span>
+                            </Fade>
+                            <span
+                                data-component="ShareButton"
+                                data-service="2"
+                                {...stylex.attrs(styles.share)}
+                            >
+                                Share
+                            </span>
+                        </div>
+                    </div>
+                    <Fade
+                        isOpen={properties.isOpenAt(3)}
+                        component={properties.isOpenAt(3) ? "PresenceBanner" : "ConflictBanner"}
+                    >
+                        <p
+                            data-service="3"
+                            {...stylex.attrs(
+                                styles.conflict,
+                                properties.isOpenAt(3) && styles.together,
+                            )}
+                        >
+                            {properties.isOpenAt(3) ? (
+                                <>
+                                    <span {...stylex.attrs(styles.row)}>
+                                        <span
+                                            {...stylex.attrs(styles.avatar)}
+                                            style={{ "background-color": "#5b7f2e" }}
+                                        >
+                                            K
+                                        </span>
+                                        Kai is editing Notes from Monday
+                                    </span>
+                                    <span {...stylex.attrs(styles.dot)} />
+                                </>
+                            ) : (
+                                <>
+                                    This page changed in another tab. Reload to see Kai's edits.
+                                    <span {...stylex.attrs(styles.reload)}>Reload</span>
+                                </>
+                            )}
+                        </p>
+                    </Fade>
+                    <div data-component="PropertyList" {...stylex.attrs(styles.properties)}>
+                        <span data-component="StatusProperty" {...stylex.attrs(styles.property)}>
+                            <span {...stylex.attrs(styles.state, styles.started, styles.flush)} />
                             In progress
                         </span>
-                        <span {...stylex.attrs(styles.property)}>Fri 24 Oct</span>
-                        <Callout {...at(8)}>
-                            <span {...stylex.attrs(styles.property)}>Stripe</span>
-                        </Callout>
-                        <Callout {...at(7)}>
-                            <span {...stylex.attrs(styles.property)}>Reminder Thu</span>
-                        </Callout>
-                    </p>
-                    <p {...stylex.attrs(styles.text)}>
-                        Ship to the waitlist on Thursday.{" "}
-                        <Callout {...at(3)}>
-                            <span>
-                                Pricing stays in step with billing
-                                <span {...stylex.attrs(styles.cursor)}>Ada</span>
+                        <span data-component="DateProperty" {...stylex.attrs(styles.property)}>
+                            Fri 24 Oct
+                        </span>
+                        <Fade
+                            isOpen={properties.isOpenAt(8)}
+                            component={properties.isOpenAt(8) ? "PriceProperty" : "StripeKeyPrompt"}
+                            style={styles.slot}
+                        >
+                            <span
+                                data-service="8"
+                                {...stylex.attrs(
+                                    styles.property,
+                                    !properties.isOpenAt(8) && styles.propertyMissing,
+                                )}
+                            >
+                                <span
+                                    style={{ "mask-image": "url(/diagram/vault.svg)" }}
+                                    {...stylex.attrs(styles.glyph)}
+                                />
+                                {properties.isOpenAt(8)
+                                    ? "Pro €12/mo · live"
+                                    : "Paste a Stripe API key to show prices"}
                             </span>
-                        </Callout>
+                        </Fade>
+                        <span
+                            data-component="ScheduleProperty"
+                            data-service="7"
+                            {...stylex.attrs(styles.property)}
+                        >
+                            Reminder Thu
+                        </span>
+                    </div>
+                    <p data-component="Paragraph" {...stylex.attrs(styles.text)}>
+                        Ship to the waitlist on Thursday.{" "}
+                        <span data-component="Presence" data-service="3">
+                            Pricing stays in step with billing
+                            <span data-component="Cursor" {...stylex.attrs(styles.cursor)}>
+                                <span {...stylex.attrs(styles.flag)}>Ada</span>
+                            </span>
+                        </span>
                     </p>
-                    <Callout {...at(4)} isBlock>
-                        <table {...stylex.attrs(styles.table)}>
+                    <Fade
+                        isOpen={properties.isOpenAt(9)}
+                        component={properties.isOpenAt(9) ? "AgentNote" : "AutomationError"}
+                    >
+                        <p
+                            data-service="9"
+                            {...stylex.attrs(
+                                styles.agentNote,
+                                !properties.isOpenAt(9) && styles.error,
+                            )}
+                        >
+                            {properties.isOpenAt(9) ? (
+                                <>
+                                    <Tile name="agent" />
+                                    <span>
+                                        <b {...stylex.attrs(styles.strong)}>Agent</b>{" "}
+                                        <span {...stylex.attrs(styles.quiet)}>
+                                            drafted LCH-15 and asked Kai to review it
+                                        </span>
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <img
+                                        alt=""
+                                        src="/logos/zapier.svg"
+                                        {...stylex.attrs(styles.logo)}
+                                    />
+                                    <span>
+                                        <b {...stylex.attrs(styles.strong)}>Zap failed</b>{" "}
+                                        <span>Draft the launch post · Notion token expired</span>
+                                    </span>
+                                </>
+                            )}
+                        </p>
+                    </Fade>
+                    <Fade
+                        isOpen={properties.isOpenAt(4)}
+                        component={properties.isOpenAt(4) ? "TaskTable" : "LinearEmbed"}
+                        style={properties.isOpenAt(4) ? styles.tasks : styles.embed}
+                    >
+                        <p
+                            data-service={properties.isOpenAt(4) ? "4" : "9"}
+                            {...stylex.attrs(styles.tableBar)}
+                        >
+                            {properties.isOpenAt(4) ? (
+                                <>
+                                    <Tile name="tasks" />
+                                    <b {...stylex.attrs(styles.strong)}>Launch tasks</b>
+                                    <span {...stylex.attrs(styles.quiet, styles.wide)}>
+                                        from Tasks, also in My week
+                                    </span>
+                                    <span {...stylex.attrs(styles.tools)}>
+                                        <span {...stylex.attrs(styles.quiet, styles.wide)}>
+                                            Filter
+                                        </span>
+                                        <span {...stylex.attrs(styles.newTask)}>+ New task</span>
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <Tile name="linear" />
+                                    <b {...stylex.attrs(styles.strong)}>Linear embed</b>
+                                    <span {...stylex.attrs(styles.quiet, styles.wide)}>
+                                        Read-only · synced 3 h ago
+                                    </span>
+                                    <span {...stylex.attrs(styles.tools)}>
+                                        <span {...stylex.attrs(styles.failing)}>Reconnect</span>
+                                    </span>
+                                </>
+                            )}
+                        </p>
+                        <p
+                            data-component={properties.isOpenAt(4) ? "AccessNote" : "SeatWall"}
+                            data-service="2"
+                            {...stylex.attrs(styles.seatWall)}
+                        >
+                            <span
+                                style={{
+                                    "mask-image": `url(/diagram/${properties.isOpenAt(4) ? "auth" : "lock"}.svg)`,
+                                }}
+                                {...stylex.attrs(styles.glyph)}
+                            />
+                            {properties.isOpenAt(4)
+                                ? "Shared with Ada and Kai by one access rule"
+                                : "Kai can't see this table without a Linear seat"}
+                        </p>
+                        <table
+                            data-service={properties.isOpenAt(4) ? "4" : "9"}
+                            {...stylex.attrs(styles.table, !properties.isOpenAt(4) && styles.stale)}
+                        >
+                            <thead>
+                                <tr>
+                                    <th {...stylex.attrs(styles.head, styles.id)}>ID</th>
+                                    <th {...stylex.attrs(styles.head)}>Task</th>
+                                    <th {...stylex.attrs(styles.head, styles.wide)}>Owner</th>
+                                    <th {...stylex.attrs(styles.head, styles.wide)}>Due</th>
+                                    <th {...stylex.attrs(styles.head, styles.wide)}>
+                                        {properties.isOpenAt(4) ? "Checks" : "Pull request"}
+                                    </th>
+                                    {properties.isOpenAt(4) ? (
+                                        <th
+                                            data-component="AddedColumn"
+                                            data-service="12"
+                                            {...stylex.attrs(
+                                                styles.head,
+                                                styles.added,
+                                                styles.wide,
+                                            )}
+                                        >
+                                            Blocked by
+                                            <span {...stylex.attrs(styles.yours)}>yours</span>
+                                        </th>
+                                    ) : undefined}
+                                </tr>
+                            </thead>
                             <tbody>
-                                {tasks.map(([id, title, status, assignee, tint, due]) => (
-                                    <tr>
+                                {tasks.map(([id, title, status, assignee, tint, due, change]) => (
+                                    <tr data-component="ObjectRow">
                                         <td {...stylex.attrs(styles.cell, styles.id)}>{id}</td>
                                         <td {...stylex.attrs(styles.cell, styles.taskTitle)}>
                                             <span {...stylex.attrs(styles.state, styles[status])} />
                                             {title}
                                         </td>
-                                        <td
-                                            {...stylex.attrs(
-                                                styles.cell,
-                                                styles.quiet,
-                                                styles.wide,
-                                            )}
-                                        >
-                                            {statusNames[status]}
-                                        </td>
-                                        <td {...stylex.attrs(styles.cell)}>
+                                        <td {...stylex.attrs(styles.cell, styles.wide)}>
                                             <span {...stylex.attrs(styles.row)}>
                                                 <span
+                                                    data-component="Avatar"
                                                     {...stylex.attrs(styles.avatar)}
                                                     style={{ "background-color": tint }}
                                                 >
                                                     {assignee.charAt(0)}
                                                 </span>
-                                                {assignee}
                                             </span>
                                         </td>
                                         <td
@@ -377,17 +625,74 @@ export function PagesApp(properties: { isOpen: boolean; lighting: Lighting }) {
                                         >
                                             {due}
                                         </td>
+                                        <td
+                                            data-component={
+                                                properties.isOpenAt(4)
+                                                    ? "BranchCell"
+                                                    : "PullRequestCell"
+                                            }
+                                            data-service="12"
+                                            {...stylex.attrs(
+                                                styles.cell,
+                                                styles.change,
+                                                styles.wide,
+                                            )}
+                                        >
+                                            {change === undefined ? undefined : (
+                                                <span {...stylex.attrs(styles.row)}>
+                                                    <span
+                                                        style={{
+                                                            "mask-image": `url(/diagram/${properties.isOpenAt(4) ? "source" : "github"}.svg)`,
+                                                        }}
+                                                        {...stylex.attrs(styles.glyph)}
+                                                    />
+                                                    {properties.isOpenAt(4)
+                                                        ? undefined
+                                                        : `${change[0]} ↗`}
+                                                    <span
+                                                        {...stylex.attrs(
+                                                            change[2]
+                                                                ? styles.passing
+                                                                : properties.isOpenAt(4)
+                                                                  ? styles.running
+                                                                  : styles.failing,
+                                                            !properties.isOpenAt(4) &&
+                                                                change[2] &&
+                                                                styles.quiet,
+                                                        )}
+                                                    >
+                                                        {checksOf(change, properties.isOpenAt(4))}
+                                                    </span>
+                                                </span>
+                                            )}
+                                        </td>
+                                        {properties.isOpenAt(4) ? (
+                                            <td
+                                                data-component="BlockerCell"
+                                                data-service="12"
+                                                {...stylex.attrs(
+                                                    styles.cell,
+                                                    styles.id,
+                                                    styles.addedCell,
+                                                    styles.wide,
+                                                )}
+                                            >
+                                                {blockers[id] ?? "—"}
+                                            </td>
+                                        ) : undefined}
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                    </Callout>
-                    <b {...stylex.attrs(styles.heading)}>Notes from Monday</b>
-                    <p {...stylex.attrs(styles.text)}>
+                    </Fade>
+                    <b data-component="Heading" {...stylex.attrs(styles.heading)}>
+                        Notes from Monday
+                    </b>
+                    <p data-component="Paragraph" {...stylex.attrs(styles.text)}>
                         The waitlist has 1,840 people. Kai sends the first batch of invites on
                         Thursday morning, and the rest follow once the demo is live.
                     </p>
-                    <p {...stylex.attrs(styles.file)}>
+                    <p data-component="Attachment" {...stylex.attrs(styles.file)}>
                         <span
                             style={{ "mask-image": "url(/diagram/file.svg)" }}
                             {...stylex.attrs(styles.glyph)}
@@ -395,8 +700,9 @@ export function PagesApp(properties: { isOpen: boolean; lighting: Lighting }) {
                         pricing-v4.pdf
                         <span {...stylex.attrs(styles.quiet)}>1.2 MB · added by Ada</span>
                     </p>
-                    <p {...stylex.attrs(styles.comment)}>
+                    <p data-component="Comment" data-service="3" {...stylex.attrs(styles.comment)}>
                         <span
+                            data-component="Avatar"
                             {...stylex.attrs(styles.avatar)}
                             style={{ "background-color": "#5b7f2e" }}
                         >
@@ -409,14 +715,16 @@ export function PagesApp(properties: { isOpen: boolean; lighting: Lighting }) {
                             </span>
                         </span>
                     </p>
-                    <p {...stylex.attrs(styles.text)}>
+                    <p data-component="Paragraph" {...stylex.attrs(styles.text)}>
                         Pricing launches with three plans. The team plan replaces the old seat
                         pricing, and existing customers keep their rate for a year.
                     </p>
-                    <b {...stylex.attrs(styles.heading)}>Before launch</b>
-                    <ul {...stylex.attrs(styles.checklist)}>
+                    <b data-component="Heading" {...stylex.attrs(styles.heading)}>
+                        Before launch
+                    </b>
+                    <ul data-component="Checklist" {...stylex.attrs(styles.checklist)}>
                         {checklist.map(([item, isDone]) => (
-                            <li {...stylex.attrs(styles.check)}>
+                            <li data-component="CheckItem" {...stylex.attrs(styles.check)}>
                                 <span {...stylex.attrs(styles.box, isDone && styles.boxDone)} />
                                 <span {...stylex.attrs(isDone && styles.struck)}>{item}</span>
                             </li>
@@ -424,22 +732,53 @@ export function PagesApp(properties: { isOpen: boolean; lighting: Lighting }) {
                     </ul>
                 </article>
             </div>
-            <p {...stylex.attrs(styles.statusBar)}>
-                <Callout {...at(11)}>
-                    <span {...stylex.attrs(styles.row, styles.nowrap)}>
-                        <span {...stylex.attrs(styles.dot)} />
-                        Your laptop
-                        <span {...stylex.attrs(styles.dot)} />
-                        Your server
+            <div data-component="StatusBar" {...stylex.attrs(styles.statusBar)}>
+                <span
+                    data-component="SyncStatus"
+                    data-service="11"
+                    {...stylex.attrs(styles.status)}
+                >
+                    <span
+                        {...stylex.attrs(styles.dot, !properties.isOpenAt(11) && styles.dotCloud)}
+                    />
+                    {properties.isOpenAt(11) ? "Yours · on your laptop" : "Saved to their cloud"}
+                </span>
+                <span data-component="PresenceList" {...stylex.attrs(styles.status, styles.wide)}>
+                    <span
+                        {...stylex.attrs(styles.avatar, styles.small)}
+                        style={{ "background-color": "#6b5ca5" }}
+                    >
+                        A
                     </span>
-                </Callout>
-                <Callout {...at(10)}>
-                    <span {...stylex.attrs(styles.nowrap)}>0 errors · 41 ms</span>
-                </Callout>
-                <Callout {...at(12)}>
-                    <span {...stylex.attrs(styles.nowrap)}>@app/pages 1.4</span>
-                </Callout>
-            </p>
+                    <span
+                        {...stylex.attrs(styles.avatar, styles.small)}
+                        style={{ "background-color": "#5b7f2e" }}
+                    >
+                        K
+                    </span>
+                    <span {...stylex.attrs(styles.presenceText)}>Ada and Kai here</span>
+                </span>
+                <span {...stylex.attrs(styles.statusEnd)}>
+                    <span
+                        data-component="ErrorCount"
+                        data-service="10"
+                        {...stylex.attrs(styles.status, !properties.isOpenAt(10) && styles.failing)}
+                    >
+                        {properties.isOpenAt(10) ? "0 errors" : "3 integrations failing"}
+                    </span>
+                    <span
+                        data-component="BranchMenu"
+                        data-service="12"
+                        {...stylex.attrs(styles.status, styles.wide)}
+                    >
+                        <span
+                            style={{ "mask-image": "url(/diagram/source.svg)" }}
+                            {...stylex.attrs(styles.glyph)}
+                        />
+                        main · pages 1.4
+                    </span>
+                </span>
+            </div>
         </div>
     );
 }
@@ -449,24 +788,241 @@ const styles = stylex.create({
     app: {
         display: "grid",
         fontSize: "0.8125rem",
-        gridTemplateColumns: "10rem minmax(0, 1fr)",
+        gridTemplateColumns: "3rem minmax(0, 1fr)",
         gridTemplateRows: "minmax(0, 1fr) auto",
         height: "100%",
         minHeight: 0,
         "@media (max-width: 767px)": { gridTemplateColumns: "minmax(0, 1fr)" },
     },
-    sidebar: {
+    rail: {
+        alignItems: "center",
         backgroundColor: color.muted,
         borderRightColor: tokens.rule,
         borderRightStyle: "solid",
         borderRightWidth: tokens.hairline,
         display: "flex",
         flexDirection: "column",
-        gap: "0.375rem",
-        minHeight: 0,
-        overflow: "hidden",
-        padding: "0.875rem 0.75rem",
+        gap: "0.5rem",
+        paddingBlock: "0.75rem",
         "@media (max-width: 767px)": { display: "none" },
+    },
+    railButton: {
+        alignItems: "center",
+        borderRadius: "6px",
+        display: "flex",
+        flexShrink: 0,
+        height: "2rem",
+        justifyContent: "center",
+        position: "relative",
+        width: "2rem",
+    },
+    railAvatar: {
+        height: "1.625rem",
+        marginBottom: "0.25rem",
+        width: "1.625rem",
+    },
+    railBadge: {
+        fontSize: "0.55rem",
+        paddingInline: "0.25rem",
+        position: "absolute",
+        right: "-0.125rem",
+        top: "-0.125rem",
+    },
+    agentNote: {
+        alignItems: "center",
+        backgroundColor: color.muted,
+        borderRadius: "6px",
+        display: "flex",
+        gap: "0.625rem",
+        margin: 0,
+        paddingBlock: "0.375rem",
+        paddingInline: "0.625rem",
+    },
+    tasks: {
+        borderColor: tokens.rule,
+        borderRadius: "8px",
+        overflow: "hidden",
+        borderStyle: "solid",
+        borderWidth: tokens.hairline,
+        display: "grid",
+    },
+    embed: {
+        borderColor: tokens.rule,
+        borderRadius: "8px",
+        overflow: "hidden",
+        borderStyle: "dashed",
+        borderWidth: tokens.hairline,
+        display: "grid",
+    },
+    tableBar: {
+        alignItems: "center",
+        borderBottomColor: tokens.rule,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        display: "flex",
+        gap: "0.5rem",
+        margin: 0,
+        paddingBlock: "0.5rem",
+        paddingInline: "0.75rem",
+        whiteSpace: "nowrap",
+    },
+    editApp: {
+        color: color.foreground,
+        fontWeight: 600,
+    },
+    glyphOn: {
+        backgroundColor: tokens.signal,
+    },
+    away: {
+        backgroundColor: color.card,
+        borderRadius: "50%",
+        bottom: "-0.0625rem",
+        color: color.mutedForeground,
+        fontSize: "0.55rem",
+        fontWeight: 700,
+        lineHeight: "0.75rem",
+        position: "absolute",
+        right: "-0.0625rem",
+        textAlign: "center",
+        width: "0.75rem",
+    },
+    railRule: {
+        backgroundColor: tokens.rule,
+        flexShrink: 0,
+        height: tokens.hairline,
+        marginBlock: "0.125rem",
+        width: "1.5rem",
+    },
+    railApps: {
+        display: "grid",
+        flexShrink: 0,
+        gap: "0.5rem",
+    },
+    head: {
+        borderBottomColor: tokens.rule,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        color: color.mutedForeground,
+        fontSize: "0.68rem",
+        fontWeight: 500,
+        paddingBlock: "0.375rem",
+        paddingRight: "0.75rem",
+        textAlign: "left",
+        whiteSpace: "nowrap",
+    },
+    added: {
+        backgroundColor: "rgb(255 121 46 / 10%)",
+        color: tokens.signal,
+        fontWeight: 600,
+        paddingLeft: "0.5rem",
+    },
+    addedCell: {
+        backgroundColor: "rgb(255 121 46 / 6%)",
+        paddingLeft: "0.5rem",
+    },
+    yours: {
+        backgroundColor: tokens.signal,
+        borderRadius: "3px",
+        color: tokens.signalInk,
+        fontSize: "0.58rem",
+        fontWeight: 700,
+        marginLeft: "0.375rem",
+        paddingInline: "0.25rem",
+        textTransform: "uppercase",
+    },
+    roomy: {
+        display: { default: "block", "@media (max-width: 767px)": "none" },
+    },
+    slot: {
+        display: "flex",
+    },
+    presenceText: {
+        marginLeft: "0.375rem",
+    },
+    preview: {
+        color: color.mutedForeground,
+        display: "block",
+        lineHeight: "1.25rem",
+        whiteSpace: "nowrap",
+    },
+    conflict: {
+        alignItems: "center",
+        borderColor: color.mutedForeground,
+        borderRadius: "6px",
+        borderStyle: "dashed",
+        borderWidth: tokens.hairline,
+        color: color.mutedForeground,
+        display: "flex",
+        gap: "0.75rem",
+        justifyContent: "space-between",
+        margin: 0,
+        paddingBlock: "0.375rem",
+        paddingInline: "0.625rem",
+    },
+    together: {
+        borderColor: tokens.rule,
+        borderStyle: "solid",
+    },
+    reload: {
+        color: color.foreground,
+        fontWeight: 600,
+    },
+    change: {
+        fontSize: "0.75rem",
+    },
+    passing: {
+        color: "#3c8f58",
+        fontWeight: 600,
+    },
+    running: {
+        color: "#b8862b",
+        fontWeight: 600,
+    },
+    seatWall: {
+        alignItems: "center",
+        borderBottomColor: tokens.rule,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        color: color.mutedForeground,
+        display: "flex",
+        gap: "0.5rem",
+        margin: 0,
+        paddingBlock: "0.5rem",
+        paddingInline: "0.75rem",
+    },
+    newTask: {
+        backgroundColor: tokens.signal,
+        borderRadius: "5px",
+        color: tokens.signalInk,
+        fontWeight: 600,
+        paddingBlock: "0.125rem",
+        paddingInline: "0.5rem",
+    },
+    failing: {
+        color: "#c0392b",
+        fontWeight: 600,
+    },
+    stale: {
+        opacity: 0.55,
+    },
+    error: {
+        backgroundColor: "rgb(192 57 43 / 9%)",
+        color: "#b03a2e",
+    },
+    logo: {
+        borderRadius: "5px",
+        flexShrink: 0,
+        height: "1.25rem",
+        width: "1.25rem",
+    },
+    propertyMissing: {
+        backgroundColor: "transparent",
+        borderColor: color.mutedForeground,
+        borderStyle: "dashed",
+        borderWidth: tokens.hairline,
+    },
+    dotCloud: {
+        backgroundColor: color.mutedForeground,
     },
     row: {
         alignItems: "center",
@@ -485,24 +1041,6 @@ const styles = stylex.create({
         justifyContent: "center",
         width: "1.125rem",
     },
-    search: {
-        alignItems: "center",
-        flexGrow: 1,
-        backgroundColor: color.background,
-        borderColor: tokens.rule,
-        borderRadius: "6px",
-        borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        color: color.mutedForeground,
-        display: "flex",
-        justifyContent: "space-between",
-        paddingBlock: "0.25rem",
-        paddingInline: "0.5rem",
-    },
-    shortcut: {
-        fontFamily: tokens.monoFont,
-        fontSize: "0.66rem",
-    },
     glyph: {
         backgroundColor: color.mutedForeground,
         flexShrink: 0,
@@ -519,23 +1057,6 @@ const styles = stylex.create({
         fontSize: "0.62rem",
         fontWeight: 700,
         paddingInline: "0.375rem",
-    },
-    group: {
-        color: color.mutedForeground,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.62rem",
-        letterSpacing: "0.08em",
-        margin: 0,
-        paddingTop: "0.5rem",
-        textTransform: "uppercase",
-    },
-    pageList: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.375rem",
-        maskImage: "linear-gradient(to bottom, #000 calc(100% - 1.5rem), transparent)",
-        minHeight: 0,
-        overflow: "hidden",
     },
     heading: {
         fontSize: "1rem",
@@ -591,16 +1112,6 @@ const styles = stylex.create({
         gap: "0.5rem",
         margin: 0,
     },
-    pageItem: {
-        alignItems: "center",
-        borderRadius: "5px",
-        display: "flex",
-        gap: "0.5rem",
-        margin: 0,
-        marginInline: "-0.375rem",
-        paddingBlock: "0.1875rem",
-        paddingInline: "0.375rem",
-    },
     selected: {
         backgroundColor: "rgb(255 121 46 / 14%)",
     },
@@ -612,7 +1123,8 @@ const styles = stylex.create({
     toolbar: {
         alignItems: "center",
         display: "flex",
-        gap: "1rem",
+        flexWrap: "wrap",
+        gap: "0.5rem 1rem",
         margin: 0,
     },
     tools: {
@@ -632,16 +1144,18 @@ const styles = stylex.create({
     page: {
         alignContent: "start",
         display: "grid",
-        gap: "0.875rem",
+        gap: "1.125rem",
+        gridAutoRows: "max-content",
+        gridTemplateColumns: "minmax(0, 1fr)",
         maskImage: "linear-gradient(to bottom, #000 calc(100% - 3rem), transparent)",
         minHeight: 0,
         minWidth: 0,
         overflow: "hidden",
-        paddingBlock: "1rem",
+        paddingBlock: "1.5rem",
         paddingInline: { default: "2rem", "@media (max-width: 767px)": "1rem" },
     },
     title: {
-        fontSize: "1.75rem",
+        fontSize: { default: "1.75rem", "@media (max-width: 767px)": "1.375rem" },
         fontWeight: 700,
         letterSpacing: "-0.02em",
         lineHeight: 1.15,
@@ -671,31 +1185,45 @@ const styles = stylex.create({
     },
     cursor: {
         backgroundColor: "#6b5ca5",
+        display: "inline-block",
+        height: "1.15em",
+        marginLeft: "1px",
+        position: "relative",
+        verticalAlign: "-0.2em",
+        width: "2px",
+    },
+    flag: {
+        backgroundColor: "#6b5ca5",
         borderRadius: "3px 3px 3px 0",
+        bottom: "100%",
         color: "#ffffff",
         fontSize: "0.6rem",
         fontWeight: 600,
-        marginLeft: "0.125rem",
-        paddingInline: "0.3rem",
-        verticalAlign: "super",
+        left: 0,
+        lineHeight: "0.875rem",
+        paddingInline: "0.25rem",
+        position: "absolute",
+        whiteSpace: "nowrap",
     },
     table: {
         borderCollapse: "collapse",
+        marginBottom: "-1px",
         width: "100%",
     },
     cell: {
         borderBottomColor: tokens.rule,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        paddingBlock: "0.4375rem",
+        paddingBlock: "0.625rem",
         paddingRight: "0.75rem",
         whiteSpace: "nowrap",
+        ":last-child": { paddingRight: "0.75rem" },
     },
     id: {
         color: color.mutedForeground,
         fontFamily: tokens.monoFont,
         fontSize: "0.7rem",
-        paddingLeft: "0.25rem",
+        paddingLeft: "0.75rem",
         width: "4.25rem",
     },
     taskTitle: {
@@ -718,29 +1246,13 @@ const styles = stylex.create({
     started: {
         backgroundImage: "linear-gradient(90deg, #d9a21b 50%, transparent 50%)",
         borderColor: "#d9a21b",
+    },
+    flush: {
         marginRight: 0,
     },
     done: {
         backgroundColor: "#5e6ad2",
         borderColor: "#5e6ad2",
-    },
-    agent: {
-        display: "grid",
-        flexShrink: 0,
-        marginTop: "auto",
-        paddingTop: "0.75rem",
-    },
-    agentCard: {
-        backgroundColor: color.card,
-        borderColor: tokens.rule,
-        borderRadius: "8px",
-        borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        display: "grid",
-        fontSize: "0.75rem",
-        gap: "0.375rem",
-        lineHeight: 1.4,
-        padding: "0.625rem",
     },
     strong: {
         fontWeight: 600,
@@ -751,24 +1263,39 @@ const styles = stylex.create({
     wide: {
         "@media (max-width: 767px)": { display: "none" },
     },
-    nowrap: {
-        whiteSpace: "nowrap",
-    },
     statusBar: {
         alignItems: "center",
         backgroundColor: color.muted,
         borderTopColor: tokens.rule,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
+        boxSizing: "border-box",
         color: color.mutedForeground,
         display: "flex",
-        flexWrap: "wrap",
         fontSize: "0.75rem",
-        gap: "0.5rem 1.75rem",
+        gap: "1.25rem",
         gridColumn: "1 / -1",
+        height: "2.25rem",
         margin: 0,
-        paddingBlock: "0.5rem",
         paddingInline: "0.875rem",
+        whiteSpace: "nowrap",
+    },
+    status: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.375rem",
+    },
+    statusEnd: {
+        alignItems: "center",
+        display: "flex",
+        gap: "1.25rem",
+        marginLeft: "auto",
+    },
+    small: {
+        fontSize: "0.5rem",
+        height: "0.9375rem",
+        marginRight: "-0.25rem",
+        width: "0.9375rem",
     },
     dot: {
         backgroundColor: "#4caf6e",
