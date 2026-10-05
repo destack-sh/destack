@@ -1,5 +1,6 @@
 import { LogPosition } from "@destack/db";
 import { defineSchema, Duration, schema } from "@destack/schema";
+import type { Mutation } from "../call/call.ts";
 import type { Page } from "../query/index.ts";
 import type { Replica } from "./replica.ts";
 
@@ -25,13 +26,15 @@ export const Subscription = defineSchema(
         previous: PARAMETERS.exactOptional(),
         /** How often merged pages arrive, absent for one page per change. */
         refresh: schema.object({ every: Duration.schema }).exactOptional(),
+        /** The follower's own origin, its log epoch, whose writes the source's copies replicate and never send back. */
+        origin: schema.string().min(1).exactOptional(),
     }),
 );
 /** A follower's subscription to a declared shape over one scope, from the position it reached. */
 export type Subscription = schema.Infer<typeof Subscription>;
 
-/** Where a copy resumes its subscription: from its position, reshaped from the parameters it reflects, or from a snapshot without either. */
-export type Resumption = Pick<Subscription, "after" | "previous">;
+/** Where a copy resumes its subscription, and the origin it follows as. */
+export type Resumption = Pick<Subscription, "after" | "previous" | "origin">;
 
 /** Who a shape's copy is for, which admits its followers and decides its rows: the scope below by containment, the reader where the rows live, the calling follower, or each row's recipient. */
 export type ShapeAudience = "contained" | "reader" | "caller" | "recipient";
@@ -92,4 +95,10 @@ export function defineShape<Parameters extends object>(definition: {
 export interface Publisher {
     /** Stream a subscription's pages from its position, or a snapshot without one. */
     stream(subscription: Subscription, signal: AbortSignal): AsyncIterable<Page>;
+}
+
+/** A publisher that also receives the changes its followers send to the rows they copy from it. */
+export interface Uplink extends Publisher {
+    /** Run a mutation of copied rows at their home as the follower, once per mutation however often it is delivered. */
+    receive(mutation: Mutation): Promise<void>;
 }

@@ -1,10 +1,10 @@
 # @destack/sync
 
-Keep the results of tree-shaped queries over logged tables current in subscribers, copies and local views.
+Keep query results current in subscribers, copies and local views.
 
 ## Queries
 
-`Query` selects rows of one logged table in some scopes with db's `QueryOptions`.
+`Query` selects rows of one logged table in one or more scopes.
 
 ```ts
 const relations = defineRelations({ project, task }, (r) => ({
@@ -37,7 +37,7 @@ const tasks = included(board, "tasks"); // a Query over task, limited to 5 per p
 
 ## Query fields
 
-`aggregate` keeps measures per group in place of a query's rows.
+`aggregate` returns measures per group in place of a query's rows.
 
 ```ts
 const query: Query = {
@@ -73,7 +73,7 @@ for await (const rows of feed.watch("board", board, signal)) {
 
 ## Pages
 
-`Page` moves a subscriber from one log position to the next, with rows in their JSON form: exact integers as decimal text and bytes as base64.
+`Page` moves a subscriber from one log position to the next.
 
 ```ts
 interface Page {
@@ -89,7 +89,7 @@ interface Page {
 
 ## Audiences
 
-An `Audience` decides which rows a subscriber may have and which columns it may read, and `Watch.matches` tests a change against the `watches` that decide again.
+An `Audience` decides which rows and columns a subscriber may read.
 
 ```ts
 feed.subscribe({ board }, after, signal, { audience: EVERYONE });
@@ -121,9 +121,21 @@ await copy.follow(local, ({ after }, signal) => feed.subscribe({ board }, after,
 const projects = await copy.rows(local, "board", board, prediction);
 ```
 
+## Copy topology
+
+`requireAcyclic` refuses a copy back into the database a table is copied from.
+
+```ts
+await copy.requireAcyclic(database, origin); // fails with CYCLE on a copy back to its source
+const follow = ({ after, origin }: Resumption, signal: AbortSignal) =>
+    feed.subscribe({ board }, after, signal, origin === undefined ? {} : { origin });
+await copy.follow(local, follow, signal);
+const head = await source.log.position(await local.log.epoch());
+```
+
 ## Copies across scopes
 
-`within` copies a table across scopes, into the scopes another copied table's rows live in.
+`within` copies a table into the scopes where another copied table's rows live.
 
 ```ts
 const copy = new Replica({
@@ -136,7 +148,7 @@ const copy = new Replica({
 
 ## Copies of several scopes
 
-`scopes` reads a table in several scopes, and `Replica.reach` and `Replica.origins` find the copy at each scope whose own row it includes.
+`scopes` copies a table from several scopes.
 
 ```ts
 const folders = new Replica({
@@ -153,7 +165,7 @@ await Replica.reach(local, inboxId, position, signal); // the folders copy keeps
 
 ## Shared rows
 
-`Replica.includes` matches the rows a replica includes, and a row stays until no replica includes it.
+A row stays in a copy until no replica includes it.
 
 ```ts
 const tasks = await local.select().from(task).where(Replica.includes("board", task));
@@ -161,7 +173,7 @@ const tasks = await local.select().from(task).where(Replica.includes("board", ta
 
 ## Dropping copies
 
-`drop` deletes the rows only this copy includes, retracts its projections and forgets its record, and `Replica.subscriptions` lists the subscriptions a database's copies follow.
+`drop` deletes a copy and the rows only it includes.
 
 ```ts
 const kept = await Replica.subscriptions(local);
@@ -170,7 +182,7 @@ await copy.drop(local);
 
 ## Projections
 
-`projectors` upsert a target row per kept source row by its unique source reference, and retract it when the source row leaves the copy.
+`projectors` upsert one target row per source row and retract it when the source row leaves.
 
 ```ts
 const inbox = new Replica({ name: "inbox", scope: spaceId, tables: [], projectors: [entries] });
@@ -178,7 +190,7 @@ const inbox = new Replica({ name: "inbox", scope: spaceId, tables: [], projector
 
 ## Shapes
 
-`defineShape` declares a served shape, and `subscription` builds the `Subscription` cells and clients follow it through.
+`defineShape` declares a shape that cells and clients subscribe to.
 
 ```ts
 const board = defineShape({
@@ -208,7 +220,7 @@ await board
 
 ## Shape audiences
 
-`audience` names who a shape's copy is for, which admits its followers and decides its rows.
+`audience` sets who may follow a shape and which rows they get.
 
 ```ts
 type ShapeAudience =
@@ -220,7 +232,7 @@ type ShapeAudience =
 
 ## Resuming
 
-`follow` resumes a completed subscription from its position, reshapes other parameters from `previous` without a refetch, and starts another shape from a snapshot.
+`follow` resumes a subscription from its last position.
 
 ```ts
 const next = board.subscription({
@@ -238,7 +250,7 @@ await board
 
 ## Predictions
 
-`Prediction` shows a client's queued mutations over its copy: the main line's, then a checked-out branch's rows, then the branch's own edits.
+`Prediction` shows a client's queued mutations over its copy.
 
 ```ts
 const prediction = new Prediction({ tables: [project, task], predict, reads, branches });
@@ -251,7 +263,7 @@ await prediction.checkout(local, branchId); // edits now queue for the branch
 
 ## Acknowledgements
 
-`acknowledge` marks a mutation executed at the source's watermark, and the copy's first completed page at that watermark drops its prediction.
+`acknowledge` marks a mutation executed at the source's watermark.
 
 ```ts
 const next = await prediction.pending(local, { limit: 100 }); // the mutations the next push sends
@@ -262,7 +274,7 @@ const { pending, executed, rejected } = await prediction.inspect(local);
 
 ## Trackers
 
-`Tracker` keeps a memory database equal on every instance of a service and relays events between them.
+`Tracker` keeps a memory database equal on every instance of a service.
 
 ```ts
 const tracker = new Tracker(memory, [cursor], relay);
@@ -276,7 +288,7 @@ tracker.broadcast(topic, event);
 
 ## Storage
 
-`replicaTables` lists the tables of a database with copies, and `predictionTables` those a client queueing mutations adds.
+`replicaTables` lists the tables of a database with copies.
 
 ```ts
 export const local = defineDatabase({
@@ -287,7 +299,7 @@ export const local = defineDatabase({
 
 ## Scopes
 
-`Scope` reads a scope's chain of enclosing scopes, nearest first, and fences a scope while its databases move.
+`Scope` reads a scope's chain of enclosing scopes, nearest first.
 
 ```ts
 import { Scope } from "@destack/sync";
@@ -302,7 +314,7 @@ await Scope.unfence(database, spaceId);
 
 ## Errors
 
-A copy, subscription or scope the source cannot serve throws a `SyncError`, and `toServiceError` names the service error its caller receives, such as `OVERLOADED` as `SERVICE_UNAVAILABLE`.
+A copy, subscription or scope the source cannot serve throws a `SyncError`.
 
 ```ts
 import { SyncError } from "@destack/sync";

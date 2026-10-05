@@ -61,7 +61,12 @@ const PRUNE_BATCH = 1000;
 const GroupValues = schema.record(schema.string(), Scalar);
 
 /** A subscription as a copy records it: what it follows, without where it resumes. */
-const SubscriptionRecord = Subscription.omit({ after: true, previous: true, refresh: true });
+const SubscriptionRecord = Subscription.omit({
+    after: true,
+    previous: true,
+    refresh: true,
+    origin: true,
+});
 /** A subscription as a copy records it. */
 export type SubscriptionRecord = schema.Infer<typeof SubscriptionRecord>;
 
@@ -87,6 +92,8 @@ export const replica = defineTable(
         scopes: json("scopes", schema.array(schema.string())),
         /** The layout digest of the copied tables' logged columns. */
         layout: text("layout"),
+        /** The copied tables' SQL names, recorded when the copy registers. */
+        tables: json("tables", schema.array(schema.string())).notNull(),
         /** The last time the home confirmed the rows current, in UTC epoch milliseconds. */
         confirmedAt: integer("confirmed_at").notNull(),
     },
@@ -378,6 +385,38 @@ export class Replica {
         }, signal);
     }
 
+    /** Wait until the copy reflects its home up to a position, returning false once the signal aborts. */
+    async reach(
+        database: DatabaseConnection,
+        position: LogPosition,
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        return database.log.until(async () => {
+            // read the copy's home position
+            const record = await this.#record(database);
+            const origin = record === undefined ? undefined : Replica.#origin(record);
+
+            // refuse a position of an outdated history
+            if (origin !== undefined && origin.position.epoch > position.epoch) {
+                throw new DatabaseError(
+                    "STALE_EPOCH",
+                    `${this.scope} started a new epoch after the position`,
+                );
+            }
+
+            return (
+                origin !== undefined &&
+                origin.position.epoch === position.epoch &&
+                origin.position.sequence >= position.sequence
+            );
+        }, signal);
+    }
+
+    /** Report whether the database keeps the copy's record. */
+    async isRecorded(database: DatabaseConnection): Promise<boolean> {
+        return (await this.#record(database)) !== undefined;
+    }
+
     /** Refuse relaying a copy that has no position yet. */
     static async requireRelayable(
         database: DatabaseConnection,
@@ -390,6 +429,38 @@ export class Replica {
             .where(and(eq(replica.name, name), eq(replica.scope, scope)));
         if (record !== undefined && Replica.#origin(record) === undefined) {
             throw new SyncError("STALE", `copy of ${scope} holds no position yet`);
+        }
+    }
+
+    /**
+     * Refuse publishing the copy to a subscriber whose rows the database copies into one of the copy's tables.
+     *
+     * A table copies only from its owner, through relays that pass copies onward, so no copied row returns to its source or home.
+     */
+    async requireAcyclic(database: DatabaseConnection, origin: string): Promise<void> {
+        // read the database's copies with the tables each copies
+        const records = await database
+            .select({
+                name: replica.name,
+                scope: replica.scope,
+                epoch: replica.epoch,
+                originEpoch: replica.originEpoch,
+                tables: replica.tables,
+            })
+            .from(replica);
+        // refuse a copy from the subscriber keeping one of the copy's tables, with rows or without yet
+        const [cyclic] = records.flatMap((record) => {
+            const shared = record.tables.find((table) => this.#copied.has(table));
+            const isFromOrigin = record.epoch === origin || record.originEpoch === origin;
+
+            return shared !== undefined && isFromOrigin ? [{ record, shared }] : [];
+        });
+        if (cyclic !== undefined) {
+            const table = found(this.#copied, cyclic.shared)[TABLE].name;
+            throw new SyncError(
+                "CYCLE",
+                `copy ${this.name} of ${this.scope} would publish ${table} back to ${origin}, its source in copy ${cyclic.record.name} of ${cyclic.record.scope}`,
+            );
         }
     }
 
@@ -525,23 +596,24 @@ export class Replica {
         // resume a copy no subscription names from its position
         const after = await this.position(database);
         const recorded = await this.subscribed(database);
+        const origin = await database.log.epoch();
         if (after === undefined || subscription === undefined) {
-            return after === undefined ? {} : { after };
+            return after === undefined ? { origin } : { after, origin };
         }
 
         // resume the same subscription, reshape one of other parameters, and snapshot another
         const { parameters, ...identity } = subscribedOf(subscription);
         if (recorded === undefined) {
-            return {};
+            return { origin };
         }
         const { parameters: reflected, ...recordedIdentity } = recorded;
         if (canonicalize(recordedIdentity) !== canonicalize(identity)) {
-            return {};
+            return { origin };
         }
 
         return canonicalize(reflected) === canonicalize(parameters)
-            ? { after }
-            : { after, previous: reflected };
+            ? { after, origin }
+            : { after, previous: reflected, origin };
     }
 
     /** Read the scope chain the copy reads, nearest first: its own scope alone until its source sends it. */
@@ -694,6 +766,7 @@ export class Replica {
                 epoch: null,
                 sequence: null,
                 subscription: subscription === undefined ? null : subscribedOf(subscription),
+                tables: [...this.#copied.keys()],
                 confirmedAt: Date.now(),
             })
             .onConflictDoNothing();
@@ -855,11 +928,11 @@ export class Replica {
             );
         }
 
-        // write the source's rows after reverting predictions
+        // write the source's rows after reverting predictions, under the source's origin
         await transaction.log.asReplica(async () => {
             await rebased?.revert(transaction);
             await this.#writeRun(transaction, page, run, record, options, retired);
-        });
+        }, page.position.epoch);
 
         // predict again what the source lacks
         await rebased?.replay(transaction, {
@@ -918,6 +991,7 @@ export class Replica {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
             ...(subscription === undefined ? {} : { subscription: subscribedOf(subscription) }),
             layout: await this.#layout,
+            tables: [...this.#copied.keys()],
         };
 
         // write the record and drop the staged pages
@@ -1527,7 +1601,13 @@ async function writeGroups(
 
 /** Record a subscription without where it resumes. */
 function subscribedOf(subscription: Subscription): SubscriptionRecord {
-    const { after: _after, previous: _previous, refresh: _refresh, ...subscribed } = subscription;
+    const {
+        after: _after,
+        previous: _previous,
+        refresh: _refresh,
+        origin: _origin,
+        ...subscribed
+    } = subscription;
 
     return subscribed;
 }

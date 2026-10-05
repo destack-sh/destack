@@ -19,6 +19,8 @@ export class Stream {
     #evaluation: Evaluation;
     /** The shortest time between two pages at the head. */
     readonly #every: number | undefined;
+    /** The subscriber's own origin, whose replicated writes never advance the bare positions it receives. */
+    readonly #origin: string | undefined;
 
     /** Create the stream of a subscriber. */
     constructor(
@@ -26,10 +28,12 @@ export class Stream {
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
         every?: number,
+        origin?: string,
     ) {
         // evaluate the queries alone
         this.#feed = feed;
         this.#every = every;
+        this.#origin = origin;
         this.#queries = queries;
         this.#audience = audience;
         this.#evaluation = new Evaluation(feed, queries, audience);
@@ -128,18 +132,22 @@ export class Stream {
                     yield page;
                 }
 
-                // wait for a commit or a heartbeat
+                // wait for a commit, or repeat the published position at a heartbeat
                 if (sequence === position.sequence) {
                     const beat = AbortSignal.timeout(this.#feed.heartbeat);
                     await this.#evaluation.wait(sequence, AbortSignal.any([waking, beat]));
-                    if (beat.aborted && !waking.aborted && sequence === published) {
-                        yield { reset: false, complete: true, changes: [], position };
+                    if (beat.aborted && !waking.aborted) {
+                        const repeated = { epoch: position.epoch, sequence: published };
+                        yield { reset: false, complete: true, changes: [], position: repeated };
                     }
                 }
                 position = { epoch: position.epoch, sequence };
 
-                // publish the bare position once caught up
-                if (sequence >= this.#feed.sequence && sequence > published) {
+                // publish the bare position once caught up past more than the subscriber's own replicated writes
+                const isOwn =
+                    this.#origin !== undefined &&
+                    this.#feed.isOriginated(published, sequence, this.#origin);
+                if (sequence >= this.#feed.sequence && sequence > published && !isOwn) {
                     published = sequence;
                     yield { reset: false, complete: true, changes: [], position };
                 }

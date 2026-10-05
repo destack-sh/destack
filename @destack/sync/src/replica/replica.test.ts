@@ -16,17 +16,20 @@ import {
     type Row,
     type Table,
     type LogPosition,
+    type DatabaseConnection,
 } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { BlobStore } from "@destack/db/blob";
 import { LocalBlobStore } from "@destack/db/blob/local";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { setTimeout } from "node:timers/promises";
 import { join } from "node:path";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { schema } from "@destack/schema";
-import { replicaTables, Replica, replica, type Projector } from "./replica.ts";
+import { replicaTables, Replica, replica, replicaRow, type Projector } from "./replica.ts";
+import type { Resumption } from "./shape.ts";
 import {
     asset,
     first,
@@ -89,6 +92,88 @@ test.for(TEST_DIALECTS)(
             await Replica.isCopied(copy, "inbox"),
             (await copy.select().from(note)).map((row) => row.id),
         ]).toEqual([false, ["a"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "follow two databases each copying the other's table, reaching each other's rows and going quiet once neither sends the other bare positions of its own replicated writes, on %s",
+    async (dialect) => {
+        // keep the notes on one database and the projects on the other
+        const home = await open(dialect);
+        const other = await open(dialect);
+        await home.insert(note).values(first);
+        await other.insert(project).values({ id: "p", scope: "inbox", name: "Launch" });
+
+        // follow each database's table from the other, naming the follower's own origin
+        const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+        const projects = new Replica({ name: "projects", scope: "inbox", tables: [project] });
+        const homeFeed = new Feed(home, [note, replica]);
+        const otherFeed = new Feed(other, [project, replica]);
+        const controller = new AbortController();
+        const following = Promise.all([
+            notes.follow(other, followOf(homeFeed, notes), controller.signal),
+            projects.follow(home, followOf(otherFeed, projects), controller.signal),
+        ]);
+
+        // reach the latest change of each database the other did not originate
+        const signal = AbortSignal.timeout(5000);
+        const reach = async (copy: DatabaseConnection, source: DatabaseConnection) =>
+            Replica.reach(copy, "inbox", await source.log.position(await copy.log.epoch()), signal);
+        expect([await reach(other, home), await reach(home, other)]).toEqual([true, true]);
+
+        // go quiet once the last records of the reached positions commit
+        await setTimeout(100);
+        const settled = [await home.log.position(), await other.log.position()];
+        await setTimeout(300);
+        expect([await home.log.position(), await other.log.position()]).toEqual(settled);
+        controller.abort();
+        await following;
+        expect([
+            (await other.select().from(note)).map((row) => row.id),
+            (await home.select().from(project)).map((row) => row.id),
+        ]).toEqual([["a"], ["p"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "refuse publishing a copied table back to the database it copies from, with rows or without, and publish it on to any other, on %s",
+    async (dialect) => {
+        // copy the inbox's notes from one database into another
+        const home = await open(dialect);
+        const other = await open(dialect);
+        await home.insert(note).values(first);
+        const inbox = new Replica({ name: "inbox", scope: "inbox", tables: [note] });
+        const controller = new AbortController();
+        const following = inbox.follow(
+            other,
+            followOf(new Feed(home, [note, replica]), inbox),
+            controller.signal,
+        );
+        const signal = AbortSignal.timeout(5000);
+        expect(await Replica.reach(other, "inbox", await home.log.position(), signal)).toBe(true);
+        controller.abort();
+        await following;
+
+        // publish the copy on to a third database, never back to the notes' home
+        const homeOrigin = await home.log.epoch();
+        const archive = new Replica({ name: "archive", scope: "archive", tables: [note] });
+        await expect(inbox.requireAcyclic(other, "third")).resolves.toBeUndefined();
+        await expect(archive.requireAcyclic(other, homeOrigin)).rejects.toEqual(
+            new SyncError(
+                "CYCLE",
+                `copy archive of archive would publish note back to ${homeOrigin}, its source in copy inbox of inbox`,
+            ),
+        );
+
+        // refuse publishing the notes back once the copy from their home holds none of them
+        await other.delete(note);
+        await other.delete(replicaRow);
+        await expect(archive.requireAcyclic(other, homeOrigin)).rejects.toEqual(
+            new SyncError(
+                "CYCLE",
+                `copy archive of archive would publish note back to ${homeOrigin}, its source in copy inbox of inbox`,
+            ),
+        );
     },
 );
 
@@ -1055,20 +1140,32 @@ test("resume a subscription from the copy's position, reshape one of other param
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
     await Array.fromAsync(notes.apply(copy, [snapshot], { subscription }));
 
-    // resume it, reshape it under other parameters, and snapshot another shape or name
+    // resume it, reshape it under other parameters, and snapshot another shape or name, each naming the copy's own log
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
+    const origin = await copy.log.epoch();
     expect([
         await notes.resume(copy, { ...subscription, after: { ...position, sequence: 1 } }),
         await notes.resume(copy, reshaped),
         await notes.resume(copy, { ...subscription, shape: "chain" }),
         await notes.resume(copy),
     ]).toEqual([
-        { after: position },
-        { after: position, previous: subscription.parameters },
-        {},
-        { after: position },
+        { after: position, origin },
+        { after: position, previous: subscription.parameters, origin },
+        { origin },
+        { after: position, origin },
     ]);
 });
+
+/** Follow a copy's queries from a feed, naming the follower's own origin. */
+function followOf(feed: Feed, copy: Replica) {
+    return (from: Resumption, signal: AbortSignal) =>
+        feed.subscribe(
+            copy.queries,
+            from.after,
+            signal,
+            from.origin === undefined ? {} : { origin: from.origin },
+        );
+}
 
 /** Each note's entry in a reader's list, its own row projected from the note it names. */
 const reading = defineTable(

@@ -174,7 +174,7 @@ export class Feed implements Cache {
     ): AsyncGenerator<Page> {
         // resolve the queries
         const audience = options.audience ?? EVERYONE;
-        const stream = new Stream(this, queries, audience, options.every);
+        const stream = new Stream(this, queries, audience, options.every, options.origin);
         const previous =
             options.previous === undefined
                 ? undefined
@@ -382,6 +382,28 @@ export class Feed implements Cache {
 
             return { position: stepped, isChanged: stepped !== undefined && isChanged };
         }
+    }
+
+    /** Report whether every kept change between two sequences, at least one, replicated an origin's writes, as far as memory keeps them. */
+    isOriginated(after: number, through: number, origin: string): boolean {
+        // know nothing of a range memory does not keep
+        if (after < this.#start || this.#sequence < through) {
+            return false;
+        }
+
+        // look for a change of another origin, and for one of this origin
+        let isFound = false;
+        for (let index = this.#after(after); index < this.#changes.length; index += 1) {
+            const change = aligned(this.#changes, index);
+            if (change.sequence > through) {
+                break;
+            } else if (change.origin !== origin) {
+                return false;
+            }
+            isFound = true;
+        }
+
+        return isFound;
     }
 
     /** Read the watched changes after a sequence, absent once compacted. */
@@ -662,6 +684,8 @@ export interface FeedOptions {
     readonly every?: number;
     /** The signal ending the stream after its next completed page. */
     readonly drain?: AbortSignal;
+    /** The subscriber's own origin, whose replicated writes never advance the bare positions it receives. */
+    readonly origin?: string;
 }
 
 /** The inspection of a feed. */
