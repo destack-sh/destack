@@ -110,8 +110,13 @@ async function followDisplay(
 ): Promise<void> {
     while (!signal.aborted) {
         try {
-            // read the event stream's data lines as displays
+            // stop once the host refuses the page's credential
             const response = await fetch(new URL(DISPLAY_PATH, location.origin), { signal });
+            if (response.status === 401 || response.status === 403) {
+                return;
+            }
+
+            // read the event stream's data lines as displays
             const lines = (response.body ?? new ReadableStream<Uint8Array>()).pipeThrough(
                 lineDecoder(),
             );
@@ -195,7 +200,7 @@ async function fetchCatalogs(references: readonly CatalogReference[]): Promise<C
     );
 }
 
-/** Open the tabs of the scopes holding a view's object types over the page's endpoint, each once its tables exist. */
+/** Open the tabs of the scopes holding a view's object types and its home types over the page's endpoint, each once its tables exist. */
 async function openTabs(
     context: ViewContext,
     endpoint: string,
@@ -206,6 +211,13 @@ async function openTabs(
     for (const object of view.objects) {
         const scope = scopeOf(context, object);
         byScope.set(scope, { ...byScope.get(scope), [object.name]: object });
+    }
+
+    // open the home types beside the view's own in the person's home when the host opens one
+    const home = context.home;
+    if (home !== undefined && view.home.length > 0) {
+        const homeTypes = Object.fromEntries(view.home.map((object) => [object.name, object]));
+        byScope.set(home, { ...byScope.get(home), ...homeTypes });
     }
 
     // open each scope's tab over the origin's endpoint

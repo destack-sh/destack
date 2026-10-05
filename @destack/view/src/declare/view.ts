@@ -10,6 +10,8 @@ export interface ViewDefinition {
     readonly name: string;
     /** The object types the view reads and changes, opened in their scopes before it renders. */
     readonly objects?: readonly ObjectType[];
+    /** The object types the view opens in the person's home space, such as their notifications. */
+    readonly home?: readonly ObjectType[];
     /** The permissions the view requests. */
     readonly permissions?: readonly Permission[];
     /** The object types the view presents, and how strongly, so opening an object picks its view. */
@@ -34,6 +36,8 @@ export class View {
     readonly name: string;
     /** The object types the view reads and changes. */
     readonly objects: readonly ObjectType[];
+    /** The object types the view opens in the person's home space. */
+    readonly home: readonly ObjectType[];
     /** The permissions the view requests. */
     readonly permissions: readonly Permission[];
     /** The object types the view presents. */
@@ -47,6 +51,7 @@ export class View {
         this.package = owner;
         this.name = definition.name;
         this.objects = definition.objects ?? [];
+        this.home = definition.home ?? [];
         this.permissions = definition.permissions ?? [];
         this.presents = definition.presents ?? [];
         this.component = definition.component;
@@ -59,11 +64,20 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     const owner = ModuleMetadata.require(module, "defineView").package;
     DeclarationName.parse(definition.name);
 
-    // require each permission to be one of an object type the view opens
+    // refuse a type opened both in the view's scopes and in the person's home
     const objects = definition.objects ?? [];
+    const home = definition.home ?? [];
+    const twice = home.find((type) => objects.some((opened) => opened.same(type)));
+    if (twice !== undefined) {
+        throw new TypeError(
+            `view ${definition.name} opens ${twice.name} both in its scopes and in the home`,
+        );
+    }
+
+    // require each permission to be one of an object type the view opens
     const unopened = (definition.permissions ?? []).find(
         (permission) =>
-            !objects.some(
+            ![...objects, ...home].some(
                 ({ typeReference }) =>
                     typeReference.packageId === permission.packageId &&
                     typeReference.type === permission.type,

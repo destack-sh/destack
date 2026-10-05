@@ -50,6 +50,35 @@ test("describe a declared view by its name and permissions without loading its c
     ]);
 });
 
+test("describe the object types a view opens in the person's home, and refuse a type opened twice", () => {
+    // declare a view reading notes in the person's home
+    const view = defineView(
+        {
+            name: "inbox",
+            home: [note],
+            permissions: [note.permission("read")],
+            component: () => Promise.reject(new Error("loaded")),
+        },
+        { package: notes },
+    );
+    const twice = () =>
+        defineView(
+            {
+                name: "notes",
+                objects: [note],
+                home: [note],
+                component: () => Promise.reject(new Error("loaded")),
+            },
+            { package: notes },
+        );
+
+    // name the home type beside its permission, and refuse the type in both lists
+    expect(describeView(view).home).toEqual([{ packageId: note.package.id, type: "note" }]);
+    expect(twice).toThrow(
+        new TypeError("view notes opens note both in its scopes and in the home"),
+    );
+});
+
 test("refuse a view presenting an object type it opens none of", () => {
     // present notes without opening them
     const refusal = () =>

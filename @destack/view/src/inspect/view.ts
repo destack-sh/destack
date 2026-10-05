@@ -1,16 +1,17 @@
 import { graph } from "@destack/package";
-import { ViewPresentation, type ViewDescription } from "@destack/package/view";
+import { ViewPresentation, type ViewDescription, type ViewObjectType } from "@destack/package/view";
 import { schema, type JsonObject } from "@destack/schema";
 import type { View } from "../declare/view.ts";
 
 /** The object types a view's description presents, beside its name and permissions. */
 const Presents = schema.looseObject({ presents: schema.array(ViewPresentation) });
 
-/** Describe a view by its name, the permissions it requests and the object types it presents. */
+/** Describe a view by its name, the permissions it requests, the object types it presents and those it opens in the home. */
 export function describeView(view: View): {
     readonly name: string;
     readonly permissions: ViewDescription["permissions"];
     readonly presents: readonly ViewPresentation[];
+    readonly home?: readonly ViewObjectType[];
 } {
     return {
         name: view.name,
@@ -24,6 +25,14 @@ export function describeView(view: View): {
             type: object.name,
             priority,
         })),
+        ...(view.home.length === 0
+            ? {}
+            : {
+                  home: view.home.map((object) => ({
+                      packageId: object.package.id,
+                      type: object.name,
+                  })),
+              }),
     };
 }
 
