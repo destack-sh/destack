@@ -1,10 +1,28 @@
 # @destack/mail
 
-Compose mail and submit it over SMTP or through Amazon SES.
+Compose mail and send it over SMTP or Amazon SES.
+
+## Provider
+
+`mailProvider` sends the email messages of the `message` kind through a `MailTransport`.
+
+```ts
+import { implementMessages } from "@destack/message/server";
+import { PrintTransport } from "@destack/mail/print";
+import { mailProvider } from "@destack/mail/provider";
+
+const messages = implementMessages({
+    providers: [mailProvider(new PrintTransport((text) => process.stdout.write(text)))],
+    database,
+    callKey,
+    cell,
+    spaces,
+});
+```
 
 ## Messages
 
-`MimeMessage.compose` builds an RFC 5322 message and derives its Message-ID from a digest of the From address and the `key`.
+`MimeMessage.compose` builds an RFC 5322 message.
 
 ```ts
 import { MimeMessage } from "@destack/mail/mime";
@@ -22,7 +40,7 @@ const message = await MimeMessage.compose({
 
 ## SMTP
 
-`SmtpClient.submit` sends a message to the envelope's recipients and returns the server's reply to each recipient and to the data.
+`SmtpClient.submit` sends a message to the envelope's recipients.
 
 ```ts
 import { SmtpClient } from "@destack/mail/smtp";
@@ -41,9 +59,9 @@ const submission = await client.submit(
 // { recipients: [{ address: "ada@example.com", reply: { code: 250, enhancedCode: "2.1.5", text: "ok" } }, ...], data: { code: 250, ... } }
 ```
 
-## Security
+### Security
 
-`security` sets how the session protects its bytes, and `none` accepts only loopback hosts.
+`security` sets how the session protects its bytes.
 
 ```ts
 new SmtpClient({ host, port: 465, security: "tls", authentication, helo }); // TLS from the first byte
@@ -51,9 +69,9 @@ new SmtpClient({ host, port: 587, security: "starttls", authentication, helo });
 new SmtpClient({ host: "127.0.0.1", port, security: "none", authentication, helo }); // plain text
 ```
 
-## Authentication
+### Authentication
 
-`authentication` signs in with `plain` credentials or with `xoauth2`, which calls its `token` function once per session.
+`authentication` signs in with `plain` credentials or with `xoauth2`.
 
 ```ts
 const authentication = {
@@ -65,7 +83,7 @@ const authentication = {
 
 ## SES
 
-`SesClient.send` sends a composed message through the SESv2 HTTP API with Signature Version 4, calls `credentials` once per send and returns the SES MessageId.
+`SesClient.send` sends a composed message through the SESv2 HTTP API.
 
 ```ts
 import { SesClient } from "@destack/mail/aws";
@@ -81,23 +99,19 @@ const messageId = await client.send(
 );
 ```
 
-## SES errors
+### Transport
 
-A refused send throws a `SesError` with its `code`, the SES `awsCode`, the HTTP `status` and `isRetryable`, which is true when the same message may pass later.
+`SesTransport` sends each email from one sender through a `SesClient`.
 
 ```ts
-try {
-    await client.send(envelope, message);
-} catch (error) {
-    if (error instanceof SesError && error.isRetryable) {
-        await retryLater(message);
-    }
-}
+import { SesTransport } from "@destack/mail/aws";
+
+const transport = new SesTransport(client, { from: "Destack <notices@destack.app>" });
 ```
 
-## Signing
+### Signing
 
-`signRequest` signs an AWS request with Signature Version 4 and returns its headers, canonical request and string to sign.
+`signRequest` signs an AWS request with Signature Version 4.
 
 ```ts
 import { signRequest } from "@destack/mail/aws";
@@ -109,9 +123,23 @@ const signed = await signRequest(
 await fetch(url, { method: "POST", headers: signed.headers, body });
 ```
 
-## Test server
+## Errors
 
-`SmtpTestServer.listen` starts an SMTP server on 127.0.0.1 that gives the scripted `answers` and records each session's transcript and content.
+`MimeError`, `SmtpError` and `SesError` have a stable `code`.
+
+```ts
+try {
+    await client.send(envelope, message);
+} catch (error) {
+    if (error instanceof SesError && error.isRetryable) {
+        await retryLater(message);
+    }
+}
+```
+
+## Tests
+
+`SmtpTestServer.listen` starts a scripted SMTP server on 127.0.0.1.
 
 ```ts
 import { SmtpTestServer, TestCertificate } from "@destack/mail/test";
@@ -123,4 +151,16 @@ await using server = await SmtpTestServer.listen({
     plain: { username: "ada", password: "secret" },
     answers: { "RCPT TO:<eve@example.com>": "550 5.1.1 no such user" },
 });
+```
+
+### Fixture
+
+`MailFixture` is a `MailTransport` that records each email it sends.
+
+```ts
+import { MailFixture } from "@destack/mail/test";
+
+const mail = new MailFixture();
+await mail.send({ to: "ada@example.com", subject: "Hello", text: "Hi Ada", key: "hello-01" });
+mail.sent; // [{ to: "ada@example.com", subject: "Hello", … }]
 ```

@@ -4,6 +4,9 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
+        "./provider": {
+            "runtimes": ["bun", "workerd"]
+        },
         "./smtp": {
             "runtimes": ["bun"]
         },
