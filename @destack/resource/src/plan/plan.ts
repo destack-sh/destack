@@ -6,8 +6,7 @@ import {
     type JsonSchema,
     Version,
 } from "@destack/schema";
-import type { Package } from "@destack/package";
-import type { DeclarationDescription } from "@destack/package/inspect";
+import { type Package, type DeclarationDescription } from "@destack/package";
 import { PlanError } from "../error/error.ts";
 import { Address } from "./address.ts";
 

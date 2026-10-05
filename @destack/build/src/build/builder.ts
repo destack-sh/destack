@@ -1,3 +1,4 @@
+import { type PackageInspection } from "@destack/package/code";
 import { mkdir, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -23,7 +24,6 @@ import {
     type RequestedBuild,
 } from "./message.ts";
 import type { InspectOptions } from "../inspect/inspection.ts";
-import type { PackageInspection } from "@destack/package/inspect";
 
 /** The compiler executable beside a standalone Destack executable. */
 const EXECUTABLE = "destack-build";

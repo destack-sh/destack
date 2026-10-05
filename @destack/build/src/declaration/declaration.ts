@@ -1,6 +1,6 @@
+import { type BuildDescription } from "@destack/package/build";
 import { modulePath } from "../compile/dependency.ts";
-import type { Package, PackageExport } from "@destack/package";
-import type { DeclarationDescription, BuildDescription } from "@destack/package/inspect";
+import { type Package, type PackageExport, type DeclarationDescription } from "@destack/package";
 
 /** A function a package exports, located for evaluation. */
 export interface FunctionExport {

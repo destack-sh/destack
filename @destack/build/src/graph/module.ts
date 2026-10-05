@@ -1,4 +1,4 @@
-import { graph, type Package } from "@destack/package";
+import { graph, type Package, type DeclarationDescription } from "@destack/package";
 import type {
     ModuleDescription,
     SignatureDescription,
@@ -6,7 +6,6 @@ import type {
     SymbolDescription,
     SymbolReference,
 } from "@destack/package/code";
-import type { DeclarationDescription } from "@destack/package/inspect";
 import type { SourceRange } from "@destack/package/source";
 import { BuildError } from "../error/index.ts";
 import { DeclarationGraph } from "./declaration.ts";

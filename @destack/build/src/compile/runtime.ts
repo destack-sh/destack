@@ -1,4 +1,3 @@
-import type { BuildDescription } from "@destack/package/inspect";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,7 +6,7 @@ import { Toolchain } from "@destack/check/toolchain";
 import { API, type Program } from "typescript/unstable/async";
 import type { GlobalReference, ModuleDescription } from "@destack/package/code";
 import type { Runtime } from "@destack/package/runtime";
-import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
+import { TYPESCRIPT_OPTIONS, type BuildDescription } from "@destack/package/build";
 import { BuildError } from "../error/index.ts";
 import { modulePath } from "./dependency.ts";
 import { TypeScriptCompiler } from "../typescript/compiler.ts";

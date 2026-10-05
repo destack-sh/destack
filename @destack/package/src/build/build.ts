@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import type { ModuleDescription } from "../code/index.ts";
 import type { Capabilities } from "../definition/capability.ts";
 import type { Package } from "../definition/package.ts";
-import type { DeclarationDescription } from "../inspect/index.ts";
+import type { DeclarationDescription } from "../definition/declaration.ts";
 import type { PackageOutput } from "../manifest/index.ts";
 import type { Runtime } from "../runtime/index.ts";
 

@@ -14,6 +14,7 @@ import {
     DependencyRelease,
     type DependencyResolution,
     type Package,
+    type DeclarationDescription,
 } from "@destack/package";
 import {
     type BuildExtension,
@@ -24,11 +25,11 @@ import {
     isRuntimeModule,
     type OutputDescription,
     runtimeConditions,
+    type BuildDescription,
 } from "@destack/package/build";
 import type { ModuleDescription } from "@destack/package/code";
 import type { Capabilities } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
-import type { BuildDescription, DeclarationDescription } from "@destack/package/inspect";
 import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";

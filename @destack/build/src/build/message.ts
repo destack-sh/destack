@@ -1,8 +1,8 @@
+import { PackageInspection } from "@destack/package/code";
 import { deserialize, serialize } from "node:v8";
 import type { Writable } from "node:stream";
 import { DependencyResolution } from "@destack/package";
 import { OutputRequest } from "@destack/package/build";
-import { PackageInspection } from "@destack/package/inspect";
 import { PackageManifest } from "@destack/package/manifest";
 import { Runtime } from "@destack/package/runtime";
 import { History } from "@destack/resource";

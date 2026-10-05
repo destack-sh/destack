@@ -1,9 +1,9 @@
+import { BuildDescription } from "@destack/package/build";
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { version } from "typescript";
 import { PackageFile } from "@destack/package/file";
-import { BuildDescription } from "@destack/package/inspect";
 import { PackageOutput } from "@destack/package/manifest";
 import { SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/transform";

@@ -1,16 +1,21 @@
 import { readFile, realpath, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type DependencyResolution, graph, type Package } from "@destack/package";
+import {
+    type DependencyResolution,
+    graph,
+    type Package,
+    type DeclarationDescription,
+} from "@destack/package";
 import type { ModuleDescription } from "@destack/package/code";
 import { aligned, type Commit, Digest, found, type JsonValue, present } from "@destack/schema";
-import type {
-    BuildExtension,
-    ExpandedOutput,
-    OutputKind,
-    OutputRequest,
+import {
+    type BuildExtension,
+    type ExpandedOutput,
+    type OutputKind,
+    type OutputRequest,
+    type BuildDescription,
 } from "@destack/package/build";
-import { type BuildDescription, type DeclarationDescription } from "@destack/package/inspect";
 import { PackageFile } from "@destack/package/file";
 import { type PackageOutput, type PackageManifest } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";

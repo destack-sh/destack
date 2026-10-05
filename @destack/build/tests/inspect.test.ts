@@ -1,9 +1,9 @@
+import { DeclarationDescription } from "@destack/package";
 import { test } from "@destack/test";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { schema } from "@destack/schema";
-import { DeclarationDescription } from "@destack/package/inspect";
 import { TestDeclaration } from "@destack/test/inspect";
 import { PackageBuilder } from "../src/build/builder.ts";
 import { Fixture } from "./fixture.ts";

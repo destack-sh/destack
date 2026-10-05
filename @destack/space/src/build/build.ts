@@ -1,4 +1,4 @@
-import { mergeCompute } from "@destack/package";
+import { mergeCompute, type DeclarationDescription } from "@destack/package";
 import type {
     BuildExtension,
     Compilation,
@@ -8,7 +8,6 @@ import type {
     Plugin,
 } from "@destack/package/build";
 import { type DeclarationReference, reference } from "@destack/package/declare";
-import type { DeclarationDescription } from "@destack/package/inspect";
 import { WorkloadDefinition, WorkloadDescription } from "@destack/package/workload";
 import { qualify, TABLE } from "@destack/db";
 import { DatabaseDeclaration } from "@destack/db/inspect";

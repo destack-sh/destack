@@ -1,6 +1,6 @@
 import { defineSchema, type JsonValue, schema } from "@destack/schema";
-import { ModuleGraph } from "../code/graph.ts";
-import { ModuleDescription } from "../code/module.ts";
+import { ModuleGraph } from "./graph.ts";
+import { ModuleDescription } from "./module.ts";
 
 /** The schema of the JSON document exchanged with package inspection entrypoints. */
 const packageInspectionSchema = defineSchema(

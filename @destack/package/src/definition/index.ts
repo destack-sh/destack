@@ -8,3 +8,4 @@ export * from "./metadata.ts";
 export * from "./constructor.ts";
 export * from "./publication.ts";
 export * from "./capability.ts";
+export * from "./declaration.ts";

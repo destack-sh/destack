@@ -1,9 +1,9 @@
+import { DeclarationDescription } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { schema } from "@destack/schema";
-import { DeclarationDescription } from "@destack/package/inspect";
 import { TestDeclaration } from "@destack/test/inspect";
 import { PackageBuilder } from "../build/builder.ts";
 

@@ -1,6 +1,5 @@
 import { expect, test } from "@destack/test";
-import { graph, Package } from "@destack/package";
-import type { DeclarationDescription } from "@destack/package/inspect";
+import { graph, Package, type DeclarationDescription } from "@destack/package";
 import { DeclarationGraph } from "./declaration.ts";
 
 /** The package declaring the declarations. */

@@ -12,13 +12,13 @@ import {
     type SourceFile,
     SyntaxKind,
 } from "typescript/unstable/ast";
-import type { DeclarationDescription } from "@destack/package/inspect";
 import {
     type DeclarationConstructor,
     DependencyPackage,
     Package,
     PackageDefinition,
     PackageExport,
+    type DeclarationDescription,
 } from "@destack/package";
 import { BuildError, isMissing } from "../error/index.ts";
 import { schema } from "@destack/schema";

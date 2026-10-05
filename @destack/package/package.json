@@ -14,7 +14,6 @@
         "./archive": "./src/archive/index.ts",
         "./code": "./src/code/index.ts",
         "./source": "./src/source/index.ts",
-        "./inspect": "./src/inspect/index.ts",
         "./file": "./src/file/index.ts",
         "./import-meta": {
             "types": "./src/definition/import-meta.d.ts"

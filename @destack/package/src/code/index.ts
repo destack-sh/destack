@@ -8,3 +8,4 @@ export * from "./declaration.ts";
 export * from "./symbol.ts";
 export * from "./graph.ts";
 export * from "./error.ts";
+export * from "./inspection.ts";

@@ -1,5 +1,4 @@
-import { graph, type Package } from "@destack/package";
-import type { DeclarationDescription } from "@destack/package/inspect";
+import { graph, type Package, type DeclarationDescription } from "@destack/package";
 import { compareText } from "../build/serialization.ts";
 
 /** A declaration or member of the build a relationship may name, with the declaration it belongs to. */

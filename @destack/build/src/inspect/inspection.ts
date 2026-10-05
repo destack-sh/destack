@@ -1,8 +1,7 @@
-import { type Package } from "@destack/package";
+import { type Package, DeclarationDescription } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
-import { type ModuleDescription, ModuleGraph } from "@destack/package/code";
-import { DeclarationDescription, PackageInspection } from "@destack/package/inspect";
+import { type ModuleDescription, ModuleGraph, PackageInspection } from "@destack/package/code";
 import { TestDeclaration } from "@destack/test/inspect";
 
 /** Source and resolution settings for package inspection. */

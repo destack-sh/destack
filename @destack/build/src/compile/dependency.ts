@@ -1,3 +1,4 @@
+import { BuildDescription } from "@destack/package/build";
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";
@@ -6,7 +7,6 @@ import { comparePath, compareText } from "../build/serialization.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { PackageFile } from "@destack/package/file";
-import { BuildDescription } from "@destack/package/inspect";
 import { DependencyName, Package, PackageDefinition } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { modulePackage, relativePath } from "../source/dependency.ts";

@@ -12,8 +12,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Manifest, Plugin, PluginOption } from "vite";
 import type { DependencyResolution } from "@destack/package";
-import type { BuildExtension, Compilation, Pass, TransformContext } from "@destack/package/build";
-import type { BuildDescription } from "@destack/package/inspect";
+import {
+    type BuildExtension,
+    type Compilation,
+    type Pass,
+    type TransformContext,
+    type BuildDescription,
+} from "@destack/package/build";
 import type { SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";

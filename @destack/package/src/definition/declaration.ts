@@ -1,7 +1,7 @@
 import { defineSchema, Digest, schema } from "@destack/schema";
 import { SourceLocation } from "../source/location.ts";
 import { DependencySymbol } from "../code/reference.ts";
-import { DeclarationName, Package } from "../definition/package.ts";
+import { DeclarationName, Package } from "./package.ts";
 import { MemberSymbol } from "../graph/member.ts";
 
 /** A declaration described by its domain inspector. */
