@@ -2,40 +2,22 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0ec41-832f-73a1-9189-d235d17d71e1",
     "language": "typescript",
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ],
+    "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./service": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         },
         "./server": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         },
         "./setting": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         },
         "./stack": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         },
         "./inspect": {
-            "runtimes": [
-                "bun"
-            ]
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
