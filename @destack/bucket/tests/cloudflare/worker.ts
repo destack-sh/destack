@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import type * as Cloudflare from "@cloudflare/workers-types";
-import { R2Bucket } from "../../src/r2/index.ts";
+import { R2Bucket } from "../../src/cloudflare/bucket.ts";
 
 /** The disposable bucket and test authorization supplied at deployment. */
 interface Environment {

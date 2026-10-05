@@ -2,7 +2,7 @@ import type { DatabaseConnection, Table } from "@destack/db";
 import { schema, type Identifier } from "@destack/schema";
 import type { Bucket } from "../bucket/index.ts";
 import { CatalogueBucket, CatalogueBucketHost, catalogueDatabase } from "../catalogue/index.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import type { BucketReference, S3Credentials } from "../s3/index.ts";
 import { R2ContentStore } from "./store.ts";
 
@@ -40,6 +40,8 @@ export interface R2BucketHostOptions {
 
 /** A cell keeping buckets: each one a prefix of the residency's R2 bucket with its catalogue in the cell's database, opened once, and served over S3 at one endpoint. */
 export class R2BucketHost extends CatalogueBucketHost {
+    /** The provider code of R2 buckets. */
+    readonly provider: string;
     /** The residency's R2 bucket. */
     readonly #files: Bucket;
     /** The name of the residency's R2 bucket. */
@@ -51,6 +53,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     constructor(options: R2BucketHostOptions) {
         // keep the residency's bucket and the catalogues
         super(options);
+        this.provider = "r2";
         this.#files = options.files;
         this.name = options.name;
         this.#catalogues = options.catalogues;
@@ -71,12 +74,13 @@ export class R2BucketHost extends CatalogueBucketHost {
         return this.open({ bucketId: bucketId.data });
     }
 
-    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished. */
-    override async fence(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
+    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished, and report whether this call set the fence. */
+    override async fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean> {
         // mark the bucket fenced below its prefix, then refuse its writes
         const opened = await this.open(bucket);
         await this.#files.put(`${bucket.bucketId}/${FENCE_FILE}`, new Uint8Array());
-        await opened.fence();
+
+        return await opened.fence();
     }
 
     /** Lift a bucket's fence, accepting its writes again. */
@@ -102,7 +106,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         // refuse creating a bucket without the scope it belongs to
         const isNew = !(await this.#catalogues.has(bucketId));
         if (isNew && scope === undefined) {
-            throw new StorageError("NO_SUCH_BUCKET", `no bucket ${bucketId}`);
+            throw new BucketError("NO_SUCH_BUCKET", `no bucket ${bucketId}`);
         }
 
         // read whether a transfer fenced the bucket

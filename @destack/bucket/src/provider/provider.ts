@@ -9,17 +9,15 @@ import {
 import type { Controller } from "@destack/service/control";
 import { schema } from "@destack/schema";
 import type { CatalogueBucketHost } from "../catalogue/index.ts";
-import type { LocalBucketHost } from "../local/index.ts";
-import type { R2BucketHost } from "../r2/index.ts";
 import type { BucketReference } from "../s3/index.ts";
-import { serveBucket } from "../server/index.ts";
+import { serveBuckets } from "../server/index.ts";
 import { BucketKind } from "../declare/bucket.ts";
 import { SweepController } from "./sweep.ts";
 
 /** A bucket provider: provisioning, opening and fencing one host's buckets, serving their files and sweeping them. */
-type BucketProvider = Provider<
+export type BucketProvider = Provider<
     typeof BucketKind,
-    ReturnType<typeof serveBucket>,
+    ReturnType<typeof serveBuckets>,
     DatabaseHandle,
     never,
     never,
@@ -31,20 +29,12 @@ type BucketProvider = Provider<
     readonly controllers: readonly Controller[];
 };
 
-/** Bucket providers by backend. */
-export const bucketProvider = {
-    /** Provide buckets as directories of a device host's local buckets. */
-    local: (host: LocalBucketHost): BucketProvider => provide("local", host),
-    /** Provide buckets as prefixes of a cell's residency R2 bucket, with their catalogues in the cell's database. */
-    r2: (host: R2BucketHost): BucketProvider => provide("r2", host),
-};
-
-/** Provide a host's buckets under a provider code, one per resource, swept by the host. */
-function provide(code: string, buckets: CatalogueBucketHost): BucketProvider {
+/** Provide a host's buckets under its provider code, one per resource, swept by the host. */
+export function bucketProvider(buckets: CatalogueBucketHost): BucketProvider {
     return {
         kind: BucketKind,
-        code,
-        object: serveBucket(buckets),
+        code: buckets.provider,
+        object: serveBuckets(buckets),
         provision: {
             provision: async (resource) => {
                 // create the bucket in its space

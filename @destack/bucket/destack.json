@@ -7,7 +7,7 @@
         "./local": {
             "runtimes": ["bun"]
         },
-        "./r2": {
+        "./cloudflare": {
             "runtimes": ["workerd"]
         },
         "./catalogue": {
@@ -18,17 +18,24 @@
         },
         "./provider": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
         "defineBucket": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "resource",
                     "function": "./inspect#describeBucket"
                 }
             ]
+        }
+    },
+    "stamps": {
+        "defineBucket": {
+            "module": 1
         }
     }
 }

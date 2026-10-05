@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { connect } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import { FileLock } from "@destack/fs";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { CatalogueBucket } from "../catalogue/bucket.ts";
 import { CatalogueStorage } from "../catalogue/storage.ts";
 import { catalogueDatabase } from "../catalogue/stack/index.ts";
@@ -19,7 +19,7 @@ export class LocalBucket extends CatalogueBucket {
         const catalogue = join(directory, "bucket.db");
         const isNew = await isMissing(catalogue);
         if (isNew && scope === undefined) {
-            throw new StorageError("NO_SUCH_BUCKET", `no bucket at ${directory}`);
+            throw new BucketError("NO_SUCH_BUCKET", `no bucket at ${directory}`);
         }
 
         // create the blob directory before publishing any catalogue entries

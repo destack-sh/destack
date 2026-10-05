@@ -7,7 +7,7 @@ import { aligned, schema, present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { LocalBucketHost } from "../local/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { bucketProvider } from "./provider.ts";
 import { SweepController } from "./sweep.ts";
 
@@ -38,7 +38,7 @@ test("provision a bucket once and destroy it with its files", async () => {
         region: "local",
         credentials: CREDENTIALS,
     });
-    const provider = bucketProvider.local(buckets);
+    const provider = bucketProvider(buckets);
 
     // provision twice under one reference, keeping a file
     const provision = await provider.provision.provision(record);
@@ -52,7 +52,7 @@ test("provision a bucket once and destroy it with its files", async () => {
     expect(await readdir(directory)).toEqual([]);
 });
 
-test("fence a bucket through its provider, and declare the sweep its host runs", async () => {
+test("fence a bucket through its provider, reporting the one concurrent call that set the fence, and declare the sweep its host runs", async () => {
     const directory = await temporary();
     await using buckets = new LocalBucketHost({
         directory,
@@ -60,21 +60,26 @@ test("fence a bucket through its provider, and declare the sweep its host runs",
         region: "local",
         credentials: CREDENTIALS,
     });
-    const provider = bucketProvider.local(buckets);
+    const provider = bucketProvider(buckets);
     const provisioned = { ...record, ...(await provider.provision.provision(record)) };
     const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
 
-    // refuse a write while fenced, and accept it once lifted
-    await provider.fence.fence(provisioned);
+    // refuse a write while fenced, report that one of two concurrent fences set it, and accept writes once lifted
+    const set = await Promise.all([
+        provider.fence.fence(provisioned),
+        provider.fence.fence(provisioned),
+    ]);
     const refused = await bucket.put("notes/a.txt", "first").catch((error: unknown) => error);
     await provider.fence.lift(provisioned);
     await bucket.put("notes/a.txt", "first");
     expect({
+        set: set.toSorted(),
         refused,
         written: await (await bucket.get("notes/a.txt"))?.text(),
         controllers: provider.controllers,
     }).toEqual({
-        refused: new StorageError("FENCED", "bucket is fenced while a transfer copies it"),
+        set: [false, true],
+        refused: new BucketError("FENCED", "bucket is fenced while a transfer copies it"),
         written: "first",
         controllers: [new SweepController(buckets)],
     });
@@ -88,7 +93,7 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
         region: "local",
         credentials: CREDENTIALS,
     });
-    const provider = bucketProvider.local(buckets);
+    const provider = bucketProvider(buckets);
     const provision = await provider.provision.provision(record);
     const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
     await bucket.put("notes/a.txt", "first");

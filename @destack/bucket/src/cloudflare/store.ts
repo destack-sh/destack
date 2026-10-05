@@ -5,7 +5,7 @@ import { Digest, present } from "@destack/schema";
 import type { Bucket, UploadedPart } from "../bucket/index.ts";
 import type { ContentStore } from "../catalogue/index.ts";
 import { MAX_BATCH_FILES } from "../bucket/list.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** The bytes of each part of a blob written in parts: 8 MiB, above R2's 5 MiB minimum, since R2 takes parts of one size. */
 const PART_BYTES = 8 * 1024 * 1024;
@@ -168,7 +168,7 @@ export class R2ContentStore implements ContentStore {
     /** Name a blob's file. */
     #key(digest: Digest): string {
         if (!Digest.safeParse(digest).success) {
-            throw new StorageError("INVALID_KEY", `not a blob digest: ${digest}`);
+            throw new BucketError("INVALID_KEY", `not a blob digest: ${digest}`);
         }
 
         return `${this.#prefix}${digest}`;

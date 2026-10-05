@@ -1,7 +1,7 @@
 import { rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { Keychain } from "@destack/host/keychain";
+import { Keychain } from "@destack/host/keychain";
 import { schema } from "@destack/schema";
 import { CatalogueBucketHost } from "../catalogue/host.ts";
 import type { BucketReference } from "../s3/index.ts";
@@ -32,39 +32,39 @@ export interface LocalBucketHostOptions {
 
 /** A device host keeping buckets: one directory each, opened once, and served over S3 at one endpoint. */
 export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
+    /** The provider code of local buckets. */
+    readonly provider: string;
     /** The directory with one directory per bucket. */
     readonly directory: string;
 
     /** Keep a host's buckets under a directory. */
     constructor(options: LocalBucketHostOptions) {
         super(options);
+        this.provider = "local";
         this.directory = options.directory;
     }
 
     /** Read the S3 credentials a keychain keeps under a name, generating them once and adopting those a racing writer kept first. */
     static async credentials(keychain: Keychain, name: string): Promise<S3Credentials> {
-        // generate the credentials kept when the keychain keeps none
-        const credentials = {
+        // keep generated credentials when the keychain keeps none
+        const kept = await Keychain.update(
+            keychain,
+            name,
+            (credentials) => credentials ?? JSON.stringify(LocalBucketHost.#generate()),
+        );
+
+        return S3Credentials.parse(JSON.parse(kept));
+    }
+
+    /** Generate S3 credentials shaped as AWS's are. */
+    static #generate(): S3Credentials {
+        return {
             accessKeyId: crypto
                 .getRandomValues(new Uint8Array(ACCESS_KEY_BYTES))
                 .toHex()
                 .toUpperCase(),
             secretAccessKey: crypto.getRandomValues(new Uint8Array(SECRET_KEY_BYTES)).toBase64(),
         };
-
-        // read or keep them until one writer's credentials are kept
-        while (true) {
-            // read the kept credentials
-            const kept = await keychain.load(name);
-            if (kept !== undefined) {
-                return S3Credentials.parse(JSON.parse(kept));
-            }
-
-            // keep the generated ones unless another writer kept some first
-            if (await keychain.saveIf(name, undefined, JSON.stringify(credentials))) {
-                return credentials;
-            }
-        }
     }
 
     /** Build the directory of a bucket. */
@@ -89,13 +89,14 @@ export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
         return isPresent ? this.open({ bucketId: bucketId.data }) : undefined;
     }
 
-    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished. */
-    override async fence(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
+    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished, and report whether this call set the fence. */
+    override async fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean> {
         // mark the bucket fenced in its directory, then refuse its writes
         const opened = await this.open(bucket);
         await writeFile(join(this.path(bucket), FENCE_FILE), "");
         await syncDirectory(this.path(bucket));
-        await opened.fence();
+
+        return await opened.fence();
     }
 
     /** Lift a bucket's fence, accepting its writes again. */

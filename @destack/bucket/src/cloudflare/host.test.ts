@@ -9,7 +9,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { ZoneTransfer } from "@destack/space/server";
 import { Feed, Replica, replicaTables } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { LocalBucket, LocalBucketHost } from "../local/index.ts";
 import { bucketProvider } from "../provider/index.ts";
 import { S3Location, S3Server, SignatureV4 } from "../s3/index.ts";
@@ -101,7 +101,7 @@ test.for(TEST_DIALECTS)(
             region: "auto",
             credentials: CREDENTIALS,
         });
-        const provider = bucketProvider.r2(buckets);
+        const provider = bucketProvider(buckets);
 
         // refuse a bucket never provisioned, then provision it twice under one reference
         await expect(buckets.open({ bucketId })).rejects.toMatchObject({
@@ -185,7 +185,7 @@ test.for(TEST_DIALECTS)(
             region: "auto",
             credentials: CREDENTIALS,
         });
-        const [source, target] = [bucketProvider.local(device), bucketProvider.r2(cell)];
+        const [source, target] = [bucketProvider(device), bucketProvider(cell)];
         const written = await device.open({ bucketId }, record.scope);
         await written.put("notes/a.txt", "first");
         const from = await source.open.open(
@@ -250,7 +250,7 @@ test.for(TEST_DIALECTS)(
             credentials: CREDENTIALS,
         };
         const buckets = new R2BucketHost(options);
-        const provider = bucketProvider.r2(buckets);
+        const provider = bucketProvider(buckets);
         const provisioned = { ...record, ...(await provider.provision.provision(record)) };
         await (await buckets.open({ bucketId })).put("notes/a.txt", "first");
         const reference = { scope: record.scope, bucketId };
@@ -274,7 +274,7 @@ test.for(TEST_DIALECTS)(
         const put = await server.fetch(
             new Request(presigned.url, { method: "PUT", body: "second" }),
         );
-        const fenced = new StorageError("FENCED", "bucket is fenced while a transfer copies it");
+        const fenced = new BucketError("FENCED", "bucket is fenced while a transfer copies it");
         const leased = await buckets.locate(reference, "write").catch((error: unknown) => error);
         const read = await (await (await buckets.open({ bucketId })).get("notes/a.txt"))?.text();
 
@@ -285,7 +285,7 @@ test.for(TEST_DIALECTS)(
         const refused = await reopened
             .put("notes/b.txt", "second")
             .catch((error: unknown) => error);
-        await bucketProvider.r2(restarted).fence.lift(provisioned);
+        await bucketProvider(restarted).fence.lift(provisioned);
         await reopened.put("notes/b.txt", "second");
         expect({
             put: [put.status, await put.text()],

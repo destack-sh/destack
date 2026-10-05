@@ -7,6 +7,8 @@ import type { CatalogueBucket } from "./bucket.ts";
 export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = CatalogueBucket>
     implements BucketHost, AsyncDisposable
 {
+    /** The provider code of the host's buckets, such as `local` or `r2`. */
+    abstract readonly provider: string;
     /** The URL serving the host's buckets over S3. */
     readonly endpoint: URL;
     /** The region requests are signed for. */
@@ -34,8 +36,8 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
     /** Name where a bucket lives. */
     abstract reference(bucket: Pick<BucketReference, "bucketId">): string;
 
-    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished. */
-    abstract fence(bucket: Pick<BucketReference, "bucketId">): Promise<void>;
+    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished, and report whether this call set the fence. */
+    abstract fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean>;
 
     /** Lift a bucket's fence, accepting its writes again. */
     abstract lift(bucket: Pick<BucketReference, "bucketId">): Promise<void>;

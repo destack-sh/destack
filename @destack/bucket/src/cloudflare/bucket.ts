@@ -12,7 +12,7 @@ import { BucketFile, BucketFileBody } from "../bucket/index.ts";
 import { BucketKey } from "../bucket/key.ts";
 import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
 import { BucketRange } from "../bucket/range.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { R2Body } from "./body.ts";
 import { R2MultipartUpload } from "./multipart.ts";
 import { R2File } from "./file.ts";
@@ -124,7 +124,7 @@ export class R2Bucket implements Bucket {
         // validate the keys before deleting
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw new StorageError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
+            throw new BucketError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -186,7 +186,7 @@ function readError(error: unknown): unknown {
         "code" in error &&
         error.code === INVALID_RANGE_CODE
     ) {
-        return new StorageError("INVALID_RANGE", "the requested file range is not satisfiable", {
+        return new BucketError("INVALID_RANGE", "the requested file range is not satisfiable", {
             cause: error,
         });
     }

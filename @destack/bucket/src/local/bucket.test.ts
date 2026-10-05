@@ -56,7 +56,7 @@ test("recover the catalogue after terminating its host, and sweep its interrupte
             process.execPath,
             "--no-env-file",
             "--preload",
-            fileURLToPath(import.meta.resolve("@destack/package/transform/preload")),
+            fileURLToPath(import.meta.resolve("@destack/package/bun/preload")),
             "--eval",
             `
             import { LocalBucket } from ${JSON.stringify(module)};

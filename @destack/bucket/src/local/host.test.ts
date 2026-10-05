@@ -7,7 +7,7 @@ import { MemoryKeychain } from "@destack/host/keychain";
 import { found, present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { SweepController } from "../provider/index.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { S3Credentials, S3Location, S3Server, SignatureV4 } from "../s3/index.ts";
 import { LocalBucketHost } from "./host.ts";
 
@@ -186,7 +186,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
         Date.now(),
     );
     const put = await server.fetch(new Request(presigned.url, { method: "PUT", body: "fourth" }));
-    const fenced = new StorageError("FENCED", "bucket is fenced while a transfer copies it");
+    const fenced = new BucketError("FENCED", "bucket is fenced while a transfer copies it");
     const refusals = await Promise.all(
         [
             bucket.put("notes/d.txt", "fourth"),

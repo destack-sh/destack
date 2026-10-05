@@ -1,5 +1,5 @@
 import type * as Cloudflare from "@cloudflare/workers-types";
-import { R2Bucket } from "../../src/r2/index.ts";
+import { R2Bucket } from "../../src/cloudflare/bucket.ts";
 import {
     exerciseContents,
     exerciseConditions,
@@ -53,7 +53,7 @@ export default {
     },
 };
 
-/** Fill in the storage class the simulator leaves empty on what R2 calls return; the hosted test:r2 run reads R2's own. */
+/** Fill in the storage class the simulator leaves empty on what R2 calls return; the hosted test:cloudflare run reads R2's own. */
 function fillStorageClass<Value>(value: Value): Value;
 /**
  * Fill in the storage class on one value.
