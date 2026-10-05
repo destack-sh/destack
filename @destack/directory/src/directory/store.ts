@@ -13,7 +13,6 @@ import {
     type DatabaseConnection,
     ReadCache,
     CHAIN_TERMS,
-    DatabaseError,
     type Select,
 } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
@@ -526,26 +525,17 @@ export class DirectoryStore extends Directory {
         priority: number,
         database: DatabaseConnection = this.database,
     ): Promise<void> {
-        // refuse an operation another one appended at the same position first
-        try {
-            await database.insert(identityOperationTable).values({
-                space,
-                sequence,
-                scope: ZONE_SCOPE,
-                digest: await IdentityOperation.digest(operation),
-                operation,
-                priority,
-                appliedAt: this.#clock(),
-                isNullified: false,
-            });
-        } catch (error) {
-            throw error instanceof DatabaseError && error.code === "DUPLICATE"
-                ? new ServiceError("CONFLICT", {
-                      message: `another operation of ${space} was applied first`,
-                      cause: error,
-                  })
-                : error;
-        }
+        // append, conflicting with an operation another one appended at the same position first
+        await database.insert(identityOperationTable).values({
+            space,
+            sequence,
+            scope: ZONE_SCOPE,
+            digest: await IdentityOperation.digest(operation),
+            operation,
+            priority,
+            appliedAt: this.#clock(),
+            isNullified: false,
+        });
     }
 
     /** Reserve a chunk of claims in one insert, returning the names other objects hold. */
