@@ -1,6 +1,14 @@
 import { expect, test } from "@destack/test";
-import { defineFeature } from "../src/declare/index.ts";
-import { compareFeature, describeFeature, featureSymbols } from "../src/inspect/index.ts";
+import { defineFeature, defineMeter } from "../src/declare/index.ts";
+import {
+    compareFeature,
+    compareMeter,
+    describeFeature,
+    describeMeter,
+    featureSymbols,
+    featureVocabulary,
+    meterVocabulary,
+} from "../src/inspect/index.ts";
 import { schema } from "@destack/schema";
 import { FeatureCatalog, type Feature, type FeatureDefinition } from "../src/feature/index.ts";
 import { release } from "./fixture/release.ts";
@@ -90,5 +98,61 @@ test("plan a feature's change between releases: keep its kind, and accept the va
         [{ action: "update", target: "feature/seats", risk: "safe", detail: "wider values" }],
         "feature/seats: declare a conversion for 2026.10.0",
         "feature/seats: keep kind static, or declare a feature of kind boolean",
+    ]);
+});
+
+/** Read a description back from JSON, as a release keeps it. */
+function readBack(description: unknown) {
+    return schema
+        .record(schema.string(), schema.json())
+        .parse(JSON.parse(JSON.stringify(description)));
+}
+
+/** Describe the requests meter counting another way or in another unit. */
+function counting(aggregation: "sum" | "max", unit: string) {
+    return readBack(
+        describeMeter(
+            defineMeter({ ...requests.definition, aggregation, unit }, { package: storage }),
+        ),
+    );
+}
+
+test("plan a meter's change between releases: keep its aggregation and unit", () => {
+    const outcome = (aggregation: "sum" | "max", unit: string) => {
+        try {
+            return compareMeter(
+                { description: counting("sum", "request"), symbol: { package: storage } },
+                {
+                    description: counting(aggregation, unit),
+                    symbol: { package: { ...storage, version: "2026.10.0" } },
+                },
+            ).steps;
+        } catch (error) {
+            if (!(error instanceof Error)) {
+                throw error;
+            }
+
+            return error.message;
+        }
+    };
+
+    // keep an unchanged meter, and refuse counting another way or in another unit
+    expect([outcome("sum", "request"), outcome("max", "call")]).toEqual([
+        [],
+        "meter/api.requests: keep aggregation sum, or declare a meter of aggregation max; meter/api.requests: keep unit request, or declare a meter of unit call",
+    ]);
+});
+
+test("name features and meters as terms of the package's vocabulary by what they mean", () => {
+    // read the terms of a static and a metered feature and of a meter
+    const terms = [seats, calls].map((feature) =>
+        featureVocabulary(readBack(describeFeature(feature))),
+    );
+    const counted = meterVocabulary(readBack(describeMeter(requests)));
+
+    expect([...terms, counted]).toEqual([
+        { "feature/seats": { kind: "static" } },
+        { "feature/api.calls": { kind: "metered", meter: `${storage.id}/api.requests` } },
+        { "meter/api.requests": { aggregation: "sum", unit: "request" } },
     ]);
 });

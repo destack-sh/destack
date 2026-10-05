@@ -24,7 +24,8 @@
                     "kind": "feature",
                     "function": "./inspect#describeFeature",
                     "compare": "./inspect#compareFeature",
-                    "symbols": "./inspect#featureSymbols"
+                    "symbols": "./inspect#featureSymbols",
+                    "vocabulary": "./inspect#featureVocabulary"
                 }
             ]
         },
@@ -32,7 +33,9 @@
             "describes": [
                 {
                     "kind": "meter",
-                    "function": "./inspect#describeMeter"
+                    "function": "./inspect#describeMeter",
+                    "compare": "./inspect#compareMeter",
+                    "vocabulary": "./inspect#meterVocabulary"
                 }
             ]
         }

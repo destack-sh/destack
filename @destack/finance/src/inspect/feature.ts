@@ -1,9 +1,10 @@
 import { graph } from "@destack/package";
 import { Address, Plan, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { schema, toJsonSchema, type JsonObject } from "@destack/schema";
+import { schema, toJsonSchema, type JsonObject, type JsonValue } from "@destack/schema";
 import { Feature } from "../feature/feature.ts";
 import { FeatureDescription } from "../feature/description.ts";
+import { MeterReference } from "../meter/meter.ts";
 
 /** Describe a feature with its value's JSON Schema or its meter. */
 export function describeFeature(feature: Feature): FeatureDescription {
@@ -59,6 +60,19 @@ export const compareFeature: Comparator = (before, after) => {
 
     return { steps: [] };
 };
+
+/** List a feature's term: its kind, and the meter a metered feature counts. */
+export function featureVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
+    const feature = FeatureDescription.parse(input);
+    const term = Address.join("feature", feature.name);
+
+    return {
+        [term]:
+            feature.kind === "metered"
+                ? { kind: feature.kind, meter: MeterReference.key(feature.meter) }
+                : { kind: feature.kind },
+    };
+}
 
 /** Read the meter a metered feature counts its usage with. */
 export function featureSymbols(input: JsonObject): graph.MemberSymbol[] {
