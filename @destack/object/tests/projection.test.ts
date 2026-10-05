@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { ControlLoop } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
-import { testCallKey } from "@destack/service/test";
+import { emptyBuild, testCallKey } from "@destack/service/test";
 import type { InstallationContext } from "@destack/service/workload";
 import { asc, defineDatabase, eq, type LogPosition } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -225,6 +225,7 @@ test("settle the address of a recipient without a user, and record it again once
     const installation: InstallationContext = {
         id: "installation-01996ab0-0000-7000-8000-000000000003",
         scope: MEMOS,
+        build: await emptyBuild(memo.package),
         publisher: {
             stream: () => {
                 throw new TypeError("the fixture streams no copies");
@@ -235,6 +236,7 @@ test("settle the address of a recipient without a user, and record it again once
         },
         directory: {
             isHome: async () => false,
+            locale: async () => undefined,
             address: async (address) => {
                 recorded.push(address);
                 waiting.get(recorded.length)?.();

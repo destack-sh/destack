@@ -27,6 +27,7 @@ import type { Authorization } from "../server/authorization.ts";
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import type { MethodKind, TargetKind } from "./kind.ts";
 import type { CallInput, MethodName } from "./procedure.ts";
+import type { InstallationContext } from "@destack/service/workload";
 import type { SettlementCall } from "./settlement.ts";
 import type { listObjects } from "../trait/record.ts";
 import { ParentReference } from "../trait/nested.ts";
@@ -132,6 +133,8 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     readonly snapshot?: Snapshot;
     /** The calls the method's expansion ran before it in its mutation. */
     readonly expansion?: readonly BranchCall[];
+    /** The installation the server serves as, absent outside a space and on clients. */
+    readonly installation?: InstallationContext;
     /** The fields the call was made of, which copies change. */
     readonly #fields: CallFields<Definition, Input>;
 
@@ -185,6 +188,9 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
         if (fields.expansion !== undefined) {
             this.expansion = fields.expansion;
+        }
+        if (fields.installation !== undefined) {
+            this.installation = fields.installation;
         }
     }
 
@@ -661,6 +667,7 @@ export type CallFields<
     | "sends"
     | "snapshot"
     | "expansion"
+    | "installation"
 >;
 
 /** The methods of an object type a call invokes, each taking its input and resolving its result. */

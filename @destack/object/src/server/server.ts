@@ -580,12 +580,15 @@ export class ObjectServer<
             readonly branch?: BranchType;
             /** The handled types served in place of the service's own of the same tables. */
             readonly handled?: readonly ObjectType[];
+            /** The types of other packages the database copies, such as the settings in its residents' scopes. */
+            readonly policies?: readonly ObjectType[];
         },
     ): ServiceImplementation {
         // serve the service's objects with their handlers, keeping the copies of their space
         const { installation } = options;
         const objects: ObjectServer = new ObjectServer({
             objects: ObjectServer.#handle(service, options.handled ?? []),
+            ...(options.policies === undefined ? {} : { policies: options.policies }),
             database: options.database,
             callKey: options.callKey,
             origin: { package: service.package, service: service.name },
@@ -614,16 +617,18 @@ export class ObjectServer<
                 ...(await source().subscriptions(installation.scope, { isHome: false })).map(
                     (subscription) => ({ subscription, publisher: installation.publisher }),
                 ),
-                ...(await source().projectionSubscriptions(installation.scope)).map((subscription) => {
-                    const { installation: keeping } = ProjectionParameters.parse(
-                        subscription.parameters,
-                    );
+                ...(await source().projectionSubscriptions(installation.scope)).map(
+                    (subscription) => {
+                        const { installation: keeping } = ProjectionParameters.parse(
+                            subscription.parameters,
+                        );
 
-                    return {
-                        subscription,
-                        publisher: installation.publisherAt(`${keeping}.${subscription.scope}`),
-                    };
-                }),
+                        return {
+                            subscription,
+                            publisher: installation.publisherAt(`${keeping}.${subscription.scope}`),
+                        };
+                    },
+                ),
             ],
         };
     }
@@ -1394,6 +1399,7 @@ export class ObjectServer<
             authorization,
             objects: this.objects,
             ...(this.#sends === undefined ? {} : { sends: this.#sends }),
+            ...(this.installation === undefined ? {} : { installation: this.installation }),
             run: (invoked, invokedName, invokedInput) =>
                 this.#execute(
                     database,
@@ -1761,6 +1767,7 @@ export class ObjectServer<
             objects: this.objects,
             ...(this.#sends === undefined ? {} : { sends: this.#sends }),
             ...(snapshot === undefined ? {} : { snapshot }),
+            ...(this.installation === undefined ? {} : { installation: this.installation }),
         });
 
         // load the permitted target at the named revision
@@ -2288,9 +2295,6 @@ export const SystemCall = {
         };
     },
 };
-
-/** The members of an object server that run system calls. */
-export type SystemServer = Pick<ObjectServer, "database" | "executeAsSystem">;
 
 /** One call the system makes. */
 export interface SystemCall<Row extends Select<Table> = Select<Table>, Input = JsonObject> {
