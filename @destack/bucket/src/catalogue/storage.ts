@@ -16,7 +16,7 @@ import type { DatabaseHandle } from "@destack/db/blob";
 import type { BucketFile, BucketListOptions } from "../bucket/index.ts";
 import { BucketKey } from "../bucket/key.ts";
 import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { file, part, segment, upload } from "./stack/index.ts";
 import { CatalogueFile } from "./file.ts";
 import type { Segment } from "./reader.ts";
@@ -110,7 +110,7 @@ export class CatalogueStorage implements AsyncDisposable {
     async #close(): Promise<void> {
         await this.exclusive(async () => {
             if (this.#holders !== 0 || this.#readers.size !== 0) {
-                throw new StorageError(
+                throw new BucketError(
                     "BUSY",
                     "consume or cancel bucket streams before closing storage",
                 );
@@ -226,11 +226,14 @@ export class CatalogueStorage implements AsyncDisposable {
         };
     }
 
-    /** Refuse new writes while a transfer copies the bucket, returning once the writers and holds in flight finished. */
-    async fence(): Promise<void> {
+    /** Refuse new writes while a transfer copies the bucket, returning once the writers and holds in flight finished, and report whether this call set the fence. */
+    async fence(): Promise<boolean> {
         // refuse writes after the catalogue changes queued before the fence
-        await this.exclusive(async () => {
+        const isSet = await this.exclusive(async () => {
+            const wasFenced = this.#isFenced;
             this.#isFenced = true;
+
+            return !wasFenced;
         });
 
         // wait for the writers admitted before it
@@ -238,6 +241,8 @@ export class CatalogueStorage implements AsyncDisposable {
             this.#drained ??= Promise.withResolvers();
             await this.#drained.promise;
         }
+
+        return isSet;
     }
 
     /** Accept writes again. */
@@ -446,14 +451,14 @@ export class CatalogueStorage implements AsyncDisposable {
     /** Reject access after disposal. */
     checkOpen(): void {
         if (this.#isClosed) {
-            throw new StorageError("CLOSED", "bucket is closed");
+            throw new BucketError("CLOSED", "bucket is closed");
         }
     }
 
     /** Refuse a write into a fenced bucket. */
     checkWritable(): void {
         if (this.#isFenced) {
-            throw new StorageError("FENCED", "bucket is fenced while a transfer copies it");
+            throw new BucketError("FENCED", "bucket is fenced while a transfer copies it");
         }
     }
 

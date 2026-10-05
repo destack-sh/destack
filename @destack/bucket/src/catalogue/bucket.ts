@@ -20,7 +20,7 @@ import type {
     UploadListing,
     UploadListOptions,
 } from "../s3/bucket.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { file, segment } from "./stack/index.ts";
 import { Content } from "./content.ts";
 import { ContentReader } from "./reader.ts";
@@ -199,7 +199,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // stream the file from its source
         const response = await fetch(url);
         if (!response.ok) {
-            throw new StorageError("WRITE_FAILED", `fetching ${key} answered ${response.status}`);
+            throw new BucketError("WRITE_FAILED", `fetching ${key} answered ${response.status}`);
         }
         await this.restore(key, response.body, identity);
     }
@@ -327,7 +327,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             this.#storage.checkWritable();
             const entry = await this.#storage.entry(source);
             if (!entry) {
-                throw new StorageError("NO_SUCH_KEY", "the source file does not exist");
+                throw new BucketError("NO_SUCH_KEY", "the source file does not exist");
             }
             if (!BucketCondition.matches(CatalogueFile.describe(entry), options.onlyIf)) {
                 return null;
@@ -365,7 +365,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // validate the complete request before deleting any keys
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw new StorageError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
+            throw new BucketError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -412,8 +412,8 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         return this.#storage.sweep();
     }
 
-    /** Refuse new writes while a transfer copies the bucket, returning once the writes in flight finished. */
-    fence(): Promise<void> {
+    /** Refuse new writes while a transfer copies the bucket, returning once the writes in flight finished, and report whether this call set the fence. */
+    fence(): Promise<boolean> {
         return this.#storage.fence();
     }
 

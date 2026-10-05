@@ -1,4 +1,4 @@
-import { StorageError, type StorageErrorCode } from "../error/index.ts";
+import { BucketError, type BucketErrorCode } from "../error/index.ts";
 
 /** The HTTP status of each S3 error code, as the S3 API reference lists them. */
 const S3_ERROR_STATUS = {
@@ -37,7 +37,7 @@ const S3_ERROR_STATUS = {
 } as const;
 
 /** The S3 error code of each storage failure a request causes; the host reports the rest. */
-const STORAGE_ERROR_CODE: Partial<Record<StorageErrorCode, S3ErrorCode>> = {
+const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
     INVALID_KEY: "InvalidArgument",
     INVALID_RANGE: "InvalidRange",
     INVALID_CURSOR: "InvalidArgument",
@@ -78,7 +78,7 @@ export class S3Error extends Error {
         // keep S3 errors and translate storage failures the request caused
         if (error instanceof S3Error) {
             return error;
-        } else if (!(error instanceof StorageError)) {
+        } else if (!(error instanceof BucketError)) {
             return undefined;
         }
 

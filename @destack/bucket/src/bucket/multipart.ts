@@ -1,7 +1,7 @@
 import type { BucketBody } from "./bucket.ts";
 import type { BucketFile, StorageClass } from "./file.ts";
 import type { BucketHttpMetadata } from "./metadata.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** The highest part number of a multipart upload, the S3 and R2 limit. */
 export const MAX_PART_NUMBER = 10000;
@@ -56,7 +56,7 @@ export interface MultipartUpload {
 /** Require a part number from 1 through 10000. */
 function checkNumber(partNumber: number): void {
     if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > MAX_PART_NUMBER) {
-        throw new StorageError(
+        throw new BucketError(
             "INVALID_PART",
             `part numbers must be integers from 1 through ${MAX_PART_NUMBER}`,
         );

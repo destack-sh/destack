@@ -21,7 +21,7 @@ import type {
     UploadListing,
     UploadListOptions,
 } from "../s3/bucket.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { part, upload } from "./stack/index.ts";
 import { Content } from "./content.ts";
 import type { CatalogueStorage } from "./storage.ts";
@@ -229,7 +229,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         UploadedPart.checkNumber(partNumber);
         const selected = await this.#bucket.get(source, options);
         if (selected === null) {
-            throw new StorageError("NO_SUCH_KEY", "the source file does not exist");
+            throw new BucketError("NO_SUCH_KEY", "the source file does not exist");
         }
         if (!(selected instanceof BucketFileBody)) {
             return null;
@@ -360,7 +360,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 )
                 .get();
             if (!entry) {
-                throw new StorageError("NO_SUCH_UPLOAD", "multipart upload does not exist");
+                throw new BucketError("NO_SUCH_UPLOAD", "multipart upload does not exist");
             }
             if (entry.state !== "active") {
                 return;
@@ -400,7 +400,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             )
             .get();
         if (!entry) {
-            throw new StorageError("NO_SUCH_UPLOAD", "multipart upload does not exist");
+            throw new BucketError("NO_SUCH_UPLOAD", "multipart upload does not exist");
         }
 
         return entry;
@@ -414,7 +414,7 @@ function requireDistinct(selected: readonly UploadedPart[]): void {
         selected.length > MAX_PART_NUMBER ||
         new Set(selected.map((entry) => entry.partNumber)).size !== selected.length
     ) {
-        throw new StorageError(
+        throw new BucketError(
             "INVALID_PART",
             `completion requires 1–${MAX_PART_NUMBER} distinct parts`,
         );
@@ -433,7 +433,7 @@ function matchParts(
             // refuse a missing or changed part
             const entry = indexed.get(choice.partNumber);
             if (!entry || entry.etag !== choice.etag) {
-                throw new StorageError("INVALID_PART", "a selected part is missing or has changed");
+                throw new BucketError("INVALID_PART", "a selected part is missing or has changed");
             }
 
             return entry;
@@ -452,7 +452,7 @@ function requireSizes(ordered: readonly (typeof part.$inferSelect)[]): void {
             .some((entry) => entry.size < MINIMUM_PART_SIZE || entry.size !== first.size) ||
             last.size > first.size)
     ) {
-        throw new StorageError(
+        throw new BucketError(
             "INVALID_PART",
             "multipart parts require equal sizes of at least five MiB, except the final part",
         );

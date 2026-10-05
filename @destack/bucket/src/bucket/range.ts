@@ -1,4 +1,4 @@
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** An inclusive starting byte and optional byte count, or a trailing byte count. */
 export type BucketRange =
@@ -21,7 +21,7 @@ function resolve(size: number, range: BucketRange): { offset: number; length: nu
         !Number.isSafeInteger(requested) ||
         requested <= 0
     ) {
-        throw new StorageError("INVALID_RANGE", "the requested file range is not satisfiable");
+        throw new BucketError("INVALID_RANGE", "the requested file range is not satisfiable");
     }
 
     return { offset, length: Math.min(requested, size - offset) };
@@ -37,6 +37,6 @@ function check(range: BucketRange): void {
               (range.length === undefined ||
                   (Number.isSafeInteger(range.length) && range.length > 0));
     if (!valid) {
-        throw new StorageError("INVALID_RANGE", "the requested file range is not satisfiable");
+        throw new BucketError("INVALID_RANGE", "the requested file range is not satisfiable");
     }
 }

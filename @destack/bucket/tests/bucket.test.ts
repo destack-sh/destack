@@ -5,7 +5,7 @@ import {
     exerciseGroups,
     exerciseMarkers,
 } from "./scenario/bucket.ts";
-import { runR2 } from "./r2/local.ts";
+import { runR2 } from "./cloudflare/local.ts";
 import { test } from "@destack/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

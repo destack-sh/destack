@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** The bytes of an AES-256 customer key. */
 const KEY_BYTES = 32;
@@ -39,7 +39,7 @@ export class CustomerKey {
                     : undefined
                 : new Uint8Array(value);
         if (bytes === undefined || bytes.byteLength !== KEY_BYTES) {
-            throw new StorageError(
+            throw new BucketError(
                 "INVALID_CUSTOMER_KEY",
                 "a customer key is 32 bytes or 64 hexadecimal digits",
             );
@@ -55,12 +55,12 @@ export class CustomerKey {
     /** Require the key a file or upload was encrypted with, or none for plain content. */
     static require(key: CustomerKey | undefined, md5: string | null): void {
         if (md5 === null && key !== undefined) {
-            throw new StorageError(
+            throw new BucketError(
                 "INVALID_CUSTOMER_KEY",
                 "the file is not encrypted with a customer key",
             );
         } else if (md5 !== null && key?.md5 !== md5) {
-            throw new StorageError(
+            throw new BucketError(
                 "INVALID_CUSTOMER_KEY",
                 "the file is encrypted with another customer key",
             );

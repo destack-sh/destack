@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import type { BucketFile } from "./file.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** The most files one listing page or one delete names, the S3 and R2 limit. */
 export const MAX_BATCH_FILES = 1000;
@@ -39,7 +39,7 @@ export const BucketListing = { checkLimit, encodeCursor, decodeCursor };
 /** Check a listing page size. */
 function checkLimit(limit: number): void {
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_BATCH_FILES) {
-        throw new StorageError(
+        throw new BucketError(
             "INVALID_LIMIT",
             "file listing limits must be integers from 1 through 1000",
         );
@@ -62,14 +62,14 @@ function decodeCursor(value: string, backend: string, selection: string): string
             ),
         );
         if (cursor.backend !== backend || cursor.selection !== selection) {
-            throw new StorageError("INVALID_CURSOR", "invalid file listing cursor");
+            throw new BucketError("INVALID_CURSOR", "invalid file listing cursor");
         }
 
         return cursor.continuation;
     } catch (cause) {
-        if (cause instanceof StorageError) {
+        if (cause instanceof BucketError) {
             throw cause;
         }
-        throw new StorageError("INVALID_CURSOR", "invalid file listing cursor", { cause });
+        throw new BucketError("INVALID_CURSOR", "invalid file listing cursor", { cause });
     }
 }

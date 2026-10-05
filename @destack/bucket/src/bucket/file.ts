@@ -1,7 +1,7 @@
 import { BucketHttpMetadata } from "./metadata.ts";
 import { BucketChecksums } from "./checksum.ts";
 import { schema, type JsonValue } from "@destack/schema";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** The storage classes R2 offers, in its own spelling. */
 export const STORAGE_CLASSES = ["Standard", "InfrequentAccess"] as const;
@@ -142,7 +142,7 @@ export class BucketFileBody extends BucketFile {
 function read(value: string): StorageClass {
     const storageClass = STORAGE_CLASSES.find((entry) => entry === value);
     if (storageClass === undefined) {
-        throw new StorageError("INVALID_STORAGE_CLASS", `unknown storage class ${value}`);
+        throw new BucketError("INVALID_STORAGE_CLASS", `unknown storage class ${value}`);
     }
 
     return storageClass;

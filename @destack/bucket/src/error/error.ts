@@ -1,32 +1,43 @@
-/** Failures reported by file storage. */
-export type StorageErrorCode =
-    | "INVALID_KEY"
-    | "INVALID_RANGE"
-    | "INVALID_CURSOR"
-    | "INVALID_LIMIT"
-    | "INVALID_PART"
-    | "INVALID_CHECKSUM"
-    | "INVALID_STORAGE_CLASS"
-    | "INVALID_CUSTOMER_KEY"
-    | "INCOMPLETE_BODY"
-    | "WRITE_FAILED"
-    | "NO_SUCH_KEY"
-    | "NO_SUCH_UPLOAD"
-    | "NO_SUCH_BUCKET"
-    | "UNSUPPORTED"
-    | "CLOSED"
-    | "BUSY"
-    | "FENCED";
+import { ServiceError } from "@destack/service/error";
+
+/** The service error code of each storage failure: the request's own, a missing file, a fence a caller may retry after, or the host's. */
+const SERVICE_CODES = {
+    INVALID_KEY: "BAD_REQUEST",
+    INVALID_RANGE: "BAD_REQUEST",
+    INVALID_CURSOR: "BAD_REQUEST",
+    INVALID_LIMIT: "BAD_REQUEST",
+    INVALID_PART: "BAD_REQUEST",
+    INVALID_CHECKSUM: "BAD_REQUEST",
+    INVALID_STORAGE_CLASS: "BAD_REQUEST",
+    INVALID_CUSTOMER_KEY: "BAD_REQUEST",
+    INCOMPLETE_BODY: "BAD_REQUEST",
+    NO_SUCH_KEY: "NOT_FOUND",
+    NO_SUCH_UPLOAD: "NOT_FOUND",
+    NO_SUCH_BUCKET: "NOT_FOUND",
+    UNSUPPORTED: "NOT_IMPLEMENTED",
+    FENCED: "UNAVAILABLE",
+    CLOSED: "UNAVAILABLE",
+    BUSY: "UNAVAILABLE",
+    WRITE_FAILED: "INTERNAL_SERVER_ERROR",
+} as const;
+
+/** A failure code of file storage. */
+export type BucketErrorCode = keyof typeof SERVICE_CODES;
 
 /** A storage failure with a stable code. */
-export class StorageError extends Error {
+export class BucketError extends Error {
     /** The failure code. */
-    readonly code: StorageErrorCode;
+    readonly code: BucketErrorCode;
 
     /** Create a storage failure. */
-    constructor(code: StorageErrorCode, message: string, options?: ErrorOptions) {
+    constructor(code: BucketErrorCode, message: string, options?: ErrorOptions) {
         super(message, options);
-        this.name = "StorageError";
+        this.name = "BucketError";
         this.code = code;
+    }
+
+    /** Convert the failure to the service error a caller receives. */
+    toServiceError() {
+        return new ServiceError(SERVICE_CODES[this.code], { message: this.message, cause: this });
     }
 }

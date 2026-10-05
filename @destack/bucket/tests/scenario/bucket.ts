@@ -54,7 +54,7 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
 /**
  * Apply conditional updates and ranges while keeping opened content readable.
  *
- * The local R2 simulator reports unsatisfiable ranges without R2's error code 10039, so the hosted test:r2 run checks that failure there.
+ * The local R2 simulator reports unsatisfiable ranges without R2's error code 10039, so the hosted test:cloudflare run checks that failure there.
  */
 export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false): Promise<void> {
     // publish immutable content and retain metadata through listing and reads

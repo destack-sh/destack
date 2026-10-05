@@ -2,7 +2,7 @@ import { createHash, type Hash } from "node:crypto";
 import type { BlobStore } from "@destack/db/blob";
 import type { BucketBody, BucketPutOptions, StringChecksums } from "../bucket/index.ts";
 import { CHECKSUM_ALGORITHMS } from "../bucket/index.ts";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import { type ContentCipher, CustomerKey } from "./encryption.ts";
 
 /** The hashes of a body on its way into the blob store. */
@@ -68,7 +68,7 @@ export class Content {
             return value === undefined ? [] : [{ name, value }];
         });
         if (supplied.length > 1) {
-            throw new StorageError("INVALID_CHECKSUM", "supply at most one checksum");
+            throw new BucketError("INVALID_CHECKSUM", "supply at most one checksum");
         }
         const [checksum] = supplied;
         const algorithm = checksum?.name;
@@ -131,7 +131,7 @@ async function* encode(
     hashes.etag = hashes.md5.digest("hex");
     hashes.actual = hashes.checksum === undefined ? hashes.etag : hashes.checksum.digest("hex");
     if (hashes.expected !== undefined && hashes.actual !== hashes.expected) {
-        throw new StorageError("INVALID_CHECKSUM", "object checksum does not match its contents");
+        throw new BucketError("INVALID_CHECKSUM", "object checksum does not match its contents");
     }
 }
 

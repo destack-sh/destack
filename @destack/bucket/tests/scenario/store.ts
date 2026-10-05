@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import type { Bucket } from "../../src/index.ts";
-import { R2ContentStore } from "../../src/r2/store.ts";
+import { R2ContentStore } from "../../src/cloudflare/store.ts";
 
 /** The bytes of one stored part, as the store splits long bodies. */
 const PART_BYTES = 8 * 1024 * 1024;

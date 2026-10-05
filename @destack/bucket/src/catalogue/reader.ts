@@ -1,5 +1,5 @@
 import { aligned } from "@destack/schema";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
 import type { ContentCipher, CustomerKey } from "./encryption.ts";
 import type { ContentStore } from "./store.ts";
@@ -97,7 +97,7 @@ export class ContentReader {
             return;
         }
         if (next.done === true) {
-            throw new StorageError(
+            throw new BucketError(
                 "INCOMPLETE_BODY",
                 "stored file is shorter than its recorded size",
             );

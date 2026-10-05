@@ -2,7 +2,7 @@ import type { Call, CallOf, PreparedCallOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { BucketHttpMetadata, type BucketFile } from "../bucket/index.ts";
-import { StorageError, type StorageErrorCode } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { BucketSpec } from "../declare/bucket.ts";
 import { bucket, type FileMetadata } from "../object/index.ts";
@@ -20,21 +20,6 @@ export const LEASE_LIFETIME = 15 * 60;
 /** The most bytes of custom metadata names and values together, S3's 2 KB limit. */
 const MAX_METADATA_BYTES = 2048;
 
-/** The service failure of each storage failure a caller sees: the request's own, or a fence it may retry after. */
-const REQUEST_FAILURES: Partial<
-    Record<StorageErrorCode, "BAD_REQUEST" | "NOT_FOUND" | "UNAVAILABLE">
-> = {
-    INVALID_KEY: "BAD_REQUEST",
-    INVALID_RANGE: "BAD_REQUEST",
-    INVALID_CURSOR: "BAD_REQUEST",
-    INVALID_LIMIT: "BAD_REQUEST",
-    INVALID_PART: "BAD_REQUEST",
-    INVALID_CHECKSUM: "BAD_REQUEST",
-    INVALID_CUSTOMER_KEY: "BAD_REQUEST",
-    NO_SUCH_UPLOAD: "NOT_FOUND",
-    FENCED: "UNAVAILABLE",
-};
-
 /** The HTTP method a lease of each mode signs: GET reads a body, PUT writes one. */
 const LEASE_METHODS: Readonly<Record<LeaseMode, "GET" | "PUT">> = { read: "GET", write: "PUT" };
 
@@ -51,7 +36,7 @@ interface LeaseRequest {
 }
 
 /** Serve the files of a host's buckets: their metadata, and presigned leases on their bodies. */
-export function serveBucket(host: BucketHost) {
+export function serveBuckets(host: BucketHost) {
     return bucket.handle({
         files: (call) => listFiles(host, call),
         file: (call) => headFile(host, call),
@@ -265,7 +250,7 @@ function requireWriter(call: BucketCall): void {
     }
 }
 
-/** Work on the bucket a call targets, reporting the storage failures its caller sees. */
+/** Work on the bucket a call targets, reporting its storage failures as service failures. */
 function files<Value>(
     host: BucketHost,
     call: BucketCall,
@@ -274,17 +259,12 @@ function files<Value>(
     return reported(async () => work(await host.open(reference(call))));
 }
 
-/** Run storage work, reporting the storage failures its caller sees as service failures. */
+/** Run storage work, reporting its storage failures as service failures. */
 async function reported<Value>(work: () => Promise<Value>): Promise<Value> {
     try {
         return await work();
     } catch (error) {
-        // rethrow failures the request did not cause
-        const code = error instanceof StorageError ? REQUEST_FAILURES[error.code] : undefined;
-        if (!(error instanceof StorageError) || code === undefined) {
-            throw error;
-        }
-        throw new ServiceError(code, { message: error.message, cause: error });
+        throw error instanceof BucketError ? error.toServiceError() : error;
     }
 }
 

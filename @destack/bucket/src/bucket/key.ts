@@ -1,5 +1,5 @@
 import { aligned } from "@destack/schema";
-import { StorageError } from "../error/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** The longest file key in UTF-8 bytes, the S3 and R2 limit. */
 const MAX_KEY_BYTES = 1024;
@@ -17,7 +17,7 @@ export const BucketKey = { check, prefixEnd };
 function check(key: string): void {
     const size = new TextEncoder().encode(key).byteLength;
     if (size === 0 || size > MAX_KEY_BYTES || key.includes("\0") || !key.isWellFormed()) {
-        throw new StorageError("INVALID_KEY", "file keys require 1–1024 UTF-8 bytes without NUL");
+        throw new BucketError("INVALID_KEY", "file keys require 1–1024 UTF-8 bytes without NUL");
     }
 }
 
