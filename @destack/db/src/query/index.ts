@@ -13,6 +13,7 @@ export * from "./namespace.ts";
 export * from "./statement.ts";
 export * from "./key.ts";
 export { from } from "./select.ts";
+export { Filter, type FilterOptions } from "./filter.ts";
 export type { InsertValue } from "./mutation.ts";
 export * from "./relation.ts";
 export * from "./option.ts";

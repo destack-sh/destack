@@ -244,6 +244,18 @@ const where: Condition<Select<typeof note>> = {
 await database.select().from(note).where(Condition.render(where, note));
 ```
 
+## Filters
+
+`Filter.parse` reads a filter in AIP-160's syntax with SQL's precedence into a condition: `AND` and adjacency bind tighter than `OR`, `NOT` or `-` negates, `:` contains ignoring case, `*` matches any run in an equality, and `@name` reads a named value.
+
+```ts
+Filter.parse('status = open AND (due < @friday OR priority = high) -title:"draft"', {
+    fields: new Set(["status", "due", "priority", "title"]),
+    values: { friday: fridayAt },
+});
+// { AND: [{ status: "open" }, { OR: [{ due: { lt: fridayAt } }, { priority: "high" }] }, { NOT: { title: { ilike: "%draft%" } } }] }
+```
+
 ## Patterns
 
 `like` and `ilike` match `%` against any run of characters and `_` against one character, `\` escapes the next character, and `ilike` ignores ASCII case only, on every dialect and in memory.
