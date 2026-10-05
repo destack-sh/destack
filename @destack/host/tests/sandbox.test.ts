@@ -4,7 +4,7 @@ import { Capabilities, CapabilityError, PackageId } from "@destack/package";
 import { ResourceId } from "@destack/resource";
 import { schema } from "@destack/schema";
 import type { InstanceSpec } from "../src/runtime/index.ts";
-import { type SandboxPlaces, WorkloadSandbox } from "../src/runtime/sandbox.ts";
+import { type WorkloadSandboxOptions, WorkloadSandbox } from "../src/bun/sandbox.ts";
 import { memoryBuild } from "../src/test/build.ts";
 
 /** The package the workload belongs to. */
@@ -34,6 +34,7 @@ const spec: InstanceSpec = {
     workload: "indexer",
     capabilities: {},
     directories: [],
+    secrets: [],
     resources: [
         {
             id: ResourceId.parse("resource-01996ab0-0000-7000-8000-0000000000f6"),
@@ -58,21 +59,23 @@ const spec: InstanceSpec = {
     ],
 };
 
-/** Where the host runs the workload. */
-const places: SandboxPlaces = {
+/** What the host gives the workload's sandbox. */
+const host: WorkloadSandboxOptions = {
     executable: "/usr/local/bin/bun",
-    directory: "/workers/instance-1",
+    directories: {
+        build: "/workers/instance-1",
+        data: "/workers/installation-1/data",
+        cache: "/workers/installation-1/cache",
+    },
     runner: "bun/workload.js",
-    data: "/workers/installation-1/data",
-    cache: "/workers/installation-1/cache",
     runtime: "/run/user/501",
     egress: "http://127.0.0.1:7470/.destack/egress",
     environment: { PATH: "/usr/bin:/bin", GITHUB_TOKEN: "token", HOME: "/Users/person" },
     which: (command) => (command === "git" ? "/opt/homebrew/bin/git" : undefined),
 };
 
-test("confine a workload without capabilities to its files, folders, resources and the egress", () => {
-    expect(WorkloadSandbox.options(spec, places)).toEqual({
+test("confine a workload without capabilities to its build, directories, resources and the egress", () => {
+    expect(WorkloadSandbox.options(spec, host)).toEqual({
         executable: "/usr/local/bin/bun",
         arguments: ["--no-env-file", "/workers/instance-1/bun/workload.js"],
         directory: "/workers/instance-1",
@@ -91,9 +94,7 @@ test("confine a workload without capabilities to its files, folders, resources a
             "/spaces/space-1/main.db-wal",
             "/spaces/space-1/main.db-shm",
             "/spaces/space-1/main.db-journal",
-            ...Object.values(
-                channelFiles("/spaces/space-1/main.db", { XDG_RUNTIME_DIR: "/run/user/501" }),
-            ),
+            ...Object.values(channelFiles("/spaces/space-1/main.db#log", "/run/user/501")),
         ],
         network: ["127.0.0.1:7470"],
         allowsListening: true,
@@ -113,11 +114,11 @@ test("open a workload's sandbox to the hosts, directories, variables and command
         { path: "/Users/person/Notes", access: "read" as const },
         { path: "/Users/person/Exports", access: "write" as const },
     ];
-    const options = WorkloadSandbox.options({ ...spec, capabilities, directories }, places);
+    const options = WorkloadSandbox.options({ ...spec, capabilities, directories }, host);
     const { fs: _fs, ...withoutFs } = capabilities;
     const withheld = WorkloadSandbox.options(
         { ...spec, capabilities: withoutFs, directories },
-        places,
+        host,
     );
 
     // ignore the capabilities browsers enforce
@@ -129,7 +130,7 @@ test("open a workload's sandbox to the hosts, directories, variables and command
                 "clipboard-read": { reason: "pastes notes" },
             },
         },
-        places,
+        host,
     );
 
     expect({
@@ -152,7 +153,7 @@ test("open a workload's sandbox to the hosts, directories, variables and command
         write: ["/Users/person/Exports"],
         network: ["127.0.0.1:7470", "api.github.com", "*.githubusercontent.com:443"],
         withheld: [["/workers/instance-1", "/opt/homebrew/bin/git"], options.write.slice(0, -1)],
-        browser: WorkloadSandbox.options(spec, places),
+        browser: WorkloadSandbox.options(spec, host),
     });
 });
 
@@ -161,7 +162,7 @@ test("refuse connecting to any host, which the sandbox cannot enforce", () => {
         network: { connect: ["*"], reason: "crawls" },
     });
 
-    expect(() => WorkloadSandbox.options({ ...spec, capabilities }, places)).toThrow(
+    expect(() => WorkloadSandbox.options({ ...spec, capabilities }, host)).toThrow(
         new CapabilityError(
             "UNENFORCEABLE",
             "network",
