@@ -1,18 +1,27 @@
 {
     "compilerOptions": {
         "target": "ESNext",
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "jsx": "preserve",
-        "jsxImportSource": "@destack/view",
-        "types": ["vite/client"],
-        "allowSyntheticDefaultImports": true,
-        "esModuleInterop": true,
-        "isolatedModules": true,
+        "module": "Preserve",
+        "moduleResolution": "Bundler",
+        "allowImportingTsExtensions": true,
         "noEmit": true,
         "skipLibCheck": true,
         "strict": true,
-        "allowImportingTsExtensions": true
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noUncheckedSideEffectImports": true,
+        "erasableSyntaxOnly": true,
+        "verbatimModuleSyntax": true,
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "types": ["@destack/web/client", "@destack/build/browser", "vite/client"],
+        "jsx": "preserve",
+        "jsxImportSource": "@destack/view"
     },
-    "include": ["src/**/*"]
+    "include": ["src", "tests", "*.config.ts"]
 }

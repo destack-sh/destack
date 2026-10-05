@@ -186,6 +186,7 @@ export async function typescriptConfiguration(directory: string) {
     const isBun = names.has("@types/bun") || names.has("bun-types");
     const types = [
         ...runtimeTypes(names),
+        ...(hasViews && names.has("@destack/web") ? ["@destack/web/client"] : []),
         ...(runtimes.has("browser") && names.has("@destack/build")
             ? ["@destack/build/browser"]
             : []),
