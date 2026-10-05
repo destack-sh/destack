@@ -12,12 +12,12 @@ import {
 } from "@destack/access";
 import * as accountObject from "@destack/account/object";
 import { AuditCall, Journal } from "@destack/audit";
-import { LocalBucket } from "../../local/index.ts";
-import * as bucketObject from "../../object/index.ts";
+import { LocalBucket } from "../local/index.ts";
+import * as bucketObject from "../object/index.ts";
 import { spaceService } from "@destack/space/service";
 import type { Client } from "@destack/service";
 import type { ObjectProcedures } from "@destack/object";
-import { type BucketReference, S3Server, SignatureV4 } from "../../s3/index.ts";
+import { type BucketReference, S3Server, SignatureV4 } from "../s3/index.ts";
 import { and, eq, type DatabaseConnection, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
@@ -30,8 +30,8 @@ import * as spaceObject from "@destack/space/object";
 import { installation, space } from "@destack/space/object";
 import { v7 } from "uuid";
 import { ObjectServer } from "@destack/object/server";
-import { serveBucket, LEASE_LIFETIME } from "../bucket.ts";
-import { spaceCopies, spaceTables } from "@destack/space/stack";
+import { serveBuckets, LEASE_LIFETIME } from "../server/index.ts";
+import { spaceDatabase } from "@destack/space/stack";
 import { DirectoryStore, directoryTables } from "@destack/directory";
 import type { Lease } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
@@ -112,9 +112,36 @@ export class BucketFixture implements AsyncDisposable {
         });
 
         // serve the bucket's files under the member's bearer identity
-        const objects = new ObjectServer({
+        const objects = this.#serveObjects(database, directory);
+        this.server = Server.start({
+            ...objects.implement(spaceService),
+            audience: spaceService.package.id,
+            resources: new ResourceContext(),
+            health: new Health("files"),
+            authenticate: async (request) => {
+                if (request.headers.get("authorization") !== `Bearer ${this.userId}`) {
+                    throw new ServiceError("UNAUTHORIZED", {
+                        message: "invalid bearer credential",
+                    });
+                }
+
+                return this.caller;
+            },
+            authorizeHost: async () => {},
+            drainTimeout: 1000,
+        });
+        this.client = bucketObject.bucket.connect(spaceService, {
+            url: "https://files.test",
+            headers: { authorization: `Bearer ${this.userId}` },
+            fetch: (request) => this.server.fetch(request),
+        });
+    }
+
+    /** Serve the bucket object over the spaces and directory databases. */
+    #serveObjects(database: DatabaseConnection, directory: DatabaseConnection): ObjectServer {
+        return new ObjectServer({
             objects: {
-                bucket: serveBucket({
+                bucket: serveBuckets({
                     open: (reference) => this.#open(reference),
                     locate: async (reference, mode) => {
                         // refuse a write into the fenced bucket
@@ -143,28 +170,6 @@ export class BucketFixture implements AsyncDisposable {
                 service: spaceService.name,
             },
             history: { ingest: async (batch) => this.#history.push(...batch.calls) },
-        });
-        this.server = Server.start({
-            ...objects.implement(spaceService),
-            audience: spaceService.package.id,
-            resources: new ResourceContext(),
-            health: new Health("files"),
-            authenticate: async (request) => {
-                if (request.headers.get("authorization") !== `Bearer ${this.userId}`) {
-                    throw new ServiceError("UNAUTHORIZED", {
-                        message: "invalid bearer credential",
-                    });
-                }
-
-                return this.caller;
-            },
-            authorizeHost: async () => {},
-            drainTimeout: 1000,
-        });
-        this.client = bucketObject.bucket.connect(spaceService, {
-            url: "https://files.test",
-            headers: { authorization: `Bearer ${this.userId}` },
-            fetch: (request) => this.server.fetch(request),
         });
     }
 
@@ -346,7 +351,7 @@ export class BucketFixture implements AsyncDisposable {
         for (const dialect of TEST_DIALECTS) {
             opened.set(
                 dialect,
-                await TestDatabase.create(dialect, [...spaceTables, ...spaceCopies], {
+                await TestDatabase.create(dialect, spaceDatabase, {
                     isMigrated: true,
                 }),
             );

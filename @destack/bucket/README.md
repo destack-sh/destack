@@ -13,7 +13,7 @@ export const files = defineBucket({ name: "files", spec: {} });
 export const build = defineBucket({ name: "build", spec: { write: "system" } });
 ```
 
-## Files
+### Files
 
 `files.get(context)` returns the bound bucket, whose `put` and `get` write and read files by key.
 
@@ -24,7 +24,7 @@ const document = await bucket.get("documents/readme.txt");
 const text = document ? await document.text() : undefined;
 ```
 
-## Multipart uploads
+### Multipart uploads
 
 `createMultipartUpload` starts an upload in parts, and `complete` joins the uploaded parts into one file.
 
@@ -37,7 +37,7 @@ const last = await upload.uploadPart(2, lastChunk);
 await upload.complete([first, last]);
 ```
 
-## Encryption
+### Encryption
 
 `ssecKey` encrypts a file's content with a customer key, and every read of the file passes the same key.
 
@@ -46,7 +46,22 @@ await bucket.put("private/report.pdf", report, { ssecKey });
 const sealed = await bucket.get("private/report.pdf", { ssecKey });
 ```
 
+## Objects
+
+`serveBuckets` serves the `bucket` object of a host's buckets, whose methods require `read` or `write`.
+
+```ts
+import { serveBuckets } from "@destack/bucket/server";
+
+const handled = serveBuckets(host);
+await client.open({ mode: "write", ...file }); // ServiceError FORBIDDEN: the system alone writes bucket-…
+```
+
 ## Hosts
+
+A bucket host keeps buckets over catalogues and serves them over S3, and `bucketProvider` provides a host's buckets to its spaces under the host's provider code.
+
+### Local buckets
 
 `LocalBucket.open` opens a bucket in a local directory, and `context.bind` binds a declared bucket to it.
 
@@ -59,19 +74,9 @@ const context = new ResourceContext();
 context.bind(files, bucket);
 ```
 
-## Workers
+### Device hosts
 
-`R2Bucket` wraps an R2 bucket binding of a Workers environment.
-
-```ts
-import { R2Bucket } from "@destack/bucket/r2";
-
-context.bind(files, new R2Bucket(environment.FILES));
-```
-
-## Device hosts
-
-`LocalBucketHost` keeps a device host's buckets in local directories, and `bucketProvider.local` provides them to the host's spaces.
+`LocalBucketHost` keeps a device host's buckets in local directories, and `bucketProvider` provides them to the host's spaces.
 
 ```ts
 import { LocalBucketHost } from "@destack/bucket/local";
@@ -79,28 +84,10 @@ import { bucketProvider } from "@destack/bucket/provider";
 
 const credentials = await LocalBucketHost.credentials(keychain, `s3/${hostId}`);
 const buckets = new LocalBucketHost({ directory, endpoint, region: "local", credentials });
-const provider = bucketProvider.local(buckets);
+const provider = bucketProvider(buckets);
 ```
 
-## Cells
-
-`R2BucketHost` keeps a cell's buckets as prefixes of its residency's R2 bucket with their catalogues in the cell's database, and `bucketProvider.r2` provides them.
-
-```ts
-import { R2Bucket, R2BucketHost } from "@destack/bucket/r2";
-
-const buckets = new R2BucketHost({
-    files: new R2Bucket(environment.FILES),
-    name: "destack-production-files-eu",
-    catalogues,
-    endpoint,
-    region: "auto",
-    credentials,
-});
-const provider = bucketProvider.r2(buckets);
-```
-
-## Sweeps
+### Sweeps
 
 A provider's `controllers` hold the `SweepController`, which sweeps the host's open buckets daily and deletes what interrupted writes left.
 
@@ -108,21 +95,13 @@ A provider's `controllers` hold the `SweepController`, which sweeps the host's o
 provider.controllers; // [SweepController]
 ```
 
-## Fences
+### Fences
 
 A provider's `fence` refuses every write into a bucket while a transfer copies it, across restarts until `lift`, answering `UNAVAILABLE` and S3 `503 ServiceUnavailable`.
 
 ```ts
 await provider.fence.fence(record);
 await provider.fence.lift(record);
-```
-
-## Access
-
-Each method of the provisioned `bucket` object requires `read` or `write`, and a bucket the system alone writes refuses other writers with `FORBIDDEN`.
-
-```ts
-await client.open({ mode: "write", ...file }); // ServiceError FORBIDDEN: the system alone writes bucket-…
 ```
 
 ## S3
@@ -141,7 +120,7 @@ const server = new S3Server({
 const response = await server.fetch(request);
 ```
 
-## Presigned URLs
+### Presigned URLs
 
 `SignatureV4.presign` signs a URL for one request on one key until it expires, and any S3 client or plain `fetch` can use it.
 
@@ -158,7 +137,7 @@ const presigned = await new SignatureV4({ region: location.region }).presign(
 );
 ```
 
-## S3 coverage
+### Coverage
 
 `S3Server` implements the S3 subset that R2 implements.
 
@@ -172,4 +151,60 @@ requests        conditional and copy-source conditional headers, ranges, CORS,
                 STANDARD and STANDARD_IA storage classes
 integrity       x-amz-content-sha256, Content-MD5, and CRC32, CRC32C and SHA-256 checksums
 encryption      customer keys (SSE-C) on reads, writes and multipart uploads
+```
+
+## Cloudflare
+
+`@destack/bucket/cloudflare` keeps files in R2, for a worker's own bucket or for a cell's buckets.
+
+### Workers
+
+`R2Bucket` wraps an R2 bucket binding of a Workers environment.
+
+```ts
+import { R2Bucket } from "@destack/bucket/cloudflare";
+
+context.bind(files, new R2Bucket(environment.FILES));
+```
+
+### Cells
+
+`R2BucketHost` keeps a cell's buckets as prefixes of its residency's R2 bucket with their catalogues in the cell's database, and `bucketProvider` provides them.
+
+```ts
+import { R2Bucket, R2BucketHost } from "@destack/bucket/cloudflare";
+import { bucketProvider } from "@destack/bucket/provider";
+
+const buckets = new R2BucketHost({
+    files: new R2Bucket(environment.FILES),
+    name: "destack-production-files-eu",
+    catalogues,
+    endpoint,
+    region: "auto",
+    credentials,
+});
+const provider = bucketProvider(buckets);
+```
+
+## Errors
+
+A storage failure throws a `BucketError` with a stable code, and `toServiceError` converts it for a caller, such as `FENCED` to `UNAVAILABLE`.
+
+```ts
+import { BucketError } from "@destack/bucket/error";
+
+if (error instanceof BucketError && error.code === "FENCED") {
+    throw error.toServiceError(); // ServiceError UNAVAILABLE: bucket is fenced while a transfer copies it
+}
+```
+
+## Tests
+
+`BucketFixture` provisions a space with a local bucket served over S3 and a member role on it.
+
+```ts
+import { BucketFixture } from "@destack/bucket/test";
+
+await using fixture = await BucketFixture.open(database);
+const response = await fixture.transfer(upload, "Hello, bucket");
 ```

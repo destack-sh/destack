@@ -5,8 +5,8 @@ import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "@destack/test";
 import { vi } from "vitest";
-import { LEASE_LIFETIME } from "../bucket.ts";
-import { BucketFixture, NOW, PRESIGNED } from "./fixture.ts";
+import { LEASE_LIFETIME } from "./bucket.ts";
+import { BucketFixture, NOW, PRESIGNED } from "../test/index.ts";
 
 /** The spaces database of each dialect for the scenarios' own spaces. */
 let databases: Awaited<ReturnType<typeof BucketFixture.databases>>;

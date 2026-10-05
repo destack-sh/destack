@@ -10,9 +10,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "@desta
 import { vi } from "vitest";
 import { v7 } from "uuid";
 import { spaceService } from "@destack/space/service";
-import * as bucketObject from "../../object/index.ts";
-import { LEASE_LIFETIME } from "../bucket.ts";
-import { BucketFixture, NOW, PRESIGNED } from "./fixture.ts";
+import * as bucketObject from "../object/index.ts";
+import { LEASE_LIFETIME } from "./bucket.ts";
+import { BucketFixture, NOW, PRESIGNED } from "../test/index.ts";
 
 /** The spaces database of each dialect for the scenarios' own spaces. */
 let databases: Awaited<ReturnType<typeof BucketFixture.databases>>;
