@@ -52,7 +52,7 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     const selection = options.files ?? ["src"];
     for (const entry of selection) {
         if (!existsSync(resolve(directory, entry))) {
-            throw new CheckError("configuration", `selected path does not exist: ${entry}`);
+            throw new CheckError("CONFIGURATION", `selected path does not exist: ${entry}`);
         }
     }
 
@@ -180,7 +180,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
 
         // distinguish tool failure from ordinary rule diagnostics
         if (!output.stdout.trim()) {
-            throw new CheckError("tool", output.stderr.trim() || "oxlint returned no diagnostics");
+            throw new CheckError("TOOL", output.stderr.trim() || "oxlint returned no diagnostics");
         }
 
         // decode the tool response and reject unexplained failures
@@ -188,7 +188,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
         try {
             report = JSON.parse(output.stdout);
         } catch (error) {
-            throw new CheckError("tool", output.stderr.trim() || output.stdout.trim(), {
+            throw new CheckError("TOOL", output.stderr.trim() || output.stdout.trim(), {
                 cause: error,
             });
         }
@@ -196,7 +196,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
         const result = CheckResult.parse({ diagnostics });
         if (output.code !== 0 && result.diagnostics.length === 0) {
             throw new CheckError(
-                "tool",
+                "TOOL",
                 output.stderr.trim() || "oxlint failed without diagnostics",
             );
         }

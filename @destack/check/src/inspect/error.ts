@@ -118,7 +118,7 @@ async function throwTypes(
             const type = types[index];
             if (!type) {
                 throw new CheckError(
-                    "language",
+                    "LANGUAGE",
                     "compiler returned no type for a throw expression",
                 );
             }

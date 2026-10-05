@@ -15,7 +15,7 @@ export const noInlineConfiguration: Rule = {
                 const line = directiveLine(context.sourceCode.getAllComments());
                 if (line !== undefined) {
                     throw new CheckError(
-                        "configuration",
+                        "CONFIGURATION",
                         `${context.filename}:${line}: fix the code the rule reports, since source cannot change the rules`,
                     );
                 }

@@ -11,14 +11,14 @@ export async function listAffected(directory: string, base: string): Promise<str
     // read the workspace enclosing the directory
     const workspace = await Workspace.read(directory);
     if (workspace === undefined) {
-        throw new CheckError("configuration", `no workspace encloses ${directory}`);
+        throw new CheckError("CONFIGURATION", `no workspace encloses ${directory}`);
     }
 
     // list the files changed since the merge base with both sides of renames
     const { stdout } = await run("git", ["diff", "--name-only", "--no-renames", `${base}...HEAD`], {
         cwd: workspace.root,
     }).catch((error: unknown) => {
-        throw new CheckError("tool", `git diff against ${base} failed`, { cause: error });
+        throw new CheckError("TOOL", `git diff against ${base} failed`, { cause: error });
     });
     const files = stdout.split("\n").filter((line) => line !== "");
 

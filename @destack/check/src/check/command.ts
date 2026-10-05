@@ -18,7 +18,7 @@ export async function main(): Promise<void> {
 
     // reject independent tool settings
     if (files.some((file) => file.startsWith("-"))) {
-        throw new CheckError("configuration", "tool overrides are not supported");
+        throw new CheckError("CONFIGURATION", "tool overrides are not supported");
     }
 
     // write direct-tool settings when requested
@@ -32,7 +32,7 @@ export async function main(): Promise<void> {
     if (command === "affected") {
         const [base] = files;
         if (base === undefined) {
-            throw new CheckError("configuration", "affected needs a base commit");
+            throw new CheckError("CONFIGURATION", "affected needs a base commit");
         }
         const directories = await listAffected(options.directory, base);
         process.stdout.write(
@@ -51,7 +51,7 @@ export async function main(): Promise<void> {
     } else if (command === "format" || command === "format-check") {
         result = await formatPackage(options, command === "format");
     } else {
-        throw new CheckError("configuration", `unknown command: ${command}`);
+        throw new CheckError("CONFIGURATION", `unknown command: ${command}`);
     }
 
     // report diagnostics or formatter output and preserve failure status

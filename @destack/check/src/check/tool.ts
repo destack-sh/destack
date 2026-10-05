@@ -52,12 +52,12 @@ export async function runTool(
 
                 // reject launch failures and signal termination
                 child.on("error", (error) =>
-                    reject(new CheckError("tool", `cannot start ${tool}`, { cause: error })),
+                    reject(new CheckError("TOOL", `cannot start ${tool}`, { cause: error })),
                 );
                 child.on("close", (exit, terminated) => {
                     if (exit === null) {
                         reject(
-                            new CheckError("tool", `${tool} terminated by ${String(terminated)}`),
+                            new CheckError("TOOL", `${tool} terminated by ${String(terminated)}`),
                         );
                     } else {
                         complete({ code: exit, stderr: captured });
