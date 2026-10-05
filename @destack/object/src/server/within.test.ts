@@ -8,8 +8,8 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier } from "@destack/schema";
 
 import { Replica, Scope } from "@destack/sync";
-import { defineObject, field } from "../src/index.ts";
-import { ObjectServer, Subscriber, SystemAuthorization } from "../src/server/index.ts";
+import { defineObject, field } from "../index.ts";
+import { ObjectServer, Subscriber, SystemAuthorization } from "./index.ts";
 
 /** The space the copies are kept for. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");

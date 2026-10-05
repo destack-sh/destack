@@ -1,12 +1,6 @@
 import { expect, test } from "@destack/test";
 import { aligned, present } from "@destack/schema";
-import {
-    Sequence,
-    TextChange,
-    type Annotation,
-    type Element,
-    type SequenceEdit,
-} from "../src/sequence/index.ts";
+import { Sequence, TextChange, type Annotation, type Element, type SequenceEdit } from "./index.ts";
 
 /** The edits each seeded run makes. */
 const EDITS = 400;
