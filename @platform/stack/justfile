@@ -6,25 +6,60 @@ set dotenv-filename := "../../.env.local"
 _default:
     @just --list --unsorted
 
-# init
-init +deployment:
-    bun run src/main.ts init {{deployment}}
+# typecheck the sources and validate every deployment's root
+typecheck:
+    bun run typecheck
+    bun run src/main.ts validate
 
-# check
-check:
-    bun run destack-check format-check src/main.ts src/command src/deployment src/credential
-    bun run tsc --project tsconfig.json
-    bun run src/main.ts check
+# lint
+lint:
+    bun run destack-check check src tests vitest.config.ts README.md
+
+# check formatting
+format-check:
+    bun run destack-check format-check src tests vitest.config.ts
+    bun run src/main.ts format-check
+
+# typecheck, lint and check formatting
+check: typecheck lint format-check
+
+# run the deployment and dev universe tests
+test:
+    bun run test
 
 # format
 format:
-    bun run destack-check format src/main.ts src/command src/deployment src/credential
+    bun run destack-check format src tests vitest.config.ts
     bun run src/main.ts format
 
-# diff
+# initialize a deployment's root against its remote state
+init +deployment:
+    bun run src/main.ts init {{deployment}}
+
+# plan a deployment
 diff +deployment:
     bun run src/main.ts diff {{deployment}}
 
-# deploy
+# apply a deployment
 deploy +deployment:
     bun run src/main.ts deploy {{deployment}}
+
+# bundle and build every placed process's Worker without deploying, as release would
+rehearse environment:
+    bun run src/main.ts rehearse {{environment}}
+
+# migrate every placed process's database and deploy its Worker over the applied outputs
+release environment:
+    bun run src/main.ts release {{environment}}
+
+# put a placed process's secrets from the environment once before its first release
+secrets environment process:
+    bun run src/main.ts secrets {{environment}} {{process}}
+
+# migrate a process's database at DATABASE_URL
+migrate process:
+    bun run src/main.ts migrate {{process}}
+
+# serve the dev universe on local PostgreSQL
+universe:
+    bun run src/main.ts universe
