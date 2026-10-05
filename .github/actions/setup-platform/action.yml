@@ -1,4 +1,4 @@
-name: Install platform tools
+name: Set up platform tools
 description: Install Bun, just, actionlint, and workspace dependencies.
 
 runs:

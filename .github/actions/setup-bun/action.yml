@@ -1,4 +1,4 @@
-name: Install Bun
+name: Set up Bun
 description: Install the pinned Bun toolchain.
 
 runs:

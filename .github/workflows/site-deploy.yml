@@ -32,7 +32,7 @@ jobs:
                   persist-credentials: false
                   ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-            - name: Install platform tools
+            - name: Set up platform tools
               uses: ./.github/actions/setup-platform
 
             - name: Install OpenTofu
@@ -42,7 +42,7 @@ jobs:
 
             - name: Check platform
               run: |
-                  just @platform/check-quick
+                  just @platform/site/check
 
     deploy:
         name: Deploy site
@@ -61,7 +61,7 @@ jobs:
                   persist-credentials: false
                   ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-            - name: Install platform tools
+            - name: Set up platform tools
               uses: ./.github/actions/setup-platform
 
             - name: Deploy site

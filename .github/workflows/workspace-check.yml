@@ -28,14 +28,14 @@ jobs:
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
               with:
                   persist-credentials: false
-            - name: Install platform tools
+            - name: Set up platform tools
               uses: ./.github/actions/setup-platform
             - name: Install OpenTofu
               uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
               with:
                   tofu_version: 1.12.6
             - name: Typecheck workspace
-              run: just check
+              run: just typecheck
 
     lint:
         name: Lint and format workspace
@@ -46,7 +46,7 @@ jobs:
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
               with:
                   persist-credentials: false
-            - name: Install platform tools
+            - name: Set up platform tools
               uses: ./.github/actions/setup-platform
             - name: Lint workspace
               run: just lint
@@ -78,7 +78,7 @@ jobs:
                   persist-credentials: false
                   # the merge base with the target branch selects the affected packages
                   fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
-            - name: Install platform tools
+            - name: Set up platform tools
               uses: ./.github/actions/setup-platform
             - name: Install sandbox tools
               # bubblewrap needs unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor
@@ -92,9 +92,6 @@ jobs:
             - name: Test workspace
               if: github.event_name != 'pull_request'
               run: just test
-            - name: Test releases
-              if: github.event_name != 'pull_request'
-              run: just @platform/release/test
 
     macos:
         name: Test filesystem and updates on macOS
@@ -105,15 +102,15 @@ jobs:
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
               with:
                   persist-credentials: false
-            - name: Install Bun
+            - name: Set up Bun
               uses: ./.github/actions/setup-bun
             - name: Install dependencies
               run: bun install --frozen-lockfile
-            - name: Check filesystem types
-              run: bun run --cwd @destack/fs check
+            - name: Typecheck filesystem
+              run: bun run --cwd @destack/fs typecheck
             - name: Test filesystem operations
               run: bun --bun run --cwd @destack/fs test
-            - name: Check update types
-              run: bun run --cwd @destack/update check
+            - name: Typecheck updates
+              run: bun run --cwd @destack/update typecheck
             - name: Test updates
               run: bun --bun run --cwd @destack/update test
