@@ -289,14 +289,14 @@ const { permitted } = await authorizer.checkRows(
 
 ## Errors
 
-A refused or invalid access decision throws an `AccessError`, whose code services answer as their own refusal.
+A refused or invalid access decision throws an `AccessError`, and `toServiceError` names the service error its caller receives, with the step-up a challenge asks for.
 
 ```ts
 import { AccessError } from "@destack/access/error";
 
-if (error instanceof AccessError && error.code === "INSUFFICIENT_AUTHENTICATION") {
-    challenge(error.stepUp);
-}
+new AccessError("INSUFFICIENT_AUTHENTICATION", "authenticate again", {
+    stepUp: { assurance: 2 },
+}).toServiceError(); // { code: "INSUFFICIENT_AUTHENTICATION", message: "authenticate again", data: { assurance: 2 } }
 ```
 
 ## Tests
