@@ -4,6 +4,7 @@ import type { PackageId } from "@destack/package";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { type Identifier, Version } from "@destack/schema";
 import { Egress } from "@destack/service";
+import { ServiceBindingSpec, ServiceKind } from "@destack/service/declare";
 import {
     Authentication,
     AUTHENTICATION_HEADER,
@@ -12,8 +13,12 @@ import {
     Bearer,
 } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
+import { Moved } from "@destack/directory";
 import { copyRequest, VERSION_HEADER } from "@destack/service/request";
 import type { InstanceSpec, Runtime } from "../runtime/index.ts";
+
+/** The largest call body the egress keeps to resend after MOVED: 1 MiB, above the RPC bodies workloads send, held once per call in flight. */
+const MAX_RESENT_BODY_BYTES = 1024 * 1024;
 
 /** A running instance serving an installation, with the releases its deployment serves. */
 export interface Endpoint {
@@ -184,7 +189,7 @@ export class Router {
         return this.#runtime(newest.runtime).receive(newest.instanceId, path, request);
     }
 
-    /** Serve a workload's call to an address below the host's egress, as its installation. */
+    /** Serve a workload's call to an address below the host's egress as its installation, resending a call with a small body once after MOVED. */
     async egress(request: Request): Promise<Response> {
         // require an address and the calling instance's secret
         const routed = Egress.route(request);
@@ -197,14 +202,39 @@ export class Router {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid instance secret" });
         }
 
-        // resolve the address, and call as the installation without the instance's secret or its identity claims
-        const destination = await this.#routes.resolve(spec, routed.address);
-        const authentication = Router.#authentication(spec, destination);
+        // drop the instance's secret and identity claims
         const headers = new Headers(routed.request.headers);
         headers.delete("authorization");
         headers.delete(AUTHENTICATION_HEADER);
         headers.delete("cookie");
-        const call = copyRequest(routed.request, { headers });
+
+        // stream a large body or one of unknown length once, without a second attempt
+        const length = routed.request.headers.get("content-length");
+        const isResendable =
+            routed.request.body === null ||
+            (length !== null && Number(length) <= MAX_RESENT_BODY_BYTES);
+        if (!isResendable) {
+            return this.#send(spec, routed.address, copyRequest(routed.request, { headers }));
+        }
+
+        // keep a small body for a second attempt
+        const body = routed.request.body === null ? null : await routed.request.arrayBuffer();
+        const call = () => copyRequest(routed.request, { headers, body });
+
+        // resolve the address again once the cell called answers that the scope moved
+        const answered = await this.#send(spec, routed.address, call());
+        if ((await Moved.read(answered)) === undefined) {
+            return answered;
+        }
+
+        return this.#send(spec, routed.address, call());
+    }
+
+    /** Resolve an address an instance calls and send the call there as its installation. */
+    async #send(spec: InstanceSpec, address: string, call: Request): Promise<Response> {
+        // resolve the address
+        const destination = await this.#routes.resolve(spec, address);
+        const authentication = Router.#authentication(spec, destination);
         const url = new URL(call.url);
 
         // serve an installation on this host
@@ -217,6 +247,7 @@ export class Router {
         }
         // call another origin with the installation's signed token
         else {
+            const headers = new Headers(call.headers);
             headers.set("authorization", `Bearer ${await this.#sign(authentication)}`);
             const target = `${destination.url.replace(/\/$/u, "")}${url.pathname}${url.search}`;
 
@@ -248,10 +279,22 @@ export class Router {
         return runtime;
     }
 
-    /** Build the authentication an instance's installation calls a destination with, within its deployment. */
+    /** Build the authentication an instance's installation calls a destination with. */
     static #authentication(spec: InstanceSpec, destination: Destination): Authentication {
+        // act as the instance's installation now
         const subject = principal.installation.reference(spec.scope, spec.installationId);
         const now = Date.now();
+
+        // grant the procedures the instance's service bindings to the destination declare
+        const calls = spec.resources.flatMap((resource) => {
+            const binding = ServiceBindingSpec.safeParse(resource.spec);
+            const isDestination =
+                resource.kind === ServiceKind.name &&
+                binding.success &&
+                binding.data.service.packageId === destination.audience;
+
+            return isDestination ? (binding.data.calls ?? []) : [];
+        });
 
         return new Authentication({
             credential: { kind: "installation", id: spec.instanceId },
@@ -262,6 +305,7 @@ export class Router {
             deployments: [{ subject, id: spec.deploymentId }],
             verifiedAt: now,
             expiresAt: now + AUTHENTICATION_LIFETIME_MILLISECONDS,
+            ...(calls.length === 0 ? {} : { calls: [...new Set(calls)] }),
         });
     }
 }

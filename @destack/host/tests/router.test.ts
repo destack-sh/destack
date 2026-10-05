@@ -55,6 +55,7 @@ const tasks: InstanceSpec = {
     workload: "main",
     capabilities: {},
     directories: [],
+    secrets: [],
     resources: [],
 };
 
@@ -296,6 +297,138 @@ test("send a workload's calls to its addresses as its installation, scoped to th
             ],
         ],
     });
+});
+
+/** Route a workload's calls to a peer at the cell it left, answering with a remote answer, and on this host once it moved here. */
+function movingRouter(answer: () => Response) {
+    // resolve the peer at the cell it left first, then on this host once it moved here
+    const runtime = new RecordingRuntime();
+    const resolutions: string[] = [];
+    const sent: [string, string][] = [];
+    const router = new Router({
+        runtimes: [runtime],
+        routes: {
+            endpoints: async () => endpoints,
+            resolve: async (_run, address) => {
+                resolutions.push(address);
+
+                return resolutions.length === 1
+                    ? {
+                          kind: "remote",
+                          scope: acme,
+                          url: `https://left.cell.test/installation/${notes}`,
+                          audience: REMOTE_PACKAGE,
+                      }
+                    : {
+                          kind: "installation",
+                          scope: acme,
+                          installationId: notes,
+                          audience: NOTES_PACKAGE,
+                      };
+            },
+        },
+        sign: async () => "signed",
+        fetch: async (request) => {
+            sent.push([request.url, await request.text()]);
+
+            return answer();
+        },
+    });
+
+    return { runtime, router, resolutions, sent };
+}
+
+/** Answer that the peer's space moved to this host. */
+function movedAnswer(): Response {
+    return Response.json(
+        {
+            defined: true,
+            code: "MOVED",
+            status: 421,
+            message: `${acme} moves to host-arrived`,
+            data: { scope: acme, cell: "host-arrived" },
+        },
+        { status: 421 },
+    );
+}
+
+/** Call the peer through the egress as the calling instance, with a body and its headers. */
+function callPeer(router: Router, body: BodyInit, headers: Record<string, string> = {}) {
+    return router.egress(
+        new Request(
+            `${Egress.url("http://127.0.0.1:7470/.destack/egress", `${notes}.${acme}`)}/notes/create`,
+            {
+                method: "POST",
+                body,
+                headers: {
+                    authorization: "Bearer tasks-secret",
+                    [VERSION_HEADER]: "2026.10.0",
+                    ...headers,
+                },
+            },
+        ),
+    );
+}
+
+test("send a workload's call once more where the cell it reached answers that the space moved, resolving its address again with its body", async () => {
+    // call the peer with a sized body, answered on this host after the move
+    const { runtime, router, resolutions, sent } = movingRouter(movedAnswer);
+    const body = JSON.stringify({ title: "Launch" });
+    const response = await callPeer(router, body, { "content-length": String(body.length) });
+    const installation = principal.installation.reference(scope, tasks.installationId).id;
+    const peer = `${notes}.${acme}`;
+    expect({
+        status: response.status,
+        resolutions,
+        sent,
+        forwarded: runtime.forwarded,
+    }).toEqual({
+        status: 200,
+        resolutions: [peer, peer],
+        sent: [[`https://left.cell.test/installation/${notes}/notes/create`, '{"title":"Launch"}']],
+        forwarded: [[newest.instanceId, "/notes/create", installation, null]],
+    });
+});
+
+test("answer a moved space to a call streaming a body above 1 MiB or of unknown length, sending it once", async () => {
+    // call the peer with a body above the resend bound, and with a stream of unknown length
+    const large = "x".repeat(1024 * 1024 + 1);
+    const sized = movingRouter(movedAnswer);
+    const answered = await callPeer(sized.router, large, {
+        "content-length": String(large.length),
+    });
+    const unsized = movingRouter(movedAnswer);
+    const streamed = await callPeer(
+        unsized.router,
+        new Blob([JSON.stringify({ title: "Launch" })]).stream(),
+    );
+
+    // answer MOVED to the caller after one attempt with the whole body
+    const peer = `${notes}.${acme}`;
+    const target = `https://left.cell.test/installation/${notes}/notes/create`;
+    expect({
+        sized: [answered.status, sized.resolutions, sized.sent, sized.runtime.forwarded],
+        unsized: [streamed.status, unsized.resolutions, unsized.sent, unsized.runtime.forwarded],
+    }).toEqual({
+        sized: [421, [peer], [[target, large]], []],
+        unsized: [421, [peer], [[target, '{"title":"Launch"}']], []],
+    });
+});
+
+test("answer another origin's 421 the egress cannot read as MOVED to the caller unchanged, sending the call once", async () => {
+    // call the peer, whose origin answers a plain-text 421
+    const { runtime, router, resolutions, sent } = movingRouter(
+        () => new Response("misdirected request", { status: 421 }),
+    );
+    const response = await callPeer(router, "{}", { "content-length": "2" });
+
+    // keep the answer's status and body
+    expect({
+        answer: [response.status, await response.text()],
+        resolutions: resolutions.length,
+        sent: sent.length,
+        forwarded: runtime.forwarded,
+    }).toEqual({ answer: [421, "misdirected request"], resolutions: 1, sent: 1, forwarded: [] });
 });
 
 test("forward a webhook request to the newest running deployment, and refuse one without a deployment", async () => {
