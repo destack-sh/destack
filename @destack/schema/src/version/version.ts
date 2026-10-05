@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineSchema } from "../inspect/schema.ts";
+import { defineSchema } from "../declare/schema.ts";
 
 /** A calendar version: year, month and release, with an optional nightly build sequence. */
 const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-nightly\.(0|[1-9]\d*))?$/u;

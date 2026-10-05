@@ -1,6 +1,6 @@
 import { v7 } from "uuid";
 import { z } from "zod";
-import { defineSchema } from "../inspect/schema.ts";
+import { defineSchema } from "../declare/schema.ts";
 
 /** The characters of a UUID's canonical text form, RFC 9562. */
 const UUID_LENGTH = 36;

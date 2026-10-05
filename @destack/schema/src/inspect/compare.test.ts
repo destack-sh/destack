@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { schema } from "../index.ts";
 import { compareJsonSchemas, type SchemaComparison } from "./compare.ts";
-import { toJsonSchema } from "./schema.ts";
+import { toJsonSchema } from "../json/schema.ts";
 
 /** A tree node for recursive schemas. */
 type Node = { readonly name: string; readonly children?: readonly Node[] };

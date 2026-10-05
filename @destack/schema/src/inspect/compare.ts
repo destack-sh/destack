@@ -1,5 +1,5 @@
 import { canonicalize } from "../json/json.ts";
-import type { JsonSchema } from "./schema.ts";
+import type { JsonSchema } from "../json/schema.ts";
 
 /** How the values a schema accepts changed, from the same values to unrelated ones. */
 export type SchemaComparison = "same" | "wider" | "narrower" | "incompatible";

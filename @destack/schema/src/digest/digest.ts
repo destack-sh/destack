@@ -1,5 +1,5 @@
 import * as schema from "../validate/index.ts";
-import { defineSchema } from "../inspect/schema.ts";
+import { defineSchema } from "../declare/schema.ts";
 import { canonicalize } from "../json/json.ts";
 
 /** The schema of a SHA-256 digest as lowercase hexadecimal. */

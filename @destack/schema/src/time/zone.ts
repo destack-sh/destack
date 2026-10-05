@@ -1,5 +1,5 @@
 import * as schema from "../validate/index.ts";
-import { defineSchema } from "../inspect/schema.ts";
+import { defineSchema } from "../declare/schema.ts";
 import { PlainDate, PlainTime } from "./plain.ts";
 
 /** The longest IANA time zone name kept, beyond the longest in the database. */

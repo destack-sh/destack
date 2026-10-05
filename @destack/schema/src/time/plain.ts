@@ -1,5 +1,5 @@
 import * as schema from "../validate/index.ts";
-import { defineSchema } from "../inspect/schema.ts";
+import { defineSchema } from "../declare/schema.ts";
 
 /** The minutes in an hour. */
 const HOUR_MINUTES = 60;
