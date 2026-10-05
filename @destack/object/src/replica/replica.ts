@@ -215,6 +215,15 @@ export const replicaProcedures = {
             }),
         )
         .output(schema.json()),
+    receive: defineProcedure({ authentication: "identity", permission: null, audit: false })
+        .route({ method: "POST", path: "/replica/receive" })
+        .input(
+            schema.object({
+                /** The mutation of copied rows a follower sends toward their home. */
+                mutation: Mutation,
+            }),
+        )
+        .output(schema.object({})),
     broadcast: defineProcedure({ authentication: "identity", permission: null, audit: false })
         .route({ method: "POST", path: "/replica/broadcast" })
         .input(

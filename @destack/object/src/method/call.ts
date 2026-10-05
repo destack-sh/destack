@@ -19,7 +19,7 @@ import { schema, Version, type JsonObject } from "@destack/schema";
 import { isServiceError, ServiceError, TRANSIENT_STATUSES } from "@destack/service/error";
 import { type Address, type Destination, Outbox } from "@destack/service/outbox";
 import { RequestId } from "@destack/service/request";
-import { type RunClient, RunRequest } from "@destack/service/trigger";
+import { RunRequest } from "@destack/service/trigger";
 import type * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { ObjectTable } from "../object/table.ts";
@@ -29,47 +29,46 @@ import type { MethodKind, TargetKind } from "./kind.ts";
 import type { CallInput, MethodName } from "./procedure.ts";
 import type { InstallationContext } from "@destack/service/workload";
 import type { SettlementCall } from "./settlement.ts";
-import type { listObjects } from "../trait/record.ts";
+import type { listObjects } from "./record.ts";
 import { ParentReference } from "../trait/nested.ts";
 
 /** A call a method sent, as its outbox keeps it until the cell records its run. */
-export const OutboxCall = schema.object({
+const OutboxMessage = schema.object({
     /** The request recording the run once, however often the outbox delivers it. */
     requestId: RequestId.schema,
     /** The sent call. */
     request: RunRequest,
 });
-/** A call a method sent. */
-export type OutboxCall = schema.Infer<typeof OutboxCall>;
 
-/** The sent calls one delivery records: 100 small calls, sent to the cell at once. */
+/** The sent calls one delivery sends: 100 small calls at once. */
 const SEND_BATCH = 100;
 
-/** The outbox address of the calls methods send, delivered to the cell recording their runs. */
-export const RUNS = {
-    name: "runs",
-    message: OutboxCall,
+/** The calls methods send through the outbox, delivered to the server keeping the rows they change or to the cell recording their runs. */
+export const OutboxCall = {
+    name: "sends",
+    message: OutboxMessage,
 
-    /** Deliver the sent calls to a cell in batches, reporting and dropping one it refuses for good. */
-    to(client: RunClient, report: (error: unknown) => void): Destination<OutboxCall> {
+    /** Deliver the sent calls in batches, reporting and dropping one refused for good. */
+    destination(
+        deliver: (sent: OutboxCall, signal: AbortSignal) => Promise<void>,
+        report: (error: unknown) => void,
+    ): Destination<OutboxCall> {
         return {
-            name: RUNS.name,
-            message: OutboxCall,
+            name: OutboxCall.name,
+            message: OutboxMessage,
             batch: SEND_BATCH,
             accept: async (sent, { signal }) => {
                 // send the whole batch at once
                 const delivered = await Promise.allSettled(
-                    sent.map(({ requestId, request }) =>
-                        client.send(request, { requestId, signal }),
-                    ),
+                    sent.map((entry) => deliver(entry, signal)),
                 );
 
-                // drop a call the cell refuses for good, and retry the batch after any other failure
+                // drop a call refused for good, and retry the batch after any other failure
                 const failures = delivered.flatMap((result): Error[] =>
                     result.status === "rejected" ? [sendFailure(result.reason)] : [],
                 );
                 for (const refused of failures.filter(isRefusal)) {
-                    report(new Error("the cell refused a sent call for good", { cause: refused }));
+                    report(new Error("a sent call was refused for good", { cause: refused }));
                 }
                 const failed = failures.find((failure) => !isRefusal(failure));
                 if (failed !== undefined) {
@@ -78,7 +77,9 @@ export const RUNS = {
             },
         };
     },
-} satisfies Address<OutboxCall> & { readonly to: object };
+} satisfies Address<schema.Infer<typeof OutboxMessage>> & { readonly destination: object };
+/** A call a method sent. */
+export type OutboxCall = schema.Infer<typeof OutboxMessage>;
 
 /** A method result naming an object by its identifier. */
 const IDENTIFIED = schema.looseObject({ id: schema.string() });
@@ -127,7 +128,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     readonly requestId?: string;
     /** Run another method in the call's transaction as its caller. */
     readonly run?: Run;
-    /** The outbox delivering this call's sends to the cell recording runs, absent without one. */
+    /** The outbox delivering this call's sends, absent where nothing receives them. */
     readonly sends?: Outbox;
     /** The view the call reads, as of a position or over a branch, the live database when absent. */
     readonly snapshot?: Snapshot;
@@ -322,6 +323,23 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     /** Call object types' methods through this call as one function, as this call's caller or another principal. */
     invoker(options: InvokeOptions = {}): Invoke {
         return invoking((object, name, input) => this.#invoke(object, name, input, options));
+    }
+
+    /** Change another object type's rows as this call's caller, in this call's scope unless the input names another: in this transaction where the database keeps them, else through a call sent toward their home once it commits. */
+    async change(object: ObjectType, name: string, input: JsonObject): Promise<void> {
+        // send a change of copied rows toward their home
+        if (this.database.copies(object.table)) {
+            const field = object.route.field;
+            const scoped =
+                field === undefined || Object.hasOwn(input, field)
+                    ? input
+                    : { ...input, [field]: this.scope };
+            await this.send({ call: Call.record(object, name, scoped) });
+        }
+        // run any other change in this transaction
+        else {
+            await this.#invoke(object, name, input, {});
+        }
     }
 
     /** Run another object's method without external work in the same storage. */
@@ -526,11 +544,11 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
 
     /** Send a call to run later, once this call's transaction commits. */
     async send(request: { readonly call: sync.Call; readonly at?: number }): Promise<void> {
-        // require a served call on an object server whose cell records runs
+        // require a served call on an object server delivering its sends
         this.requireAuthorization();
         if (this.sends === undefined) {
             throw new TypeError(
-                `${this.method.kind} ${this.name} sends calls where no cell records runs`,
+                `${this.method.kind} ${this.name} sends calls where nothing receives them`,
             );
         }
 
@@ -541,7 +559,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
             requestId,
             request: { ...request, ...(delegation === undefined ? {} : { delegation }) },
         };
-        await this.sends.append(RUNS, requestId, message, this.database);
+        await this.sends.append(OutboxCall, requestId, message, this.database);
     }
 
     /** Update the target's desired state at the loaded revision, advancing a controlled target's generation. */

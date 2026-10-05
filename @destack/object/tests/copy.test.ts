@@ -11,8 +11,8 @@ import {
     relation,
     Relationship,
 } from "@destack/access";
-import { journal } from "@destack/audit";
-import { copyOwner, copyRole, copyScope } from "@destack/access/test";
+import { journal } from "@destack/audit/stack";
+import { AccessFixture } from "@destack/access/test";
 import { asc, defineDatabase, eq, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
@@ -24,6 +24,9 @@ import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectServer, Subscriber, SystemAuthorization } from "../src/server/index.ts";
 import { userContext } from "./fixture/user.ts";
+
+/** Refuse a change sent over the uplink, as these copies receive none. */
+const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
 
 /** The account with the space. */
 const accountId = schema
@@ -73,6 +76,15 @@ const space = defineObject({
     methods: (method) => ({ list: method.list("read") }),
 });
 
+/** Comments a workload keeps in the spaces it follows. */
+const comment = defineObject({
+    name: "comment",
+    plural: "comments",
+    scope: space,
+    fields: { body: field.string() },
+    permissions: { read: none() },
+});
+
 /** Documents that only roles grant. */
 const document = defineObject({
     name: "document",
@@ -101,11 +113,11 @@ test.each(TEST_DIALECTS)(
         const alice = principal.user.reference("universe", "alice");
         const carol = principal.user.reference("universe", "carol");
         const accountObject = account.reference(Scope.universe.id, accountId);
-        await copyScope(home.database, accountObject);
-        await copyScope(home.database, space.reference(accountId, spaceId));
-        await copyOwner(home.database, accountObject, alice);
-        await copyRole(
-            home.database,
+        const accessCopies = new AccessFixture(home.database);
+        await accessCopies.copyScope(accountObject);
+        await accessCopies.copyScope(space.reference(accountId, spaceId));
+        await accessCopies.copyOwner(accountObject, alice);
+        await accessCopies.copyRole(
             accountObject,
             {
                 name: "member",
@@ -139,6 +151,7 @@ test.each(TEST_DIALECTS)(
             database: workload.database,
             subscriber: Subscriber.of(
                 {
+                    receive: refuseChanges,
                     stream: (subscription, signal) =>
                         feed.subscribe(
                             server.source.replicaOf(subscription).queries,
@@ -271,7 +284,7 @@ test("keep one copy record per followed space of one account, and drop one space
 
     // stop following the other space once the scope rows change, dropping its copies alone, and keep the account's role
     requested.delete(otherSpaceId);
-    await copyScope(cell.database, space.reference(accountId, thirdSpaceId));
+    await new AccessFixture(cell.database).copyScope(space.reference(accountId, thirdSpaceId));
     await cell.database.log.until(
         async () => (await Replica.subscriptions(cell.database)).length === 3,
         controller.signal,
@@ -320,7 +333,7 @@ test("drop a copy no request names under the lease its follow holds, whichever o
 
     // stop requesting the space's chain once the scope rows change, and wait for its copies to drop
     requested.delete(spaceId);
-    await copyScope(cell.database, space.reference(accountId, otherSpaceId));
+    await new AccessFixture(cell.database).copyScope(space.reference(accountId, otherSpaceId));
     await cell.database.log.until(
         async () => (await Replica.subscriptions(cell.database)).length === 0,
         controller.signal,
@@ -374,8 +387,9 @@ test("follow copies as a server serving no methods, which keeps no journal and t
     onTestFinished(async () => {
         await Promise.all([home.close(), follower.close()]);
     });
-    await copyScope(home.database, account.reference(Scope.universe.id, accountId));
-    await copyScope(home.database, space.reference(accountId, spaceId));
+    const accessCopies = new AccessFixture(home.database);
+    await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
+    await accessCopies.copyScope(space.reference(accountId, spaceId));
 
     // follow the space's chain without a journal
     const feed = new Feed(home.database, accessTables);
@@ -385,6 +399,7 @@ test("follow copies as a server serving no methods, which keeps no journal and t
         database: follower.database,
         subscriber: Subscriber.of(
             {
+                receive: refuseChanges,
                 stream: (subscription, signal) =>
                     feed.subscribe(
                         server.source.replicaOf(subscription).queries,
@@ -449,10 +464,11 @@ test("copy the chains of a workload's two spaces in one copy via both, requiring
     onTestFinished(async () => {
         await Promise.all([home.close(), workload.close()]);
     });
-    await copyScope(home.database, account.reference(Scope.universe.id, accountId));
-    await copyScope(home.database, account.reference(Scope.universe.id, otherAccountId));
+    const accessCopies = new AccessFixture(home.database);
+    await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
+    await accessCopies.copyScope(account.reference(Scope.universe.id, otherAccountId));
     for (const id of [spaceId, otherSpaceId]) {
-        await copyScope(home.database, space.reference(accountId, id));
+        await new AccessFixture(home.database).copyScope(space.reference(accountId, id));
         await home.database
             .insert(space.table)
             .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -487,6 +503,7 @@ test("copy the chains of a workload's two spaces in one copy via both, requiring
         database: workload.database,
         subscriber: Subscriber.of(
             {
+                receive: refuseChanges,
                 stream: (asked, signal) =>
                     source.source.replicate(asked, asked.after, follower, signal),
             },
@@ -558,6 +575,105 @@ test("copy the chains of a workload's two spaces in one copy via both, requiring
     });
 });
 
+test("copy a scoped table a workload's database declares beside its followed space's chain, and drop its rows once the workload may no longer read the space", async () => {
+    // keep an account with two spaces and a document in each at home
+    const home = await TestDatabase.create(
+        "sqlite",
+        [...space.tables, ...document.tables, journal],
+        { isMigrated: true },
+    );
+    const placed = defineDatabase({
+        name: "workload",
+        tables: [...comment.tables, journal, controllerLease],
+        copies: [space.table, document.table],
+    });
+    const workload = await TestDatabase.create("sqlite", placed, { isMigrated: true });
+    onTestFinished(async () => {
+        await Promise.all([home.close(), workload.close()]);
+    });
+    const accessCopies = new AccessFixture(home.database);
+    await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
+    for (const id of [spaceId, otherSpaceId]) {
+        await accessCopies.copyScope(space.reference(accountId, id));
+        await home.database
+            .insert(space.table)
+            .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
+        await home.database.insert(document.table).values({
+            id: schema.identifier("document").parse(`document-${id.slice("space-".length)}`),
+            scope: id,
+            title: id,
+            createdAt: 1,
+            updatedAt: 1,
+        });
+    }
+
+    // let the workload read and replicate the first space only
+    const source = new ObjectServer({
+        objects: { space, document },
+        database: home.database,
+        callKey: testCallKey,
+        origin: { package: document.package, service: "test" },
+    });
+    const system = await SystemAuthorization.open(
+        source.authorizer,
+        home.database,
+        Scope.universe.id,
+        1,
+    );
+    const subject = principal.workload.reference(Scope.universe.id, placementId);
+    const followedSpace = space.reference(accountId, spaceId);
+    const reading = await system.grant({ object: followedSpace, relation: "reader", subject });
+    await system.grant({ object: followedSpace, relation: "replicator", subject });
+
+    // follow the universe's rows and the followed space's chain from home
+    const follower = { subject, parent: Scope.universe.id };
+    const copying: ObjectServer<{ comment: typeof comment }> = new ObjectServer({
+        objects: { comment },
+        policies: [space, document],
+        database: workload.database,
+        subscriber: Subscriber.of(
+            {
+                receive: refuseChanges,
+                stream: (asked, signal) =>
+                    source.source.replicate(asked, asked.after, follower, signal),
+            },
+            () => copying.source.workloadSubscriptions(placementId),
+        ),
+        callKey: testCallKey,
+        origin: { package: document.package, service: "test" },
+    });
+    const replica = present(
+        copying.controllers().find((each) => each.name === "replica"),
+        "the replica controller",
+    );
+    const controller = new AbortController();
+    const loop = new ControlLoop(workload.database, [replica], { report: failing }).run(
+        controller.signal,
+    );
+    onTestFinished(async () => {
+        controller.abort();
+        await loop;
+    });
+
+    // receive the followed space's document, then lose it once the workload may no longer read the space
+    const documents = () =>
+        workload.database.select({ scope: document.table.scope }).from(document.table);
+    await workload.database.log.until(
+        async () => (await documents()).length > 0,
+        AbortSignal.timeout(5000),
+    );
+    const followed = await documents();
+    await system.revoke(followedSpace, reading.id);
+    await workload.database.log.until(
+        async () => (await documents()).length === 0,
+        AbortSignal.timeout(5000),
+    );
+    expect({ followed, left: await documents() }).toEqual({
+        followed: [{ scope: spaceId }],
+        left: [],
+    });
+});
+
 /** Keep an account with a member role and two spaces at home, and serve a cell following the chains of the requested spaces from it. */
 async function openCopies() {
     // keep the account, its member role and its two spaces at home
@@ -571,11 +687,11 @@ async function openCopies() {
         await Promise.all([home.close(), cell.close()]);
     });
     const accountObject = account.reference(Scope.universe.id, accountId);
-    await copyScope(home.database, accountObject);
-    await copyScope(home.database, space.reference(accountId, spaceId));
-    await copyScope(home.database, space.reference(accountId, otherSpaceId));
-    await copyRole(
-        home.database,
+    const accessCopies = new AccessFixture(home.database);
+    await accessCopies.copyScope(accountObject);
+    await accessCopies.copyScope(space.reference(accountId, spaceId));
+    await accessCopies.copyScope(space.reference(accountId, otherSpaceId));
+    await accessCopies.copyRole(
         accountObject,
         { name: "member", description: "Reads the account's spaces", permissions: [] },
         { ...accountObject, relation: "member" },
@@ -591,6 +707,7 @@ async function openCopies() {
         database: cell.database,
         subscriber: Subscriber.of(
             {
+                receive: refuseChanges,
                 stream: async function* (subscription, signal) {
                     yield* feed.subscribe(
                         server.source.replicaOf(subscription).queries,

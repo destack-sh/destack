@@ -9,6 +9,7 @@ import {
     type Standing,
     type UniverseParameters,
 } from "@destack/access";
+import { ScopeProjector } from "./projected.ts";
 import { Scope, ObjectReference, Subject } from "@destack/sync";
 import type { JsonValue } from "@destack/schema";
 import { Change, eq, LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
@@ -43,7 +44,7 @@ import type { Controller } from "@destack/service/control";
 
 import { until } from "@destack/service/timer";
 
-import type { ObjectServer, Subscriber } from "./server.ts";
+import type { ObjectServer, Subscriber, SubscriberEntry } from "./server.ts";
 
 /** The largest broadcast event, in bytes: 16 KiB, far above the tens of bytes a cursor takes. */
 const BROADCAST_BYTES = 16 * 1024;
@@ -360,7 +361,10 @@ export class ObjectSource {
             // project the source's rows into the home the copy is named for, through the served types projecting them
             const projectors = this.server.objects.flatMap((object) => {
                 // keep a projecting type's projector for the named source
-                const projector = object.projector(name);
+                const projector =
+                    object.projected === undefined
+                        ? undefined
+                        : new ScopeProjector(object, object.projected, name);
                 if (object.projected === undefined || projector === undefined) {
                     return [];
                 }
@@ -405,7 +409,7 @@ export class ObjectSource {
         }
 
         // restart from a snapshot once the recipients changed
-        const { scope, previous } = subscription;
+        const { scope, previous, origin } = subscription;
         const after = previous === undefined ? subscription.after : undefined;
 
         // stream the rows each recipient receives
@@ -426,6 +430,7 @@ export class ObjectSource {
             this.server.feed.subscribe(queries, after, signal, {
                 audience,
                 ...(drain === undefined ? {} : { drain }),
+                ...(origin === undefined ? {} : { origin }),
             }),
             [scope],
         );
@@ -568,7 +573,7 @@ export class ObjectSource {
         context: ServiceContext,
     ): AsyncGenerator<sync.Page> {
         // open the audience
-        const { scope, after, previous, refresh } = subscription;
+        const { scope, after, previous, refresh, origin } = subscription;
         const { queries } = QueriesParameters.parse(subscription.parameters);
         const audience = await ObjectAudience.of(this.server, scope, context);
 
@@ -580,6 +585,7 @@ export class ObjectSource {
         const options = followOptions(audience, context, {
             previous: earlier && ObjectType.queries(this.server.durable, earlier, chain),
             refresh,
+            origin,
         });
         const follow = (feed: sync.Feed) =>
             marking(feed.subscribe(compiled, after, context.request.signal, options), chain);
@@ -598,12 +604,7 @@ export class ObjectSource {
             },
             () => follow(this.server.feed),
         );
-        try {
-            yield* pages();
-        } catch (error) {
-            // report capacity failures as service failures
-            throw serviceFailure(error);
-        }
+        yield* pages();
     }
 
     /** Follow a scope's ephemeral objects for a client. */
@@ -612,7 +613,7 @@ export class ObjectSource {
         context: ServiceContext,
     ): AsyncGenerator<sync.Page> {
         // track the client's rows
-        const { scope, after, previous, refresh } = subscription;
+        const { scope, after, previous, refresh, origin } = subscription;
         const { queries, client } = EphemeralParameters.parse(subscription.parameters);
         const store = this.server.store();
         const release = store.track(EphemeralStorage.clientKey(context, client));
@@ -626,6 +627,7 @@ export class ObjectSource {
                 const options = followOptions(audience, context, {
                     previous: isFirst ? reflected : undefined,
                     refresh,
+                    origin,
                 });
                 const pages = store.feed.subscribe(
                     compiled,
@@ -647,7 +649,7 @@ export class ObjectSource {
         context: ServiceContext,
     ): AsyncGenerator<sync.Page> {
         // open the scope's files
-        const { scope, after, previous, refresh } = subscription;
+        const { scope, after, previous, refresh, origin } = subscription;
         const { queries } = QueriesParameters.parse(subscription.parameters);
         const external = present(this.server.external, "the external files");
         const feed = new sync.Feed(
@@ -664,6 +666,7 @@ export class ObjectSource {
             const options = followOptions(audience, context, {
                 previous: isFirst ? reflected : undefined,
                 refresh,
+                origin,
             });
 
             return feed.subscribe(compiled, isFirst ? after : undefined, signal, options);
@@ -676,7 +679,7 @@ export class ObjectSource {
         context: ServiceContext,
     ): AsyncGenerator<sync.Page> {
         // follow until access changes
-        const { scope, after, refresh } = subscription;
+        const { scope, after, refresh, origin } = subscription;
         yield* this.#decided(scope, context, "durable", (audience, signal, isFirst) => {
             // copy the chain's scopes and roles, and the relationships the caller's subjects hold
             const { chain } = audience;
@@ -693,7 +696,11 @@ export class ObjectSource {
                     where: Relationship.heldBy(subjects),
                 },
             };
-            const options = followOptions(sync.EVERYONE, context, { previous: undefined, refresh });
+            const options = followOptions(sync.EVERYONE, context, {
+                previous: undefined,
+                refresh,
+                origin,
+            });
             const pages = this.server.feed.subscribe(
                 queries,
                 isFirst ? after : undefined,
@@ -716,25 +723,20 @@ export class ObjectSource {
             isFirst: boolean,
         ) => AsyncGenerator<sync.Page>,
     ): AsyncGenerator<sync.Page> {
-        try {
-            let isFirst = true;
-            while (!context.signal.aborted) {
-                // open the audience and watch access rows until the request closes or access changes
-                const revised = new AbortController();
-                const signal = AbortSignal.any([context.request.signal, revised.signal]);
-                const since = (await this.server.database.log.position()).sequence;
-                const audience = await ObjectAudience.of(this.server, scope, context, { storage });
-                const watching = this.#watchAccess(audience.chain, since, revised, signal);
+        let isFirst = true;
+        while (!context.signal.aborted) {
+            // open the audience and watch access rows until the request closes or access changes
+            const revised = new AbortController();
+            const signal = AbortSignal.any([context.request.signal, revised.signal]);
+            const since = (await this.server.database.log.position()).sequence;
+            const audience = await ObjectAudience.of(this.server, scope, context, { storage });
+            const watching = this.#watchAccess(audience.chain, since, revised, signal);
 
-                // follow until access changes, and from a snapshot after
-                yield* follow(audience, signal, isFirst);
-                revised.abort();
-                await watching;
-                isFirst = false;
-            }
-        } catch (error) {
-            // report capacity failures as service failures
-            throw serviceFailure(error);
+            // follow until access changes, and from a snapshot after
+            yield* follow(audience, signal, isFirst);
+            revised.abort();
+            await watching;
+            isFirst = false;
         }
     }
 
@@ -957,9 +959,13 @@ export class ObjectSource {
     }
 
     /** List the rows of the universe a scope reads: each copied type's rows, nested types within their scopes. */
-    universeRows(): UniverseParameters["rows"] {
-        // leave inherited rows to the chains
-        const copied = this.server.copied.filter((object) => object.inherited === undefined);
+    universeRows(source?: Pick<ObjectServer, "objects">): UniverseParameters["rows"] {
+        // leave inherited rows to the chains, and keep the types of one source in this process, or of none
+        const sourceOf = (object: ObjectType) =>
+            this.server.sources.find((each) => each.objects.some((type) => type.same(object)));
+        const copied = this.server.copied.filter(
+            (object) => object.inherited === undefined && sourceOf(object) === source,
+        );
         const isUnscoped = (object: ObjectType) =>
             !object.scopes.some((scope) => copied.some((type) => type.same(scope)));
 
@@ -1058,6 +1064,49 @@ export class ObjectSource {
         });
     }
 
+    /** List the copies a database keeps of the rows its sources in this process keep, one per source. */
+    sourceSubscriptions(below: string): SubscriberEntry[] {
+        return this.server.sources.flatMap((source) => {
+            // request nothing of a source keeping no copied type
+            const rows = this.universeRows(source);
+            const [first] = rows;
+            if (first === undefined) {
+                return [];
+            }
+
+            // copy the source's rows under a name of its package
+            const subscription = this.server.authorizer.universeShape.subscription({
+                name: `${below}/${first.type.packageId}`,
+                scope: Scope.universe.id,
+                below,
+                parameters: { rows },
+            });
+
+            return [{ subscription, publisher: source.uplink }];
+        });
+    }
+
+    /** Stream a copy's pages to a database in this process, never back to the source of its rows. */
+    async *publish(
+        subscription: sync.Subscription,
+        signal: AbortSignal,
+    ): AsyncGenerator<sync.Page> {
+        // refuse a subscriber whose rows the copy would send back
+        const copy = this.replicaOf(subscription);
+        const { after, origin } = subscription;
+        if (origin !== undefined) {
+            await copy.requireAcyclic(this.server.database, origin);
+        }
+
+        // stream the copy, sending no bare positions of the subscriber's own writes
+        yield* this.server.feed.subscribe(
+            copy.queries,
+            after,
+            signal,
+            origin === undefined ? {} : { origin },
+        );
+    }
+
     /** Stream a copy's pages to a database below. */
     async *replicate(
         request: sync.Subscription,
@@ -1075,19 +1124,15 @@ export class ObjectSource {
         // admit the follower to a chain by containment and to the universe's rows as their reader
         const audience = await this.#replicaAudience(shape, request, follower);
 
-        // relay a copied scope only once its copy has a position
-        try {
-            await sync.Replica.requireRelayable(this.server.database, request.name, request.scope);
-        } catch (error) {
-            if (error instanceof sync.SyncError && error.code === "STALE") {
-                throw new ServiceError("SERVICE_UNAVAILABLE", { message: error.message });
-            }
-            throw error;
+        // relay a copied scope only once its copy has a position, and never back to its source
+        const copy = shape.replica(request);
+        const { previous, origin } = request;
+        await sync.Replica.requireRelayable(this.server.database, request.name, request.scope);
+        if (origin !== undefined) {
+            await copy.requireAcyclic(this.server.database, origin);
         }
 
         // stream the copy from the parameters it reflects, ending at a completed page once drained
-        const copy = shape.replica(request);
-        const { previous } = request;
         const reflected =
             previous === undefined
                 ? undefined
@@ -1096,6 +1141,7 @@ export class ObjectSource {
             audience,
             ...(reflected === undefined ? {} : { previous: reflected }),
             ...(drain === undefined ? {} : { drain }),
+            ...(origin === undefined ? {} : { origin }),
         });
     }
 
@@ -1386,16 +1432,6 @@ function revise(
     }
 }
 
-/** Convert capacity failures to service failures. */
-function serviceFailure(error: unknown): unknown {
-    if (!(error instanceof sync.SyncError)) {
-        return error;
-    }
-    const code = error.code === "OVERLOADED" ? "SERVICE_UNAVAILABLE" : "UNPROCESSABLE_CONTENT";
-
-    return new ServiceError(code, { message: error.message });
-}
-
 /** Build the feed options of a copy followed for a caller, ending at a completed page once it lapses. */
 function followOptions(
     audience: sync.Audience,
@@ -1403,15 +1439,17 @@ function followOptions(
     options: {
         readonly previous: Readonly<Record<string, sync.Query>> | undefined;
         readonly refresh: sync.Subscription["refresh"];
+        readonly origin: sync.Subscription["origin"];
     },
 ): sync.FeedOptions {
-    const { previous, refresh } = options;
+    const { previous, refresh, origin } = options;
 
     return {
         audience,
         drain: context.signal,
         ...(previous === undefined ? {} : { previous }),
         ...(refresh === undefined ? {} : { every: Duration.milliseconds(refresh.every) }),
+        ...(origin === undefined ? {} : { origin }),
     };
 }
 

@@ -21,13 +21,14 @@ import {
     type Table,
     DatabaseError,
 } from "@destack/db";
+import { Replay } from "@destack/audit";
 import {
     AuditRecorder,
     Journal,
     type AuditDestination,
     type AuditOrigin,
     type CallRequest,
-} from "@destack/audit";
+} from "@destack/audit/server";
 import type { CallKey } from "@destack/service/request";
 
 import { aligned, present, schema, type JsonObject, type JsonValue } from "@destack/schema";
@@ -35,7 +36,7 @@ import type { InstallationContext } from "@destack/service/workload";
 import type { Watermark } from "@destack/service/bookmark";
 import { CompactionController } from "@destack/service/database";
 import { refuseInput, ServiceError } from "@destack/service/error";
-import { type RequestIdentity } from "@destack/service/request";
+import { RequestId, type RequestIdentity } from "@destack/service/request";
 import { v7 } from "uuid";
 import {
     implement,
@@ -51,7 +52,7 @@ import { Branch, type BranchCall, type BranchType } from "../branch/index.ts";
 import {
     Call,
     invoking,
-    RUNS,
+    OutboxCall,
     type Invoke,
     type Invoker,
     type ResultOf,
@@ -82,15 +83,23 @@ import { ChangeController } from "./change.ts";
 import { Outbox } from "@destack/service/outbox";
 import type { Directory } from "@destack/directory";
 import { DirectoryStore } from "@destack/directory";
-import { ClaimController, Reservation } from "../claim/index.ts";
+import { ClaimController } from "./claim.ts";
+import { SystemCall } from "../method/system.ts";
+import { Reservation } from "./reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import type { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
 
-import { tracked } from "../trait/tracked.ts";
-import { recoverable } from "../trait/recoverable.ts";
 import type { Residence } from "../trait/projected.ts";
-import { expiring } from "../trait/expiring.ts";
+import { Provisioned } from "../trait/provisioned.ts";
+import {
+    ProvisionedController,
+    type ProvisionedOptions,
+    type ProvisionedProvider,
+} from "./provisioned.ts";
+import { ExpiringController } from "./expiring.ts";
+import { RecoverableController } from "./recoverable.ts";
+import { TrackedHistory } from "./tracked.ts";
 import type { Controller } from "@destack/service/control";
 import { Trigger, type ChangeTrigger, type RunClient } from "@destack/service/trigger";
 
@@ -141,20 +150,26 @@ export interface SubscriberEntry {
 export interface Subscriber {
     /** The tables whose changes list the subscriptions again, beside the scopes and the residents' homes and addresses. */
     readonly watches?: readonly Table[];
+    /** The link to the server the copies follow, which receives the changes sent to copied rows, absent where nothing changes them. */
+    readonly uplink?: sync.Uplink;
     /** List the subscriptions of the copies the database keeps now, each with its publisher. */
     subscriptions(): Promise<readonly SubscriberEntry[]>;
 }
 
 /** Build the subscriber of a database's copies. */
 export const Subscriber = {
-    /** Keep the copies some subscriptions list, each streamed from one publisher. */
+    /** Keep the copies some subscriptions list, each streamed over one uplink receiving the changes sent to them. */
     of(
-        publisher: sync.Publisher,
+        uplink: sync.Uplink,
         subscriptions: () => Promise<readonly sync.Subscription[]>,
     ): Subscriber {
         return {
+            uplink,
             subscriptions: async () =>
-                (await subscriptions()).map((subscription) => ({ subscription, publisher })),
+                (await subscriptions()).map((subscription) => ({
+                    subscription,
+                    publisher: uplink,
+                })),
         };
     },
 };
@@ -269,11 +284,18 @@ export class ObjectServer<
     readonly copied: readonly ObjectType[];
     /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
     readonly runs?: RunClient;
+    /** The servers in this process keeping the rows of object types the database copies: the copies' sources, which receive the calls sent to change them. */
+    readonly sources: readonly Pick<
+        ObjectServer,
+        "objects" | "uplink" | "receive" | "receiveFrom"
+    >[];
+    /** Stream the copies of the served rows to a server following them in this process, and run the changes it sends to them as the system. */
+    readonly uplink: sync.Uplink;
     /** The change triggers of the served objects, each change they admit recorded as a run. */
     readonly triggers: readonly ChangeTrigger[];
     /** The audit history the journal delivers calls to, absent where another server delivers them. */
     readonly #history: AuditDestination | undefined;
-    /** The outbox delivering the calls methods send, absent where no cell records runs. */
+    /** The outbox delivering the calls methods send and the changes of copied rows, absent where nothing receives them. */
     readonly #sends?: Outbox;
     /** Derive a request's verified authorization inputs within a scope. */
     readonly accessContext: (context: ServiceContext, scope: string) => AccessContext;
@@ -285,6 +307,10 @@ export class ObjectServer<
     readonly clock: () => number;
     /** The scope's branch types, absent for a server without branches. */
     readonly branch: BranchType | undefined;
+    /** The served kinds' resources, each controlled by the loop its trait builds. */
+    readonly #provisioned: readonly ObjectType[];
+    /** The providers reconciling the served kinds' resources, none for a server reconciling none. */
+    readonly providers: readonly ProvisionedProvider[];
     /** Whether reads of the objects record access events. */
     readonly isAccessAudited: boolean;
     /** The copies the objects stream to clients and databases below. */
@@ -330,6 +356,11 @@ export class ObjectServer<
         readonly shapes?: readonly sync.Shape[];
         /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
         readonly runs?: RunClient;
+        /** The servers in this process keeping the rows of object types the database copies: the copies' sources, which receive the calls sent to change them. */
+        readonly sources?: readonly Pick<
+            ObjectServer,
+            "objects" | "uplink" | "receive" | "receiveFrom"
+        >[];
         /** The triggers of the served objects' package, whose change triggers need a cell recording their runs. */
         readonly triggers?: readonly Trigger[];
         /** Report failed settlements, thrown when absent. */
@@ -340,6 +371,8 @@ export class ObjectServer<
         readonly clock?: () => number;
         /** The scope's branch types, among the objects, whose branches reads can see. */
         readonly branch?: BranchType;
+        /** The providers reconciling the served kinds' resources, absent for a server reconciling none. */
+        readonly provisioned?: ProvisionedOptions;
     }) {
         // require each object type under its own name, and the stores its storage needs
         this.#routed = Object.values(options.objects);
@@ -359,9 +392,18 @@ export class ObjectServer<
         if (options.installation !== undefined) {
             this.installation = options.installation;
         }
+        this.sources = options.sources ?? [];
+        this.uplink = {
+            stream: (subscription, signal) => this.source.publish(subscription, signal),
+            receive: async (mutation) => {
+                // run each change as the system, as servers in this process trust each other
+                for (const call of mutation.calls) {
+                    await this.receive(call);
+                }
+            },
+        };
         if (options.runs !== undefined) {
             this.runs = options.runs;
-            this.#sends = new Outbox(options.database);
         }
         this.triggers = ObjectServer.#changeTriggers(options);
         if (options.ephemeral !== undefined) {
@@ -375,7 +417,7 @@ export class ObjectServer<
         this.database = options.database;
         this.residence = ObjectServer.#residence(this.objects);
         this.authorizer = ObjectServer.#authorizer(this.objects, this.residence, options);
-        tracked.require(this.objects, this.authorizer);
+        TrackedHistory.require(this.objects, this.authorizer);
 
         // keep the journal, the audit and the request context
         this.#journal = ObjectServer.#journalOf(this.#routed, options);
@@ -389,15 +431,35 @@ export class ObjectServer<
         this.clock = options.clock ?? Date.now;
         this.branch = options.branch;
         this.#report = options.report ?? rethrow;
+        this.#provisioned = ObjectServer.#control(this.objects, options.provisioned);
+        this.providers = options.provisioned?.providers ?? [];
 
         // follow the durable objects' tables and the decision tables in one feed
         const durable = ObjectServer.#durable(this.objects, options.policies ?? []);
         this.copied = durable.filter((object) => options.database.copies(object.table));
+
+        // send calls to the cell recording runs, and changes of copied rows toward their home
+        const isUplinked = options.subscriber?.uplink !== undefined && this.copied.length > 0;
+        if (options.runs !== undefined || this.sources.length > 0 || isUplinked) {
+            this.#sends = new Outbox(options.database);
+        }
         const followed = durable.flatMap((object) => object.tables);
         this.feed = new sync.Feed(options.database, [...new Set([...followed, ...decisionTables])]);
         this.#schemas = new Map(
             this.objects.map((object) => [object.name, { object, schema: object.schema }]),
         );
+    }
+
+    /** Control each served kind's resources with the loop their trait builds, none without providers. */
+    static #control(
+        objects: readonly ObjectType[],
+        provisioned: ProvisionedOptions | undefined,
+    ): ObjectType[] {
+        return provisioned === undefined
+            ? []
+            : objects
+                  .filter((object) => Provisioned.is(object))
+                  .map((object) => object.control(new ProvisionedController(object, provisioned)));
     }
 
     /** List the durable object types a server serves or decides. */
@@ -610,9 +672,10 @@ export class ObjectServer<
         return objects.implement(service, options.controllers);
     }
 
-    /** Keep an installation's copies: its space's chain and universe rows from its cell, and the projections its residents receive from the installations keeping them. */
+    /** Keep an installation's copies: its space's chain and universe rows from its cell, which receives their changes, and the projections its residents receive from the installations keeping them. */
     static #subscriber(installation: InstallationContext, source: () => ObjectSource): Subscriber {
         return {
+            uplink: installation.publisher,
             subscriptions: async () => [
                 ...(await source().subscriptions(installation.scope, { isHome: false })).map(
                     (subscription) => ({ subscription, publisher: installation.publisher }),
@@ -653,9 +716,13 @@ export class ObjectServer<
         );
     }
 
-    /** Implement a service with the served objects' access, audit, controllers and router, running further controllers alongside. */
-    implement(service: Service, controllers: readonly Controller[] = []): ServiceImplementation {
+    /** Implement a service with the served objects' access, audit, controllers and router, running further controllers alongside, exposing this server. */
+    implement(
+        service: Service,
+        controllers: readonly Controller[] = [],
+    ): ServiceImplementation & { readonly objects: Omit<ObjectServer, "router" | "implement"> } {
         return {
+            objects: this,
             service,
             access: this.access,
             audit: AuditRecorder.procedure((call) =>
@@ -723,6 +790,11 @@ export class ObjectServer<
                 }
 
                 return await this.call(object, name, called, context);
+            }),
+            receive: replica.receive.handler(async ({ input, context }) => {
+                await this.receiveFrom(input.mutation, context);
+
+                return {};
             }),
             broadcast: replica.broadcast.handler(async ({ input, context }) => {
                 await this.source.broadcast(input.scope, input.object, input.event, context);
@@ -1192,7 +1264,7 @@ export class ObjectServer<
                 outcomes.push({ id: mutation.id, outcome: { value } });
             } catch (error) {
                 // record final failures, rethrow transient ones
-                const failure = Journal.failure(error);
+                const failure = Replay.failure(error);
                 if (failure === undefined) {
                     throw error;
                 }
@@ -1227,6 +1299,24 @@ export class ObjectServer<
     /** Call object types' system methods inside an open transaction, in a scope, at a time. */
     invoker(context: SystemContext): Invoke {
         return invoking((object, name, input) => this.#invoke(context, object, name, input));
+    }
+
+    /** Change an object type's rows as the system in an open transaction: here where the database keeps them, else through a call sent to their source once it commits. */
+    async change(
+        context: SystemContext,
+        object: ObjectType,
+        name: string,
+        input: JsonObject,
+    ): Promise<void> {
+        // send a change of copied rows to their source
+        if (this.database.copies(object.table)) {
+            const call = Call.record(object, name, scoped(object, input, context.scope));
+            await this.send(call, context.database);
+        }
+        // run any other change here
+        else {
+            await this.#invoke(context, object, name, input);
+        }
     }
 
     /** Execute one system call inside an open transaction, returning its result. */
@@ -1428,6 +1518,150 @@ export class ObjectServer<
         });
     }
 
+    /** Send a call to run once a transaction on this server's database commits, at the server keeping its rows or through the cell recording runs. */
+    async send(call: sync.Call, transaction: DatabaseConnection): Promise<void> {
+        if (this.#sends === undefined) {
+            throw new TypeError(`the server sends ${call.method}, but nothing receives its sends`);
+        }
+        const requestId = RequestId.create();
+        await this.#sends.append(
+            OutboxCall,
+            requestId,
+            { requestId, request: { call } },
+            transaction,
+        );
+    }
+
+    /** Run a call another server sent to change the served rows as the system, or pass a change of copied rows toward their home, once however often it is delivered. */
+    async receive(call: sync.Call): Promise<void> {
+        // pass a change of copied rows to the server keeping them
+        if (await this.#forward(call, RequestId.create())) {
+            return;
+        }
+
+        // resolve the served object and method, system methods included
+        const separator = call.method.lastIndexOf(".");
+        const object = this.objects.find(
+            (served) => served.name === call.method.slice(0, separator),
+        );
+        const name = call.method.slice(separator + 1);
+        const method = object?.methods[name];
+        if (object === undefined || method === undefined || !method.mutates) {
+            throw new ServiceError("BAD_REQUEST", { message: `no mutating method ${call.method}` });
+        }
+
+        // read the scope and the target or the chosen identifier
+        const scope = this.#scope(object, call.input);
+        const id = typeof call.input["id"] === "string" ? call.input["id"] : undefined;
+        const [target] =
+            id === undefined
+                ? []
+                : await this.database
+                      .select()
+                      .from(object.table)
+                      .where(object.withIds([id]));
+
+        // pass a creation delivered before, and refuse a missing target
+        if (!method.target && method.kind === "create" && target !== undefined) {
+            return;
+        } else if (method.target && target === undefined) {
+            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${id ?? ""}` });
+        }
+
+        // run it as the system
+        const { id: _id, ...input } = call.input;
+        await this.executeAsSystem(
+            object,
+            name,
+            [
+                {
+                    scope,
+                    ...(target === undefined ? {} : { target }),
+                    ...(id === undefined || target !== undefined ? {} : { id }),
+                    input,
+                },
+            ],
+            this.clock(),
+        );
+    }
+
+    /** Run a mutation a follower sent to rows it keeps or copies, as the caller, at the server keeping the rows. */
+    async receiveFrom(mutation: sync.Mutation, context: ServiceContext): Promise<void> {
+        // name each call's type
+        const types = mutation.calls.map((call) =>
+            call.method.slice(0, call.method.lastIndexOf(".")),
+        );
+        const sources = types.map((type) =>
+            this.sources.find((each) => each.objects.some((object) => object.name === type)),
+        );
+        const [source] = sources;
+
+        // run a mutation of served rows here as the caller
+        if (types.every((type) => this.objects.some((object) => object.name === type))) {
+            await this.mutate(mutation, context);
+        }
+        // pass a mutation of copied rows to their one source in this process
+        else if (source !== undefined && sources.every((each) => each === source)) {
+            await source.receiveFrom(mutation, context);
+        }
+        // refuse a mutation of rows kept elsewhere or by several sources
+        else {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `nothing here keeps the rows ${types.join(", ")} change`,
+            });
+        }
+    }
+
+    /** Pass a change of copied rows to the server keeping them: their source in this process, or over the uplink the copies follow, answering whether it passed. */
+    async #forward(call: sync.Call, requestId: string): Promise<boolean> {
+        // leave a change of rows the database keeps itself
+        const type = call.method.slice(0, call.method.lastIndexOf("."));
+        const object = this.copied.find((copied) => copied.name === type);
+        if (object === undefined || this.objects.some((served) => served.same(object))) {
+            return false;
+        }
+
+        // pass it to its source in this process
+        const source = this.sources.find((each) =>
+            each.objects.some((known) => known.same(object)),
+        );
+        const uplink = this.subscriber?.uplink;
+        if (source !== undefined) {
+            await source.receive(call);
+        }
+        // pass it over the uplink the copies follow, once per request
+        else if (uplink !== undefined) {
+            await uplink.receive({ id: requestId, calls: [call] });
+        }
+        // refuse a change nothing here receives
+        else {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `nothing here receives changes of copied ${object.name} rows`,
+            });
+        }
+
+        return true;
+    }
+
+    /** Deliver a sent call to the server keeping the rows it changes, or to the cell recording runs. */
+    async #deliver(sent: OutboxCall, signal: AbortSignal): Promise<void> {
+        // deliver a change of copied rows toward their home
+        const { call } = sent.request;
+        if (await this.#forward(call, sent.requestId)) {
+            return;
+        }
+        // record any other sent call's run at the cell
+        else if (this.runs !== undefined) {
+            await this.runs.send(sent.request, { requestId: sent.requestId, signal });
+        }
+        // refuse a call nothing receives
+        else {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `nothing receives the sent call ${call.method}`,
+            });
+        }
+    }
+
     /** List the controllers the served objects need. */
     controllers(): readonly Controller[] {
         // compact the log, and pick the controllers the objects need
@@ -1445,18 +1679,25 @@ export class ObjectServer<
             ...(this.directory === undefined
                 ? []
                 : [new ClaimController(this.directory, this.database, this.objects)]),
-            ...(isRecoverable ? [recoverable.controller(this)] : []),
-            ...(isExpiring ? [expiring.controller(this)] : []),
+            ...(isRecoverable ? [new RecoverableController(this)] : []),
+            ...(isExpiring ? [new ExpiringController(this)] : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
-            ...(this.#sends === undefined || this.runs === undefined
+            ...(this.#sends === undefined
                 ? []
-                : [this.#sends.controller(RUNS.to(this.runs, this.#report))]),
+                : [
+                      this.#sends.controller(
+                          OutboxCall.destination(
+                              (sent, signal) => this.#deliver(sent, signal),
+                              this.#report,
+                          ),
+                      ),
+                  ]),
             ...(this.runs === undefined || this.triggers.length === 0
                 ? []
                 : [new ChangeController(this.database, this.triggers, this.runs, this.#report)]),
             ...(this.subscriber === undefined ? [] : [this.source.controller(this.subscriber)]),
             ...[this.source.addresses()].filter((controller) => controller !== undefined),
-            ...this.objects.flatMap((object) =>
+            ...[...this.objects, ...this.#provisioned].flatMap((object) =>
                 object.controller === undefined
                     ? []
                     : [ObjectController.control(this, object, object.controller)],
@@ -1607,27 +1848,20 @@ export class ObjectServer<
 
     /** Wait until the scope's log or a copy reaches a watermark. */
     async #reach(scope: string, watermark: Watermark, signal: AbortSignal): Promise<boolean> {
-        try {
-            // wait on the scope's own log
-            if (watermark.scope === scope) {
-                if (watermark.epoch !== (await this.database.log.epoch())) {
-                    throw new DatabaseError("STALE_EPOCH", `${scope} has another epoch`);
-                }
-
-                return await this.database.log.wait(watermark.sequence, signal);
+        // wait on the scope's own log
+        if (watermark.scope === scope) {
+            if (watermark.epoch !== (await this.database.log.epoch())) {
+                throw new DatabaseError(
+                    "STALE_EPOCH",
+                    `${scope} no longer has the watermark's history`,
+                );
             }
 
-            // wait on the copy of an enclosing scope
-            return await sync.Replica.reach(this.database, watermark.scope, watermark, signal);
-        } catch (error) {
-            // report a stale epoch
-            if (error instanceof DatabaseError && error.code === "STALE_EPOCH") {
-                throw new ServiceError("STALE_EPOCH", {
-                    message: `${watermark.scope} no longer has the watermark's history`,
-                });
-            }
-            throw error;
+            return await this.database.log.wait(watermark.sequence, signal);
         }
+
+        // wait on the copy of an enclosing scope
+        return await sync.Replica.reach(this.database, watermark.scope, watermark, signal);
     }
 
     /** The served durable object types. */
@@ -2197,7 +2431,7 @@ export class ObjectServer<
         const [after] = rows;
         if (after !== undefined) {
             const before = present(from, "the log position before a tracked call");
-            await tracked.record(history, call, call.target, after, before);
+            await TrackedHistory.record(history, call, call.target, after, before);
         }
     }
 
@@ -2279,33 +2513,6 @@ function callerOf(authorization: Authorization): Pick<Call, "caller"> {
     const caller = context.subject ?? Caller.principal(context);
 
     return caller === undefined ? {} : { caller };
-}
-
-/** Build system calls. */
-export const SystemCall = {
-    /** Call on an existing object's row, in its scope. */
-    of<Row extends Select<Table>, Input extends Readonly<Record<string, unknown>>>(
-        row: Row,
-        input?: Input,
-    ): SystemCall<Row, Input> {
-        return {
-            scope: schema.string().parse(row["scope"]),
-            target: row,
-            ...(input === undefined ? {} : { input }),
-        };
-    },
-};
-
-/** One call the system makes. */
-export interface SystemCall<Row extends Select<Table> = Select<Table>, Input = JsonObject> {
-    /** The scope the call acts in. */
-    readonly scope: string;
-    /** The object the call acts on, as its table selects it, absent for a creation or a call on the collection. */
-    readonly target?: Row;
-    /** The identifier a creation takes, a fresh one when absent. */
-    readonly id?: string;
-    /** The method's input, without the target's identifier. */
-    readonly input?: Input;
 }
 
 /** The input of a system call: the method's call input without the target's identifier, any record for a type or method not known statically. */
