@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { DOMAINS, HostAddress, InstallationOrigin } from "../src/address/index.ts";
+import { DOMAINS, HostAddress, InstallationOrigin, SpaceOrigin } from "../src/address/index.ts";
 
 test("read the host address of a server name, and nothing for other shapes", () => {
     expect(
@@ -58,4 +58,30 @@ test("read and write the origins of views and branches under a domain, and nothi
         "notes.feature-x--personal.florian.destack.space",
         "notes.personal.florian.localhost",
     ]);
+});
+
+test("read and write the origins of spaces and branches under a domain, and nothing for installation origins or other hostnames", () => {
+    const origins = [
+        "personal.florian.destack.space",
+        "feature-x--personal.florian.destack.space",
+        "notes.personal.florian.destack.space",
+        "feature-x--.florian.destack.space",
+        "Personal.florian.destack.space",
+        "personal.florian.example.com",
+    ].map((hostname) => SpaceOrigin.parse(hostname, DOMAINS.space));
+    expect(origins).toEqual([
+        { space: "personal", handle: "florian" },
+        { branch: "feature-x", space: "personal", handle: "florian" },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+    ]);
+
+    // write back the hostnames the origins were read from
+    expect(
+        origins.flatMap((origin) =>
+            origin === undefined ? [] : [SpaceOrigin.format(origin, DOMAINS.space)],
+        ),
+    ).toEqual(["personal.florian.destack.space", "feature-x--personal.florian.destack.space"]);
 });
