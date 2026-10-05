@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { Preset } from "../palette/index.ts";
+import { Preset } from "../radix/index.ts";
 
 /** The body size of each Apple Dynamic Type size relative to the default medium, from 14 to 23 points over 16. */
 export const TEXT_SCALES = {

@@ -1,7 +1,8 @@
 import { Package } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
-import { apca, Color, GRAY_PRESETS, PRESET_NAMES, Scale } from "../palette/index.ts";
+import { apca, Color, Scale } from "../palette/index.ts";
+import { GRAY_PRESETS, PRESET_NAMES } from "../radix/index.ts";
 import {
     DEFAULT_PREFERENCES,
     ROLE_NAMES,

@@ -1,14 +1,7 @@
 import { PackageError, type Package } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
-import {
-    apca,
-    GRAY_PRESETS,
-    HexColor,
-    Preset,
-    Scale,
-    type GrayPreset,
-    type Scheme,
-} from "../palette/index.ts";
+import { apca, HexColor, Scale, type Scheme } from "../palette/index.ts";
+import { GRAY_PRESETS, Preset, type GrayPreset } from "../radix/index.ts";
 import { MOTION_VARIABLE, TOKENS, type Variable } from "../token/index.ts";
 import {
     DENSITY_SCALES,

@@ -1,14 +1,6 @@
 import { expect, test } from "@destack/test";
-import {
-    apca,
-    Color,
-    PRESET_NAMES,
-    PRESETS,
-    Scale,
-    STEPS,
-    type Scheme,
-    type Step,
-} from "../palette/index.ts";
+import { apca, Color, Scale, STEPS, type Scheme, type Step } from "./index.ts";
+import { PRESET_NAMES, PRESETS } from "../radix/index.ts";
 
 /** Seeds across hues, lightness and chroma. */
 const SEEDS = ["#3e63dd", "#f76b15", "#ffc53d", "#46a758", "#ff0000", "#7c3aed", "#888888"];
