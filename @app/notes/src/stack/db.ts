@@ -1,5 +1,5 @@
 import { type Table, defineDatabase } from "@destack/db";
-import { journal } from "@destack/audit";
+import { journal } from "@destack/audit/stack";
 import { branchTables } from "@destack/space/object";
 import { note, notebook } from "../object/index.ts";
 

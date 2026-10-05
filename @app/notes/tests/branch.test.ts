@@ -1,5 +1,5 @@
 import { anyone, principal } from "@destack/access";
-import { copyRole, copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { account } from "@destack/account/object";
 import { type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -150,12 +150,12 @@ async function openSpace(database: DatabaseConnection) {
     const accountId = schema.identifier("account").parse(`account-${v7()}`);
     const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     const reference = space.reference(accountId, spaceId);
-    await copyScope(database, account.reference(Scope.universe.id, accountId));
-    await copyScope(database, reference);
+    const accessCopies = new AccessFixture(database);
+    await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
+    await accessCopies.copyScope(reference);
 
     // let anyone read the space through a member role
-    await copyRole(
-        database,
+    await accessCopies.copyRole(
         reference,
         { name: "member", description: "Reads the space", permissions: [space.permission("read")] },
         anyone.reference("*", "*"),

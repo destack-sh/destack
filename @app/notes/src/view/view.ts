@@ -5,11 +5,13 @@ import { note, notebook } from "../object/index.ts";
 export const notes = defineView({
     name: "notes",
     objects: [notebook, note],
-    permissions: [
-        notebook.permission("read"),
-        notebook.permission("manage"),
-        note.permission("read"),
-        note.permission("edit"),
-    ],
+    permissions: {
+        space: [
+            notebook.permission("read"),
+            notebook.permission("manage"),
+            note.permission("read"),
+            note.permission("edit"),
+        ],
+    },
     component: () => import("./app.tsx"),
 });
