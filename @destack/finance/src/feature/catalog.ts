@@ -2,10 +2,10 @@ import { fromJsonSchema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { ServiceError } from "@destack/service/error";
-import { Feature, FeatureReference } from "../feature/feature.ts";
+import { Feature, FeatureReference } from "./feature.ts";
 import { Meter, MeterReference } from "../meter/meter.ts";
-import { FeatureDescription } from "./feature.ts";
-import { MeterDescription } from "./meter.ts";
+import { FeatureDescription } from "./description.ts";
+import { MeterDescription } from "../meter/description.ts";
 
 /** The catalog read from each build so far. */
 const READ = new WeakMap<BuildReader, Promise<FeatureCatalog>>();

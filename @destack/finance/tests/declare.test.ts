@@ -1,13 +1,8 @@
 import { expect, test } from "@destack/test";
 import { defineFeature } from "../src/declare/index.ts";
-import {
-    compareFeature,
-    describeFeature,
-    FeatureCatalog,
-    featureSymbols,
-} from "../src/inspect/index.ts";
+import { compareFeature, describeFeature, featureSymbols } from "../src/inspect/index.ts";
 import { schema } from "@destack/schema";
-import type { Feature, FeatureDefinition } from "../src/feature/index.ts";
+import { FeatureCatalog, type Feature, type FeatureDefinition } from "../src/feature/index.ts";
 import { release } from "./fixture/release.ts";
 import {
     calls,

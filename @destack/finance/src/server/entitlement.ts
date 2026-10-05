@@ -5,7 +5,7 @@ import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { aligned, canonicalize, found, present } from "@destack/schema";
 import { FeatureLimit, type FeatureReset } from "../feature/feature.ts";
-import { FeatureCatalog } from "../inspect/index.ts";
+import { FeatureCatalog } from "../feature/index.ts";
 import { MeterReference, type Meter } from "../meter/meter.ts";
 import {
     type customer,

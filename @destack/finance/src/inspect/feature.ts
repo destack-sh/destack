@@ -1,41 +1,9 @@
-import { graph, Package } from "@destack/package";
+import { graph } from "@destack/package";
 import { Address, Plan, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { defineSchema, schema, toJsonSchema, type JsonObject } from "@destack/schema";
-import { Feature, FeatureMetadata, FeatureReset } from "../feature/feature.ts";
-import { MeterReference } from "../meter/meter.ts";
-
-/** The fields of every feature description beside its kind. */
-const description = FeatureMetadata.extend({
-    /** The declaring package. */
-    package: Package,
-});
-
-/** A feature declaration as manifests describe it. */
-export const FeatureDescription = defineSchema(
-    schema.discriminatedUnion("kind", [
-        description.extend({
-            /** Access alone. */
-            kind: schema.literal("boolean"),
-        }),
-        description.extend({
-            /** A fixed value each grant sets. */
-            kind: schema.literal("static"),
-            /** The JSON Schema of the value a grant sets. */
-            value: schema.record(schema.string(), schema.json()),
-        }),
-        description.extend({
-            /** Usage of a meter up to the limit a grant sets. */
-            kind: schema.literal("metered"),
-            /** The meter whose events count as usage. */
-            meter: MeterReference,
-            /** When the usage starts again. */
-            reset: FeatureReset,
-        }),
-    ]),
-);
-/** A feature declaration as manifests describe it. */
-export type FeatureDescription = schema.Infer<typeof FeatureDescription>;
+import { schema, toJsonSchema, type JsonObject } from "@destack/schema";
+import { Feature } from "../feature/feature.ts";
+import { FeatureDescription } from "../feature/description.ts";
 
 /** Describe a feature with its value's JSON Schema or its meter. */
 export function describeFeature(feature: Feature): FeatureDescription {

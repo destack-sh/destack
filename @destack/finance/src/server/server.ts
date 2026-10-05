@@ -8,7 +8,7 @@ import { ServiceError } from "@destack/service/error";
 import type { CallKey } from "@destack/service/request";
 import type { ServiceImplementation } from "@destack/service/server";
 import { FeatureReference } from "../feature/feature.ts";
-import { FeatureCatalog } from "../inspect/index.ts";
+import { FeatureCatalog } from "../feature/index.ts";
 import {
     customer,
     Customer,
