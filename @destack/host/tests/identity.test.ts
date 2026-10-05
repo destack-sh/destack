@@ -12,12 +12,12 @@ import {
 import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { afterAll, beforeAll, expect, refusal, test } from "@destack/test";
-import { found, Identifier } from "@destack/schema";
+import { found, Identifier, schema } from "@destack/schema";
 import { connect } from "@destack/account/client";
 import { HostIdentity } from "../src/identity/index.ts";
-import { Host, hostKey } from "@destack/account/object";
+import { Host, hostKey, region } from "@destack/account/object";
 import { MemoryKeychain } from "../src/keychain/index.ts";
-import { GlobalFixture, ACCOUNTS_URL, ids, ISSUER } from "../src/test/index.ts";
+import { AccountFixture, ACCOUNTS_URL, ids, ISSUER } from "../src/test/index.ts";
 
 /** The refusal of an assertion without an active key behind it. */
 const NO_ACTIVE_KEY = "UNAUTHORIZED: host assertion refers to no active key";
@@ -25,15 +25,23 @@ const NO_ACTIVE_KEY = "UNAUTHORIZED: host assertion refers to no active key";
 /** The package receiving the hosts' requests. */
 const AUDIENCE = PackageId.parse("package-019f7480-0000-7000-8000-00000000e002");
 
-/** The global tier every scenario enrolls its hosts in. */
-let global: GlobalFixture;
+/** A kept private key's public coordinates, beside its private scalar. */
+const KeptKey = schema.looseObject({
+    kty: schema.string(),
+    crv: schema.string(),
+    x: schema.string(),
+    y: schema.string(),
+});
+
+/** The account service every scenario enrolls its hosts in. */
+let accounts: AccountFixture;
 
 beforeAll(async () => {
-    global = await GlobalFixture.open();
+    accounts = await AccountFixture.open();
 });
 
 afterAll(async () => {
-    await global[Symbol.asyncDispose]();
+    await accounts[Symbol.asyncDispose]();
 });
 
 /** Prove a host's key for a token grant at the account service. */
@@ -52,9 +60,9 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
     const accountId = ids.account;
 
     // enroll a host under the owner's account and read itself by its token
-    const identity = await global.enroll(accountId);
+    const identity = await accounts.enroll(accountId);
     const itself = () =>
-        outcome(global.host(identity).host.get({ accountId, id: identity.hostId }));
+        outcome(accounts.host(identity).host.get({ accountId, id: identity.hostId }));
     expect(await itself()).toBe("accepted");
 
     // refuse a stranger enrolling a host into the account, and a proof for another host
@@ -68,9 +76,9 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
     const other = new HostIdentity(Identifier.create("host"), new MemoryKeychain());
     const { publicKey } = await other.generate();
     expect([
-        await outcome(stranger.enroll(global.user(ids.stranger), enrolling)),
+        await outcome(stranger.enroll(accounts.user(ids.stranger), enrolling)),
         await outcome(
-            global.user(ids.owner).host.enroll({
+            accounts.user(ids.owner).host.enroll({
                 ...enrolling,
                 id: Identifier.create("host"),
                 publicKey,
@@ -84,10 +92,10 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
 
     // number a taken name at enrollment, refuse renaming to a taken one, and refuse a branch separator
     const namesake = new HostIdentity(Identifier.create("host"), new MemoryKeychain());
-    const taken = (await global.host(identity).host.get({ accountId, id: identity.hostId })).name;
+    const taken = (await accounts.host(identity).host.get({ accountId, id: identity.hostId })).name;
     const rename = (name: string) =>
         outcome(
-            global.host(identity).host.rename({
+            accounts.host(identity).host.rename({
                 accountId,
                 id: identity.hostId,
                 requestId: RequestId.create(),
@@ -96,7 +104,7 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
         );
     expect([
         await outcome(
-            namesake.enroll(global.user(ids.owner), {
+            namesake.enroll(accounts.user(ids.owner), {
                 ...enrolling,
                 requestId: RequestId.create(),
                 name: taken,
@@ -106,7 +114,7 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
         await rename("studio"),
         await rename("studio--main"),
         await outcome(
-            global.user(ids.owner).host.rename({
+            accounts.user(ids.owner).host.rename({
                 accountId,
                 id: identity.hostId,
                 requestId: RequestId.create(),
@@ -122,18 +130,18 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
         "accepted",
         "accepted",
     ]);
-    expect((await global.host(identity).host.get({ accountId, id: identity.hostId })).name).toBe(
+    expect((await accounts.host(identity).host.get({ accountId, id: identity.hostId })).name).toBe(
         "studio",
     );
 
     // rotate the host's key as the host, and refuse the owner registering a key for it
-    await identity.rotate(global.host(identity), accountId);
+    await identity.rotate(accounts.host(identity), accountId);
     expect(await itself()).toBe("accepted");
     const impostor = new HostIdentity(identity.hostId, new MemoryKeychain());
     const { publicKey: foreign, proof } = await impostor.generate();
     expect(
         await outcome(
-            global.user(ids.owner).hostKey.create({
+            accounts.user(ids.owner).hostKey.create({
                 accountId,
                 requestId: RequestId.create(),
                 parentId: identity.hostId,
@@ -143,8 +151,8 @@ test("enroll a host as its account's owner, authenticate it across a key rotatio
         ),
     ).toBe("FORBIDDEN: permission denied: rotate");
 
-    // revoke the host as the owner, ending its token at the global tier at once
-    await global.user(ids.owner).host.revoke({
+    // revoke the host as the owner, ending its token at the account service at once
+    await accounts.user(ids.owner).host.revoke({
         accountId,
         id: identity.hostId,
         requestId: RequestId.create(),
@@ -157,7 +165,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
     const accountId = ids.platform;
     const keys = new MemoryKeychain();
     const identity = new HostIdentity(Identifier.create("host"), keys);
-    await identity.enroll(global.user(ids.operator), {
+    await identity.enroll(accounts.user(ids.operator), {
         accountId,
         requestId: RequestId.create(),
         name: "edge",
@@ -167,7 +175,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
     const kept = new MemoryKeychain();
     kept.secrets.set(identity.hostId, found(keys.secrets, identity.hostId));
     const first = new HostIdentity(identity.hostId, kept);
-    const [key] = await global.database
+    const [key] = await accounts.database
         .select()
         .from(hostKey.table)
         .where(eq(hostKey.table.parentId, identity.hostId));
@@ -176,7 +184,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
     }
 
     // grant tokens through the host service with assertions bound to the grant request
-    const fetch = (request: Request) => global.accounts.fetch(request);
+    const fetch = (request: Request) => accounts.server.fetch(request);
     const hosts = connect({ url: ACCOUNTS_URL, fetch });
     const grant = async (signer: HostIdentity) =>
         outcome(hosts.hostToken.grant({ assertion: await proveGrant(signer), audience: AUDIENCE }));
@@ -187,7 +195,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
         authority: { kind: "universe" },
         issuer: ISSUER,
         audience: AUDIENCE,
-        keys: global.keys,
+        keys: accounts.keys,
     });
     const verified = await verifier.authenticate(
         new Request("https://edge.test/zones", {
@@ -218,10 +226,10 @@ test("grant a host tokens as the host and its region, spending each assertion on
     ]);
 
     // rotate the key, which revokes the first, and refuse revoking the first again
-    await identity.rotate(global.host(identity), accountId);
+    await identity.rotate(accounts.host(identity), accountId);
     expect(
         await outcome(
-            global
+            accounts
                 .host(identity)
                 .hostKey.revoke({ accountId, id: key.id, requestId: RequestId.create() }),
         ),
@@ -232,7 +240,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
 
     // refuse every grant while the host is disabled, and grant again once enabled
     const status = (method: "disable" | "enable") =>
-        global.user(ids.operator).host[method]({
+        accounts.user(ids.operator).host[method]({
             accountId,
             id: identity.hostId,
             requestId: RequestId.create(),
@@ -246,7 +254,7 @@ test("grant a host tokens as the host and its region, spending each assertion on
     ]);
 
     // refuse every grant once the operator revokes the host
-    await global.user(ids.operator).host.revoke({
+    await accounts.user(ids.operator).host.revoke({
         accountId,
         id: identity.hostId,
         requestId: RequestId.create(),
@@ -254,11 +262,11 @@ test("grant a host tokens as the host and its region, spending each assertion on
     expect(await grant(identity)).toBe(NO_ACTIVE_KEY);
 });
 
-test("grant a host tokens for the spaces its cell or region serves, and refuse others", async () => {
+test("grant a host tokens for the spaces its cell or region serves or receives, and refuse others", async () => {
     // enroll an account's host and a region's host, and place a space in each
-    const device = await global.enroll(ids.account);
-    const regional = await global.enroll(ids.platform);
-    const directory = new DirectoryStore(global.database);
+    const device = await accounts.enroll(ids.account);
+    const regional = await accounts.enroll(ids.platform);
+    const directory = new DirectoryStore(accounts.database);
     const own = Identifier.create("space");
     const served = Identifier.create("space");
     const elsewhere = Identifier.create("space");
@@ -268,7 +276,7 @@ test("grant a host tokens for the spaces its cell or region serves, and refuse o
     // grant tokens in the spaces each host's cell serves
     const hosts = connect({
         url: ACCOUNTS_URL,
-        fetch: (request) => global.accounts.fetch(request),
+        fetch: (request) => accounts.server.fetch(request),
     });
     const grant = async (signer: HostIdentity, spaceId: Identifier<"space">) =>
         outcome(
@@ -281,16 +289,78 @@ test("grant a host tokens for the spaces its cell or region serves, and refuse o
                 spaceId,
             }),
         );
+    const refused = [
+        await grant(device, served),
+        await grant(regional, elsewhere),
+        await grant(regional, own),
+    ];
+
+    // grant a token in a space moving to the host's cell
+    await directory.move(
+        { id: own, scope: ids.account, cell: device.hostId, epoch: 1 },
+        ids.region,
+    );
     expect([
         await grant(device, own),
         await grant(regional, served),
-        await grant(device, served),
-        await grant(regional, elsewhere),
+        refused,
+        await grant(regional, own),
     ]).toEqual([
         "accepted",
         "accepted",
-        `FORBIDDEN: ${served} is served elsewhere`,
-        `FORBIDDEN: ${elsewhere} is served elsewhere`,
+        [
+            `FORBIDDEN: ${served} is served and received elsewhere`,
+            `FORBIDDEN: ${elsewhere} is served and received elsewhere`,
+            `FORBIDDEN: ${own} is served and received elsewhere`,
+        ],
+        "accepted",
+    ]);
+});
+
+test("grant a region's host a token as the workload placed in its region alone, and refuse the hosts of another region and of an account", async () => {
+    // place a workload in the platform's region
+    const placementId = await accounts.place(AUDIENCE);
+
+    // keep another region
+    const america = Identifier.create("region");
+    await accounts.database.insert(region.table).values({
+        id: america,
+        code: "us-east",
+        name: "America",
+        residencyId: "us",
+        createdAt: 1,
+        updatedAt: 1,
+    });
+
+    // enroll a host of the region, of another region and of an account
+    const regional = await accounts.enroll(ids.platform);
+    const foreign = await accounts.enroll(ids.platform, "cloud", america);
+    const device = await accounts.enroll(ids.account);
+
+    // name the workload alone in the token of the region's host, as the universe's token verifies it
+    const fetch = (request: Request) => accounts.server.fetch(request);
+    const { accessToken } = await regional.token(AUDIENCE, ACCOUNTS_URL, fetch, { placementId });
+    const verifier = new TokenVerifier({
+        authority: { kind: "universe" },
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        keys: accounts.keys,
+    });
+    const verified = await verifier.authenticate(
+        new Request("https://registry.test/packages", {
+            headers: { authorization: `Bearer ${accessToken}` },
+        }),
+    );
+    const workload = principal.workload.reference(Scope.universe.id, placementId);
+    expect([verified.claims.subject, verified.claims.subjects]).toEqual([workload, [workload]]);
+
+    // refuse the hosts of another region and of an account
+    expect([
+        await outcome(foreign.token(AUDIENCE, ACCOUNTS_URL, fetch, { placementId })),
+        await outcome(device.token(AUDIENCE, ACCOUNTS_URL, fetch, { placementId })),
+    ]).toEqual([
+        `FORBIDDEN: this host runs no workload ${placementId}`,
+        `FORBIDDEN: this host runs no workload ${placementId}`,
     ]);
 });
 
@@ -299,7 +369,7 @@ test("enroll a region's host only for callers who serve the region", async () =>
     const enroll = (userId: string, accountId: Identifier<"account">) =>
         outcome(
             new HostIdentity(Identifier.create("host"), new MemoryKeychain()).enroll(
-                global.user(userId),
+                accounts.user(userId),
                 {
                     accountId,
                     requestId: RequestId.create(),
@@ -323,10 +393,10 @@ test("enroll a region's host only for callers who serve the region", async () =>
 });
 
 test("disable, drain and enable a host, refusing its token grants while disabled", async () => {
-    const identity = await global.enroll(ids.account);
+    const identity = await accounts.enroll(ids.account);
     const change = (userId: string, name: "disable" | "drain" | "enable") =>
         outcome(
-            global.user(userId).host[name]({
+            accounts.user(userId).host[name]({
                 accountId: ids.account,
                 id: identity.hostId,
                 requestId: RequestId.create(),
@@ -334,7 +404,7 @@ test("disable, drain and enable a host, refusing its token grants while disabled
         );
     const hosts = connect({
         url: ACCOUNTS_URL,
-        fetch: (request) => global.accounts.fetch(request),
+        fetch: (request) => accounts.server.fetch(request),
     });
     const verify = async () =>
         outcome(
@@ -363,7 +433,7 @@ test("disable, drain and enable a host, refusing its token grants while disabled
 
     // refuse a stranger changing the status, and any change once the host is revoked
     const stranger = await change(ids.stranger, "disable");
-    await global.user(ids.owner).host.revoke({
+    await accounts.user(ids.owner).host.revoke({
         accountId: ids.account,
         id: identity.hostId,
         requestId: RequestId.create(),
@@ -419,4 +489,52 @@ test("refuse host procedures to callers acting as no host, and pass the rest", a
         await decide(hostCaller, "identity"),
         await decide(userCaller, "identity"),
     ]).toEqual(["accepted", "FORBIDDEN: the procedure requires a host", "accepted", "accepted"]);
+});
+
+test("keep one key when two processes generate a host's first key at once, both adopting the one kept first", async () => {
+    // generate the first key from two identities sharing one keychain
+    const keys = new MemoryKeychain();
+    const hostId = Identifier.create("host");
+    const generated = await Promise.all([
+        new HostIdentity(hostId, keys).generate(),
+        new HostIdentity(hostId, keys).generate(),
+    ]);
+
+    // answer the kept key's public half to both
+    const { kty, crv, x, y } = KeptKey.parse(JSON.parse(found(keys.secrets, hostId)));
+    expect(generated.map((entry) => entry.publicKey)).toEqual([
+        { kty, crv, x, y },
+        { kty, crv, x, y },
+    ]);
+});
+
+test("rotate once for two identities of one host rotating at once, keeping the key the account service holds as current", async () => {
+    // enroll a host, and rotate its key from two of its identities sharing its keychain
+    const accountId = ids.account;
+    const keys = new MemoryKeychain();
+    const identity = new HostIdentity(Identifier.create("host"), keys);
+    await identity.enroll(accounts.user(ids.owner), {
+        accountId,
+        requestId: RequestId.create(),
+        name: "racer",
+        kind: "cloud",
+    });
+    const rotations = [
+        new HostIdentity(identity.hostId, keys),
+        new HostIdentity(identity.hostId, keys),
+    ];
+    await Promise.all(
+        rotations.map((rotation) => rotation.rotate(accounts.host(rotation), accountId)),
+    );
+
+    // register one new key, and keep the key the account service has not revoked
+    const registered = await accounts.database
+        .select()
+        .from(hostKey.table)
+        .where(eq(hostKey.table.parentId, identity.hostId));
+    const { kty, crv, x, y } = KeptKey.parse(JSON.parse(found(keys.secrets, identity.hostId)));
+    expect({
+        registered: registered.length,
+        active: registered.filter((key) => key.revokedAt === null).map((key) => key.publicKey),
+    }).toEqual({ registered: 2, active: [{ kty, crv, x, y }] });
 });

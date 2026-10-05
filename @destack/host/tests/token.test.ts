@@ -7,25 +7,25 @@ import { Authentication, TokenIssuer } from "@destack/service/authentication";
 import { afterAll, beforeAll, expect, refusal, test } from "@destack/test";
 import { SignJWT } from "jose";
 import { SpaceToken } from "../src/identity/index.ts";
-import { GlobalFixture, ids } from "../src/test/index.ts";
+import { AccountFixture, ids } from "../src/test/index.ts";
 
 /** The package receiving the installation's calls. */
 const AUDIENCE = PackageId.parse("package-019f7480-0000-7000-8000-00000000e003");
 
-/** The global tier the scenario enrolls its hosts in. */
-let global: GlobalFixture;
+/** The account service the scenario enrolls its hosts in. */
+let accounts: AccountFixture;
 
 beforeAll(async () => {
-    global = await GlobalFixture.open();
+    accounts = await AccountFixture.open();
 });
 
 afterAll(async () => {
-    await global[Symbol.asyncDispose]();
+    await accounts[Symbol.asyncDispose]();
 });
 
 test("verify a token a space signed with its key, in a space or for a universe service, and refuse other keys, audiences, scopes and spaces without an identity", async () => {
     // start the calling space's identity in its cell, and leave another space without one
-    const directory = new DirectoryStore(global.database);
+    const directory = new DirectoryStore(accounts.database);
     const home = Identifier.create("space");
     const target = Identifier.create("space");
     const zone = { id: home, scope: ids.account, cell: "host-1", epoch: 1 };
@@ -35,7 +35,7 @@ test("verify a token a space signed with its key, in a space or for a universe s
     const intruder = await keyPair();
     await directory.apply(
         await IdentityOperation.sign(
-            { space: home, prev: null, signingKey: signing.key, rotationKeys: [rotation.key] },
+            { space: home, previous: null, signingKey: signing.key, rotationKeys: [rotation.key] },
             rotation.privateKey,
         ),
         zone,
@@ -47,8 +47,16 @@ test("verify a token a space signed with its key, in a space or for a universe s
         Identifier.create("space"),
         Identifier.create("installation"),
     );
-    const sign = (scope: string, options: { key?: CryptoKey; audience?: PackageId; caller?: typeof installation } = {}) =>
-        signInstallation(options.key ?? signing.privateKey, options.caller ?? installation, options.audience ?? AUDIENCE, scope);
+    const sign = (
+        scope: string,
+        options: { key?: CryptoKey; audience?: PackageId; caller?: typeof installation } = {},
+    ) =>
+        signInstallation(
+            options.key ?? signing.privateKey,
+            options.caller ?? installation,
+            options.audience ?? AUDIENCE,
+            scope,
+        );
     const verify = async (request: Request, spaceId?: string) => {
         const verified = SpaceToken.verify(request, {
             directory,
@@ -121,7 +129,6 @@ async function signInstallation(
         headers: { authorization: `Bearer ${accessToken}` },
     });
 }
-
 
 /** Encode an unsigned token with some claims, as a user token looks before verification. */
 function fakeToken(claims: JsonObject): string {

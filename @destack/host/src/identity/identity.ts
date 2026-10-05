@@ -4,7 +4,7 @@ import { type Identifier, schema } from "@destack/schema";
 import { DeviceProof, DevicePublicKey, type ProofRequest } from "@destack/account/object";
 import { connect } from "@destack/account/client";
 import type { Host } from "@destack/account/object";
-import type { Keychain } from "../keychain/index.ts";
+import { Keychain } from "../keychain/index.ts";
 
 /** A private P-256 key as Web Crypto exports it, a JSON Web Key keeping its private scalar beside the coordinates. */
 const PrivateJwk = schema.looseObject({
@@ -32,6 +32,12 @@ export type Enrollment = Omit<
     "id" | "publicKey" | "proof"
 >;
 
+/** The space or placement a host's token binds, the universe without either (RFC 8707). */
+export type TokenBinding = Pick<
+    Parameters<ReturnType<typeof connect>["hostToken"]["grant"]>[0],
+    "spaceId" | "placementId"
+>;
+
 /** A host's key pair. */
 interface KeyPair {
     /** The public half. */
@@ -48,8 +54,10 @@ export class HostIdentity {
     readonly #keys: Keychain;
     /** The key pair once loaded or generated. */
     #pair: KeyPair | undefined;
-    /** The access tokens granted to this host, by audience, pending while a grant runs. */
+    /** The access tokens granted to this host, by audience and binding, pending while a grant runs. */
     readonly #tokens = new Map<string, Promise<{ accessToken: string; expiresAt: number }>>();
+    /** The key rotations in progress in this process, by host. */
+    static readonly #rotations = new Map<string, Promise<void>>();
 
     /** Prove a host's identity with the key its store keeps. */
     constructor(hostId: Identifier<"host">, keys: Keychain) {
@@ -57,12 +65,11 @@ export class HostIdentity {
         this.#keys = keys;
     }
 
-    /** Generate and keep a key pair, returning its public half with a proof of possession. */
+    /** Generate and keep a key pair, and return its public half with a proof of possession. */
     async generate(now = Date.now()): Promise<{ publicKey: DevicePublicKey; proof: string }> {
-        // keep a new pair, and prove possession of it
-        const { pair, privateJwk } = await HostIdentity.#generate();
-        await this.#keys.save(this.hostId, JSON.stringify(privateJwk));
-        this.#pair = pair;
+        // replace the kept pair, and prove possession of the pair kept
+        const kept = await this.#keys.load(this.hostId);
+        const pair = await this.#replace(kept, await HostIdentity.#generate());
 
         return { publicKey: pair.publicKey, proof: await this.prove(now) };
     }
@@ -83,14 +90,43 @@ export class HostIdentity {
         });
     }
 
-    /** Register a new key through a client signed with the current one, then keep it. */
+    /** Register a new key through a client signed with the current one and keep it, joining a rotation of this host in progress. */
     async rotate(
         client: ReturnType<typeof connect>,
         accountId: string,
         now = Date.now(),
     ): Promise<void> {
-        // register a new pair with a proof by its private half, then keep it
-        const { pair, privateJwk } = await HostIdentity.#generate();
+        // run a rotation of this host, forgetting it once it settles
+        const pending = HostIdentity.#rotations.get(this.hostId);
+        if (pending === undefined) {
+            const rotation = this.#rotate(client, accountId, now).finally(() =>
+                HostIdentity.#rotations.delete(this.hostId),
+            );
+            HostIdentity.#rotations.set(this.hostId, rotation);
+            await rotation;
+        }
+        // join the rotation in progress
+        else {
+            await pending;
+        }
+
+        // reload the kept key, and forget the tokens the replaced key granted
+        this.#pair = undefined;
+        this.#tokens.clear();
+    }
+
+    /** Register a new key through a client signed with the current one, then keep it. */
+    async #rotate(
+        client: ReturnType<typeof connect>,
+        accountId: string,
+        now: number,
+    ): Promise<void> {
+        // generate a new pair beside the kept one
+        const kept = await this.#keys.load(this.hostId);
+        const generated = await HostIdentity.#generate();
+        const { pair } = generated;
+
+        // register the new pair with a proof by its private half
         await client.hostKey.create({
             accountId: schema.identifier("account").parse(accountId),
             requestId: RequestId.create(),
@@ -98,9 +134,9 @@ export class HostIdentity {
             publicKey: pair.publicKey,
             proof: await DeviceProof.sign(pair.privateKey, pair.publicKey, this.hostId, now),
         });
-        await this.#keys.save(this.hostId, JSON.stringify(privateJwk));
-        this.#pair = pair;
-        this.#tokens.clear();
+
+        // keep the new pair unless a racing writer kept another
+        await this.#replace(kept, generated);
     }
 
     /** Sign a proof for this host now, bound to a request or proving possession of the key. */
@@ -110,15 +146,16 @@ export class HostIdentity {
         return DeviceProof.sign(pair.privateKey, pair.publicKey, this.hostId, now, request);
     }
 
-    /** Wrap a fetch to call a service as this host, with access tokens its issuer's account service grants. */
+    /** Wrap a fetch to call a service with this host's access tokens for a binding. */
     fetch(
         send: (request: Request) => Promise<Response>,
         audience: PackageId,
         accounts: string,
+        binding: TokenBinding = {},
     ): (request: Request) => Promise<Response> {
         return async (request) => {
-            // replace the request's credential with the host's token for the audience
-            const { accessToken } = await this.token(audience, accounts, send);
+            // replace the request's credential with the token for the audience
+            const { accessToken } = await this.token(audience, accounts, send, binding);
             const headers = new Headers(request.headers);
             headers.set("authorization", `Bearer ${accessToken}`);
 
@@ -126,15 +163,21 @@ export class HostIdentity {
         };
     }
 
-    /** Read this host's access token for a service, granting a new one shortly before the last expires. */
+    /** Read this host's access token for a service and binding, granting a new one shortly before the last expires. */
     async token(
         audience: PackageId,
         accounts: string,
         fetch: (request: Request) => Promise<Response>,
+        binding: TokenBinding = {},
         now = Date.now(),
     ): Promise<{ accessToken: string; expiresAt: number }> {
         // reuse a pending or fresh token
-        const cached = this.#tokens.get(audience);
+        const key = JSON.stringify([
+            audience,
+            binding.spaceId ?? null,
+            binding.placementId ?? null,
+        ]);
+        const cached = this.#tokens.get(key);
         const current = await cached;
         if (current !== undefined && current.expiresAt - TOKEN_REFRESH_MILLISECONDS > now) {
             return current;
@@ -147,10 +190,14 @@ export class HostIdentity {
                 url: `${accounts}/hosts/token`,
             });
 
-            return connect({ url: accounts, fetch }).hostToken.grant({ assertion, audience });
+            return connect({ url: accounts, fetch }).hostToken.grant({
+                assertion,
+                audience,
+                ...binding,
+            });
         })();
-        this.#tokens.set(audience, granting);
-        granting.catch(() => this.#tokens.delete(audience));
+        this.#tokens.set(key, granting);
+        granting.catch(() => this.#tokens.delete(key));
 
         return granting;
     }
@@ -160,6 +207,28 @@ export class HostIdentity {
         await this.#keys.remove(this.hostId);
         this.#pair = undefined;
         this.#tokens.clear();
+    }
+
+    /** Keep a generated pair in place of the key read before, or adopt the key a racing writer kept. */
+    async #replace(
+        kept: string | undefined,
+        generated: { pair: KeyPair; privateJwk: PrivateJwk },
+    ): Promise<KeyPair> {
+        // keep the generated pair unless another writer kept a key meanwhile
+        const privateJwk = JSON.stringify(generated.privateJwk);
+        const current = await Keychain.update(this.#keys, this.hostId, (key) =>
+            key === kept || key === undefined ? privateJwk : key,
+        );
+        if (current === privateJwk) {
+            this.#pair = generated.pair;
+
+            return generated.pair;
+        }
+
+        // adopt the key the other writer kept
+        this.#pair = await HostIdentity.#read(current);
+
+        return this.#pair;
     }
 
     /** Load the kept key pair and refuse a host without one. */
@@ -174,10 +243,16 @@ export class HostIdentity {
         if (kept === undefined) {
             throw new TypeError(`host ${this.hostId} has no key`);
         }
-        const stored: unknown = JSON.parse(kept);
-        this.#pair = await HostIdentity.#import(PrivateJwk.parse(stored));
+        this.#pair = await HostIdentity.#read(kept);
 
         return this.#pair;
+    }
+
+    /** Import the key pair a keychain keeps as a private JSON Web Key. */
+    static #read(kept: string): Promise<KeyPair> {
+        const stored: unknown = JSON.parse(kept);
+
+        return HostIdentity.#import(PrivateJwk.parse(stored));
     }
 
     /** Generate a key pair, returning it with its private half as a JSON Web Key. */
