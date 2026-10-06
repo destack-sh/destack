@@ -17,8 +17,10 @@ export type PropertiesOf<Of> = Of extends (properties: infer Properties) => unkn
 export interface ExampleDefinition<Of, Instance> {
     /** The declaration the example shows, such as a component, a view or an object type. */
     readonly of: Of;
-    /** The name, unique among the declaration's examples. */
+    /** The name of the state it shows, unique among the declaration's examples, such as `history-unavailable`. */
     readonly name: string;
+    /** One sentence saying what the example shows. */
+    readonly description: string;
     /** The property values the example sets, each a JSON value a control can change. */
     readonly properties?: PropertiesOf<Of>;
     /** The calls bringing the declaration's objects into the example's state, by the scope it opens them in, such as a view's space. */
@@ -49,6 +51,8 @@ export interface Example<
 > extends Declaration {
     /** The declaration the example shows. */
     readonly of: unknown;
+    /** One sentence saying what the example shows. */
+    readonly description: string;
     /** The property values the example sets. */
     readonly properties: Properties;
     /** The calls bringing the declaration's objects into the example's state, by scope. */
@@ -64,8 +68,9 @@ export function defineExample<Of, Instance = never>(
 ): Example<PropertiesOf<Of>, Instance> {
     // stamp the package supplied by the module transform and validate the name
     const owner = ModuleMetadata.require(module, "defineExample").package;
-    const { of, name } = definition;
+    const { of, name, description } = definition;
     DeclarationName.parse(name);
+    requireDescription("example", name, description);
 
     // require JSON properties
     const properties = definition.properties ?? {};
@@ -83,6 +88,7 @@ export function defineExample<Of, Instance = never>(
         package: owner,
         name,
         of,
+        description,
         properties,
         objects: definition.objects ?? {},
         render:
@@ -90,6 +96,13 @@ export function defineExample<Of, Instance = never>(
                 ? undefined
                 : (changed: PropertiesOf<Of> = properties) => render(changed),
     });
+}
+
+/** Require one sentence saying what a declaration shows. */
+export function requireDescription(kind: string, name: string, description: string): void {
+    if (description.trim() === "") {
+        throw new PackageError("INVALID_DEFINITION", `${kind} ${name} needs a description`);
+    }
 }
 
 /** Report whether property values are JSON values a control can change. */
@@ -145,6 +158,8 @@ export type Control = schema.Infer<typeof Control>;
 /** The description of an example declaration in the graph. */
 export const ExampleDescription = defineSchema(
     schema.object({
+        /** One sentence saying what the example shows. */
+        description: schema.string().min(1),
         /** The property values the example sets, by property. */
         properties: schema.record(schema.string(), schema.json()),
         /** The controls of the properties the declaration's package declares, by property. */

@@ -4,7 +4,7 @@ import { DeclarationName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import { Moniker } from "../graph/moniker.ts";
 import type { Declaration } from "./declaration.ts";
-import type { Example } from "./example.ts";
+import { type Example, requireDescription } from "./example.ts";
 
 /** What a scenario's steps and observations speak and its examples play in, after the user interactions of Testing Library and Playwright. */
 export interface Interaction<Step = unknown, Observation = unknown, Environment = unknown> {
@@ -55,10 +55,14 @@ export interface Given<Instance = unknown, Environment = unknown> {
 
 /** A scenario as its module defines it: given examples, steps taken on them and the observations they leave, all as data. */
 export interface ScenarioDefinition<Speaks extends Interaction = Interaction, Instance = unknown> {
+    /** The declaration the scenario exercises, such as a component, or the view or app a flow runs in. */
+    readonly of: unknown;
     /** The interaction the steps and observations speak, which picks the driver playing them. */
     readonly interaction: Speaks;
-    /** The name, a sentence saying what the scenario shows. */
+    /** The name of the behaviour it plays, verb first and unique among the declaration's scenarios, such as `select-with-arrow-keys`. */
     readonly name: string;
+    /** One sentence saying what the scenario shows. */
+    readonly description: string;
     /** The examples it starts from and the environment it plays in. */
     readonly given: Given<Instance, schema.Infer<Speaks["environment"]>>;
     /** The steps, taken in order. */
@@ -76,12 +80,11 @@ export function defineScenario<Speaks extends Interaction, Instance>(
     definition: ScenarioDefinition<Speaks, Instance>,
     module?: ModuleMetadata,
 ): Scenario<Speaks, Instance> {
-    // stamp the package supplied by the module transform and require a name
+    // stamp the package supplied by the module transform and validate the name and description
     const owner = ModuleMetadata.require(module, "defineScenario").package;
-    const { interaction, name, given, when } = definition;
-    if (name === "") {
-        throw new PackageError("INVALID_DEFINITION", "a scenario needs a name");
-    }
+    const { of, interaction, name, description, given, when } = definition;
+    DeclarationName.parse(name);
+    requireDescription("scenario", name, description);
 
     // require steps and observations of the interaction, the observations expected after each step or at the end
     requireSteps(name, when, interaction);
@@ -96,8 +99,10 @@ export function defineScenario<Speaks extends Interaction, Instance>(
 
     return Object.freeze({
         package: owner,
+        of,
         interaction,
         name,
+        description,
         given,
         when,
         then: definition.then,
@@ -176,6 +181,8 @@ function thenOf<Observe extends schema.Schema>(observation: Observe) {
 /** The description of a scenario declaration in the graph, its steps and observations stored as JSON its interaction reads. */
 export const ScenarioDescription = defineSchema(
     schema.object({
+        /** One sentence saying what the scenario shows. */
+        description: schema.string().min(1),
         /** The interaction the steps and observations speak, by symbol moniker. */
         interaction: Moniker,
         /** The examples the scenario starts from, by declaration moniker. */

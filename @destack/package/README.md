@@ -177,14 +177,15 @@ export default definePackage({
 ```tsx
 import { defineExample } from "@destack/package/declare";
 
-export const GhostButton = defineExample({
+export const buttonGhost = defineExample({
     of: Button,
     name: "ghost",
+    description: "a ghost button that cancels",
     properties: { variant: "ghost" },
     render: (properties) => <Button {...properties}>Cancel</Button>,
 });
 
-GhostButton.render({ variant: "outline" });
+buttonGhost.render({ variant: "outline" });
 ```
 
 ## Scenarios
@@ -195,10 +196,12 @@ GhostButton.render({ variant: "outline" });
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 
-export const MoveCalendarDay = defineScenario({
+export const calendarMoveFocusedDay = defineScenario({
+    of: Calendar,
     interaction: viewInteraction,
-    name: "move the focused day with the arrow keys, crossing months",
-    given: { examples: [LateOctoberExample], environment: { locale: "de-AT" } },
+    name: "move-focused-day",
+    description: "move the focused day with the arrow keys, crossing months",
+    given: { examples: [calendarLateOctober], environment: { locale: "de-AT" } },
     when: [
         { action: "focus", target: { role: "button", name: "Freitag, 30. Oktober 2026" } },
         { action: "press", key: "ArrowRight" },
@@ -236,11 +239,19 @@ export const viewInteraction: Interaction<Step, Observation, Environment> = {
 
 ## Example graph
 
-The build declares each example with a `shows` edge to the symbol its `of` names, and each scenario with `covers` edges to what its examples show.
+The build declares each example with a `shows` edge to the symbol its `of` names, and each scenario with `covers` edges to its `of` and to what its examples show.
 
-```text
-src/button/button.example.tsx#GhostButton:example   shows   src/button/button.tsx#Button
-src/tabs/tabs.scenario.ts#MoveManualTabs:scenario    covers  src/tabs/tabs.tsx#Tabs
+```ts
+const shows = {
+    from: "src/button/button.example.tsx#buttonGhost:example",
+    kind: "shows",
+    to: "src/button/button.tsx#Button",
+};
+const covers = {
+    from: "src/tabs/tabs.scenario.ts#tabsMoveWithoutSelecting:scenario",
+    kind: "covers",
+    to: "src/tabs/tabs.tsx#Tabs",
+};
 ```
 
 ## Controls
@@ -296,10 +307,8 @@ preload = ["@destack/package/bun/preload"]
 
 A module with a `.server` or `.browser` suffix replaces its base module in builds for that target.
 
-```text
-src/page/page.ts           shared by every target
-src/page/page.server.ts    replaces page.ts in server builds, Bun processes and tests
-src/page/page.browser.ts   replaces page.ts in browser builds
+```ts
+import { render } from "./page/page.ts"; // page.server.ts in server builds, Bun processes and tests, page.browser.ts in browser builds
 ```
 
 ## Builds
@@ -323,7 +332,11 @@ export const spaceBuild: BuildExtension = {
 import { BuildReader } from "@destack/package/manifest";
 
 const reader = await BuildReader.open(location, fetch, signal);
-const settings = await reader.declared(import.meta.destack.package.id, "setting", SettingDescription);
+const settings = await reader.declared(
+    import.meta.destack.package.id,
+    "setting",
+    SettingDescription,
+);
 ```
 
 ## Build writers
@@ -351,7 +364,12 @@ import { MemoryBuild } from "@destack/package/test";
 
 const empty = await MemoryBuild.write(new Map(), { package: notes });
 const declaring = await MemoryBuild.declaring(notes, [
-    { kind: "setting", package: setting.package.id, name: "theme", description: describeSetting(theme) },
+    {
+        kind: "setting",
+        package: setting.package.id,
+        name: "theme",
+        description: describeSetting(theme),
+    },
 ]);
 await declaring.reader.declarations(); // [{ kind: "setting", name: "theme", … }]
 ```
@@ -387,7 +405,12 @@ const object = graph.Moniker.of({ packageId, module: "src/note.ts", name: "Note"
 A `graph.Module` holds a module's symbols, the declarations at them and its outgoing edges, and `graph.Declaration.at` declares a symbol as a kind.
 
 ```ts
-const declaration = graph.Declaration.at(service, { kind: "service", package: packageId, name: "notes", description });
+const declaration = graph.Declaration.at(service, {
+    kind: "service",
+    package: packageId,
+    name: "notes",
+    description,
+});
 // { moniker: "package-…/src/server.ts#service:service", symbol: "package-…/src/server.ts#service", kind: "service", … }
 ```
 
