@@ -1,0 +1,23 @@
+{
+    "name": "@destack/identity",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Prove who a principal is and keep the keys proving it.",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/error": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "jose": "6.2.12"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
+    }
+}
