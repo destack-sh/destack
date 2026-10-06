@@ -4,13 +4,13 @@ Prove who a principal is and keep the keys proving it: identities, public keys, 
 
 ## Identities
 
-An `Identity` is a space's or the universe's signing key and the rotation keys that may change it, each change a signed `IdentityOperation` after did:plc.
+An `Identity` is a space's or the universe's signing keys, the active one first, and the rotation keys that may change them, each change a signed `IdentityOperation` after did:plc.
 
 ```ts
 import { IdentityOperation } from "@destack/identity";
 
 const signed = await IdentityOperation.sign(
-    { subject: spaceId, previous: null, signingKey, rotationKeys: [rotationKey] },
+    { subject: spaceId, previous: null, signingKeys: [signingKey], rotationKeys: [rotationKey] },
     rotationPrivateKey, // P-256 or Ed25519, signed in its own algorithm
 );
 const operation = IdentityOperation.read(signed); // unverified, refusing a malformed one
@@ -57,9 +57,19 @@ A `Keyring` is a process's one root of custody: versioned root keys that encrypt
 const keyring = await LocalKeyring.read(process.env.DESTACK_ROOT_KEY); // the text LocalKeyring.generate() writes
 const ciphertext = await keyring.encrypt(dataKey, context); // under the active version
 const opened = await keyring.decrypt(ciphertext, context); // under the version it names
-const callKey = await keyring.derive("destack call key v1"); // 32 bytes, the same until the root rotates
+const callKey = await keyring.derive("destack call key v1"); // a keyring is a Deriver of its active root key
 const machineKey = await keyring.derivePrivateKey("destack machine key v1"); // a P-256 JWK
 await LocalKeyring.rotate(keychain, machineId); // a new active version beside the others
+```
+
+## Derivations
+
+`Derivation.of` derives secrets and P-256 keys under labels from an HKDF root, as a keyring does from its active root key and a keystore from an identity's root secret.
+
+```ts
+const root = Derivation.of(await Derivation.root(secretBytes)); // a Deriver
+const s3 = await root.derive("destack s3 v1"); // 32 bytes, the same for the label
+const vapid = await root.derivePrivateKey("destack vapid v1"); // a P-256 JWK
 ```
 
 ## Ciphertexts

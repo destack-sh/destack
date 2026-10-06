@@ -9,11 +9,14 @@ const OPERATION_TYPE = "identity-operation+jws";
 /** The most rotation keys an identity lists. */
 const MAX_ROTATION_KEYS = 5;
 
-/** A space's or the universe's identity: the key verifying what it signs, the keys that may change it, and the operation it comes from. */
+/** The most signing keys an identity publishes: the next one, the active one, and the one before it. */
+export const MAX_SIGNING_KEYS = 3;
+
+/** A space's or the universe's identity: the keys verifying what it signs, the keys that may change it, and the operation it comes from. */
 export const Identity = defineSchema(
     schema.object({
-        /** The key verifying what the identity signs. */
-        signingKey: PublicKey,
+        /** The keys verifying what the identity signs, newest first: a next key published ahead of signing, the active one, and earlier ones kept while tokens they signed live. */
+        signingKeys: schema.array(PublicKey).min(1).max(MAX_SIGNING_KEYS),
         /** The keys that may sign the identity's next operation, highest priority first. */
         rotationKeys: schema.array(PublicKey).min(1).max(MAX_ROTATION_KEYS),
         /** The digest of the operation it comes from, which the next operation names. */

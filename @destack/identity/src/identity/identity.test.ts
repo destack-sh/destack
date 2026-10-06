@@ -15,7 +15,7 @@ test("verify an operation signed by a P-256 or an Ed25519 rotation key at its pr
     const operation: IdentityOperation = {
         subject: "space-1",
         previous: null,
-        signingKey,
+        signingKeys: [signingKey],
         rotationKeys,
     };
 
