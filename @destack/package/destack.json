@@ -3,16 +3,12 @@
     "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
-    "stamps": {
-        "definePackage": { "module": 1 }
+    "exports": {
+        "./test": { "runtimes": ["bun"] }
     },
-    "check": {
-        "expect": [
-            {
-                "files": ["src/declare/package.test.ts"],
-                "rules": ["destack/valid-package-handle"],
-                "reason": "the test exercises definePackage itself"
-            }
-        ]
+    "stamps": {
+        "definePackage": { "module": 1 },
+        "defineExample": { "module": 1 },
+        "defineScenario": { "module": 1 }
     }
 }

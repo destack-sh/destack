@@ -19,6 +19,7 @@ export const EDGE_KINDS = [
     "renders",
     "emits",
     "covers",
+    "shows",
 ] as const;
 
 /** A directed relation from a module, symbol or declaration to another. */
