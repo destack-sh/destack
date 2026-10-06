@@ -1,3 +1,4 @@
+import { MemoryBuild } from "@destack/package/test";
 import { anyone, principal } from "@destack/access";
 import { Scope, type TrackerMessage, type Uplink } from "@destack/sync";
 import { AccessFixture } from "@destack/access/test";
@@ -22,7 +23,6 @@ import { aligned, type Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { subjectContext, testCallKey } from "@destack/service/test";
-import { memoryBuild } from "@destack/package/test";
 import { space } from "@destack/space/object";
 import { afterAll, onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
@@ -115,7 +115,7 @@ export async function serveArticles(dialect: Dialect) {
         installation: {
             id: INSTALLATION,
             scope: spaceId,
-            build: (await memoryBuild(article.package)).reader,
+            build: (await MemoryBuild.write(new Map(), { package: article.package })).reader,
             publisher: silent,
             publisherAt: () => silent,
             directory: {
