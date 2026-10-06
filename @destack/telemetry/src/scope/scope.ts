@@ -22,6 +22,9 @@ const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> 
     info: [SeverityNumber.INFO, "INFO"],
 };
 
+/** The failures captured already: here, or by the service that answered with them. */
+const CAPTURED = new WeakSet<object>();
+
 /** Trace, metric, and log instruments attributed to one package. */
 export interface TelemetryScope {
     /** Create spans attributed to the package. */
@@ -183,8 +186,14 @@ export function instrument(tracer: Tracer, meter: Meter, logger: Logger): Teleme
         log: new Log(logger),
         span: runner(tracer),
         metric: new MetricFactory(meter),
-        captureException: (error, context) =>
-            emitException(logger, exceptionAttributes(error, context?.isEscaped === true), context),
+        captureException: (error, context) => {
+            // skip a failure captured where it happened
+            if (isCaptured(error)) {
+                return;
+            }
+            markCaptured(error);
+            emitException(logger, exceptionAttributes(error, context?.isEscaped === true), context);
+        },
         captureMessage: (message, context) =>
             emitException(
                 logger,
@@ -192,6 +201,18 @@ export function instrument(tracer: Tracer, meter: Meter, logger: Logger): Teleme
                 context,
             ),
     };
+}
+
+/** Mark a failure captured where it happened, such as a service's answer the service captured, so no capture records it again. */
+export function markCaptured(error: unknown): void {
+    if (typeof error === "object" && error !== null) {
+        CAPTURED.add(error);
+    }
+}
+
+/** Report whether a failure was captured already. */
+function isCaptured(error: unknown): boolean {
+    return typeof error === "object" && error !== null && CAPTURED.has(error);
 }
 
 /** Emit an exception record in the active span's context with its level, details, tags and fingerprint. */

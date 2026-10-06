@@ -3,6 +3,7 @@ import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
+import { markCaptured } from "./scope.ts";
 
 /** The instrumented package. */
 const source = {
@@ -121,7 +122,7 @@ const ExportedLogs = schema.looseObject({
     ),
 });
 
-test("capture handled failures and messages as exceptions with their error type, level, tags and fingerprint", async () => {
+test("capture handled failures and messages as exceptions with their error type, level, tags and fingerprint, each failure once", async () => {
     // collect the records each export carries, without stack traces
     const records: unknown[] = [];
     const exporter = new OtlpExporter(
@@ -157,7 +158,14 @@ test("capture handled failures and messages as exceptions with their error type,
     // capture a handled failure with a tag, a refusal of its caller, and a warning message with its own fingerprint
     try {
         const scope = telemetry.scope(source);
-        scope.captureException(new RangeError("page 9 of 3"), { tags: { feature: "export" } });
+        const failure = new RangeError("page 9 of 3");
+        scope.captureException(failure, { tags: { feature: "export" } });
+
+        // capture the failure again where it escapes, and a failure its answering service captured
+        scope.captureException(failure, { isEscaped: true });
+        const answered = new Error("internal server error");
+        markCaptured(answered);
+        scope.captureException(answered, { isEscaped: true });
         scope.captureException(
             Object.assign(new Error("note is gone"), {
                 toServiceError: () => ({ code: "NOT_FOUND" as const, message: "note is gone" }),
@@ -169,7 +177,7 @@ test("capture handled failures and messages as exceptions with their error type,
         await telemetry.shutdown();
     }
 
-    // record each as an exception that did not escape, at its level, the refusal typed by its service code
+    // record each failure once as an exception that did not escape, at its level, the refusal typed by its service code
     expect(records).toEqual([
         [
             "exception",
