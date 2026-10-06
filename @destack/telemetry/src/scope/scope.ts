@@ -12,7 +12,7 @@ import {
 } from "@opentelemetry/api";
 import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { Package } from "@destack/package";
-import { ReportableError } from "@destack/schema";
+import { DomainError } from "@destack/error";
 
 /** The log severity of each capture level. */
 const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> = {
@@ -285,7 +285,7 @@ export function exceptionAttributes(error: unknown, isEscaped: boolean): Attribu
 
 /** Read a failure's error type: the service error code it reports, else its own code, else its name. */
 function errorType(exception: Error): string {
-    if (ReportableError.is(exception)) {
+    if (DomainError.is(exception)) {
         return exception.toServiceError().code;
     } else if ("code" in exception && typeof exception.code === "string") {
         return exception.code;
