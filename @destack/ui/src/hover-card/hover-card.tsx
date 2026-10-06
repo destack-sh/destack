@@ -1,11 +1,12 @@
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke } from "@destack/theme/tokens.stylex";
 import type { JSX } from "@solidjs/web";
-import { createContext, merge, omit, useContext } from "solid-js";
+import { createContext, createEffect, merge, omit, useContext } from "solid-js";
 import {
     HoverPopover,
     placementStyle,
     type PopoverAlign,
+    type PopoverProperties,
     type PopoverSide,
 } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -46,14 +47,12 @@ const styles = style.create({
     },
 });
 
-/** The properties of a hover card root. */
-export interface HoverCardProperties {
+/** The properties of a hover card root, its open state included. */
+export interface HoverCardProperties extends PopoverProperties {
     /** The wait before a resting pointer opens the card in milliseconds, 700 by default. */
     readonly openDelay?: number;
     /** The wait before the card closes once the pointer leaves in milliseconds, 300 by default. */
     readonly closeDelay?: number;
-    /** The trigger and content. */
-    readonly children?: JSX.Element;
 }
 
 /** The properties of a hover card's trigger, the native link's attributes included. */
@@ -88,6 +87,7 @@ export function useHoverCard(): HoverPopover {
 /** Connect a link to the preview card that opens while a pointer rests on it. */
 export function HoverCard(properties: HoverCardProperties): JSX.Element {
     const card = new HoverPopover(
+        properties,
         () => properties.openDelay ?? OPEN_DELAY,
         () => properties.closeDelay ?? CLOSE_DELAY,
     );
@@ -118,6 +118,9 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     const card = useHoverCard();
     const content = merge(DEFAULTS, properties);
     const rest = omit(content, "side", "align", "style");
+
+    // show and hide the card as it opens and closes
+    createEffect(card.isOpen, (isOpen) => card.sync(isOpen));
 
     return (
         <TopLayer>

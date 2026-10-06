@@ -61,7 +61,7 @@ export function DatePicker(properties: DatePickerProperties): JSX.Element {
 /** Render the trigger and the calendar of a date picker inside its popover. */
 function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
     // read the popover and the chosen days
-    const id = usePopover();
+    const popover = usePopover();
     const [ownValue, setValue] = createSignal<CalendarValue>(properties.defaultValue);
     const value = (): CalendarValue => ("value" in properties ? properties.value : ownValue());
 
@@ -70,7 +70,7 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
         setValue(next);
         report(properties, next);
         if (isComplete) {
-            document.getElementById(id)?.hidePopover();
+            popover.close();
         }
     };
 

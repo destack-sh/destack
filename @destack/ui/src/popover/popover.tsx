@@ -4,12 +4,15 @@ import { text } from "@destack/theme/text";
 import type { JSX } from "@solidjs/web";
 import {
     createContext,
+    createEffect,
+    createSignal,
     createUniqueId,
     merge,
     omit,
     onCleanup,
     useContext,
     type Accessor,
+    type Setter,
 } from "solid-js";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -26,8 +29,8 @@ const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align">> = {
     align: "center",
 };
 
-/** The id of the nearest popover's content, null outside a popover. */
-const PopoverContext = createContext<string | null>(null);
+/** The popover of the nearest popover root, null outside one. */
+const PopoverContext = createContext<PopoverControl | null>(null);
 
 /** The styles every popover shares. */
 const styles = style.create({
@@ -98,37 +101,37 @@ const placements = style.create({
     },
 });
 
-/** A popover that opens while its trigger is hovered or focused, such as a tooltip or hover card. */
-export class HoverPopover {
+/** The open state of a popover, controlled or its own, and the elements that show it. */
+export class PopoverControl {
     /** The id of the popover element. */
     readonly id: string;
-    /** The wait before a hovered trigger opens the popover, in milliseconds. */
-    readonly openDelay: Accessor<number>;
-    /** The wait before a trigger the pointer left closes the popover, in milliseconds. */
-    readonly closeDelay: Accessor<number>;
-    /** The element that opens the popover and anchors it. */
+    /** Whether the popover is open. */
+    readonly isOpen: Accessor<boolean>;
+    /** The properties of the popover root, read for its controlled state and change handler. */
+    readonly #properties: PopoverProperties;
+    /** Replace the uncontrolled open state. */
+    readonly #setOpen: Setter<boolean>;
+    /** The element that anchors the popover. */
     #trigger: HTMLElement | undefined;
     /** The popover element. */
     #content: HTMLElement | undefined;
-    /** The pending open or close. */
-    #timer: ReturnType<typeof setTimeout> | undefined;
-    /** Whether the popover is in the top layer. */
-    #isOpen: boolean;
+    /** Whether the popover element is in the top layer. */
+    #isShown: boolean;
 
-    /** Create a closed popover that waits the given delays and cancels them when its owner disposes. */
-    constructor(openDelay: Accessor<number>, closeDelay: Accessor<number>) {
-        // start closed with a fresh id, cancelling a pending change on disposal
+    /** Create the state of a popover root, open when its properties ask for it. */
+    constructor(properties: PopoverProperties) {
+        // follow the controlled state, else the popover's own
+        const [isOpen, setOpen] = createSignal(properties.defaultOpen === true);
         this.id = createUniqueId();
-        this.openDelay = openDelay;
-        this.closeDelay = closeDelay;
+        this.isOpen = () => properties.open ?? isOpen();
+        this.#properties = properties;
+        this.#setOpen = setOpen;
         this.#trigger = undefined;
         this.#content = undefined;
-        this.#timer = undefined;
-        this.#isOpen = false;
-        onCleanup(() => clearTimeout(this.#timer));
+        this.#isShown = false;
     }
 
-    /** Set the element that opens the popover and anchors it. */
+    /** Set the element that anchors the popover. */
     setTrigger(element: HTMLElement): void {
         this.#trigger = element;
     }
@@ -136,6 +139,71 @@ export class HoverPopover {
     /** Set the popover element. */
     setContent(element: HTMLElement): void {
         this.#content = element;
+    }
+
+    /** Open the popover and tell the root's change handler. */
+    open(): void {
+        if (!this.isOpen()) {
+            this.#setOpen(true);
+            this.#properties.onOpenChange?.(true);
+        }
+    }
+
+    /** Close the popover and tell the root's change handler. */
+    close(): void {
+        if (this.isOpen()) {
+            this.#setOpen(false);
+            this.#properties.onOpenChange?.(false);
+        }
+    }
+
+    /** Follow the platform opening or closing the popover, such as on Escape or a click outside. */
+    follow(event: ToggleEvent): void {
+        this.#isShown = event.newState === "open";
+        if (this.#isShown) {
+            this.open();
+        } else {
+            this.close();
+        }
+    }
+
+    /** Show the popover element anchored to its trigger, or hide it. */
+    sync(isOpen: boolean): void {
+        if (this.#content === undefined || isOpen === this.#isShown) {
+            return;
+        }
+        if (isOpen) {
+            this.#content.showPopover(
+                this.#trigger === undefined ? undefined : { source: this.#trigger },
+            );
+        } else {
+            this.#content.hidePopover();
+        }
+        this.#isShown = isOpen;
+    }
+}
+
+/** A popover that opens while its trigger is hovered or focused, such as a tooltip or hover card. */
+export class HoverPopover extends PopoverControl {
+    /** The wait before a hovered trigger opens the popover, in milliseconds. */
+    readonly openDelay: Accessor<number>;
+    /** The wait before a trigger the pointer left closes the popover, in milliseconds. */
+    readonly closeDelay: Accessor<number>;
+    /** The pending open or close. */
+    #timer: ReturnType<typeof setTimeout> | undefined;
+
+    /** Create a popover that waits the given delays and cancels them when its owner disposes. */
+    constructor(
+        properties: PopoverProperties,
+        openDelay: Accessor<number>,
+        closeDelay: Accessor<number>,
+    ) {
+        // keep the delays, cancelling a pending change on disposal
+        super(properties);
+        this.openDelay = openDelay;
+        this.closeDelay = closeDelay;
+        this.#timer = undefined;
+        onCleanup(() => clearTimeout(this.#timer));
     }
 
     /** Open the popover after the open delay. */
@@ -150,31 +218,16 @@ export class HoverPopover {
         this.#timer = setTimeout(() => this.close(), this.closeDelay());
     }
 
-    /** Open the popover now, anchored to its trigger. */
-    open(): void {
-        // cancel a pending change and open a closed, mounted popover
+    /** Open the popover now, cancelling a pending change. */
+    override open(): void {
         clearTimeout(this.#timer);
-        if (this.#isOpen || this.#content === undefined || this.#trigger === undefined) {
-            return;
-        }
-        this.#content.showPopover({ source: this.#trigger });
-        this.#isOpen = true;
+        super.open();
     }
 
-    /** Close the popover now. */
-    close(): void {
-        // cancel a pending change and close an open popover
+    /** Close the popover now, cancelling a pending change. */
+    override close(): void {
         clearTimeout(this.#timer);
-        if (!this.#isOpen || this.#content === undefined) {
-            return;
-        }
-        this.#content.hidePopover();
-        this.#isOpen = false;
-    }
-
-    /** Follow the platform opening or closing the popover, such as on Escape. */
-    follow(event: ToggleEvent): void {
-        this.#isOpen = event.newState === "open";
+        super.close();
     }
 }
 
@@ -186,6 +239,12 @@ export type PopoverAlign = "start" | "center" | "end";
 
 /** The properties of a popover root. */
 export interface PopoverProperties {
+    /** Whether the popover is open, which makes the open state controlled. */
+    readonly open?: boolean;
+    /** Whether the popover starts open when its state is uncontrolled. */
+    readonly defaultOpen?: boolean;
+    /** Handle the popover opening or closing. */
+    readonly onOpenChange?: (open: boolean) => void;
     /** The trigger and content. */
     readonly children?: JSX.Element;
 }
@@ -193,8 +252,10 @@ export interface PopoverProperties {
 /** The properties of a popover's content, the native element's attributes included. */
 export interface PopoverContentProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
+    "class" | "style" | "ref" | "onToggle"
 > {
+    /** Handle the popover element opening or closing, after the popover follows it. */
+    readonly onToggle?: (event: ToggleEvent & { readonly currentTarget: HTMLDivElement }) => void;
     /** The side of the trigger it opens on, bottom by default. */
     readonly side?: PopoverSide;
     /** The edge of the trigger it lines up with, center by default. */
@@ -211,33 +272,38 @@ export function placementStyle(
     return [styles.motion, placements[`${side}-${align}`]];
 }
 
-/** Read the id of the nearest popover's content, refusing elements outside a popover. */
-export function usePopover(): string {
-    const id = useContext(PopoverContext);
-    if (id === null) {
+/** Read the popover of the nearest popover root, refusing elements outside one. */
+export function usePopover(): PopoverControl {
+    const popover = useContext(PopoverContext);
+    if (popover === null) {
         throw new TypeError("popover elements need a popover root around them");
     }
 
-    return id;
+    return popover;
 }
 
 /** Connect a trigger to the popover content it opens. */
 export function Popover(properties: PopoverProperties): JSX.Element {
-    return <PopoverContext value={createUniqueId()}>{properties.children}</PopoverContext>;
+    return (
+        <PopoverContext value={new PopoverControl(properties)}>
+            {properties.children}
+        </PopoverContext>
+    );
 }
 
 /** Render a button that toggles its popover, which anchors to the button. */
-export function PopoverTrigger(properties: ButtonProperties): JSX.Element {
-    const id = usePopover();
+export function PopoverTrigger(properties: Omit<ButtonProperties, "ref">): JSX.Element {
+    const popover = usePopover();
 
     return (
         <Button
-            id={`${id}-trigger`}
+            id={`${popover.id}-trigger`}
             data-slot="popover-trigger"
-            popovertarget={id}
+            popovertarget={popover.id}
             aria-haspopup="dialog"
-            aria-controls={id}
+            aria-controls={popover.id}
             {...properties}
+            ref={(element) => popover.setTrigger(element)}
         />
     );
 }
@@ -245,26 +311,35 @@ export function PopoverTrigger(properties: ButtonProperties): JSX.Element {
 /** Render content in the top layer beside its trigger, named by the trigger and closed by a click outside or Escape. */
 export function PopoverContent(properties: PopoverContentProperties): JSX.Element {
     // read the popover and its placement
-    const id = usePopover();
-    const popover = merge(DEFAULTS, properties);
-    const rest = omit(popover, "side", "align", "style");
+    const popover = usePopover();
+    const content = merge(DEFAULTS, properties);
+    const rest = omit(content, "side", "align", "style", "onToggle");
+
+    // show and hide the popover as it opens and closes
+    createEffect(popover.isOpen, (isOpen) => popover.sync(isOpen));
 
     return (
         <TopLayer>
             <div
-                id={id}
+                id={popover.id}
                 popover="auto"
                 role="dialog"
-                aria-labelledby={`${id}-trigger`}
+                aria-labelledby={`${popover.id}-trigger`}
                 data-slot="popover-content"
-                data-side={popover.side}
-                data-align={popover.align}
+                data-side={content.side}
+                data-align={content.align}
                 {...rest}
+                ref={(element) => popover.setContent(element)}
+                onToggle={(event) => {
+                    // follow the platform before the caller's handler
+                    popover.follow(event);
+                    content.onToggle?.(event);
+                }}
                 {...style.attrs(
                     text.callout,
                     styles.content,
-                    placementStyle(popover.side, popover.align),
-                    popover.style,
+                    placementStyle(content.side, content.align),
+                    content.style,
                 )}
             />
         </TopLayer>

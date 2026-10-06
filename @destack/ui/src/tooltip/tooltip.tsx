@@ -2,12 +2,13 @@ import * as style from "@destack/style";
 import { color, radius, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import type { JSX } from "@solidjs/web";
-import { createContext, merge, omit, useContext } from "solid-js";
+import { createContext, createEffect, merge, omit, useContext } from "solid-js";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import {
     HoverPopover,
     placementStyle,
     type PopoverAlign,
+    type PopoverProperties,
     type PopoverSide,
 } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -43,12 +44,10 @@ const styles = style.create({
     },
 });
 
-/** The properties of a tooltip root. */
-export interface TooltipProperties {
+/** The properties of a tooltip root, its open state included. */
+export interface TooltipProperties extends PopoverProperties {
     /** The wait before a resting pointer shows the tooltip in milliseconds, 700 by default. */
     readonly delayDuration?: number;
-    /** The trigger and content. */
-    readonly children?: JSX.Element;
 }
 
 /** The properties of a tooltip's trigger, a button's properties included. */
@@ -83,6 +82,7 @@ export function useTooltip(): HoverPopover {
 /** Connect a trigger to the tooltip that describes it. */
 export function Tooltip(properties: TooltipProperties): JSX.Element {
     const tooltip = new HoverPopover(
+        properties,
         () => properties.delayDuration ?? DELAY_DURATION,
         () => CLOSE_DELAY,
     );
@@ -120,6 +120,9 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
     const tooltip = useTooltip();
     const content = merge(DEFAULTS, properties);
     const rest = omit(content, "side", "align", "style");
+
+    // show and hide the tooltip as it opens and closes
+    createEffect(tooltip.isOpen, (isOpen) => tooltip.sync(isOpen));
 
     return (
         <TopLayer>

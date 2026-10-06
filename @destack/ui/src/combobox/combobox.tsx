@@ -80,24 +80,24 @@ export class ComboboxControl {
     readonly #ownValue: Accessor<string | undefined>;
     /** Replace the chosen value when uncontrolled. */
     readonly #setValue: Setter<string | undefined>;
-    /** Replace whether the list is open. */
+    /** Replace whether the list is open when uncontrolled. */
     readonly #setOpen: Setter<boolean>;
     /** The input that anchors the list. */
     #input: HTMLInputElement | undefined;
     /** The list element. */
     #content: HTMLElement | undefined;
 
-    /** Create a closed combobox whose list chooses its value. */
+    /** Create a combobox whose list chooses its value, open when its properties ask for it. */
     constructor(properties: ComboboxProperties) {
-        // start closed on the default value, with the list choosing values
+        // start on the default value and open state, with the list choosing values
         const [ownValue, setValue] = createSignal(properties.defaultValue);
-        const [isOpen, setOpen] = createSignal(false);
+        const [isOpen, setOpen] = createSignal(properties.defaultOpen === true);
         this.list = new CommandControl({
             get shouldFilter() {
                 return properties.shouldFilter !== false;
             },
         });
-        this.isOpen = isOpen;
+        this.isOpen = () => properties.open ?? isOpen();
         this.#properties = properties;
         this.#ownValue = ownValue;
         this.#setValue = setValue;
@@ -122,9 +122,12 @@ export class ComboboxControl {
         this.#content = element;
     }
 
-    /** Open or close the list. */
+    /** Open or close the list and tell the root's change handler. */
     open(isOpen: boolean): void {
-        this.#setOpen(isOpen);
+        if (isOpen !== this.isOpen()) {
+            this.#setOpen(isOpen);
+            this.#properties.onOpenChange?.(isOpen);
+        }
     }
 
     /** Show or hide the list element below the input. */
@@ -147,7 +150,7 @@ export class ComboboxControl {
 
         // show the option's text in the input and close the list
         this.list.type(label);
-        this.#setOpen(false);
+        this.open(false);
     }
 }
 
@@ -159,6 +162,12 @@ export interface ComboboxProperties {
     readonly defaultValue?: string;
     /** Handle another value being chosen. */
     readonly onValueChange?: (value: string) => void;
+    /** Whether the list is open, which makes the open state controlled. */
+    readonly open?: boolean;
+    /** Whether the list starts open when its state is uncontrolled. */
+    readonly defaultOpen?: boolean;
+    /** Handle the list opening or closing. */
+    readonly onOpenChange?: (open: boolean) => void;
     /** Whether the list filters its options by the typed text, or its owner does, true by default. */
     readonly shouldFilter?: boolean;
     /** The input and list. */
