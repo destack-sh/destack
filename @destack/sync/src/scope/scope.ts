@@ -27,11 +27,22 @@ const UNIVERSE_LINK: ScopeLink = {
     object: universe,
     parent: UNIVERSE_ID,
     isSuspended: false,
+    isCapped: false,
     movedTo: undefined,
 };
 
-/** A scope's chain and transfer fence, read from and written to its own row. */
-export const Scope = { table: scopeTable, universe, chain, chains, object, fence, guard, unfence };
+/** A scope's chain, storage cap and transfer fence, read from and written to its own row. */
+export const Scope = {
+    table: scopeTable,
+    universe,
+    chain,
+    chains,
+    object,
+    cap,
+    fence,
+    guard,
+    unfence,
+};
 
 /** One scope of a chain. */
 export interface ScopeLink {
@@ -41,6 +52,8 @@ export interface ScopeLink {
     readonly parent: string;
     /** Whether the scope is suspended. */
     readonly isSuspended: boolean;
+    /** Whether the scope's storage is capped. */
+    readonly isCapped: boolean;
     /** The cell a transfer moves the scope to, while fenced. */
     readonly movedTo: string | undefined;
 }
@@ -53,6 +66,8 @@ const LockedScope = schema.object({
     parent: schema.string(),
     /** When the scope was suspended. */
     suspended_at: schema.unknown(),
+    /** When the scope's storage was capped. */
+    capped_at: schema.unknown(),
     /** The cell a transfer moves the scope to. */
     moved_to: schema.string().nullable(),
 });
@@ -112,6 +127,7 @@ function linked(
             },
             parent: current.parent,
             isSuspended: current.suspendedAt !== null,
+            isCapped: current.cappedAt !== null,
             movedTo: current.movedTo ?? undefined,
         });
         current = current.parent === UNIVERSE_ID ? undefined : rows.get(current.parent);
@@ -131,6 +147,22 @@ async function object(snapshot: Snapshot, id: string): Promise<ObjectReference> 
     }
 
     return link.object;
+}
+
+/** Cap a scope's storage from a time, refusing writes within it but deletes, or lift the cap with null. */
+async function cap(
+    database: DatabaseConnection,
+    scope: string,
+    cappedAt: number | null,
+): Promise<void> {
+    const [capped] = await database
+        .update(scopeTable)
+        .set({ cappedAt })
+        .where(eq(scopeTable.scope, scope))
+        .returning({ scope: scopeTable.scope });
+    if (capped === undefined) {
+        throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
+    }
 }
 
 /** Send a scope and the scopes below it to another cell once the writes guarding it commit. */
@@ -177,6 +209,7 @@ async function guard(database: DatabaseConnection, scope: string): Promise<Scope
                 (row !== undefined &&
                     row.parent === link.parent &&
                     (row.suspended_at !== null) === link.isSuspended &&
+                    (row.capped_at !== null) === link.isCapped &&
                     (row.moved_to ?? undefined) === link.movedTo)
             );
         });
@@ -192,7 +225,7 @@ async function lock(
     scopes: readonly string[],
 ): Promise<Map<string, LockedScope>> {
     const rows = await database.execute(
-        sql`SELECT ${scopeTable.scope} AS scope, ${scopeTable.parent} AS parent, ${scopeTable.suspendedAt} AS suspended_at, ${scopeTable.movedTo} AS moved_to FROM ${scopeTable} WHERE ${inArray(scopeTable.scope, scopes)} ORDER BY ${scopeTable.scope} FOR SHARE`,
+        sql`SELECT ${scopeTable.scope} AS scope, ${scopeTable.parent} AS parent, ${scopeTable.suspendedAt} AS suspended_at, ${scopeTable.cappedAt} AS capped_at, ${scopeTable.movedTo} AS moved_to FROM ${scopeTable} WHERE ${inArray(scopeTable.scope, scopes)} ORDER BY ${scopeTable.scope} FOR SHARE`,
         LockedScope,
     );
 

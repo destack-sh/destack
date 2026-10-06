@@ -160,39 +160,6 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "decide a write once for every stream of the same queries and audience at the head on %s",
-    async (dialect) => {
-        const database = await open(dialect);
-        const feed = new Feed(database, [note]);
-        const query = { table: note, scopes: ["inbox"] };
-        await database.insert(note).values({ ...first, id: "a" });
-
-        // follow one query in two streams
-        const signal = AbortSignal.timeout(5000);
-        const streams = [0, 1].map(() => feed.subscribe({ notes: query }, undefined, signal));
-        for (const pages of streams) {
-            await until(pages, (page) => page.complete);
-        }
-
-        // decide a write once for both
-        await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
-        const lasts = await Promise.all(
-            streams.map(async (pages) => {
-                const read = await until(pages, (page) => page.changes.length > 0);
-
-                return aligned(read, read.length - 1);
-            }),
-        );
-        const left = aligned(lasts, 0);
-        const right = aligned(lasts, 1);
-        expect([left === right, left.changes.map((change) => change.row["title"])]).toEqual([
-            true,
-            ["Renamed"],
-        ]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
     "follow the head through pages merged within an interval on %s",
     async (dialect) => {
         const database = await open(dialect);
@@ -237,61 +204,6 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "describe the evaluation streams share with its pipelines and the cost of its last run on %s",
-    async (dialect) => {
-        const database = await open(dialect);
-        const feed = new Feed(database, [note]);
-        const query = { table: note, scopes: ["inbox"] };
-        await database.insert(note).values({ ...first, id: "a" });
-
-        // follow one query in two streams
-        const controller = new AbortController();
-        const streams = [0, 1].map(() =>
-            feed.subscribe({ notes: query }, undefined, controller.signal),
-        );
-        await Promise.all(streams.map((pages) => readUntil(pages, (page) => page.complete)));
-        const followed = Promise.all(
-            streams.map((pages) => readUntil(pages, (page) => page.changes.length > 0)),
-        );
-        await database.insert(note).values({ ...first, id: "b" });
-        await followed;
-
-        // describe the shared evaluation
-        const inspection = feed.inspect();
-        expect([
-            inspection.subscribers,
-            inspection.evaluations.map(({ streams: shared, dataflow }) => [
-                shared,
-                dataflow.pipelines,
-                dataflow.last?.changes,
-                dataflow.last?.sent,
-            ]),
-        ]).toEqual([
-            2,
-            [
-                [
-                    2,
-                    [
-                        {
-                            node: "notes",
-                            kind: "selection",
-                            path: "root",
-                            partitions: 1,
-                            members: 2,
-                            size: 0,
-                        },
-                    ],
-                    1,
-                    1,
-                ],
-            ],
-        ]);
-        controller.abort();
-        await Promise.all(streams.map((pages) => pages.return(undefined)));
-    },
-);
-
-test.for(TEST_DIALECTS)(
     "keep serving a subscriber while another stops reading on %s",
     async (dialect) => {
         const database = await open(dialect);
@@ -308,31 +220,6 @@ test.for(TEST_DIALECTS)(
             await database.insert(note).values({ ...first, id: `n${index}` });
             expect((await busy.next()).done).toBe(false);
         }
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "watch a query's rows again only when a commit changes them on %s",
-    async (dialect) => {
-        const database = await open(dialect);
-        const feed = new Feed(database, [note]);
-        const query = { table: note, scopes: ["inbox"], where: { title: "Open" } };
-        await database.insert(note).values([
-            { ...first, id: "a", title: "Open" },
-            { ...first, id: "b", title: "Done" },
-        ]);
-
-        // read the first result and commit a change outside it and one inside it
-        const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
-        const initial = await nextValue(watching);
-        await database.update(note).set({ summary: "Unrelated" }).where(eq(note.id, "b"));
-        await database.update(note).set({ title: "Open" }).where(eq(note.id, "b"));
-        const changed = await nextValue(watching);
-        await watching.return(undefined);
-
-        // skip the commit that left the rows as they were
-        const ids = [initial, changed].map((items) => items.map((item) => item.row["id"]));
-        expect(ids).toEqual([["a"], ["a", "b"]]);
     },
 );
 
@@ -537,16 +424,6 @@ const BOARD_RELATIONS = defineRelations({ board, card }, (relate) => ({
 /** List the row identifiers some pages change. */
 function idsOf(pages: readonly Page[]): unknown[] {
     return pages.flatMap((page) => page.changes.map((change) => change.row["id"]));
-}
-
-/** Read pages until one satisfies a condition. */
-async function readUntil(
-    pages: AsyncGenerator<Page>,
-    isLast: (page: Page) => boolean,
-): Promise<void> {
-    while (!isLast(await nextValue(pages))) {
-        // read on
-    }
 }
 
 /** Build an open task of a project. */

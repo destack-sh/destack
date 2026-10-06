@@ -4,7 +4,6 @@ import {
     and,
     asc,
     binary,
-    blob,
     defineTable,
     eq,
     inArray,
@@ -19,12 +18,7 @@ import {
     type DatabaseConnection,
 } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import type { BlobStore } from "@destack/db/blob";
-import { LocalBlobStore } from "@destack/db/blob/local";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { setTimeout } from "node:timers/promises";
-import { join } from "node:path";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { schema } from "@destack/schema";
@@ -269,20 +263,9 @@ test.for(TEST_DIALECTS)(
         });
         const feed = new Feed(source, [entry, hostKey, replica]);
         const data = new Uint8Array([1, 2, 3]);
-        const stores = await mkdtemp(join(tmpdir(), "destack-replica-blobs-"));
-        onTestFinished(() => rm(stores, { recursive: true, force: true }));
-        const sourceBlobs = await LocalBlobStore.open(join(stores, "source"));
-        const targetBlobs = await LocalBlobStore.open(join(stores, "target"));
-        const digest = await sourceBlobs.write(bytesOf("the first entry's content"));
-        const blobs = { store: recorded(targetBlobs).store, source: sourceBlobs };
-        await source.insert(entry).values({
-            id: "a",
-            scope: "inbox",
-            title: "First",
-            secret: "s1",
-            data,
-            content: digest,
-        });
+        await source
+            .insert(entry)
+            .values({ id: "a", scope: "inbox", title: "First", secret: "s1", data });
 
         // follow the logged rows while the source writes
         const controller = new AbortController();
@@ -290,7 +273,6 @@ test.for(TEST_DIALECTS)(
             target,
             (from, signal) => feed.subscribe(copy.queries, from.after, signal),
             controller.signal,
-            { blobs },
         );
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.reach(target, "database", await source.log.position(), signal)).toBe(
@@ -313,7 +295,6 @@ test.for(TEST_DIALECTS)(
             rewrapped(table, row, "moving:", "target:");
         const applied = copy.apply(target, feed.capture(copy.captured, signal, { rewrap: wrap }), {
             unwrap,
-            blobs,
         });
         while ((await applied.next()).done !== true) {
             // apply each captured page
@@ -332,13 +313,6 @@ test.for(TEST_DIALECTS)(
             [{ id: "k", scope: "inbox", wrapped: "target:k" }],
         ]);
         expect(await Replica.isCopied(target, "database")).toBe(false);
-
-        // keep the content the copied rows reference in the target's store
-        const kept: Uint8Array[] = [];
-        for await (const chunk of targetBlobs.read(digest)) {
-            kept.push(chunk);
-        }
-        expect(new TextDecoder().decode(Buffer.concat(kept))).toBe("the first entry's content");
     },
 );
 
@@ -939,80 +913,13 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "retire the blobs of the rows a copy deletes, replaces or drops, holding fetched blobs until their rows commit, on %s",
-    async (dialect) => {
-        // keep two entries with content in the source
-        const tables = [entry, ...replicaTables];
-        const source = (await TestDatabase.create(dialect, tables, { isMigrated: true })).database;
-        const target = (
-            await TestDatabase.create(dialect, tables, { isMigrated: true, isReplica: true })
-        ).database;
-        onTestFinished(async () => {
-            await source.close();
-            await target.close();
-        });
-        const copy = new Replica({
-            name: "database",
-            scope: "database",
-            tables: [entry],
-            everywhere: new Set([entry]),
-        });
-        const feed = new Feed(source, [entry, replica]);
-        const stores = await mkdtemp(join(tmpdir(), "destack-replica-retire-"));
-        onTestFinished(() => rm(stores, { recursive: true, force: true }));
-        const sourceBlobs = await LocalBlobStore.open(join(stores, "source"));
-        const kept = recorded(await LocalBlobStore.open(join(stores, "target")));
-        const blobs = { store: kept.store, source: sourceBlobs };
-        const [firstContent, secondContent, thirdContent] = await Promise.all(
-            ["first", "second", "third"].map((content) => sourceBlobs.write(bytesOf(content))),
-        );
-        const row = { scope: "inbox", title: "Entry", secret: null, data: null };
-        await source.insert(entry).values([
-            { ...row, id: "a", content: firstContent },
-            { ...row, id: "b", content: secondContent },
-        ]);
-        const capture = async () => {
-            const signal = AbortSignal.timeout(5000);
-            await Array.fromAsync(
-                copy.apply(target, feed.capture(copy.captured, signal), { blobs }),
-            );
-        };
-
-        // copy both entries before replacing one's content and deleting the other
-        await capture();
-        const copied = kept.retired.length;
-        await source.update(entry).set({ content: thirdContent }).where(eq(entry.id, "a"));
-        await source.delete(entry).where(eq(entry.id, "b"));
-        await capture();
-        const changed = kept.retired.splice(0);
-
-        // drop the copy with its remaining entry
-        await copy.drop(target, kept.store);
-        expect({
-            copied,
-            changed,
-            dropped: kept.retired,
-            fetched: [...new Set(kept.holds)],
-            released: kept.held(),
-        }).toEqual({
-            copied: 0,
-            changed: [firstContent, secondContent],
-            dropped: [thirdContent],
-            fetched: [1],
-            released: 0,
-        });
-    },
-);
-
-/** An entry of any scope with sensitive and binary columns, which its log leaves out, and content a blob store keeps. */
+/** An entry of any scope with sensitive and binary columns, which its log leaves out. */
 const entry = defineTable(
     "entry",
     {
         id: text("id").primaryKey(),
         scope: text("scope").notNull(),
         title: text("title").notNull(),
-        content: blob("content"),
         secret: text("secret").sensitive(),
         data: binary("data"),
     },
@@ -1035,42 +942,6 @@ const hostKey = defineTable(
     },
     { log: {} },
 );
-
-/** Keep blobs in a directory as a collected store, recording its holds at each fetch and the blobs writers retire, deleting none. */
-function recorded(blobs: LocalBlobStore) {
-    const retired: string[] = [];
-    const holds: number[] = [];
-    let held = 0;
-    const store: BlobStore = {
-        missing: (digests) => blobs.missing(digests),
-        read: (digest) => blobs.read(digest),
-        write: (body, expected) => blobs.write(body, expected),
-        fetch: (digests, source) => {
-            holds.push(held);
-
-            return blobs.fetch(digests, source);
-        },
-        hold: async () => {
-            held += 1;
-
-            return {
-                [Symbol.asyncDispose]: async () => {
-                    held -= 1;
-                },
-            };
-        },
-        retire: async (digests) => {
-            retired.push(...digests);
-        },
-    };
-
-    return { store, retired, holds, held: () => held };
-}
-
-/** Stream a text's bytes. */
-async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
-    yield new TextEncoder().encode(content);
-}
 
 /** Rewrap a host key row's wrapped value from one host to another. */
 function rewrapped(table: Table, row: Row, from: string, to: string): Row {

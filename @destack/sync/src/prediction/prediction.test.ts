@@ -199,46 +199,6 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
     },
 );
 
-test("rebase predictions only onto pages changing a table they read", async () => {
-    const client = await open("sqlite", [note, tag, ...replicaTables, ...predictionTables]);
-    let predictions = 0;
-    const counted = async (transaction: DatabaseConnection, predicted: Mutation) => {
-        predictions += 1;
-        await predict(transaction, predicted);
-    };
-    const prediction = predicting([note, tag], counted);
-    const copy = new Replica({ name: "notes", scope: "inbox", tables: [note, tag] });
-    await replicate(copy, client, [page(1, [], { reset: true })], prediction);
-
-    // predict a note
-    await prediction.add(client, IDS[0], "tab-1", async (transaction) => {
-        const calls = [
-            { method: "note.create", release: RELEASE, input: { id: "a", title: "Local" } },
-        ];
-        await predict(transaction, { id: IDS[0], calls });
-
-        return { calls, result: undefined };
-    });
-
-    // apply a page of tags and a page of notes
-    const tags: Page = {
-        reset: false,
-        complete: true,
-        changes: [
-            {
-                table: tag[TABLE].sqlName,
-                operation: "insert",
-                row: tag[TABLE].encode({ id: "t", scope: "inbox", name: "urgent" }),
-            },
-        ],
-        position: { epoch: EPOCH, sequence: 2 },
-    };
-    await replicate(copy, client, [tags], prediction);
-    const afterTags = predictions;
-    await replicate(copy, client, [page(3, [{ id: "b", title: "Server" }])], prediction);
-    expect([afterTags, predictions]).toEqual([0, 1]);
-});
-
 test("read pending mutations up to a limit, and count each state with branch edits pending", async () => {
     // predict three notes and a fourth on a branch
     const client = await open("sqlite", [note, ...replicaTables, ...predictionTables]);

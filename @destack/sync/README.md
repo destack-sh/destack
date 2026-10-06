@@ -121,6 +121,17 @@ await copy.follow(local, ({ after }, signal) => feed.subscribe({ board }, after,
 const projects = await copy.rows(local, "board", board, prediction);
 ```
 
+## Uplinks
+
+An `Uplink` streams copies to its followers and receives the changes they send to copied rows, as the follower or as a principal it represents.
+
+```ts
+const uplink: Uplink = {
+    stream: (subscription, signal) => feed.subscribe(queries, subscription.after, signal),
+    receive: async (mutation, as) => home.receive(mutation, as), // as: { subject: installation, onBehalfOf: person }
+};
+```
+
 ## Copy topology
 
 `requireAcyclic` refuses a copy back into the database a table is copied from.
@@ -304,12 +315,28 @@ export const local = defineDatabase({
 ```ts
 import { Scope } from "@destack/sync";
 
-const links = await Scope.chain(snapshot, spaceId);
+const links = await Scope.chain(snapshot, spaceId); // each { object, parent, isSuspended, isCapped, movedTo }
 const chains = await Scope.chains(snapshot, [spaceId, otherSpaceId]); // one read per level for all of them
 const owner = await Scope.object(snapshot, spaceId);
+```
+
+### Fences
+
+`Scope.fence` stops the writes to a scope while a transfer moves it to another cell.
+
+```ts
 await Scope.fence(database, spaceId, targetCell, Date.now()); // writes to the scope now refuse
-await Scope.guard(transaction, [spaceId]); // keeps a write's scopes unfenced until it commits
+await Scope.guard(transaction, spaceId); // keeps a write's scope unfenced until it commits
 await Scope.unfence(database, spaceId);
+```
+
+### Caps
+
+`Scope.cap` caps a scope's storage from a time, refusing writes but deletes, and `null` lifts the cap.
+
+```ts
+await Scope.cap(database, spaceId, Date.now());
+await Scope.cap(database, spaceId, null);
 ```
 
 ## Errors

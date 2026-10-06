@@ -1,6 +1,7 @@
 import { LogPosition } from "@destack/db";
 import { defineSchema, Duration, schema } from "@destack/schema";
 import type { Mutation } from "../call/call.ts";
+import type { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
 import type { Replica } from "./replica.ts";
 
@@ -97,8 +98,16 @@ export interface Publisher {
     stream(subscription: Subscription, signal: AbortSignal): AsyncIterable<Page>;
 }
 
+/** A principal a follower acts as, which it represents, and the person lending that principal their authority, if any. */
+export interface Representation {
+    /** The represented principal, such as an installation of a space the follower serves. */
+    readonly subject: Subject;
+    /** The person lending the principal their authority, absent for the principal acting on its own. */
+    readonly onBehalfOf?: Subject;
+}
+
 /** A publisher that also receives the changes its followers send to the rows they copy from it. */
 export interface Uplink extends Publisher {
-    /** Run a mutation of copied rows at their home as the follower, once per mutation however often it is delivered. */
-    receive(mutation: Mutation): Promise<void>;
+    /** Run a mutation of copied rows at their home as the follower, or as a principal it represents, once per mutation however often it is delivered. */
+    receive(mutation: Mutation, as?: Representation): Promise<void>;
 }

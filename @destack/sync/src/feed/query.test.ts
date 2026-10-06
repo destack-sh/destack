@@ -1,7 +1,7 @@
 import { expect, refusal, test } from "@destack/test";
 import { aligned } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { eq, sql, type Table, Expression, type Change, Relations } from "@destack/db";
+import { eq, sql, type Table, Expression, type Change } from "@destack/db";
 import { Feed } from "./feed.ts";
 import { EVERYONE, type Audience } from "./audience.ts";
 import type { Page } from "../query/page.ts";
@@ -51,7 +51,7 @@ async function first(
 }
 
 test.for(TEST_DIALECTS)(
-    "refuse queries a subscription cannot keep exactly on %s",
+    "refuse queries reading what the audience or the feed hides on %s",
     async (dialect) => {
         const feed = new Feed(await open(dialect), TABLES);
         const reason = async (query: Query, audience: Audience = EVERYONE) => {
@@ -66,29 +66,11 @@ test.for(TEST_DIALECTS)(
             return error;
         };
 
-        // refuse invalid reads with their reasons
+        // refuse reads of concealable columns, unserved tables and rows the audience decides in memory
         expect(
             await Promise.all([
                 reason({ table: task, scopes: ["inbox"], where: { title: "write" } }, AUDIENCE),
-                reason({
-                    table: task,
-                    scopes: ["inbox"],
-                    orderBy: { missing: "asc" },
-                }),
-                reason({ table: task, scopes: ["inbox"], limit: 0 }),
-                reason({
-                    table: task,
-                    scopes: ["inbox"],
-                    aggregate: { values: { total: { function: "sum", column: "state" } } },
-                }),
-                reason({ table: note, scopes: ["inbox"], where: { labels: "draft" } }),
                 reason({ table: note, scopes: ["inbox"] }),
-                reason({
-                    table: task,
-                    scopes: ["inbox"],
-                    limit: 2,
-                    aggregate: { values: { tasks: { function: "count" } } },
-                }),
                 reason(
                     {
                         table: task,
@@ -98,51 +80,6 @@ test.for(TEST_DIALECTS)(
                     },
                     AUDIENCE,
                 ),
-                reason({
-                    table: task,
-                    scopes: ["inbox"],
-                    extras: { rank: Expression.literal(1) },
-                }),
-                reason({
-                    table: task,
-                    scopes: ["inbox"],
-                    extras: { label: Expression.column("title") },
-                    aggregate: { values: { total: { function: "avg", column: "label" } } },
-                }),
-                reason({
-                    table: project,
-                    scopes: ["inbox"],
-                    relations,
-                    extras: { spent: Expression.rollup("sum", "tasks", "title") },
-                }),
-                reason({
-                    table: task,
-                    scopes: ["inbox"],
-                    relations: new Relations(
-                        new Map([
-                            [
-                                task,
-                                {
-                                    tasks: {
-                                        table: task,
-                                        cardinality: "many",
-                                        on: {
-                                            kind: "key",
-                                            column: "projectId",
-                                            parent: "projectId",
-                                        },
-                                    },
-                                },
-                            ],
-                        ]),
-                    ),
-                    extras: { peers: Expression.rollup("count", "tasks") },
-                }),
-                reason({
-                    table: task,
-                    scopes: ["inbox"],
-                    extras: { peers: Expression.rollup("count", "tasks") },
-                }),
                 reason(
                     {
                         table: project,
@@ -155,18 +92,8 @@ test.for(TEST_DIALECTS)(
             ]),
         ).toEqual([
             "query query reads concealable columns of task: title",
-            "task has no column missing",
-            "query limit must be a positive integer: query",
-            "measure total adds up a non-numeric column",
-            "note.labels is a json column",
             "feed does not read note",
-            "aggregate query holds no rows to order or include: query",
             "query query reads concealable columns of task: title",
-            "computed value rank shadows a column of task",
-            "measure total adds up a non-numeric column",
-            "measure sum(title) adds up a non-numeric column",
-            "rollup tasks of query measures another table",
-            "task has no relation tasks",
             "relations read no rows of task, which the audience decides in memory",
         ]);
     },

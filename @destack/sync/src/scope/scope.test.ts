@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { DatabaseError, eq, Snapshot, sql } from "@destack/db";
+import { eq, Snapshot, sql } from "@destack/db";
 import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { open } from "../test/fixture.ts";
@@ -95,7 +95,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
-    "refuse a write waiting behind a fence once the fence commits, and show its retry the fence on postgresql",
+    "run a write waiting behind a fence again once the fence commits, showing it the fence on postgresql",
     async () => {
         const storage = await TestDatabase.create("postgresql", [Scope.table], {
             isMigrated: true,
@@ -148,19 +148,12 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         release.resolve();
         await fencing;
 
-        // fail the waiting write as a concurrent update, and show its retry the fence
-        const refused = await writing;
+        // run the waiting write again, its guard showing the fence
+        const written = await writing;
         const notes = await storage.database
             .select({ scope: Scope.table.scope })
             .from(Scope.table)
             .where(eq(Scope.table.scope, "note"));
-        expect([refused, notes]).toEqual([
-            new DatabaseError(
-                "CONCURRENT_UPDATE",
-                "a concurrent transaction changed the same records",
-            ),
-            [],
-        ]);
-        expect(await write()).toEqual([undefined, "cell-b", undefined]);
+        expect([written, notes]).toEqual([[undefined, "cell-b", undefined], [{ scope: "note" }]]);
     },
 );

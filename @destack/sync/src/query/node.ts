@@ -126,11 +126,9 @@ export class Node {
             describeLog(table) === undefined ? table[TABLE].columns : table[TABLE].logged;
         this.key = table[TABLE].key;
 
-        // name the computed values
+        // name the computed values and select the rows meeting the condition in the tree's scopes
         this.extras = query.extras ?? {};
         this.#requireUnshadowed();
-
-        // resolve the condition and select the rows meeting it in the tree's scopes
         const condition = query.where ?? {};
         this.#fields = Namespace.fields(table, { extras: this.extras });
         this.where = this.resolve(condition);
@@ -143,7 +141,7 @@ export class Node {
         this.limit = limitOf(query, name);
         this.isArranged = query.limit !== undefined && this.#isOrderedByRelations();
 
-        // place the node below its parent along its path
+        // place the node below its parent along its path, selecting rows unless measuring them
         this.parent = parent;
         this.depth = parent === undefined ? 0 : parent.depth + 1;
         this.path = "on" in query ? query.on : undefined;
@@ -151,11 +149,28 @@ export class Node {
             this.#requirePath(this.path, this.#parent());
         }
         this.closure = this.#closure();
-
-        // select rows unless measuring them
         this.aggregate = query.aggregate;
         this.hasRows = query.aggregate === undefined && (parent?.hasRows ?? true);
 
+        // resolve the includes, each measured relation once, and the join row node of each junction include
+        ({
+            children: this.children,
+            lookups: this.#lookups,
+            rollups: this.#rollups,
+        } = this.#measured(query));
+
+        // require key lookups, logged comparable columns, and aggregates alone
+        this.#requireLookups();
+        this.#requireColumns();
+        this.#requireAggregate(query);
+    }
+
+    /** Resolve a query's includes and the relations its lookups and rollups measure, noting the logged columns they read. */
+    #measured(query: Query | Include): {
+        readonly children: readonly Node[];
+        readonly lookups: ReadonlySet<string>;
+        readonly rollups: ReadonlySet<string>;
+    } {
         // resolve the includes and each measured relation once
         const includes = Object.entries(query.with ?? {}).map(([child, selected]) =>
             this.#include(child, selected),
@@ -163,26 +178,17 @@ export class Node {
         const lookups = Object.values(this.extras).flatMap((value) => Expression.lookups(value));
         const rollups = Object.values(this.extras).flatMap((value) => Expression.rollups(value));
         const relations = this.#measureRelations(lookups, rollups);
-
-        // note the lookups and rollups and the logged columns they read
-        this.#lookups = new Set(lookups.map(({ via }) => via));
-        this.#rollups = new Set(rollups.map(({ via, where }) => JSON.stringify([via, where])));
         this.#lookColumns(lookups, rollups);
-        this.#requireLookups();
 
         // add the join row node of each junction include
-        this.children = [...includes, ...relations].flatMap((child) => [
-            child,
-            ...this.#joinOf(child),
-        ]);
-
-        // require logged, comparable columns in values, condition and order
-        this.#requireColumns();
-
-        // require aggregates alone
-        if (query.aggregate !== undefined) {
-            this.#requireAggregate(query);
-        }
+        return {
+            children: [...includes, ...relations].flatMap((child) => [
+                child,
+                ...this.#joinOf(child),
+            ]),
+            lookups: new Set(lookups.map(({ via }) => via)),
+            rollups: new Set(rollups.map(({ via, where }) => JSON.stringify([via, where]))),
+        };
     }
 
     /** Describe what the node selects as its identity. */
@@ -868,8 +874,12 @@ export class Node {
         });
     }
 
-    /** Require a valid aggregate. */
+    /** Require a valid aggregate, if the query measures one. */
     #requireAggregate(query: Query | Include): void {
+        if (query.aggregate === undefined) {
+            return;
+        }
+
         // refuse order, limit and includes
         const aggregate = this.#aggregate();
         if (query.with !== undefined || query.orderBy !== undefined || query.limit !== undefined) {

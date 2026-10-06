@@ -1,7 +1,7 @@
 import { check, identifier, integer, json, sql, text, defineTable } from "@destack/db";
 import { schema } from "@destack/schema";
 
-/** A scope object's row: its parent, type, suspension and transfer fence, stored in the scope itself. */
+/** A scope object's row: its parent, type, suspension, storage cap and transfer fence, stored in the scope itself. */
 export const scopeTable = defineTable(
     "scope",
     {
@@ -19,6 +19,8 @@ export const scopeTable = defineTable(
         type: text("type").notNull(),
         /** When the scope was suspended, denying every access within it until resumed. */
         suspendedAt: integer("suspended_at"),
+        /** When the scope's storage was capped, refusing writes within it but deletes until lifted. */
+        cappedAt: integer("capped_at"),
         /** When a transfer stopped the scope's writes. */
         fencedAt: integer("fenced_at"),
         /** The cell a transfer moves the scope to. */

@@ -35,7 +35,6 @@ import {
     type Relation,
     Relations,
 } from "@destack/db";
-import type { BlobStore } from "@destack/db/blob";
 import { SyncError } from "../error/error.ts";
 import { schema, canonicalize, found, zip } from "@destack/schema";
 import { Page, type ResultChange, type RowChange } from "../query/page.ts";
@@ -772,9 +771,8 @@ export class Replica {
             .onConflictDoNothing();
     }
 
-    /** Drop the copy: delete the rows it wrote that no other copy includes, retract its projections, forget its record and retire the blobs the deleted rows referenced. */
-    async drop(database: DatabaseConnection, blobs?: BlobStore): Promise<void> {
-        const retired = blobs === undefined ? undefined : new Set<string>();
+    /** Drop the copy: delete the rows it wrote that no other copy includes, retract its projections and forget its record. */
+    async drop(database: DatabaseConnection): Promise<void> {
         await database.transaction(
             async (transaction) => {
                 await transaction.log.asReplica(async () => {
@@ -782,7 +780,7 @@ export class Replica {
                     for (const table of this.tables.toReversed()) {
                         let keys = await this.#keys(transaction, table);
                         while (keys.length > 0) {
-                            await this.#exclude(transaction, table, keys, retired);
+                            await this.#exclude(transaction, table, keys);
                             keys = await this.#keys(transaction, table);
                         }
                     }
@@ -800,11 +798,6 @@ export class Replica {
             },
             { constraints: "deferred" },
         );
-
-        // retire the deleted rows' blobs once the deletion commits
-        if (blobs !== undefined && retired !== undefined) {
-            await blobs.retire([...retired]);
-        }
     }
 
     /** List the subscriptions of the copies a database keeps, those no subscription names left out. */
@@ -822,19 +815,11 @@ export class Replica {
         pages: AsyncIterable<Page> | Iterable<Page>,
         options: ApplyOptions = {},
     ): AsyncGenerator<Page> {
-        // hold the fetched blobs from collection until the rows referencing them commit
-        await using _held = await options.blobs?.store.hold();
-
         // drop an earlier stream's staged pages
         await database.delete(replicaPage).where(this.#match(replicaPage));
         let staged = 0;
         let isSnapshot = false;
         for await (const page of pages) {
-            // keep the content the page's rows reference before writing them
-            if (options.blobs !== undefined) {
-                await options.blobs.store.fetch(this.#digests(page), options.blobs.source);
-            }
-
             // drop staged pages a snapshot replaces
             if (page.reset && staged > 0) {
                 await database.delete(replicaPage).where(this.#match(replicaPage));
@@ -894,17 +879,11 @@ export class Replica {
         run: Stage,
         options: ApplyOptions,
     ): Promise<void> {
-        // apply and rebase in one transaction and collect the blobs of deleted and replaced rows
-        const retired = options.blobs === undefined ? undefined : new Set<string>();
+        // apply and rebase in one transaction
         await database.transaction(
-            (transaction) => this.#applyRun(transaction, page, run, options, retired),
+            (transaction) => this.#applyRun(transaction, page, run, options),
             { constraints: "deferred" },
         );
-
-        // retire the blobs once the rows no longer referencing them commit
-        if (options.blobs !== undefined && retired !== undefined) {
-            await options.blobs.store.retire([...retired]);
-        }
     }
 
     /** Apply a run's pages inside a transaction around reverted local predictions. */
@@ -913,7 +892,6 @@ export class Replica {
         page: Page,
         run: Stage,
         options: ApplyOptions,
-        retired: Set<string> | undefined,
     ): Promise<void> {
         // rebase onto pages that touch a prediction
         const rebased = await rebasedBy(transaction, page, run, options.prediction);
@@ -931,7 +909,7 @@ export class Replica {
         // write the source's rows after reverting predictions, under the source's origin
         await transaction.log.asReplica(async () => {
             await rebased?.revert(transaction);
-            await this.#writeRun(transaction, page, run, record, options, retired);
+            await this.#writeRun(transaction, page, run, record, options);
         }, page.position.epoch);
 
         // predict again what the source lacks
@@ -948,7 +926,6 @@ export class Replica {
         run: Stage,
         record: typeof replica.$inferSelect | undefined,
         options: ApplyOptions,
-        retired: Set<string> | undefined,
     ): Promise<void> {
         // let go of every group on a snapshot
         if (run.isSnapshot) {
@@ -957,17 +934,10 @@ export class Replica {
 
         // write the staged and completing pages and prune what a snapshot left out
         const delivered = run.isSnapshot ? this.#deliveries() : undefined;
-        const staging = await this.#writeStaged(
-            transaction,
-            run.staged,
-            delivered,
-            options,
-            retired,
-        );
-        const relayed =
-            (await this.#write(transaction, page, delivered, options, retired)) ?? staging;
+        const staging = await this.#writeStaged(transaction, run.staged, delivered, options);
+        const relayed = (await this.#write(transaction, page, delivered, options)) ?? staging;
         if (delivered !== undefined) {
-            await this.#pruneUndelivered(transaction, delivered, retired);
+            await this.#pruneUndelivered(transaction, delivered);
         }
 
         // record the new position
@@ -1025,7 +995,6 @@ export class Replica {
         staged: number,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
         options: ApplyOptions,
-        retired: Set<string> | undefined,
     ): Promise<Origin | undefined> {
         let relayed: Origin | undefined;
         for (let start = 0; start < staged; start += STAGED_BATCH) {
@@ -1044,9 +1013,7 @@ export class Replica {
 
             // write each page
             for (const row of batch) {
-                relayed =
-                    (await this.#write(transaction, row.page, delivered, options, retired)) ??
-                    relayed;
+                relayed = (await this.#write(transaction, row.page, delivered, options)) ?? relayed;
             }
         }
 
@@ -1057,10 +1024,9 @@ export class Replica {
     async #pruneUndelivered(
         transaction: DatabaseConnection,
         delivered: ReadonlyMap<string, Set<string>>,
-        retired: Set<string> | undefined,
     ): Promise<void> {
         for (const table of this.tables.toReversed()) {
-            await this.#prune(transaction, table, found(delivered, table[TABLE].sqlName), retired);
+            await this.#prune(transaction, table, found(delivered, table[TABLE].sqlName));
         }
         for (const [name, projector] of this.#projectors) {
             await projector.prune(transaction, this.scope, found(delivered, name));
@@ -1073,7 +1039,6 @@ export class Replica {
         page: Page,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
         { unwrap }: ApplyOptions,
-        retired: Set<string> | undefined,
     ): Promise<Origin | undefined> {
         // batch each table's writes and each projected table's rows
         const { batches, projected, origin } = await this.#collect(page, delivered, unwrap);
@@ -1086,10 +1051,10 @@ export class Replica {
         });
         for (const [table, batch] of ordered.toReversed()) {
             const keys = batch.removed.map((row) => Key.name(table, row));
-            await this.#exclude(transaction, table, keys, retired);
+            await this.#exclude(transaction, table, keys);
         }
         for (const [table, batch] of ordered) {
-            await this.#writeKept(transaction, table, batch, retired);
+            await this.#writeKept(transaction, table, batch);
         }
 
         // project the collected rows and keep the groups
@@ -1164,18 +1129,8 @@ export class Replica {
         return origin;
     }
 
-    /** Write a table's kept rows of one page and record them as included, retiring the blobs the replaced rows referenced. */
-    async #writeKept(
-        transaction: DatabaseConnection,
-        table: Table,
-        batch: Batch,
-        retired: Set<string> | undefined,
-    ): Promise<void> {
-        // collect the blobs the kept rows stop referencing
-        if (retired !== undefined) {
-            await retireReplaced(transaction, table, batch.kept, retired);
-        }
-
+    /** Write a table's kept rows of one page and record them as included. */
+    async #writeKept(transaction: DatabaseConnection, table: Table, batch: Batch): Promise<void> {
         // write the kept rows with hidden columns cleared and record them as included
         await transaction.upsert(
             table,
@@ -1227,38 +1182,15 @@ export class Replica {
         await writeGroups(transaction, groups);
     }
 
-    /** List the digests a page's written rows keep in blob columns. */
-    #digests(page: Page): string[] {
-        return page.changes.flatMap((change) => {
-            const table = this.#copied.get(change.table);
-            if (table === undefined || change.operation === "delete") {
-                return [];
-            }
-
-            return Object.entries(table[TABLE].columns).flatMap(([property, column]) => {
-                const value = change.row[property];
-
-                return column.definition.kind === "blob" && typeof value === "string"
-                    ? [value]
-                    : [];
-            });
-        });
-    }
-
     /** Take the rows a completed snapshot left out of the copy, a batch at a time in key order. */
-    async #prune(
-        database: DatabaseConnection,
-        table: Table,
-        delivered: ReadonlySet<string>,
-        retired: Set<string> | undefined,
-    ) {
+    async #prune(database: DatabaseConnection, table: Table, delivered: ReadonlySet<string>) {
         // read a table copied across scopes by the rows the copy includes
         if (this.within.has(table) || this.everywhere.has(table)) {
-            await this.#pruneIncluded(database, table, delivered, retired);
+            await this.#pruneIncluded(database, table, delivered);
         }
         // read any other table by the rows of the copy's scope and condition
         else {
-            await this.#pruneSelected(database, table, delivered, retired);
+            await this.#pruneSelected(database, table, delivered);
         }
     }
 
@@ -1267,7 +1199,6 @@ export class Replica {
         database: DatabaseConnection,
         table: Table,
         delivered: ReadonlySet<string>,
-        retired: Set<string> | undefined,
     ): Promise<void> {
         const name = table[TABLE].sqlName;
         let last: string | undefined;
@@ -1289,7 +1220,7 @@ export class Replica {
 
             // take out the rows the snapshot left out
             const stale = rows.map((row) => row.key).filter((key) => !delivered.has(key));
-            await this.#exclude(database, table, stale, retired);
+            await this.#exclude(database, table, stale);
         } while (last !== undefined);
     }
 
@@ -1298,7 +1229,6 @@ export class Replica {
         database: DatabaseConnection,
         table: Table,
         delivered: ReadonlySet<string>,
-        retired: Set<string> | undefined,
     ): Promise<void> {
         // select the keys of the copy's rows in key order
         const order = Order.complete([], table);
@@ -1329,7 +1259,7 @@ export class Replica {
             const stale = rows
                 .map((row) => Key.name(table, row))
                 .filter((name) => !delivered.has(name));
-            await this.#exclude(database, table, stale, retired);
+            await this.#exclude(database, table, stale);
         } while (last !== undefined);
     }
 
@@ -1419,12 +1349,11 @@ export class Replica {
         );
     }
 
-    /** Take some rows out of the copy, deleting those no copy includes any longer and collecting the blobs they referenced. */
+    /** Take some rows out of the copy, deleting those no copy includes any longer. */
     async #exclude(
         database: DatabaseConnection,
         table: Table,
         keys: readonly string[],
-        retired: Set<string> | undefined,
     ): Promise<void> {
         // take the rows out of the copy
         const name = table[TABLE].sqlName;
@@ -1441,16 +1370,11 @@ export class Replica {
                 .where(selected);
             await database.delete(replicaRow).where(selected);
 
-            // delete the rows no other copy includes and collect their blobs
+            // delete the rows no other copy includes
             const others = await this.#others(database, table, batch);
             const deleted = batch
                 .filter((key) => !others.has(key))
                 .map((key) => Key.parse(table, key));
-            if (retired !== undefined) {
-                for (const digest of await storedBlobs(database, table, deleted)) {
-                    retired.add(digest);
-                }
-            }
             await database.remove(table, deleted);
 
             // clear the columns only this copy showed on the rows the others keep
@@ -1691,62 +1615,6 @@ async function rebasedBy(
     return isRebased ? prediction : undefined;
 }
 
-/** List the properties of a table's blob columns. */
-function blobColumns(table: Table): string[] {
-    return Object.entries(table[TABLE].columns).flatMap(([property, column]) =>
-        column.definition.kind === "blob" ? [property] : [],
-    );
-}
-
-/** Read the digests some stored rows keep in blob columns, none for a table without them. */
-async function storedBlobs(
-    database: DatabaseConnection,
-    table: Table,
-    keys: readonly Row[],
-): Promise<string[]> {
-    // read the stored rows of a table with blob columns
-    const columns = blobColumns(table);
-    if (columns.length === 0) {
-        return [];
-    }
-    const stored = await storedRows(database, table, keys);
-
-    return stored.flatMap((row) =>
-        columns.flatMap((column) => {
-            const value = row[column];
-
-            return typeof value === "string" ? [value] : [];
-        }),
-    );
-}
-
-/** Collect the blobs stored rows reference that the rows replacing them no longer reference. */
-async function retireReplaced(
-    database: DatabaseConnection,
-    table: Table,
-    rows: readonly Row[],
-    retired: Set<string>,
-): Promise<void> {
-    // read the stored rows the given rows replace
-    const columns = blobColumns(table);
-    if (columns.length === 0) {
-        return;
-    }
-    const stored = await storedRows(database, table, rows);
-
-    // collect each stored blob its replacing row no longer keeps
-    const replacing = new Map(rows.map((row) => [Key.name(table, row), row]));
-    for (const row of stored) {
-        const next = found(replacing, Key.name(table, row));
-        for (const column of columns) {
-            const value = row[column];
-            if (typeof value === "string" && next[column] !== value) {
-                retired.add(value);
-            }
-        }
-    }
-}
-
 /** Read the stored rows of a table by the keys of some rows. */
 function storedRows(
     database: DatabaseConnection,
@@ -1810,11 +1678,6 @@ export interface ApplyOptions {
     readonly prediction?: Prediction;
     /** The subscription the copy follows, recorded as it completes a run. */
     readonly subscription?: Subscription;
-    /** The store keeping the content the copied rows reference, and the source's store reading it. */
-    readonly blobs?: {
-        readonly store: BlobStore;
-        readonly source: Pick<BlobStore, "read">;
-    };
     /** Unwrap the host-bound values a fenced source wrapped for this copy. */
     readonly unwrap?: (table: Table, row: Row) => Promise<Row>;
 }

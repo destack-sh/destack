@@ -58,17 +58,13 @@ export async function evaluate(
     // select each query's rows and groups
     const contents: Contents = { rows: new Map(), results: new Map() };
     for (const [name, query] of Object.entries(queries)) {
-        select(
-            name,
-            query,
-            query.relations ?? new Relations(),
-            query.scopes,
-            tables.all(query.table),
-            undefined,
+        const evaluation = {
+            relations: query.relations ?? new Relations(),
             tables,
             audience,
             contents,
-        );
+        };
+        select(name, query, query.scopes, tables.all(query.table), undefined, evaluation);
     }
 
     return contents;
@@ -79,111 +75,140 @@ export function groupName(query: string, group: Readonly<Record<string, unknown>
     return JSON.stringify(query) + canonicalize(group);
 }
 
+/** What the oracle reads rows of and writes what a subscriber should have into. */
+interface Evaluation {
+    /** The relations of the query's schema. */
+    readonly relations: Relations;
+    /** Every row of each table. */
+    readonly tables: Rows;
+    /** Who reads, deciding visible rows and hidden columns. */
+    readonly audience: ConditionAudience;
+    /** What the subscriber should have. */
+    readonly contents: Contents;
+}
+
 /** Select the rows of a query or include and what they include. */
 function select(
     name: string,
     query: Level,
-    relations: Relations,
     scopes: Query["scopes"],
     candidates: readonly Row[],
     partition: { readonly name: string; readonly value: ColumnValue } | undefined,
-    tables: Rows,
-    audience: ConditionAudience,
-    contents: Contents,
+    evaluation: Evaluation,
 ): Row[] {
     // keep the visible matching rows with their values
     const table = query.table;
-    const scope = "scope";
-    const computed = query.extras ?? {};
     const rows = candidates
-        .map((row) => ({
-            ...row,
-            ...Object.fromEntries(
-                Object.entries(computed).map(([property, expression]) => [
-                    property,
-                    Expression.evaluate(expression, row, {
-                        lookup: (via, column) =>
-                            relatedOf(
-                                query,
-                                relations,
-                                via,
-                                {},
-                                row,
-                                scopes,
-                                tables,
-                                audience,
-                            )[0]?.[column] ?? null,
-                        rollup: (measure, via, column, where) =>
-                            rolledUp(
-                                measure,
-                                column,
-                                relatedOf(
-                                    query,
-                                    relations,
-                                    via,
-                                    where,
-                                    row,
-                                    scopes,
-                                    tables,
-                                    audience,
-                                ),
-                            ),
-                    }),
-                ]),
-            ),
-        }))
+        .map((row) => withExtras(query, row, scopes, evaluation))
         .filter(
             (row) =>
-                inScopes(scopes, row[scope]) &&
-                audience.isVisible(table, row) &&
-                meets(query, relations, row, scopes, tables, audience),
+                inScopes(scopes, row["scope"]) &&
+                evaluation.audience.isVisible(table, row) &&
+                meets(
+                    query,
+                    evaluation.relations,
+                    row,
+                    scopes,
+                    evaluation.tables,
+                    evaluation.audience,
+                ),
         );
 
     // measure the groups of an aggregate
     if (query.aggregate !== undefined) {
-        const grouping = query.aggregate.groupBy ?? [];
-        const groups = new Map<string, Row[]>();
-        for (const row of rows) {
-            const values: (readonly [string, ColumnValue])[] = [
-                ...(partition === undefined ? [] : [[partition.name, partition.value] as const]),
-                ...grouping.map((column): [string, ColumnValue] => [
-                    column,
-                    json(table, column, row[column]),
-                ]),
-            ];
-            const group = groupName(name, Object.fromEntries(values));
-            groups.set(group, [...(groups.get(group) ?? []), row]);
-        }
-        for (const [group, members] of groups) {
-            contents.results.set(
-                group,
-                Object.fromEntries(
-                    Object.entries(query.aggregate.values).map(([measure, entry]) => [
-                        measure,
-                        measured(table, entry, members),
-                    ]),
-                ),
-            );
-        }
+        aggregate(name, query, query.aggregate, rows, partition, evaluation.contents);
 
         return [];
     }
 
-    // select the first rows with hidden columns concealed
+    // select the first rows with hidden columns concealed, measure their relations and select their includes
     const order = Order.complete(Order.of(query.orderBy ?? {}), table);
     const selected = rows
         .toSorted((left, right) => Order.rows(order, left, right))
         .slice(0, query.limit);
     for (const row of selected) {
-        const hidden = audience.hidden(table, row);
-        contents.rows.set(Key.name(table, row), {
-            ...table[TABLE].encode(loggedOf(table, row)),
-            ...Object.fromEntries(hidden.map((column) => [column, null])),
-        });
+        keep(table, row, evaluation);
+    }
+    measureRelations(name, query, selected, scopes, evaluation);
+    selectIncludes(name, query, selected, scopes, evaluation);
+
+    return selected;
+}
+
+/** Add a query's computed values to one of its rows. */
+function withExtras(query: Level, row: Row, scopes: Query["scopes"], evaluation: Evaluation): Row {
+    // evaluate each computed value over the row and its related rows
+    const { relations, tables, audience } = evaluation;
+    const related = (via: string, where: Condition) =>
+        relatedOf(query, relations, via, where, row, scopes, tables, audience);
+    const extras = Object.entries(query.extras ?? {}).map(
+        ([property, expression]): [string, ColumnValue] => [
+            property,
+            Expression.evaluate(expression, row, {
+                lookup: (via, column) => related(via, {})[0]?.[column] ?? null,
+                rollup: (measure, via, column, where) =>
+                    rolledUp(measure, column, related(via, where)),
+            }),
+        ],
+    );
+
+    return { ...row, ...Object.fromEntries(extras) };
+}
+
+/** Measure an aggregate query's groups of rows, the partition's value grouping them first. */
+function aggregate(
+    name: string,
+    query: Level,
+    aggregation: NonNullable<Level["aggregate"]>,
+    rows: readonly Row[],
+    partition: { readonly name: string; readonly value: ColumnValue } | undefined,
+    contents: Contents,
+): void {
+    // group the rows by the partition and the grouped columns
+    const table = query.table;
+    const grouping = aggregation.groupBy ?? [];
+    const groups = new Map<string, Row[]>();
+    for (const row of rows) {
+        const values: (readonly [string, ColumnValue])[] = [
+            ...(partition === undefined ? [] : [[partition.name, partition.value] as const]),
+            ...grouping.map((column): [string, ColumnValue] => [
+                column,
+                json(table, column, row[column]),
+            ]),
+        ];
+        const group = groupName(name, Object.fromEntries(values));
+        groups.set(group, [...(groups.get(group) ?? []), row]);
     }
 
-    // measure each selected row's relations
+    // measure each group
+    for (const [group, members] of groups) {
+        const measuredValues = Object.entries(aggregation.values).map(
+            ([measure, entry]): [string, Scalar] => [measure, measured(table, entry, members)],
+        );
+        contents.results.set(group, Object.fromEntries(measuredValues));
+    }
+}
+
+/** Keep a selected row with its hidden columns concealed. */
+function keep(table: Table, row: Row, evaluation: Pick<Evaluation, "audience" | "contents">): void {
+    const hidden = evaluation.audience.hidden(table, row);
+    evaluation.contents.rows.set(Key.name(table, row), {
+        ...table[TABLE].encode(loggedOf(table, row)),
+        ...Object.fromEntries(hidden.map((column) => [column, null])),
+    });
+}
+
+/** Measure each selected row's relations a query's computed values roll up. */
+function measureRelations(
+    name: string,
+    query: Level,
+    selected: readonly Row[],
+    scopes: Query["scopes"],
+    evaluation: Evaluation,
+): void {
+    const { relations, tables, audience, contents } = evaluation;
     for (const { suffix, via, where, values } of measures(query)) {
+        // partition the measures by the related column
         const relation = relationOf(query, relations, via, where);
         const path = relation.on;
         if (path.kind !== "key" && path.kind !== "junction") {
@@ -191,82 +216,108 @@ function select(
         }
         const [partitionColumn, column] =
             path.kind === "key" ? [path.column, path.parent] : [path.from.column, path.from.key];
+
+        // measure each selected row's related rows
         for (const row of selected) {
             const related = relatedOf(query, relations, via, where, row, scopes, tables, audience);
             if (related.length > 0) {
-                contents.results.set(
-                    groupName(`${name}?${via}${suffix}`, {
-                        [partitionColumn]: json(table, column, row[column]),
-                    }),
-                    Object.fromEntries(
-                        Object.entries(values).map(([measure, entry]) => [
-                            measure,
-                            measured(relation.table, entry, related),
-                        ]),
-                    ),
+                const group = groupName(`${name}?${via}${suffix}`, {
+                    [partitionColumn]: json(query.table, column, row[column]),
+                });
+                const measuredValues = Object.entries(values).map(
+                    ([measure, entry]): [string, Scalar] => [
+                        measure,
+                        measured(relation.table, entry, related),
+                    ],
                 );
+                contents.results.set(group, Object.fromEntries(measuredValues));
             }
         }
     }
+}
 
-    // select each include per selected row
+/** Select each include of a query per selected row, with its join rows and a tree include's chains. */
+function selectIncludes(
+    name: string,
+    query: Level,
+    selected: readonly Row[],
+    scopes: Query["scopes"],
+    evaluation: Evaluation,
+): void {
+    const table = query.table;
     for (const [child, selection] of Object.entries(query.with ?? {})) {
-        const include = includeOf(relations.get(table, child), selection === true ? {} : selection);
+        const include = includeOf(
+            evaluation.relations.get(table, child),
+            selection === true ? {} : selection,
+        );
         for (const row of selected) {
-            const reached = reach(include, table, row, scopes, tables, audience);
+            // keep the join rows of a junction include
+            const reached = reach(
+                include,
+                table,
+                row,
+                scopes,
+                evaluation.tables,
+                evaluation.audience,
+            );
             const path = include.on;
             for (const join of reached.joins) {
                 if (path.kind !== "junction") {
                     throw new TypeError(`include ${child} joins rows without a join table`);
                 }
-                const joins = path.table;
-                contents.rows.set(
-                    Key.name(joins, join),
-                    joins[TABLE].encode(loggedOf(joins, join)),
+                evaluation.contents.rows.set(
+                    Key.name(path.table, join),
+                    path.table[TABLE].encode(loggedOf(path.table, join)),
                 );
             }
+
+            // select the included rows, and the chains of a limited or filtered tree include
             const members = select(
                 `${name}.${child}`,
                 include,
-                relations,
                 scopesOf(path, scopes),
                 reached.rows,
                 reached.partition,
-                tables,
-                audience,
-                contents,
+                evaluation,
             );
-
-            // select the chains of a tree include
-            if (
-                (path.kind === "descendants" || path.kind === "ancestors") &&
-                (include.limit !== undefined || include.where !== undefined)
-            ) {
-                for (const member of members) {
-                    const [lower, upper] =
-                        path.kind === "descendants" ? [member, row] : [row, member];
-                    for (const between of chain(
-                        table,
-                        path.column,
-                        lower,
-                        upper,
-                        scopes,
-                        tables,
-                        audience,
-                    )) {
-                        contents.rows.set(Key.name(table, between), {
-                            ...table[TABLE].encode(loggedOf(table, between)),
-                            ...Object.fromEntries(
-                                audience.hidden(table, between).map((column) => [column, null]),
-                            ),
-                        });
-                    }
-                }
-            }
+            keepChains(table, include, row, members, scopes, evaluation);
         }
     }
+}
 
-    return selected;
+/** Keep the rows between a row of a table and each member of its limited or filtered tree include. */
+function keepChains(
+    table: Table,
+    include: Level & { readonly on: Path },
+    row: Row,
+    members: readonly Row[],
+    scopes: Query["scopes"],
+    evaluation: Evaluation,
+): void {
+    // skip an include that is no limited or filtered tree
+    const path = include.on;
+    const isChained =
+        (path.kind === "descendants" || path.kind === "ancestors") &&
+        (include.limit !== undefined || include.where !== undefined);
+    if (!isChained) {
+        return;
+    }
+
+    // keep each visible row strictly between the row and a member
+    for (const member of members) {
+        const [lower, upper] = path.kind === "descendants" ? [member, row] : [row, member];
+        for (const between of chain(
+            table,
+            path.column,
+            lower,
+            upper,
+            scopes,
+            evaluation.tables,
+            evaluation.audience,
+        )) {
+            keep(table, between, evaluation);
+        }
+    }
 }
 
 /** Read the visible rows strictly between a lower row and an upper one. */
@@ -511,6 +562,52 @@ function rollupsOf(expression: Expression): Extract<Expression, { readonly kind:
     }
 }
 
+/** Read the rows a tree path reaches from one row: its descendants level by level, or its ancestors up to the root. */
+function treeOf(
+    path: Extract<Path, { readonly kind: "descendants" | "ancestors" }>,
+    table: Table,
+    parent: Row,
+    passes: (row: Row) => boolean,
+    tables: Rows,
+): Row[] {
+    // find the key, guarding against cycles
+    const key = keyColumnOf(table);
+    const reached: Row[] = [];
+    const seen = new Set<unknown>([parent[key]]);
+
+    // walk down level by level
+    if (path.kind === "descendants") {
+        let level = [parent];
+        while (level.length > 0) {
+            level = level.flatMap((holder) =>
+                tables
+                    .where(table, path.column, holder[key])
+                    .filter((row) => passes(row) && !seen.has(row[key])),
+            );
+            for (const row of level) {
+                seen.add(row[key]);
+            }
+            reached.push(...level);
+        }
+    }
+    // walk up to the root
+    else {
+        let current: Row | undefined = parent;
+        while (current !== undefined) {
+            const parentKey: ColumnValue | undefined = current[path.column];
+            current = seen.has(parentKey)
+                ? undefined
+                : tables.where(table, key, parentKey).find((row) => passes(row));
+            if (current !== undefined) {
+                seen.add(current[key]);
+                reached.push(current);
+            }
+        }
+    }
+
+    return reached;
+}
+
 /** Read the rows an include's path joins to one parent row. */
 function reach(
     include: Level & { readonly on: Path },
@@ -558,41 +655,9 @@ function reach(
         };
     }
 
-    // follow the parent column
-    const key = Object.keys(table[TABLE].columns).find((column) =>
-        table[TABLE].key.includes(column),
-    );
-    if (key === undefined) {
-        throw new TypeError(`${table[TABLE].name} has no key column`);
-    }
-    const reached: Row[] = [];
-    const seen = new Set<unknown>([parent[key]]);
-    if (path.kind === "descendants") {
-        let level = [parent];
-        while (level.length > 0) {
-            level = level.flatMap((holder) =>
-                tables
-                    .where(table, path.column, holder[key])
-                    .filter((row) => passes(table, row) && !seen.has(row[key])),
-            );
-            for (const row of level) {
-                seen.add(row[key]);
-            }
-            reached.push(...level);
-        }
-    } else {
-        let current: Row | undefined = parent;
-        while (current !== undefined) {
-            const parentKey: ColumnValue | undefined = current[path.column];
-            current = seen.has(parentKey)
-                ? undefined
-                : tables.where(table, key, parentKey).find((row) => passes(table, row));
-            if (current !== undefined) {
-                seen.add(current[key]);
-                reached.push(current);
-            }
-        }
-    }
+    // follow the parent column down or up the tree
+    const reached = treeOf(path, table, parent, (row) => passes(table, row), tables);
+    const key = keyColumnOf(table);
 
     return {
         rows: reached,
@@ -602,6 +667,18 @@ function reach(
             value: json(table, key, parent[key]),
         },
     };
+}
+
+/** Find a table's first key column. */
+function keyColumnOf(table: Table): string {
+    const key = Object.keys(table[TABLE].columns).find((column) =>
+        table[TABLE].key.includes(column),
+    );
+    if (key === undefined) {
+        throw new TypeError(`${table[TABLE].name} has no key column`);
+    }
+
+    return key;
 }
 
 /** Measure one group's rows in JSON form. */

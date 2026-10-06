@@ -253,15 +253,7 @@ export class Selection extends Pipeline {
                 }
 
                 // let go of the evicted row
-                const evictedKey = placed.evicted;
-                const evicted = evictedKey === undefined ? undefined : this.members.get(evictedKey);
-                if (evictedKey !== undefined && evicted !== undefined) {
-                    this.#assign(evictedKey, null, without(evicted.partitions, name), run);
-                } else if (evictedKey !== undefined && !window.isArranged) {
-                    throw new TypeError(
-                        `window of ${node.name} pushed out absent row ${evictedKey}`,
-                    );
-                }
+                this.#evict(placed.evicted, name, window.isArranged, run);
             }
             // take the row out of a window it left, refilling it
             else {
@@ -276,6 +268,16 @@ export class Selection extends Pipeline {
             }
         }
         this.#assign(key, row, partitions, run);
+    }
+
+    /** Let go of the row a window evicted from one partition, which an arranged window may hold apart from its members. */
+    #evict(evictedKey: string | undefined, name: string, isArranged: boolean, run: Run): void {
+        const evicted = evictedKey === undefined ? undefined : this.members.get(evictedKey);
+        if (evictedKey !== undefined && evicted !== undefined) {
+            this.#assign(evictedKey, null, without(evicted.partitions, name), run);
+        } else if (evictedKey !== undefined && !isArranged) {
+            throw new TypeError(`window of ${this.node.name} pushed out absent row ${evictedKey}`);
+        }
     }
 
     /** Select a row in one more partition. */
