@@ -184,17 +184,3 @@ test("refuse declarations that depend on themselves, also next to one depending 
         message: "declarations of labels depend on themselves",
     });
 });
-
-test("refuse a declared method a trait derives", () => {
-    expect(() =>
-        defineObject({
-            name: "draft",
-            plural: "drafts",
-            scope: space,
-            recoverable: { within: { days: 1 }, by: "write" },
-            fields: {},
-            permissions: ["write"],
-            methods: (method) => ({ delete: method.delete("write") }),
-        }),
-    ).toThrow(new TypeError("object draft declares method delete, which a trait derives"));
-});

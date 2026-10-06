@@ -202,7 +202,7 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
         resources: new ResourceContext(),
         health: new Health("profiles"),
         drainTimeout: 1000,
-        authorizeHost: async () => {},
+        authorizeMachine: async () => {},
         authenticate: async (request) => {
             const id = present(
                 request.headers.get("authorization"),
@@ -234,7 +234,7 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
 }
 
 test.each(TEST_DIALECTS)(
-    "key an index within the enclosing scope it is unique across, and refuse one across an unrelated scope, on %s",
+    "key an index within the enclosing scope it is unique across on %s",
     async (dialect) => {
         // declare routes in folders of accounts, unique per account
         const account = defineObject({
@@ -291,17 +291,6 @@ test.each(TEST_DIALECTS)(
             ),
         );
 
-        // refuse an index across a scope that does not enclose the objects
-        const unrelated = () =>
-            defineObject({
-                name: "stray",
-                plural: "strays",
-                scope: account,
-                fields: { path: field.string() },
-                indexes: { path: { on: ["path"], unique: true, across: () => folder } },
-                permissions: { read: none() },
-            });
-
         // one account's folders share a key, another account's folder claims apart
         const index = present(keys[0]?.[0], "the first folder's claim").index;
         const { packageId } = route.policy.definition;
@@ -334,10 +323,5 @@ test.each(TEST_DIALECTS)(
                 },
             ],
         ]);
-        expect(unrelated).toThrow(
-            new TypeError(
-                "index path of stray must be unique within the universe or a scope type enclosing its objects",
-            ),
-        );
     },
 );

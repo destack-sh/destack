@@ -1,4 +1,4 @@
-import * as audit from "@destack/audit/object";
+import * as audit from "@destack/audit";
 import { field } from "../field/field.ts";
 import type { MethodBuilder } from "../method/method.ts";
 import { INTRINSIC } from "./intrinsic.ts";

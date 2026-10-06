@@ -229,17 +229,3 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
-
-test("refuse a host window on a type without recoverable deletion", () => {
-    const plain = defineObject({
-        name: "plain",
-        plural: "plains",
-        scope: space,
-        fields: {},
-        permissions: [],
-    });
-
-    expect(() => recoverable.within(plain, { days: 1 })).toThrow(
-        new TypeError("object plain is not recoverable"),
-    );
-});

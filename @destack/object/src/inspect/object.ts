@@ -6,6 +6,7 @@ import { TABLE } from "@destack/db";
 import { graph } from "@destack/package";
 import { defineSchema, present, schema, toJsonSchema, type JsonValue } from "@destack/schema";
 
+import { FIELD_TYPES } from "../field/field.ts";
 import { METHOD_KINDS } from "../method/kind.ts";
 import type { ObjectType } from "../object/object.ts";
 
@@ -44,10 +45,18 @@ export const ObjectDescription = defineSchema(
         name: schema.string().min(1),
         /** The plural name. */
         plural: schema.string().min(1),
+        /** The prefix of the objects' identifiers. */
+        identity: schema.string().min(1),
         /** The scope levels the objects live in, none for any scope. */
         scope: schema.array(AccessName),
         /** The SQL name of the table with the records. */
         table: schema.string().min(1),
+        /** Where the objects live beside durable ones: in instances' memory, or in files read per scope. */
+        storage: schema.enum(["ephemeral", "external"]).exactOptional(),
+        /** The input field naming the objects' scope, absent for objects of the universe. */
+        scopeField: schema.string().min(1).exactOptional(),
+        /** The SQL column of each row property. */
+        columns: schema.record(schema.string(), schema.string().min(1)),
         /** The permission names callers may have. */
         permissions: schema.array(schema.string().min(1)),
         /** The relations and permissions access evaluates. */
@@ -58,10 +67,14 @@ export const ObjectDescription = defineSchema(
         methods: schema.record(schema.string(), MethodDescription),
         /** The audit action recording each watch of read-audited objects. */
         watch: AuditActionDescription.exactOptional(),
-        /** The permissions reading or writing guarded fields requires, by field. */
+        /** The fields callers read and write, by row property. */
         fields: schema.record(
             schema.string(),
             schema.object({
+                /** The field's meaning beyond its stored value. */
+                type: schema.enum(FIELD_TYPES),
+                /** The principal kinds a principal reference or subject field accepts, by name. */
+                principals: schema.array(schema.string().min(1)).exactOptional(),
                 /** The permission a caller needs to read the value. */
                 read: schema.string().min(1).exactOptional(),
                 /** The permission a caller needs to write the value. */
@@ -87,11 +100,20 @@ export function describeObject(object: ObjectType): ObjectDescription {
     return ObjectDescription.parse({
         name: object.name,
         plural: object.plural,
+        identity: object.identity,
         scope:
             object.scope === Scope.universe.id
                 ? [Scope.universe.id]
                 : object.scopes.map((scope) => scope.name),
         table: object.table[TABLE].sqlName,
+        ...(object.storage === "durable" ? {} : { storage: object.storage }),
+        ...(object.route.field === undefined ? {} : { scopeField: object.route.field }),
+        columns: Object.fromEntries(
+            Object.entries(object.table[TABLE].columns).map(([property, column]) => [
+                property,
+                column.definition.name,
+            ]),
+        ),
         permissions: [...object.permissions],
         policy: describePolicy(object.policy),
         ...(object.lifecycle.declarationSchema
@@ -102,9 +124,16 @@ export function describeObject(object: ObjectType): ObjectDescription {
             ? { watch: describeAuditAction(object.audit("watch", "collection")) }
             : {}),
         fields: Object.fromEntries(
-            Object.entries(object.fields).flatMap(([name, declared]) =>
-                declared.access === undefined ? [] : [[name, { ...declared.access }]],
-            ),
+            Object.entries(object.fields).map(([name, declared]) => [
+                name,
+                {
+                    type: declared.type,
+                    ...(declared.principals === undefined
+                        ? {}
+                        : { principals: declared.principals.map((principal) => principal.name) }),
+                    ...declared.access,
+                },
+            ]),
         ),
     });
 }

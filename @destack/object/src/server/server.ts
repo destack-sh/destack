@@ -8,6 +8,7 @@ import {
     type TableMapping,
     Caller,
     CONTAINED,
+    principal,
 } from "@destack/access";
 import { type ObjectReference, Scope, type ScopeLink, type Subject } from "@destack/sync";
 import {
@@ -31,7 +32,14 @@ import {
 } from "@destack/audit/server";
 import type { CallKey } from "@destack/service/request";
 
-import { aligned, present, schema, type JsonObject, type JsonValue } from "@destack/schema";
+import {
+    aligned,
+    canonicalize,
+    present,
+    schema,
+    type JsonObject,
+    type JsonValue,
+} from "@destack/schema";
 import type { InstallationContext } from "@destack/service/workload";
 import type { Watermark } from "@destack/service/bookmark";
 import { CompactionController } from "@destack/service/database";
@@ -46,7 +54,7 @@ import {
     type ServiceImplementation,
     type ProcedureCall,
 } from "@destack/service/server";
-import { type Service, type ServiceRouter } from "@destack/service";
+import { Egress, type Service, type ServiceRouter } from "@destack/service";
 import * as sync from "@destack/sync";
 import { Branch, type BranchCall, type BranchType } from "../branch/index.ts";
 import {
@@ -92,11 +100,7 @@ import { ObjectSource } from "./source.ts";
 
 import type { Residence } from "../trait/projected.ts";
 import { Provisioned } from "../trait/provisioned.ts";
-import {
-    ProvisionedController,
-    type ProvisionedOptions,
-    type ProvisionedProvider,
-} from "./provisioned.ts";
+import { ProvisionedController, type ProvisionedOptions } from "./provisioned.ts";
 import { ExpiringController } from "./expiring.ts";
 import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
@@ -207,6 +211,9 @@ type MutationRun = {
     readonly redacted: readonly JsonObject[];
 };
 
+/** The request a system call answers once: its record in the journal, and its identity there. */
+type SystemRequest = CallRequest & { readonly identity: RequestIdentity };
+
 /** How far the journal got through a mutation: the running call and the reservation of its claims. */
 type MutationProgress = {
     /** The position of the call running now, absent before and after the calls. */
@@ -243,6 +250,59 @@ export interface SystemContext {
     readonly now: number;
 }
 
+/** The options of an object server: the objects it serves over one database, and the stores, cells and providers beside them. */
+export interface ObjectServerOptions<
+    Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
+> {
+    /** The object types served, by name. */
+    readonly objects: Objects;
+    /** Further policies and table mappings to authorize. */
+    readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
+    /** The database with the objects. */
+    readonly database: DatabaseConnection;
+    /** Derive a request's verified authorization inputs within a scope, the request's own access by default. */
+    readonly context?: (context: ServiceContext, scope: string) => AccessContext;
+    /** The key sensitive call inputs are fingerprinted under in the journal, given exactly when object types serve methods. */
+    readonly callKey?: CallKey;
+    /** The package and service recording the calls. */
+    readonly origin: Omit<AuditOrigin, "scope">;
+    /** The audit history the journal delivers calls to, absent where another server delivers them. */
+    readonly history?: AuditDestination;
+    /** The directory with the claims of unique indexes, kept by the account service. */
+    readonly directory?: Directory;
+    /** The installation serving the objects, which sends and receives projected rows, absent for a cell. */
+    readonly installation?: InstallationContext;
+    /** The memory store with the served ephemeral objects. */
+    readonly ephemeral?: EphemeralStorage;
+    /** The files with the served external objects. */
+    readonly external?: ExternalStorage;
+    /** The subscriptions the database follows to keep its copies. */
+    readonly subscriber?: Subscriber;
+    /** The copied object types whose rows stand for their principals here, as at their home, such as a space's copied zone. */
+    readonly standing?: readonly ObjectType[];
+    /** The shapes the server serves and follows beside its objects' and its policies' own, such as a package's own copies. */
+    readonly shapes?: readonly sync.Shape[];
+    /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
+    readonly runs?: RunClient;
+    /** The servers in this process keeping the rows of object types the database copies: the copies' sources, which receive the calls sent to change them. */
+    readonly sources?: readonly Pick<
+        ObjectServer,
+        "objects" | "uplink" | "receive" | "receiveFrom"
+    >[];
+    /** The triggers of the served objects' package, whose change triggers need a cell recording their runs. */
+    readonly triggers?: readonly Trigger[];
+    /** Report failed settlements, thrown when absent. */
+    readonly report?: (error: unknown) => void;
+    /** Whether reads of the objects record access events, as the space's audit setting asks. */
+    readonly isAccessAudited?: boolean;
+    /** Read the current time calls run and controllers reconcile at, the system clock by default. */
+    readonly clock?: () => number;
+    /** The scope's branch types, among the objects, whose branches reads can see. */
+    readonly branch?: BranchType;
+    /** The providers reconciling the served kinds' resources, absent for a server reconciling none. */
+    readonly provisioned?: ProvisionedOptions;
+}
+
 /** The routers of served object types by name, and the replica procedures. */
 export type ObjectRouter<Objects extends Readonly<Record<string, ObjectType>>> = {
     readonly [Name in keyof Objects]: Router<ObjectProcedures<Objects[Name]>, ServiceContext>;
@@ -265,25 +325,25 @@ export class ObjectServer<
     /** The feed serving every sync. */
     readonly feed: sync.Feed;
     /** The directory with the claims of the served objects' unique indexes. */
-    readonly directory?: Directory;
+    readonly directory: Directory | undefined;
     /** The memory store with the served ephemeral objects. */
-    readonly ephemeral?: EphemeralStorage;
+    readonly ephemeral: EphemeralStorage | undefined;
     /** The files with the served external objects. */
-    readonly external?: ExternalStorage;
+    readonly external: ExternalStorage | undefined;
     /** The subscriptions the database follows to keep its copies. */
-    readonly subscriber?: Subscriber;
+    readonly subscriber: Subscriber | undefined;
     /** The copied object types whose rows stand for their principals here, as at their home. */
     readonly standing: readonly ObjectType[];
     /** The shapes the server serves and follows beside its objects' and its policies' own. */
     readonly shapes: readonly sync.Shape[];
     /** The installation serving the objects, which sends and receives projected rows, absent for a cell. */
-    readonly installation?: InstallationContext;
+    readonly installation: InstallationContext | undefined;
     /** The copied types naming the residents whose rows the served types project, absent where nothing projects. */
     readonly residence: Residence | undefined;
     /** The durable object types, served or authorized, whose rows the database keeps as copies from their home. */
     readonly copied: readonly ObjectType[];
     /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
-    readonly runs?: RunClient;
+    readonly runs: RunClient | undefined;
     /** The servers in this process keeping the rows of object types the database copies: the copies' sources, which receive the calls sent to change them. */
     readonly sources: readonly Pick<
         ObjectServer,
@@ -310,7 +370,7 @@ export class ObjectServer<
     /** The served kinds' resources, each controlled by the loop its trait builds. */
     readonly #provisioned: readonly ObjectType[];
     /** The providers reconciling the served kinds' resources, none for a server reconciling none. */
-    readonly providers: readonly ProvisionedProvider[];
+    readonly providers: ProvisionedOptions["providers"];
     /** Whether reads of the objects record access events. */
     readonly isAccessAudited: boolean;
     /** The copies the objects stream to clients and databases below. */
@@ -325,55 +385,7 @@ export class ObjectServer<
     readonly #schemas: ReadonlyMap<string, { object: ObjectType; schema: ObjectSchema }>;
 
     /** Serve object types over one database. */
-    constructor(options: {
-        /** The object types served, by name. */
-        readonly objects: Objects;
-        /** Further policies and table mappings to authorize. */
-        readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
-        /** The database with the objects. */
-        readonly database: DatabaseConnection;
-        /** Derive a request's verified authorization inputs within a scope, the request's own access by default. */
-        readonly context?: (context: ServiceContext, scope: string) => AccessContext;
-        /** The key sensitive call inputs are fingerprinted under in the journal, given exactly when object types serve methods. */
-        readonly callKey?: CallKey;
-        /** The package and service recording the calls. */
-        readonly origin: Omit<AuditOrigin, "scope">;
-        /** The audit history the journal delivers calls to, absent where another server delivers them. */
-        readonly history?: AuditDestination;
-        /** The directory with the claims of unique indexes, kept by the account service. */
-        readonly directory?: Directory;
-        /** The installation serving the objects, which sends and receives projected rows, absent for a cell. */
-        readonly installation?: InstallationContext;
-        /** The memory store with the served ephemeral objects. */
-        readonly ephemeral?: EphemeralStorage;
-        /** The files with the served external objects. */
-        readonly external?: ExternalStorage;
-        /** The subscriptions the database follows to keep its copies. */
-        readonly subscriber?: Subscriber;
-        /** The copied object types whose rows stand for their principals here, as at their home, such as a space's copied zone. */
-        readonly standing?: readonly ObjectType[];
-        /** The shapes the server serves and follows beside its objects' and its policies' own, such as a package's own copies. */
-        readonly shapes?: readonly sync.Shape[];
-        /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
-        readonly runs?: RunClient;
-        /** The servers in this process keeping the rows of object types the database copies: the copies' sources, which receive the calls sent to change them. */
-        readonly sources?: readonly Pick<
-            ObjectServer,
-            "objects" | "uplink" | "receive" | "receiveFrom"
-        >[];
-        /** The triggers of the served objects' package, whose change triggers need a cell recording their runs. */
-        readonly triggers?: readonly Trigger[];
-        /** Report failed settlements, thrown when absent. */
-        readonly report?: (error: unknown) => void;
-        /** Whether reads of the objects record access events, as the space's audit setting asks. */
-        readonly isAccessAudited?: boolean;
-        /** Read the current time calls run and controllers reconcile at, the system clock by default. */
-        readonly clock?: () => number;
-        /** The scope's branch types, among the objects, whose branches reads can see. */
-        readonly branch?: BranchType;
-        /** The providers reconciling the served kinds' resources, absent for a server reconciling none. */
-        readonly provisioned?: ProvisionedOptions;
-    }) {
+    constructor(options: ObjectServerOptions<Objects>) {
         // require each object type under its own name, and the stores its storage needs
         this.#routed = Object.values(options.objects);
         this.objects = ObjectType.served(this.#routed);
@@ -381,37 +393,17 @@ export class ObjectServer<
         ObjectServer.#requireStores(this.objects, options);
 
         // keep the optional stores and cells
-        if (options.directory !== undefined) {
-            this.directory = options.directory;
-        }
-        if (options.subscriber !== undefined) {
-            this.subscriber = options.subscriber;
-        }
+        this.directory = options.directory;
+        this.subscriber = options.subscriber;
         this.standing = options.standing ?? [];
         this.shapes = options.shapes ?? [];
-        if (options.installation !== undefined) {
-            this.installation = options.installation;
-        }
+        this.installation = options.installation;
         this.sources = options.sources ?? [];
-        this.uplink = {
-            stream: (subscription, signal) => this.source.publish(subscription, signal),
-            receive: async (mutation) => {
-                // run each change as the system, as servers in this process trust each other
-                for (const call of mutation.calls) {
-                    await this.receive(call);
-                }
-            },
-        };
-        if (options.runs !== undefined) {
-            this.runs = options.runs;
-        }
+        this.uplink = this.#uplink();
+        this.runs = options.runs;
         this.triggers = ObjectServer.#changeTriggers(options);
-        if (options.ephemeral !== undefined) {
-            this.ephemeral = options.ephemeral;
-        }
-        if (options.external !== undefined) {
-            this.external = options.external;
-        }
+        this.ephemeral = options.ephemeral;
+        this.external = options.external;
 
         // build the authorizer over the objects, the scope types enclosing them and the residence
         this.database = options.database;
@@ -434,20 +426,50 @@ export class ObjectServer<
         this.#provisioned = ObjectServer.#control(this.objects, options.provisioned);
         this.providers = options.provisioned?.providers ?? [];
 
-        // follow the durable objects' tables and the decision tables in one feed
-        const durable = ObjectServer.#durable(this.objects, options.policies ?? []);
-        this.copied = durable.filter((object) => options.database.copies(object.table));
-
-        // send calls to the cell recording runs, and changes of copied rows toward their home
-        const isUplinked = options.subscriber?.uplink !== undefined && this.copied.length > 0;
-        if (options.runs !== undefined || this.sources.length > 0 || isUplinked) {
-            this.#sends = new Outbox(options.database);
+        // follow the durable objects' tables in one feed, with an outbox where calls and changes of copied rows leave
+        const followed = ObjectServer.#follow(this.objects, this.sources, options);
+        this.copied = followed.copied;
+        this.feed = followed.feed;
+        if (followed.sends !== undefined) {
+            this.#sends = followed.sends;
         }
-        const followed = durable.flatMap((object) => object.tables);
-        this.feed = new sync.Feed(options.database, [...new Set([...followed, ...decisionTables])]);
         this.#schemas = new Map(
             this.objects.map((object) => [object.name, { object, schema: object.schema }]),
         );
+    }
+
+    /** Follow the durable objects' tables and the decision tables in one feed, with an outbox where calls or changes of copied rows leave. */
+    static #follow(
+        objects: readonly ObjectType[],
+        sources: ObjectServer["sources"],
+        options: Pick<ObjectServerOptions, "database" | "policies" | "runs" | "subscriber">,
+    ): { readonly copied: ObjectType[]; readonly feed: sync.Feed; readonly sends?: Outbox } {
+        // find the durable and copied object types, and follow their tables
+        const durable = ObjectServer.#durable(objects, options.policies ?? []);
+        const copied = durable.filter((object) => options.database.copies(object.table));
+        const followed = durable.flatMap((object) => object.tables);
+        const feed = new sync.Feed(options.database, [
+            ...new Set([...followed, ...decisionTables]),
+        ]);
+
+        // keep an outbox for the cell recording runs, the sources and the copies' home
+        const isUplinked = options.subscriber?.uplink !== undefined && copied.length > 0;
+        const isSending = options.runs !== undefined || sources.length > 0 || isUplinked;
+
+        return isSending ? { copied, feed, sends: new Outbox(options.database) } : { copied, feed };
+    }
+
+    /** Stream the copies of the served rows to servers following them in this process, and run the changes they send. */
+    #uplink(): sync.Uplink {
+        return {
+            stream: (subscription, signal) => this.source.publish(subscription, signal),
+            receive: async (mutation, as) => {
+                // run each change as the system, as servers in this process trust each other, passing on whom copied rows change as
+                for (const call of mutation.calls) {
+                    await this.receive(call, as);
+                }
+            },
+        };
     }
 
     /** Control each served kind's resources with the loop their trait builds, none without providers. */
@@ -473,10 +495,9 @@ export class ObjectServer<
     }
 
     /** Keep the change triggers of the served package, which need a cell recording their runs. */
-    static #changeTriggers(options: {
-        readonly runs?: RunClient;
-        readonly triggers?: readonly Trigger[];
-    }): ChangeTrigger[] {
+    static #changeTriggers(
+        options: Pick<ObjectServerOptions, "runs" | "triggers">,
+    ): ChangeTrigger[] {
         const triggers = (options.triggers ?? []).flatMap(
             (trigger) => Trigger.of(trigger, "change") ?? [],
         );
@@ -491,14 +512,11 @@ export class ObjectServer<
     static #authorizer(
         objects: readonly ObjectType[],
         residence: Residence | undefined,
-        options: {
-            readonly database: DatabaseConnection;
-            readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
-        },
+        options: Pick<ObjectServerOptions, "database" | "policies">,
     ): Authorizer {
         // add the residence's types the server does not serve
         const residents = (
-            residence === undefined ? [] : [residence.user, residence.address]
+            residence === undefined ? [] : [residence.user, residence.residence]
         ).filter((type) => !objects.some((served) => served.same(type)));
 
         return ObjectType.authorizer(
@@ -511,7 +529,7 @@ export class ObjectServer<
     /** Keep the journal of a server serving methods, which needs the call key, and refuse a call key without methods. */
     static #journalOf(
         routed: readonly ObjectType[],
-        options: { readonly database: DatabaseConnection; readonly callKey?: CallKey },
+        options: Pick<ObjectServerOptions, "database" | "callKey" | "clock">,
     ): Journal | undefined {
         const isServing = routed.length > 0;
         if (isServing && options.callKey === undefined) {
@@ -524,7 +542,11 @@ export class ObjectServer<
 
         return options.callKey === undefined
             ? undefined
-            : new Journal(options.database, options.callKey);
+            : new Journal(
+                  options.database,
+                  options.callKey,
+                  options.clock === undefined ? {} : { clock: options.clock },
+              );
     }
 
     /** Read the journal of executed mutations, failing for a server serving no methods. */
@@ -555,12 +577,7 @@ export class ObjectServer<
     /** Require the directory for indexed types, a memory store for ephemeral types and files for external types. */
     static #requireStores(
         objects: readonly ObjectType[],
-        options: {
-            readonly database: DatabaseConnection;
-            readonly directory?: Directory;
-            readonly ephemeral?: EphemeralStorage;
-            readonly external?: ExternalStorage;
-        },
+        options: Pick<ObjectServerOptions, "database" | "directory" | "ephemeral" | "external">,
     ): void {
         // require a directory in another database for indexed objects
         const indexed = objects.find((object) => Object.keys(object.indexes).length > 0);
@@ -605,7 +622,7 @@ export class ObjectServer<
             object.projected === undefined ? [] : [object.projected.residence],
         );
         const differing = others.find(
-            (other) => !other.user.same(first?.user) || !other.address.same(first?.address),
+            (other) => !other.user.same(first?.user) || !other.residence.same(first?.residence),
         );
         if (differing !== undefined) {
             throw new TypeError("the projecting types name different residences");
@@ -674,8 +691,15 @@ export class ObjectServer<
 
     /** Keep an installation's copies: its space's chain and universe rows from its cell, which receives their changes, and the projections its residents receive from the installations keeping them. */
     static #subscriber(installation: InstallationContext, source: () => ObjectSource): Subscriber {
+        // send the changes of copied rows as the installation
+        const { publisher } = installation;
+        const subject = principal.installation.reference(installation.scope, installation.id);
+
         return {
-            uplink: installation.publisher,
+            uplink: {
+                stream: (subscription, signal) => publisher.stream(subscription, signal),
+                receive: (mutation, as) => publisher.receive(mutation, as ?? { subject }),
+            },
             subscriptions: async () => [
                 ...(await source().subscriptions(installation.scope, { isHome: false })).map(
                     (subscription) => ({ subscription, publisher: installation.publisher }),
@@ -688,7 +712,9 @@ export class ObjectServer<
 
                         return {
                             subscription,
-                            publisher: installation.publisherAt(`${keeping}.${subscription.scope}`),
+                            publisher: installation.publisherAt(
+                                Egress.address(keeping, subscription.scope),
+                            ),
                         };
                     },
                 ),
@@ -1063,14 +1089,22 @@ export class ObjectServer<
                 authorize: async (transaction) => {
                     // guard the scope chain and admit the caller
                     const chain = await Scope.guard(transaction, planned.scope);
-
-                    return this.admit(
+                    const authorization = await this.admit(
                         transaction,
                         planned.scope,
                         planned.context,
                         planned.id,
                         chain,
                     );
+
+                    // refuse an installation's writes to a space whose storage is capped, the submitted calls deciding
+                    if (this.installation !== undefined) {
+                        authorization.requireUncapped(
+                            planned.calls.filter((call) => call.as === undefined),
+                        );
+                    }
+
+                    return authorization;
                 },
                 run: (transaction, authorization) =>
                     this.#run(transaction, authorization, planned, progress),
@@ -1382,54 +1416,78 @@ export class ObjectServer<
                 now,
             });
 
-        // prepare external work
-        const prepared = await this.#prepareEach(
-            calls.map((entry) =>
-                method.prepare === undefined ? undefined : () => calling(this.database, entry),
-            ),
+        // identify the requests calls answer once, and prepare the external work of the rest
+        const requests = await Promise.all(
+            calls.map((entry) => this.#systemRequest(served, name, entry)),
+        );
+        const prepared = await this.#prepareSystem(
+            method,
+            requests,
+            calls.map((entry) => () => calling(this.database, entry)),
         );
         const settlements = settlementsOf(prepared);
 
         // execute and audit the calls in one transaction
-        let reservation: Reservation | undefined;
-        const results: unknown[] = [];
-        try {
-            reservation = await this.database.transaction(async (transaction) => {
-                // guard each scope chain and refuse moved scopes, as pushes do
-                for (const scope of new Set(calls.map((entry) => entry.scope))) {
-                    const chain = await Scope.guard(transaction, scope);
-                    (await system(transaction, scope, chain)).requireUnmoved();
-                }
-
-                // execute and audit each call
-                for (const [index, entry] of calls.entries()) {
-                    const call = await calling(transaction, entry);
-                    const result = await method.execute(call.with(preparedFields(prepared[index])));
-                    results.push(result);
-                    await this.#auditSystem(transaction, call, result);
-                }
-
-                // commit the external work and reserve unique keys
-                await this.#commit(transaction, prepared);
-
-                return (
-                    this.directory &&
-                    Reservation.open(this.directory, transaction, this.objects, crypto.randomUUID())
-                );
+        const executed = await this.database
+            .transaction((transaction) =>
+                this.#transactSystem(transaction, calls, { calling, system, prepared, requests }),
+            )
+            .catch(async (error: unknown) => {
+                await this.#settle(settlements);
+                throw error;
             });
-        } catch (error) {
-            await this.#settle(settlements);
-            throw error;
-        }
 
         // confirm keys and settle prepared work
         try {
-            await reservation?.confirm();
+            await executed.reservation?.confirm();
         } finally {
             await this.#settle(settlements);
         }
 
-        return results;
+        return executed.results;
+    }
+
+    /** Run system calls in a transaction, which a lost serialization race runs again from the start. */
+    async #transactSystem(
+        transaction: DatabaseConnection,
+        calls: readonly SystemCall[],
+        built: {
+            readonly calling: (database: DatabaseConnection, entry: SystemCall) => Promise<Call>;
+            readonly system: (
+                database: DatabaseConnection,
+                scope: string,
+                links?: readonly ScopeLink[],
+            ) => Promise<SystemAuthorization>;
+            readonly prepared: readonly Prepared[];
+            readonly requests: readonly (SystemRequest | undefined)[];
+        },
+    ): Promise<{ readonly results: unknown[]; readonly reservation: Reservation | undefined }> {
+        // guard each scope chain and refuse moved scopes, as pushes do
+        const { calling, system, prepared, requests } = built;
+        for (const scope of new Set(calls.map((entry) => entry.scope))) {
+            const chain = await Scope.guard(transaction, scope);
+            (await system(transaction, scope, chain)).requireUnmoved();
+        }
+
+        // execute and audit each call, or replay the result its request recorded
+        const results: unknown[] = [];
+        for (const [index, entry] of calls.entries()) {
+            const call = await calling(transaction, entry);
+            results.push(await this.#runSystem(call, prepared[index], requests[index]));
+        }
+
+        // commit the external work and reserve unique keys
+        await this.#commit(transaction, prepared);
+        const reservation =
+            this.directory &&
+            (await Reservation.open(
+                this.directory,
+                transaction,
+                this.objects,
+                crypto.randomUUID(),
+            ));
+
+        return { results, reservation };
     }
 
     /** Open system authorizations at a time, once per database and scope. */
@@ -1466,13 +1524,11 @@ export class ObjectServer<
         entry: SystemCall,
         system: { readonly authorization: SystemAuthorization; readonly now: number },
     ): Call {
-        // identify the target or the creation's chosen identifier
+        // parse the input naming the target or the creation's chosen identifier
         const { authorization, now } = system;
         const target = entry.target;
         const id = target === undefined ? entry.id : schema.string().parse(target["id"]);
-
-        // parse the input naming it
-        const named = { ...entry.input, ...(id === undefined ? {} : { id }) };
+        const named = ObjectServer.#systemInput(entry);
         const { fields } = ObjectServer.#fields(served, name, scoped(served, named, entry.scope));
 
         return new Call({
@@ -1502,20 +1558,127 @@ export class ObjectServer<
         });
     }
 
-    /** Audit one executed system call against its target, or its scope without one. */
-    async #auditSystem(
-        transaction: DatabaseConnection,
+    /** Identify the request a system call answers once by the system caller, its scope and request identifier, with the digest of its redacted input. */
+    async #systemRequest(
+        served: ObjectType,
+        name: string,
+        entry: SystemCall,
+    ): Promise<SystemRequest | undefined> {
+        // leave a call without a request
+        const { requestId, scope } = entry;
+        if (requestId === undefined) {
+            return undefined;
+        }
+
+        // redact the call's input, digesting its sensitive values under the call key
+        const sensitive: unknown[] = [];
+        const redacted = schema.redactFields(
+            Call.input(served, name, true),
+            scoped(served, ObjectServer.#systemInput(entry), scope),
+            (found) => sensitive.push(found),
+        );
+        const method = served.audit(name).name;
+        const digest = await this.journal.fingerprint(
+            { id: requestId, method, redacted },
+            sensitive,
+        );
+        const caller = canonicalize({ type: "system", name: this.origin.service });
+
+        return {
+            requestId,
+            caller,
+            position: 0,
+            digest,
+            input: redacted,
+            identity: { caller, scope, requestId },
+        };
+    }
+
+    /** Prepare the external work of system calls whose requests did not run before. */
+    async #prepareSystem(
+        method: Method,
+        requests: readonly (SystemRequest | undefined)[],
+        builds: readonly (() => Promise<Call>)[],
+    ): Promise<Prepared[]> {
+        // prepare nothing for a method without external work
+        if (method.prepare === undefined) {
+            return builds.map(() => undefined);
+        }
+
+        // skip requests recorded before
+        const isAnswered = await Promise.all(
+            requests.map(
+                async (request) =>
+                    request !== undefined &&
+                    (await this.journal.outcome(request.identity)) !== undefined,
+            ),
+        );
+
+        return this.#prepareEach(
+            builds.map((build, index) => (isAnswered[index] === true ? undefined : build)),
+        );
+    }
+
+    /** Run one built system call and audit it against its target, or its scope without one, or replay the result its request recorded. */
+    async #runSystem(
         call: Call,
-        result: unknown,
-    ): Promise<void> {
+        prepared: Prepared,
+        request: SystemRequest | undefined,
+    ): Promise<unknown> {
+        // replay a request recorded before
+        const replayed =
+            request && (await this.journal.replay(request.identity, request.digest, call.database));
+        if (replayed !== undefined) {
+            return ObjectServer.#decodeResult(call, aligned(replayed, 0));
+        }
+
+        // execute the call
+        const result = await call.method.execute(call.with(preparedFields(prepared)));
         const id = call.id ?? Call.resultId(result);
         const target =
             id === undefined ? { type: "scope", id: call.scope } : { type: call.object.name, id };
-        await this.audit(call.scope).record(transaction, call.object.audit(call.name), {
-            targets: { [call.object.key]: target },
-            details: {},
-            outcome: { kind: "success" },
-        });
+
+        // audit it, keeping a request's result for its repeats
+        await this.audit(call.scope).record(
+            call.database,
+            call.object.audit(call.name),
+            {
+                targets: { [call.object.key]: target },
+                details: {},
+                outcome:
+                    request === undefined
+                        ? { kind: "success" }
+                        : { kind: "success", value: ObjectServer.#encodeResult(call, result) },
+            },
+            "activity",
+            request,
+        );
+
+        return result;
+    }
+
+    /** Read a system call's input with the identifier of its target or creation. */
+    static #systemInput(entry: SystemCall): JsonObject {
+        const id =
+            entry.target === undefined ? entry.id : schema.string().parse(entry.target["id"]);
+
+        return { ...entry.input, ...(id === undefined ? {} : { id }) };
+    }
+
+    /** Write a system call's result in JSON form: its object's columns, or its value. */
+    static #encodeResult(call: Call, result: unknown): JsonValue {
+        return call.method.result === "value"
+            ? schema.json().parse(result ?? null)
+            : call.object.table[TABLE].encode(Row.parse(result));
+    }
+
+    /** Read a system call's result back from JSON form. */
+    static #decodeResult(call: Call, value: unknown): unknown {
+        return call.method.result === "value"
+            ? value
+            : call.object.table[TABLE].decode(
+                  schema.record(schema.string(), schema.json()).parse(value),
+              );
     }
 
     /** Send a call to run once a transaction on this server's database commits, at the server keeping its rows or through the cell recording runs. */
@@ -1532,10 +1695,10 @@ export class ObjectServer<
         );
     }
 
-    /** Run a call another server sent to change the served rows as the system, or pass a change of copied rows toward their home, once however often it is delivered. */
-    async receive(call: sync.Call): Promise<void> {
+    /** Run a call another server sent to change the served rows as the system, or pass a change of copied rows toward their home as the principal it names, once however often it is delivered. */
+    async receive(call: sync.Call, as?: sync.Representation): Promise<void> {
         // pass a change of copied rows to the server keeping them
-        if (await this.#forward(call, RequestId.create())) {
+        if (await this.#forward(call, RequestId.create(), as)) {
             return;
         }
 
@@ -1595,6 +1758,7 @@ export class ObjectServer<
             this.sources.find((each) => each.objects.some((object) => object.name === type)),
         );
         const [source] = sources;
+        const uplink = this.subscriber?.uplink;
 
         // run a mutation of served rows here as the caller
         if (types.every((type) => this.objects.some((object) => object.name === type))) {
@@ -1604,6 +1768,11 @@ export class ObjectServer<
         else if (source !== undefined && sources.every((each) => each === source)) {
             await source.receiveFrom(mutation, context);
         }
+        // pass a mutation of rows copied over the uplink toward their home, as the principal that sent it
+        else if (uplink !== undefined && types.every((type) => this.#isUplinked(type))) {
+            const sender = Caller.principal(context.requireAuthentication().claims);
+            await uplink.receive(mutation, sender === undefined ? undefined : { subject: sender });
+        }
         // refuse a mutation of rows kept elsewhere or by several sources
         else {
             throw new ServiceError("BAD_REQUEST", {
@@ -1612,8 +1781,19 @@ export class ObjectServer<
         }
     }
 
+    /** Report whether an object type's rows are copied over the uplink rather than kept here or by a source in this process. */
+    #isUplinked(type: string): boolean {
+        const object = this.copied.find((copied) => copied.name === type);
+
+        return (
+            object !== undefined &&
+            !this.objects.some((served) => served.same(object)) &&
+            !this.sources.some((each) => each.objects.some((known) => known.same(object)))
+        );
+    }
+
     /** Pass a change of copied rows to the server keeping them: their source in this process, or over the uplink the copies follow, answering whether it passed. */
-    async #forward(call: sync.Call, requestId: string): Promise<boolean> {
+    async #forward(call: sync.Call, requestId: string, as?: sync.Representation): Promise<boolean> {
         // leave a change of rows the database keeps itself
         const type = call.method.slice(0, call.method.lastIndexOf("."));
         const object = this.copied.find((copied) => copied.name === type);
@@ -1627,11 +1807,11 @@ export class ObjectServer<
         );
         const uplink = this.subscriber?.uplink;
         if (source !== undefined) {
-            await source.receive(call);
+            await source.receive(call, as);
         }
         // pass it over the uplink the copies follow, once per request
         else if (uplink !== undefined) {
-            await uplink.receive({ id: requestId, calls: [call] });
+            await uplink.receive({ id: requestId, calls: [call] }, as);
         }
         // refuse a change nothing here receives
         else {

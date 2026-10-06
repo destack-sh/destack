@@ -204,6 +204,24 @@ await new ControlLoop(database, server.controllers(), { report }).run(signal);
 await server.executeAsSystem(upload, "finish", calls, Date.now());
 ```
 
+### System requests
+
+A `SystemCall` naming a `requestId` runs once: a repeat answers the result the journal recorded, and other input under the same identifier fails with `CONFLICT`.
+
+```ts
+const requestId = await RequestId.derive(call.execution.startedAt, `${call.execution.id} ${endpointId}`);
+await server.executeAsSystem(message, "create", [{ scope, requestId, input }], Date.now()); // twice, one message
+```
+
+### Capped storage
+
+`Scope.cap` makes an installation's server refuse a caller's mutating calls but deletes and purges with `QUOTA_EXCEEDED` (402).
+
+```ts
+await Scope.cap(database, spaceId, Date.now()); // reads, lists, deletes, purges and system calls keep running
+await Scope.cap(database, spaceId, null); // lift the cap
+```
+
 ## Controllers
 
 `control` sets the controller that reconciles a type's pending objects.
@@ -237,7 +255,7 @@ export const host = base.host.control({
 
 ## Resources
 
-`provisioned: { kind }` declares a type's objects as resources of a kind.
+`provisioned: { kind }` declares a type's objects as resources of a kind, declarable as a `ResourceDefinition` under a stack's `resources`.
 
 ```ts
 export const bucket = defineObject({
@@ -253,7 +271,7 @@ const server = new ObjectServer({
     database,
     callKey,
     origin,
-    provisioned: { providers: [bucketProvider(host)], host: hostId },
+    provisioned: { providers: [bucketProvider(host)], machine: machineId },
 });
 ```
 
@@ -288,11 +306,11 @@ const server = new ObjectServer({
 
 ## Copy admission
 
-`represent` admits a follower as the principal its copied object stands for.
+`represent` admits a follower as the principal its copied object stands for, and as the principals inside it, such as a space's installations.
 
 ```ts
 export const zone = defineObject({ ..., permissions: { represent: relation("cell") } });
-export const account = defineObject({ ..., permissions: { replicate: relation("host") } });
+export const account = defineObject({ ..., permissions: { replicate: relation("machine") } });
 new ObjectServer({ ..., policies: [zone], standing: [zone] });
 ```
 
@@ -361,6 +379,26 @@ void client.run(signal, report);
 const created = client.mutate(note).create({ title: "Ideas" });
 await created.predicted;
 await created.confirmed;
+```
+
+## Remote clients
+
+`RemoteClient` calls, lists and watches an installation's objects by the descriptions its manifest declares, without their object types.
+
+```ts
+const remote = new RemoteClient({
+    package: release, // the installed release every call is made against
+    objects: [RemoteObject.of(description, states)], // a description with its table, from the release's declared states
+    scope: spaceId,
+    endpoint: { url: `${origin}/.destack/service`, fetch },
+    database, // the local copies of watched rows
+});
+
+await remote.call("task", "complete", { id }); // validated by the method's JSON Schema
+const open = await remote.list("task", { where: { status: "open" }, limit: 50 });
+for await (const rows of remote.watch("task", { orderBy: { due: "asc" } }, signal)) {
+    render(rows);
+}
 ```
 
 ## Client copies

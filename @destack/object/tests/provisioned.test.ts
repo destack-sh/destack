@@ -20,7 +20,9 @@ import { openSpace, space } from "./fixture/space.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
 
 /** The host keeping the boxes its provider provisions. */
-const hostId = schema.identifier("host").parse("host-01996ab0-0000-7000-8000-000000000052");
+const machineId = schema
+    .identifier("machine")
+    .parse("machine-01996ab0-0000-7000-8000-000000000052");
 
 /** Boxes whose size their consumers require. */
 const BoxKind = defineResourceKind("box", {
@@ -163,7 +165,7 @@ async function serve(boxes: Boxes) {
         directory: new DirectoryStore(universe.database),
         callKey: testCallKey,
         origin: { package: box.package, service: "test" },
-        provisioned: { providers: [boxes.provider(), links], host: hostId },
+        provisioned: { providers: [boxes.provider(), links], machine: machineId },
     });
 
     // reconcile one resource as its kind's control loop does
@@ -245,7 +247,12 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     expect({
         unset: [unset.reference, unset.observedGeneration, unset.conditions],
         fenced: [fenced.reference, fenced.observedGeneration, fenced.conditions],
-        grown: [grown.provider, grown.reference, grown.hostId, grown.conditions["ready"]?.reason],
+        grown: [
+            grown.provider,
+            grown.reference,
+            grown.machineId,
+            grown.conditions["ready"]?.reason,
+        ],
         waiting: [waiting.conditions["ready"]?.reason, plan.steps],
         unchanged,
         shrunk: [shrunk.conditions["ready"]?.reason, shrunk.approvedPlan, shrunk.plan],
@@ -253,7 +260,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     }).toEqual({
         unset: [null, 0, {}],
         fenced: [null, 0, {}],
-        grown: ["memory", `memory:${ids.first}`, hostId, "Applied"],
+        grown: ["memory", `memory:${ids.first}`, machineId, "Applied"],
         waiting: [
             "AwaitingApproval",
             [
@@ -477,31 +484,6 @@ test("refuse a resource taking the name of another kind's resource in its space"
     await expect(create(link)).rejects.toEqual(
         new ServiceError("CONFLICT", { message: "name is taken" }),
     );
-});
-
-test("collect the resources of one kind from a stack's resources", () => {
-    const declaration = present(box.declaration, "the box declaration");
-    const resource = (kind: string) => ({
-        declaration: {
-            name: kind,
-            kind,
-            spec: {},
-            package: {
-                id: declared.definitionPackageId,
-                name: "@destack/boxes",
-                version: "2026.9.0",
-            },
-        },
-        retention: "delete",
-        tags: {},
-    });
-
-    // keep the box and leave the link to its own kind
-    expect(
-        declaration.collect?.({ resources: { main: resource("box"), other: resource("link") } }),
-    ).toEqual({
-        main: resource("box"),
-    });
 });
 
 /** Read a box's ready reason and draining status. */

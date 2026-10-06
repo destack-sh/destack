@@ -25,22 +25,15 @@ import { type ProvisionedObject, type ProvisionedRecord } from "../trait/provisi
 /** The condition a resource reports while it waits for its draining consumers to stop before a recreation. */
 export const DRAINING = "draining";
 
-/** A provider as the controller of its kind's resources drives it. */
-export type ProvisionedProvider = Provider<
-    ResourceKind,
-    ObjectType,
-    unknown,
-    unknown,
-    object,
-    unknown
->;
-
-/** What a process reconciling the resources it serves supplies: its providers and its host. */
+/** What a process reconciling the resources it serves supplies: its providers and its machine. */
 export interface ProvisionedOptions {
     /** The providers the process holds, in preference order within each kind. */
-    readonly providers: readonly ProvisionedProvider[];
-    /** The host keeping the resources its providers provision, absent for a region. */
-    readonly host: Identifier<"host"> | null;
+    readonly providers: readonly Pick<
+        Provider<ResourceKind, ObjectType>,
+        "kind" | "code" | "object" | "provision" | "reconcile" | "fence" | "snapshot"
+    >[];
+    /** The machine keeping the resources its providers provision, absent for a region. */
+    readonly machine: Identifier<"machine"> | null;
 }
 
 /** A condition a reconciliation observes: its status, reason and message. */
@@ -61,7 +54,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     readonly watches: readonly ObjectWatch[];
     /** The provisioned object type. */
     readonly #object: ProvisionedObject<"space">;
-    /** The process's providers of the kind and its host. */
+    /** The process's providers of the kind and its machine. */
     readonly #options: ProvisionedOptions;
 
     /** Reconcile one kind's provisioned objects through the providers of its kind, refusing an object with a controller of its own. */
@@ -113,7 +106,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     }
 
     /** Select the provider a resource requests, or the first of its kind. */
-    static select<Selected extends Pick<ProvisionedProvider, "code">>(
+    static select<Selected extends Pick<ProvisionedOptions["providers"][number], "code">>(
         providers: readonly Selected[],
         row: Pick<ProvisionedRecord, "provider" | "placement">,
     ): Selected | undefined {
@@ -222,7 +215,7 @@ async function provision(
             provider: provider.code,
             reference: provisioned.reference,
             location: provisioned.location ?? null,
-            hostId: options.host,
+            machineId: options.machine,
         };
 
         return await observe(object, row, reconciliation, fields, {
@@ -314,7 +307,7 @@ async function apply(
 async function planRecreation(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
-    provider: ProvisionedProvider,
+    provider: ProvisionedOptions["providers"][number],
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
 ): Promise<{ readonly plan: Plan; readonly isDraining: boolean } | undefined> {
     // plan the desired states
@@ -366,7 +359,7 @@ async function planRecreation(
 async function applyPlan(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
-    provider: ProvisionedProvider,
+    provider: ProvisionedOptions["providers"][number],
     plan: Plan,
     digests: { readonly plan: string; readonly state: string },
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,

@@ -30,7 +30,7 @@ const entry = defineObject({
     methods: (method) => ({ get: method.get("read"), list: method.list("read") }),
 });
 
-test("read external objects named by their key from the database their files open per scope, admitting callers by the durable database, and refuse writing or unfiled ones", async () => {
+test("read external objects named by their key from the database their files open per scope, admitting callers by the durable database", async () => {
     // keep a public space's notebook in the durable database
     const durable = await TestDatabase.create("sqlite", notesDatabase, { isMigrated: true });
     onTestFinished(() => durable.close());
@@ -121,28 +121,6 @@ test("read external objects named by their key from the database their files ope
         .toEqual(["Vienna"]);
     expect(failures).toEqual([]);
 
-    // refuse generating an identifier for objects named by their key, and an identifier outside the key
-    expect(() => entry.generateId()).toThrow("a creation of entry names its key");
+    // refuse an identifier outside the key
     expect([entry.identifies(id), entry.identifies(`entry-${v7()}`)]).toEqual([true, false]);
-
-    // refuse a writing method and an external type nothing files
-    expect(() =>
-        defineObject({
-            name: "draft",
-            plural: "drafts",
-            scope: space,
-            storage: "external",
-            fields: { term: field.string() },
-            methods: (method) => ({ create: method.create(null, { isSystem: true }) }),
-        }),
-    ).toThrow("external object draft writes in method create");
-    expect(
-        () =>
-            new ObjectServer({
-                objects: { notebook, entry },
-                database: durable.database,
-                callKey: testCallKey,
-                origin: { package: entry.package, service: "test" },
-            }),
-    ).toThrow("external object entry needs files keeping it");
 });

@@ -24,20 +24,24 @@ const POSITION_DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz";
 /** The shape of a position. */
 const POSITION = /^[0-9a-z]+$/u;
 
+/** The meanings of fields beyond their stored values. */
+export const FIELD_TYPES = [
+    "string",
+    "integer",
+    "number",
+    "boolean",
+    "time",
+    "enum",
+    "json",
+    "reference",
+    "subject",
+    "position",
+    "state",
+    "text",
+] as const;
+
 /** The meaning of a field beyond its stored value. */
-export type FieldType =
-    | "string"
-    | "integer"
-    | "number"
-    | "boolean"
-    | "time"
-    | "enum"
-    | "json"
-    | "reference"
-    | "subject"
-    | "position"
-    | "state"
-    | "text";
+export type FieldType = (typeof FIELD_TYPES)[number];
 
 /** The extra permissions reading or writing one field requires. */
 export interface FieldAccess {

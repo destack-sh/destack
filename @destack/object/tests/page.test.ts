@@ -45,7 +45,7 @@ async function servePages(dialect: Dialect) {
         resources: new ResourceContext(),
         health: new Health("pages"),
         drainTimeout: 1000,
-        authorizeHost: async () => {},
+        authorizeMachine: async () => {},
         authenticate: async (request) => {
             const bearer = request.headers.get("authorization");
             if (bearer === null) {
@@ -220,7 +220,7 @@ test.each(TEST_DIALECTS)(
             subject: anyone.reference("*", "*"),
             conditions: { linkSecret: link.digest },
         });
-        const visitor = connect({ "destack-link-secret": link.secret });
+        const visitor = connect({ "Destack-Link-Secret": link.secret });
         expect((await visitor.page.get({ spaceId, id: tools.id })).title).toBe("Tools");
         expect(
             (await visitor.page.list({ spaceId })).items.map((item) => item.title).toSorted(),

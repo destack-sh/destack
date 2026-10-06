@@ -486,7 +486,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The kind whose resources the objects are, absent for other objects. */
     readonly provisioned: ProvisionedDefinition | undefined;
     /** How a stack's declarations of the objects become their managed records. */
-    readonly declaration?: ObjectDeclaration;
+    readonly declaration: ObjectDeclaration | undefined;
     /** The type whose rows the objects project, absent for objects projecting none. */
     readonly projected: ProjectedDefinition | undefined;
     /** Read the types projecting the objects into their recipients' homes, as the definition declares them. */
@@ -517,7 +517,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Where the objects live. */
     readonly storage: Configuration["storage"];
     /** How long ephemeral objects outlive their session, in milliseconds. */
-    readonly linger?: number;
+    readonly linger: number | undefined;
     /** Where access finds objects stored in a table another package owns. */
     readonly intrinsic: Omit<TableMapping, "policy"> | undefined;
     /** How the objects are declared, deleted, expired, versioned, tracked and converted across releases. */
@@ -530,12 +530,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         traits: readonly TraitInstance[],
         intrinsic?: Omit<TableMapping, "policy">,
     ) {
-        // require a logged table
-        if (definition.table[TABLE].retention === "none") {
-            throw new TypeError(`object table is not logged: ${definition.table[TABLE].name}`);
-        }
-
-        // retain identity and scopes
+        // require a logged table, and retain identity and scopes
+        ObjectType.#requireLogged(definition.table);
         this.package = owner;
         this.name = definition.name;
         this.identity = definition.identity;
@@ -554,9 +550,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.isReadAudited = definition.audited?.reads === true;
         this.roles = Roles.of(definition);
         this.provisioned = definition.provisioned;
-        if (definition.provisioned !== undefined) {
-            this.declaration = Provisioned.declaration(definition.provisioned.kind);
-        }
+        this.declaration =
+            definition.provisioned && Provisioned.declaration(definition.provisioned.kind);
 
         // retain methods and fields
         this.inherited = definition.inherited;
@@ -575,9 +570,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.intrinsic = intrinsic;
         this.indexes = definition.indexes ?? {};
         this.storage = definition.storage;
-        if (this.storage === "ephemeral") {
-            this.linger = lingerOf(definition);
-        }
+        this.linger = this.storage === "ephemeral" ? lingerOf(definition) : undefined;
 
         // resolve the relations, add trait policies and register the policy
         const assembly = this.#assemblePolicy(definition, owner);
@@ -590,6 +583,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         // require valid methods, fields, aggregates, scopes, indexes and traits
         this.#requireValid(definition);
+    }
+
+    /** Require an object's table to be logged. */
+    static #requireLogged(table: Table): void {
+        if (table[TABLE].retention === "none") {
+            throw new TypeError(`object table is not logged: ${table[TABLE].name}`);
+        }
     }
 
     /** List the object types among a definition's scopes, leaving out the universe. */
@@ -2099,7 +2099,7 @@ function fieldRelation(field: Field): RelationInput | undefined {
     else if (field.type === "subject") {
         const subjects = field.principals ?? [
             principal.user,
-            principal.host,
+            principal.machine,
             principal.installation,
         ];
 

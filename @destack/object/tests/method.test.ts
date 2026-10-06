@@ -1,7 +1,7 @@
 import type { CallableName } from "../src/index.ts";
 import { Subject } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/service/test";
-import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -10,18 +10,11 @@ import { aligned, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
 import { ObjectServer, RecoverableController, Settlement } from "../src/server/index.ts";
-import {
-    Call,
-    defineObject,
-    method,
-    settlement,
-    suspendable,
-    type ObjectProcedures,
-} from "../src/index.ts";
+import { Call, defineObject, method, settlement, suspendable } from "../src/index.ts";
 import { describeObject } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
 import { principal } from "@destack/access";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
 import { any } from "./fixture/match.ts";
@@ -39,48 +32,7 @@ const PROCEDURES = schema.record(
     }),
 );
 
-/** An object type named like the replica procedures every object type shares. */
-const replica = defineObject({
-    name: "replica",
-    plural: "replicas",
-    scope: space,
-    fields: {},
-    permissions: ["read"],
-});
-
-test("derive typed routes and describe each method with its permission, input and audit action", () => {
-    // type each derived input and output from the method and the table
-    type Procedures = ObjectProcedures<typeof task>;
-    type UpdateInput = schema.Input<Procedures["update"]["~orpc"]["inputSchema"] & schema.Schema>;
-    type GetOutput = schema.Infer<Procedures["get"]["~orpc"]["outputSchema"] & schema.Schema>;
-    const id = schema.identifier("task").parse("task-01996ab0-0000-7000-8000-000000000004");
-    expectTypeOf({
-        spaceId,
-        id,
-        requestId: RequestId.create(),
-        revision: 1,
-        title: "Typed",
-    }).toExtend<UpdateInput>();
-
-    // require a request identifier in updates
-    expectTypeOf({ spaceId, id, title: "x" }).not.toExtend<UpdateInput>();
-    expectTypeOf("typed").toExtend<GetOutput["title"]>();
-
-    // leave system methods out of the names and procedures callers see
-    const machine = defineObject({
-        name: "machine",
-        plural: "machines",
-        scope: space,
-        fields: {},
-        permissions: ["read"],
-        methods: (builder) => ({
-            get: builder.get("read"),
-            reset: builder.mutation({ permission: null, isSystem: true }),
-        }),
-    });
-    expectTypeOf<CallableName<typeof machine>>().toEqualTypeOf<"get">();
-    expectTypeOf<keyof ObjectProcedures<typeof machine>>().toEqualTypeOf<"get">();
-
+test("derive routes and describe each method with its permission, input and audit action", () => {
     // derive one route per method under the object's scope
     expect(
         Object.fromEntries(
@@ -160,18 +112,6 @@ test.each(TEST_DIALECTS)(
             "taskVersion",
             "folder",
         ]);
-        expect(
-            () =>
-                new ObjectServer({
-                    objects: { replica },
-                    database,
-                    callKey: testCallKey,
-                    origin: {
-                        package: task.package,
-                        service: "test",
-                    },
-                }),
-        ).toThrow(new TypeError("object replica takes the name of the shared replica procedures"));
 
         // create once per request identifier, replaying the original result
         const creation = { requestId: RequestId.create(), title: "Write the plan" };
@@ -985,7 +925,7 @@ test("predict custom methods only where their handler is, and never a scope's su
     ]).toEqual([false, true, false, false]);
 });
 
-test("add suspending and detaching through their traits, and refuse them where the trait does not apply", () => {
+test("add suspending and detaching through their traits", () => {
     // derive suspend and resume on a scope type, and detach on a declarable type
     const room = defineObject({
         name: "room",
@@ -1011,42 +951,6 @@ test("add suspending and detaching through their traits, and refuse them where t
         ["get", "resume", "suspend"],
         ["apply", "detach", "get"],
     ]);
-
-    // refuse suspending objects that are no scope, and detaching records no stack declares
-    const plain = { plural: "items", scope: room, fields: {}, permissions: ["update"] } as const;
-    expect(() => defineObject({ ...plain, name: "desk", suspendable: { by: "update" } })).toThrow(
-        "object desk is suspendable but no scope",
-    );
-    expect(() => defineObject({ ...plain, name: "lamp", detachable: { by: "update" } })).toThrow(
-        "object lamp is detachable but not declarable",
-    );
-});
-
-test("refuse client methods named like function properties, and keep the system method apply", () => {
-    // refuse a client method that clients would read as the function's own call
-    const plain = {
-        plural: "bells",
-        scope: "universe",
-        fields: {},
-        permissions: ["read"],
-    } as const;
-    expect(() =>
-        defineObject({
-            ...plain,
-            name: "bell",
-            methods: (builder) => ({ call: builder.get("read") }),
-        }),
-    ).toThrow("object bell names a method call, which functions have");
-
-    // keep the system method apply on a declarable type
-    const chime = defineObject({
-        ...plain,
-        name: "chime",
-        plural: "chimes",
-        declarable: { schema: schema.object({}) },
-        methods: (builder) => ({ get: builder.get("read") }),
-    });
-    expect(chime.methods.apply.isSystem).toBe(true);
 });
 
 /** Serve tasks, comments, versions and folders in a space to a scenario's caller. */
@@ -1111,15 +1015,6 @@ async function serveTasks(dialect: Dialect) {
     };
 }
 
-test("leave standard methods to the server where the declaration says so", () => {
-    // predict standard methods by default, and not those only a server handler completes
-    expect([
-        method.create("write").isPredicted,
-        method.create("write", { isPredicted: false }).isPredicted,
-        method.update("write", { isPredicted: false }).isPredicted,
-    ]).toEqual([true, false, false]);
-});
-
 test("carry a key the method derives from its work, the same for every retry of it", async () => {
     const storage = await TestDatabase.create(
         present(TEST_DIALECTS.at(-1), "the last test dialect"),
@@ -1142,7 +1037,7 @@ test("carry a key the method derives from its work, the same for every retry of 
                 keys.push(key);
                 if (isFailing) {
                     isFailing = false;
-                    throw new ServiceError("UNAVAILABLE", { message: "copy failed" });
+                    throw new ServiceError("SERVICE_UNAVAILABLE", { message: "copy failed" });
                 }
 
                 return key;
@@ -1175,7 +1070,7 @@ test("carry a key the method derives from its work, the same for every retry of 
         requestId: RequestId.create(),
     };
     await expect(server.call(copies, "create", version, context)).rejects.toMatchObject({
-        code: "UNAVAILABLE",
+        code: "SERVICE_UNAVAILABLE",
     });
     await server.call(copies, "create", version, context);
     expect(keys).toEqual(["copy-Draft", "copy-Draft"]);

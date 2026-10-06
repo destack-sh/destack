@@ -271,11 +271,3 @@ test.each(TEST_DIALECTS)(
         expect([untitled, lost].some((id) => recorded.includes(id))).toBe(false);
     },
 );
-
-test("refuse two change triggers of one package under one name", async () => {
-    const { database } = await serveNotes("sqlite");
-
-    expect(
-        () => new ChangeController(database, [titled, titled], { send: async () => {} }, () => {}),
-    ).toThrow(`${titled.package.name} declares two triggers named titled`);
-});

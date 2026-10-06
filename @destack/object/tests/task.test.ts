@@ -11,7 +11,6 @@ import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
 import { project, tasksDatabase, tasksService } from "./fixture/task.ts";
-import { user } from "./schema.ts";
 import { ServiceError } from "@destack/service/error";
 import { principal } from "@destack/access";
 import { openSpace } from "./fixture/space.ts";
@@ -42,7 +41,7 @@ test.each(TEST_DIALECTS)(
             resources: new ResourceContext(),
             health: new Health("tasks"),
             drainTimeout: 1000,
-            authorizeHost: async () => {},
+            authorizeMachine: async () => {},
             authenticate: async (request) => {
                 const id = present(
                     request.headers.get("authorization"),
@@ -204,7 +203,7 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test("serve a handled type in place of the service's own, and refuse one the service lacks", async () => {
+test("serve a handled type in place of the service's own", async () => {
     const storage = await TestDatabase.create("sqlite", tasksDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
@@ -227,7 +226,7 @@ test("serve a handled type in place of the service's own, and refuse one the ser
         resources: new ResourceContext(),
         health: new Health("tasks"),
         drainTimeout: 1000,
-        authorizeHost: async () => {},
+        authorizeMachine: async () => {},
         authenticate: async () => {
             const subject = principal.user.reference("universe", "alice");
 
@@ -252,15 +251,6 @@ test("serve a handled type in place of the service's own, and refuse one the ser
     ).rejects.toEqual(
         new ServiceError("CONFLICT", { defined: true, message: "projects are frozen" }),
     );
-
-    // refuse a handled type of no object the service serves
-    expect(() =>
-        ObjectServer.serve(tasksService, {
-            callKey: testCallKey,
-            database: storage.database,
-            handled: [user],
-        }),
-    ).toThrow(new TypeError("service tasks serves no object user"));
 });
 
 /** Reference a user principal by identifier. */

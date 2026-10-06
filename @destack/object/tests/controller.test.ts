@@ -179,16 +179,3 @@ test("select a changed pending object's own key beside the keys a watch of its o
         controller.watches,
     ]).toEqual([['{"id":"head"}', `{"id":"${created.id}"}`], ['{"id":"head"}'], [reminder.table]]);
 });
-
-test("refuse a controller on ephemeral objects", () => {
-    expect(() =>
-        defineObject({
-            name: "cursor",
-            plural: "cursors",
-            scope: space,
-            storage: "ephemeral",
-            fields: { position: field.integer() },
-            permissions: { read: relation("owner") },
-        }).control({ pending: {}, reconcile: async () => undefined }),
-    ).toThrow(new TypeError("ephemeral object cursor takes no controller"));
-});

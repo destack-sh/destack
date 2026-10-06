@@ -4,6 +4,7 @@ import {
     accessRolePermission,
     ChainParameters,
     decisionTables,
+    isPrincipal,
     principal,
     Relationship,
     type Standing,
@@ -237,19 +238,33 @@ export class ObjectSource {
         await authorization.require(first.permission, first.target);
     }
 
-    /** Find the object standing for a principal callers act as, with the scopes the principal lives inside, absent when none stands for it here. */
+    /** Find the object standing for a principal callers act as, with the scopes the principal lives inside, absent when none stands for it here: its own, or its scope's for a principal inside a principal, as a space's zone stands for the space's installations. */
     async standing(subject: Subject): Promise<Standing | undefined> {
         // find the object standing for the principal's identifier, standing for the principal itself
         const standing = await this.#standing(subject.id);
-        if (standing === undefined || !Subject.same(standing.subject, subject)) {
+        if (standing !== undefined && Subject.same(standing.subject, subject)) {
+            return {
+                permission: standing.object.permission(REPRESENT),
+                object: standing.reference,
+                subject: standing.subject,
+                within: standing.parent === undefined ? [] : await this.#within(standing.parent),
+            };
+        }
+
+        // stand for a principal inside a principal through the object standing for its scope
+        const scope = isPrincipal(subject) ? await this.#standing(subject.scope) : undefined;
+        if (scope === undefined || scope.subject.id !== subject.scope) {
             return undefined;
         }
 
         return {
-            permission: standing.object.permission(REPRESENT),
-            object: standing.reference,
-            subject: standing.subject,
-            within: standing.parent === undefined ? [] : await this.#within(standing.parent),
+            permission: scope.object.permission(REPRESENT),
+            object: scope.reference,
+            subject,
+            within: [
+                scope.subject,
+                ...(scope.parent === undefined ? [] : await this.#within(scope.parent)),
+            ],
         };
     }
 
@@ -452,7 +467,7 @@ export class ObjectSource {
         return source;
     }
 
-    /** List the subscriptions a home follows: one per projected type and source installation its residents' addresses name. */
+    /** List the subscriptions a home follows: one per projected type and source installation its residents' residences name. */
     async projectionSubscriptions(home: string): Promise<sync.Subscription[]> {
         // project nowhere without a projected type
         const projecting = this.server.objects.flatMap((object) =>
@@ -463,19 +478,19 @@ export class ObjectSource {
             return [];
         }
 
-        // read the addresses of the users living here, grouped by source and installation
+        // read the residences of the users living here, grouped by source and installation
         const user = residence.user.table[TABLE];
-        const address = residence.address.table[TABLE];
+        const residing = residence.residence.table[TABLE];
         const rows = await this.server.database
             .select({
                 user: user.column("id"),
-                source: address.column("source"),
-                installation: address.column("installation"),
+                source: residing.column("source"),
+                installation: residing.column("installation"),
             })
-            .from(residence.address.table)
-            .innerJoin(residence.user.table, eq(user.column("id"), address.column("scope")))
+            .from(residence.residence.table)
+            .innerJoin(residence.user.table, eq(user.column("id"), residing.column("scope")))
             .where(eq(user.column("home"), home))
-            .orderBy(address.column("source"), address.column("installation"), user.column("id"));
+            .orderBy(residing.column("source"), residing.column("installation"), user.column("id"));
         const sources = Map.groupBy(
             rows.map((row) => ({
                 source: schema.string().parse(row.source),
@@ -862,7 +877,9 @@ export class ObjectSource {
             ...new Set([
                 Scope.table,
                 ...scopes,
-                ...(residence === undefined ? [] : [residence.user.table, residence.address.table]),
+                ...(residence === undefined
+                    ? []
+                    : [residence.user.table, residence.residence.table]),
                 ...(subscriber.watches ?? []),
             ]),
         ];
@@ -967,9 +984,10 @@ export class ObjectSource {
             (object) => object.inherited === undefined && sourceOf(object) === source,
         );
         const isUnscoped = (object: ObjectType) =>
-            !object.scopes.some((scope) => copied.some((type) => type.same(scope)));
+            object.scopes.length === 0 ||
+            object.scopes.some((scope) => !copied.some((type) => type.same(scope)));
 
-        // copy a type living in no copied scope from every scope its rows live in
+        // copy a type living in any scope type the copy holds no rows of from every scope its rows live in
         const listed = copied.filter(isUnscoped);
         const rows: UniverseParameters["rows"][number][] = listed.map((object) =>
             object.scope === Scope.universe.id

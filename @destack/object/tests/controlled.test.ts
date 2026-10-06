@@ -1,5 +1,5 @@
 import { Scope } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
@@ -9,6 +9,7 @@ import { present, schema } from "@destack/schema";
 import { defineObject, field, SystemCall } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { RequestId } from "@destack/service/request";
 import { testCallKey } from "@destack/service/test";
 
 /** The space with the machines. */
@@ -163,3 +164,39 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
+
+test("answer a repeated system request from the journal, provisioning once, and refuse other input under its identifier", async () => {
+    const storage = await TestDatabase.create("sqlite", machineDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const server = new ObjectServer({
+        objects: { machine },
+        database: storage.database,
+        callKey: testCallKey,
+        origin: { package: machine.package, service: "test" },
+    });
+
+    // provision under a request twice, then with another size under it
+    const requestId = await RequestId.derive(1_000, "machine small");
+    const provision = (size: string) =>
+        server.executeAsSystem(
+            machine,
+            "provision",
+            [{ scope: spaceId, requestId, input: { ownerId: "global:user-1", size } }],
+            1_000,
+        );
+    const [first] = await provision("small");
+    const [repeated] = await provision("small");
+    const other = await refusal(provision("large"));
+
+    // keep one machine, answer the repeat with the recorded one, and refuse the other input
+    expect({
+        machines: await storage.database.select().from(machine.table),
+        repeated,
+        other,
+    }).toEqual({
+        machines: [first],
+        repeated: first,
+        other: ["CONFLICT", "request identifier has already been used"],
+    });
+});

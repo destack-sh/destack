@@ -42,6 +42,28 @@ const profile = defineObject({
     methods: (method) => ({ list: method.list("read") }),
 });
 
+/** Teams of the universe, which the cell keeps no copies of. */
+const team = defineObject({
+    name: "team",
+    plural: "teams",
+    scope: "universe",
+    isScope: true,
+    fields: { name: field.string() },
+    permissions: { read: none() },
+    methods: (method) => ({ list: method.list("read") }),
+});
+
+/** Badges living in a person's or a team's scope, each listed to the cells it is shown to. */
+const badge = defineObject({
+    name: "badge",
+    plural: "badges",
+    scope: [person, team],
+    fields: { label: field.string() },
+    relations: { shown: { subjects: [principal.cell], grantedBy: null } },
+    permissions: { read: relation("shown") },
+    methods: (method) => ({ list: method.list("read") }),
+});
+
 /** Serve people and profiles over a database. */
 function serve(
     database: DatabaseConnection,
@@ -198,6 +220,153 @@ test.each(TEST_DIALECTS)(
         });
     },
 );
+
+test.each(TEST_DIALECTS)(
+    "copy the badges a space is shown from the scopes of teams it keeps no copies of, and withhold the badges it is not shown, on %s",
+    async (dialect) => {
+        // keep ada and a team at home, the team's badges and ada's own
+        const home = await TestDatabase.create(
+            dialect,
+            [...person.tables, ...team.tables, ...badge.tables, journal],
+            { isMigrated: true },
+        );
+        const cell = await TestDatabase.create(
+            dialect,
+            defineDatabase({
+                name: "cell",
+                tables: [journal],
+                copies: [...person.tables, ...badge.tables],
+            }),
+            { isMigrated: true },
+        );
+        onTestFinished(async () => {
+            await Promise.all([home.close(), cell.close()]);
+        });
+        const now = 1;
+        const ada = personOf(1);
+        const crew = schema.identifier("team").parse("team-01996ab0-0000-7000-8000-000000000001");
+        await new AccessFixture(home.database).copyScope(person.reference(Scope.universe.id, ada));
+        await new AccessFixture(home.database).copyScope(team.reference(Scope.universe.id, crew));
+        const at = { createdAt: now, updatedAt: now };
+        await home.database
+            .insert(person.table)
+            .values({ id: ada, name: "Ada", scope: "universe", ...at });
+        await home.database
+            .insert(team.table)
+            .values({ id: crew, name: "Crew", scope: "universe", ...at });
+        const badges = [
+            [badgeOf(1), crew, "shown in the team"],
+            [badgeOf(2), crew, "hidden in the team"],
+            [badgeOf(3), ada, "shown in ada's scope"],
+        ] as const;
+        await home.database
+            .insert(badge.table)
+            .values(badges.map(([id, scope, label]) => ({ id, scope, label, ...at })));
+
+        // let the space read ada, and show it the first and the last badge
+        const served = new ObjectServer({
+            objects: { person, team, badge },
+            database: home.database,
+            callKey: testCallKey,
+            origin: { package: person.package, service: "test" },
+        });
+        const system = await SystemAuthorization.open(
+            served.authorizer,
+            home.database,
+            Scope.universe.id,
+            now,
+        );
+        const cellOfSpace = principal.cell.reference(Scope.universe.id, spaceId);
+        await system.grant({
+            object: person.reference(Scope.universe.id, ada),
+            relation: "joined",
+            subject: cellOfSpace,
+        });
+        for (const [id, scope] of [badges[0], badges[2]]) {
+            await system.grant({
+                object: badge.reference(scope, id),
+                relation: "shown",
+                subject: cellOfSpace,
+            });
+        }
+
+        // copy the universe the space reads onto the cell, which serves people and badges alone
+        const copying: ObjectServer<{ person: typeof person; badge: typeof badge }> =
+            new ObjectServer({
+                objects: { person, badge },
+                database: cell.database,
+                subscriber: Subscriber.of(
+                    {
+                        receive: refuseChanges,
+                        stream: (asked, signal) =>
+                            served.source.replicate(
+                                asked,
+                                asked.after,
+                                {
+                                    subject: principal.cell.reference(
+                                        Scope.universe.id,
+                                        asked.below,
+                                    ),
+                                },
+                                signal,
+                            ),
+                    },
+                    async () => [
+                        present(
+                            copying.source.universeSubscription(spaceId),
+                            "the universe request",
+                        ),
+                    ],
+                ),
+                callKey: testCallKey,
+                origin: { package: person.package, service: "test" },
+            });
+        await follow(copying, home.database, cell.database);
+
+        // keep the shown badges of the team and of ada, and withhold the hidden one
+        const copied = await cell.database.select().from(badge.table).orderBy(asc(badge.table.id));
+        expect(copied.map((row) => [row.id, row.scope, row.label])).toEqual([
+            [badgeOf(1), crew, "shown in the team"],
+            [badgeOf(3), ada, "shown in ada's scope"],
+        ]);
+    },
+);
+
+/** Follow a server's copies until they reach the home database's position, stopping once the test finishes. */
+async function follow(
+    copying: ObjectServer,
+    home: DatabaseConnection,
+    cell: DatabaseConnection,
+): Promise<void> {
+    // run the replica controller's one key
+    const follower = present(
+        copying.controllers().find((each) => each.name === "replica"),
+        "the replica controller",
+    );
+    const controller = new AbortController();
+    const [key] = await follower.list();
+    const following = follower.reconcile(
+        present(key, "the replica key"),
+        reconciliation(controller.signal),
+    );
+    onTestFinished(async () => {
+        controller.abort();
+        await following.catch(() => undefined);
+    });
+
+    // wait for the copy to reach home
+    await Replica.reach(
+        cell,
+        Scope.universe.id,
+        await home.log.position(),
+        AbortSignal.timeout(5000),
+    );
+}
+
+/** Build the identifier of a numbered badge. */
+function badgeOf(index: number): Identifier<"badge"> {
+    return schema.identifier("badge").parse(`badge-01996ab0-0000-7000-8000-00000000000${index}`);
+}
 
 /** Build the identifier of a numbered person. */
 function personOf(index: number): Identifier<"person"> {

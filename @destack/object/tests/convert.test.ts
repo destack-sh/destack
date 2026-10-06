@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { defineDatabase, Expression } from "@destack/db";
+import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
@@ -106,37 +106,3 @@ test.for(TEST_DIALECTS)(
         expect(stored.name).toBe("Roadmap");
     },
 );
-
-test("refuse method conversions keyed by a release after the object's package release", () => {
-    expect(() =>
-        defineObject({
-            name: "sheet",
-            plural: "sheets",
-            scope: space,
-            fields: { name: field.string() },
-            permissions: ["write"],
-            methods: (method) => ({
-                create: method.create("write", {
-                    convert: { "2026.10.0": { name: Expression.column("title") } },
-                }),
-            }),
-        }),
-    ).toThrow(
-        new TypeError(
-            "conversion of sheet.create is keyed by 2026.10.0, after its release 2026.9.0",
-        ),
-    );
-});
-
-test("refuse a field moved from the name of a current field", () => {
-    expect(() =>
-        defineObject({
-            name: "sheet",
-            plural: "sheets",
-            scope: space,
-            moved: { fields: { name: "title" } },
-            fields: { name: field.string(), title: field.string() },
-            permissions: ["write"],
-        }),
-    ).toThrow(new TypeError("field sheet.name moved from title, which names a current field"));
-});

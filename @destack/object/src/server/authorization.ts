@@ -27,7 +27,11 @@ import { aligned, schema } from "@destack/schema";
 import { conceal, ServiceError } from "@destack/service/error";
 import { Moved } from "@destack/directory";
 import type { Call } from "../method/call.ts";
+import type { MethodKind } from "../method/kind.ts";
 import { SCOPE_READ, type ObjectType } from "../object/object.ts";
+
+/** The kinds of method a scope with capped storage still runs, since they free storage. */
+const FREEING_KINDS: ReadonlySet<MethodKind> = new Set(["delete", "purge"]);
 
 /** A caller's authorization in one call's transaction. */
 export class Authorization extends access.Authorization {
@@ -395,6 +399,28 @@ export class Authorization extends access.Authorization {
         const moved = this.access.moved;
         if (moved !== undefined) {
             throw Moved.error(moved);
+        }
+    }
+
+    /** Refuse calls writing to a scope whose storage is capped: every mutating call but a delete or a purge. */
+    requireUncapped(
+        calls: readonly { readonly object: ObjectType; readonly name: string }[],
+    ): void {
+        // admit any call in a scope within its storage
+        if (!this.access.isCapped) {
+            return;
+        }
+
+        // refuse the first call that writes without freeing storage
+        const writing = calls.find(({ object, name }) => {
+            const { kind, mutates } = object.method(name);
+
+            return mutates && !FREEING_KINDS.has(kind);
+        });
+        if (writing !== undefined) {
+            throw new ServiceError("QUOTA_EXCEEDED", {
+                message: `storage of scope ${this.access.scope} is capped: ${writing.object.name}.${writing.name} is refused until data is deleted or the plan changes`,
+            });
         }
     }
 

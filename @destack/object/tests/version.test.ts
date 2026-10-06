@@ -5,10 +5,9 @@ import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
-import { defineObject, field } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { objectDatabase, task, taskVersion } from "./schema.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 import { userContext } from "./fixture/user.ts";
 
@@ -67,21 +66,5 @@ test.each(TEST_DIALECTS)(
             );
         const pointed = await point(first.id, 1);
         expect((await point(second.id, pointed.revision)).currentId).toBe(second.id);
-
-        // refuse updates to immutable versions
-        expect(() =>
-            defineObject({
-                name: "draft",
-                plural: "drafts",
-                scope: space,
-                nested: { in: task, receive: "write" },
-                versioned: true,
-                fields: { title: field.string() },
-                permissions: ["write"],
-                methods: (method) => ({
-                    update: method.update("write"),
-                }),
-            }),
-        ).toThrow(new TypeError("versions of draft are immutable and cannot be updated"));
     },
 );

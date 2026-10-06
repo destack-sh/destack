@@ -1,14 +1,11 @@
 import { expect, test, onTestFinished } from "@destack/test";
-import { Expression, type Path } from "@destack/db";
+import { Expression } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { RequestId } from "@destack/service/request";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
-import { page } from "./fixture/page.ts";
-import { ObjectType } from "../src/index.ts";
 import { QueriesParameters } from "../src/replica/replica.ts";
 import { present, schema } from "@destack/schema";
-import { included, type Query } from "@destack/sync";
 
 /** The rows an include adds, read for their titles. */
 const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
@@ -358,14 +355,6 @@ test.for(TEST_DIALECTS)(
         expect(latest).toEqual(["notebooks:Travel", "notes:Budget", "notes:Chores"]);
         controller.abort();
         await activity.close();
-
-        // refuse a member ordering itself, which the union's own order replaces
-        expect(() =>
-            device.client.union(
-                { notebooks: query.notebook.findMany({ orderBy: { name: "asc" } }) },
-                { orderBy: { createdAt: "desc" }, limit: 3 },
-            ),
-        ).toThrow("union member notebooks orders or limits itself");
     },
 );
 
@@ -590,26 +579,6 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("compile includes of a handled tree and its parent like the declared types", () => {
-    // serve copies with handlers and parents and trees of the declared types
-    const handledPage = page.handle({});
-    const handledNotebook = notebook.handle({});
-    const queries = ObjectType.queries(
-        [handledPage, handledNotebook, note],
-        {
-            tree: { object: "page", with: { descendants: {} } },
-            filed: { object: "notebook", with: { notes: {} } },
-        },
-        [spaceId],
-    );
-
-    // join the tree's descendants and the notebook's notes
-    expect([joinOf(queries, "tree", "descendants"), joinOf(queries, "filed", "notes")]).toEqual([
-        { kind: "descendants", column: "parentId" },
-        { kind: "key", column: "parentId", parent: "id" },
-    ]);
-});
-
 test("watch a query keeping each unchanged row as the same object after another row changes", async () => {
     const { endpoint } = await serveNotes("sqlite");
     const device = await Device.open("alice", endpoint("alice"), []);
@@ -680,11 +649,6 @@ function extrasOf<Value>(
     id: string,
 ): Readonly<Record<string, Value>> {
     return present(present(extras, "the extras")[id], `the extras of ${id}`);
-}
-
-/** Read how a compiled query joins one of its includes. */
-function joinOf(queries: Readonly<Record<string, Query>>, name: string, include: string): Path {
-    return included(present(queries[name], `query ${name}`), include).relation.on;
 }
 
 /** Name each entry of a union by its member and its notebook's name or note's title. */

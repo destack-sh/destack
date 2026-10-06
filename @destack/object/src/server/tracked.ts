@@ -29,22 +29,9 @@ export const TrackedHistory = {
     ): Promise<void> {
         // find the caller's latest activity on the object
         const { object } = call;
-        const activity = options.activity;
-        const table = activity.table;
+        const table = options.activity.table;
         const caller = Subject.key(call.requireCaller());
-        const [latest] = await call.database
-            .select()
-            .from(table)
-            .where(
-                and(
-                    eq(table.parentPackageId, object.policy.definition.packageId),
-                    eq(table.parentType, object.name),
-                    eq(table.parentId, call.requireId()),
-                    eq(table.caller, caller),
-                ),
-            )
-            .orderBy(desc(table.endedAt))
-            .limit(1);
+        const latest = await latestActivity(options, call, caller);
 
         // list the fields the change wrote, comparing their JSON forms
         const encoded = object.table[TABLE].encode(after);
@@ -157,4 +144,26 @@ function terms(expression: AccessExpression | undefined): AccessExpression[] {
     else {
         return [expression];
     }
+}
+
+/** Read a caller's latest activity on a call's object, absent before its first. */
+async function latestActivity(options: TrackedDefinition, call: Call, caller: string) {
+    // read the newest activity of the caller on the object
+    const { object } = call;
+    const table = options.activity.table;
+    const [latest] = await call.database
+        .select()
+        .from(table)
+        .where(
+            and(
+                eq(table.parentPackageId, object.policy.definition.packageId),
+                eq(table.parentType, object.name),
+                eq(table.parentId, call.requireId()),
+                eq(table.caller, caller),
+            ),
+        )
+        .orderBy(desc(table.endedAt))
+        .limit(1);
+
+    return latest;
 }

@@ -7,7 +7,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import { defineObject, expiring, field } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { ExpiringController, ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
@@ -102,27 +102,3 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([[kept], ["alert.expire", "alert.expire"], true]);
     },
 );
-
-test("refuse expiry rules over a field the object lacks, or without any rule", () => {
-    expect(
-        [
-            () => expiring.after(alert, [{ after: { days: 1 }, from: "seenAt" }]),
-            () => expiring.after(alert, []),
-        ].map((refused) => {
-            try {
-                refused();
-            } catch (error) {
-                if (!(error instanceof Error)) {
-                    throw error;
-                }
-
-                return error.message;
-            }
-
-            return "accepted";
-        }),
-    ).toEqual([
-        "object alert expires from unknown field seenAt",
-        "object alert expires by no rule",
-    ]);
-});

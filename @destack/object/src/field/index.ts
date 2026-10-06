@@ -1,6 +1,7 @@
 export {
     field,
     Field,
+    FIELD_TYPES,
     Position,
     type TextField,
     type AggregateFunction,

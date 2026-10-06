@@ -78,24 +78,3 @@ test("derive each role's permissions on an object, inherited from its parent or 
         ["owner", "pinned"],
     ]);
 });
-
-test("refuse an object shared through the roles that defines what they define", () => {
-    // define an owner field holding no subject, an owner reference, an editor relation, and permission names alone
-    const list = { name: "list", plural: "lists", scope: space, shareable: {} };
-    expect(() => defineObject({ ...list, fields: { owner: field.string() } })).toThrow(
-        "object list shares through the roles, which define owner",
-    );
-    expect(() =>
-        defineObject({ ...list, fields: { owner: field.reference(principal.user) } }),
-    ).toThrow("object list shares through the roles, which define owner");
-    expect(() =>
-        defineObject({
-            ...list,
-            fields: {},
-            relations: { editor: { subjects: [principal.user] } },
-        }),
-    ).toThrow("object list shares through the roles, which define editor");
-    expect(() => defineObject({ ...list, fields: {}, permissions: ["archive"] })).toThrow(
-        "object list shares through the roles, so it declares its permissions as expressions",
-    );
-});

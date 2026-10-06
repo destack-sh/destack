@@ -11,7 +11,7 @@ import {
 import { PackageId } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import {
-    SpaceResource,
+    ResourceDefinition,
     ResourcePlacement,
     ResourceRetention,
     type KindState,
@@ -75,8 +75,8 @@ function resourceFields(kind: ResourceKind) {
         reference: field.string().optional(),
         /** The actual provider location, absent before provisioning. */
         location: field.string().optional(),
-        /** The host keeping the resource, absent for provider-managed storage. */
-        hostId: field.string(schema.identifier("host")).optional(),
+        /** The machine keeping the resource, absent for provider-managed storage. */
+        machineId: field.string(schema.identifier("machine")).optional(),
         /** What deletion does to the stored content: destroy it, keep it for a window, or keep it. */
         retention: field.json(ResourceRetention).default("forever"),
         /** The application installation owning the resource, absent for stack resources and after release. */
@@ -152,7 +152,7 @@ export type ProvisionedTraitsOf<Provisioning> = [Provisioning] extends [undefine
     : {
           readonly controlled: { readonly approval: true };
           readonly bindable: true;
-          readonly declarable: DeclarableDefinition<SpaceResource>;
+          readonly declarable: DeclarableDefinition<ResourceDefinition>;
       };
 
 /** How resources are shared, through the roles, or as a definition declares otherwise. */
@@ -165,23 +165,24 @@ export type ProvisionedMethodsOf<Provisioning> = [Provisioning] extends [undefin
     ? {}
     : ReturnType<typeof resourceMethods>;
 
+/** The definition keys every resource takes from its kind. */
+type ProvisionedKey =
+    | "controlled"
+    | "bindable"
+    | "declarable"
+    | "shareable"
+    | "fields"
+    | "indexes"
+    | "constraints"
+    | "permissions"
+    | "methods";
+
 /** The resources of a kind: their fields, declaration, name index, constraints and methods. */
 export const Provisioned = {
     /** Add what every resource takes to a definition provisioned as a kind's resources. */
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
-    ): Erasure<
-        Definition,
-        | "controlled"
-        | "bindable"
-        | "declarable"
-        | "shareable"
-        | "fields"
-        | "indexes"
-        | "constraints"
-        | "permissions"
-        | "methods"
-    > {
+    ): Erasure<Definition, ProvisionedKey> {
         // keep a definition of other objects
         const provisioned = definition.provisioned;
         if (provisioned === undefined) {
@@ -216,7 +217,7 @@ export const Provisioned = {
             ...definition,
             controlled: { approval: true },
             bindable: true,
-            declarable: { schema: SpaceResource },
+            declarable: { schema: ResourceDefinition },
             shareable: {},
             fields: { ...resourceFields(provisioned.kind), ...definition.fields },
             indexes: { ...Provisioned.indexes(scope), ...definition.indexes },
@@ -265,21 +266,23 @@ export const Provisioned = {
                 sql`${columns["location"]} IS NULL OR (${columns["provider"]} IS NOT NULL AND length(${columns["location"]}) > 0)`,
             ),
             check(
-                `${kind}_host`,
-                sql`${columns["hostId"]} IS NULL OR ${columns["provider"]} IS NOT NULL`,
+                `${kind}_machine`,
+                sql`${columns["machineId"]} IS NULL OR ${columns["provider"]} IS NOT NULL`,
             ),
         ];
     },
 
     /** Declare how a stack's resources of a kind become their records, provisioned or declared at a reference. */
-    declaration(kind: ResourceKind): ObjectDeclaration<ObjectType, SpaceResource, SpaceResource> {
+    declaration(
+        kind: ResourceKind,
+    ): ObjectDeclaration<ObjectType, ResourceDefinition, ResourceDefinition> {
         return {
             keys: ["resources"],
             collect: (document) =>
                 Object.fromEntries(
                     Object.entries(
                         schema
-                            .record(schema.string(), SpaceResource)
+                            .record(schema.string(), ResourceDefinition)
                             .parse(document["resources"] ?? {}),
                     ).filter(([, declared]) => declared.declaration.kind === kind.name),
                 ),
@@ -322,7 +325,7 @@ function resourceMethods() {
 }
 
 /** Write the record a stack's resource declares, provisioned or declared at a reference. */
-function declaredValues(name: string, declared: SpaceResource) {
+function declaredValues(name: string, declared: ResourceDefinition) {
     // TODO #Incomplete: adopt resources from other spaces after ownership and residency checks
     if (declared.adopt) {
         throw new ObjectError(

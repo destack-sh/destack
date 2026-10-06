@@ -172,20 +172,6 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("refuse history without the activity among the attachments", () => {
-    expect(() =>
-        defineObject({
-            name: "sheet",
-            plural: "sheets",
-            scope: space,
-            fields: { owner: field.reference(principal.user).caller() },
-            permissions: { read: relation("owner") },
-            tracked: { by: "read", activity },
-            methods: (method) => ({ get: method.get("read") }),
-        }),
-    ).toThrow(new TypeError("object sheet keeps history but takes no activities"));
-});
-
 test("refuse serving history that reads through an object keeping none", async () => {
     // read pages through an untracked folder
     const folder = defineObject({

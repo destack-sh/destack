@@ -19,12 +19,12 @@ export interface ProjectedDefinition {
     readonly residence: Residence;
 }
 
-/** The copied types telling a home whose rows it projects: its residents' users with their homes, and the addresses in their scopes. */
+/** The copied types telling a home whose rows it projects: its residents' users with their homes, and the residences in their scopes. */
 export interface Residence {
     /** The users, each with the `home` field naming its home space. */
     readonly user: ObjectType;
-    /** The addresses in users' scopes, each with the `source` scope and the `installation` keeping rows for the user. */
-    readonly address: ObjectType;
+    /** The residences in users' scopes, each with the `source` scope and the `installation` keeping rows for the user. */
+    readonly residence: ObjectType;
 }
 
 /** The qualified reference of a source row, as the source field keeps it. */
@@ -82,12 +82,12 @@ export const projected: Trait<ProjectedDefinition> & {
             throw new TypeError(`object ${object.name} clears no own field ${cleared}`);
         }
 
-        // require the residents' homes and the addresses naming their sources
-        const { user, address } = options.residence;
+        // require the residents' homes and the residences naming their sources
+        const { user, residence } = options.residence;
         const missing = [
             ...(user.fields["home"] === undefined ? [`${user.name}.home`] : []),
             ...["source", "installation"].flatMap((name) =>
-                address.fields[name] === undefined ? [`${address.name}.${name}`] : [],
+                residence.fields[name] === undefined ? [`${residence.name}.${name}`] : [],
             ),
         ];
         if (missing.length > 0) {

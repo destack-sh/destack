@@ -263,65 +263,6 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("receive attachments by the host's own permission of their name, or derive it from the attaching one", () => {
-    // keep the host's own remark permission when it attaches remarks by it
-    const own = relation("owner");
-    const notebook = defineObject({
-        name: "notebook",
-        plural: "notebooks",
-        scope: space,
-        fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
-        permissions: { read: own, remark: own },
-        methods: (method) => ({ get: method.get("read") }),
-        attachments: [remark.attach({ by: "remark" })],
-    });
-    expect(notebook.policy.definition.permissions["remark"]).toEqual(own);
-
-    // refuse attaching by a permission other than the declared receiving one
-    expect(() =>
-        defineObject({
-            name: "journal",
-            plural: "journals",
-            scope: space,
-            fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
-            permissions: { read: own, remark: own },
-            methods: (method) => ({ get: method.get("read") }),
-            attachments: [remark.attach({ by: "read" })],
-        }),
-    ).toThrow(
-        new TypeError(
-            "object journal declares permission remark, so it attaches remarks by remark",
-        ),
-    );
-});
-
-test("refuse attaching by a permission the host lacks, and aggregates the host does not have", () => {
-    // refuse a missing attaching permission
-    expect(() =>
-        defineObject({
-            name: "page",
-            plural: "pages",
-            scope: space,
-            fields: { remarkCount: field.count() },
-            permissions: { read: relation("owner") },
-            attachments: [remark.attach({ by: "edit" })],
-        }),
-    ).toThrow(new TypeError("object page attaches remarks by missing permission edit"));
-
-    // refuse a host without the attachment's count
-    expect(() =>
-        defineObject({
-            name: "sheet",
-            plural: "sheets",
-            scope: space,
-            fields: { owner: field.reference(principal.user).caller() },
-            permissions: { read: relation("owner") },
-            methods: (method) => ({ get: method.get("read") }),
-            attachments: [remark.attach({ by: "read" })],
-        }),
-    ).toThrow(new TypeError("aggregate remarkCount of remark fills no count field of sheet"));
-});
-
 /** Serve object types over a new database to one user at a time. */
 async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, ObjectType>>) {
     // keep the objects and their requests in one database

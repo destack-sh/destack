@@ -75,7 +75,7 @@ export class EphemeralStorage implements AsyncDisposable {
     static async open(
         objects: readonly ObjectType[],
         channel: Channel<unknown>,
-        memory: (
+        open: (
             tables: readonly Table[],
         ) => Promise<DatabaseConnection & { close(): Promise<void> }>,
         options: sync.TrackerOptions & { readonly report: (error: unknown) => void },
@@ -88,7 +88,7 @@ export class EphemeralStorage implements AsyncDisposable {
 
         // migrate their tables in a database of their own
         const tables = ephemeral.map((object) => object.table);
-        const database = await memory(tables);
+        const database = await open(tables);
         await database.migrate(tables);
 
         // replicate them over the channel, closing the memory with the store

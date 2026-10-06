@@ -1,7 +1,8 @@
+import { MemoryBuild } from "@destack/package/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ControlLoop } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
-import { emptyBuild, testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 import type { InstallationContext } from "@destack/service/workload";
 import { asc, defineDatabase, eq, type LogPosition } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -68,7 +69,7 @@ const receipt = defineObject({
         source: "source",
         fields: { title: "title" },
         clears: ["seenAt"],
-        residence: { user: person, address: sender },
+        residence: { user: person, residence: sender },
     },
     permissions: { read: none() },
     methods: (method) => ({ get: method.get("read") }),
@@ -231,7 +232,7 @@ test("settle the address of a recipient without a user, and record it again once
     const installation: InstallationContext = {
         id: "installation-01996ab0-0000-7000-8000-000000000003",
         scope: MEMOS,
-        build: await emptyBuild(memo.package),
+        build: (await MemoryBuild.write(new Map(), { package: memo.package })).reader,
         publisher: {
             stream: () => {
                 throw new TypeError("the fixture streams no copies");

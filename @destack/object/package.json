@@ -23,7 +23,8 @@
         "uuid": "14.0.2",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/resource": "workspace:*"
+        "@destack/resource": "workspace:*",
+        "@destack/error": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

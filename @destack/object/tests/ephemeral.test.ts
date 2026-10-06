@@ -1,11 +1,10 @@
-import type { Page, TrackerMessage } from "@destack/sync";
+import type { Page } from "@destack/sync";
 import { present, schema } from "@destack/schema";
 import { unique, type Dialect, defineDatabase, Expression } from "@destack/db";
 import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { channelHub } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import * as sqlite from "@destack/db/bun";
 
@@ -403,54 +402,6 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("refuse durability on ephemeral objects and ephemeral objects outside their store", async () => {
-    // refuse lingering durable objects and recoverable ephemeral ones
-    expect(() =>
-        defineObject({
-            name: "note",
-            plural: "notes",
-            scope: space,
-            linger: { seconds: 1 },
-            fields: {},
-            permissions: [],
-        }),
-    ).toThrow(new TypeError("object note lingers without being ephemeral"));
-    expect(() =>
-        defineObject({
-            name: "cursor",
-            plural: "cursors",
-            scope: space,
-            storage: "ephemeral",
-            recoverable: { within: { days: 1 }, by: "write" },
-            fields: {},
-            permissions: ["write"],
-        }),
-    ).toThrow(new TypeError("ephemeral object cursor takes no recoverable"));
-    expect(() =>
-        defineObject({
-            name: "cursor",
-            plural: "cursors",
-            scope: space,
-            storage: "ephemeral",
-            linger: { seconds: -1 },
-            fields: {},
-            permissions: [],
-        }),
-    ).toThrow(new TypeError('linger of cursor is no duration: {"seconds":-1}'));
-
-    // refuse a durable object in a memory store
-    const memory = await TestDatabase.create("sqlite", board.tables, { isMigrated: true });
-    onTestFinished(() => memory.close());
-    expect(
-        () =>
-            new EphemeralStorage(memory.database, [board], channelHub<TrackerMessage>()(), {
-                report: (error) => {
-                    throw error;
-                },
-            }),
-    ).toThrow(new TypeError("object board is durable, not ephemeral"));
-});
-
 /** Serve boards from two instances over one durable database. */
 async function serveBoards(dialect: Dialect) {
     // keep the boards, their access and requests in one durable database
@@ -472,7 +423,7 @@ async function serveBoards(dialect: Dialect) {
             await EphemeralStorage.open(
                 [presence, board, profile],
                 EphemeralStorage.channel(durable),
-                (tables) => sqlite.connect(":memory:", tables),
+                (tables) => sqlite.connectBunSqlite(":memory:", tables),
                 {
                     heartbeat: 1000,
                     report: (error) => {

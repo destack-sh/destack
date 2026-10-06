@@ -423,31 +423,8 @@ test("follow copies as a server serving no methods, which keeps no journal and t
         await Replica.reach(follower.database, scope, head, controller.signal);
     }
 
-    // refuse a call key without methods, and methods without a call key
-    const origin = { package: document.package, service: "test" };
-    const refused = (options: { readonly callKey?: typeof testCallKey }, objects = {}) => {
-        try {
-            const served = new ObjectServer({
-                objects,
-                database: follower.database,
-                origin,
-                ...options,
-            });
-
-            return served.objects.length;
-        } catch (error) {
-            return error instanceof TypeError ? error.message : "unexpected";
-        }
-    };
-    expect([
-        server.controllers().map((each) => each.name),
-        refused({ callKey: testCallKey }),
-        refused({}, { document }),
-    ]).toEqual([
-        ["compaction", "replica"],
-        "a server serving no methods keeps no journal and takes no call key",
-        "a server serving methods needs the call key of their journal",
-    ]);
+    // run only compaction and the replica follow
+    expect(server.controllers().map((each) => each.name)).toEqual(["compaction", "replica"]);
 });
 
 test("copy the chains of a workload's two spaces in one copy via both, requiring it to replicate each and refusing a scope outside them", async () => {

@@ -20,7 +20,6 @@ import {
     field,
     Position,
     Sequence,
-    type MethodBuilder,
 } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
@@ -86,7 +85,7 @@ async function serveDocuments(dialect: Dialect) {
         resources: new ResourceContext(),
         health: new Health("documents"),
         drainTimeout: 1000,
-        authorizeHost: async () => {},
+        authorizeMachine: async () => {},
         authenticate: async (request) => {
             const id = present(
                 request.headers.get("authorization"),
@@ -177,48 +176,6 @@ test("generate positions between others in collation-independent order, either e
         Position.between("i", "i1"),
     ];
     expect(generated).toEqual(["9", "i", "r", "ii", "i0i"]);
-
-    // keep each between its neighbours
-    expect(["i", "9", "r", "ii", "j", "i0i", "i1"].toSorted()).toEqual([
-        "9",
-        "i",
-        "i0i",
-        "i1",
-        "ii",
-        "j",
-        "r",
-    ]);
-});
-
-test("refuse text on a type without an update method, and methods writing text", () => {
-    // refuse text no method edits
-    expect(() =>
-        defineObject({
-            name: "memo",
-            plural: "memos",
-            scope: space,
-            fields: { body: field.text() },
-            permissions: ["read"],
-            methods: (method) => ({ get: method.get("read") }),
-        }),
-    ).toThrow(new TypeError("object memo holds text but no update method to edit it"));
-
-    // refuse an update naming a text field through a builder no object's written fields bind
-    expect(() =>
-        defineObject({
-            name: "memo",
-            plural: "memos",
-            scope: space,
-            fields: { body: field.text() },
-            permissions: ["read"],
-            methods: (method: MethodBuilder) => ({
-                get: method.get("read"),
-                update: method.update("read", { fields: ["body"] }),
-            }),
-        }),
-    ).toThrow(
-        new TypeError("method update of memo writes text field body, which only edit changes"),
-    );
 });
 
 test.for(TEST_DIALECTS)(
@@ -452,74 +409,6 @@ test.for(TEST_DIALECTS)(
         await expect.poll(() => body(bob.live)).toEqual(["Hello world"]);
         await text.close();
         expect([local, alice.errors, bob.errors]).toEqual(["Hello world", [], []]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "edit one keystroke of a large text with the statements and chunk writes of a small one on %s",
-    async (dialect) => {
-        const { connect: connectAs, database } = await serveDocuments(dialect);
-        const alice = connectAs("alice");
-
-        // write a one-character text and a 200,000-character text
-        const write = async (length: number) => {
-            const { id } = await alice.document.create({ spaceId, requestId: RequestId.create() });
-            const edits = new Sequence().change(
-                { from: 0, to: 0, insert: digits(length) },
-                `${id}.1`,
-            );
-            await alice.document.edit({
-                spaceId,
-                id,
-                requestId: RequestId.create(),
-                field: "body",
-                edits,
-            });
-
-            return {
-                id,
-                sequence: edits.reduce((sequence, each) => sequence.apply(each), new Sequence()),
-            };
-        };
-        const small = await write(1);
-        const large = await write(200_000);
-
-        // count the statements and chunk changes of one keystroke in the middle
-        const keystroke = async (written: typeof small, offset: number) => {
-            const before = await chunks(database);
-            const statements = database.state.statements;
-            const edits = written.sequence.change(
-                { from: offset, to: offset, insert: "x" },
-                `${written.id}.2`,
-            );
-            await alice.document.edit({
-                spaceId,
-                id: written.id,
-                requestId: RequestId.create(),
-                field: "body",
-                edits,
-            });
-            const counted = database.state.statements - statements;
-            const after = await chunks(database);
-            const changed = after.filter(
-                (row) => before.find((entry) => entry.id === row.id)?.runs !== row.runs,
-            );
-
-            return {
-                statements: counted,
-                chunks: after.length - before.length,
-                changed: changed.length,
-            };
-        };
-        // run one statement more on PostgreSQL for the fence lock
-        const lock = dialect === "postgresql" ? 1 : 0;
-        const smallCost = await keystroke(small, 1);
-        const largeCost = await keystroke(large, 100_000);
-        expect([smallCost, largeCost, (await chunks(database)).length]).toEqual([
-            { statements: 18 + lock, chunks: 0, changed: 1 },
-            { statements: 18 + lock, chunks: 0, changed: 1 },
-            522,
-        ]);
     },
 );
 

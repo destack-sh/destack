@@ -26,4 +26,6 @@ export interface SystemCall<Row extends Select<Table> = Select<Table>, Input = J
     readonly id?: string;
     /** The method's input, without the target's identifier. */
     readonly input?: Input;
+    /** The request the call answers once, a repeat replaying its recorded result, after Stripe's idempotency keys. */
+    readonly requestId?: string;
 }

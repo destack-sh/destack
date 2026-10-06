@@ -57,7 +57,7 @@ export function serveObjects(implementation: ServiceImplementation, scope: strin
         resources: new ResourceContext(),
         health: new Health(implementation.service.name),
         drainTimeout: 1000,
-        authorizeHost: async () => {},
+        authorizeMachine: async () => {},
         authenticate: async (request) => {
             const id = present(
                 request.headers.get("authorization"),
