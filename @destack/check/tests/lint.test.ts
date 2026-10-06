@@ -348,31 +348,6 @@ tester.run("valid-declaration", rules["valid-declaration"], {
     ],
 });
 
-tester.run("declaration-name", rules["declaration-name"], {
-    valid: [
-        {
-            code: 'import { defineExample } from "@destack/package/declare";\nexport const tabsHistoryUnavailable = defineExample({ of: Tabs, name: "history-unavailable", description: "a history tab disabled" });',
-            filename: SOURCE,
-        },
-        {
-            code: 'import { defineAuditAction } from "@destack/audit";\nexport const sessionCreate = defineAuditAction({ name: "session.create" });',
-            filename: SOURCE,
-        },
-    ],
-    invalid: [
-        {
-            code: 'import { defineExample } from "@destack/package/declare";\nexport const HistoryTabsExample = defineExample({ of: Tabs, name: "history-unavailable" });',
-            filename: SOURCE,
-            errors: [{ messageId: "name" }, { messageId: "description" }],
-        },
-        {
-            code: 'import { defineAuditAction } from "@destack/audit";\nexport const sessionCreated = defineAuditAction({ name: "session.create" });',
-            filename: SOURCE,
-            errors: [{ messageId: "name" }],
-        },
-    ],
-});
-
 tester.run("valid-package-handle", rules["valid-package-handle"], {
     valid: [{ code: "export default definePackage({});", filename: PACKAGE_HANDLE }],
     invalid: [

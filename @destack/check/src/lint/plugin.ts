@@ -15,7 +15,6 @@ import { paddingBeforeReturn } from "./padding-before-return.ts";
 import { preventAbbreviations } from "./prevent-abbreviations.ts";
 import { requireBlockComment } from "./require-block-comment.ts";
 import { requireJsdoc } from "./require-jsdoc.ts";
-import { declarationName } from "./declaration-name.ts";
 import { validDeclaration } from "./valid-declaration.ts";
 import { validPackageHandle } from "./valid-package-handle.ts";
 
@@ -34,7 +33,6 @@ export const rules = {
     "boolean-prefix": booleanPrefix,
     "branch-comment-position": branchCommentPosition,
     "comment-style": commentStyle,
-    "declaration-name": declarationName,
     "error-message-style": errorMessageStyle,
     "exact-optional": exactOptional,
     "jsdoc-sentence": jsdocSentence,
