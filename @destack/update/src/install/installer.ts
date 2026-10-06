@@ -234,7 +234,7 @@ export class Installer {
         } catch (error) {
             throw new UpdateError(
                 "ACTIVATION",
-                "activation did not finish; retry `destack self update --activate` before restarting applications",
+                "activation did not finish; retry `destack self activate` before restarting applications",
                 { cause: error },
             );
         }

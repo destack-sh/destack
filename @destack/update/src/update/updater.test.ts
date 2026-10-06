@@ -1,10 +1,8 @@
 import { UpdateError } from "../error/index.ts";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { create } from "tar";
 import { Metadata, MetadataKind, Timestamp } from "@tufjs/models";
 import { COMMIT, UpdateFixture, createRootKey } from "../test/index.ts";
@@ -28,24 +26,7 @@ beforeAll(async () => {
     rootKeys = Array.from({ length: 3 }, createRootKey);
 
     // compile the native fixture before measuring update operations
-    fixture = await mkdtemp(join(tmpdir(), "destack-update-fixture-"));
-    const result = await Bun.build({
-        entrypoints: [fileURLToPath(new URL("../test/command.ts", import.meta.url))],
-        compile: { outfile: join(fixture, COMMAND), autoloadDotenv: false, autoloadBunfig: false },
-    });
-    if (!result.success) {
-        throw new AggregateError(result.logs, "cannot compile update fixture");
-    }
-
-    // archive the executable once for independent repository scenarios
-    const source = join(fixture, "source");
-    await mkdir(join(source, "bin"), { recursive: true });
-    await mkdir(join(source, "Destack"));
-    await cp(join(fixture, COMMAND), join(source, "bin", COMMAND));
-    await create({ file: join(fixture, "release.tar.gz"), gzip: { level: 1 }, cwd: source }, [
-        "bin",
-        "Destack",
-    ]);
+    fixture = await UpdateFixture.compile();
 }, 10000);
 
 afterAll(async () => {

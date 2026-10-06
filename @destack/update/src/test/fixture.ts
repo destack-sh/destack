@@ -1,10 +1,15 @@
 import { generateKeyPairSync } from "node:crypto";
-import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { create } from "tar";
 import type { UpdaterOptions } from "../update/updater.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
+
+/** The command a fixture distribution's archive carries, by the platform's file name. */
+const COMMAND = process.platform === "win32" ? "destack.exe" : "destack";
 
 /** The Git commit every fixture distribution claims to be built from. */
 export const COMMIT = "2c9f1e7d5b3a8f60c4e1d2b7a9f0e3c5d8b1a4f6";
@@ -86,6 +91,35 @@ export class UpdateFixture implements AsyncDisposable {
             root: SignedRepository.encode(this.root).toString(),
             target: this.target,
         };
+    }
+
+    /** Compile the fixture command reporting version 2026.9.1 and archive it as a distribution, returning the directory with both. */
+    static async compile(): Promise<string> {
+        // compile the command into a fresh directory
+        const directory = await mkdtemp(join(tmpdir(), "destack-update-fixture-"));
+        const result = await Bun.build({
+            entrypoints: [fileURLToPath(new URL("./command.ts", import.meta.url))],
+            compile: {
+                outfile: join(directory, COMMAND),
+                autoloadDotenv: false,
+                autoloadBunfig: false,
+            },
+        });
+        if (!result.success) {
+            throw new AggregateError(result.logs, "cannot compile update fixture");
+        }
+
+        // archive it with an empty desktop as a distribution
+        const source = join(directory, "source");
+        await mkdir(join(source, "bin"), { recursive: true });
+        await mkdir(join(source, "Destack"));
+        await cp(join(directory, COMMAND), join(source, "bin", COMMAND));
+        await create({ file: join(directory, "release.tar.gz"), gzip: { level: 1 }, cwd: source }, [
+            "bin",
+            "Destack",
+        ]);
+
+        return directory;
     }
 
     /** Publish a compiled fixture as a version into a fresh repository and open its listener. */

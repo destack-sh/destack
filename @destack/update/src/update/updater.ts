@@ -260,7 +260,7 @@ export interface UpdaterOptions {
 async function verifyRelease(directory: string, release: Release): Promise<void> {
     // execute only an archive previously authenticated by the update repository
     const name = release.target.includes("windows") ? "destack.exe" : "destack";
-    const child = spawn(join(directory, "bin", name), ["version", "--json"], {
+    const child = spawn(join(directory, "bin", name), ["--version", "--json"], {
         env: { ...process.env, DESTACK_UPDATE_CHECK: "1" },
         timeout: VERIFY_TIMEOUT_MS,
         stdio: ["ignore", "pipe", "pipe"],

@@ -26,6 +26,48 @@ if (update !== undefined) {
 }
 ```
 
+## Distributions
+
+`Distribution` is this machine's installed distribution: the channel it follows, where it lives and the release running, which stages and activates through a locked `Updater`.
+
+```ts
+import { Distribution, Release } from "@destack/update";
+
+const distribution = new Distribution({
+    channel: "stable",
+    home: "/Users/ada/.destack",
+    repository: new URL("https://download.destack.sh/stable/"),
+    root: Distribution.root("stable"), // the root metadata each release bundles
+    running: new Release("2026.10.1", "aarch64-apple-darwin"),
+    executable: process.execPath,
+    applications: "/Users/ada/Applications",
+    applicationIdentifier: "app.destack.desktop",
+    title: "Destack",
+});
+const staged = await distribution.stage(); // the newer release, verified and staged, or none
+await using updater = await distribution.open(); // activate under the installation lock
+```
+
+### Objects
+
+`distribution` keeps the machine's distribution as an object the daemon hosts: its channel, the installed release, the staged one and whether a restart runs.
+
+```ts
+await client.distribution.stage({ machineId, requestId, id }); // { installed: "2026.10.1", staged: "2026.10.2", status: "staged", … }
+await client.distribution.activate({ machineId, requestId, id }); // status "activating", then the daemon hands the restart over
+```
+
+### Service
+
+`serveDistribution` stages through the host's `Distribution` and hands activation to its `activate`, and `DistributionController` records the distribution once and stages daily.
+
+```ts
+const objects = {
+    distribution: serveDistribution({ distribution, activate: () => spawnActivation() }),
+};
+const controllers = [new DistributionController(server, machineId, { distribution, activate })];
+```
+
 ## Targets
 
 `Release.target(platform, architecture)` returns the target of a platform and architecture as Node names them, one of these five.
@@ -46,7 +88,7 @@ x86_64-unknown-linux-gnu
 await using updater = await Updater.open(options);
 const staged = await updater.staged();
 if (staged !== undefined) {
-    // the CLI stops the desktop and the daemon first, and restarts them once activation succeeds
+    // `destack self activate` stops the daemon, which the desktop quits with, and starts them again once activation succeeds
     const installed = await updater.activate(staged); // refreshes the signed metadata
 }
 ```
