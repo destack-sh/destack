@@ -21,9 +21,9 @@ await directory.move(zone, "host-01a0…"); // the target cell copies the zones 
 `assign` gives a cell work in a zone, and `assignments` lists the zones that gave a cell work.
 
 ```ts
-await directory.assign(zone, laptopHostId); // the zone's cell, at its epoch
-await directory.assignments(laptopHostId); // ["space-01a0…"]
-await directory.unassign(zone, laptopHostId); // once the work ended
+await directory.assign(zone, laptopMachineId); // the zone's cell, at its epoch
+await directory.assignments(laptopMachineId); // ["space-01a0…"]
+await directory.unassign(zone, laptopMachineId); // once the work ended
 ```
 
 ## Clients
