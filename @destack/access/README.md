@@ -161,6 +161,16 @@ const readers = await authorizer.subjects(
 );
 ```
 
+## Restrictions
+
+A `Restriction` narrows a credential to permissions in one scope, optionally on one object, and `Restriction.intersect` keeps what two credentials both allow.
+
+```ts
+Restriction.allows(permission, { scope: spaceId, id: noteId }, context); // true for an unrestricted context
+Restriction.select(permission, spaceId, context); // the restricted objects, or "every"
+Restriction.intersect(current, original); // undefined when neither restricts
+```
+
 ## Authorization
 
 `Authorization` decides and changes access as one caller, requiring the caller's permission for each change.

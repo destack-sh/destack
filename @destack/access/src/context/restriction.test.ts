@@ -19,7 +19,7 @@ import {
     through,
     type AccessContext,
     type PermissionReference,
-    type Restriction,
+    Restriction,
     type TableMapping,
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
@@ -216,3 +216,17 @@ async function decided(
 
     return { listed: listed.map((row) => row.id), permitted, checked };
 }
+
+test("intersect two credentials' restrictions on the narrower object, keeping either side alone when the other is unrestricted", () => {
+    const read = { packageId: module1.package.id, type: "page", name: "read", scope: "space-1" };
+    const write = { ...read, name: "write" };
+    const one: Restriction[] = [{ ...read, objectId: "page-1" }, write];
+    const every: Restriction[] = [read];
+
+    expect([
+        Restriction.intersect(one, every),
+        Restriction.intersect(undefined, every),
+        Restriction.intersect(undefined, undefined),
+        Restriction.intersect([write], [{ ...write, scope: "space-2" }]),
+    ]).toEqual([[{ ...read, objectId: "page-1" }], every, undefined, []]);
+});
