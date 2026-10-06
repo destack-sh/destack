@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each sync failure: capacity, an unready copy, a bad stream or scope, a copy cycle. */
 const SERVICE_CODES = {
@@ -15,7 +15,7 @@ const SERVICE_CODES = {
 export type SyncErrorCode = keyof typeof SERVICE_CODES;
 
 /** A copy, subscription or scope the source cannot serve. */
-export class SyncError extends Error implements ReportableError {
+export class SyncError extends Error implements DomainError {
     /** The error classification. */
     readonly code: SyncErrorCode;
 
