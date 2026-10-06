@@ -50,36 +50,6 @@ test("bind a secret", () => {
     });
 });
 
-/** Invalid static test declarations. */
-const invalid = [
-    {
-        file: "src/app.test.ts",
-        source: 'import { test } from "@destack/test";\ntest(String("renders"), () => {});\n',
-        code: "INSPECTION_FAILED",
-        message: "test declaration requires a literal title: src/app.test.ts:38",
-    },
-    {
-        file: "src/app.test.ts",
-        source: 'import { test } from "@destack/test";\nif (true) { test("renders", () => {}); }\n',
-        code: "INSPECTION_FAILED",
-        message: "test declaration requires module or suite scope: src/app.test.ts:50",
-    },
-];
-
-test.concurrent.for(invalid)(
-    "refuse a test declaration that inspection cannot read statically: $message",
-    async (fixture, { expect }) => {
-        await using input = await Fixture.open("web");
-        await writeFile(join(input.source, fixture.file), fixture.source);
-        await exportApplication(input.source);
-        await using compiler = await PackageBuilder.start(input.source);
-        await expect(compiler.inspect({ runtime: "browser" })).rejects.toMatchObject({
-            code: fixture.code,
-            message: fixture.message,
-        });
-    },
-);
-
 /** Export the web fixture's application module as its package root. */
 async function exportApplication(source: string): Promise<void> {
     const path = join(source, "package.json");

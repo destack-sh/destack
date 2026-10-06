@@ -9,7 +9,11 @@ import type {
 import type { SourceRange } from "@destack/package/source";
 import { BuildError } from "../error/index.ts";
 import { DeclarationGraph } from "./declaration.ts";
-import { TestGraph, type TestSource } from "./test.ts";
+import { type DescribedTest, TestGraph, type TestSource } from "./test.ts";
+import { ExampleGraph } from "./example.ts";
+import { ScenarioGraph } from "./scenario.ts";
+import type { ExampleDeclaration } from "../typescript/example.ts";
+import type { ScenarioDeclaration } from "../typescript/scenario.ts";
 import { compareText } from "../build/serialization.ts";
 
 /** The symbol kind of each language declaration kind. */
@@ -95,21 +99,37 @@ class Edges {
     }
 }
 
-/** Describe each module's graph file from the checker's descriptions, the evaluated declarations and the tests. */
+/** Describe each module's graph file from the checker's descriptions, the evaluated declarations, the tests, examples and scenarios. */
 export function describeGraph(
     source: Package,
     modules: readonly ModuleDescription[],
     declarations: readonly DeclarationDescription[],
     tests: TestSource,
+    played: ExampleSource,
 ): graph.Module[] {
     // collect the symbols any module of the package exports
     const declared = new DeclarationGraph(source, declarations);
     const tested = new TestGraph(source, tests);
+    const name = (reference: SymbolReference) => monikerOf(source, reference);
+    const examples = new ExampleGraph(source, played.package, played.examples, declared, name);
+    const scenarios = new ScenarioGraph(source, played.package, played.scenarios, examples, name);
     const exported = new Set(
         modules.flatMap((module) => module.exports.map((entry) => monikerOf(source, entry.symbol))),
     );
 
-    return modules.map((module) => describeModule(source, module, { declared, tested, exported }));
+    return modules.map((module) =>
+        describeModule(source, module, { declared, tested, examples, scenarios, exported }),
+    );
+}
+
+/** The examples and scenarios a build declares with the package defining their kinds. */
+export interface ExampleSource {
+    /** The package defining the example and scenario kinds. */
+    readonly package: Package;
+    /** The examples of every module. */
+    readonly examples: readonly ExampleDeclaration[];
+    /** The scenarios of every module. */
+    readonly scenarios: readonly ScenarioDeclaration[];
 }
 
 /** The package-wide graph inputs each module's graph file draws on. */
@@ -118,6 +138,10 @@ interface PackageGraph {
     readonly declared: DeclarationGraph;
     /** The package's tests. */
     readonly tested: TestGraph;
+    /** The package's examples. */
+    readonly examples: ExampleGraph;
+    /** The package's scenarios. */
+    readonly scenarios: ScenarioGraph;
     /** The symbols any module of the package exports. */
     readonly exported: ReadonlySet<graph.Moniker>;
 }
@@ -126,7 +150,7 @@ interface PackageGraph {
 function describeModule(
     source: Package,
     module: ModuleDescription,
-    { declared, tested, exported }: PackageGraph,
+    { declared, tested, examples, scenarios, exported }: PackageGraph,
 ): graph.Module {
     // name the module and its exports
     const moniker = graph.Moniker.of({ packageId: source.id, module: module.path });
@@ -146,33 +170,7 @@ function describeModule(
 
     // attribute calls and globals to their innermost enclosing symbol or test
     const tests = tested.describe(module.path);
-    const covering = new Set(tests.map((test) => test.declaration.moniker));
-    const enclosings = [
-        ...described,
-        ...tests.map((test) => ({ moniker: test.declaration.moniker, source: test.source })),
-    ];
-    const attribute = (range: SourceRange, kind: "calls" | "references", to?: graph.Moniker) => {
-        const from = enclose(enclosings, range) ?? moniker;
-        edges.add(from, kind, to);
-        if (to !== undefined && covering.has(from) && isCovered(source, tested, to)) {
-            edges.add(from, "covers", to);
-            for (const declaration of declared.at(to)) {
-                edges.add(from, "covers", declaration);
-            }
-        }
-    };
-    for (const description of module.errors) {
-        for (const call of description.calls) {
-            if (call.target !== undefined) {
-                attribute(call.source, "calls", symbols.name(call.target));
-            }
-        }
-    }
-    for (const global of module.globals) {
-        if (global.symbol !== undefined) {
-            attribute(global.source, "references", symbols.name(global.symbol));
-        }
-    }
+    attributeUses(module, symbols, { declared, tested }, tests, moniker);
 
     // depend on each resolved import
     for (const imported of module.imports) {
@@ -181,12 +179,17 @@ function describeModule(
         }
     }
 
-    // describe the module's declarations and tests with their edges
+    // describe the module's declarations, tests, examples and scenarios with their edges
+    const moduleExamples = examples.describe(module.path);
+    const moduleScenarios = scenarios.describe(module.path);
     const declarations = [
         ...declared.describe(module.path),
-        ...tests.map((test) => test.declaration),
+        ...[...tests, ...moduleExamples, ...moduleScenarios].map((entry) => entry.declaration),
     ].toSorted((left, right) => compareText(left.moniker, right.moniker));
-    for (const edge of declared.edges(module.path)) {
+    for (const edge of [
+        ...declared.edges(module.path),
+        ...[...moduleExamples, ...moduleScenarios].flatMap((entry) => entry.edges),
+    ]) {
         edges.add(edge.from, edge.kind, edge.to);
     }
 
@@ -341,6 +344,47 @@ export function monikerOf(source: Package, reference: SymbolReference): graph.Mo
         module: symbol.module,
         ...(symbol.name === "*" ? {} : { name: symbol.name }),
     });
+}
+
+/** Attribute a module's calls and globals to their innermost enclosing symbol or test, a test covering the package's own symbols it calls. */
+function attributeUses(
+    module: ModuleDescription,
+    symbols: ModuleSymbols,
+    { declared, tested }: Pick<PackageGraph, "declared" | "tested">,
+    tests: readonly DescribedTest[],
+    moniker: graph.Moniker,
+): void {
+    // enclose by the module's symbols and tests, the module itself outside them
+    const { source, edges } = symbols;
+    const covering = new Set(tests.map((test) => test.declaration.moniker));
+    const enclosings = [
+        ...symbols.list(),
+        ...tests.map((test) => ({ moniker: test.declaration.moniker, source: test.source })),
+    ];
+    const attribute = (range: SourceRange, kind: "calls" | "references", to?: graph.Moniker) => {
+        const from = enclose(enclosings, range) ?? moniker;
+        edges.add(from, kind, to);
+        if (to !== undefined && covering.has(from) && isCovered(source, tested, to)) {
+            edges.add(from, "covers", to);
+            for (const declaration of declared.at(to)) {
+                edges.add(from, "covers", declaration);
+            }
+        }
+    };
+
+    // attribute each resolved call and global
+    for (const description of module.errors) {
+        for (const call of description.calls) {
+            if (call.target !== undefined) {
+                attribute(call.source, "calls", symbols.name(call.target));
+            }
+        }
+    }
+    for (const global of module.globals) {
+        if (global.symbol !== undefined) {
+            attribute(global.source, "references", symbols.name(global.symbol));
+        }
+    }
 }
 
 /** Report whether a symbol is one of the package's own outside its test modules. */

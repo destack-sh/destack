@@ -25,12 +25,15 @@ import {
     type SymbolDescription,
     type SymbolReference,
 } from "@destack/package/code";
-import { SymbolInspector } from "./symbol.ts";
+import { declaredName, SymbolInspector } from "./symbol.ts";
 import { PackageFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
 import { inspectErrors } from "@destack/check/inspect";
 import { collectTests } from "./test.ts";
 import { collectDeclarations, ConstructorCatalog } from "./declaration.ts";
+import type { ModulePackage } from "@destack/package/transform";
+import { collectExamples, type ExampleDeclaration } from "./example.ts";
+import { collectScenarios, type ScenarioDeclaration } from "./scenario.ts";
 import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
 import { collectDirectories, type DirectoryReference } from "./directory.ts";
@@ -52,16 +55,21 @@ export interface TypeScriptInspection {
     modules: ModuleDescription[];
     /** Statically collected test and suite declarations. */
     tests: TestDeclaration[];
+    /** Statically collected examples. */
+    examples: ExampleDeclaration[];
+    /** Statically collected scenarios. */
+    scenarios: ScenarioDeclaration[];
 }
 
-/** Describe source modules, and collect the declarations of the modules the entries import. */
+/** Describe source modules, and collect the declarations of the modules the entries import, identifying the compiled package as its build releases it. */
 export async function describeProject(
     project: Project,
-    root: string,
+    compiled: ModulePackage,
     entries: readonly string[],
 ): Promise<TypeScriptInspection> {
     // read the authored modules from the compiler file list
-    const inspection = new ProjectInspection(project, root);
+    const root = compiled.directory;
+    const inspection = new ProjectInspection(project, compiled);
     const fileNames = [...(await project.program.getSourceFileNames())].toSorted();
     const authored = await readAuthored(project, root, fileNames);
     const runtime = await collectRuntimeFiles(project, entries, authored);
@@ -97,6 +105,8 @@ export async function describeProject(
         modules,
         sources: inspection.sources,
         tests: collected.flatMap((entry) => entry.tests),
+        examples: inspection.examples,
+        scenarios: inspection.scenarios,
         declarations: collected.flatMap((entry) => entry.declarations),
         directories,
     };
@@ -121,23 +131,33 @@ class ProjectInspection {
     /** The package directory. */
     readonly root: string;
     /** The inspected constructors and package identities. */
-    readonly catalog = new ConstructorCatalog();
+    readonly catalog: ConstructorCatalog;
     /** The described modules, by package-relative path. */
     readonly modules = new Map<string, ModuleDescription>();
     /** The exact source bytes, by package-relative path. */
     readonly sources = new Map<string, Uint8Array<ArrayBuffer>>();
     /** The symbol inspector of the project's snapshot. */
     readonly inspector: SymbolInspector;
+    /** The examples of the described modules. */
+    readonly examples: ExampleDeclaration[] = [];
+    /** The scenarios of the described modules. */
+    readonly scenarios: ScenarioDeclaration[] = [];
     /** The package's declarations queued for description, by symbol. */
     readonly #pending = new Map<number, TypeScriptSymbol>();
     /** The reference of each located symbol. */
     readonly #locations = new Map<number, Promise<SymbolReference>>();
 
-    /** Start inspecting a project. */
-    constructor(project: Project, root: string) {
+    /** Start inspecting a project of a compiled package. */
+    constructor(project: Project, compiled: ModulePackage) {
+        // keep the project, the package's directory and its catalog, then inspect its symbols
         this.project = project;
-        this.root = root;
-        this.inspector = new SymbolInspector(project, (symbol) => this.reference(symbol), root);
+        this.root = compiled.directory;
+        this.catalog = new ConstructorCatalog(compiled);
+        this.inspector = new SymbolInspector(
+            project,
+            (symbol) => this.reference(symbol),
+            this.root,
+        );
     }
 
     /** Locate a symbol once, queueing the package's declarations its exports and public types name. */
@@ -213,16 +233,25 @@ class ProjectInspection {
         });
     }
 
-    /** Describe a registered module's imports, globals, errors and exports together. */
+    /** Describe a registered module's imports, globals, errors, exports, examples and scenarios together. */
     async describe(file: string, source: SourceFile): Promise<void> {
-        // describe the module's imports, globals, errors and exports together
+        // describe the module's imports, globals, errors, exports, examples and scenarios together
         const module = found(this.modules, relativePath(this.root, file));
-        [module.imports, module.globals, module.errors, module.exports] = await Promise.all([
-            describeImports(source, this.inspector, this.root, this.catalog),
-            collectGlobals(source, this.project, module.path, (symbol) => this.reference(symbol)),
-            inspectErrors(source, this.inspector),
-            describeExports(source, module.path, this.inspector),
-        ]);
+        let examples: ExampleDeclaration[];
+        let scenarios: ScenarioDeclaration[];
+        [module.imports, module.globals, module.errors, module.exports, examples, scenarios] =
+            await Promise.all([
+                describeImports(source, this.inspector, this.root, this.catalog),
+                collectGlobals(source, this.project, module.path, (symbol) =>
+                    this.reference(symbol),
+                ),
+                inspectErrors(source, this.inspector),
+                describeExports(source, module.path, this.inspector),
+                collectExamples(source, module.path, this.inspector),
+                collectScenarios(source, module.path, this.inspector),
+            ]);
+        this.examples.push(...examples);
+        this.scenarios.push(...scenarios);
     }
 
     /** Describe the queued declarations in waves, as each wave queues the local types it names. */
@@ -588,7 +617,7 @@ async function locateSymbol(
 /** Qualify a declaration through named namespaces and types within its module. */
 async function declarationName(symbol: TypeScriptSymbol): Promise<string> {
     // qualify nested declarations until the enclosing module
-    const names = [symbol.name];
+    const names = [declaredName(symbol)];
     let parent = await symbol.getParent();
     while (parent) {
         const [declaration] = parent.declarations;
@@ -602,7 +631,7 @@ async function declarationName(symbol: TypeScriptSymbol): Promise<string> {
             break;
         }
 
-        names.unshift(parent.name);
+        names.unshift(declaredName(parent));
         parent = await parent.getParent();
     }
 
