@@ -19,7 +19,7 @@ import { requests } from "../../tests/fixture/web/request.ts";
 import * as service from "../../tests/fixture/service/request.ts";
 import { formatSource } from "@destack/check";
 import { Vocabulary } from "@destack/resource";
-import { present } from "@destack/schema";
+import { Commit, present } from "@destack/schema";
 import { DatabaseDeclaration } from "@destack/db/inspect";
 import { LocalBucket } from "@destack/bucket/local";
 import { PackageStore } from "../store/index.ts";
@@ -353,6 +353,40 @@ test("reuse cached builds and outputs, and compile what their keys miss", async 
     }
 });
 
+test("reuse cached outputs sharing source files once the build's commit changes", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-build-shared-"));
+    const source = join(directory, "source");
+    try {
+        // build the library for two runtimes into a store's cache at one commit
+        await cp(new URL("../../tests/fixture/library/source/", import.meta.url), source, {
+            recursive: true,
+        });
+        await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
+        const store = new PackageStore(bucket);
+        await using builder = await PackageBuilder.start(source);
+        const outputs = {
+            bun: request.outputs.library,
+            workerd: { ...request.outputs.library, runtime: "workerd" },
+        } as const;
+        const shared = { dependencies: {}, outputs, store };
+        await using first = await builder.build({
+            ...shared,
+            commit: Commit.parse("a".repeat(40)),
+        });
+        expect(first.reused).toEqual([]);
+
+        // reuse both outputs at another commit, as a build without the cache compiles them
+        const commit = Commit.parse("b".repeat(40));
+        await using reused = await builder.build({ ...shared, commit });
+        await using cold = await builder.build({ dependencies: {}, outputs, commit });
+        expect(reused.reused).toEqual(["bun", "workerd"]);
+        expect(reused.manifest).toEqual(cold.manifest);
+        await expectFiles(reused, cold);
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
 test("evaluate package code without the host's environment, files or network", async () => {
     const fixture = new URL("../../tests/fixture/resource/source/", import.meta.url);
     const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-sandbox-")));
@@ -555,6 +589,7 @@ test("plan the upgrade from what a package published", async () => {
     };
     const renamed = original
         .replace('name: "note.publish"', 'name: "note.release"')
+        .replace("export const notePublish", "export const noteRelease")
         .replace(
             "        .output(schema.object({ path: schema.string() })),\n};",
             '        .output(schema.object({ path: schema.string() })),\n    count: defineProcedure({ authentication: "public", permission: null, audit: false })\n        .route({ method: "GET", path: "/notes/count" })\n        .output(schema.number()),\n};',

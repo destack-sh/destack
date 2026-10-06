@@ -475,18 +475,24 @@ function resultOf(response: BuildResponse): BuildResult {
     return response.result;
 }
 
-/** Write the files of each output the cache names into a build directory, returning the outputs to reuse. */
+/** Write the files of each output the cache names into a build directory once, outputs sharing a file among them, returning the outputs to reuse. */
 async function reuseOutputs(
     store: PackageStore,
     keys: BuildKeys,
     destination: string,
 ): Promise<Record<string, CachedOutput>> {
+    // write each cached output's files no earlier output wrote
     const reuse: Record<string, CachedOutput> = {};
+    const placed = new Set<string>();
     for (const [name, key] of Object.entries(keys.outputs)) {
         const entry = await store.cached(key);
         if (entry !== undefined) {
             const output = cachedOutput(entry);
-            await place(store, output.files, destination);
+            const files = output.files.filter((file) => !placed.has(file.path));
+            await place(store, files, destination);
+            for (const file of files) {
+                placed.add(file.path);
+            }
             reuse[name] = output;
         }
     }
