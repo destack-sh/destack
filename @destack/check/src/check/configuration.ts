@@ -55,6 +55,10 @@ export function lintConfiguration(
         rules: {
             "eslint/curly": ["error", "all"],
             "typescript/parameter-properties": ["error", { prefer: "class-property" }],
+            "typescript/triple-slash-reference": [
+                "error",
+                { path: "always", types: "prefer-import", lib: "never" },
+            ],
             "oxc/no-accumulating-spread": "error",
             "eslint/no-unused-vars": [
                 "error",
