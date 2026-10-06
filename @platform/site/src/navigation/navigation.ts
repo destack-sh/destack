@@ -3,6 +3,7 @@ import discordIcon from "./icons/discord.svg?raw";
 import documentationIcon from "./icons/documentation.svg?raw";
 import emailIcon from "./icons/email.svg?raw";
 import githubIcon from "./icons/github.svg?raw";
+import linkedinIcon from "./icons/linkedin.svg?raw";
 import packagesIcon from "./icons/packages.svg?raw";
 import xIcon from "./icons/x.svg?raw";
 
@@ -36,14 +37,20 @@ export const primaryLinks: readonly NavigationLink[] = [
 
 /** The external Destack community destinations. */
 export const socialLinks: readonly NavigationLink[] = [
-    { href: "https://discord.gg/xUFQ45TWYd", label: "Discord", shortcut: "c", icon: discordIcon },
     { href: "https://x.com/destacksh", label: "X", shortcut: "x", icon: xIcon },
+    {
+        href: "https://www.linkedin.com/company/76992016",
+        label: "LinkedIn",
+        shortcut: "l",
+        icon: linkedinIcon,
+    },
     {
         href: "https://github.com/destack-sh/destack",
         label: "GitHub",
         shortcut: "g",
         icon: githubIcon,
     },
+    { href: "https://discord.gg/xUFQ45TWYd", label: "Discord", shortcut: "c", icon: discordIcon },
     {
         href: "mailto:florian@symbol.industries",
         label: "Email",
