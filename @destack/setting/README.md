@@ -17,14 +17,14 @@ export const editorMode = defineSetting({
     schema: schema.enum(["standard", "vim"]),
     default: "standard",
     scope: "user",
-    overrides: ["space", "installation", "device"],
+    overrides: ["space", "installation", "client"],
     apply: "immediate",
 });
 ```
 
 ### Merged keys
 
-`merge: "key"` resolves each key of a record value from its own nearest placement, so a device override of one key keeps the person's other keys and a requirement fixes only the keys it sets.
+`merge: "key"` resolves each key of a record value from its own nearest placement, so a client override of one key keeps the person's other keys and a requirement fixes only the keys it sets.
 
 ```ts
 export const keybindings = defineSetting({
@@ -34,16 +34,21 @@ export const keybindings = defineSetting({
     schema: schema.record(schema.string(), schema.string().nullable()),
     default: {},
     scope: "user",
-    overrides: ["space", "device"],
+    overrides: ["space", "client"],
     apply: "immediate",
     merge: "key",
 });
-// personal { "note.archive": "mod+e" } + device { "note.search": "mod+k" } → both keys
-resolution.keys["note.search"];
-// { source: { kind: "value", deviceId, … }, overridden: [], enforcement: "ordinary" }
 ```
 
-A merged setting's resolution carries `keys`: each key's deciding source, the sources it overrode and whether a requirement fixes it, as a settings view shows them.
+### Key sources
+
+A merged setting's resolution carries `keys`: each key's deciding source, the sources it overrode and whether a requirement fixes it.
+
+```ts
+// personal { "note.archive": "mod+e" } + client { "note.search": "mod+k" } → both keys
+resolution.keys["note.search"];
+// { source: { kind: "value", clientId, … }, overridden: [], enforcement: "ordinary" }
+```
 
 ### Releases
 
@@ -80,16 +85,16 @@ A `setting` object holds one value of a setting at a placement, and readers reso
 
 ### Placements
 
-A placement holds the override columns of a `setting` row, its device as `deviceId`, and spreads into a created value.
+A placement holds the override columns of a `setting` row, its client as `clientId`, and spreads into a created value.
 
 ```ts
 const placement = SettingPlacement.of({
     scope: userId,
     space: spaceId,
     installation: null,
-    deviceId,
+    clientId,
 });
-// { scope: userId, space: spaceId, deviceId }
+// { scope: userId, space: spaceId, clientId }
 ```
 
 ### Reading
@@ -136,13 +141,29 @@ await saved.confirmed;
 
 ## Service
 
-`serveSettings` serves the `setting` objects, which apply the values stacks place and check them against the declaring release.
+`serveSettings` serves the `setting` objects, which apply the values stacks place and check each written value against the catalog declaring it.
 
 ```ts
+import { SettingCatalog } from "@destack/setting";
 import { serveSettings } from "@destack/setting/server";
 
-const { setting } = serveSettings(release); // release opens the package release a value names
+// check a space's values against the releases it installs, a person's against the release they name
+const { setting } = serveSettings(SettingCatalog.releases((written) => open(written)));
 const server = new ObjectServer({ objects: { setting, ...others }, database, callKey, origin });
+
+// check a machine's values against the settings its distribution ships
+const machine = serveSettings(async () => new SettingCatalog([space, login]));
+```
+
+### Catalogs
+
+`SettingCatalog.of` holds the settings some descriptions declare, such as the `setting` declarations of a space's installations.
+
+```ts
+const descriptions = declarations.map((entry) => SettingDescription.parse(entry.description));
+const [mode] = SettingCatalog.of(descriptions).settings.filter(
+    (entry) => entry.name === "editor.mode",
+);
 ```
 
 ## Tables

@@ -27,8 +27,8 @@ const PACKAGE_WEIGHT = 1;
 const SPACE_WEIGHT = 2;
 /** A set value for the installation follows one for its space. */
 const INSTALLATION_WEIGHT = 4;
-/** A device-specific value follows every device-independent one. */
-const DEVICE_WEIGHT = 8;
+/** A client-specific value follows every client-independent one. */
+const CLIENT_WEIGHT = 8;
 
 /** A package-local setting name, kept across releases. */
 export const SettingName = defineSchema(
@@ -126,7 +126,18 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         values: readonly SettingValue[],
         chain: readonly string[],
     ): SettingResolution<unknown> {
-        // require a selection of the setting's scope, or an anonymous one of a user setting
+        // rank the default and each applicable value of a selection of the setting's scope
+        this.#requireSelectable(selection);
+        const { ordinary, required, invalid } = this.#candidates(values, selection, chain);
+
+        // combine each key from its own nearest placement for a setting merging keys, or take one value
+        return this.definition.merge === "key"
+            ? this.#mergeKeys(selection, ordinary, required, invalid)
+            : this.#decide(selection, ordinary, required, invalid);
+    }
+
+    /** Require a selection of the setting's scope, or an anonymous one of a user setting. */
+    #requireSelectable(selection: SettingSelection): void {
         const isSelectable =
             selection.scope === null
                 ? this.definition.scope === "user"
@@ -137,7 +148,18 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
                 "setting scope does not match the selected scope",
             );
         }
+    }
 
+    /** Rank the default and each applicable value, in an order independent of arrival, invalid ones apart. */
+    #candidates(
+        values: readonly SettingValue[],
+        selection: SettingSelection,
+        chain: readonly string[],
+    ): {
+        readonly ordinary: Candidate[];
+        readonly required: Candidate[];
+        readonly invalid: SettingSource[];
+    } {
         // collect the default and each applicable value of this setting, apart from invalid ones
         const ordinary: Candidate[] = [
             {
@@ -165,11 +187,16 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         required.sort(compareSources);
         invalid.sort((left, right) => compareCanonical(left, right));
 
-        // combine each key from its own nearest placement for a setting merging keys
-        if (this.definition.merge === "key") {
-            return this.#mergeKeys(selection, ordinary, required, invalid);
-        }
+        return { ordinary, required, invalid };
+    }
 
+    /** Decide one value: agreeing requirements, or else the highest-ranked candidates, refusing ties of different values. */
+    #decide(
+        selection: SettingSelection,
+        ordinary: readonly Candidate[],
+        required: readonly Candidate[],
+        invalid: readonly SettingSource[],
+    ): SettingResolution<unknown> {
         // reject equally ranked candidates other than agreeing recommendations
         for (let index = 1; index < ordinary.length; index++) {
             const previous = aligned(ordinary, index - 1);
@@ -223,57 +250,13 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         required: readonly Candidate[],
         invalid: readonly SettingSource[],
     ): SettingResolution<unknown> {
-        // collect the candidates setting each key, ordinary ones in ascending rank, then the requirements
-        const setting = new Map<string, { ordinary: Candidate[]; required: Candidate[] }>();
-        for (const [candidates, kind] of [
-            [ordinary, "ordinary"],
-            [required, "required"],
-        ] as const) {
-            for (const candidate of candidates) {
-                for (const key of Object.keys(recordOf(candidate.value))) {
-                    const entry = setting.get(key) ?? { ordinary: [], required: [] };
-                    entry[kind].push(candidate);
-                    setting.set(key, entry);
-                }
-            }
-        }
-
-        // decide each key: an agreeing requirement, or else the highest-ranked ordinary candidate
+        // decide each key from the candidates setting it
         const value: Record<string, JsonValue> = {};
         const keys: NonNullable<SettingResolution["keys"]> = {};
-        for (const [key, candidates] of setting) {
-            const entryOf = (candidate: Candidate) => recordOf(candidate.value)[key] ?? null;
-            const [requirement] = candidates.required;
-            if (
-                requirement !== undefined &&
-                candidates.required.some(
-                    (candidate) => !equalValue(entryOf(candidate), entryOf(requirement)),
-                )
-            ) {
-                throw new SettingError("CONFLICT", `required values of ${key} disagree`);
-            }
-            const winner =
-                requirement ?? aligned(candidates.ordinary, candidates.ordinary.length - 1);
-            const tied = candidates.ordinary.filter(
-                (candidate) => candidate !== winner && compareRanks(candidate, winner) === 0,
-            );
-            if (
-                requirement === undefined &&
-                tied.some((candidate) => !equalValue(entryOf(candidate), entryOf(winner)))
-            ) {
-                throw new SettingError(
-                    "CONFLICT",
-                    `multiple values of ${key} have the same precedence`,
-                );
-            }
-            value[key] = entryOf(winner);
-            keys[key] = {
-                source: winner.source,
-                overridden: [...candidates.ordinary, ...candidates.required]
-                    .filter((candidate) => candidate !== winner)
-                    .map((candidate) => candidate.source),
-                enforcement: requirement === undefined ? "ordinary" : "required",
-            };
+        for (const [key, candidates] of keyCandidates(ordinary, required)) {
+            const decided = decideKey(key, candidates);
+            value[key] = decided.value;
+            keys[key] = decided.key;
         }
 
         // report the default and the candidates deciding a key as sources, the rest as overridden
@@ -363,7 +346,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
                 ["package", value.package],
                 ["space", value.space],
                 ["installation", value.installation],
-                ["device", value.deviceId],
+                ["client", value.clientId],
             ] as const
         )
             .filter(([, placed]) => placed !== undefined)
@@ -387,41 +370,9 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             return undefined;
         }
 
-        // rank a value set in the selected scope by the overrides matching the selection
+        // rank the value, skipping one that does not apply
         const placement = SettingPlacement.of(value);
-        let rank: Rank | undefined;
-        if (value.scope === selection.scope) {
-            this.requirePlacement({ ...placement, mode: value.mode }, "own");
-            const weight = setWeight(placement, selection);
-            rank = weight === undefined ? undefined : [SET_TIER, weight];
-        }
-        // refuse a value set in another scope, such as another user's
-        else if (value.mode === "set") {
-            throw new SettingError(
-                "INVALID_PLACEMENT",
-                "a value set in another scope reached the resolution",
-            );
-        }
-        // rank a recommendation or requirement of an enclosing scope by its depth and its installation
-        else {
-            this.requirePlacement({ ...placement, mode: value.mode }, "enclosing");
-            const depth = chain.indexOf(value.scope);
-            if (depth === -1) {
-                throw new SettingError(
-                    "INVALID_PLACEMENT",
-                    "a value from outside the selection's scope chain reached the resolution",
-                );
-            }
-            const nearness = (chain.length - depth) * DEPTH_WEIGHT;
-            rank =
-                placement.installation === undefined
-                    ? [ENCLOSING_TIER, nearness]
-                    : placement.installation === selection.installation
-                      ? [ENCLOSING_TIER, nearness + ENCLOSING_INSTALLATION_WEIGHT]
-                      : undefined;
-        }
-
-        // skip values that do not apply
+        const rank = this.#rank(value, placement, selection, chain);
         if (rank === undefined) {
             return undefined;
         }
@@ -447,6 +398,47 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             value: parsed.data,
             mode: value.mode,
         };
+    }
+
+    /** Rank a value of this setting for a selection: set in its scope by matching overrides, or enclosing by depth and installation. */
+    #rank(
+        value: SettingValue,
+        placement: SettingPlacement,
+        selection: SettingSelection,
+        chain: readonly string[],
+    ): Rank | undefined {
+        // rank a value set in the selected scope by the overrides matching the selection
+        if (value.scope === selection.scope) {
+            this.requirePlacement({ ...placement, mode: value.mode }, "own");
+            const weight = setWeight(placement, selection);
+
+            return weight === undefined ? undefined : [SET_TIER, weight];
+        }
+        // refuse a value set in another scope, such as another user's
+        else if (value.mode === "set") {
+            throw new SettingError(
+                "INVALID_PLACEMENT",
+                "a value set in another scope reached the resolution",
+            );
+        }
+        // rank a recommendation or requirement of an enclosing scope by its depth and its installation
+        else {
+            this.requirePlacement({ ...placement, mode: value.mode }, "enclosing");
+            const depth = chain.indexOf(value.scope);
+            if (depth === -1) {
+                throw new SettingError(
+                    "INVALID_PLACEMENT",
+                    "a value from outside the selection's scope chain reached the resolution",
+                );
+            }
+            const nearness = (chain.length - depth) * DEPTH_WEIGHT;
+
+            return placement.installation === undefined
+                ? [ENCLOSING_TIER, nearness]
+                : placement.installation === selection.installation
+                  ? [ENCLOSING_TIER, nearness + ENCLOSING_INSTALLATION_WEIGHT]
+                  : undefined;
+        }
     }
 
     /** Convert a value of an earlier release to this one, refusing a value of a later release. */
@@ -498,12 +490,83 @@ function setWeight(placement: SettingPlacement, selection: SettingSelection): nu
             weight: INSTALLATION_WEIGHT,
         },
         { override: placement.space, selected: selection.space, weight: SPACE_WEIGHT },
-        { override: placement.deviceId, selected: selection.deviceId, weight: DEVICE_WEIGHT },
+        { override: placement.clientId, selected: selection.clientId, weight: CLIENT_WEIGHT },
     ].filter((match) => match.override !== undefined);
 
     return matches.every((match) => match.override === match.selected)
         ? matches.reduce((weight, match) => weight + match.weight, 0)
         : undefined;
+}
+
+/** The candidates setting one key of a merged setting: ordinary ones in ascending rank, and the requirements. */
+interface KeyCandidates {
+    /** The ordinary candidates, in ascending rank. */
+    readonly ordinary: Candidate[];
+    /** The requirements. */
+    readonly required: Candidate[];
+}
+
+/** Collect the candidates setting each key of a merged setting's record values. */
+function keyCandidates(
+    ordinary: readonly Candidate[],
+    required: readonly Candidate[],
+): Map<string, KeyCandidates> {
+    const setting = new Map<string, KeyCandidates>();
+    for (const [candidates, kind] of [
+        [ordinary, "ordinary"],
+        [required, "required"],
+    ] as const) {
+        for (const candidate of candidates) {
+            for (const key of Object.keys(recordOf(candidate.value))) {
+                const entry = setting.get(key) ?? { ordinary: [], required: [] };
+                entry[kind].push(candidate);
+                setting.set(key, entry);
+            }
+        }
+    }
+
+    return setting;
+}
+
+/** Decide one key: an agreeing requirement, or else the highest-ranked ordinary candidate, refusing a tie of different values. */
+function decideKey(
+    key: string,
+    candidates: KeyCandidates,
+): { readonly value: JsonValue; readonly key: NonNullable<SettingResolution["keys"]>[string] } {
+    // refuse disagreeing requirements
+    const entryOf = (candidate: Candidate) => recordOf(candidate.value)[key] ?? null;
+    const [requirement] = candidates.required;
+    if (
+        requirement !== undefined &&
+        candidates.required.some(
+            (candidate) => !equalValue(entryOf(candidate), entryOf(requirement)),
+        )
+    ) {
+        throw new SettingError("CONFLICT", `required values of ${key} disagree`);
+    }
+
+    // take the requirement or the highest ranked candidate, refusing a tie of different values
+    const winner = requirement ?? aligned(candidates.ordinary, candidates.ordinary.length - 1);
+    const tied = candidates.ordinary.filter(
+        (candidate) => candidate !== winner && compareRanks(candidate, winner) === 0,
+    );
+    if (
+        requirement === undefined &&
+        tied.some((candidate) => !equalValue(entryOf(candidate), entryOf(winner)))
+    ) {
+        throw new SettingError("CONFLICT", `multiple values of ${key} have the same precedence`);
+    }
+
+    return {
+        value: entryOf(winner),
+        key: {
+            source: winner.source,
+            overridden: [...candidates.ordinary, ...candidates.required]
+                .filter((candidate) => candidate !== winner)
+                .map((candidate) => candidate.source),
+            enforcement: requirement === undefined ? "ordinary" : "required",
+        },
+    };
 }
 
 /** Order candidates by their ranks. */

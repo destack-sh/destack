@@ -1,19 +1,12 @@
 import { SpaceSetting } from "../declare/space.ts";
 import { setting, type SettingValue } from "../object/index.ts";
-import { SettingCatalog, SettingPlacement } from "../setting/index.ts";
-import { BuildCache, type BuildReader } from "@destack/package/manifest";
-import type { PackageId } from "@destack/package";
-import { schema, type Identifier } from "@destack/schema";
+import { type OpenSettingCatalog, SettingCatalog, SettingPlacement } from "../setting/index.ts";
+import { BuildCache } from "@destack/package/manifest";
+import { schema } from "@destack/schema";
 
-/** Serve declared values, checking each written value and each value a stack places against its declaration. */
-export function serveSettings(
-    release: (
-        scope: string,
-        packageId: PackageId,
-        installationId?: Identifier<"installation">,
-    ) => Promise<BuildReader>,
-) {
-    // read each release's settings once
+/** Serve declared values, checking each written value against the catalog declaring it and each value a stack places against its release. */
+export function serveSettings(catalog: OpenSettingCatalog) {
+    // read each stack release's settings once
     const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
 
     return {
@@ -21,14 +14,13 @@ export function serveSettings(
             .handle({
                 create: {
                     authorize: (call) =>
-                        requireDeclared({ ...call.input, scope: call.scope }, release, catalogs),
+                        requireDeclared({ ...call.input, scope: call.scope }, catalog),
                 },
                 update: {
                     authorize: (call) =>
                         requireDeclared(
                             { ...call.target, ...call.input, scope: call.scope },
-                            release,
-                            catalogs,
+                            catalog,
                         ),
                 },
             })
@@ -69,19 +61,14 @@ export function serveSettings(
 async function requireDeclared(
     value: Parameters<typeof SettingPlacement.of>[0] &
         Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
-    release: Parameters<typeof serveSettings>[0],
-    catalogs: BuildCache<SettingCatalog>,
+    catalog: OpenSettingCatalog,
 ): Promise<void> {
-    // check it against the release its placement selects
+    // check it against the catalog declaring it at its placement
     const placement = SettingPlacement.of(value);
-    const reader = await release(
-        value.scope,
-        placement.package ?? value.packageId,
-        placement.installation,
-    );
-    const catalog = await catalogs.read(reader);
-    catalog
-        .get({ packageId: value.packageId, name: value.name })
+    const reference = { packageId: value.packageId, name: value.name };
+    const declared = await catalog({ ...placement, ...reference, release: value.release });
+    declared
+        .get(reference)
         .requireWrite(
             { ...placement, mode: value.mode, value: value.value, release: value.release },
             value.scope,

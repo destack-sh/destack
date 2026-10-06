@@ -23,17 +23,17 @@ export const installation = schema
     .identifier("installation")
     .parse("installation-019f5530-8000-7000-8000-000000000004");
 
-/** Alice's own device. */
-export const device = schema
-    .identifier("device")
-    .parse("device-019f5530-8000-7000-8000-000000000005");
+/** Alice's own client. */
+export const clientId = schema
+    .identifier("client")
+    .parse("client-019f5530-8000-7000-8000-000000000005");
 
-/** Alice using Bob's installation on her own device. */
+/** Alice using Bob's installation on her own client. */
 export const selection = SettingSelection.parse({
     scope: alice,
     space,
     installation,
-    deviceId: device,
+    clientId,
 });
 
 /** Alice's personal editor mode. */
@@ -54,18 +54,18 @@ export const personal: SettingValue = {
     package: null,
     space: null,
     installation: null,
-    deviceId: null,
+    clientId: null,
     mode: "set",
     value: "vim",
     release: "2026.9.0",
 };
 
-/** Alice's editor mode in Bob's installation on her device. */
+/** Alice's editor mode in Bob's installation on her client. */
 export const override: SettingValue = {
     ...personal,
     id: schema.identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000007"),
     installation,
-    deviceId: device,
+    clientId,
     value: "standard",
 };
 

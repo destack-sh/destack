@@ -18,7 +18,7 @@ import {
     account,
     alice,
     chain,
-    device,
+    clientId,
     installation,
     named,
     override,
@@ -72,8 +72,8 @@ function failure(run: () => unknown): { code: string; message: string } | "accep
     }
 }
 
-test("resolve personal, device and required values independently of their order", () => {
-    // take the device override over the personal value, in either order
+test("resolve personal, client and required values independently of their order", () => {
+    // take the client override over the personal value, in either order
     const ordinary = {
         ...standard,
         sources: [source(override)],
@@ -141,14 +141,14 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
 });
 
 test("resolve each key of a merged setting from its own nearest placement, requirements fixing theirs", () => {
-    // bind one command personally, another on the device, and require a third in the space
+    // bind one command personally, another on the client, and require a third in the space
     const bindings = { ...personal, ...named(keybindings) };
     const mine = { ...bindings, value: { "note.archive": "mod+e", "note.pin": "mod+p" } };
     const laptop = { ...override, ...named(keybindings), value: { "note.search": "mod+k" } };
     const fixed = { ...required, ...named(keybindings), value: { "note.pin": null } };
     const resolved = keybindings.resolve(selection, [laptop, fixed, mine], chain);
 
-    // keep every key from the placement deciding it, the device override leaving the personal keys
+    // keep every key from the placement deciding it, the client override leaving the personal keys
     expect(resolved).toEqual({
         setting: keybindings.reference,
         selection,
@@ -184,16 +184,6 @@ test("resolve each key of a merged setting from its own nearest placement, requi
         code: "CONFLICT",
         message: "multiple values of note.archive have the same precedence",
     });
-});
-
-test("refuse merging the keys of a value that is no record", () => {
-    // refuse a merged setting of a plain text value
-    expect(() =>
-        defineSetting(
-            { ...editor.definition, name: "editor.keys", merge: "key" },
-            { package: notes },
-        ),
-    ).toThrow(new TypeError("setting editor.keys merges the keys of a value that is no record"));
 });
 
 test("compare required structured values independently of key order", () => {
@@ -253,7 +243,7 @@ test("describe a setting and read the settings a build declares", async () => {
         },
         default: "standard",
         scope: "user",
-        overrides: ["space", "installation", "device"],
+        overrides: ["space", "installation", "client"],
         apply: "immediate",
     });
     const described = schema
@@ -285,7 +275,7 @@ test("describe a setting and read the settings a build declares", async () => {
     });
 });
 
-test("resolve space settings per installation and host settings per host", () => {
+test("resolve space settings per installation and machine settings per machine", () => {
     // resolve one space setting independently for two installations
     const template = defineSetting(
         { ...editor.definition, name: "template", scope: "space", overrides: ["installation"] },
@@ -320,12 +310,12 @@ test("resolve space settings per installation and host settings per host", () =>
         { ...standard, setting: template.reference, selection: second },
     ]);
 
-    // resolve a host setting on its host, and refuse one set on another host
+    // resolve a machine setting on its machine, and refuse one set on another machine
     const cache = defineSetting(
         {
             ...editor.definition,
             name: "cacheDirectory",
-            scope: "host",
+            scope: "machine",
             overrides: [],
             schema: schema.string().min(1),
             default: "/cache",
@@ -333,18 +323,18 @@ test("resolve space settings per installation and host settings per host", () =>
         },
         { package: notes },
     );
-    const host = "host-019f5530-8000-7000-8000-000000000015";
+    const machine = "machine-019f5530-8000-7000-8000-000000000015";
     const path: SettingValue = {
         ...personal,
         ...named(cache),
-        scope: host,
+        scope: machine,
         value: "/Users/alice/cache",
     };
-    const hostChain = [host, account, Scope.universe.id];
-    const onHost = SettingSelection.parse({ scope: host });
-    expect(cache.resolve(onHost, [path], hostChain)).toEqual({
+    const machineChain = [machine, account, Scope.universe.id];
+    const onMachine = SettingSelection.parse({ scope: machine });
+    expect(cache.resolve(onMachine, [path], machineChain)).toEqual({
         setting: cache.reference,
-        selection: onHost,
+        selection: onMachine,
         value: "/Users/alice/cache",
         sources: [source(path)],
         overridden: [{ kind: "default", package: notes }],
@@ -353,9 +343,9 @@ test("resolve space settings per installation and host settings per host", () =>
     expect(
         failure(() =>
             cache.resolve(
-                SettingSelection.parse({ scope: "host-019f5530-8000-7000-8000-000000000016" }),
+                SettingSelection.parse({ scope: "machine-019f5530-8000-7000-8000-000000000016" }),
                 [path],
-                hostChain,
+                machineChain,
             ),
         ),
     ).toEqual({
@@ -372,9 +362,7 @@ test("refuse placements and writes a setting does not permit", () => {
         message: "setting value uses an unsupported setting override",
     };
     expect([
-        failure(() =>
-            plain.requirePlacement({ installation, deviceId: device, mode: "set" }, "own"),
-        ),
+        failure(() => plain.requirePlacement({ installation, clientId, mode: "set" }, "own")),
         failure(() => plain.resolve(selection, [override], chain)),
         failure(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
         failure(() => editor.requirePlacement({ mode: "recommend" }, "own")),
@@ -446,7 +434,7 @@ test("skip stored values a changed schema rejects, falling through to the next s
     const resolution = upgraded.resolve(selection, [personal], chain);
     expect([
         SettingResolution.observed(resolution, { scope: alice }),
-        SettingResolution.observed(resolution, { scope: alice, deviceId: device }),
+        SettingResolution.observed(resolution, { scope: alice, clientId }),
     ]).toEqual([{ id: personal.id, revision: personal.revision }, null]);
 });
 
@@ -505,7 +493,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
         {
             ...editor.definition,
             scope: "user",
-            overrides: ["package", "space", "installation", "device"],
+            overrides: ["package", "space", "installation", "client"],
         },
         { package: notes },
     );

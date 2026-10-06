@@ -30,14 +30,14 @@ test.each(TEST_DIALECTS)(
         const base = await create({});
         const override = await create({
             installation,
-            deviceId: laptop.id,
+            clientId: laptop.id,
             value: "standard",
         });
         const changed = await call("update", { id: override.id, value: "vim" });
         const rows = await storage.database
             .select()
             .from(setting.table)
-            .orderBy(asc(setting.table.revision), asc(setting.table.deviceId));
+            .orderBy(asc(setting.table.revision), asc(setting.table.clientId));
         const author = Subject.key(principal.user.reference(Scope.universe.id, alice));
         const written = {
             createdBy: author,
@@ -62,7 +62,7 @@ test.each(TEST_DIALECTS)(
                 createdAt: base.createdAt,
                 updatedAt: base.updatedAt,
                 installation: null,
-                deviceId: null,
+                clientId: null,
                 value: "vim",
             },
             {
@@ -72,7 +72,7 @@ test.each(TEST_DIALECTS)(
                 updatedAt: changed.updatedAt,
                 revision: 2,
                 installation: selection.installation,
-                deviceId: laptop.id,
+                clientId: laptop.id,
                 value: "vim",
             },
         ]);

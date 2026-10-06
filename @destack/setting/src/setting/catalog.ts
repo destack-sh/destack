@@ -2,10 +2,19 @@ import { defineSchema, fromJsonSchema, schema, toJsonSchema, Version } from "@de
 import { Expression } from "@destack/db";
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
-import type { BuildReader } from "@destack/package/manifest";
+import { BuildCache, type BuildReader } from "@destack/package/manifest";
 import { SettingMetadata, SettingScope } from "../declare/setting.ts";
 import { SettingError } from "../error/error.ts";
-import { Setting, SettingReference } from "./setting.ts";
+import type { SettingPlacement } from "./placement.ts";
+import { Setting, SettingReference, type SettingWrite } from "./setting.ts";
+
+/** Open the settings declared where a written value is checked: its release's, or the ones a process ships. */
+export type OpenSettingCatalog = (
+    written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+) => Promise<SettingCatalog>;
+
+/** Open the build declaring a written value's setting: the release its space installs, or the release the value names. */
+export type OpenSettingRelease = (written: Parameters<OpenSettingCatalog>[0]) => Promise<BuildReader>;
 
 /** The serializable fields of a setting description beside its scope. */
 const description = SettingMetadata.extend({
@@ -65,12 +74,24 @@ export class SettingCatalog {
             SettingDescription,
         );
 
+        return SettingCatalog.of(descriptions.map((entry) => entry.description));
+    }
+
+    /** Hold the settings some descriptions declare, such as a space's installations' declarations. */
+    static of(descriptions: readonly SettingDescription[]): SettingCatalog {
         return new SettingCatalog(
             descriptions.map(
-                ({ description: { package: owner, schema: valueSchema, ...definition } }) =>
+                ({ package: owner, schema: valueSchema, ...definition }) =>
                     new Setting(owner, { ...definition, schema: fromJsonSchema(valueSchema) }),
             ),
         );
+    }
+
+    /** Open each written value's catalog from the build its release opens, reading each build's settings once. */
+    static releases(open: OpenSettingRelease): OpenSettingCatalog {
+        const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
+
+        return async (written) => catalogs.read(await open(written));
     }
 
     /** Find a declared setting and refuse an undeclared one. */

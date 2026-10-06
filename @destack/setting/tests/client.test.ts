@@ -159,7 +159,7 @@ async function follow(
         resources: new ResourceContext(),
         health: new Health("setting"),
         drainTimeout: 100,
-        authorizeHost: async () => {},
+        authorizeMachine: async () => {},
         authenticate: async () =>
             new Authentication({
                 subject: storage.subject,

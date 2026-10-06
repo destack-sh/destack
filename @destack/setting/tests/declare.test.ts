@@ -37,14 +37,13 @@ test.each(TEST_DIALECTS)(
         await new AccessFixture(storage.database).copyScope(
             space.reference(Scope.universe.id, spaceId),
         );
-        const { release } = storage;
-        const objects = [serveSettings(release).setting];
+        const objects = [serveSettings(storage.catalog).setting];
         const apply = (settings: JsonObject) =>
             Stack.apply({
                 database: storage.database,
                 objects,
                 server: storage.objects,
-                release: (packageId, installationId) => release(spaceId, packageId, installationId),
+                release: () => storage.reader,
                 manager,
                 scope: spaceId,
                 document: { settings },
@@ -72,7 +71,7 @@ test.each(TEST_DIALECTS)(
             package: null,
             space: null,
             installation: null,
-            deviceId: null,
+            clientId: null,
             value: "vim",
             release: "2026.9.0",
         };

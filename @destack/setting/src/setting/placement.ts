@@ -4,7 +4,7 @@ import { defineSchema, schema } from "@destack/schema";
 /** Where a value is placed: its scope and the overrides narrowing where it applies. */
 const Placement = defineSchema(
     schema.object({
-        /** The user, space, account, organisation or host holding the value. */
+        /** The user, space, account, organisation or machine holding the value. */
         scope: schema.string().min(1),
         /** The consuming package the value applies to. */
         package: PackageId.exactOptional(),
@@ -12,8 +12,8 @@ const Placement = defineSchema(
         space: schema.identifier("space").exactOptional(),
         /** The installation the value applies to. */
         installation: schema.identifier("installation").exactOptional(),
-        /** The device the value applies on. */
-        deviceId: schema.identifier("device").exactOptional(),
+        /** The client the value applies on. */
+        clientId: schema.identifier("client").exactOptional(),
     }),
 );
 
@@ -36,7 +36,7 @@ export const SettingPlacement = Object.assign(Placement, {
 /** The scope and overrides a resolution selects. */
 export const SettingSelection = defineSchema(
     Placement.extend({
-        /** The selected user, space or host, or null for an anonymous visitor. */
+        /** The selected user, space or machine, or null for an anonymous visitor. */
         scope: schema.string().min(1).nullable(),
     }),
 );
@@ -50,6 +50,6 @@ function placementOf(placed: Placed): SettingPlacement {
         ...(placed.package == null ? {} : { package: placed.package }),
         ...(placed.space == null ? {} : { space: placed.space }),
         ...(placed.installation == null ? {} : { installation: placed.installation }),
-        ...(placed.deviceId == null ? {} : { deviceId: placed.deviceId }),
+        ...(placed.clientId == null ? {} : { clientId: placed.clientId }),
     };
 }
