@@ -92,15 +92,12 @@ Server.start({
 
 ## Delivery
 
-`Journal.controller` delivers audited calls to a history in batches, without their input and result values.
+`Journal.controller` delivers audited calls to a history in batches, without their input and result values: the history itself where its host runs the service, and the host relaying the journal where a workload runs it.
 
 ```ts
-import { createAuditClient } from "@destack/audit/client";
 import { ControlLoop } from "@destack/service/control";
 
-await new ControlLoop(database, [calls.controller(createAuditClient({ url, headers }))], {
-    report,
-}).run(signal);
+await new ControlLoop(database, [calls.controller(history)], { report }).run(signal);
 ```
 
 ## History
@@ -116,6 +113,32 @@ Server.start({ ...implementAudit({ history, access, record }), ...hosting });
 
 const page = await history.list({ scope: spaceId, limit: 100 });
 await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
+```
+
+The audit service reads and prunes a history, and takes no calls to record: only the history's host stores them.
+
+## Relays
+
+`AuditHistory.relay` stores a batch of an instance's journal that its host relays, with the installation and the instance the host verified as each call's provenance, after Kubernetes audit backends that record the authenticated user.
+
+```ts
+await history.relay(batch, { scope: spaceId, packageId, installationId, instanceId }); // 2
+// FORBIDDEN: a call of another space or package, or one naming an installation, instance or machine
+```
+
+## Audit streams
+
+A `auditStream` sends the finished calls of its scope and the scopes inside it in batches to an HTTPS intake as webhook messages, after GitHub's audit log streaming.
+
+```ts
+await client.auditStream.create({
+    scope: organisationId,
+    requestId,
+    url: "https://http-intake.logs.datadoghq.eu/api/v2/logs",
+    format: "ndjson",
+    headers: { "DD-API-KEY": key },
+    status: "active",
+});
 ```
 
 ## History tables

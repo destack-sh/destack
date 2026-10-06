@@ -1,8 +1,11 @@
-import { test, expect } from "@destack/test";
+import { test, expect, refusal } from "@destack/test";
 import { testCallKey } from "@destack/service/test";
 import { ControlLoop } from "@destack/service/control";
+import { PackageId } from "@destack/package";
+import { schema } from "@destack/schema";
 import { AuditError } from "../src/error/index.ts";
-import { Journal } from "../src/server/index.ts";
+import type { AuditCall } from "../src/record/index.ts";
+import { AuditRecorder, Journal } from "../src/server/index.ts";
 import { journal } from "../src/stack/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
 
@@ -148,6 +151,80 @@ test("remove delivered calls once past their lifetime, keeping a call the histor
         expect([await remaining(), failures]).toEqual([[pending.execution.id], []]);
     } finally {
         stopping.abort();
+        await storage.close();
+    }
+});
+
+test("relay an instance's journal with its installation and instance as provenance, refusing an invalid batch, calls of another space or package, and calls naming a provenance", async () => {
+    const storage = await AuditStorage.open();
+    try {
+        // record a finished rename in the instance's space
+        const space = schema
+            .identifier("space")
+            .parse("space-01996ab0-0000-7000-8000-000000000001");
+        const recorder = new AuditRecorder(
+            {
+                caller: { type: "system", name: "document" },
+                package: renameDocument.package,
+                service: "document",
+                scope: space,
+            },
+            storage.journal,
+        );
+        const call = recorder.finish(recorder.begin(renameDocument, rename), { kind: "success" });
+        const provenance = {
+            scope: space,
+            packageId: renameDocument.package.id,
+            installationId: schema
+                .identifier("installation")
+                .parse("installation-01996ab0-0000-7000-8000-000000000002"),
+            instanceId: schema
+                .identifier("instance")
+                .parse("instance-01996ab0-0000-7000-8000-000000000003"),
+        };
+        const relay = (relayed: AuditCall) =>
+            refusal(storage.history.relay({ calls: [relayed] }, provenance));
+        const context = (fields: Partial<AuditCall["execution"]["context"]>): AuditCall => ({
+            ...call,
+            execution: { ...call.execution, context: { ...call.execution.context, ...fields } },
+        });
+
+        // refuse an empty batch, another space, another package and a forged provenance, then relay the call twice
+        const other = PackageId.parse("package-01996ab0-0000-7000-8000-000000000009");
+        expect([
+            await refusal(storage.history.relay({ calls: [] }, provenance)),
+            await relay(context({ scope: "space-01996ab0-0000-7000-8000-000000000008" })),
+            await relay(context({ package: { ...renameDocument.package, id: other } })),
+            await relay(context({ installationId: provenance.installationId })),
+            await relay(context({ instanceId: provenance.instanceId })),
+            await relay(call),
+            await relay(call),
+        ]).toEqual([
+            ["INVALID_EVENT", "invalid journal batch"],
+            [
+                "FORBIDDEN",
+                `installation ${provenance.installationId} records no calls of ${renameDocument.package.id} in space-01996ab0-0000-7000-8000-000000000008`,
+            ],
+            [
+                "FORBIDDEN",
+                `installation ${provenance.installationId} records no calls of ${other} in ${space}`,
+            ],
+            ["FORBIDDEN", "only the host records a call's provenance"],
+            ["FORBIDDEN", "only the host records a call's provenance"],
+            "done",
+            "done",
+        ]);
+
+        // keep the call once, with the installation and the instance the host verified
+        const { items } = await storage.history.list({ scope: space, limit: 100 });
+        expect(items.map((record) => record.call.execution.context)).toEqual([
+            {
+                ...call.execution.context,
+                installationId: provenance.installationId,
+                instanceId: provenance.instanceId,
+            },
+        ]);
+    } finally {
         await storage.close();
     }
 });

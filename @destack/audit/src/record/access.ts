@@ -5,7 +5,7 @@ import type {} from "@destack/package/import-meta";
 export const call = new Policy(import.meta.destack.package, {
     name: "call",
     relations: {},
-    permissions: { ingest: none(), read: none(), prune: none() },
+    permissions: { read: none(), prune: none() },
 });
 
 /** An object an audited call names, read with its call. */

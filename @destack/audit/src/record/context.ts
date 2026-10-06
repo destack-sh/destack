@@ -13,14 +13,16 @@ export const AuditContext = defineSchema(
         package: Package,
         /** The service serving the call. */
         service: schema.string().min(1),
-        /** The deployment executing the service. */
-        deploymentId: schema.identifier("deployment").exactOptional(),
-        /** The instance executing the service. */
+        /** The installation executing the service, as the host relaying its journal recorded it. */
+        installationId: schema.identifier("installation").exactOptional(),
+        /** The instance executing the service, as the host relaying its journal recorded it. */
         instanceId: schema.identifier("instance").exactOptional(),
-        /** The host executing the service. */
-        hostId: schema.identifier("host").exactOptional(),
-        /** The device the caller authenticated on. */
-        deviceId: schema.identifier("device").exactOptional(),
+        /** The machine executing the service. */
+        machineId: schema.identifier("machine").exactOptional(),
+        /** The deployment the acting workload ran, as the caller's verified claims name it. */
+        deploymentId: schema.identifier("deployment").exactOptional(),
+        /** The client the caller authenticated through. */
+        clientId: schema.identifier("client").exactOptional(),
         /** The caller's session, without its credential. */
         sessionId: schema.identifier("session").exactOptional(),
         /** The caller's token, without its secret. */

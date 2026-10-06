@@ -122,20 +122,8 @@ export class Journal {
             throw new AuditError("INVALID_EVENT", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
         }
 
-        // key the call for replay when a retry should see its outcome again
-        const request =
-            execution.requestId !== undefined &&
-            execution.digest !== undefined &&
-            options.caller !== undefined &&
-            Replay.isFinal(execution.outcome)
-                ? Journal.#request({
-                      caller: options.caller,
-                      scope: execution.context.scope,
-                      requestId: execution.requestId,
-                  })
-                : null;
-
-        // insert the call, or replace a running one with its outcome
+        // key the call for replay when a retry should see its outcome again, and insert the call, or replace a running one with its outcome
+        const request = Journal.#replayKey(execution, options.caller);
         const startedAt = execution.startedAt;
         const row = {
             id: execution.id,
@@ -164,13 +152,36 @@ export class Journal {
 
         // accept a repeat of a finished call, and refuse other contents
         if (written.length === 0) {
-            const [existing] = await database
-                .select({ call: journal.call })
-                .from(journal)
-                .where(eq(journal.id, execution.id));
-            if (existing === undefined || canonicalize(existing.call) !== canonicalize(call)) {
-                throw new AuditError("CONFLICT", `call ${execution.id} has conflicting contents`);
-            }
+            await Journal.#requireRepeat(database, call);
+        }
+    }
+
+    /** Key a call for replay when a retry of its request should see its final outcome again, null otherwise. */
+    static #replayKey(
+        execution: AuditCall["execution"],
+        caller: string | undefined,
+    ): string | null {
+        const { requestId } = execution;
+        if (
+            requestId === undefined ||
+            execution.digest === undefined ||
+            caller === undefined ||
+            !Replay.isFinal(execution.outcome)
+        ) {
+            return null;
+        }
+
+        return Journal.#request({ caller, scope: execution.context.scope, requestId });
+    }
+
+    /** Require a call already recorded as finished to repeat it exactly. */
+    static async #requireRepeat(database: DatabaseConnection, call: AuditCall): Promise<void> {
+        const [existing] = await database
+            .select({ call: journal.call })
+            .from(journal)
+            .where(eq(journal.id, call.execution.id));
+        if (existing === undefined || canonicalize(existing.call) !== canonicalize(call)) {
+            throw new AuditError("CONFLICT", `call ${call.execution.id} has conflicting contents`);
         }
     }
 

@@ -16,7 +16,7 @@ import { auditService, AuditScope } from "../service/index.ts";
 /** The request authority a host supplies. */
 export interface AuditRequestContext {
     /** Require a history permission on a scope. */
-    authorizeAudit(permission: "ingest" | "read" | "prune", scope: AuditScope): Promise<void>;
+    authorizeAudit(permission: AuditPermission, scope: AuditScope): Promise<void>;
     /** The recorder of history access. */
     audit: Pick<AuditRecorder, "attempt" | "record" | "stream">;
 }
@@ -30,24 +30,8 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
             next({
                 context: {
                     audit: await options.record(context),
-                    authorizeAudit: async (
-                        permission: "ingest" | "read" | "prune",
-                        scope: AuditScope,
-                    ) => {
-                        // require the permission on the scope object
-                        const [link] = await Scope.chain(
-                            Snapshot.live(options.access.database),
-                            scope,
-                        );
-                        if (link === undefined) {
-                            throw new ServiceError("FORBIDDEN", {
-                                message: `permission denied: ${permission}`,
-                            });
-                        }
-                        await context
-                            .requireAuthorization()
-                            .require(call.permission(permission), link.object);
-                    },
+                    authorizeAudit: (permission: AuditPermission, scope: AuditScope) =>
+                        authorizeAudit(options.access, context, permission, scope),
                 },
             }),
         );
@@ -61,22 +45,6 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
         access: options.access,
         audit: AuditRecorder.procedure(({ context }) => options.record(context)),
         router: implementation.router({
-            ingest: implementation.ingest.handler(async ({ input, context }) => {
-                // reject calls of the universe and authorize each scope
-                const scopes = new Set(
-                    input.calls.map((ingested) => ingested.execution.context.scope),
-                );
-                if (scopes.has(Scope.universe.id)) {
-                    throw new ServiceError("BAD_REQUEST", {
-                        message: "only the universe records its own audited calls",
-                    });
-                }
-                for (const scope of scopes) {
-                    await context.authorizeAudit("ingest", scope);
-                }
-
-                return { calls: await auditHistory.ingest(input) };
-            }),
             export: implementation.export.handler(({ input, context, signal }) =>
                 // recheck read access before each page
                 context.audit.stream(auditExport, history(input.scope), async function* () {
@@ -102,6 +70,26 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
             ),
         }),
     };
+}
+
+/** A history permission of a scope. */
+type AuditPermission = "read" | "prune";
+
+/** Require a history permission on a scope's object. */
+async function authorizeAudit(
+    access: ServiceAccess,
+    context: ServiceContext,
+    permission: AuditPermission,
+    scope: AuditScope,
+): Promise<void> {
+    // find the scope object
+    const [link] = await Scope.chain(Snapshot.live(access.database), scope);
+    if (link === undefined) {
+        throw new ServiceError("FORBIDDEN", { message: `permission denied: ${permission}` });
+    }
+
+    // require the permission on it
+    await context.requireAuthorization().require(call.permission(permission), link.object);
 }
 
 /** The history, access and recording a host serves the audit service with. */

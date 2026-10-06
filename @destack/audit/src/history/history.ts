@@ -15,7 +15,8 @@ import {
     type SQL,
 } from "@destack/db";
 import { Subject } from "@destack/sync";
-import { canonicalize, schema } from "@destack/schema";
+import { canonicalize, type Identifier, schema } from "@destack/schema";
+import type { PackageId } from "@destack/package";
 import { AuditError } from "../error/index.ts";
 import {
     AuditBatch,
@@ -51,6 +52,52 @@ export class AuditHistory {
         );
 
         return calls.length;
+    }
+
+    /** Store a batch of an instance's journal its host relays, recording the instance as each call's provenance. */
+    async relay(value: unknown, provenance: AuditProvenance): Promise<number> {
+        // parse the batch, refusing one no journal writes
+        const parsed = AuditBatch.safeParse(value);
+        if (!parsed.success) {
+            throw new AuditError("INVALID_EVENT", "invalid journal batch", { cause: parsed.error });
+        }
+
+        // refuse calls of another space or package, and calls naming a provenance of their own
+        const batch = parsed.data;
+        for (const call of batch.calls) {
+            AuditHistory.#requireOrigin(call, provenance);
+        }
+
+        // record the installation and the instance on each call
+        const { installationId, instanceId } = provenance;
+        const calls = batch.calls.map((call) => {
+            const context = { ...call.execution.context, installationId, instanceId };
+
+            return { ...call, execution: { ...call.execution, context } };
+        });
+
+        return this.ingest({ calls });
+    }
+
+    /** Require a relayed call to run in the instance's space and package, naming no provenance, which only its host records. */
+    static #requireOrigin(call: AuditCall, provenance: AuditProvenance): void {
+        // refuse a call of another space or package
+        const { context } = call.execution;
+        if (context.scope !== provenance.scope || context.package.id !== provenance.packageId) {
+            throw new AuditError(
+                "FORBIDDEN",
+                `installation ${provenance.installationId} records no calls of ${context.package.id} in ${context.scope}`,
+            );
+        }
+
+        // refuse a call naming where it ran
+        const isProvenanced =
+            context.installationId !== undefined ||
+            context.instanceId !== undefined ||
+            context.machineId !== undefined;
+        if (isProvenanced) {
+            throw new AuditError("FORBIDDEN", "only the host records a call's provenance");
+        }
     }
 
     /** Insert a call, or the outcome of a running one. */
@@ -93,6 +140,13 @@ export class AuditHistory {
         }
 
         // accept a repeat, or the outcome of a running call with the same origin
+        await AuditHistory.#settle(call, transaction);
+    }
+
+    /** Accept a call conflicting with a stored one as a repeat, or as the outcome of the running call it stores. */
+    static async #settle(call: AuditCall, transaction: DatabaseConnection): Promise<void> {
+        // read the stored call
+        const { execution } = call;
         const [existing] = await transaction
             .select({ call: auditCall.call })
             .from(auditCall)
@@ -100,6 +154,8 @@ export class AuditHistory {
         if (existing === undefined) {
             throw new TypeError(`audited call ${execution.id} conflicted but is missing`);
         }
+
+        // refuse other contents, and record an outcome
         const isRepeat = canonicalize(existing.call) === canonicalize(call);
         const isOutcome =
             existing.call.execution.outcome === undefined &&
@@ -167,72 +223,9 @@ export class AuditHistory {
 
     /** Read one page in acceptance order. */
     async list(request: AuditQuery): Promise<AuditPage> {
-        // parse the query and filter by scope
+        // parse the query
         const query = AuditQuery.parse(request);
-        const filters: (SQL | undefined)[] = [eq(auditCall.scope, query.scope)];
-
-        // filter by method and package
-        if (query.method !== undefined) {
-            filters.push(eq(auditCall.method, query.method));
-        }
-        if (query.packageId !== undefined) {
-            filters.push(eq(auditCall.packageId, query.packageId));
-        }
-
-        // filter by actor
-        if (query.actor !== undefined) {
-            filters.push(eq(auditCall.actor, actorKey(query.actor)));
-        }
-
-        // filter by category
-        if (query.category !== undefined) {
-            filters.push(eq(auditCall.category, query.category));
-        }
-
-        // filter by outcome
-        if (query.outcome !== undefined) {
-            filters.push(eq(auditCall.outcome, query.outcome));
-        }
-
-        // find calls still running
-        if (query.isRunning === true) {
-            filters.push(isNull(auditCall.outcome));
-        }
-
-        // filter by acceptance time
-        if (query.from !== undefined) {
-            filters.push(gte(auditCall.recordedAt, query.from));
-        }
-        if (query.before !== undefined) {
-            filters.push(lt(auditCall.recordedAt, query.before));
-        }
-
-        // continue after the cursor
-        if (query.cursor) {
-            filters.push(
-                or(
-                    gt(auditCall.recordedAt, query.cursor.recordedAt),
-                    and(
-                        eq(auditCall.recordedAt, query.cursor.recordedAt),
-                        gt(auditCall.id, query.cursor.id),
-                    ),
-                ),
-            );
-        }
-
-        // filter by target
-        if (query.target) {
-            const targets = this.database
-                .select({ id: auditTarget.callId })
-                .from(auditTarget)
-                .where(
-                    and(
-                        eq(auditTarget.type, query.target.type),
-                        eq(auditTarget.objectId, query.target.id),
-                    ),
-                );
-            filters.push(inArray(auditCall.id, targets));
-        }
+        const filters = this.#filters(query);
 
         // fetch one extra record to detect the last page
         const rows = await this.database
@@ -251,6 +244,52 @@ export class AuditHistory {
                     ? { recordedAt: last.recordedAt, id: last.call.execution.id }
                     : null,
         };
+    }
+
+    /** Match the calls a query selects: its scope, method, package, actor, category, outcome, time range, cursor and target. */
+    #filters(query: AuditQuery): (SQL | undefined)[] {
+        // match the call's columns the query names
+        const { cursor, target } = query;
+        const columns = [
+            eq(auditCall.scope, query.scope),
+            query.method === undefined ? undefined : eq(auditCall.method, query.method),
+            query.packageId === undefined ? undefined : eq(auditCall.packageId, query.packageId),
+            query.actor === undefined ? undefined : eq(auditCall.actor, actorKey(query.actor)),
+            query.category === undefined ? undefined : eq(auditCall.category, query.category),
+            query.outcome === undefined ? undefined : eq(auditCall.outcome, query.outcome),
+            query.isRunning === true ? isNull(auditCall.outcome) : undefined,
+        ];
+
+        // match the acceptance times from the start, before the end, and after the cursor
+        const times = [
+            query.from === undefined ? undefined : gte(auditCall.recordedAt, query.from),
+            query.before === undefined ? undefined : lt(auditCall.recordedAt, query.before),
+            cursor === undefined || cursor === null
+                ? undefined
+                : or(
+                      gt(auditCall.recordedAt, cursor.recordedAt),
+                      and(eq(auditCall.recordedAt, cursor.recordedAt), gt(auditCall.id, cursor.id)),
+                  ),
+        ];
+
+        // match the calls naming the target
+        const targeted =
+            target === undefined || target === null
+                ? undefined
+                : inArray(
+                      auditCall.id,
+                      this.database
+                          .select({ id: auditTarget.callId })
+                          .from(auditTarget)
+                          .where(
+                              and(
+                                  eq(auditTarget.type, target.type),
+                                  eq(auditTarget.objectId, target.id),
+                              ),
+                          ),
+                  );
+
+        return [...columns, ...times, targeted];
     }
 
     /** Remove a scope's oldest calls accepted before a time, returning how many. */
@@ -292,6 +331,18 @@ export class AuditHistory {
             query.cursor = page.cursor;
         }
     }
+}
+
+/** The instance whose journal a host relays, as the host verified it from the instance's secret. */
+export interface AuditProvenance {
+    /** The space the instance serves. */
+    readonly scope: Identifier<"space">;
+    /** The package the instance runs. */
+    readonly packageId: PackageId;
+    /** The installation the instance runs. */
+    readonly installationId: Identifier<"installation">;
+    /** The instance. */
+    readonly instanceId: Identifier<"instance">;
 }
 
 /** Encode an actor as its query key. */

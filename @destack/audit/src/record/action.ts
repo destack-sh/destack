@@ -7,5 +7,5 @@ export const invokeService = defineAuditAction({
     targets: schema.object({
         procedure: schema.object({ type: schema.literal("procedure"), id: schema.string().min(1) }),
     }),
-    details: schema.object({ authentication: schema.enum(["public", "identity", "host"]) }),
+    details: schema.object({ authentication: schema.enum(["public", "identity", "machine"]) }),
 });

@@ -1,4 +1,4 @@
-import { AuditCall } from "../record/call.ts";
+import { AuditCall } from "./call.ts";
 import { identifier, integer, text, json, defineTable, index, uniqueIndex } from "@destack/db";
 
 /** The audited calls of each scope. */

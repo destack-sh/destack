@@ -20,7 +20,7 @@ import {
 } from "@destack/access";
 import { accountRecord } from "./stack/index.ts";
 import { AccessFixture } from "@destack/access/test";
-import { call } from "../src/object/index.ts";
+import { call } from "../src/record/index.ts";
 
 /** The accounts whose histories the test reads. */
 const account = new Policy(
@@ -56,7 +56,7 @@ const publishDocument = defineAuditAction(
     },
 );
 
-test("authorize producers and readers, stream history, and record denied access", async () => {
+test("authorize readers, stream history, record denied access, and take no calls to record", async () => {
     const storage = await AuditStorage.open();
     const { journal, history } = storage;
 
@@ -70,7 +70,7 @@ test("authorize producers and readers, stream history, and record denied access"
         });
         const recorder = new AuditRecorder(context, journal);
 
-        // let the reader ingest and read but not prune
+        // let the reader read but not prune
         const database = storage.database;
         const accountObject = account.reference("owner", context.scope);
         const authorizer = new Authorizer(
@@ -101,8 +101,8 @@ test("authorize producers and readers, stream history, and record denied access"
         await asOwner.create(accountObject, { owner: subject });
         const reader = await asOwner.createRole(accountObject, {
             name: "reader",
-            description: "Records and reads the account's history",
-            permissions: [call.permission("ingest"), call.permission("read")],
+            description: "Reads the account's history",
+            permissions: [call.permission("read")],
         });
         await asOwner.grant({
             object: accountObject,
@@ -138,7 +138,7 @@ test("authorize producers and readers, stream history, and record denied access"
                     verifiedAt: Date.now(),
                     expiresAt: Date.now() + 60000,
                 }),
-            authorizeHost: async () => {},
+            authorizeMachine: async () => {},
             drainTimeout: 1000,
         });
         const client = createAuditClient({
@@ -146,7 +146,7 @@ test("authorize producers and readers, stream history, and record denied access"
             fetch: (request) => server.fetch(request),
         });
 
-        // deliver two publishes as one batch, and page through them
+        // deliver two publishes to the history as one batch, and page through them
         const publish = (revision: number) =>
             recorder.record(undefined, publishDocument, {
                 targets: { document: { type: "document", id: "one" } },
@@ -155,7 +155,7 @@ test("authorize producers and readers, stream history, and record denied access"
             });
         const earlier = await publish(3);
         const later = await publish(4);
-        expect(await journal.deliver(client)).toBe(2);
+        expect(await journal.deliver(history)).toBe(2);
         const scope = context.scope;
         const query = { scope, method: publishDocument.name, limit: 1 };
         const first = await history.list(query);
@@ -172,21 +172,18 @@ test("authorize producers and readers, stream history, and record denied access"
         }
         expect(exported).toEqual([...first.items, ...second.items]);
 
-        // reject a foreign scope and cross-account access
-        const foreign = "account-01995da9-7223-7000-8000-000000000002";
-        await expect(
-            client.ingest({
-                calls: [
-                    {
-                        ...earlier,
-                        execution: {
-                            ...earlier.execution,
-                            context: { ...context, scope: foreign },
-                        },
-                    },
-                ],
+        // answer no route recording calls, which only the history's own host stores
+        const recorded = await server.fetch(
+            new Request("http://audit.local/audit/calls", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ calls: [earlier] }),
             }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN" });
+        );
+        expect(recorded.status).toBe(404);
+
+        // refuse cross-account access
+        const foreign = "account-01995da9-7223-7000-8000-000000000002";
         const denied = async () => {
             const records = [];
             for await (const record of await client.export({
@@ -218,14 +215,6 @@ test("authorize producers and readers, stream history, and record denied access"
                 entry.execution.outcome,
             ]),
         ).toEqual([
-            [
-                "service.invoke",
-                { procedure: { type: "procedure", id: "ingest" } },
-                {
-                    kind: "denied",
-                    error: { code: "FORBIDDEN", status: 403, message: "permission denied: ingest" },
-                },
-            ],
             [
                 "service.invoke",
                 { procedure: { type: "procedure", id: "export" } },

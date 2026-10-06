@@ -4,7 +4,7 @@ import { AuditContext } from "../record/context.ts";
 import { AuditExecution } from "../record/execution.ts";
 import { v7 } from "uuid";
 import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
-import { Failure, Outcome, Subject } from "@destack/sync";
+import { Failure, Outcome } from "@destack/sync";
 import { denialOf, ServiceError } from "@destack/service";
 import type { Authentication } from "@destack/service/authentication";
 import {
@@ -97,10 +97,8 @@ export class AuditRecorder<Transaction = never> {
         const actor = AuditCaller.actor(recorded);
         const acting = actor.type === "subject" ? actor.subject : undefined;
 
-        // select the acting principal's deployment, and the session or token the caller presented
-        const deploymentId = acting
-            ? claims?.deployments?.find((entry) => Subject.same(entry.subject, acting))?.id
-            : undefined;
+        // select the deployment the acting workload ran, and the session or token the caller presented
+        const deploymentId = acting === undefined ? undefined : caller?.deployment(acting);
         const presented = caller?.credential.id;
         const session = schema.identifier("session").safeParse(presented);
         const token = schema.identifier("token").safeParse(presented);
@@ -108,7 +106,7 @@ export class AuditRecorder<Transaction = never> {
 
         // read the request's session, token and trace
         const sessionId = session.success ? session.data : origin.sessionId;
-        const deviceId = caller?.credential.device ?? origin.deviceId;
+        const clientId = caller?.credential.client ?? origin.clientId;
         const tokenId = token.success ? token.data : origin.tokenId;
         const traceId = span && isSpanContextValid(span) ? span.traceId : undefined;
 
@@ -117,7 +115,7 @@ export class AuditRecorder<Transaction = never> {
                 ...origin,
                 caller: recorded,
                 ...(deploymentId === undefined ? {} : { deploymentId }),
-                ...(deviceId === undefined ? {} : { deviceId }),
+                ...(clientId === undefined ? {} : { clientId }),
                 ...(sessionId === undefined ? {} : { sessionId }),
                 ...(tokenId === undefined ? {} : { tokenId }),
                 ...(traceId === undefined ? {} : { traceId }),
