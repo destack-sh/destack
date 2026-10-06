@@ -2,13 +2,15 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { type Context, type ContextManager, ROOT_CONTEXT } from "@opentelemetry/api";
 
 /** Keep the active context in the AsyncLocalStorage workerd provides under nodejs_compat. */
-export class StorageContextManager implements ContextManager {
+export class WorkerContextManager implements ContextManager {
     /** The context of each asynchronous flow. */
     readonly #storage = new AsyncLocalStorage<Context>();
+    /** Whether the manager keeps contexts, between its enabling and its disabling. */
+    #isEnabled = true;
 
-    /** Read the active context, the root outside every flow. */
+    /** Read the active context, the root outside every flow and once disabled. */
     active(): Context {
-        return this.#storage.getStore() ?? ROOT_CONTEXT;
+        return this.#isEnabled ? (this.#storage.getStore() ?? ROOT_CONTEXT) : ROOT_CONTEXT;
     }
 
     /** Run a function with a context active for its whole flow. */
@@ -39,12 +41,14 @@ export class StorageContextManager implements ContextManager {
 
     /** Start keeping contexts. */
     enable(): this {
+        this.#isEnabled = true;
+
         return this;
     }
 
-    /** Stop keeping contexts. */
+    /** Stop keeping contexts, as workerd's AsyncLocalStorage implements no disabling. */
     disable(): this {
-        this.#storage.disable();
+        this.#isEnabled = false;
 
         return this;
     }
