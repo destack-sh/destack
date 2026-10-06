@@ -224,16 +224,12 @@ export function SpaceBrowser(properties: {
                             title={title}
                             {...stylex.attrs(
                                 styles.tab,
-                                row === properties.page.row ? styles.tabOn : styles.tabPinned,
+                                styles.tabEven,
+                                row === properties.page.row && styles.tabOn,
                             )}
                         >
                             <Favicon icon={icon} tint={tint} />
-                            {row === properties.page.row ? (
-                                <>
-                                    <span {...stylex.attrs(styles.tabTitle)}>{title}</span>
-                                    <Glyph name="close" size={12} />
-                                </>
-                            ) : undefined}
+                            <span {...stylex.attrs(styles.tabTitle)}>{title}</span>
                         </span>
                     ))
                 )}
@@ -714,16 +710,17 @@ const styles = stylex.create({
         paddingInline: "0.75rem",
         position: "relative",
     },
-    tabPinned: {
-        paddingInline: "0.625rem",
-        width: "2.375rem",
+    tabEven: {
+        flexBasis: 0,
+        flexGrow: 1,
+        flexShrink: 1,
+        justifyContent: "flex-start",
+        maxWidth: "12rem",
+        transition: "background-color 160ms ease, color 160ms ease",
     },
     tabOn: {
         backgroundColor: color.card,
         color: color.foreground,
-        flexBasis: "12rem",
-        flexShrink: 1,
-        justifyContent: "flex-start",
         "::before": {
             backgroundImage: `radial-gradient(circle at 0 0, transparent 8px, ${color.card} 8.5px)`,
             bottom: 0,
