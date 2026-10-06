@@ -1,7 +1,7 @@
 import { defineSetting } from "@destack/setting/declare";
 import { Appearance } from "../theme/index.ts";
 
-/** The appearance a person selects, overridden per package, space, installation or device. */
+/** The appearance a person selects, overridden per package, space, installation or client. */
 export const appearance = defineSetting({
     name: "appearance",
     title: "Appearance",
@@ -9,6 +9,6 @@ export const appearance = defineSetting({
     schema: Appearance,
     default: "system",
     scope: "user",
-    overrides: ["package", "space", "installation", "device"],
+    overrides: ["package", "space", "installation", "client"],
     apply: "immediate",
 });

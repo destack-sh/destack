@@ -1,7 +1,7 @@
 import { defineSetting } from "@destack/setting/declare";
 import { DEFAULT_PREFERENCES, Motion } from "../theme/index.ts";
 
-/** The motion a person sees, overridden per package, space, installation or device. */
+/** The motion a person sees, overridden per package, space, installation or client. */
 export const motion = defineSetting({
     name: "motion",
     title: "Motion",
@@ -9,6 +9,6 @@ export const motion = defineSetting({
     schema: Motion,
     default: DEFAULT_PREFERENCES.motion,
     scope: "user",
-    overrides: ["package", "space", "installation", "device"],
+    overrides: ["package", "space", "installation", "client"],
     apply: "immediate",
 });

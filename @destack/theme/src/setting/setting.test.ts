@@ -16,7 +16,7 @@ const notes = Package.parse({
 /** The fields every display preference shares. */
 const preference = {
     scope: "user",
-    overrides: ["package", "space", "installation", "device"],
+    overrides: ["package", "space", "installation", "client"],
     apply: "immediate",
 };
 

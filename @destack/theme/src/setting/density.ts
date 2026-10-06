@@ -1,7 +1,7 @@
 import { defineSetting } from "@destack/setting/declare";
 import { DEFAULT_PREFERENCES, Density } from "../theme/index.ts";
 
-/** How tightly a person packs controls and content, overridden per package, space, installation or device. */
+/** How tightly a person packs controls and content, overridden per package, space, installation or client. */
 export const density = defineSetting({
     name: "density",
     title: "Density",
@@ -10,6 +10,6 @@ export const density = defineSetting({
     schema: Density.nullable(),
     default: DEFAULT_PREFERENCES.density,
     scope: "user",
-    overrides: ["package", "space", "installation", "device"],
+    overrides: ["package", "space", "installation", "client"],
     apply: "immediate",
 });
