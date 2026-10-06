@@ -65,11 +65,11 @@ const MarkTwice = defineScenario({
 const TallyDriver: DriverType<Tallying, Tally> = {
     interaction: tallyInteraction,
     start(given: Given<Tally>): Driver<Tallying> {
-        const [example] = given.examples;
-        if (example === undefined) {
+        const render = given.examples[0]?.render;
+        if (render === undefined) {
             throw new TypeError("no tally is given");
         }
-        const tally = example.render();
+        const tally = render();
 
         return {
             act(step) {

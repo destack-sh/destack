@@ -1,7 +1,8 @@
-import { defineSchema, type JsonValue, schema } from "@destack/schema";
+import { defineSchema, type JsonObject, type JsonValue, schema } from "@destack/schema";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DeclarationName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
+import { Moniker } from "../graph/moniker.ts";
 import type { Declaration } from "./declaration.ts";
 
 /** The schema of the property values an example sets, each a JSON value a control can change. */
@@ -20,9 +21,26 @@ export interface ExampleDefinition<Of, Instance> {
     readonly name: string;
     /** The property values the example sets, each a JSON value a control can change. */
     readonly properties?: PropertiesOf<Of>;
-    /** Render the declaration with the properties, such as a component inside a form. */
-    readonly render: (properties: PropertiesOf<Of>) => Instance;
+    /** The calls bringing the declaration's objects into the example's state, by the scope it opens them in, such as a view's space. */
+    readonly objects?: ExampleObjects;
+    /** Render the declaration with the properties, absent for a declaration its host renders, such as a view. */
+    readonly render?: (properties: PropertiesOf<Of>) => Instance;
 }
+
+/** The calls an example makes to bring objects into its state, by scope: methods of object types, named, with their inputs. */
+export type ExampleObjects = Readonly<
+    Record<
+        string,
+        readonly {
+            /** The object type, as the declaration opens it. */
+            readonly object: { readonly name: string };
+            /** The method. */
+            readonly method: string;
+            /** The method's input. */
+            readonly input: JsonObject;
+        }[]
+    >
+>;
 
 /** One declaration in a given state, rendered or instantiated by a host and never stepped. */
 export interface Example<
@@ -33,12 +51,14 @@ export interface Example<
     readonly of: unknown;
     /** The property values the example sets. */
     readonly properties: Properties;
-    /** Render the declaration with the example's properties, or with the ones a control changed. */
-    render(properties?: Properties): Instance;
+    /** The calls bringing the declaration's objects into the example's state, by scope. */
+    readonly objects: ExampleObjects;
+    /** Render the declaration with the example's properties, or with the ones a control changed, absent for a declaration its host renders. */
+    readonly render: ((properties?: Properties) => Instance) | undefined;
 }
 
 /** Declare an example of a declaration in a given state. */
-export function defineExample<Of, Instance>(
+export function defineExample<Of, Instance = never>(
     definition: ExampleDefinition<Of, Instance>,
     module?: ModuleMetadata,
 ): Example<PropertiesOf<Of>, Instance> {
@@ -56,12 +76,19 @@ export function defineExample<Of, Instance>(
         );
     }
 
+    // render through the definition, or leave rendering to the host for a declaration it renders
+    const { render } = definition;
+
     return Object.freeze({
         package: owner,
         name,
         of,
         properties,
-        render: (changed: PropertiesOf<Of> = properties) => definition.render(changed),
+        objects: definition.objects ?? {},
+        render:
+            render === undefined
+                ? undefined
+                : (changed: PropertiesOf<Of> = properties) => render(changed),
     });
 }
 
@@ -122,6 +149,20 @@ export const ExampleDescription = defineSchema(
         properties: schema.record(schema.string(), schema.json()),
         /** The controls of the properties the declaration's package declares, by property. */
         controls: schema.array(Control),
+        /** The calls bringing the declaration's objects into the example's state, by scope, each object type by moniker. */
+        objects: schema.record(
+            schema.string(),
+            schema.array(
+                schema.object({
+                    /** The object type. */
+                    object: Moniker,
+                    /** The method. */
+                    method: schema.string().min(1),
+                    /** The method's input. */
+                    input: schema.record(schema.string(), schema.json()),
+                }),
+            ),
+        ),
     }),
 );
 /** The description of an example declaration in the graph. */
