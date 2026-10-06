@@ -1,9 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import {
-    type DomainError,
-    type ServiceErrorCode,
-    type ServiceErrorReport,
-} from "@destack/error";
+import { type DomainError, type ServiceErrorCode, type ServiceErrorReport } from "@destack/error";
 import type { CapabilityName } from "../definition/capability.ts";
 
 /** Invalid package definitions and distributed files. */
