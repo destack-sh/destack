@@ -111,7 +111,7 @@ jobs:
               run: bun run src/distribution/rehearse.ts "$DESTACK_RELEASE_VERSION" "$GITHUB_WORKSPACE/dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
               shell: bash
             - name: Upload unsigned distribution
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: unsigned-${{ matrix.target }}
                   retention-days: 14
@@ -168,7 +168,7 @@ jobs:
             - name: Pack distribution
               run: bun run src/distribution/pack.ts ${{ matrix.target }}
             - name: Upload signed distribution
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: signed-${{ matrix.target }}
                   retention-days: 14
@@ -225,7 +225,7 @@ jobs:
             - name: Build installer
               run: bun run src/installer/build.ts ${{ matrix.name }}
             - name: Upload installer
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: installer-${{ matrix.name }}
                   retention-days: 14
