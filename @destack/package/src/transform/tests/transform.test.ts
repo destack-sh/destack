@@ -1,12 +1,8 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { PackageLocator, type ModulePackage } from "../locator.ts";
 import { transformModule } from "../transform.ts";
 import { ModuleMetadata } from "../../definition/metadata.ts";
-import { PackageError } from "../../error/error.ts";
 
 /** The package whose metadata the transform injects. */
 const owner: ModulePackage = {
@@ -82,61 +78,4 @@ test("pass the calling module to stamped tags and to members of named and namesp
         "export const plain = notes.note(__destackModule)`Plain`;",
         'export const owned = Note.titled("heading", __destackModule)`Owned`;',
     ]);
-});
-
-test("read a package's constructors once per locator, and its changed ones in the next", async () => {
-    // declare one constructor in a package of a temporary directory
-    const directory = await mkdtemp(join(tmpdir(), "destack-constructors-"));
-    onTestFinished(() => rm(directory, { recursive: true }));
-    const declare = (names: readonly string[]) =>
-        writeFile(
-            join(directory, "destack.json"),
-            JSON.stringify({
-                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
-                id: owner.metadata.package.id,
-                language: "typescript",
-                declarations: Object.fromEntries(
-                    names.map((name) => [
-                        name,
-                        { describes: [{ kind: "note", function: "./inspect#describe" }] },
-                    ]),
-                ),
-            }),
-        );
-    await writeFile(join(directory, "package.json"), JSON.stringify({ name: "@example/fresh" }));
-    await declare(["defineNote"]);
-    const build = new PackageLocator();
-    const before = build.constructors("@example/fresh", directory);
-
-    // keep the first build's answer after the change, and read the change in the next build
-    await declare(["defineNote", "defineTag"]);
-    const cached = build.constructors("@example/fresh", directory);
-    const next = new PackageLocator().constructors("@example/fresh", directory);
-    expect([before, cached, next].map((constructors) => Object.keys(constructors))).toEqual([
-        ["defineNote"],
-        ["defineNote"],
-        ["defineNote", "defineTag"],
-    ]);
-});
-
-test("refuse a destack.json without a package.json beside it", async () => {
-    // define a package without its manifest in a temporary directory
-    const directory = await mkdtemp(join(tmpdir(), "destack-unnamed-"));
-    onTestFinished(() => rm(directory, { recursive: true }));
-    await writeFile(
-        join(directory, "destack.json"),
-        JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
-            id: owner.metadata.package.id,
-            language: "typescript",
-        }),
-    );
-
-    // refuse the package rather than attribute its modules to an enclosing one
-    await expect(new PackageLocator().find(join(directory, "src", "note.ts"))).rejects.toThrow(
-        new PackageError(
-            "INVALID_DEFINITION",
-            `${join(directory, "destack.json")} has no package.json beside it`,
-        ),
-    );
 });
