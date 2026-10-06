@@ -66,16 +66,6 @@ export const archive = defineCommand({
 });
 ```
 
-## Command palette
-
-`CommandPalette` from `@destack/view/command` is a palette an app composes into its chrome, searching the commands and views of every space a person uses, their windows and recent objects, the focused window's first.
-
-```tsx
-import { CommandPalette } from "@destack/view/command";
-
-<CommandPalette client={client} focus={{ space, installation: "work", object: task }} />;
-```
-
 ## Palette ranking
 
 `Palette` from `@destack/view/palette`, the palette's target-neutral model, ranks entries by the typed text and the focus, reads a command's keybinding and honours the sources a person turned off.
@@ -141,6 +131,29 @@ if (await space.can("write")) {
 }
 ```
 
+## Forms
+
+`useForm` edits the input of one call of an object's method, checking each held field against the method's input schema and explaining refusals in the person's language.
+
+```tsx
+const form = useForm(note, "update", {
+    values: () => ({ id: note().id, title: note().title }),
+    submit: (input) => space.mutate.note.update(input),
+    mode: "submit", // or "change" to submit each edit in place
+});
+<Field invalid={form.field("title").problem() !== undefined}>
+    <Input
+        value={form.field("title").value()}
+        onInput={(event) => form.field("title").set(event.currentTarget.value)}
+    />
+    <FieldError>{form.field("title").problem()}</FieldError>
+</Field>;
+<Button loading={form.status() === "pending"} onClick={() => form.submit()}>
+    Save
+</Button>;
+// status: idle → pending → saved | failed; reset() drops the edits
+```
+
 ## Home
 
 `useHome` reads objects from the person's home space.
@@ -156,85 +169,6 @@ export const inbox = defineView({
 });
 const home = useHome({ notification });
 const unread = useQuery(() => home.query.notification.aggregate(UNREAD));
-```
-
-## Forms
-
-`@destack/view/form` binds a `@destack/ui` field to an object field.
-
-```tsx
-import { Field } from "@destack/view/form";
-
-<Field
-    for={{
-        object: note,
-        field: "title",
-        value: current().title,
-        write: (title) => space.mutate.note.update({ id, title }),
-    }}
-    label="Title"
-/>;
-// string → Input, integer and number → number Input, boolean → Switch, time → datetime-local Input,
-// enum → Select, state → StateTransition with `id` and `access`; other types need their own control
-```
-
-## Schema forms
-
-`SchemaForm` renders a form for an object a JSON Schema describes, a field per property, as a method's input asks for it.
-
-```tsx
-<SchemaForm schema={method.input} submit="Snooze task" onSubmit={(input) => call(input)} />
-// strings as text, numbers, booleans as checkboxes, enumerations as choices, anything else as JSON
-```
-
-## State transitions
-
-`StateTransition` shows an object's state and a button per allowed transition.
-
-```tsx
-import { StateTransition } from "@destack/view/form";
-
-<StateTransition
-    access={space}
-    object={note}
-    id={id}
-    field="status"
-    value={current().status}
-    labels={{ publish: "Publish" }}
-/>;
-```
-
-## Reference combobox
-
-`ReferenceCombobox` picks an object of a type, searching as the person types.
-
-```tsx
-import { ReferenceCombobox } from "@destack/view/form";
-
-<ReferenceCombobox
-    aria-label="Notebook"
-    search={(name) =>
-        space.query.notebook.findMany({ where: { name: { like: `${name}%` } }, limit: 20 })
-    }
-    label={(notebook) => notebook.name}
-    value={notebook()}
-    onValueChange={move}
-/>;
-```
-
-## Command button
-
-`CommandButton` runs an object method and shows a refusal as a toast.
-
-```tsx
-import { CommandButton } from "@destack/view/form";
-
-<CommandButton
-    run={() => space.call(note, "archive", { id })}
-    errorMessage="The note could not be archived"
->
-    Archive
-</CommandButton>;
 ```
 
 ## Opening objects
