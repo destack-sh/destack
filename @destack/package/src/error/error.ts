@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import {
-    type ReportableError,
+    type DomainError,
     type ServiceErrorCode,
     type ServiceErrorReport,
 } from "@destack/error";
@@ -34,7 +34,7 @@ const SERVICE_CODES: Readonly<Record<PackageErrorCode, ServiceErrorCode>> = {
 };
 
 /** A package failure with its original cause. */
-export class PackageError extends Error implements ReportableError {
+export class PackageError extends Error implements DomainError {
     /** Stable failure code. */
     readonly code: PackageErrorCode;
 
@@ -55,7 +55,7 @@ export class PackageError extends Error implements ReportableError {
 export type CapabilityErrorCode = "UNSUPPORTED" | "UNENFORCEABLE";
 
 /** A workload's capability its host cannot grant, refused before the workload starts. */
-export class CapabilityError extends Error implements ReportableError {
+export class CapabilityError extends Error implements DomainError {
     /** Stable failure code. */
     readonly code: CapabilityErrorCode;
     /** The capability the host cannot grant. */
