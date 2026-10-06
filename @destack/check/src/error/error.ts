@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each check failure: a bad selection, an unsupported package, or the tool's. */
 const SERVICE_CODES = {
@@ -11,7 +11,7 @@ const SERVICE_CODES = {
 export type CheckErrorCode = keyof typeof SERVICE_CODES;
 
 /** A failed checker invocation or unsupported package. */
-export class CheckError extends Error implements ReportableError {
+export class CheckError extends Error implements DomainError {
     /** Failure category. */
     readonly code: CheckErrorCode;
 
