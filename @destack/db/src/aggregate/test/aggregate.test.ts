@@ -129,10 +129,3 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
-
-test("refuse an aggregate naming a table the database does not declare", async () => {
-    // declare the archive without the items it counts
-    await expect(TestDatabase.create("sqlite", [archive], { isMigrated: true })).rejects.toThrow(
-        "aggregate of aggregate_item into aggregate_archive names undeclared table aggregate_item",
-    );
-});

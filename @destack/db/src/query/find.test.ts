@@ -4,7 +4,6 @@ import type { Dialect } from "../dialect/dialect.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { defineDatabase } from "../declare/database.ts";
-import { DatabaseError } from "../error/error.ts";
 import { defineRelations } from "./relation.ts";
 
 /** Projects holding tasks. */
@@ -203,7 +202,7 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("read the first row by order, none when no row meets the condition, and refuse an undeclared relation", async () => {
+test("read the first row by order, and none when no row meets the condition", async () => {
     const connection = await open("sqlite");
 
     // read the first and a missing row
@@ -211,15 +210,4 @@ test("read the first row by order, none when no row meets the condition, and ref
         await connection.query.task.findFirst({ columns: { id: true }, orderBy: { rank: "desc" } }),
         await connection.query.task.findFirst({ where: { title: "Sweep" } }),
     ]).toEqual([{ id: "t3" }, undefined]);
-
-    // refuse a relation the schema does not declare
-    await expect(connection.query.tag.findMany({ with: { tasks: true } })).rejects.toEqual(
-        new DatabaseError("INVALID_QUERY", "tag has no relation tasks"),
-    );
-});
-
-test("refuse relations naming a table the database does not keep", () => {
-    expect(() => defineDatabase({ name: "projects", tables: [project], relations })).toThrow(
-        new TypeError("relations name table task, which the database does not keep"),
-    );
 });

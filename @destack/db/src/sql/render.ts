@@ -130,36 +130,7 @@ function renderChunk(chunk: Chunk, target: Target): string {
     }
     // bind an encoded value, null as it is, or a placeholder
     else if (chunk instanceof Parameter || chunk instanceof Placeholder) {
-        const value = chunk instanceof Placeholder ? chunk : encoded(chunk, dialect);
-
-        // write a literal into a declaration, or bind a parameter
-        if (target.parameters === undefined) {
-            if (value instanceof Placeholder) {
-                throw new DatabaseError(
-                    "INVALID_QUERY",
-                    `declarations cannot bind placeholder ${value.placeholder}`,
-                );
-            }
-
-            return literalOf(value, dialect);
-        }
-        // number each PostgreSQL value apart, since it types each marker by one use
-        if (dialect === "postgresql") {
-            target.parameters.push(value);
-
-            return `$${target.parameters.length}`;
-        }
-
-        // bind each distinct SQLite value once, every later occurrence reusing its marker
-        const key = keyOf(value);
-        const bound = target.bound.get(key);
-        if (bound !== undefined) {
-            return `?${bound}`;
-        }
-        target.parameters.push(value);
-        target.bound.set(key, target.parameters.length);
-
-        return `?${target.parameters.length}`;
+        return bind(chunk, target);
     }
     // quote an identifier
     else if (chunk instanceof Name) {
@@ -187,13 +158,9 @@ function renderChunk(chunk: Chunk, target: Target): string {
     }
     // render an alias by its own name, and a table within the database's namespace
     else if (chunk instanceof Table) {
-        const definition = chunk[TABLE];
+        const { source, sqlName } = chunk[TABLE];
 
-        return quote(
-            definition.source === undefined
-                ? relation(definition.sqlName, target.namespace)
-                : definition.sqlName,
-        );
+        return quote(source === undefined ? relation(sqlName, target.namespace) : sqlName);
     }
     // render a fragment's parts
     else if (chunk instanceof SQL) {
@@ -207,6 +174,40 @@ function renderChunk(chunk: Chunk, target: Target): string {
     else {
         return renderChunk(chunk.getSQL(), target);
     }
+}
+
+/** Bind a value or a placeholder as a marker, or write it as a literal into a declaration. */
+function bind(chunk: Parameter | Placeholder, target: Target): string {
+    // write a literal into a declaration, or bind a parameter
+    const { dialect } = target;
+    const value = chunk instanceof Placeholder ? chunk : encoded(chunk, dialect);
+    if (target.parameters === undefined) {
+        if (value instanceof Placeholder) {
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `declarations cannot bind placeholder ${value.placeholder}`,
+            );
+        }
+
+        return literalOf(value, dialect);
+    }
+    // number each PostgreSQL value apart, since it types each marker by one use
+    if (dialect === "postgresql") {
+        target.parameters.push(value);
+
+        return `$${target.parameters.length}`;
+    }
+
+    // bind each distinct SQLite value once, every later occurrence reusing its marker
+    const key = keyOf(value);
+    const bound = target.bound.get(key);
+    if (bound !== undefined) {
+        return `?${bound}`;
+    }
+    target.parameters.push(value);
+    target.bound.set(key, target.parameters.length);
+
+    return `?${target.parameters.length}`;
 }
 
 /** Encode a parameter's value through its column, null and a value without a column as they are. */

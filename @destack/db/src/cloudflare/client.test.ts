@@ -61,10 +61,10 @@ test("keep two databases of one declaration in a Durable Object's storage, each 
     ]);
 });
 
-test("provision, plan, apply and destroy a workload's database in a Durable Object, opening it through the workload's connector", async () => {
+test("provision, plan, apply, measure and destroy a workload's database in a Durable Object, opening it through the workload's connector", async () => {
     const worker = await start();
 
-    // name the database in its object, create its table, keep the written row and drop every relation
+    // name the database in its object, create its table, keep the written row, count the object's bytes and drop every relation
     const response = await worker.dispatchFetch("https://notes.test/host");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -74,6 +74,7 @@ test("provision, plan, apply and destroy a workload's database in a Durable Obje
                 "table/database-01996ab0-0000-7000-8000-00000000d002.destack__durable_scenario__entry",
             ],
             rows: [{ id: "a", title: "Kept" }],
+            isMeasured: true,
             remaining: [{ count: 0 }],
         },
     ]);
@@ -85,4 +86,39 @@ test("write and read rows in statements binding more values than a Durable Objec
     // keep 80 rows written in one statement of 160 values and read in one of 80, quotes and markers in their text intact
     const response = await worker.dispatchFetch("https://notes.test/parameters");
     expect([response.status, await response.json()]).toEqual([200, { isEqual: true }]);
+});
+
+test("read and write another database of a Durable Object's storage from within a transaction of one, joining it", async () => {
+    const worker = await start();
+
+    // read the first database's note and both of the second's, the joined write included
+    const response = await worker.dispatchFetch("https://notes.test/joined");
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        [
+            [{ id: "a", title: "Kept" }],
+            [
+                { id: "a", title: "Kept" },
+                { id: "b", title: "Joined" },
+            ],
+        ],
+    ]);
+});
+
+test("count the rows a Durable Object's statements write and read, each in the one measure following them", async () => {
+    const worker = await start();
+
+    // count the insert's rows as workerd counts them, its key index entries included, the three notes read back, and nothing after
+    const response = await worker.dispatchFetch("https://notes.test/rows");
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        {
+            counts: [
+                [17, 8],
+                [3, 0],
+                [0, 0],
+            ],
+            notes: 3,
+        },
+    ]);
 });

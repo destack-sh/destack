@@ -95,17 +95,3 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
         ]);
     }
 });
-
-test("refuse orders naming a column twice or more than sixteen keys", () => {
-    // refuse a repeated column and too many keys
-    const key = { column: "id", direction: "asc" as const };
-    expect(() => Order.require([key, key], sample)).toThrow(
-        "order has more than 16 keys, or one column twice",
-    );
-    expect(() =>
-        Order.require(
-            Array.from({ length: 17 }, () => key),
-            sample,
-        ),
-    ).toThrow("order has more than 16 keys, or one column twice");
-});

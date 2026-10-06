@@ -350,12 +350,12 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
 );
 
 test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
-    "report a postgresql update that lost to a concurrent commit as a concurrent update",
+    "run a postgresql update that lost to a concurrent commit again after it, keeping its write last",
     async () => {
         const { database } = await open("postgresql");
         await database.insert(note).values(first);
 
-        // commit one of two concurrent updates
+        // commit both of two concurrent updates, the one losing the race again after the other
         const released = Promise.withResolvers<void>();
         const read = Promise.withResolvers<void>();
         const late = database.transaction(async (transaction) => {
@@ -367,7 +367,10 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         await read.promise;
         await database.update(note).set({ title: "Early" }).where(eq(note.id, "a"));
         released.resolve();
-        await expect(late).rejects.toMatchObject({ code: "CONCURRENT_UPDATE" });
+        await late;
+        expect(
+            await database.select({ title: note.title }).from(note).where(eq(note.id, "a")),
+        ).toEqual([{ title: "Late" }]);
     },
 );
 

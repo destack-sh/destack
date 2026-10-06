@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, onTestFinished, test } from "@destack/test";
 import { socketChannel } from "../channel/socket.ts";
 import { defineTable, text } from "../index.ts";
-import { connect } from "./connection.ts";
+import { connectBunSqlite } from "./connection.ts";
 
 /** A logged setting without a scope column. */
 const setting = defineTable(
@@ -18,7 +18,7 @@ test("wake a file's readers on a commit another process announces on the file's 
     const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-channel-"));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
     const path = join(directory, "database.db");
-    const reader = await connect(path, [setting], {
+    const reader = await connectBunSqlite(path, [setting], {
         openChannel: (name) => socketChannel(`${path}#${name}`),
     });
     onTestFinished(() => reader.close());

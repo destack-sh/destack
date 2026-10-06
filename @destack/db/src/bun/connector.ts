@@ -5,9 +5,9 @@ export const connectors: Readonly<Record<string, DatabaseConnector>> = {
     sqlite: {
         code: "sqlite",
         connect: async (bound, declaration) => {
-            const { sqliteConnector } = await import("./sqlite.ts");
+            const { bunSqliteConnector } = await import("./sqlite.ts");
 
-            return sqliteConnector.connect(bound, declaration);
+            return bunSqliteConnector.connect(bound, declaration);
         },
     },
 };

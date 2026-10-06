@@ -89,76 +89,92 @@ export class TestDatabase<
     ): Promise<TestDatabase<Models>> {
         const declared = "tables" in tables ? tables.tables : tables;
 
-        // claim or create a PostgreSQL schema
+        // claim or create a PostgreSQL schema, keep empty SQLite in memory, or copy SQLite into a file
         if (dialect === "postgresql") {
-            const address = process.env["DESTACK_TEST_POSTGRES"];
-            if (address === undefined || address === "") {
-                throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
-            }
-            testCluster ??= TestCluster.open(address);
-            const cluster = await testCluster;
-
-            // claim a migrated schema, kept by this process across tests
-            if (options.isMigrated === true) {
-                const state = declareState(declared, "postgresql", {
-                    isReplica: options.isReplica ?? false,
-                });
-                const schema = await cluster.claim(state, tables);
-                const open: TestConnector = (connected) => schema.connect(connected);
-
-                return new TestDatabase(await open(tables), open, async () => {
-                    schema.isIdle = true;
-                });
-            }
-
-            // create an empty schema
-            const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
-            await cluster.administration.unsafe(`CREATE SCHEMA "${schema}"`);
-            const open: TestConnector = (connected) =>
-                postgresql.connect(cluster.connect(schema), connected);
-
-            return new TestDatabase(await open(tables), open, async () => {
-                await cluster.administration.unsafe(`DROP SCHEMA "${schema}" CASCADE`);
-            });
-        }
-        // keep empty SQLite in memory
-        else if (options.isMigrated !== true && (options.storage ?? "memory") === "memory") {
+            return TestDatabase.#postgres(declared, tables, options);
+        } else if (options.isMigrated !== true && (options.storage ?? "memory") === "memory") {
             return new TestDatabase(
-                await sqlite.connect(":memory:", tables),
+                await sqlite.connectBunSqlite(":memory:", tables),
                 undefined,
                 async () => {},
             );
         }
-        // copy SQLite from the migrated template into a temporary file
-        else {
-            const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
-            const file = join(directory, "test.db");
-            if (options.isMigrated === true) {
-                await copyFile(await sqliteTemplate(declared, options.isReplica ?? false), file);
-            }
 
-            // share each named channel through one hub
-            const hubs = new Map<string, () => Channel<unknown>>();
-            const openChannel = (name: string) => {
-                const party = hubs.get(name) ?? channelHub<unknown>();
-                hubs.set(name, party);
+        return TestDatabase.#sqliteFile(declared, tables, options);
+    }
 
-                return party();
-            };
-            const open: TestConnector = (connected) =>
-                sqlite.connect(file, connected, { openChannel });
-
-            // start a logged copy's own epoch as a restore does
-            const database = await open(tables);
-            const [log] = await database.execute(
-                sql`SELECT name FROM sqlite_master WHERE name = ${LOG_EPOCH}`,
-            );
-            if (log !== undefined) {
-                await database.log.renew();
-            }
-
-            return new TestDatabase(database, open, () => rm(directory, { recursive: true }));
+    /** Claim a migrated PostgreSQL schema this process keeps across tests, or create an empty one. */
+    static async #postgres<Models extends Readonly<Record<string, Model>>>(
+        declared: readonly Table[],
+        tables: declaration.Database<Models> | readonly Table[],
+        options: TestDatabaseOptions,
+    ): Promise<TestDatabase<Models>> {
+        // reach the server
+        const address = process.env["DESTACK_TEST_POSTGRES"];
+        if (address === undefined || address === "") {
+            throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
         }
+        testCluster ??= TestCluster.open(address);
+        const cluster = await testCluster;
+
+        // claim a migrated schema, kept by this process across tests
+        if (options.isMigrated === true) {
+            const state = declareState(declared, "postgresql", {
+                isReplica: options.isReplica ?? false,
+            });
+            const schema = await cluster.claim(state, tables);
+            const open: TestConnector = (connected) => schema.connect(connected);
+
+            return new TestDatabase(await open(tables), open, async () => {
+                schema.isIdle = true;
+            });
+        }
+
+        // create an empty schema
+        const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
+        await cluster.administration.unsafe(`CREATE SCHEMA "${schema}"`);
+        const open: TestConnector = (connected) =>
+            postgresql.connectPostgres(cluster.connect(schema), connected);
+
+        return new TestDatabase(await open(tables), open, async () => {
+            await cluster.administration.unsafe(`DROP SCHEMA "${schema}" CASCADE`);
+        });
+    }
+
+    /** Keep SQLite in a temporary file, copied from the migrated template when asked, its channels shared through one hub. */
+    static async #sqliteFile<Models extends Readonly<Record<string, Model>>>(
+        declared: readonly Table[],
+        tables: declaration.Database<Models> | readonly Table[],
+        options: TestDatabaseOptions,
+    ): Promise<TestDatabase<Models>> {
+        // copy the migrated template into a temporary file
+        const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
+        const file = join(directory, "test.db");
+        if (options.isMigrated === true) {
+            await copyFile(await sqliteTemplate(declared, options.isReplica ?? false), file);
+        }
+
+        // share each named channel through one hub
+        const hubs = new Map<string, () => Channel<unknown>>();
+        const openChannel = (name: string) => {
+            const party = hubs.get(name) ?? channelHub<unknown>();
+            hubs.set(name, party);
+
+            return party();
+        };
+        const open: TestConnector = (connected) =>
+            sqlite.connectBunSqlite(file, connected, { openChannel });
+
+        // start a logged copy's own epoch as a restore does
+        const database = await open(tables);
+        const [log] = await database.execute(
+            sql`SELECT name FROM sqlite_master WHERE name = ${LOG_EPOCH}`,
+        );
+        if (log !== undefined) {
+            await database.log.renew();
+        }
+
+        return new TestDatabase(database, open, () => rm(directory, { recursive: true }));
     }
 
     /** Open another connection to the same database. */
@@ -541,7 +557,7 @@ function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<s
         // migrate in its own directory
         const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
         const file = join(directory, "template.db");
-        const database = await sqlite.connect(file, tables);
+        const database = await sqlite.connectBunSqlite(file, tables);
         await database.migrate(tables, { isReplica });
         await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
         await database.close();

@@ -9,9 +9,9 @@ import { schema } from "@destack/schema";
 import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineTable, sql, TABLE, text } from "../index.ts";
-import { sqliteConnector } from "./sqlite.ts";
+import { bunSqliteConnector } from "./sqlite.ts";
 import { databaseProvider } from "../provider/index.ts";
-import { SqliteDatabaseHost } from "./host.ts";
+import { BunSqliteDatabaseHost } from "./host.ts";
 
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
@@ -39,7 +39,7 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
     const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
     onTestFinished(() => rm(directory, { recursive: true }));
     const provider = databaseProvider(
-        new SqliteDatabaseHost(pathToFileURL(`${directory}/`)),
+        new BunSqliteDatabaseHost(pathToFileURL(`${directory}/`)),
         "database",
     );
     const record = {
@@ -60,13 +60,13 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
     const qualified = note[TABLE].sqlName;
     const { reference } = await provider.provision.provision(record);
     const provisioned = { ...record, reference };
-    const early = await outcome(sqliteConnector.connect(bound(reference), notes));
+    const early = await outcome(bunSqliteConnector.connect(bound(reference), notes));
 
     // plan and apply the declared tables, then connect
     const desired = [notes.state()];
     const plan = await provider.reconcile.plan(provisioned, desired);
     await provider.reconcile.apply(provisioned, desired, await Plan.digest(plan));
-    const applied = await outcome(sqliteConnector.connect(bound(reference), notes));
+    const applied = await outcome(bunSqliteConnector.connect(bound(reference), notes));
 
     // destroy the file
     await provider.provision.destroy(provisioned);
@@ -87,7 +87,7 @@ test("open a provisioned SQLite database over its desired tables, migrating tabl
     const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
     onTestFinished(() => rm(directory, { recursive: true }));
     const provider = databaseProvider(
-        new SqliteDatabaseHost(pathToFileURL(`${directory}/`)),
+        new BunSqliteDatabaseHost(pathToFileURL(`${directory}/`)),
         "database",
     );
     const empty = {
@@ -124,4 +124,42 @@ test("open a provisioned SQLite database over its desired tables, migrating tabl
         [note[TABLE].sqlName],
         [{ id: "n1", title: "First" }],
     ]);
+});
+
+test("count a database's bytes as its file and its write-ahead log, and refuse a database whose file is gone", async () => {
+    // provision a database below a scratch directory and write a note into it
+    const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
+    onTestFinished(() => rm(directory, { recursive: true }));
+    const host = new BunSqliteDatabaseHost(pathToFileURL(`${directory}/`));
+    const record = {
+        id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000003"),
+        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+        kind: "database" as const,
+        spec: { copies: [] },
+        reference: null,
+    };
+    const { reference } = await host.provision(record);
+    const path = fileURLToPath(reference);
+    const files = async () =>
+        (await stat(path)).size +
+        (await stat(`${path}-wal`).then(
+            (log) => log.size,
+            () => 0,
+        ));
+
+    // count the bytes, then refuse once the file is removed
+    const counted = await host.bytes(reference);
+    const expected = await files();
+    await host.destroy({ ...record, reference });
+    const refused = await host.bytes(reference).then(
+        () => "counted",
+        (error: unknown) => (error instanceof Error && "code" in error ? error.code : error),
+    );
+
+    // count exactly the file and its log, and refuse a missing file
+    expect({ isCounted: counted > 0, counted, refused }).toEqual({
+        isCounted: true,
+        counted: expected,
+        refused: "ENOENT",
+    });
 });

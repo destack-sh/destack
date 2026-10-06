@@ -1,6 +1,6 @@
-import { Digest, schema } from "@destack/schema";
+import { defineSchema, Digest, schema } from "@destack/schema";
 import { type KindState, Plan, ResourceId, type ResourceRecord } from "@destack/resource";
-import type { DatabaseHandle } from "../blob/handle.ts";
+import type { DatabaseHandle } from "../database/handle.ts";
 import { type DatabaseKind, DatabaseSpec } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
 import { mergeStates } from "../migration/merge.ts";
@@ -8,8 +8,8 @@ import { DatabaseState } from "../migration/state.ts";
 import type { DatabaseHost } from "../provider/provider.ts";
 import { relation } from "../table/namespace.ts";
 import { Table } from "../table/table.ts";
-import type { DurableObjectStorage } from "./client.ts";
-import { connect } from "./connection.ts";
+import { type DurableObjectStorage, RowCount } from "./client.ts";
+import { connectDurableObject } from "./connection.ts";
 
 /** The provider code of databases in Durable Objects' SQLite storage. */
 export const DURABLE_OBJECT_PROVIDER = "durable-object";
@@ -29,8 +29,8 @@ const DatabaseRecord = schema.object({
     reference: schema.string().min(1).nullable(),
 });
 
-/** An operation on a database an object keeps, as another object sends it. */
-const DatabaseOperation = schema.discriminatedUnion("operation", [
+/** An operation on the databases an object keeps, as another object sends it. */
+const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
     schema.object({
         /** Create the database's namespace and log, or confirm them. */
         operation: schema.literal("provision"),
@@ -61,9 +61,27 @@ const DatabaseOperation = schema.discriminatedUnion("operation", [
         /** The reviewed plan's digest. */
         digest: Digest,
     }),
+    schema.object({
+        /** Count the bytes of every database the object keeps, and take the rows they read and wrote. */
+        operation: schema.literal("measure"),
+    }),
 ]);
-/** An operation on a database an object keeps, as another object sends it. */
-export type DatabaseOperation = schema.Infer<typeof DatabaseOperation>;
+/** An operation on the databases an object keeps, as another object sends it. */
+export type DurableObjectDatabaseOperation = schema.Infer<typeof DurableObjectDatabaseOperation>;
+
+/** The bytes an object's databases keep, and the rows they read and wrote since it was last measured. */
+export const DurableObjectMeasurement = defineSchema(
+    schema.object({
+        /** The bytes of the object's SQLite storage. */
+        bytes: schema.number().int().nonnegative(),
+        /** The rows read since the last measure. */
+        rowsRead: schema.number().int().nonnegative(),
+        /** The rows written since the last measure. */
+        rowsWritten: schema.number().int().nonnegative(),
+    }),
+);
+/** The bytes an object's databases keep, and the rows they read and wrote since it was last measured. */
+export type DurableObjectMeasurement = schema.Infer<typeof DurableObjectMeasurement>;
 
 /** The prefix of the references naming databases in an object's storage. */
 const REFERENCE_PREFIX = `${DURABLE_OBJECT_PROVIDER}:`;
@@ -101,7 +119,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     async provision(record: ResourceRecord<typeof DatabaseKind>): Promise<{ reference: string }> {
         // start the log unless an earlier provisioning started it
         const reference = DurableObjectDatabaseHost.reference(record.id);
-        await using database = connect(this.storage, [], { namespace: record.id });
+        await using database = connectDurableObject(this.storage, [], { namespace: record.id });
         const isLogged = (await this.relations(record.id)).length > 0;
         if (!isLogged) {
             await database.log.create(record.scope);
@@ -127,7 +145,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
-        await using database = connect(this.storage, [], { namespace: record.id });
+        await using database = connectDurableObject(this.storage, [], { namespace: record.id });
 
         return await database.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
     }
@@ -139,7 +157,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         digest: Digest,
     ): Promise<void> {
         // plan again and apply the plan only while it matches the reviewed digest
-        await using database = connect(this.storage, [], { namespace: record.id });
+        await using database = connectDurableObject(this.storage, [], { namespace: record.id });
         const plan = await database.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
         if ((await Plan.digest(plan)) !== digest) {
             throw new DatabaseError("PLAN_CHANGED", `plan of ${record.id} changed since review`);
@@ -156,7 +174,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         const states = desired.map((state) => state.tables.sqlite);
         const described = mergeStates(states).declared.map((state) => Table.describe(state));
         const namespace = record.id;
-        let database = connect(this.storage, described, { namespace });
+        let database = connectDurableObject(this.storage, described, { namespace });
 
         return {
             get database() {
@@ -165,30 +183,43 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             migrate: async (beside) => {
                 await database.migrate(beside, { states });
                 await database.close();
-                database = connect(this.storage, [...described, ...beside], { namespace });
+                database = connectDurableObject(this.storage, [...described, ...beside], {
+                    namespace,
+                });
             },
             close: () => database.close(),
         };
     }
 
-    /** Answer an operation another object sends on a database this object keeps. */
+    /** Count the bytes of every database the object keeps: its whole SQLite storage, as Cloudflare bills it. */
+    bytes(): number {
+        return this.storage.sql.databaseSize;
+    }
+
+    /** Count the bytes of every database the object keeps, and take the rows they read and wrote since the last measure. */
+    measure(): DurableObjectMeasurement {
+        return { bytes: this.bytes(), ...RowCount.take(this.storage) };
+    }
+
+    /** Answer an operation another object sends on the databases this object keeps. */
     async answer(request: Request): Promise<Response> {
         // run the operation the body names
-        const body = DatabaseOperation.parse(await request.json());
-        const { record } = body;
+        const body = DurableObjectDatabaseOperation.parse(await request.json());
         switch (body.operation) {
             case "provision":
-                return Response.json(await this.provision(record));
+                return Response.json(await this.provision(body.record));
             case "destroy":
-                await this.destroy(record);
+                await this.destroy(body.record);
 
                 return Response.json({});
             case "plan":
-                return Response.json(reviewed(await this.plan(record, body.desired)));
+                return Response.json(reviewed(await this.plan(body.record, body.desired)));
             case "apply":
-                await this.apply(record, body.desired, body.digest);
+                await this.apply(body.record, body.desired, body.digest);
 
                 return Response.json({});
+            case "measure":
+                return Response.json(this.measure());
         }
     }
 

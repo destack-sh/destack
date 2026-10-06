@@ -1,18 +1,18 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import type { Digest } from "@destack/schema";
 import { type KindState, Plan, type ResourceRecord } from "@destack/resource";
-import { connect } from "./connection.ts";
-import { open, requireReference } from "./sqlite.ts";
+import { connectBunSqlite } from "./connection.ts";
+import { openBunSqlite, requireReference } from "./sqlite.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { DatabaseKind } from "../declare/database.ts";
 import type { DatabaseHost } from "../provider/provider.ts";
 import { mergeStates } from "../migration/merge.ts";
-import type { DatabaseHandle } from "../blob/handle.ts";
+import type { DatabaseHandle } from "../database/handle.ts";
 import { Table } from "../table/table.ts";
 
 /** Keep databases as SQLite files below a directory, one folder per space. */
-export class SqliteDatabaseHost implements DatabaseHost {
+export class BunSqliteDatabaseHost implements DatabaseHost {
     /** The provider code of SQLite files. */
     readonly provider = "sqlite";
     /** The directory URL holding a folder per space. */
@@ -33,10 +33,27 @@ export class SqliteDatabaseHost implements DatabaseHost {
         const space = new URL(`${record.scope}/`, this.root);
         const file = new URL(`${record.id}.db`, space);
         await mkdir(space, { recursive: true });
-        await using connection = await connect(fileURLToPath(file));
+        await using connection = await connectBunSqlite(fileURLToPath(file));
         await connection.log.create(record.scope);
 
         return { reference: file.href };
+    }
+
+    /** Count the bytes a database keeps: its file with its write-ahead log, which a checkpoint may have removed. */
+    async bytes(reference: string): Promise<number> {
+        // read the file's size, and its log's
+        const path = fileURLToPath(reference);
+        const file = await stat(path);
+        const log = await stat(`${path}-wal`).catch((error: unknown) => {
+            // count no log once a checkpoint removed it
+            if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+                return { size: 0 };
+            }
+
+            throw error;
+        });
+
+        return file.size + log.size;
     }
 
     /** Remove the file with its WAL and shared memory. */
@@ -52,7 +69,7 @@ export class SqliteDatabaseHost implements DatabaseHost {
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
-        await using connection = await open(record, []);
+        await using connection = await openBunSqlite(record, []);
 
         return await connection.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
     }
@@ -64,7 +81,7 @@ export class SqliteDatabaseHost implements DatabaseHost {
         digest: Digest,
     ): Promise<void> {
         // plan again and apply the plan only while it matches the reviewed digest
-        await using connection = await open(record, []);
+        await using connection = await openBunSqlite(record, []);
         const plan = await connection.plan(
             mergeStates(desired.map((state) => state.tables.sqlite)),
         );
@@ -82,7 +99,7 @@ export class SqliteDatabaseHost implements DatabaseHost {
         // open the desired tables and reopen them with a replica's tables once migrated
         const states = desired.map((state) => state.tables.sqlite);
         const described = mergeStates(states).declared.map((state) => Table.describe(state));
-        let database = await open(record, described);
+        let database = await openBunSqlite(record, described);
         const handle: DatabaseHandle = {
             get database() {
                 return database;
@@ -90,7 +107,7 @@ export class SqliteDatabaseHost implements DatabaseHost {
             migrate: async (beside) => {
                 await database.migrate(beside, { states });
                 await database.close();
-                database = await open(record, [...described, ...beside]);
+                database = await openBunSqlite(record, [...described, ...beside]);
             },
             close: () => database.close(),
         };

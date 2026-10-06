@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each database failure: a conflict, a bad request, a lost history, or the host's. */
 const SERVICE_CODES = {
@@ -13,13 +13,12 @@ const SERVICE_CODES = {
     TREE_NOT_FOUND: "INTERNAL_SERVER_ERROR",
     CHANGES_COMPACTED: "GONE",
     STALE_EPOCH: "STALE_EPOCH",
-    CONCURRENT_UPDATE: "CONFLICT",
+    CONCURRENT_UPDATE: "SERVICE_UNAVAILABLE",
     DUPLICATE: "CONFLICT",
     BROKEN_REFERENCE: "CONFLICT",
     INVALID_RECORD: "BAD_REQUEST",
     INVALID_QUERY: "BAD_REQUEST",
     QUERY_FAILED: "INTERNAL_SERVER_ERROR",
-    INVALID_BLOB: "INTERNAL_SERVER_ERROR",
     NO_CHANNEL: "INTERNAL_SERVER_ERROR",
 } as const satisfies Readonly<Record<string, ServiceErrorCode>>;
 
@@ -58,7 +57,12 @@ export function classifyError(error: unknown): unknown {
 
     // classify by PostgreSQL state or SQLite message
     const code = errorCode(error);
-    if (code === "40001" || code === "40P01") {
+    if (
+        code === "40001" ||
+        code === "40P01" ||
+        error.message.includes("database is locked") ||
+        error.message.includes("database table is locked")
+    ) {
         return new DatabaseError(
             "CONCURRENT_UPDATE",
             "a concurrent transaction changed the same records",

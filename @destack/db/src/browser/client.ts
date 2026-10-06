@@ -1,16 +1,21 @@
 import type { DriverValue } from "../table/column.ts";
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
-import { Savepoint, WorkQueue, type ConnectionClient, type QueryClient } from "../sqlite/client.ts";
+import {
+    SqliteSavepoint,
+    SqliteWorkQueue,
+    type SqliteConnectionClient,
+    type SqliteQueryClient,
+} from "../sqlite/client.ts";
 
 /** Statements over one SQLite WebAssembly database. */
-export class WasmQuery implements QueryClient {
+export class WasmQuery implements SqliteQueryClient {
     /** The database. */
     readonly database: Database;
     /** The work queue, absent within a transaction. */
-    readonly queue: WorkQueue | undefined;
+    readonly queue: SqliteWorkQueue | undefined;
 
     /** Create the client. */
-    constructor(database: Database, queue?: WorkQueue) {
+    constructor(database: Database, queue?: SqliteWorkQueue) {
         this.database = database;
         this.queue = queue;
     }
@@ -41,8 +46,11 @@ export class WasmQuery implements QueryClient {
     }
 
     /** Run work in a savepoint at a depth. */
-    nest<Value>(depth: number, operation: (client: QueryClient) => Promise<Value>): Promise<Value> {
-        return Savepoint.run(this, depth, operation);
+    nest<Value>(
+        depth: number,
+        operation: (client: SqliteQueryClient) => Promise<Value>,
+    ): Promise<Value> {
+        return SqliteSavepoint.run(this, depth, operation);
     }
 
     /** Run work behind the queue, or at once within a transaction. */
@@ -52,13 +60,13 @@ export class WasmQuery implements QueryClient {
 }
 
 /** A connection client over one SQLite WebAssembly database, one transaction at a time. */
-export class WasmClient extends WasmQuery implements ConnectionClient {
+export class WasmClient extends WasmQuery implements SqliteConnectionClient {
     /** The work queue. */
-    readonly #queue: WorkQueue;
+    readonly #queue: SqliteWorkQueue;
 
     /** Create the client. */
     constructor(database: Database) {
-        const queue = new WorkQueue();
+        const queue = new SqliteWorkQueue();
         super(database, queue);
         this.#queue = queue;
     }
@@ -79,7 +87,7 @@ export class WasmClient extends WasmQuery implements ConnectionClient {
     }
 
     /** Run a callback in a transaction. */
-    transactionAsync<Value>(operation: (client: QueryClient) => Promise<Value>) {
+    transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>) {
         const begin = (mode: "DEFERRED" | "IMMEDIATE" | "EXCLUSIVE") =>
             this.#queue.run(async () => {
                 // commit or roll back by the callback's outcome

@@ -1,6 +1,6 @@
 import { SQL, type SQLWrapper } from "../sql/index.ts";
 import { assertNever } from "../error/error.ts";
-import { defineSchema, Digest, schema, type Identifier, type JsonValue } from "@destack/schema";
+import { defineSchema, schema, type Identifier, type JsonValue } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 
 /** The logical value types of columns. */
@@ -11,7 +11,6 @@ export const COLUMN_KINDS = [
     "boolean",
     "json",
     "binary",
-    "blob",
     "bigint",
     "numeric",
 ] as const;
@@ -442,11 +441,6 @@ export function binary(name: string): ColumnBuilder<ColumnDefinitionOf<Uint8Arra
             return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         },
     });
-}
-
-/** Define a reference to content a blob store keeps: the SHA-256 digest of its bytes, as hexadecimal. */
-export function blob(name: string): ColumnBuilder<ColumnDefinitionOf<string, "blob">> {
-    return scalarColumn(name, "blob", { sqlite: "text", postgresql: "text" }, Digest);
 }
 
 /** Define an exact signed 64-bit integer. */

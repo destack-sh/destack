@@ -1,4 +1,5 @@
 import { canonicalize, Version } from "@destack/schema";
+import { Order } from "../query/order.ts";
 import type { TableDescription } from "../table/description.ts";
 import { logOf, type TableState } from "./state.ts";
 
@@ -108,7 +109,7 @@ function newestOf(states: readonly TableState[]): TableState {
         (left, right) =>
             Version.compare(right.package.version, left.package.version) ||
             Number(renames(right, states)) - Number(renames(left, states)) ||
-            canonicalize(left).localeCompare(canonicalize(right)),
+            Order.codePoints(canonicalize(left), canonicalize(right)),
     );
     if (newest === undefined) {
         throw new TypeError("merge a table from at least one state");

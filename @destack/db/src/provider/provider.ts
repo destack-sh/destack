@@ -1,6 +1,6 @@
-import type { Opener, Provider, Provisioner, Reconciler } from "@destack/resource";
+import type { Opener, Provider, Provisioner, Reconciler, Snapshotter } from "@destack/resource";
 import { DatabaseKind } from "../declare/database.ts";
-import type { DatabaseHandle } from "../blob/handle.ts";
+import { DatabaseHandle } from "../database/handle.ts";
 
 /** Where a backend keeps databases: creating, migrating, opening and destroying each one. */
 export interface DatabaseHost
@@ -12,14 +12,15 @@ export interface DatabaseHost
     readonly provider: string;
 }
 
-/** A database provider: provisioning, migrating and opening one host's databases. */
+/** A database provider: provisioning, migrating, opening and snapshotting one host's databases. */
 export type DatabaseProvider<Object> = Provider<typeof DatabaseKind, Object, DatabaseHandle> & {
     readonly provision: Provisioner<typeof DatabaseKind>;
     readonly reconcile: Reconciler<typeof DatabaseKind>;
     readonly open: Opener<typeof DatabaseKind, DatabaseHandle>;
+    readonly snapshot: Snapshotter<typeof DatabaseKind>;
 };
 
-/** Provide a host's databases under its provider code, serving them as an object. */
+/** Provide a host's databases under its provider code, serving them as an object and copying them through their handles. */
 export function databaseProvider<Object>(
     host: DatabaseHost,
     object: Object,
@@ -31,5 +32,6 @@ export function databaseProvider<Object>(
         provision: host,
         reconcile: host,
         open: host,
+        snapshot: DatabaseHandle.snapshotter(host),
     };
 }

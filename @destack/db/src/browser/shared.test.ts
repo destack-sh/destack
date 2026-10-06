@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, defineTable, eq, integer, text } from "../index.ts";
-import { connect } from "../bun/connection.ts";
+import { connectBunSqlite } from "../bun/connection.ts";
 import { channelHub } from "../channel/channel.ts";
 import { connectShared, Party, serveDatabase } from "./shared.ts";
 
@@ -15,7 +15,7 @@ const note = defineTable("shared_note", {
 test("run a party's statements and transactions on the owner's connection, notifying its commits", async () => {
     // serve the owner's database to a party
     const join = channelHub<unknown>();
-    const owner = await connect(":memory:", [note], {
+    const owner = await connectBunSqlite(":memory:", [note], {
         openChannel: () => join(),
     });
     onTestFinished(() => owner.close());
@@ -64,7 +64,7 @@ test("run a party's statements and transactions on the owner's connection, notif
 test("queue requests until an owner serves, and fail requests a replaced owner left unanswered", async () => {
     // ask before an owner serves
     const join = channelHub<unknown>();
-    const first = await connect(":memory:", [note]);
+    const first = await connectBunSqlite(":memory:", [note]);
     onTestFinished(() => first.close());
     await first.migrate([note]);
     const party = new Party(join(), "tab-2");
@@ -82,7 +82,7 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
         sql: "SELECT 1",
         parameters: [],
     });
-    const second = await connect(":memory:", [note]);
+    const second = await connectBunSqlite(":memory:", [note]);
     onTestFinished(() => second.close());
     onTestFinished(serveDatabase(second.$client, join()));
     await expect(unanswered).rejects.toMatchObject({ code: "OWNER_CHANGED" });

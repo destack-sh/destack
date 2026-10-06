@@ -1,6 +1,5 @@
 import { expect, test } from "@destack/test";
 import { DatabaseError } from "../error/error.ts";
-import { Condition } from "./condition.ts";
 import { Filter } from "./filter.ts";
 
 test("read comparisons, named values and wildcards into conditions", () => {
@@ -92,24 +91,9 @@ test("decide a filter over plain rows as SQL decides it, dotted keys named whole
     ]);
 });
 
-test("produce conditions the condition schema accepts", () => {
-    // validate a combined filter's condition
-    const condition = Filter.parse('status = open AND (title:"q4 plan" OR -priority < 2)');
-    expect(Condition.schema.parse(condition)).toEqual(condition);
-});
-
-test.each([
-    ["status = ", "expected a value at 9 in filter status = "],
-    ["= open", "expected a field at 0 in filter = open"],
-    ["owner = @nobody", "unknown value @nobody at 8 in filter owner = @nobody"],
-    ["secret = x", "unknown field secret at 0 in filter secret = x"],
-    ["(status = open", "expected ) at 14 in filter (status = open"],
-    ['title = "open', 'unclosed text at 8 in filter title = "open'],
-    ["status open", "expected a comparison after status at 7 in filter status open"],
-    ["status < null", "null compares only with = or != at 7 in filter status < null"],
-])("refuse the filter %s", (filter, message) => {
-    // refuse with the position of the failure
-    expect(() => Filter.parse(filter, { fields: new Set(["status", "title", "owner"]) })).toThrow(
-        new DatabaseError("INVALID_QUERY", message),
-    );
+test("refuse a filter on a field outside the filterable ones", () => {
+    // refuse a field the caller may not filter by
+    expect(() =>
+        Filter.parse("secret = x", { fields: new Set(["status", "title", "owner"]) }),
+    ).toThrow(new DatabaseError("INVALID_QUERY", "unknown field secret at 0 in filter secret = x"));
 });

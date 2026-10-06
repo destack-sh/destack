@@ -1,17 +1,17 @@
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
-import { SqliteDatabase, type ConnectOptions } from "../sqlite/database.ts";
+import { SqliteDatabase, type SqliteConnectOptions } from "../sqlite/database.ts";
 import { DurableObjectClient, type DurableObjectStorage } from "./client.ts";
 import type { Model } from "../query/model.ts";
 
 /** The options of a connection to a database in a Durable Object's SQLite storage. */
-export interface DurableObjectConnectOptions extends ConnectOptions {
+export interface DurableObjectConnectOptions extends SqliteConnectOptions {
     /** The database's namespace in the storage several databases share, such as its identifier; absent for the storage's only database. */
     readonly namespace?: string;
 }
 
 /** Open a database in a Durable Object's SQLite storage, the object being its sole writer. */
-export function connect<
+export function connectDurableObject<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(
     storage: DurableObjectStorage,

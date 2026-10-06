@@ -1,6 +1,7 @@
 import { schema } from "@destack/schema";
 import { CHAIN_TERMS, exists, fill, or, render, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
+import { retried } from "./retry.ts";
 import { DatabaseDriver } from "./driver.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
@@ -282,7 +283,11 @@ export class DatabaseConnection<
         return applyPlan(this, plan);
     }
 
-    /** Commit a callback, or roll back on failure or once the callback rolls back, then resolving undefined. */
+    /**
+     * Commit a callback, or roll back on failure or once the callback rolls back, then resolving undefined.
+     *
+     * The outermost callback runs again after losing a serialization race, so it does database work alone and leaves external effects to work prepared before it.
+     */
     async transaction<Value>(
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         options: TransactionOptions = {},
@@ -329,14 +334,17 @@ export class DatabaseConnection<
                 },
             );
 
-        // report a lost commit as a concurrent update
-        try {
-            return this.driver.transaction
-                ? await this.driver.transaction.run(execute, "report")
-                : await this.driver.commit(execute);
-        } catch (error) {
-            throw classifyError(error);
+        // report a lost commit as a concurrent update, which the outermost transaction runs again
+        const enclosing = this.driver.transaction;
+        if (enclosing !== undefined) {
+            try {
+                return await enclosing.run(execute, "report");
+            } catch (error) {
+                throw classifyError(error);
+            }
         }
+
+        return retried(() => this.driver.commit(execute), signal);
     }
 
     /** Run work in a transaction and roll its writes back, returning what it read or planned. */

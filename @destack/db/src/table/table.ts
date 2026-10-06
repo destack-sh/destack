@@ -3,7 +3,6 @@ import type { Statement } from "../query/statement.ts";
 import {
     bigint,
     binary,
-    blob,
     boolean,
     Column,
     integer,
@@ -41,7 +40,6 @@ const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => Colu
     boolean,
     json: (name) => json(name, schema.json()),
     binary,
-    blob,
     bigint,
     numeric,
 };
@@ -68,8 +66,12 @@ export class Table<
         this[TABLE] = new TableDefinition(this, identity, columns, declaration, options);
     }
 
-    /** Build the table a state describes, such as a database another host declared, marking its unlogged columns sensitive. */
-    static describe(state: TableState): Table {
+    /**
+     * Build the table a state describes, such as a database another host declared, marking its unlogged columns sensitive.
+     *
+     * Each column takes the property its declaring code names it by, its SQL name by default.
+     */
+    static describe(state: TableState, properties: Readonly<Record<string, string>> = {}): Table {
         // read the logged columns
         const description = state.table;
         const logged = new Set(state.log?.columns ?? []);
@@ -103,7 +105,10 @@ export class Table<
                           }),
                 };
 
-                return [column.name, new Column(description.name, definition)];
+                return [
+                    properties[column.name] ?? column.name,
+                    new Column(description.name, definition),
+                ];
             }),
         );
 

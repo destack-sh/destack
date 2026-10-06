@@ -1,7 +1,7 @@
 import type postgres from "postgres";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverValue } from "../table/column.ts";
-import type { ConnectionClient, QueryClient } from "../sqlite/client.ts";
+import type { SqliteConnectionClient, SqliteQueryClient } from "../sqlite/client.ts";
 
 /** How a transaction isolates its reads and whether it writes. */
 export interface SessionTransaction {
@@ -35,14 +35,14 @@ export class SqliteSession implements Session {
     /** The SQL dialect. */
     readonly dialect = "sqlite";
     /** The client running statements. */
-    readonly client: QueryClient;
+    readonly client: SqliteQueryClient;
     /** The connection that starts transactions, absent inside one. */
-    readonly #connection: ConnectionClient | undefined;
+    readonly #connection: SqliteConnectionClient | undefined;
     /** The savepoint depth inside a transaction. */
     readonly #depth: number;
 
     /** Run statements on a connection, or in a transaction at a depth. */
-    constructor(client: ConnectionClient | QueryClient, depth?: number) {
+    constructor(client: SqliteConnectionClient | SqliteQueryClient, depth?: number) {
         this.client = client;
         this.#connection = depth === undefined && "transactionAsync" in client ? client : undefined;
         this.#depth = depth ?? 0;

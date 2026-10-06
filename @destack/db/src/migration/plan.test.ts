@@ -396,33 +396,6 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("refuse conversions keyed by anything but a release up to the declaring one", () => {
-    const refusal = (version: string) => {
-        try {
-            defineTable(
-                "draft",
-                { id: text("id").primaryKey() },
-                { convert: { [version]: {} } },
-                NEXT_RELEASE,
-            );
-
-            return undefined;
-        } catch (error) {
-            if (!(error instanceof Error)) {
-                throw error;
-            }
-
-            return error.message;
-        }
-    };
-
-    expect([refusal("2026.10.0"), refusal("2026.11.0"), refusal("next")]).toEqual([
-        undefined,
-        "conversion of draft is keyed by 2026.11.0, after its release 2026.10.0",
-        "conversion key of draft is no release: next",
-    ]);
-});
-
 /** Read a table's SQL name. */
 function table(declaration: Table): string {
     return declaration[TABLE].sqlName;

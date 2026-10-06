@@ -1,14 +1,19 @@
 /// <reference types="bun" />
 import type * as bun from "bun:sqlite";
 import type { DriverValue } from "../table/column.ts";
-import { Savepoint, WorkQueue, type ConnectionClient, type QueryClient } from "../sqlite/client.ts";
+import {
+    SqliteSavepoint,
+    SqliteWorkQueue,
+    type SqliteConnectionClient,
+    type SqliteQueryClient,
+} from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
 
 /** The most prepared statement texts per connection: a service runs 400 to 600, at 2 to 10 KB each. */
 const PREPARED_TEXTS = 512;
 
 /** The work queue of each database file, shared by the process's connections to it. */
-const FILE_QUEUES = new Map<string, WorkQueue>();
+const FILE_QUEUES = new Map<string, SqliteWorkQueue>();
 
 /** Bun's SQLite statements, with the integer mode Bun has beside its declared methods. */
 declare module "bun:sqlite" {
@@ -20,16 +25,16 @@ declare module "bun:sqlite" {
 }
 
 /** Statements on one SQLite database, prepared once per text. */
-export class BunQuery implements QueryClient {
+export class BunQuery implements SqliteQueryClient {
     /** The database. */
     readonly database: bun.Database;
     /** The prepared statements. */
-    readonly statements: StatementCache;
+    readonly statements: BunStatementCache;
     /** The work queue, absent within a transaction. */
-    readonly queue: WorkQueue | undefined;
+    readonly queue: SqliteWorkQueue | undefined;
 
     /** Create the client. */
-    constructor(database: bun.Database, statements: StatementCache, queue?: WorkQueue) {
+    constructor(database: bun.Database, statements: BunStatementCache, queue?: SqliteWorkQueue) {
         this.database = database;
         this.statements = statements;
         this.queue = queue;
@@ -70,8 +75,11 @@ export class BunQuery implements QueryClient {
     }
 
     /** Run work in a savepoint at a depth. */
-    nest<Value>(depth: number, operation: (client: QueryClient) => Promise<Value>): Promise<Value> {
-        return Savepoint.run(this, depth, operation);
+    nest<Value>(
+        depth: number,
+        operation: (client: SqliteQueryClient) => Promise<Value>,
+    ): Promise<Value> {
+        return SqliteSavepoint.run(this, depth, operation);
     }
 
     /** Run work behind the queue, or at once within a transaction. */
@@ -81,29 +89,29 @@ export class BunQuery implements QueryClient {
 }
 
 /** A connection client over one SQLite database, one transaction at a time per file and process. */
-export class BunClient extends BunQuery implements ConnectionClient {
+export class BunClient extends BunQuery implements SqliteConnectionClient {
     /** The work queue of the database file. */
-    readonly #queue: WorkQueue;
+    readonly #queue: SqliteWorkQueue;
 
     /** Create the client. */
     constructor(database: bun.Database) {
         const queue = BunClient.queue(database);
-        super(database, new StatementCache(database), queue);
+        super(database, new BunStatementCache(database), queue);
         this.#queue = queue;
     }
 
     /** Read the work queue of a database's file, or a queue of its own for a memory database. */
-    static queue(database: bun.Database): WorkQueue {
+    static queue(database: bun.Database): SqliteWorkQueue {
         // give each memory database its own queue
         const file = database.filename;
         if (file === "" || file === ":memory:") {
-            return new WorkQueue();
+            return new SqliteWorkQueue();
         }
 
         // share one queue per file
         let queue = FILE_QUEUES.get(file);
         if (queue === undefined) {
-            queue = new WorkQueue();
+            queue = new SqliteWorkQueue();
             FILE_QUEUES.set(file, queue);
         }
 
@@ -119,7 +127,7 @@ export class BunClient extends BunQuery implements ConnectionClient {
     }
 
     /** Run a callback in a transaction. */
-    transactionAsync<Value>(operation: (client: QueryClient) => Promise<Value>) {
+    transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>) {
         const begin = (mode: "DEFERRED" | "IMMEDIATE" | "EXCLUSIVE") =>
             this.#queue.run(async () => {
                 // commit or roll back by the callback's outcome
@@ -148,7 +156,7 @@ export class BunClient extends BunQuery implements ConnectionClient {
  *
  * Statements run synchronously, and one statement serves each text.
  */
-export class StatementCache {
+export class BunStatementCache {
     /** The database preparing the statements. */
     readonly #database: bun.Database;
     /** The statements by text, least recently used first. */

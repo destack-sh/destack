@@ -5,7 +5,7 @@ import { defineDatabase } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
 import { text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
-import { connect } from "./connection.ts";
+import { connectPostgres } from "./connection.ts";
 import { postgresConnector } from "./connector.ts";
 import { TEST_DIALECTS } from "../test/database.ts";
 
@@ -49,7 +49,7 @@ test.skipIf(ADDRESS === undefined)(
         );
 
         // migrate the schema and write a note through a sole writer
-        const migration = await connect(url.href, notes);
+        const migration = await connectPostgres(url.href, notes);
         await migration.migrate(notes.tables);
         await migration.close();
         await using connection = await postgresConnector.connect(binding, notes);

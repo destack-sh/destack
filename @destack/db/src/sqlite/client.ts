@@ -1,7 +1,7 @@
 import type { DriverValue } from "../table/column.ts";
 
 /** The statements of a SQLite connection or one of its transactions. */
-export interface QueryClient {
+export interface SqliteQueryClient {
     /** Read every row as an array of values, integers exact where the engine keeps them. */
     values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]>;
     /** Read every row by column name. */
@@ -11,15 +11,18 @@ export interface QueryClient {
     /** Run a script of statements. */
     exec(script: string): Promise<void>;
     /** Run work in a nested transaction at a depth, undoing only its writes when it fails. */
-    nest<Value>(depth: number, operation: (client: QueryClient) => Promise<Value>): Promise<Value>;
+    nest<Value>(
+        depth: number,
+        operation: (client: SqliteQueryClient) => Promise<Value>,
+    ): Promise<Value>;
 }
 
 /** A SQLite connection with dedicated transactions. */
-export interface ConnectionClient extends QueryClient {
+export interface SqliteConnectionClient extends SqliteQueryClient {
     /** Close the physical connection. */
     close(): Promise<void>;
     /** Run a callback with exclusive transaction access. */
-    transactionAsync<Value>(operation: (client: QueryClient) => Promise<Value>): {
+    transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>): {
         /** Begin a deferred transaction. */
         deferred(): Promise<Value>;
         /** Begin a write transaction. */
@@ -30,7 +33,7 @@ export interface ConnectionClient extends QueryClient {
 }
 
 /** Work run one piece at a time, in arrival order. */
-export class WorkQueue {
+export class SqliteWorkQueue {
     /** The tail of the waiting work. */
     #tail: Promise<unknown> = Promise.resolve();
 
@@ -44,12 +47,12 @@ export class WorkQueue {
 }
 
 /** Nested transactions as SQL savepoints, for clients that accept savepoint statements. */
-export const Savepoint = {
+export const SqliteSavepoint = {
     /** Run work in a savepoint at a depth, rolling back to it when the work fails. */
     async run<Value>(
-        client: QueryClient,
+        client: SqliteQueryClient,
         depth: number,
-        operation: (client: QueryClient) => Promise<Value>,
+        operation: (client: SqliteQueryClient) => Promise<Value>,
     ): Promise<Value> {
         const name = `"destack_savepoint_${depth}"`;
         await client.run(`SAVEPOINT ${name}`, []);

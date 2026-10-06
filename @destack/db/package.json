@@ -14,8 +14,6 @@
         "./sqlite": "./src/sqlite/index.ts",
         "./browser": "./src/browser/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
-        "./blob": "./src/blob/index.ts",
-        "./blob/local": "./src/blob/local.ts",
         "./inspect": "./src/inspect/index.ts"
     },
     "imports": {
@@ -36,7 +34,8 @@
         "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "postgres": "3.4.9",
         "uuid": "14.0.2",
-        "@destack/fs": "workspace:*"
+        "@destack/fs": "workspace:*",
+        "@destack/error": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

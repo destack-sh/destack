@@ -5,7 +5,11 @@ import { typedChannel, type Channel } from "../channel/channel.ts";
 import type { Table } from "../table/table.ts";
 import { SqliteDatabase } from "../sqlite/database.ts";
 import { DatabaseError, errorCode } from "../error/error.ts";
-import { Savepoint, type ConnectionClient, type QueryClient } from "../sqlite/client.ts";
+import {
+    SqliteSavepoint,
+    type SqliteConnectionClient,
+    type SqliteQueryClient,
+} from "../sqlite/client.ts";
 import { LOG_TOPIC } from "../log/schema.ts";
 import type { Model } from "../query/model.ts";
 
@@ -100,7 +104,7 @@ export const Message = schema.discriminatedUnion("kind", [
 export type Message = schema.Infer<typeof Message>;
 
 /** Serve a connection to a channel's other parties until stopped. */
-export function serveDatabase(client: ConnectionClient, raw: Channel<unknown>): () => void {
+export function serveDatabase(client: SqliteConnectionClient, raw: Channel<unknown>): () => void {
     // type the channel's messages, name this owner and keep party transactions open
     const channel = typedChannel(raw, Message);
     const owner = crypto.randomUUID();
@@ -142,7 +146,7 @@ export function serveDatabase(client: ConnectionClient, raw: Channel<unknown>): 
 
 /** Run the steps the parties request on a connection. */
 function stepRunner(
-    client: ConnectionClient,
+    client: SqliteConnectionClient,
     transactions: Map<number, OwnerTransaction>,
 ): (step: Step) => Promise<unknown> {
     let next = 0;
@@ -177,7 +181,7 @@ function stepRunner(
 
 /** Run a statement on the connection or within a party's open transaction. */
 async function runStatement(
-    client: ConnectionClient,
+    client: SqliteConnectionClient,
     transactions: ReadonlyMap<number, OwnerTransaction>,
     step: Extract<Step, { readonly type: "statement" }>,
 ): Promise<unknown> {
@@ -197,7 +201,7 @@ async function runStatement(
 /** A transaction the owner keeps open for a party. */
 class OwnerTransaction {
     /** The transaction's client. */
-    readonly client: QueryClient;
+    readonly client: SqliteQueryClient;
     /** Resolve on commit and reject on rollback. */
     readonly done: Promise<void>;
     /** End the callback that keeps the transaction open. */
@@ -209,7 +213,7 @@ class OwnerTransaction {
 
     /** Create the transaction. */
     private constructor(
-        client: QueryClient,
+        client: SqliteQueryClient,
         done: Promise<void>,
         finish: (commit: boolean) => void,
         forget: () => void,
@@ -224,7 +228,7 @@ class OwnerTransaction {
 
     /** Begin a transaction and keep it open. */
     static begin(
-        connection: ConnectionClient,
+        connection: SqliteConnectionClient,
         mode: "deferred" | "immediate" | "exclusive",
         forget: () => void,
     ): Promise<OwnerTransaction> {
@@ -290,7 +294,7 @@ export function connectShared<
 }
 
 /** Statements the channel's owner runs. */
-export class SharedQuery implements QueryClient {
+export class SharedQuery implements SqliteQueryClient {
     /** The party asking the owner. */
     readonly party: Party;
     /** The owner's transaction. */
@@ -338,8 +342,11 @@ export class SharedQuery implements QueryClient {
     }
 
     /** Run work in a savepoint the owner keeps, at a depth. */
-    nest<Value>(depth: number, operation: (client: QueryClient) => Promise<Value>): Promise<Value> {
-        return Savepoint.run(this, depth, operation);
+    nest<Value>(
+        depth: number,
+        operation: (client: SqliteQueryClient) => Promise<Value>,
+    ): Promise<Value> {
+        return SqliteSavepoint.run(this, depth, operation);
     }
 
     /** Run a script. */
@@ -363,7 +370,7 @@ export class SharedQuery implements QueryClient {
 }
 
 /** A connection client with work that the channel's owner runs. */
-export class SharedClient extends SharedQuery implements ConnectionClient {
+export class SharedClient extends SharedQuery implements SqliteConnectionClient {
     /** Join the channel as one party. */
     constructor(channel: Channel<unknown>, name: string) {
         super(new Party(channel, name));
@@ -402,7 +409,7 @@ export class SharedClient extends SharedQuery implements ConnectionClient {
     }
 
     /** Run a callback in a transaction the owner keeps open. */
-    transactionAsync<Value>(operation: (client: QueryClient) => Promise<Value>) {
+    transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>) {
         const begin = async (mode: "deferred" | "immediate" | "exclusive") => {
             // begin at the owner and run the callback
             const transaction = await this.party.begin(mode);

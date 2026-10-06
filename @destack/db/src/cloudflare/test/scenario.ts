@@ -4,11 +4,11 @@ import { Change } from "../../log/log.ts";
 import { defineDatabase } from "../../declare/database.ts";
 import { ResourceId, Plan } from "@destack/resource";
 import { durableObjectConnector } from "../connector.ts";
-import { DurableObjectDatabaseHost } from "../host.ts";
+import { DurableObjectDatabaseHost, DurableObjectMeasurement } from "../host.ts";
 import { defineTable } from "../../table/table.ts";
 import { text } from "../../table/column.ts";
 import type { DurableObjectStorage } from "../client.ts";
-import { connect } from "../connection.ts";
+import { connectDurableObject } from "../connection.ts";
 
 /** The module the scenario's table belongs to. */
 const MODULE = ModuleMetadata.parse({
@@ -65,6 +65,10 @@ export class Notes {
             return await this.host();
         } else if (pathname === "/parameters") {
             return await this.parameters();
+        } else if (pathname === "/joined") {
+            return await this.joined();
+        } else if (pathname === "/rows") {
+            return await this.rows();
         }
 
         return await this.notes();
@@ -73,7 +77,7 @@ export class Notes {
     /** Write and read rows in statements binding more values than the storage takes at once. */
     async parameters(): Promise<Response> {
         // write 80 notes with a quote and a marker in their titles in one statement of 160 values
-        const database = connect(this.storage, [note]);
+        const database = connectDurableObject(this.storage, [note]);
         await database.migrate([note]);
         const notes = Array.from({ length: 80 }, (_, index) => ({
             id: `n${index.toString().padStart(2, "0")}`,
@@ -96,7 +100,7 @@ export class Notes {
         return Response.json({ isEqual: JSON.stringify(rows) === JSON.stringify(notes) });
     }
 
-    /** Provision, plan through a sent operation, apply, open, write and destroy a workload's database. */
+    /** Provision, plan through a sent operation, apply, open, write, measure and destroy a workload's database. */
     async host(): Promise<Response> {
         // provision the database and plan its tables as another object asks
         const host = new DurableObjectDatabaseHost(this.storage);
@@ -129,6 +133,16 @@ export class Notes {
             return await database.select().from(entry);
         })();
 
+        // measure the object's databases as another object asks
+        const measuring = await host.answer(
+            new Request("https://instance.test/.destack/database", {
+                method: "POST",
+                body: JSON.stringify({ operation: "measure" }),
+            }),
+        );
+        const { bytes } = DurableObjectMeasurement.parse(await measuring.json());
+        const isMeasured = bytes > 0 && bytes === this.storage.sql.databaseSize;
+
         // destroy the database with every relation of its namespace
         await host.destroy(record);
         const remaining = this.storage.sql
@@ -143,16 +157,61 @@ export class Notes {
             reference: placed.reference,
             steps: plan.steps.map((step) => step.target),
             rows,
+            isMeasured,
             remaining,
         });
+    }
+
+    /** Count the rows the storage's statements write and read, each in the one measure following them. */
+    async rows(): Promise<Response> {
+        // migrate the notes, leaving the migration's rows to a first measure
+        const host = new DurableObjectDatabaseHost(this.storage);
+        const database = connectDurableObject(this.storage, [note]);
+        await database.migrate([note]);
+        host.measure();
+
+        // write three notes, read them back, then measure nothing more
+        await database.insert(note).values(["a", "b", "c"].map((id) => ({ id, title: id })));
+        const written = host.measure();
+        const rows = await database.select().from(note);
+        const read = host.measure();
+        const none = host.measure();
+        const counts = [written, read, none].map((each) => [each.rowsRead, each.rowsWritten]);
+
+        return Response.json({ counts, notes: rows.length });
+    }
+
+    /** Read and write another database of the storage from within a transaction of one, joining the storage's open transaction. */
+    async joined(): Promise<Response> {
+        // keep a note in each of two namespaces
+        const [first, second] = [
+            connectDurableObject(this.storage, [note], { namespace: "first" }),
+            connectDurableObject(this.storage, [note], { namespace: "second" }),
+        ];
+        for (const database of [first, second]) {
+            await database.migrate([note]);
+            await database.insert(note).values({ id: "a", title: "Kept" });
+        }
+
+        // read and write the second database from within a transaction of the first
+        const read = await first.transaction(async (transaction) => {
+            await second.insert(note).values({ id: "b", title: "Joined" });
+
+            return [
+                await transaction.select().from(note),
+                await second.select().from(note).orderBy(note.id),
+            ];
+        });
+
+        return Response.json(read);
     }
 
     /** Keep two databases of one declaration in the storage, each in its own namespace with its own log. */
     async namespaces(): Promise<Response> {
         // migrate the same table in two namespaces, each logged in its own scope
         const databases = [
-            connect(this.storage, [entry], { namespace: "first" }),
-            connect(this.storage, [entry], { namespace: "second" }),
+            connectDurableObject(this.storage, [entry], { namespace: "first" }),
+            connectDurableObject(this.storage, [entry], { namespace: "second" }),
         ];
         for (const [index, database] of databases.entries()) {
             await database.log.create(`space-${index + 1}`);
@@ -177,7 +236,7 @@ export class Notes {
     /** Migrate, write, roll back a failed nested transaction, and read the notes back. */
     async notes(): Promise<Response> {
         // migrate the table and write a note
-        const database = connect(this.storage, [note]);
+        const database = connectDurableObject(this.storage, [note]);
         await database.migrate([note]);
         await database.insert(note).values({ id: "a", title: "Kept" });
 

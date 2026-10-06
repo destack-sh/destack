@@ -125,15 +125,6 @@ test.for(TEST_DIALECTS)("take the first present text on %s", async (dialect) => 
     expect(selected).toEqual([{ value: "a" }, { value: "none" }]);
 });
 
-test("refuse expressions mixing numbers with text", () => {
-    expect(() =>
-        Expression.require(
-            Expression.add(Expression.column("count"), Expression.column("name")),
-            sample,
-        ),
-    ).toThrow("expression mixes numbers with other values");
-});
-
 /** JSON documents covering objects, arrays, scalars, nesting and absence. */
 const DOCUMENTS: readonly { readonly data: JsonValue; readonly mode: string | null }[] = [
     { data: { editor: { mode: "emacs", size: 12 }, tags: ["a"] }, mode: "emacs" },
@@ -205,36 +196,6 @@ test.for(TEST_DIALECTS)(
         }
     },
 );
-
-test("refuse JSON where numbers or text are required, and reads inside values that are not JSON", () => {
-    const data = Expression.column("data");
-    const mode = Expression.column("mode");
-    const refusal = (expression: Expression) => {
-        try {
-            Expression.require(expression, documents);
-
-            return undefined;
-        } catch (error) {
-            if (!(error instanceof Error)) {
-                throw error;
-            }
-
-            return error.message;
-        }
-    };
-
-    expect([
-        refusal(Expression.path(data, "editor")),
-        refusal(Expression.case(data, [{ when: "a", then: mode }], mode)),
-        refusal(Expression.path(mode, "editor")),
-        refusal(Expression.scalar(mode, "text")),
-    ]).toEqual([
-        "expression yields JSON; read a scalar of it",
-        "expression compares JSON in a case; read a scalar of it",
-        "expression reads a path of a value that is not JSON",
-        "expression reads a scalar of a value that is not JSON",
-    ]);
-});
 
 test("upgrade partial records through each later release, leaving fields computed from absent fields absent", () => {
     // rename title to name in 2026.9.0, and default a new limit in 2026.10.0

@@ -1,4 +1,4 @@
-import type { ConnectionClient } from "./client.ts";
+import type { SqliteConnectionClient } from "./client.ts";
 import {
     ConnectionState,
     DatabaseConnection,
@@ -16,7 +16,7 @@ import type { Model } from "../query/model.ts";
 
 /** A SQLite database with its own connection. */
 export class SqliteDatabase<
-    Client extends ConnectionClient = ConnectionClient,
+    Client extends SqliteConnectionClient = SqliteConnectionClient,
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > extends DatabaseConnection<Models> {
     /** The SQLite connection client. */
@@ -62,7 +62,7 @@ export class SqliteDatabase<
 }
 
 /** The options of a SQLite connection. */
-export interface ConnectOptions {
+export interface SqliteConnectOptions {
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
     readonly openChannel?: (name: string) => Channel<unknown>;
 }

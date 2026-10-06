@@ -144,6 +144,15 @@ export const note = defineTable(
 );
 ```
 
+## Described tables
+
+`Table.describe` builds the table a declared state describes, the inverse of `describeTable`, naming its columns by the properties given.
+
+```ts
+const [state] = main.state().tables.sqlite;
+const table = Table.describe(state, { created_at: "createdAt" }); // SQL name to property, the SQL name by default
+```
+
 ## Text order
 
 Text compares by its UTF-8 bytes on every dialect.
@@ -170,25 +179,35 @@ const isCopied = database.copies(accountTable);
 
 ```ts
 import { databaseProvider } from "@destack/db";
-import { SqliteDatabaseHost } from "@destack/db/bun";
+import { BunSqliteDatabaseHost } from "@destack/db/bun";
 
-const host = new SqliteDatabaseHost(new URL("file:///var/destack/databases/"));
+const host = new BunSqliteDatabaseHost(new URL("file:///var/destack/databases/"));
 const provider = databaseProvider(host, databaseObject);
 await using connection = await main.connectors["sqlite"]?.connect(binding, main); // SQLite on Bun
 ```
 
-## Connections
+## Database snapshots
 
-`connect` from `@destack/db/bun`, `@destack/db/postgres` or `@destack/db/cloudflare` opens a database on that runtime.
+`DatabaseHandle.snapshot` copies a database's rows into the content-addressed `ContentStore` it is given.
 
 ```ts
-import { connect } from "@destack/db/bun";
-import { connect as connectPostgres } from "@destack/db/postgres";
-import { connect as connectStorage } from "@destack/db/cloudflare";
+const digest = await DatabaseHandle.snapshot(handle, store, wrap); // rows rewritten on the way, such as host-bound keys
+await DatabaseHandle.restore(target, digest, store, unwrap);
+await provider.snapshot.restore(record, desired, digest, store); // a database resource
+```
 
-const file = await connect("notes.db", main);
+## Connections
+
+`connectBunSqlite`, `connectPostgres` and `connectDurableObject` open a database on Bun, PostgreSQL and a Durable Object's storage.
+
+```ts
+import { connectBunSqlite } from "@destack/db/bun";
+import { connectPostgres } from "@destack/db/postgres";
+import { connectDurableObject } from "@destack/db/cloudflare";
+
+const file = await connectBunSqlite("notes.db", main);
 const pool = await connectPostgres(process.env.DATABASE_URL, main);
-const storage = connectStorage(state.storage, main);
+const storage = connectDurableObject(state.storage, main);
 ```
 
 ## Shared stores
@@ -196,8 +215,8 @@ const storage = connectStorage(state.storage, main);
 `namespace` keeps a database's tables, log and state apart in a SQLite store several databases share.
 
 ```ts
-const space = connect(storage, spaceDatabase, { namespace: "space" });
-const vault = connect(storage, vaultDatabase, { namespace: "vault" });
+const space = connectDurableObject(storage, spaceDatabase, { namespace: "space" });
+const vault = connectDurableObject(storage, vaultDatabase, { namespace: "vault" });
 ```
 
 ## Durable Objects
@@ -211,14 +230,23 @@ const host = new DurableObjectDatabaseHost(state.storage);
 const connector = durableObjectConnector(state.storage);
 ```
 
+### Rows read and written
+
+`DurableObjectDatabaseHost.measure` counts the bytes of an object's databases and takes the rows its clients read and wrote since the last measure, as Cloudflare bills them.
+
+```ts
+host.measure(); // { bytes: 65536, rowsRead: 3, rowsWritten: 8 }, counted per object in memory
+host.measure(); // { bytes: 65536, rowsRead: 0, rowsWritten: 0 }
+```
+
 ## Sole writers
 
 A pool that writes its database alone connects as the `sole` writer without `LISTEN`.
 
 ```ts
-import { connect, postgresConnector } from "@destack/db/postgres";
+import { connectPostgres, postgresConnector } from "@destack/db/postgres";
 
-const only = await connect(url, main, "sole");
+const only = await connectPostgres(url, main, "sole");
 await using placed = await postgresConnector.connect(
     { reference: env.DATABASE.connectionString },
     main,
@@ -230,13 +258,26 @@ await using placed = await postgresConnector.connect(
 `transaction` runs queries in a transaction, and `rehearse` runs one and rolls it back.
 
 ```ts
-const database = await connect("notes.db", main);
+const database = await connectBunSqlite("notes.db", main);
 await database.transaction(async (transaction) =>
     transaction.update(note).set({ title: "Changed" }).where(eq(note.id, id)),
 );
 await database.upsert(note, rows);
 await database.remove(note, keys);
 const plan = await database.rehearse((transaction) => transaction.plan(state)); // rolled back
+```
+
+### Retries
+
+An outermost transaction that loses a serialization race runs again up to five times with jittered backoff, so its callback does database work alone.
+
+```ts
+await database.transaction(async (transaction) => {
+    const [row] = await transaction.select().from(tally).where(eq(tally.name, "a"));
+    await transaction.update(tally).set({ value: row.value + 1 }).where(eq(tally.name, "a"));
+}); // a concurrent increment of the same row commits first, then this one reads it and runs again
+// a race: PostgreSQL 40001 or 40P01, or a busy SQLite database
+// running out answers CONCURRENT_UPDATE as SERVICE_UNAVAILABLE, which callers retry
 ```
 
 ## Statements
@@ -394,7 +435,7 @@ const branched = Snapshot.live(database).layer(async (table) => rowsByKey.get(ta
 
 ```ts
 // share a SQLite file between processes on one machine, meeting in the person's runtime directory
-const database = await connect(path, main, {
+const database = await connectBunSqlite(path, main, {
     openChannel: (name) => socketChannel(`${path}#${name}`),
 });
 
@@ -405,31 +446,7 @@ const openTabChannel: OpenChannel = (name) => broadcastChannel(name);
 const pool = await connectPostgres(url, main);
 
 // open no channel for a single connection, such as a Durable Object's storage
-const storage = connectStorage(state.storage, main);
-```
-
-## Blobs
-
-A `blob` column holds the SHA-256 digest of content in a `BlobStore`.
-
-```ts
-const attachment = defineTable("attachment", {
-    id: text("id").primaryKey(),
-    content: blob("content"),
-});
-const digest = await blobs.write(body);
-await database.insert(attachment).values({ id, content: digest });
-```
-
-## Retired blobs
-
-A `BlobStore` deletes the blobs that no row references.
-
-```ts
-await using _held = await blobs.hold();
-const digest = await blobs.write(body);
-await database.insert(attachment).values({ id, content: digest });
-await blobs.retire([previous]);
+const storage = connectDurableObject(state.storage, main);
 ```
 
 ## Aggregates

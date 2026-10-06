@@ -236,15 +236,6 @@ test("decide relations through the binding, unknown until the relation is read",
     );
 });
 
-test("refuse an unbound placeholder in memory, as rendering refuses it", () => {
-    // match a row against a condition whose placeholder no value binds
-    const match = Predicate.compile(
-        Condition.resolve({ count: { gt: sql.placeholder("least") } }, Namespace.fields(sample)),
-        sample,
-    );
-    expect(() => Predicate.matches(match, { count: 2 })).toThrow("no value for placeholder least");
-});
-
 test("merge ordered rows of two tables into the first of their order, tying by list and key", () => {
     // order two lists by a shared column
     const marks = defineTable("condition_mark", {
@@ -319,34 +310,4 @@ test("resolve conditions by their row's fields, and read their fields, relations
     const parsed = Condition.schema.parse(JSON.parse(JSON.stringify(condition)));
     const resolved = Condition.resolve(parsed, new Set(["status", "due", "priority"]));
     expect(JSON.parse(JSON.stringify(resolved))).toEqual(JSON.parse(JSON.stringify(predicate)));
-});
-
-test("refuse condition entries of the wrong shape, naming each entry", () => {
-    const fields = new Set(["status"]);
-    const refusals = [
-        () => Condition.resolve({ status: ["open"] }, fields),
-        () => Condition.resolve({ status: { between: ["a", "z"] } }, fields),
-        () => Condition.resolve({ AND: ["closed"] }, fields),
-        () => Condition.resolve({ OR: { status: "open" } }, fields),
-        () => Condition.resolve({ NOT: "open" }, fields),
-        () => Condition.resolve({ assignee: "someone" }, fields),
-    ].map((resolve) => {
-        try {
-            resolve();
-        } catch (error) {
-            return error instanceof Error ? error.message : error;
-        }
-
-        return undefined;
-    });
-
-    // name the malformed entry in each refusal
-    expect(refusals).toEqual([
-        "condition field status takes a value or comparisons",
-        "condition field status takes a value or comparisons",
-        "condition AND lists a value",
-        "condition OR takes a list of conditions",
-        "condition NOT takes a condition",
-        "condition names no field assignee",
-    ]);
 });

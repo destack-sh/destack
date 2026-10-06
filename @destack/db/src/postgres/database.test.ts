@@ -8,7 +8,7 @@ import { declareState } from "../migration/state.ts";
 import { asc, sql, type SQL } from "../sql/index.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
-import { connect, reportNotice } from "./connection.ts";
+import { connectPostgres, reportNotice } from "./connection.ts";
 import { postgresChannel } from "./database.ts";
 import { TEST_DIALECTS } from "../test/database.ts";
 
@@ -117,7 +117,7 @@ test.skipIf(ADDRESS === undefined)(
         const administration = postgres(address.href, { max: 1, onnotice: reportNotice });
         const name = `test_${crypto.randomUUID().replaceAll("-", "")}`;
         await administration.unsafe(`CREATE SCHEMA "${name}"`);
-        const database = await connect(
+        const database = await connectPostgres(
             postgres(address.href, {
                 max: 2,
                 connection: { search_path: name },
