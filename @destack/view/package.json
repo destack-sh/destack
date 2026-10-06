@@ -12,12 +12,16 @@
         "./form": "./src/form/index.ts",
         "./router": "./src/router/index.ts",
         "./media": "./src/media/index.ts",
+        "./example": "./src/example/index.ts",
+        "./scenario": "./src/scenario/index.ts",
         "./browser": "./src/browser/index.ts",
         "./runtime": "./src/runtime/index.ts",
         "./jsx-runtime": "./src/jsx-runtime/index.ts",
         "./jsx-dev-runtime": "./src/jsx-dev-runtime/index.ts",
         "./build": "./src/build/index.ts",
-        "./test": "./src/test/index.ts"
+        "./test": "./src/test/index.ts",
+        "./palette": "./src/palette/index.ts",
+        "./command": "./src/command/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -30,6 +34,7 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
+        "@destack/setting": "workspace:*",
         "@destack/signals": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/sync": "workspace:*",
@@ -40,9 +45,11 @@
         "@solidjs/router": "2.0.0-next.24",
         "@solidjs/vite-plugin": "3.0.0-next.43",
         "@solidjs/web": "2.0.0-rc.8",
+        "dom-accessibility-api": "0.7.1",
         "happy-dom": "20.14.5",
         "rolldown": "1.2.9",
-        "solid-js": "2.0.0-rc.8"
+        "solid-js": "2.0.0-rc.8",
+        "@destack/db": "workspace:*"
     },
     "peerDependencies": {
         "@destack/build": "workspace:*",
@@ -58,7 +65,6 @@
     },
     "devDependencies": {
         "@destack/build": "workspace:*",
-        "@destack/db": "workspace:*",
         "vite": "8.3.0"
     }
 }

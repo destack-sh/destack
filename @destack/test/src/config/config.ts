@@ -39,7 +39,7 @@ export const SCENARIO_MODULES = "src/**/*.scenario.{ts,tsx}";
 export interface DriverReference {
     /** The module exporting the driver type, such as `@destack/view/test`. */
     readonly module: string;
-    /** The export, such as `DomDriver`. */
+    /** The export, such as `ViewDriver`. */
     readonly name: string;
 }
 

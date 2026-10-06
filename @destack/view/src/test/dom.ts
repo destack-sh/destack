@@ -1,6 +1,8 @@
 import { onTestFinished } from "@destack/test";
 import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/web";
+import type { Example } from "@destack/package/declare";
+import { renderExample } from "../example/frame.ts";
 
 /** The class attributes StyleX writes, whose names hash the styles. */
 const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
@@ -14,13 +16,19 @@ const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 /** The ids Solid generates, numbered across every render in a test file. */
 const GENERATED_ID = /cl-\d+/gu;
 
-/** Render an element into a focusable container in the document for the test's duration. */
-export function draw(element: () => JSX.Element): HTMLElement {
+/** Render an element, or an example as its hosts render it, into a container in the document for the test's duration. */
+export function draw<Properties extends object>(
+    subject: (() => JSX.Element) | Example<Properties, JSX.Element>,
+): HTMLElement {
     // mount into the document and unmount and remove after the test
     const container = document.createElement("div");
     document.body.append(container);
     onTestFinished(() => container.remove());
-    onTestFinished(render(element, container));
+    onTestFinished(
+        typeof subject === "function"
+            ? render(subject, container)
+            : renderExample(container, { example: subject }),
+    );
 
     return container;
 }

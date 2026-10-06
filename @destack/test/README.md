@@ -50,7 +50,7 @@ const TallyDriver: DriverType<Tallying, Tally> = {
     interaction: tallyInteraction,
     start: (given) => ({ act: (step) => …, observe: (observation) => … }),
 };
-Runner.play(MarkTwice, [TallyDriver, DomDriver]); // picks TallyDriver by the interaction's name
+Runner.play(MarkTwice, [TallyDriver, ViewDriver]); // picks TallyDriver by the interaction's name
 await Runner.observe(MarkTwice, TallyDriver); // [{ marks: "3" }, { marks: "4" }, { marks: "0" }]
 ```
 
@@ -62,7 +62,7 @@ await Runner.observe(MarkTwice, TallyDriver); // [{ marks: "3" }, { marks: "4" }
 import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
 
 export default defineConfiguration({
-    plugins: [scenarioPlugin([{ module: "@destack/view/test", name: "DomDriver" }])],
+    plugins: [scenarioPlugin([{ module: "@destack/view/test", name: "ViewDriver" }])],
     test: { include: ["src/**/*.test.ts", SCENARIO_MODULES] },
 });
 ```

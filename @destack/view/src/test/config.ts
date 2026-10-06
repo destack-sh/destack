@@ -17,6 +17,10 @@ export function defineConfiguration(
         options: {},
     }).then(async (plugins) => await Promise.all(plugins.map(withoutServer)));
 
+    // play the package's scenarios through the DOM driver when the tests render into the DOM
+    const isDom = configuration.test?.environment === undefined;
+    const include = configuration.test?.include ?? test.configDefaults.include;
+
     // render components in a DOM, loading the runtime's modules natively for test servers
     return test.defineConfiguration({
         ...configuration,
@@ -30,11 +34,15 @@ export function defineConfiguration(
                         : undefined,
             },
             transforms,
+            ...(isDom
+                ? [test.scenarioPlugin([{ module: "@destack/view/test", name: "ViewDriver" }])]
+                : []),
             ...(configuration.plugins ?? []),
         ],
         test: {
             environment: fileURLToPath(new URL("environment.ts", import.meta.url)),
             ...configuration.test,
+            include: isDom ? [...include, test.SCENARIO_MODULES] : include,
         },
     });
 }

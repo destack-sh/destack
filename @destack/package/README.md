@@ -193,10 +193,10 @@ GhostButton.render({ variant: "outline" });
 
 ```ts
 import { defineScenario } from "@destack/package/declare";
-import { uiInteraction } from "@destack/view/scenario";
+import { viewInteraction } from "@destack/view/scenario";
 
 export const MoveCalendarDay = defineScenario({
-    interaction: uiInteraction,
+    interaction: viewInteraction,
     name: "move the focused day with the arrow keys, crossing months",
     given: { examples: [LateOctoberExample], environment: { locale: "de-AT" } },
     when: [
@@ -218,7 +218,7 @@ An `Interaction` names the schemas of the steps, observations and environment it
 ```ts
 import type { Interaction } from "@destack/package/declare";
 
-export const uiInteraction: Interaction<Step, Observation, Environment> = {
+export const viewInteraction: Interaction<Step, Observation, Environment> = {
     name: "ui",
     step: Step,
     observation: Observation,
