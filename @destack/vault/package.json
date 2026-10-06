@@ -11,14 +11,15 @@
         "./inspect": "./src/inspect/index.ts",
         "./object": "./src/object/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./encryption": "./src/encryption/index.ts",
-        "./error": "./src/error/index.ts",
+        "./key": "./src/key/index.ts",
         "./provider": "./src/provider/index.ts",
         "./server": "./src/server/index.ts",
+        "./service": "./src/service/index.ts",
         "./account": "./src/account/index.ts",
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
+        "@destack/identity": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/resource": "workspace:*",
@@ -30,7 +31,6 @@
         "uuid": "14.0.2",
         "@destack/space": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/host": "workspace:*",
         "@destack/directory": "workspace:*",
         "@destack/sync": "workspace:*"
     },

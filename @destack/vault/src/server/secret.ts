@@ -2,15 +2,15 @@ import { and, eq, isNotNull, isNull } from "@destack/db";
 import { type CallOf, type NextOf, recoverable, type ResultOf } from "@destack/object";
 import { Duration, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import { Binding, capture, Deployment, deployment } from "@destack/space/object";
+import { Binding, capture, Deployment, deployment, installation } from "@destack/space/object";
 import type { Bindable } from "@destack/space/server";
 import * as base from "../object/index.ts";
 import { SecretVersion, secretVersion } from "../object/index.ts";
 import { SecretPromotion, SecretSelection, SecretValue, VersionWrite } from "../secret/index.ts";
 import { SECRET_KIND } from "@destack/resource";
 import { SecretDescription } from "../declare/secret.ts";
-import type { Keyring } from "@destack/host/keychain";
-import { VaultKey } from "../encryption/index.ts";
+import type { KeyringVaultHost } from "../key/index.ts";
+import { vaultService } from "../service/index.ts";
 
 /** How long deleted secrets stay restorable by default: the 30 days of AWS Secrets Manager's recovery window. */
 const RECOVERY: Duration = { days: 30 };
@@ -60,12 +60,13 @@ export const secret = base.secret.declare({
     values: (_name, resolved) => resolved,
 });
 
-/** Secrets that deployments capture at their current version or at a binding's fixed one, generated at install where their declaration says how. */
+/** Secrets that deployments capture at their current version or at a binding's fixed one, generated at install where their declaration says how, served by the vault service. */
 export const secretBindable: Bindable<typeof secret> = {
     object: secret,
     used: [secret, secretVersion],
     declaration: SECRET_KIND,
-    own: async (call, _target, need, bindings) => {
+    reference: vaultService.package.name,
+    provision: async (call, _target, need, bindings) => {
         // leave a secret without generation to the stack binding it
         const { generated } = SecretDescription.parse({ ...need.spec, name: need.name });
         if (generated === undefined) {
@@ -82,10 +83,11 @@ export const secretBindable: Bindable<typeof secret> = {
             });
         }
 
-        // create the secret in the vault, its first version waiting for the vault's key
-        const created = await call.invoke(secret).own({ parentId: kept.target, name: need.name });
+        // create the secret under the identifier its binding takes
+        const id = secret.generateId();
+        await call.change(secret, "provision", { id, parentId: kept.target, name: need.name });
 
-        return created.id;
+        return id;
     },
     ready: async (call, bound, need) => {
         // pass a secret with a version and one a stack binds
@@ -110,14 +112,16 @@ export const secretBindable: Bindable<typeof secret> = {
             return false;
         }
 
-        // write the generated first version
-        const value = await SecretValue.generate(generated.algorithm);
-        await call.invoke(secretVersion).store({ parentId: bound.target, value });
+        // have the vault generate the first version and wait for its copy
+        await call.change(secret, "generate", {
+            id: bound.target,
+            algorithm: generated.algorithm,
+        });
 
-        return true;
+        return false;
     },
     version: (target, pin) => {
-        // require a version to run with: the fixed one, else the current one
+        // require the fixed or the current version
         const version = pin ?? target.currentVersion;
         if (version === null) {
             throw new ServiceError("CONFLICT", {
@@ -128,7 +132,7 @@ export const secretBindable: Bindable<typeof secret> = {
         return version;
     },
     uses: async (captured, database) => {
-        // read the captured version, refusing a capture whose version is gone
+        // require the captured version
         const secretId = schema.identifier("secret").parse(captured.target);
         const [version] = await database
             .select({ id: secretVersion.table.id })
@@ -152,29 +156,31 @@ export const secretBindable: Bindable<typeof secret> = {
     },
 };
 
-/** Serve secrets and versions, restorable for a recovery window after deletion. */
-export function serveSecrets(keyring: Keyring, location: string, recovery: Duration = RECOVERY) {
+/** Serve the secrets and versions of a host's vaults, restorable for a recovery window after deletion. */
+export function serveSecrets(host: KeyringVaultHost, recovery: Duration = RECOVERY) {
     // require a recovery window of a day at least
     if (Duration.milliseconds(recovery) < Duration.milliseconds(MINIMUM_RECOVERY)) {
         throw new TypeError("vault recovery window is shorter than a day");
     }
 
-    // serve the secret methods, destroying the values of a purged secret
+    // serve the secret methods
     const secrets = secret.handle({
         disable: (call) => call.update({ disabledAt: call.now }),
         enable: (call) => call.update({ disabledAt: null }),
         promote: (call) => select(call),
         select,
-        read: (call) => read(call, keyring, location),
+        generate,
+        read: (call) => read(call, host),
         delete: remove,
         discard,
         purge,
+        apply: applyDeclared,
     });
 
-    // write, read and manage versions with their sealed values
+    // serve the version methods
     const versions = secretVersion.handle({
-        create: (call, next) => create(call, next, keyring, location),
-        store: (call, next) => create(call, next, keyring, location),
+        create: (call, next) => create(call, next, host),
+        store: (call, next) => create(call, next, host),
         disable,
         enable,
         destroy,
@@ -187,10 +193,9 @@ export function serveSecrets(keyring: Keyring, location: string, recovery: Durat
 /** Open an enabled secret's selected version, its current one by default, for readers of the secret or of the exact version. */
 async function read(
     call: CallOf<typeof secret, "read">,
-    keyring: Keyring,
-    location: string,
+    host: KeyringVaultHost,
 ): Promise<ResultOf<typeof secret, "read">> {
-    // require an enabled secret with the selected version, its current one by default
+    // require an enabled secret with a selected version
     const { target } = call;
     const { version } = SecretSelection.strip().parse(call.input);
     const number = version ?? target.currentVersion;
@@ -225,15 +230,55 @@ async function read(
         throw new ServiceError("NOT_FOUND", { message: "secret version not found" });
     }
     SecretVersion.requireReadable(selected, call.now);
+    const key = await host.key(call.database, target.parentId);
 
-    return {
-        version: selected.number,
-        value: await SecretVersion.open(
-            await VaultKey.load(call.database, keyring, location, target.parentId),
-            target,
-            selected,
-        ),
-    };
+    return { version: selected.number, value: await SecretVersion.decrypt(key, target, selected) };
+}
+
+/** Write a generated first version of a secret without one, leaving a secret that has one. */
+async function generate(
+    call: CallOf<typeof secret, "generate">,
+): Promise<ResultOf<typeof secret, "generate">> {
+    // leave a secret that has a version
+    const { target } = call;
+    if (target.currentVersion !== null) {
+        return target;
+    }
+
+    // store the generated value as its first version
+    const value = await SecretValue.generate(call.input.algorithm);
+    await call.invoke(secretVersion).store({ parentId: target.id, value });
+
+    return target;
+}
+
+/** Apply a secret a stack declares, refusing a manager installation absent from the copies of its space. */
+async function applyDeclared(
+    call: CallOf<typeof secret, "apply">,
+    next: NextOf<typeof secret, "apply">,
+): Promise<ResultOf<typeof secret, "apply">> {
+    // require the managing installation in the secret's space
+    const { manager } = schema
+        .looseObject({
+            manager: schema.looseObject({ installationId: schema.identifier("installation") }),
+        })
+        .parse(call.input);
+    const [managing] = await call.database
+        .select({ id: installation.table.id })
+        .from(installation.table)
+        .where(
+            and(
+                eq(installation.table.scope, schema.identifier("space").parse(call.scope)),
+                eq(installation.table.id, manager.installationId),
+            ),
+        );
+    if (managing === undefined) {
+        throw new ServiceError("NOT_FOUND", {
+            message: `no installation ${manager.installationId} manages secrets in ${call.scope}`,
+        });
+    }
+
+    return next();
 }
 
 /** Delete a secret no binding targets. */
@@ -294,8 +339,7 @@ async function purge(
 async function create(
     call: CallOf<typeof secretVersion, "create" | "store">,
     next: NextOf<typeof secretVersion, "create" | "store">,
-    keyring: Keyring,
-    location: string,
+    host: KeyringVaultHost,
 ): Promise<ResultOf<typeof secretVersion, "create" | "store">> {
     // require a secret outside the trash and an expiry in the future
     const { value, promote } = VersionWrite.strip().parse(call.input);
@@ -313,15 +357,10 @@ async function create(
         throw new ServiceError("BAD_REQUEST", { message: "secret expiry must be in the future" });
     }
 
-    // number the version and store its sealed value
+    // number the version and seal its value in it
     const created = await next();
-    await SecretVersion.seal(
-        call.database,
-        await VaultKey.load(call.database, keyring, location, owner.parentId),
-        owner,
-        created.number,
-        value,
-    );
+    const key = await host.key(call.database, owner.parentId);
+    await SecretVersion.encrypt(call.database, key, owner, created.number, value);
 
     // select it as current unless told not to
     if (promote !== false) {
@@ -389,6 +428,6 @@ async function destroy(
         });
     }
 
-    // erase its ciphertext with the version
-    return call.update({ destroyedAt: call.now, envelope: null });
+    // erase its ciphertext and mark the version destroyed
+    return call.update({ destroyedAt: call.now, ciphertext: null });
 }

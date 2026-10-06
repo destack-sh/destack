@@ -1,18 +1,20 @@
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { MemoryBuild } from "@destack/package/test";
+import { testCallKey } from "@destack/service/test";
 import { VaultKind } from "../declare/kind.ts";
 import { accessRelationship, principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { copyScope } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { account } from "@destack/account/object";
 import { expect, onTestFinished, single, test } from "@destack/test";
-import { eq, type DatabaseConnection } from "@destack/db";
+import { type DatabaseConnection, defineDatabase, type Dialect, eq, type Table } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { DirectoryStore, directoryTables, ZONE_SCOPE, zoneTable } from "@destack/directory";
-import { ObjectServer, SystemAuthorization, SystemCall } from "@destack/object/server";
+import { SystemCall } from "@destack/object";
+import { ObjectServer, Subscriber } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
-
+import { type Controller, ControlLoop } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
@@ -21,29 +23,27 @@ import { deployment, installation, space, type Installation } from "@destack/spa
 import {
     applyStack,
     Bindable,
+    type BinderCall,
     Binder,
+    ConsumerController,
     type OpenBuild,
-    ProviderIndex,
     recordSubmission,
     serveInstallations,
     servePolicies,
-    serveResources,
     serveRevisions,
     serveRoles,
 } from "@destack/space/server";
 import { spaceObjects } from "@destack/space/service";
-import { PackageFile } from "@destack/package/file";
-import { PackageManifest, BuildReader } from "@destack/package/manifest";
+import { spaceCopies, spaceTables } from "@destack/space/stack";
 import { v7 } from "uuid";
 import { defineVault } from "../declare/index.ts";
-import { LocalKeyring } from "@destack/host/keychain";
+import { LocalKeyring } from "@destack/identity";
 import { SecretVersion, secretVersion, vault } from "../object/index.ts";
-import { VaultKey } from "../encryption/index.ts";
 import { SecretClient } from "../object/index.ts";
-import { spaceService } from "@destack/space/service";
-import { secret, secretBindable, serveSecrets } from "./index.ts";
-import { spaceDatabase } from "@destack/space/stack";
-import { KeyringVaultHost, vaultProvider } from "../provider/index.ts";
+import { KeyringVaultHost } from "../key/index.ts";
+import { vaultService } from "../service/index.ts";
+import { vaultDatabase } from "../stack/index.ts";
+import { implementVault, secret, secretBindable } from "./index.ts";
 
 /** The vault declared by the fixture stack. */
 export const credentials = defineVault({ name: "credentials", spec: {} });
@@ -59,6 +59,16 @@ const ids = {
     package: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000005"),
     notes: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000006"),
 };
+
+/** The longest a call sent between the space and the vault service and its copy back take here. */
+const COPY_TIMEOUT_MILLISECONDS = 10_000;
+
+/** A cell's space database copying the vaults, secrets and versions the vault service keeps. */
+const cellDatabase = defineDatabase({
+    name: "space",
+    tables: spaceTables,
+    copies: [...spaceCopies, vault.table, secret.table, secretVersion.table],
+});
 
 /** The notes installation with a mail token secret. */
 const notes = {
@@ -94,45 +104,17 @@ function stack(pin?: number, isSecretDeclared = true) {
 /** The release build the revisions evaluated. */
 const build = { kind: "release" as const, version: "2026.9.0", manifest: "b".repeat(64) };
 
-/** The empty file every fixture build lists as its dependencies, files and source maps. */
-const emptyFile = await PackageFile.describe(
-    "manifest/empty.json",
-    "application/json",
-    new Uint8Array(),
-);
-
-/** The graph root of a build without modules. */
-const emptyGraph = new TextEncoder().encode(JSON.stringify({ modules: {} }));
-
-/** The file holding the empty graph root. */
-const emptyGraphFile = await PackageFile.describe(
-    "manifest/graph.json",
-    "application/json",
-    emptyGraph,
-);
-
 /** Open every build as an empty build of its package. */
 const openBuild: OpenBuild = async (packageId) =>
-    new BuildReader(
-        PackageManifest.parse({
-            formatVersion: 1,
-            package: { id: packageId, name: "@example/fixture", version: "2026.9.0" },
-            language: "typescript",
-            lists: {
-                dependencies: emptyFile,
-                files: emptyFile,
-                sourceMaps: emptyFile,
-                graph: emptyGraphFile,
+    (
+        await MemoryBuild.write(new Map(), {
+            package: {
+                id: packageId,
+                name: "@example/fixture",
+                version: "2026.9.0",
             },
-            outputs: {},
-        }),
-        async (path) => {
-            if (path === emptyGraphFile.path) {
-                return emptyGraph;
-            }
-            throw new TypeError(`the fixture build of ${packageId} has no ${path}`);
-        },
-    );
+        })
+    ).reader;
 
 /** Register the space placed in the region, its scopes and its stack installation, as the space service does. */
 async function register(database: DatabaseConnection): Promise<void> {
@@ -144,8 +126,9 @@ async function register(database: DatabaseConnection): Promise<void> {
         createdAt: now,
         updatedAt: now,
     });
-    await copyScope(database, account.reference(Scope.universe.id, ids.account));
-    await copyScope(database, space.reference(ids.account, ids.space));
+    const copies = new AccessFixture(database);
+    await copies.copyScope(account.reference(Scope.universe.id, ids.account));
+    await copies.copyScope(space.reference(ids.account, ids.space));
     await database.insert(zoneTable).values({
         id: ids.space,
         scope: ZONE_SCOPE,
@@ -167,52 +150,130 @@ async function register(database: DatabaseConnection): Promise<void> {
     });
 }
 
-test.each(TEST_DIALECTS)(
-    "apply secrets and selections, let workloads read the versions their live deployments captured, and refuse destroying those versions on %s",
-    async (dialect) => {
-        const opened = await TestDatabase.create(dialect, spaceDatabase, { isMigrated: true });
-        onTestFinished(() => opened.close());
-        const database = opened.database;
-        const universe = await TestDatabase.create("sqlite", directoryTables, { isMigrated: true });
-        onTestFinished(() => universe.close());
-        const directory = new DirectoryStore(universe.database);
-        await register(database);
+/** Run some controllers over a database until the test ends, failing it on a reported failure. */
+function run(database: DatabaseConnection, controllers: readonly Controller[]): void {
+    const stopping = new AbortController();
+    const running = new ControlLoop(database, controllers, {
+        report: (_controller, _key, error) => {
+            throw error;
+        },
+    }).run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+}
 
-        // serve the space's objects except the space, and the vault's, to the system
-        const keyring = await LocalKeyring.import(
-            "one",
-            new Map([["one", crypto.getRandomValues(new Uint8Array(32))]]),
-        );
-        const providers = new ProviderIndex({ regionId: ids.region }, [
-            vaultProvider(new KeyringVaultHost(database, keyring, "eu")),
-        ]);
-        const resources = serveResources(providers);
-        const secrets = serveSecrets(keyring, "eu", { days: 1 });
-        const binder = new Binder([Bindable.resource(VaultKind, vault)], [secretBindable]);
-        const server = new ObjectServer({
-            objects: {
-                ...Object.fromEntries(
-                    Object.entries(spaceObjects).filter(
-                        ([name]) => name !== "space" && name !== "connection",
-                    ),
+/** Serve a cell's space objects copying the vault service's objects, and the vault service following the space's rows, each sending and copying in the background. */
+async function serveCell(dialect: Dialect) {
+    // keep the space's rows, vaults' rows, contents and claims apart
+    const opened = await TestDatabase.create(dialect, cellDatabase, { isMigrated: true });
+    onTestFinished(() => opened.close());
+    const kept = await TestDatabase.create(dialect, vaultDatabase, { isMigrated: true });
+    onTestFinished(() => kept.close());
+    const universe = await TestDatabase.create("sqlite", directoryTables, { isMigrated: true });
+    onTestFinished(() => universe.close());
+    const { database } = opened;
+    const directory = new DirectoryStore(universe.database);
+    await register(database);
+
+    // serve the vaults following the space's rows from the space's objects
+    const keyring = await LocalKeyring.import(
+        1,
+        new Map([[1, crypto.getRandomValues(new Uint8Array(32))]]),
+    );
+    const vaults = new KeyringVaultHost(kept.database, keyring, "eu");
+    let spaces: ObjectServer | undefined;
+    const vaulted = implementVault({
+        database: kept.database,
+        callKey: testCallKey,
+        directory,
+        keyring,
+        location: "eu",
+        machine: null,
+        cell: ids.region,
+        spaces: {
+            stream: (subscription, signal) =>
+                present(spaces, "the space's objects").uplink.stream(subscription, signal),
+            receive: (mutation) => present(spaces, "the space's objects").uplink.receive(mutation),
+        },
+        recovery: { days: 1 },
+    });
+
+    // serve the space's objects with copies of the vaults, secrets and versions
+    const source = vaulted.objects;
+    const binder = new Binder([Bindable.resource(VaultKind, vault)], [secretBindable]);
+    const server: ObjectServer = new ObjectServer({
+        objects: {
+            ...Object.fromEntries(
+                Object.entries(spaceObjects).filter(
+                    ([name]) => name !== "space" && name !== "connection",
                 ),
-                ...resources,
-                ...secrets,
-                installationRevision: serveRevisions(openBuild),
+            ),
+            installationRevision: serveRevisions(openBuild),
+        },
+        policies: [space, ...source.objects],
+        sources: [source],
+        subscriber: Subscriber.of(source.uplink, async () =>
+            server.source.sourceSubscriptions(ids.region).map((entry) => entry.subscription),
+        ),
+        directory,
+        database,
+        callKey: testCallKey,
+        origin: { package: spaceObjects.space.package, service: "space" },
+    });
+    spaces = server;
+
+    // send, copy, specify and provision in the background
+    run(database, [
+        ...server.controllers().filter((each) => ["sends", "replica"].includes(each.name)),
+        new ConsumerController(server, [vault], { regionId: ids.region }),
+    ]);
+    run(kept.database, present(vaulted.controllers, "the vault service's controllers"));
+
+    return { database, kept: kept.database, vaults, server, vaulted, binder, directory };
+}
+
+/** Build the system calls a binder writes with in a transaction of the space's objects. */
+function binderCall(server: ObjectServer, transaction: DatabaseConnection): BinderCall {
+    const context = { database: transaction, scope: ids.space, now: Date.now() };
+
+    return {
+        database: transaction,
+        invoke: server.invoker(context),
+        change: (object, name, input) => server.change(context, object, name, input),
+    };
+}
+
+/** Read the rows of a table until one matches, as copies arrive. */
+async function copied<Row>(
+    read: () => PromiseLike<readonly Row[]>,
+    isWanted: (row: Row) => boolean,
+) {
+    let found: Row | undefined;
+    await expect
+        .poll(
+            async () => {
+                found = (await read()).find(isWanted);
+
+                return found !== undefined;
             },
-            directory,
-            database,
-            callKey: testCallKey,
-            origin: {
-                package: spaceService.package,
-                service: spaceService.name,
-            },
-        });
+            { timeout: COPY_TIMEOUT_MILLISECONDS },
+        )
+        .toBe(true);
+
+    return present(found, "the copied row");
+}
+
+test.each(TEST_DIALECTS)(
+    "apply secrets and selections at the vault service, let workloads read the versions their live deployments captured, and refuse destroying those versions on %s",
+    async (dialect) => {
+        const { database, kept, server, vaulted, binder, directory } = await serveCell(dialect);
         const system = (
             object: Parameters<typeof server.executeAsSystem>[0],
             name: string,
             call: SystemCall,
-        ) => server.executeAsSystem(object, name, [call], Date.now());
+        ) => vaulted.objects.executeAsSystem(object, name, [call], Date.now());
 
         // submit and apply a stack revision as the stack controller does
         const read = async (): Promise<Installation> =>
@@ -221,6 +282,13 @@ test.each(TEST_DIALECTS)(
                     .select()
                     .from(installation.table)
                     .where(eq(installation.table.id, ids.stack)),
+            );
+        const copiedType = (object: { readonly name: string }) =>
+            present(
+                server.sources
+                    .flatMap((each) => each.objects)
+                    .find((each) => each.name === object.name),
+                `the copied ${object.name}`,
             );
         const apply = async (definition: ReturnType<typeof stack>) => {
             const current = await read();
@@ -244,7 +312,7 @@ test.each(TEST_DIALECTS)(
                 revision,
                 [
                     serveInstallations({
-                        resources: providers.objects(),
+                        resources: [vault],
                         declared: () => [],
                         directory,
                         home: async () => undefined,
@@ -252,9 +320,14 @@ test.each(TEST_DIALECTS)(
                         binder,
                         runtimes: ["bun"],
                         cell: { regionId: ids.region },
+                        consent: async (consent) => {
+                            throw new TypeError(
+                                `the stack records no consent of ${consent.userId}`,
+                            );
+                        },
                     }),
-                    ...Object.values(resources),
-                    secrets.secret,
+                    copiedType(vault),
+                    copiedType(secret),
                     binder.binding,
                     ...Object.values(servePolicies()),
                     ...Object.values(serveRoles()),
@@ -269,22 +342,39 @@ test.each(TEST_DIALECTS)(
             );
         };
 
-        // stop before secrets while the vault awaits provisioning
+        // send the vault home and wait for its provisioned copy
         const waiting = await apply(stack());
-        expect(waiting.deferred).toBe("vault credentials is not provisioned");
+        expect([waiting.steps.map((step) => [step.action, step.target]), waiting.deferred]).toEqual(
+            [
+                [
+                    ["create", "installation/notes"],
+                    ["create", "vault/credentials"],
+                ],
+                "vault credentials waits for its copy",
+            ],
+        );
+        await copied(
+            () => database.select().from(vault.table),
+            (row) => row.reference !== null,
+        );
 
-        // provision the vault, then apply the secret and its selection
-        const controller = single(server.controllers().filter((each) => each.name === "vault"));
-        await controller.reconcile(
-            JSON.stringify({ scope: ids.space }),
-            reconciliation(new AbortController().signal),
+        // send the secret home and bind its copy
+        const declared = await apply(stack());
+        await copied(
+            () => database.select().from(secret.table),
+            () => true,
         );
         const applied = await apply(stack());
-        expect(applied.steps.map((step) => [step.action, step.target])).toEqual([
-            ["create", "secret/mail"],
-            ["create", `binding/installations/notes/${ids.notes}/token`],
+        expect([
+            declared.steps.map((step) => [step.action, step.target]),
+            declared.deferred,
+            applied.steps.map((step) => [step.action, step.target]),
+        ]).toEqual([
+            [["create", "secret/mail"]],
+            "secret mail waits for its copy",
+            [["create", `binding/installations/notes/${ids.notes}/token`]],
         ]);
-        const mail = single(await database.select().from(secret.table));
+        const mail = single(await kept.select().from(secret.table));
         const bound = single(await database.select().from(binder.binding.table));
         const notesInstallation = single(
             await database
@@ -298,7 +388,7 @@ test.each(TEST_DIALECTS)(
         }
         expect([bound.name, bound.target]).toEqual(["token", mail.id]);
 
-        // write two versions of the secret, the second current
+        // write two versions at home and wait for their copies
         for (const number of [1, 2]) {
             await system(secretVersion, "create", {
                 scope: ids.space,
@@ -308,56 +398,55 @@ test.each(TEST_DIALECTS)(
                 },
             });
         }
+        await copied(
+            () => database.select().from(secret.table),
+            (row) => row.currentVersion === 2,
+        );
         const version = async (number: number) =>
             single(
-                await database
+                await kept
                     .select()
                     .from(secretVersion.table)
                     .where(eq(secretVersion.table.number, number)),
             );
         const promote = async (number: number) => {
-            const row = single(await database.select().from(secret.table));
+            const row = single(await kept.select().from(secret.table));
             await system(secret, "promote", SystemCall.of(row, { version: number }));
+            await copied(
+                () => database.select().from(secret.table),
+                (copy) => copy.currentVersion === number,
+            );
         };
 
-        // serve the space's secrets to the notes installation
+        // serve the vault's secrets to the notes installation
         const workload = principal.installation.reference(ids.space, notesInstallation.id);
         const hosted = Server.start({
-            ...server.implement(spaceService),
+            ...vaulted,
             controllers: [],
-            audience: spaceService.package.id,
+            audience: vaultService.package.id,
             resources: new ResourceContext(),
-            health: new Health("space"),
+            health: new Health("vault"),
             authenticate: async () =>
                 new Authentication({
                     credential: { kind: "fixture", id: "fixture-1" },
-                    audience: spaceService.package.id,
+                    audience: vaultService.package.id,
                     verifiedAt: Date.now(),
                     expiresAt: Date.now() + 60_000,
                     subject: workload,
                     subjects: [workload],
                 }),
-            authorizeHost: async () => {},
+            authorizeMachine: async () => {},
             drainTimeout: 1000,
         });
         onTestFinished(() => hosted.close());
-        const client = new SecretClient(spaceService, {
+        const client = new SecretClient(vaultService, {
             url: "https://vault.test",
             fetch: (request) => hosted.fetch(request),
         });
         const reading = { spaceId: ids.space, id: mail.id };
         const relate = () =>
-            database.transaction(async (transaction) =>
-                binder.relate(
-                    await SystemAuthorization.open(
-                        server.authorizer,
-                        transaction,
-                        ids.space,
-                        Date.now(),
-                    ),
-                    ids.space,
-                    notesInstallation.id,
-                ),
+            database.transaction((transaction) =>
+                binder.relate(binderCall(server, transaction), ids.space, notesInstallation.id),
             );
         const deploy = async () => {
             const now = Date.now();
@@ -383,6 +472,7 @@ test.each(TEST_DIALECTS)(
                             connections: [],
                             compute: {},
                             capabilities: {},
+                            permissions: {},
                         },
                         policies: { packages: [], network: [] },
                         status: "active",
@@ -393,13 +483,7 @@ test.each(TEST_DIALECTS)(
                     .returning(),
             );
             await database.transaction((transaction) =>
-                binder.capture(
-                    {
-                        database: transaction,
-                        invoke: server.invoker({ database: transaction, scope: ids.space, now }),
-                    },
-                    deployed,
-                ),
+                binder.capture(binderCall(server, transaction), deployed),
             );
             await relate();
 
@@ -412,13 +496,24 @@ test.each(TEST_DIALECTS)(
                 .where(eq(deployment.table.id, retired.id));
             await relate();
         };
+        const consumed = (isConsumed: boolean) =>
+            expect
+                .poll(
+                    async () =>
+                        (await kept.select().from(accessRelationship)).some(
+                            (row) => row.relation === "consumer",
+                        ),
+                    { timeout: COPY_TIMEOUT_MILLISECONDS },
+                )
+                .toBe(isConsumed);
         const refused = new ServiceError("FORBIDDEN", {
             defined: true,
             message: "permission denied: read",
         });
 
-        // read the version a deployment captured from an unpinned selection, and no other
+        // read only the version a deployment captured
         const first = await deploy();
+        await consumed(true);
         expect(await client.secret.read({ ...reading, version: 2 })).toEqual({
             version: 2,
             value: { encoding: "text", value: "token 2" },
@@ -426,7 +521,11 @@ test.each(TEST_DIALECTS)(
         await expect(client.secret.read(reading)).rejects.toEqual(refused);
         await expect(client.secret.read({ ...reading, version: 1 })).rejects.toEqual(refused);
 
-        // refuse destroying the captured version while its deployment is live
+        // refuse destroying the version a live deployment captured
+        await copied(
+            () => kept.select().from(deployment.table),
+            (row) => row.id === first.id,
+        );
         await expect(
             system(secretVersion, "destroy", SystemCall.of(await version(2))),
         ).rejects.toEqual(
@@ -444,65 +543,45 @@ test.each(TEST_DIALECTS)(
         await promote(2);
         await retire(first);
         const second = await deploy();
-        expect(await client.secret.read({ ...reading, version: 1 })).toEqual({
-            version: 1,
-            value: { encoding: "text", value: "token 1" },
-        });
+        await expect
+            .poll(() => client.secret.read({ ...reading, version: 1 }).catch(() => undefined), {
+                timeout: COPY_TIMEOUT_MILLISECONDS,
+            })
+            .toEqual({ version: 1, value: { encoding: "text", value: "token 1" } });
         await expect(client.secret.read({ ...reading, version: 2 })).rejects.toEqual(refused);
 
         // read nothing once no deployment is live
         await retire(second);
+        await consumed(false);
         await expect(client.secret.read({ ...reading, version: 1 })).rejects.toEqual(
-            new ServiceError("NOT_FOUND", { defined: true, message: `no secret ${mail.id}` }),
+            new ServiceError("NOT_FOUND", { defined: true, message: `no scope ${ids.space}` }),
         );
-        expect(await database.select().from(accessRelationship)).toEqual([]);
 
         // destroy the fixed version once no live deployment captured it
+        await copied(
+            () => kept.select().from(deployment.table),
+            (row) => row.id === second.id && row.status === "retired",
+        );
         await system(secretVersion, "destroy", SystemCall.of(await version(1)));
         expect((await version(1)).destroyedAt).toEqual(expect.any(Number));
 
-        // move the undeclared secret to the trash
+        // send the undeclared secret to the trash
         const removed = await apply(stack(undefined, false));
         expect(removed.steps.map((step) => [step.action, step.target])).toEqual([
             ["delete", `binding/installations/notes/${ids.notes}/token`],
             ["delete", "secret/mail"],
         ]);
-        const trashed = single(await database.select().from(secret.table));
-        expect(trashed.deletionRequestedAt).toEqual(expect.any(Number));
+        await copied(
+            () => kept.select().from(secret.table),
+            (row) => row.deletionRequestedAt !== null,
+        );
     },
+    30_000,
 );
 
-test("own the secret an installation's declaration generates in its vault, writing its ES256 key once when the vault's key exists", async () => {
-    // serve the space's objects and the vault's to the system, with the notes application installed
-    const opened = await TestDatabase.create("sqlite", spaceDatabase, { isMigrated: true });
-    onTestFinished(() => opened.close());
-    const database = opened.database;
-    const universe = await TestDatabase.create("sqlite", directoryTables, { isMigrated: true });
-    onTestFinished(() => universe.close());
-    await register(database);
-    const keyring = await LocalKeyring.import(
-        "one",
-        new Map([["one", crypto.getRandomValues(new Uint8Array(32))]]),
-    );
-    const providers = new ProviderIndex({ regionId: ids.region }, [
-        vaultProvider(new KeyringVaultHost(database, keyring, "eu")),
-    ]);
-    const binder = new Binder([Bindable.resource(VaultKind, vault)], [secretBindable]);
-    const server = new ObjectServer({
-        objects: {
-            ...Object.fromEntries(
-                Object.entries(spaceObjects).filter(
-                    ([name]) => name !== "space" && name !== "connection",
-                ),
-            ),
-            ...serveResources(providers),
-            ...serveSecrets(keyring, "eu", { days: 1 }),
-        },
-        directory: new DirectoryStore(universe.database),
-        database,
-        callKey: testCallKey,
-        origin: { package: spaceService.package, service: spaceService.name },
-    });
+test("own the secret an installation's declaration generates in its vault, the vault service writing its ES256 key once its vault's key exists", async () => {
+    // serve the space's objects and the vault service with notes installed
+    const { database, kept, vaults, server, binder } = await serveCell("sqlite");
     const now = Date.now();
     const notesInstallation = single(
         await database
@@ -522,7 +601,7 @@ test("own the secret an installation's declaration generates in its vault, writi
             .returning(),
     );
 
-    // need a vault and a secret it generates, as the notes build declares them
+    // need the vault and generated secret the notes build declares
     const needs = [
         { package: notes.package, name: "push", kind: VaultKind.name, spec: {}, state: {} },
         {
@@ -535,31 +614,20 @@ test("own the secret an installation's declaration generates in its vault, writi
     ];
     const settle = () =>
         database.transaction(async (transaction) => {
-            const call = {
-                database: transaction,
-                invoke: server.invoker({
-                    database: transaction,
-                    scope: ids.space,
-                    now: Date.now(),
-                }),
-            };
+            const call = binderCall(server, transaction);
             await binder.attach(call, notesInstallation, needs);
 
             return binder.ready(call, notesInstallation, needs);
         });
 
-    // own both, waiting for the vault's key, then write the key once from two settles racing for it
+    // provision both and wait for the generated first version
     const waiting = await settle();
-    const controller = single(server.controllers().filter((each) => each.name === "vault"));
-    await controller.reconcile(
-        JSON.stringify({ scope: ids.space }),
-        reconciliation(new AbortController().signal),
-    );
+    await expect.poll(settle, { timeout: COPY_TIMEOUT_MILLISECONDS, interval: 200 }).toBe(true);
     const ready = await Promise.all([settle(), settle()]);
-    const generated = single(await database.select().from(secret.table));
-    const key = await VaultKey.load(database, keyring, "eu", generated.parentId);
-    const version = single(await database.select().from(secretVersion.table));
-    const value = await SecretVersion.open(key, generated, version);
+    const generated = single(await kept.select().from(secret.table));
+    const key = await vaults.key(kept, generated.parentId);
+    const version = single(await kept.select().from(secretVersion.table));
+    const value = await SecretVersion.decrypt(key, generated, version);
     const jwk = schema
         .looseObject({ kty: schema.string(), crv: schema.string(), alg: schema.string() })
         .parse(JSON.parse(value.encoding === "text" ? value.value : "{}"));
@@ -567,11 +635,15 @@ test("own the secret an installation's declaration generates in its vault, writi
         .select()
         .from(binder.binding.table)
         .orderBy(binder.binding.table.name);
+    const tables: readonly Table[] = [vault.table, secret.table, secretVersion.table];
     expect({
         waiting,
         ready,
         secret: [generated.name, generated.currentVersion, jwk.kty, jwk.crv, jwk.alg],
         bindings: bindings.map((row) => [row.name, row.target.split("-")[0]]),
+        kept: (await Promise.all(tables.map((table) => kept.select().from(table)))).map(
+            (rows) => rows.length,
+        ),
     }).toEqual({
         waiting: false,
         ready: [true, true],
@@ -580,5 +652,6 @@ test("own the secret an installation's declaration generates in its vault, writi
             ["push", "vault"],
             ["push-key", "secret"],
         ],
+        kept: [1, 1, 1],
     });
-});
+}, 30_000);

@@ -1,5 +1,5 @@
-import { schema } from "@destack/schema";
-import type { SecretAlgorithm } from "../declare/secret.ts";
+import { DeclarationName } from "@destack/package";
+import { defineSchema, schema } from "@destack/schema";
 
 /** The largest decoded secret value: 64 KiB, the limit of common managed secret stores. */
 export const MAX_VALUE_BYTES = 64 * 1024;
@@ -9,6 +9,24 @@ const MAX_BASE64_LENGTH = Math.ceil(MAX_VALUE_BYTES / 3) * 4;
 
 /** The algorithm of generated ES256 keys: ECDSA over P-256 (RFC 7518 3.4). */
 const ES256 = { name: "ECDSA", namedCurve: "P-256" } as const;
+
+/** The algorithms a space generates a secret's first version with: ES256 writes an ECDSA P-256 private key as a JWK (RFC 7518 6.2). */
+export const SECRET_ALGORITHMS = ["ES256"] as const;
+
+/** An algorithm a space generates a secret's first version with. */
+export type SecretAlgorithm = (typeof SECRET_ALGORITHMS)[number];
+
+/** How a space generates a secret's first version when it installs the package: in one of the package's vaults, with an algorithm. */
+export const SecretGeneration = defineSchema(
+    schema.object({
+        /** The package's vault declaration keeping the secret. */
+        vault: DeclarationName,
+        /** The algorithm writing the first version. */
+        algorithm: schema.enum(SECRET_ALGORITHMS),
+    }),
+);
+/** How a space generates a secret's first version when it installs the package. */
+export type SecretGeneration = schema.Infer<typeof SecretGeneration>;
 
 /** A bounded text or binary value; excluded from logs and metadata. */
 const secretValueSchema = schema.discriminatedUnion("encoding", [

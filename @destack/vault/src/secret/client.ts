@@ -14,7 +14,10 @@ export class Secret {
     readonly version: number;
 
     /** Take the secret a deployment captured for one of its declarations. */
-    constructor(client: SecretClient, captured: Pick<Capture, "scope" | "target" | "version">) {
+    constructor(
+        client: SecretClient,
+        captured: Pick<Capture, "scope" | "target"> & { readonly version: number },
+    ) {
         // keep the client and the captured secret version
         this.client = client;
         this.spaceId = captured.scope;

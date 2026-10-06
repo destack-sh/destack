@@ -1,6 +1,6 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { testCallKey } from "@destack/service/test";
-import { Journal } from "@destack/audit";
+import { Journal } from "@destack/audit/server";
 import { eq, isNotNull } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
@@ -9,7 +9,7 @@ import { schema } from "@destack/schema";
 import { binding, installation } from "@destack/space/object";
 import { v7 } from "uuid";
 import { secret, secretVersion } from "../object/index.ts";
-import { SPACE, VAULT, VaultFixture } from "../test/index.ts";
+import { VAULT, VaultFixture } from "../test/index.ts";
 
 /** The recovery window the fixture's host gives deleted secrets, in milliseconds. */
 const RECOVERY_MILLISECONDS = 30 * 86_400_000;
@@ -193,20 +193,16 @@ test.each(TEST_DIALECTS)(
             new ServiceError("CONFLICT", { defined: true, message: "secret version is destroyed" }),
         );
         const ciphertext = await database
-            .select({
-                secretId: secretVersion.table.parentId,
-                version: secretVersion.table.number,
-                envelope: secretVersion.table.envelope,
-            })
+            .select({ version: secretVersion.table.number })
             .from(secretVersion.table)
-            .where(isNotNull(secretVersion.table.envelope));
+            .where(isNotNull(secretVersion.table.ciphertext));
         expect(ciphertext.map((row) => row.version)).toEqual([2]);
 
-        // record every change, disclosure and refused change, the system's included, and no plaintext in any call
+        // record every change, disclosure and refusal without plaintext
         const calls = await new Journal(database, testCallKey).read({ limit: 1000 });
         const actions = calls.filter(
             (call) =>
-                call.execution.context.package.id === SPACE.id &&
+                call.execution.context.package.id === VAULT.id &&
                 call.execution.category !== "denial",
         );
         expect(actions.map((call) => call.method)).toEqual([
@@ -231,7 +227,7 @@ test.each(TEST_DIALECTS)(
             "version.disable",
         ]);
 
-        // record the version each read disclosed, and none for the read of a trashed secret
+        // record the version each read disclosed
         const reads = actions.filter((call) => call.method === "secret.read");
         expect(reads.map((call) => call.execution.details)).toEqual([
             { version: 1 },
@@ -241,7 +237,7 @@ test.each(TEST_DIALECTS)(
             { version: 2 },
         ]);
 
-        // record each refused read once, as its procedure's denial
+        // record each refused read once
         const denials = calls.filter((call) => call.execution.category === "denial");
         expect(denials.map((call) => [call.execution.targets, call.execution.outcome])).toEqual(
             ["secret is unavailable", "secret is unavailable", "secret version is unavailable"].map(
@@ -320,7 +316,7 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
         });
 
-        // purge another deleted secret at once, within its window, with the purge permission
+        // purge another deleted secret within its window
         const other = await client.secret.create({
             spaceId,
             parentId: vaultId,
@@ -354,23 +350,13 @@ test.each(TEST_DIALECTS)(
             return purgedAt !== null;
         }, AbortSignal.timeout(PURGE_WAIT_MILLISECONDS));
         expect(isPurged).toBe(true);
-        expect(
-            await database
-                .select({
-                    secretId: secretVersion.table.parentId,
-                    version: secretVersion.table.number,
-                    envelope: secretVersion.table.envelope,
-                })
-                .from(secretVersion.table)
-                .where(isNotNull(secretVersion.table.envelope)),
-        ).toEqual([]);
         const version = single(
             await database
                 .select()
                 .from(secretVersion.table)
                 .where(eq(secretVersion.table.id, written.id)),
         );
-        expect(version.destroyedAt).toEqual(expect.any(Number));
+        expect([version.destroyedAt, version.ciphertext]).toEqual([expect.any(Number), null]);
         const purged = single(
             await database.select().from(secret.table).where(eq(secret.table.id, first.id)),
         );
@@ -438,7 +424,7 @@ test.each(TEST_DIALECTS)(
                 requestId: RequestId.create(),
             });
 
-        // refuse the deletion while bound, and accept it once the binding is gone
+        // refuse the deletion while bound
         await expect(remove()).rejects.toEqual(
             new ServiceError("CONFLICT", {
                 defined: true,

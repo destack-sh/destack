@@ -1,6 +1,7 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { testCallKey } from "@destack/service/test";
-import { Journal, AuditCaller } from "@destack/audit";
+import { AuditCaller } from "@destack/audit";
+import { Journal } from "@destack/audit/server";
 import { Scope } from "@destack/sync";
 import { accessRelationship, accessRole, accessRolePermission, principal } from "@destack/access";
 import { PackageId } from "@destack/package";
@@ -12,8 +13,8 @@ import { expect, test } from "@destack/test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { vault } from "../object/index.ts";
 import { SecretClient } from "../object/index.ts";
-import { spaceService } from "@destack/space/service";
-import { SPACE, VaultFixture } from "../test/index.ts";
+import { vaultService } from "../service/index.ts";
+import { VAULT, VaultFixture } from "../test/index.ts";
 
 test.each(TEST_DIALECTS)(
     "authorize several spaces through one vault of their cell on %s",
@@ -73,7 +74,7 @@ test.each(TEST_DIALECTS)(
                 }),
             );
 
-            return new SecretClient(spaceService, {
+            return new SecretClient(vaultService, {
                 url: "https://vault.test",
                 headers: { authorization: `Bearer ${issued.accessToken}` },
                 fetch: (request) => server.fetch(request),
@@ -86,7 +87,7 @@ test.each(TEST_DIALECTS)(
         const firstSecret = await createCredential(firstClient, first);
         const secondSecret = await createCredential(secondClient, second);
 
-        // hide another tenant's secret, named in its own space or in the token's
+        // hide another tenant's secret in either space
         for (const [client, spaceId, id, message] of [
             [
                 firstClient,
@@ -133,7 +134,7 @@ test.each(TEST_DIALECTS)(
             })),
         ).toEqual(
             [first, second].map((tenant) => ({
-                package: SPACE,
+                package: VAULT,
                 scope: tenant.spaceId,
                 actor: {
                     type: "subject",

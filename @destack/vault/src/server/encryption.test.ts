@@ -4,13 +4,13 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq, isNotNull } from "@destack/db";
-import { MemoryKeychain } from "@destack/host/keychain";
+import { MemoryKeychain } from "@destack/identity";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { expect, single, test } from "@destack/test";
-import { LocalKeyring } from "@destack/host/keychain";
+import { LocalKeyring } from "@destack/identity";
 import { vaultKey } from "../stack/index.ts";
-import { VaultKey } from "../encryption/index.ts";
+import { KeyringVaultHost } from "../key/index.ts";
 import { LOCATION, VaultFixture } from "../test/index.ts";
 
 test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async (dialect) => {
@@ -30,14 +30,14 @@ test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async
         .select({
             secretId: secretVersion.table.parentId,
             version: secretVersion.table.number,
-            envelope: secretVersion.table.envelope,
+            ciphertext: secretVersion.table.ciphertext,
         })
         .from(secretVersion.table)
-        .where(isNotNull(secretVersion.table.envelope));
+        .where(isNotNull(secretVersion.table.ciphertext));
     const original = single(rows.filter((row) => row.secretId === first.id));
     await database
         .update(secretVersion.table)
-        .set({ envelope: original.envelope })
+        .set({ ciphertext: original.ciphertext })
         .where(eq(secretVersion.table.parentId, second.id));
     await expect(client.secret.read({ spaceId, id: second.id })).rejects.toEqual(
         new ServiceError("INTERNAL_SERVER_ERROR", { message: "internal server error" }),
@@ -45,7 +45,7 @@ test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async
 });
 
 test.each(TEST_DIALECTS)(
-    "rewrap the vault keys under a new root key, keeping every value as stored, and retire the old key only then on %s",
+    "reencrypt the vault keys under a new root key, keeping every value as stored, before retiring the old one on %s",
     async (dialect) => {
         await using fixture = await VaultFixture.open(dialect);
         const { database } = fixture;
@@ -55,7 +55,7 @@ test.each(TEST_DIALECTS)(
         // keep the vault's key and a value under the keychain's first root key
         const first = await LocalKeyring.open(keychain, name);
         await database.delete(vaultKey);
-        await VaultKey.provision(database, first, LOCATION, {
+        await new KeyringVaultHost(database, first, LOCATION).provision({
             id: fixture.vaultId,
             scope: fixture.spaceId,
         });
@@ -65,36 +65,33 @@ test.each(TEST_DIALECTS)(
             .select({
                 secretId: secretVersion.table.parentId,
                 version: secretVersion.table.number,
-                envelope: secretVersion.table.envelope,
+                ciphertext: secretVersion.table.ciphertext,
             })
             .from(secretVersion.table)
-            .where(isNotNull(secretVersion.table.envelope));
+            .where(isNotNull(secretVersion.table.ciphertext));
 
-        // rotate, and refuse retiring the old key while the vault key is wrapped under it
+        // reencrypt the vault key under a new root key before retiring the old one
         const rotated = await LocalKeyring.rotate(keychain, name);
-        await expect(VaultKey.retire(database, keychain, name, first.active)).rejects.toEqual(
-            new ServiceError("CONFLICT", {
-                message: `vault keys are still wrapped under root key ${first.active}: rewrap them first`,
-            }),
+        const reencrypted = await new KeyringVaultHost(database, rotated, LOCATION).reencrypt(
+            first.active,
         );
+        const retired = await LocalKeyring.retire(keychain, name, first.active);
 
-        // rewrap the vault key under the new root key, then retire the old one
-        const rewrapped = await VaultKey.rewrapAll(database, rotated, LOCATION, first.active);
-        const retired = await VaultKey.retire(database, keychain, name, first.active);
-
-        // read the value under the remaining root key alone, its ciphertext untouched
+        // read the untouched value under the remaining root key
         const current = fixture.connect(await fixture.host(retired));
         expect([
-            rewrapped,
-            (await database.select().from(vaultKey)).map((row) => row.rootKeyId),
+            reencrypted,
+            (await database.select().from(vaultKey)).map((row) =>
+                LocalKeyring.version(row.ciphertext),
+            ),
             await database
                 .select({
                     secretId: secretVersion.table.parentId,
                     version: secretVersion.table.number,
-                    envelope: secretVersion.table.envelope,
+                    ciphertext: secretVersion.table.ciphertext,
                 })
                 .from(secretVersion.table)
-                .where(isNotNull(secretVersion.table.envelope)),
+                .where(isNotNull(secretVersion.table.ciphertext)),
             await current.secret.read(key),
         ]).toEqual([1, [rotated.active], stored, { version: 1, value: request.value }]);
     },
@@ -103,7 +100,7 @@ test.each(TEST_DIALECTS)(
 test("read persisted values after reopening the database, and refuse without their root key", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-vault-"));
     try {
-        // commit a value, then close the database
+        // commit a value before closing the database
         const file = join(directory, "vault.db");
         const original = await VaultFixture.openFile(file);
         let saved;
@@ -123,7 +120,7 @@ test("read persisted values after reopening the database, and refuse without the
         // refuse reading without the root key protecting the value
         const replacement = crypto.getRandomValues(new Uint8Array(32));
         const missing = reopened.connect(
-            await reopened.host(await reopened.keyring("two", new Map([["two", replacement]]))),
+            await reopened.host(await reopened.keyring(2, new Map([[2, replacement]]))),
         );
         await expect(missing.secret.read(saved.key)).rejects.toEqual(
             new ServiceError("INTERNAL_SERVER_ERROR", { message: "internal server error" }),

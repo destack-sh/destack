@@ -1,5 +1,5 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { suspendCopy } from "@destack/access/test";
+import { AccessFixture } from "@destack/access/test";
 import { ServiceError } from "@destack/service/error";
 import { expect, test } from "@destack/test";
 import { VaultFixture } from "../test/index.ts";
@@ -16,14 +16,15 @@ test.each(TEST_DIALECTS)(
         const metadata = await client.secret.get(key);
 
         // suspend the space without deleting its resources or granting new permissions
-        await suspendCopy(database, spaceId, Date.now());
+        const copies = new AccessFixture(database);
+        await copies.suspendCopy(spaceId, Date.now());
         await expect(client.secret.read(key)).rejects.toEqual(
             new ServiceError("FORBIDDEN", { defined: true, message: "permission denied: open" }),
         );
         expect(await client.secret.get(key)).toEqual(metadata);
 
         // read the same secret again once resumed
-        await suspendCopy(database, spaceId, null);
+        await copies.suspendCopy(spaceId, null);
         expect(await client.secret.read(key)).toEqual(CREDENTIAL);
     },
 );
