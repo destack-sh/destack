@@ -42,18 +42,21 @@ function createTally(properties: { readonly marks: number }): Tally {
 }
 
 /** A tally starting at two marks. */
-const TwoMarks = defineExample({
+const createTallyTwoMarks = defineExample({
     of: createTally,
     name: "two-marks",
+    description: "a tally starting at two marks",
     properties: { marks: 2 },
     render: (properties) => createTally({ marks: 0, ...properties }),
 });
 
 /** Mark a tally twice, then set it back. */
-const MarkTwice = defineScenario({
+const createTallyMarkTwice = defineScenario({
+    of: createTally,
     interaction: tallyInteraction,
-    name: "mark a tally twice, then set it back",
-    given: { examples: [TwoMarks] },
+    name: "mark-twice",
+    description: "mark a tally twice, then set it back",
+    given: { examples: [createTallyTwoMarks] },
     when: [{ action: "mark" }, { action: "mark" }, { action: "set", properties: { marks: 0 } }],
     then: {
         observe: { marks: { kind: "marks" } },
@@ -82,9 +85,12 @@ const TallyDriver: DriverType<Tallying, Tally> = {
 };
 
 test("observe a scenario's named observations after each step, or once after the last", async () => {
-    const atEnd = { ...MarkTwice, then: { observe: MarkTwice.then.observe, end: { marks: "0" } } };
+    const atEnd = {
+        ...createTallyMarkTwice,
+        then: { observe: createTallyMarkTwice.then.observe, end: { marks: "0" } },
+    };
     expect([
-        await Runner.observe(MarkTwice, TallyDriver),
+        await Runner.observe(createTallyMarkTwice, TallyDriver),
         await Runner.observe(atEnd, TallyDriver),
     ]).toEqual([[{ marks: "3" }, { marks: "4" }, { marks: "0" }], [{ marks: "0" }]]);
 });

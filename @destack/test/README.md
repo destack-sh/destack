@@ -50,8 +50,8 @@ const TallyDriver: DriverType<Tallying, Tally> = {
     interaction: tallyInteraction,
     start: (given) => ({ act: (step) => …, observe: (observation) => … }),
 };
-Runner.play(MarkTwice, [TallyDriver, ViewDriver]); // picks TallyDriver by the interaction's name
-await Runner.observe(MarkTwice, TallyDriver); // [{ marks: "3" }, { marks: "4" }, { marks: "0" }]
+Runner.play(createTallyMarkTwice, [TallyDriver, ViewDriver]); // picks TallyDriver by the interaction's name
+await Runner.observe(createTallyMarkTwice, TallyDriver); // [{ marks: "3" }, { marks: "4" }, { marks: "0" }]
 ```
 
 ## Scenario discovery
