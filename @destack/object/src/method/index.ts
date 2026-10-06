@@ -19,8 +19,11 @@ export {
     type ResultOf,
 } from "./call.ts";
 export {
+    inputSchemaOf,
     type CallableName,
+    type CallInput,
     type CallOutput,
+    type MutationName,
     type ObjectProcedures,
     type RowSchema,
 } from "./procedure.ts";

@@ -1,7 +1,7 @@
 import { type Insert, type JsonOf, type Select, TABLE } from "@destack/db";
 import type * as sync from "@destack/sync";
 import { Scope } from "@destack/sync";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { defineProcedure } from "@destack/service/procedure";
 import { RequestId } from "@destack/service/request";
 import { ParentReference } from "../trait/nested.ts";
@@ -338,6 +338,16 @@ type ProcedureOf<
 > = MethodProcedures<Object>[Name] & {
     readonly "~orpc": { readonly inputSchema: schema.Schema; readonly outputSchema: schema.Schema };
 };
+
+/** Read the schema that checks a method's input, its scope and request fields included. */
+export function inputSchemaOf<Object extends ObjectType>(
+    object: Object,
+    name: MethodName<Object>,
+): schema.Schema {
+    const contract = present(object.procedures[name], `the procedure of ${name}`)["~orpc"];
+
+    return present(contract.inputSchema, `the input of ${name}`);
+}
 
 /** The input a caller passes to a method, without the scope it calls in. */
 export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
