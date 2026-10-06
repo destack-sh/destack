@@ -6,7 +6,8 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
-        "./build": "./src/build/index.ts"
+        "./build": "./src/build/index.ts",
+        "./media.stylex": "./src/condition/media.stylex.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json"

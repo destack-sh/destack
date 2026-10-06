@@ -7,6 +7,5 @@ export type {
     StaticStylesWithout,
     StyleXArray as StyleArray,
     StyleXClassNameFor as ClassNameFor,
-    StyleXStyles as Styles,
     StyleXStylesWithout as StylesWithout,
 } from "@stylexjs/stylex";
