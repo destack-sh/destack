@@ -411,3 +411,91 @@ test("find the first comment that configures rules, ignoring ordinary comments",
         directiveLine([at(5, " plain comment")]),
     ]).toEqual([2, 3, 4, undefined]);
 });
+
+/** A component source path, which parses JSX. */
+const COMPONENT = new URL("../src/note/note.tsx", import.meta.url).pathname;
+
+tester.run("style-attribute", rules["style-attribute"], {
+    valid: [
+        {
+            code: 'const styles = style.create({ wide: { width: "100%" } });\nconst element = <Button xstyle={styles.wide} style="color: red" />;',
+            filename: COMPONENT,
+        },
+        { code: "const element = <div style={properties.style} />;", filename: COMPONENT },
+    ],
+    invalid: [
+        {
+            code: 'const styles = style.create({ wide: { width: "100%" } });\nconst element = <Button style={styles.wide} />;',
+            filename: COMPONENT,
+            errors: [{ messageId: "style" }],
+        },
+        {
+            code: "const element = <Button style={[styles.wide, properties.xstyle]} />;",
+            filename: COMPONENT,
+            errors: [{ messageId: "style" }],
+        },
+    ],
+});
+
+tester.run("no-class-name", rules["no-class-name"], {
+    valid: [{ code: 'const element = <div class="note" />;', filename: COMPONENT }],
+    invalid: [
+        {
+            code: 'const element = <div className="note" />;',
+            filename: COMPONENT,
+            errors: [{ messageId: "className" }],
+        },
+    ],
+});
+
+tester.run("style-hover", rules["style-hover"], {
+    valid: [
+        'const styles = style.create({ link: { color: { default: "inherit", ":hover": { default: null, [media.hover]: "red" } } } });',
+    ],
+    invalid: [
+        {
+            code: 'const styles = style.create({ link: { color: { default: "inherit", ":hover": color.primary } } });',
+            errors: [{ messageId: "hover" }],
+        },
+    ],
+});
+
+tester.run("style-tokens", rules["style-tokens"], {
+    valid: [
+        "const styles = style.create({ note: { color: color.primary, width: `calc(2 * ${space[4]})` } });",
+    ],
+    invalid: [
+        {
+            code: 'const styles = style.create({ note: { width: "var(--note-width)" } });',
+            errors: [{ messageId: "variable" }],
+        },
+        {
+            code: 'const styles = style.create({ note: { color: "#ff0000", backgroundColor: "oklch(0.7 0.1 30)" } });',
+            errors: [{ messageId: "color" }, { messageId: "color" }],
+        },
+    ],
+});
+
+tester.run("style-shorthand", rules["style-shorthand"], {
+    valid: [
+        'const styles = style.create({ note: { margin: "auto", padding: "calc(1px + 2px)", translate: "0 4px" } });',
+    ],
+    invalid: [
+        {
+            code: 'const styles = style.create({ note: { margin: "0 auto" } });',
+            errors: [{ messageId: "shorthand" }],
+        },
+    ],
+});
+
+tester.run("style-xstyle-last", rules["style-xstyle-last"], {
+    valid: [
+        "const attributes = style.attributes([styles.note, properties.xstyle], properties.style);",
+    ],
+    invalid: [
+        {
+            code: "const attributes = style.attributes([properties.xstyle, styles.note]);",
+            errors: [{ messageId: "last" }],
+        },
+    ],
+});

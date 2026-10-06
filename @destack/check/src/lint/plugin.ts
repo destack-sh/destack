@@ -5,6 +5,7 @@ import { commentStyle } from "./comment-style.ts";
 import { errorMessageStyle } from "./error-message-style.ts";
 import { exactOptional } from "./exact-optional.ts";
 import { jsdocSentence } from "./jsdoc-sentence.ts";
+import { noClassName } from "./no-class-name.ts";
 import { noImportAlias } from "./no-import-alias.ts";
 import { noIndexLogic } from "./no-index-logic.ts";
 import { noInlineConfiguration } from "./no-inline-config.ts";
@@ -15,6 +16,11 @@ import { paddingBeforeReturn } from "./padding-before-return.ts";
 import { preventAbbreviations } from "./prevent-abbreviations.ts";
 import { requireBlockComment } from "./require-block-comment.ts";
 import { requireJsdoc } from "./require-jsdoc.ts";
+import { styleAttribute } from "./style-attribute.ts";
+import { styleHover } from "./style-hover.ts";
+import { styleShorthand } from "./style-shorthand.ts";
+import { styleTokens } from "./style-tokens.ts";
+import { styleXstyleLast } from "./style-xstyle-last.ts";
 import { validDeclaration } from "./valid-declaration.ts";
 import { validPackageHandle } from "./valid-package-handle.ts";
 
@@ -36,6 +42,7 @@ export const rules = {
     "error-message-style": errorMessageStyle,
     "exact-optional": exactOptional,
     "jsdoc-sentence": jsdocSentence,
+    "no-class-name": noClassName,
     "no-import-alias": noImportAlias,
     "no-index-logic": noIndexLogic,
     "no-inline-config": noInlineConfiguration,
@@ -46,6 +53,11 @@ export const rules = {
     "prevent-abbreviations": preventAbbreviations,
     "require-block-comment": requireBlockComment,
     "require-jsdoc": requireJsdoc,
+    "style-attribute": styleAttribute,
+    "style-hover": styleHover,
+    "style-shorthand": styleShorthand,
+    "style-tokens": styleTokens,
+    "style-xstyle-last": styleXstyleLast,
     "valid-declaration": validDeclaration,
     "valid-package-handle": validPackageHandle,
 } satisfies Record<string, Rule>;
