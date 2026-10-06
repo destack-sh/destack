@@ -1,6 +1,6 @@
 # @destack/directory
 
-Record which cell serves each zone, where each cell answers, which cells have work in a zone, and which object holds each unique name.
+Record which cell serves each zone, where each cell answers, which cells have work in a zone, which object holds each unique name, and each space's and the universe's identity.
 
 ## Zones and cells
 
@@ -37,17 +37,18 @@ throw Moved.error({ scope: spaceId, cell: "host-01a0…" }); // how a cell answe
 
 ## Identities
 
-`apply` appends a signed identity operation to a space's log, the first only from the cell serving the space, and `identity` reads the space's current signing and rotation keys.
+`apply` appends a signed operation to a space's or the universe's log, a space's first only from the cell serving it, `identity` reads the current signing and rotation keys, and `keys` verifies what an identity signs.
 
 ```ts
-import { IdentityOperation } from "@destack/directory";
+import { IdentityOperation } from "@destack/identity";
 
 const operation = await IdentityOperation.sign(
-    { space: spaceId, previous: null, signingKey, rotationKeys: [cellKey] },
+    { subject: spaceId, previous: null, signingKey, rotationKeys: [cellKey] },
     cellPrivateKey,
 );
 await directory.apply(operation, zone);
-const { signingKey: current } = present(await directory.identity(spaceId), "identity");
+const { signingKeys } = present(await directory.identity(spaceId), "identity"); // newest first
+await jwtVerify(token, directory.keys(spaceId)); // a key set kept ten minutes, read again for an unknown key
 ```
 
 ## Recovery
@@ -57,6 +58,21 @@ A higher-priority rotation key nullifies the operations a lower one signed withi
 ```ts
 const recovered = await IdentityOperation.sign({ ...claims, previous: before }, ownerPrivateKey);
 await directory.apply(recovered); // nullifies the cell's later operations
+```
+
+## Keystores
+
+An `IdentityKeystore` holds the private keys of the identities a process serves under its keyring: it starts an identity, signs as it, rotates its signing keys, derives its secrets, and seals its keys to the cell a space moves to.
+
+```ts
+import { IdentityKeystore } from "@destack/directory";
+
+const keystore = new IdentityKeystore(keyring, directory);
+await keystore.generate(database, spaceId, zone); // starts the identity in the directory
+const { accessToken } = await keystore.issuer(database, spaceId).issue(caller); // signed by the space
+await keystore.rotate(database, spaceId); // a next signing key, signing once every verifier read it
+const s3 = await S3Credentials.derive(await keystore.deriver(database, spaceId), spaceId); // under the space's root secret
+await keystore.reencrypt(database, previous.active); // after the keyring's root rotated
 ```
 
 ## Claims
