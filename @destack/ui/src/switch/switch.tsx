@@ -1,8 +1,8 @@
 import * as style from "@destack/style";
 import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
-import { useField } from "../field/control.ts";
+import { type JSX, omit } from "@destack/view";
+import { type CheckProperties, useCheckControl } from "../checkbox/check.ts";
+import { useFieldControl } from "../field/control.ts";
 
 /** The styles of a switch. */
 const styles = style.create({
@@ -49,29 +49,41 @@ const styles = style.create({
 });
 
 /** The properties of a switch, the native checkbox's attributes included. */
-export interface SwitchProperties extends Omit<
-    JSX.InputHTMLAttributes<HTMLInputElement>,
-    "class" | "style" | "type" | "role"
-> {
+export interface SwitchProperties
+    extends
+        Omit<
+            JSX.InputHTMLAttributes<HTMLInputElement>,
+            "class" | "type" | "role" | "checked" | "defaultChecked" | "onChange"
+        >,
+        CheckProperties {
     /** The StyleX styles applied after the switch's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Render a native checkbox exposed as an on and off switch, which Space toggles. */
 export function Switch(properties: SwitchProperties): JSX.Element {
-    // take the id, state and bound value of the nearest field
-    const field = useField();
-    const rest = omit(properties, "style");
+    // take the id and state of the nearest field
+    const field = useFieldControl();
+    const checked = useCheckControl(properties);
+    const rest = omit(
+        properties,
+        "checked",
+        "defaultChecked",
+        "onCheckedChange",
+        "xstyle",
+        "style",
+    );
 
     return (
         <input
             type="checkbox"
             role="switch"
             data-slot="switch"
+            checked={checked.isChecked()}
             {...field?.attributes()}
             {...rest}
-            {...field?.checkAttributes()}
-            {...style.attrs(styles.switch, properties.style)}
+            onChange={checked.onChange}
+            {...style.attributes([styles.switch, properties.xstyle], properties.style)}
         />
     );
 }

@@ -1,8 +1,7 @@
 import * as style from "@destack/style";
 import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { createContext, merge, omit, useContext } from "solid-js";
+import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 
 /** The variant and alignment of a bubble that sets neither. */
 const DEFAULTS: Required<Pick<BubbleProperties, "variant" | "align">> = {
@@ -119,12 +118,9 @@ export type BubbleAlign = "start" | "end";
 export type BubbleReactionsSide = "top" | "bottom";
 
 /** The properties of an element of a bubble, the native element's attributes included. */
-export type BubbleElementProperties = Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> & {
+export type BubbleElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a bubble, the native element's attributes included. */
@@ -145,17 +141,21 @@ export interface BubbleReactionsProperties extends BubbleElementProperties {
 
 /** Render consecutive bubbles stacked together. */
 export function BubbleGroup(properties: BubbleElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="bubble-group" {...rest} {...style.attrs(styles.group, properties.style)} />
+        <div
+            data-slot="bubble-group"
+            {...rest}
+            {...style.attributes([styles.group, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render the text of a message in a rounded bubble, with its reactions on its edge. */
 export function Bubble(properties: BubbleProperties): JSX.Element {
     const bubble = merge(DEFAULTS, properties);
-    const rest = omit(bubble, "variant", "align", "style");
+    const rest = omit(bubble, "variant", "align", "xstyle", "style");
 
     return (
         <BubbleContext value={() => bubble.variant}>
@@ -164,10 +164,13 @@ export function Bubble(properties: BubbleProperties): JSX.Element {
                 data-variant={bubble.variant}
                 data-align={bubble.align}
                 {...rest}
-                {...style.attrs(
-                    styles.bubble,
-                    bubble.align === "end" && styles.end,
-                    bubble.variant === "ghost" && styles.ghost,
+                {...style.attributes(
+                    [
+                        styles.bubble,
+                        bubble.align === "end" && styles.end,
+                        bubble.variant === "ghost" && styles.ghost,
+                        bubble.xstyle,
+                    ],
                     bubble.style,
                 )}
             />
@@ -178,13 +181,16 @@ export function Bubble(properties: BubbleProperties): JSX.Element {
 /** Render a bubble's text in the bubble's colors. */
 export function BubbleContent(properties: BubbleElementProperties): JSX.Element {
     const variant = useContext(BubbleContext);
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="bubble-content"
             {...rest}
-            {...style.attrs(text.callout, styles.content, variants[variant()], properties.style)}
+            {...style.attributes(
+                [text.callout, styles.content, variants[variant()], properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -192,7 +198,7 @@ export function BubbleContent(properties: BubbleElementProperties): JSX.Element 
 /** Render the reactions to a bubble on its edge. */
 export function BubbleReactions(properties: BubbleReactionsProperties): JSX.Element {
     const reactions = merge(REACTION_DEFAULTS, properties);
-    const rest = omit(reactions, "side", "align", "style");
+    const rest = omit(reactions, "side", "align", "xstyle", "style");
 
     return (
         <div
@@ -200,11 +206,14 @@ export function BubbleReactions(properties: BubbleReactionsProperties): JSX.Elem
             data-side={reactions.side}
             data-align={reactions.align}
             {...rest}
-            {...style.attrs(
-                text.footnote,
-                styles.reactions,
-                styles[reactions.side],
-                reactions.align === "start" ? styles.reactionsStart : styles.reactionsEnd,
+            {...style.attributes(
+                [
+                    text.footnote,
+                    styles.reactions,
+                    styles[reactions.side],
+                    reactions.align === "start" ? styles.reactionsStart : styles.reactionsEnd,
+                    reactions.xstyle,
+                ],
                 reactions.style,
             )}
         />

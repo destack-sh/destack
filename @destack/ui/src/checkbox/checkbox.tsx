@@ -1,13 +1,13 @@
 import * as style from "@destack/style";
 import { color, motion, radius, shadow, space, stroke } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
-import { useField } from "../field/control.ts";
+import { type JSX, omit } from "@destack/view";
+import { useFieldControl } from "../field/control.ts";
+import { type CheckProperties, useCheckControl } from "./check.ts";
 
-/** The check a checked box shows, Phosphor's bold check as a mask. */
+/** The check a checked box shows, the bold check icon as a mask. */
 const CHECK_MASK = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><path d='M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z'/></svg>")`;
 
-/** The dash an indeterminate box shows, Phosphor's bold minus as a mask. */
+/** The dash an indeterminate box shows, the bold minus icon as a mask. */
 const MINUS_MASK = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><path d='M228,128a12,12,0,0,1-12,12H40a12,12,0,0,1,0-24H216A12,12,0,0,1,228,128Z'/></svg>")`;
 
 /** The styles of a checkbox. */
@@ -60,21 +60,33 @@ const styles = style.create({
 });
 
 /** The properties of a checkbox, the native checkbox's attributes included. */
-export interface CheckboxProperties extends Omit<
-    JSX.InputHTMLAttributes<HTMLInputElement>,
-    "class" | "style" | "type"
-> {
+export interface CheckboxProperties
+    extends
+        Omit<
+            JSX.InputHTMLAttributes<HTMLInputElement>,
+            "class" | "type" | "checked" | "defaultChecked" | "onChange"
+        >,
+        CheckProperties {
     /** Whether the box shows neither checked nor unchecked, such as for a partly selected list. */
     readonly indeterminate?: boolean;
     /** The StyleX styles applied after the checkbox's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Render a native checkbox that Space toggles and its label names. */
 export function Checkbox(properties: CheckboxProperties): JSX.Element {
-    // take the id, state and bound value of the nearest field
-    const field = useField();
-    const rest = omit(properties, "indeterminate", "style");
+    // take the id and state of the nearest field
+    const field = useFieldControl();
+    const checked = useCheckControl(properties);
+    const rest = omit(
+        properties,
+        "checked",
+        "defaultChecked",
+        "onCheckedChange",
+        "indeterminate",
+        "xstyle",
+        "style",
+    );
     const isInvalid = (): boolean =>
         field?.isInvalid() === true || properties["aria-invalid"] === "true";
 
@@ -83,10 +95,14 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
             type="checkbox"
             data-slot="checkbox"
             prop:indeterminate={properties.indeterminate === true}
+            checked={checked.isChecked()}
             {...field?.attributes()}
             {...rest}
-            {...field?.checkAttributes()}
-            {...style.attrs(styles.checkbox, isInvalid() && styles.invalid, properties.style)}
+            onChange={checked.onChange}
+            {...style.attributes(
+                [styles.checkbox, isInvalid() && styles.invalid, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }

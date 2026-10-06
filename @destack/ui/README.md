@@ -1,25 +1,23 @@
 # @destack/ui
 
-Build interfaces from shadcn/ui's components in Solid and StyleX, on native elements and the WAI-ARIA patterns, styled by the theme's roles.
+Build interfaces from Solid and StyleX components on native elements and the WAI-ARIA patterns, styled by the theme's roles.
 
 ## Button
 
-`Button` renders a native button in six variants and eight sizes, and `buttonStyle` gives a link the same look.
+`Button` renders a native button in six variants and eight sizes, `render` puts its attributes on another element such as a router's link, and `buttonStyle` gives any element the same look.
 
 ```tsx
 import { Button, buttonStyle } from "@destack/ui/button";
 
 <Button type="submit">Save</Button>;
-<Button variant="ghost" size="sm">
-    Cancel
-</Button>;
 <Button variant="destructive" size="icon" aria-label="Delete note">
     <Icon name="trash" />
 </Button>;
-
-<a href="/pricing" {...style.attrs(buttonStyle({ variant: "outline" }))}>
-    Pricing
-</a>;
+<Button loading>Save</Button>; // a spinner, aria-busy and disabled while the action runs
+<Button variant="outline" render={(part) => <a href="/notes" {...part} />}>
+    Notes
+</Button>;
+// <a href="/notes" data-slot="button" data-variant="outline" data-size="default">Notes</a>
 ```
 
 ## Button group
@@ -364,32 +362,21 @@ import { Textarea } from "@destack/ui/textarea";
 
 ## Select
 
-`Select` renders a native `<select>` whose button, picker and options take the theme where the browser supports customizable selects.
+`Select` renders a native `<select>` whose button, picker and options take the theme where the browser supports customizable selects, with a `placeholder`, and a list box when `multiple`.
 
 ```tsx
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectSeparator,
-    SelectTrigger,
-    SelectValue,
-} from "@destack/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@destack/ui/select";
 
-<Select name="sort" aria-label="Sort by">
+<Select aria-label="Sort by" placeholder="Sort by…" onValueChange={setSort}>
     <SelectTrigger>
         <SelectValue />
     </SelectTrigger>
-    <SelectContent>
-        <SelectGroup>
-            <SelectLabel>Date</SelectLabel>
-            <SelectItem value="updated">Last edited</SelectItem>
-        </SelectGroup>
-        <SelectSeparator />
-        <SelectItem value="title">Title</SelectItem>
-    </SelectContent>
+    <SelectItem value="updated">Last edited</SelectItem>
+    <SelectItem value="title">Title</SelectItem>
+</Select>;
+<Select aria-label="Tags" multiple value={tags()} onValueChange={setTags}>
+    <SelectItem value="travel">Travel</SelectItem>
+    <SelectItem value="food">Food</SelectItem>
 </Select>;
 ```
 
@@ -400,20 +387,25 @@ import {
 ```tsx
 import { Checkbox } from "@destack/ui/checkbox";
 
-<Checkbox name="terms" required />;
-<Checkbox indeterminate aria-label="Select all" />;
+<Checkbox name="terms" required defaultChecked />;
+<Checkbox
+    aria-label="Select all"
+    checked={isAll()}
+    indeterminate={isSome()}
+    onCheckedChange={selectAll}
+/>;
 ```
 
 ## Radio group
 
-`RadioGroup` gives its native radios one name.
+`RadioGroup` gives its native radios one name and one value.
 
 ```tsx
 import { RadioGroup, RadioGroupItem } from "@destack/ui/radio-group";
 
-<RadioGroup name="density" aria-label="Density">
+<RadioGroup aria-label="Density" defaultValue="regular" orientation="horizontal" required>
     <RadioGroupItem value="compact" aria-label="Compact" />
-    <RadioGroupItem value="regular" aria-label="Regular" checked />
+    <RadioGroupItem value="regular" aria-label="Regular" />
 </RadioGroup>;
 ```
 
@@ -424,18 +416,26 @@ import { RadioGroup, RadioGroupItem } from "@destack/ui/radio-group";
 ```tsx
 import { Switch } from "@destack/ui/switch";
 
-<Switch name="notifications" checked aria-label="Notifications" />;
+<Switch aria-label="Notifications" checked={isOn()} onCheckedChange={setOn} />;
 ```
 
 ## Slider
 
-`Slider` renders a native range input whose track fills up to its value.
+`Slider` renders a native range input per thumb over a track filled between its values: one value, or two for a range, along either orientation.
 
 ```tsx
 import { Slider } from "@destack/ui/slider";
 
-<Slider min={12} max={24} value={18} aria-label="Font size" />;
-// style="--destack-slider-fill: 50%;", following the thumb as it moves
+<Slider min={12} max={24} defaultValue={[16]} aria-label="Font size" />;
+<Slider
+    max={500}
+    step={10}
+    value={price()}
+    onValueChange={setPrice}
+    marks={[0, 250, 500]}
+    aria-label="Price"
+/>;
+// the thumbs of a range are named "Minimum" and "Maximum"
 ```
 
 ## Progress
@@ -467,11 +467,11 @@ import { Toggle } from "@destack/ui/toggle";
 ```tsx
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 
-<ToggleGroup type="single" defaultValue="left" aria-label="Alignment">
+<ToggleGroup defaultValue="left" aria-label="Alignment">
     <ToggleGroupItem value="left">Left</ToggleGroupItem>
     <ToggleGroupItem value="center">Center</ToggleGroupItem>
 </ToggleGroup>;
-<ToggleGroup type="multiple" value={["bold"]} onValueChange={setMarks} aria-label="Style">
+<ToggleGroup multiple value={["bold"]} onValueChange={setMarks} aria-label="Style">
     …
 </ToggleGroup>;
 ```
@@ -483,10 +483,13 @@ import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 ```tsx
 import {
     Combobox,
+    ComboboxChips,
     ComboboxContent,
+    ComboboxCreate,
     ComboboxEmpty,
     ComboboxInput,
     ComboboxItem,
+    ComboboxLoading,
 } from "@destack/ui/combobox";
 
 <Combobox onValueChange={move}>
@@ -494,6 +497,29 @@ import {
     <ComboboxContent>
         <ComboboxEmpty>No notebook found</ComboboxEmpty>
         <ComboboxItem value="Trips">Trips</ComboboxItem>
+    </ComboboxContent>
+</Combobox>;
+<Combobox multiple value={tags()} onValueChange={setTags} onCreate={addTag}>
+    <ComboboxChips />
+    <ComboboxInput aria-label="Tags" />
+    <ComboboxContent>
+        <ComboboxItem value="travel">travel</ComboboxItem>
+        <ComboboxCreate />
+    </ComboboxContent>
+</Combobox>;
+<Combobox shouldFilter={false} onInputValueChange={search}>
+    <ComboboxInput aria-label="Person" />
+    <ComboboxContent>
+        <Show
+            when={isLoading()}
+            fallback={
+                <For each={people()}>
+                    {(person) => <ComboboxItem value={person.id}>{person.name}</ComboboxItem>}
+                </For>
+            }
+        >
+            <ComboboxLoading>Searching…</ComboboxLoading>
+        </Show>
     </ComboboxContent>
 </Combobox>;
 ```
@@ -610,6 +636,7 @@ import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@destack/ui/d
         <DrawerTitle>Share Groceries</DrawerTitle>
     </DrawerContent>
 </Drawer>;
+// a swipe toward the drawer's edge past a quarter of it, or a flick, closes it
 ```
 
 ## Popover
@@ -646,7 +673,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@destack/ui/hover
 `Tooltip` describes its trigger on focus or after a resting pointer, and stays while the pointer is on it.
 
 ```tsx
-import { Tooltip, TooltipContent, TooltipTrigger } from "@destack/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@destack/ui/tooltip";
 
 <Tooltip delayDuration={700}>
     <TooltipTrigger variant="ghost" size="icon" aria-label="Archive">
@@ -654,6 +681,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@destack/ui/tooltip";
     </TooltipTrigger>
     <TooltipContent side="top">Archive note</TooltipContent>
 </Tooltip>;
+<TooltipProvider delayDuration={700} skipDelayDuration={300}>
+    …
+</TooltipProvider>; // the next tooltip shows at once while the last just hid
+<TooltipContent side="top">
+    <TooltipArrow />{" "}
+    {/* PopoverArrow and HoverCardArrow alike; shown where the browser reports flips */}
+    Archive note
+</TooltipContent>;
 ```
 
 ## Toast
@@ -666,6 +701,7 @@ import { Toaster, toast } from "@destack/ui/toast";
 <Toaster position="bottom-right" duration={4000} />;
 toast("Note archived", { action: { label: "Undo", onClick: restore } });
 toast.promise(save(), { loading: "Saving", success: "Saved", error: "Saving failed" });
+<Toaster position="top-center" richColors />; // each kind colors its toast; a swipe off the toaster's side dismisses
 ```
 
 ## Dropdown menu
@@ -752,7 +788,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@destack/ui/tabs";
 
 ## Accordion
 
-`Accordion` stacks native `<details>` disclosures, one open at a time in a `single` accordion.
+`Accordion` stacks native `<details>` disclosures, one open at a time in a `single` accordion, which arrow keys move between.
 
 ```tsx
 import {
@@ -762,10 +798,13 @@ import {
     AccordionTrigger,
 } from "@destack/ui/accordion";
 
-<Accordion type="single">
-    <AccordionItem open>
+<Accordion defaultValue="sharing">
+    <AccordionItem value="sharing">
         <AccordionTrigger>Who can see my notes?</AccordionTrigger>
         <AccordionContent>Only the people you share a notebook with.</AccordionContent>
+    </AccordionItem>
+    <AccordionItem value="billing" disabled>
+        <AccordionTrigger>How do I pay?</AccordionTrigger>
     </AccordionItem>
 </Accordion>;
 ```
@@ -777,7 +816,7 @@ import {
 ```tsx
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@destack/ui/collapsible";
 
-<Collapsible>
+<Collapsible open={isOpen()} onOpenChange={setOpen}>
     <CollapsibleTrigger>travel and 3 more</CollapsibleTrigger>
     <CollapsibleContent>food, family, summer</CollapsibleContent>
 </Collapsible>;
@@ -856,6 +895,7 @@ import {
     PaginationItem,
     PaginationLink,
     PaginationNext,
+    PaginationPages,
     PaginationPrevious,
 } from "@destack/ui/pagination";
 
@@ -865,7 +905,7 @@ import {
             <PaginationPrevious href="?page=1" />
         </PaginationItem>
         <PaginationItem>
-            <PaginationLink href="?page=2" isActive>
+            <PaginationLink href="?page=2" active>
                 2
             </PaginationLink>
         </PaginationItem>
@@ -874,6 +914,15 @@ import {
         </PaginationItem>
     </PaginationContent>
 </Pagination>;
+<Pagination>
+    <PaginationPages
+        count={20}
+        page={page()}
+        onPageChange={setPage}
+        href={(page) => `?page=${page}`}
+    />
+</Pagination>;
+// 1 … 5 6 7 … 20, links that page in place while onPageChange handles them
 ```
 
 ## Sidebar
@@ -901,7 +950,7 @@ import {
                 <SidebarGroupLabel>Notebooks</SidebarGroupLabel>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton href="/trips" isActive>
+                        <SidebarMenuButton href="/trips" active>
                             Trips
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -941,6 +990,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@destack/u
     <ResizableHandle withHandle aria-label="Resize the notebook list" />
     <ResizablePanel>Note</ResizablePanel>
 </ResizablePanelGroup>;
+<ResizablePanelGroup autoSaveId="notebook-split" onLayout={(layout) => save(layout)}>
+    <ResizablePanel defaultSize={30} minSize={20} collapsible>
+        Notebooks
+    </ResizablePanel>
+    <ResizableHandle /> {/* Enter collapses and restores the panel before it */}
+    <ResizablePanel>Note</ResizablePanel>
+</ResizablePanelGroup>;
 ```
 
 ## Carousel
@@ -952,7 +1008,9 @@ import {
     Carousel,
     CarouselContent,
     CarouselItem,
+    CarouselDots,
     CarouselNext,
+    CarouselPlay,
     CarouselPrevious,
 } from "@destack/ui/carousel";
 
@@ -962,6 +1020,11 @@ import {
     </CarouselContent>
     <CarouselPrevious />
     <CarouselNext />
+</Carousel>;
+<Carousel aria-label="Photos" loop autoplay={5000}>
+    <CarouselContent>…</CarouselContent>
+    <CarouselPlay /> {/* stops and starts the rotation */}
+    <CarouselDots />
 </Carousel>;
 ```
 
@@ -988,27 +1051,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 ## Data table
 
-`DataTable` sorts, filters, selects and pages rows through `Table`.
+`createTable` runs a headless table over reactive options, and `DataTable` renders it as a grid that arrow keys move through, beside `DataTableFilter`, `DataTableViewOptions` and `DataTablePagination`; a manual table leaves sorting, filtering and paging to the query its rows come from.
 
 ```tsx
-import { DataTable, type DataTableColumn } from "@destack/ui/data-table";
+import { createColumnHelper, rowSortingFeature, createSortedRowModel, tableFeatures } from "@tanstack/table-core";
+import { createTable, DataTable, DataTableColumnHeader, DataTablePagination, selectionColumn } from "@destack/ui/data-table";
 
-const columns: DataTableColumn<Note>[] = [
-    {
-        id: "title",
-        header: "Title",
-        cell: (note) => note.title,
-        sortValue: (note) => note.title,
-        filterValue: (note) => note.title,
-    },
-    {
-        id: "words",
-        header: "Words",
-        cell: (note) => String(note.words),
-        sortValue: (note) => note.words,
-    },
-];
-<DataTable rows={notes()} columns={columns} rowId={(note) => note.id} isSelectable pageSize={10} />;
+const features = tableFeatures({ rowSortingFeature, sortedRowModel: createSortedRowModel(), ... });
+const column = createColumnHelper<typeof features, Note>();
+const columns = column.columns([
+    selectionColumn<typeof features, Note>(),
+    column.accessor("title", {
+        header: (context) => <DataTableColumnHeader column={context.column} title="Title" />,
+    }),
+]);
+
+const table = createTable({ features, columns, get data() { return notes(); }, getRowId: (note) => note.id });
+<DataTable table={table} rowHeight={40} />;
+<DataTablePagination table={table} />;
+
+createTable({ ..., manualSorting: true, manualPagination: true, rowCount: count(), state: { sorting: sorting() }, onSortingChange: setSorting });
 ```
 
 ## Tree
@@ -1040,6 +1102,8 @@ import { Calendar, Day } from "@destack/ui/calendar";
 <Calendar mode="range" value={trip()} onValueChange={setTrip} />; // days marked data-range="start", "middle" or "end"
 <Calendar mode="multiple" value={days()} onValueChange={setDays} />;
 // de-AT: "Oktober 2026", Mo Di Mi Do Fr Sa So; en-US: "October 2026", Sun Mon …
+<Calendar mode="range" months={2} min={Day.today()} />;
+<Calendar captionLayout="dropdown" weekNumbers outsideDays={false} max={Day.today()} />; // ISO 8601 week numbers
 ```
 
 ## Date picker
@@ -1051,6 +1115,12 @@ import { DatePicker } from "@destack/ui/date-picker";
 
 <DatePicker aria-label="Due date" onValueChange={setDue} />; // named "Due date Pick a date", then "Due date Oct 5, 2026"
 <DatePicker mode="range" aria-label="Trip" onValueChange={setTrip} />; // "Oct 4 – 9, 2026"
+<DatePicker
+    mode="range"
+    aria-label="Edited"
+    presets={[{ label: "Last 7 days", value: lastWeek }]}
+/>;
+<Input type="date" />; // typed entry, and type="time" or "datetime-local" for times
 ```
 
 ## Message
@@ -1156,13 +1226,15 @@ import {
 
 ## Styles
 
-Every component passes its other properties to its native element, composes the theme's text styles, and applies the StyleX styles given as `style` after its own.
+Every component passes its other attributes to its native element, composes the theme's text styles, applies the StyleX styles given as `xstyle` after its own and the inline `style` after those, marks each part with `data-slot` and its state with `data-state`, and takes its state controlled or uncontrolled.
 
 ```tsx
 const styles = style.create({ wide: { width: "100%" } });
-<Button style={styles.wide} ref={button} onClick={save}>
+<Button xstyle={styles.wide} onClick={save}>
     Save
 </Button>;
+<Toggle pressed={isBold()} onPressedChange={setBold} aria-label="Bold" />;
+<Toggle defaultPressed aria-label="Italic" />;
 ```
 
 ## Built-in text

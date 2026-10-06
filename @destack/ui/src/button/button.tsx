@@ -1,9 +1,11 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { merge, omit } from "solid-js";
+import { type JSX, merge, omit, Show } from "@destack/view";
+import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { useJoin } from "../join/index.ts";
+import { Spinner } from "../spinner/index.ts";
 
 /** The variant and size of a button that sets neither. */
 const DEFAULTS: Required<Pick<ButtonProperties, "variant" | "size">> = {
@@ -43,38 +45,62 @@ const variants = style.create({
     default: {
         backgroundColor: {
             default: color.primary,
-            ":hover": `color-mix(in oklab, ${color.primary} 90%, transparent)`,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.primary} 90%, transparent)`,
+            },
         },
         color: color.primaryForeground,
     },
     destructive: {
         backgroundColor: {
             default: color.destructive,
-            ":hover": `color-mix(in oklab, ${color.destructive} 90%, transparent)`,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.destructive} 90%, transparent)`,
+            },
         },
         color: color.destructiveForeground,
         outlineColor: `color-mix(in oklab, ${color.destructive} 40%, transparent)`,
     },
     outline: {
-        backgroundColor: { default: color.background, ":hover": color.accent },
-        color: { default: color.foreground, ":hover": color.accentForeground },
+        backgroundColor: {
+            default: color.background,
+            ":hover": { default: null, [media.hover]: color.accent },
+        },
+        color: {
+            default: color.foreground,
+            ":hover": { default: null, [media.hover]: color.accentForeground },
+        },
         borderColor: color.input,
     },
     secondary: {
         backgroundColor: {
             default: color.secondary,
-            ":hover": `color-mix(in oklab, ${color.secondary} 80%, transparent)`,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.secondary} 80%, transparent)`,
+            },
         },
         color: color.secondaryForeground,
     },
     ghost: {
-        backgroundColor: { default: "transparent", ":hover": color.accent },
-        color: { default: color.foreground, ":hover": color.accentForeground },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.accent },
+        },
+        color: {
+            default: color.foreground,
+            ":hover": { default: null, [media.hover]: color.accentForeground },
+        },
     },
     link: {
         backgroundColor: "transparent",
         color: color.primary,
-        textDecoration: { default: "none", ":hover": "underline" },
+        textDecoration: {
+            default: "none",
+            ":hover": { default: null, [media.hover]: "underline" },
+        },
         textUnderlineOffset: "0.25em",
     },
 });
@@ -114,11 +140,15 @@ export type ButtonSize =
 
 /** The properties of a button, the native button's attributes included. */
 export interface ButtonProperties
-    extends
-        Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style">,
-        ButtonStyleOptions {
+    extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class">, ButtonStyleOptions {
+    /** The part's name for styling, `button` by default, which a part built on a button sets to its own. */
+    readonly "data-slot"?: string;
     /** The StyleX styles applied after the button's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
+    /** Render another element with the button's attributes, such as a link, the native button by default. */
+    readonly render?: Render;
+    /** Whether the button's action runs, which shows a spinner, marks it busy and disables it. */
+    readonly loading?: boolean;
 }
 
 /** The variant and size of a button's styles. */
@@ -146,15 +176,50 @@ export function Button(properties: ButtonProperties): JSX.Element {
     // join the button to its neighbours in a button group
     const join = useJoin();
     const button = merge(DEFAULTS, properties);
-    const rest = omit(button, "variant", "size", "style");
-
-    return (
-        <button
-            data-slot="button"
-            data-variant={button.variant}
-            data-size={button.size}
-            {...rest}
-            {...style.attrs(buttonStyle(button), join(), button.style)}
-        />
+    const rest = omit(
+        button,
+        "variant",
+        "size",
+        "xstyle",
+        "style",
+        "render",
+        "data-slot",
+        "loading",
+        "disabled",
+        "children",
     );
+
+    // name the part and give it its styles with the caller's last
+    const part: PartAttributes = merge(
+        {
+            get "data-slot"() {
+                return button["data-slot"] ?? "button";
+            },
+            get "data-variant"() {
+                return button.variant;
+            },
+            get "data-size"() {
+                return button.size;
+            },
+            get "aria-busy"() {
+                return button.loading === true ? "true" : undefined;
+            },
+            get disabled() {
+                return button.disabled === true || button.loading === true ? true : undefined;
+            },
+            get children() {
+                return (
+                    <>
+                        <Show when={button.loading}>
+                            <Spinner aria-hidden="true" />
+                        </Show>
+                        {button.children}
+                    </>
+                );
+            },
+        },
+        () => style.attributes([buttonStyle(button), join(), button.xstyle], button.style),
+    );
+
+    return rendered(button.render, part, rest, () => <button {...part} {...rest} />);
 }

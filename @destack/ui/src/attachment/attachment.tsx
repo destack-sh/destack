@@ -1,8 +1,18 @@
 import * as style from "@destack/style";
-import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { media } from "@destack/style/media.stylex";
+import { triggerMarker } from "./marker.stylex.ts";
+import {
+    color,
+    motion,
+    radius,
+    size,
+    space,
+    stroke,
+    weight,
+    width,
+} from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { createContext, merge, omit, useContext } from "solid-js";
+import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 
 /** The state, size and orientation of an attachment that sets none. */
@@ -44,7 +54,10 @@ const styles = style.create({
         borderRadius: radius[5],
         backgroundColor: {
             default: color.card,
-            ":has(> [data-slot=attachment-trigger]:hover)": `color-mix(in oklab, ${color.muted} 50%, ${color.card})`,
+            [style.when.descendant(":hover", triggerMarker)]: {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.muted} 50%, ${color.card})`,
+            },
         },
         color: color.cardForeground,
         transitionProperty: "background-color",
@@ -183,8 +196,8 @@ const mediaSizes = style.create({
 
 /** The layout of each orientation. */
 const orientations = style.create({
-    horizontal: { alignItems: "center", minWidth: "10rem" },
-    vertical: { flexDirection: "column", width: "7.5rem" },
+    horizontal: { alignItems: "center", minWidth: width.row },
+    vertical: { flexDirection: "column", width: width.tile },
 });
 
 /** The state, size and orientation of the nearest attachment, which its elements follow. */
@@ -222,10 +235,10 @@ export type AttachmentMediaVariant = "icon" | "image";
 /** The properties of an element of an attachment, the native element's attributes included. */
 export type AttachmentElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement>> = Omit<
     Attributes,
-    "class" | "style"
+    "class"
 > & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of an attachment, the native element's attributes included. */
@@ -249,7 +262,7 @@ export function Attachment(properties: AttachmentProperties): JSX.Element {
     // share the attachment's layout and snap it inside a group
     const isGrouped = useContext(AttachmentGroupContext);
     const attachment = merge(DEFAULTS, properties);
-    const rest = omit(attachment, "state", "size", "orientation", "style");
+    const rest = omit(attachment, "state", "size", "orientation", "xstyle", "style");
     const layout: AttachmentLayout = {
         state: () => attachment.state,
         size: () => attachment.size,
@@ -269,14 +282,17 @@ export function Attachment(properties: AttachmentProperties): JSX.Element {
                         : undefined
                 }
                 {...rest}
-                {...style.attrs(
-                    sizeTexts[attachment.size],
-                    styles.attachment,
-                    sizes[attachment.size],
-                    orientations[attachment.orientation],
-                    isGrouped && styles.grouped,
-                    attachment.state === "idle" && styles.idle,
-                    attachment.state === "error" && styles.error,
+                {...style.attributes(
+                    [
+                        sizeTexts[attachment.size],
+                        styles.attachment,
+                        sizes[attachment.size],
+                        orientations[attachment.orientation],
+                        isGrouped && styles.grouped,
+                        attachment.state === "idle" && styles.idle,
+                        attachment.state === "error" && styles.error,
+                        attachment.xstyle,
+                    ],
                     attachment.style,
                 )}
             />
@@ -288,25 +304,28 @@ export function Attachment(properties: AttachmentProperties): JSX.Element {
 export function AttachmentMedia(properties: AttachmentMediaProperties): JSX.Element {
     // size the media beside the text and fade a picture while it uploads
     const layout = useContext(AttachmentContext);
-    const media = merge(MEDIA_DEFAULTS, properties);
-    const rest = omit(media, "variant", "style");
+    const figure = merge(MEDIA_DEFAULTS, properties);
+    const rest = omit(figure, "variant", "xstyle", "style");
     const mediaSize = (): style.Styles =>
         layout.orientation() === "horizontal" ? mediaSizes[layout.size()] : null;
     const isFaded = (): boolean =>
-        media.variant === "image" &&
+        figure.variant === "image" &&
         (layout.state() === "uploading" || layout.state() === "processing");
 
     return (
         <div
             data-slot="attachment-media"
-            data-variant={media.variant}
+            data-variant={figure.variant}
             {...rest}
-            {...style.attrs(
-                styles.media,
-                mediaSize(),
-                layout.state() === "error" && styles.mediaError,
-                isFaded() && styles.mediaPending,
-                media.style,
+            {...style.attributes(
+                [
+                    styles.media,
+                    mediaSize(),
+                    layout.state() === "error" && styles.mediaError,
+                    isFaded() && styles.mediaPending,
+                    figure.xstyle,
+                ],
+                figure.style,
             )}
         />
     );
@@ -314,13 +333,13 @@ export function AttachmentMedia(properties: AttachmentMediaProperties): JSX.Elem
 
 /** Render an attachment's title and description. */
 export function AttachmentContent(properties: AttachmentElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="attachment-content"
             {...rest}
-            {...style.attrs(styles.content, properties.style)}
+            {...style.attributes([styles.content, properties.xstyle], properties.style)}
         />
     );
 }
@@ -331,7 +350,7 @@ export function AttachmentTitle(
 ): JSX.Element {
     // fade the title while the file uploads or processes
     const layout = useContext(AttachmentContext);
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
     const isPending = (): boolean =>
         layout.state() === "uploading" || layout.state() === "processing";
 
@@ -339,7 +358,10 @@ export function AttachmentTitle(
         <span
             data-slot="attachment-title"
             {...rest}
-            {...style.attrs(styles.title, isPending() && styles.pending, properties.style)}
+            {...style.attributes(
+                [styles.title, isPending() && styles.pending, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -349,16 +371,19 @@ export function AttachmentDescription(
     properties: AttachmentElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
     const layout = useContext(AttachmentContext);
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <span
             data-slot="attachment-description"
             {...rest}
-            {...style.attrs(
-                text.caption,
-                styles.description,
-                layout.state() === "error" && styles.descriptionError,
+            {...style.attributes(
+                [
+                    text.caption,
+                    styles.description,
+                    layout.state() === "error" && styles.descriptionError,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         />
@@ -368,15 +393,18 @@ export function AttachmentDescription(
 /** Render an attachment's actions above its trigger. */
 export function AttachmentActions(properties: AttachmentElementProperties): JSX.Element {
     const layout = useContext(AttachmentContext);
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="attachment-actions"
             {...rest}
-            {...style.attrs(
-                styles.actions,
-                layout.orientation() === "vertical" && styles.actionsVertical,
+            {...style.attributes(
+                [
+                    styles.actions,
+                    layout.orientation() === "vertical" && styles.actionsVertical,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         />
@@ -394,28 +422,31 @@ export function AttachmentAction(properties: ButtonProperties): JSX.Element {
 export function AttachmentTrigger(
     properties: AttachmentElementProperties<JSX.ButtonHTMLAttributes<HTMLButtonElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <button
             type="button"
             data-slot="attachment-trigger"
             {...rest}
-            {...style.attrs(styles.trigger, properties.style)}
+            {...style.attributes(
+                [styles.trigger, triggerMarker, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
 
 /** Render attachments in a row that scrolls sideways, snapping to each. */
 export function AttachmentGroup(properties: AttachmentElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <AttachmentGroupContext value={true}>
             <div
                 data-slot="attachment-group"
                 {...rest}
-                {...style.attrs(styles.group, properties.style)}
+                {...style.attributes([styles.group, properties.xstyle], properties.style)}
             />
         </AttachmentGroupContext>
     );

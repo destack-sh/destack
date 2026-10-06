@@ -1,18 +1,11 @@
 import * as style from "@destack/style";
-import {
-    color,
-    motion,
-    radius,
-    shadow,
-    size,
-    space,
-    stroke,
-    weight,
-} from "@destack/theme/tokens.stylex";
+import { media } from "@destack/style/media.stylex";
+import { color, radius, shadow, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
-import { useField } from "../field/control.ts";
+import { createEffect, type JSX, omit, Show } from "@destack/view";
+import { type Choice, createChoice, valuesOf } from "../choice/index.ts";
+import { useFieldControl } from "../field/control.ts";
+import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
 
 /** The styles of a select, its picker and its options. */
@@ -25,23 +18,8 @@ const styles = style.create({
         gap: space[2],
         width: "fit-content",
         height: size[3],
-        paddingInline: space[3],
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        borderColor: { default: color.input, ":focus-visible": color.ring },
-        borderRadius: radius[3],
-        backgroundColor: "transparent",
-        boxShadow: shadow.inset,
-        color: color.foreground,
         whiteSpace: "nowrap",
         cursor: { default: "pointer", ":disabled": "not-allowed" },
-        opacity: { default: 1, ":disabled": 0.5 },
-        transitionProperty: "border-color, outline-color",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
         "::picker-icon": {
             color: color.mutedForeground,
         },
@@ -58,9 +36,11 @@ const styles = style.create({
             boxShadow: shadow.overlay,
         },
     },
-    invalid: {
-        borderColor: color.destructive,
-        outlineColor: `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
+    multiple: {
+        appearance: "auto",
+        height: "auto",
+        paddingBlock: space[1],
+        whiteSpace: "normal",
     },
     trigger: {
         display: "contents",
@@ -73,10 +53,14 @@ const styles = style.create({
         paddingBlock: space[2],
         paddingInline: space[2],
         borderRadius: radius[2],
-        backgroundColor: { default: "transparent", ":hover": color.accent, ":focus": color.accent },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.accent },
+            ":focus": color.accent,
+        },
         color: {
             default: "inherit",
-            ":hover": color.accentForeground,
+            ":hover": { default: null, [media.hover]: color.accentForeground },
             ":focus": color.accentForeground,
         },
         outlineStyle: "none",
@@ -104,57 +88,119 @@ const styles = style.create({
 });
 
 /** The properties of a select, the native select's attributes included. */
-export interface SelectProperties extends Omit<
+export type SelectProperties = SelectLook & Choice;
+
+/** The look and prompt of a select, the native select's attributes included. */
+export interface SelectLook extends Omit<
     JSX.SelectHTMLAttributes<HTMLSelectElement>,
-    "class" | "style"
+    "class" | "value" | "multiple" | "onChange"
 > {
+    /** The prompt a single select shows until an option is chosen. */
+    readonly placeholder?: string;
     /** The StyleX styles applied after the select's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a select, the native element's attributes included. */
-export type SelectElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
-/** Render a native select whose button and picker take the theme where the browser allows. */
+/** Render a native select whose button and picker take the theme where the browser allows, a list box when multiple. */
 export function Select(properties: SelectProperties): JSX.Element {
-    // take the id, state and bound value of the nearest field
-    const field = useField();
+    // take the id and state of the nearest field
+    const field = useFieldControl();
     const join = useJoin();
-    const rest = omit(properties, "style");
+    const rest = omit(
+        properties,
+        "multiple",
+        "value",
+        "defaultValue",
+        "onValueChange",
+        "placeholder",
+        "children",
+        "xstyle",
+        "style",
+    );
     const isInvalid = (): boolean =>
         field?.isInvalid() === true || properties["aria-invalid"] === "true";
+
+    // follow the controlled values or the select's own
+    const [chosen, setChosen] = createChoice(properties);
+
+    // show the chosen options on the element once its options exist
+    let element: HTMLSelectElement | undefined;
+    createEffect(chosen, (values) => {
+        if (element !== undefined) {
+            choose(element, values);
+        }
+    });
 
     return (
         <select
             data-slot="select"
+            multiple={properties.multiple}
             {...field?.attributes()}
             {...rest}
-            {...field?.valueAttributes<HTMLSelectElement>()}
-            {...style.attrs(
-                text.callout,
-                styles.select,
-                isInvalid() && styles.invalid,
-                join(),
+            ref={(created) => {
+                element = created;
+            }}
+            onChange={(event) => {
+                // keep the person's choice and show the owner's until the owner takes it
+                const select = event.currentTarget;
+                setChosen(
+                    [...select.options]
+                        .filter((option) => option.selected)
+                        .map((option) => option.value),
+                );
+                if ("value" in properties) {
+                    choose(select, valuesOf(properties.value));
+                }
+            }}
+            {...style.attributes(
+                [
+                    inputStyle({ invalid: isInvalid() }),
+                    styles.select,
+                    properties.multiple === true && styles.multiple,
+                    join(),
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
-        />
+        >
+            {properties.children}
+            <Show when={properties.multiple === true ? undefined : properties.placeholder}>
+                {(placeholder) => (
+                    <option value="" disabled hidden data-slot="select-placeholder">
+                        {placeholder()}
+                    </option>
+                )}
+            </Show>
+        </select>
     );
+}
+
+/** Choose exactly the options of a select whose values are listed, the placeholder when none is. */
+function choose(select: HTMLSelectElement, values: readonly string[]): void {
+    for (const option of select.options) {
+        option.selected =
+            values.includes(option.value) ||
+            (values.length === 0 && option.value === "" && option.hasAttribute("hidden"));
+    }
 }
 
 /** Render the button a select shows its chosen option in. */
 export function SelectTrigger(
     properties: SelectElementProperties<JSX.ButtonHTMLAttributes<HTMLButtonElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <button
             data-slot="select-trigger"
             {...rest}
-            {...style.attrs(styles.trigger, properties.style)}
+            {...style.attributes([styles.trigger, properties.xstyle], properties.style)}
         />
     );
 }
@@ -163,10 +209,14 @@ export function SelectTrigger(
 export function SelectValue(
     properties: SelectElementProperties<JSX.HTMLAttributes<HTMLElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <selectedcontent data-slot="select-value" {...rest} {...style.attrs(properties.style)} />
+        <selectedcontent
+            data-slot="select-value"
+            {...rest}
+            {...style.attributes([properties.xstyle], properties.style)}
+        />
     );
 }
 
@@ -179,10 +229,14 @@ export function SelectContent(properties: { readonly children?: JSX.Element }): 
 export function SelectItem(
     properties: SelectElementProperties<JSX.OptionHTMLAttributes<HTMLOptionElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <option data-slot="select-item" {...rest} {...style.attrs(styles.item, properties.style)} />
+        <option
+            data-slot="select-item"
+            {...rest}
+            {...style.attributes([styles.item, properties.xstyle], properties.style)}
+        />
     );
 }
 
@@ -190,22 +244,28 @@ export function SelectItem(
 export function SelectGroup(
     properties: SelectElementProperties<JSX.OptgroupHTMLAttributes<HTMLOptGroupElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <optgroup data-slot="select-group" {...rest} {...style.attrs(properties.style)} />;
+    return (
+        <optgroup
+            data-slot="select-group"
+            {...rest}
+            {...style.attributes([properties.xstyle], properties.style)}
+        />
+    );
 }
 
 /** Render the label of a group of a select's options. */
 export function SelectLabel(
     properties: SelectElementProperties<JSX.HTMLAttributes<HTMLLegendElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <legend
             data-slot="select-label"
             {...rest}
-            {...style.attrs(text.caption, styles.label, properties.style)}
+            {...style.attributes([text.caption, styles.label, properties.xstyle], properties.style)}
         />
     );
 }
@@ -214,13 +274,13 @@ export function SelectLabel(
 export function SelectSeparator(
     properties: SelectElementProperties<JSX.HTMLAttributes<HTMLHRElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <hr
             data-slot="select-separator"
             {...rest}
-            {...style.attrs(styles.separator, properties.style)}
+            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
         />
     );
 }

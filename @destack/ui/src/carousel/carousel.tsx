@@ -3,23 +3,27 @@ import arrowDown from "@destack/icon/phosphor/arrow-down";
 import arrowLeft from "@destack/icon/phosphor/arrow-left";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
+import pause from "@destack/icon/phosphor/pause";
+import play from "@destack/icon/phosphor/play";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { space } from "@destack/theme/tokens.stylex";
+import { color, radius, space } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
+    createControllableSignal,
     createEffect,
     createSignal,
+    For,
+    type JSX,
     merge,
     omit,
     onCleanup,
+    type Setter,
     untrack,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+} from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 
 /** The orientation of a carousel that sets none. */
@@ -32,6 +36,24 @@ const CarouselContext = createContext<CarouselControl | null>(null);
 const styles = style.create({
     carousel: {
         position: "relative",
+    },
+    dots: {
+        display: "flex",
+        justifyContent: "center",
+        gap: space[2],
+        paddingBlock: space[2],
+    },
+    dot: {
+        width: space[2],
+        height: space[2],
+        padding: 0,
+        borderWidth: 0,
+        borderRadius: radius.full,
+        backgroundColor: color.muted,
+        cursor: "pointer",
+    },
+    current: {
+        backgroundColor: color.primary,
     },
     viewport: {
         position: "relative",
@@ -82,7 +104,7 @@ const nexts = style.create({
     vertical: { bottom: `calc(-1 * ${space[6]})`, left: "50%", transform: "translateX(-50%)" },
 });
 
-/** The commands and state a carousel hands its owner, after Embla's API. */
+/** The commands and state a carousel hands its owner. */
 export interface CarouselApi {
     /** The index of the slide shown. */
     readonly index: Accessor<number>;
@@ -104,10 +126,16 @@ export class CarouselControl {
     readonly count: Accessor<number>;
     /** The properties of the carousel, read for its controlled index and change handler. */
     readonly #properties: CarouselProperties;
-    /** The index of the slide shown when uncontrolled. */
-    readonly #ownIndex: Accessor<number>;
-    /** Replace the index of the slide shown when uncontrolled. */
-    readonly #setIndex: Setter<number>;
+    /** The index of the slide shown, controlled or the carousel's own. */
+    readonly index: Accessor<number>;
+    /** Whether autoplay moves the slides. */
+    readonly isPlaying: Accessor<boolean>;
+    /** Replace the index of the slide shown and tell the change handler. */
+    readonly #setIndex: (index: number) => void;
+    /** Start or stop autoplay. */
+    readonly #setPlaying: (isPlaying: boolean) => void;
+    /** Whether the pointer or the focus rests in the carousel, which pauses autoplay. */
+    #isResting: boolean;
     /** Replace the number of slides. */
     readonly #setCount: Setter<number>;
     /** The scrolling viewport. */
@@ -117,22 +145,28 @@ export class CarouselControl {
 
     /** Create a carousel without slides on its first or controlled slide. */
     constructor(properties: CarouselProperties, orientation: () => "horizontal" | "vertical") {
-        // start on the first slide without slides
-        const [index, setIndex] = createSignal(0);
+        // start on the default slide and play when autoplay is set
+        const [index, setIndex] = createControllableSignal({
+            isControlled: () => properties.index !== undefined,
+            value: () => properties.index ?? 0,
+            defaultValue: properties.defaultIndex ?? 0,
+            onChange: (next) => properties.onIndexChange?.(next),
+        });
+        const [isPlaying, setPlaying] = createSignal(properties.autoplay !== undefined, {
+            ownedWrite: true,
+        });
         const [count, setCount] = createSignal(0, { ownedWrite: true });
         this.orientation = orientation;
         this.count = count;
+        this.index = index;
+        this.isPlaying = isPlaying;
         this.#properties = properties;
-        this.#ownIndex = index;
         this.#setIndex = setIndex;
+        this.#setPlaying = setPlaying;
+        this.#isResting = false;
         this.#setCount = setCount;
         this.#viewport = undefined;
         this.#isFollowing = false;
-    }
-
-    /** Read the index of the slide shown, controlled or the carousel's own. */
-    index(): number {
-        return this.#properties.index ?? this.#ownIndex();
     }
 
     /** Hand the owner the carousel's commands and state. */
@@ -161,12 +195,37 @@ export class CarouselControl {
         this.#viewport = element;
     }
 
-    /** Move to a slide within the carousel, staying on the first and last, and tell the change handler. */
+    /** Report whether the carousel wraps from its last slide to its first. */
+    isLooping(): boolean {
+        return this.#properties.loop === true;
+    }
+
+    /** Move to a slide, wrapping around a looping carousel and staying on the first and last otherwise, and tell the change handler. */
     go(index: number): void {
-        const target = Math.min(Math.max(index, 0), this.count() - 1);
-        if (target !== this.index()) {
+        const count = this.count();
+        const target = this.isLooping()
+            ? ((index % count) + count) % count
+            : Math.min(Math.max(index, 0), count - 1);
+        if (count > 0 && target !== this.index()) {
             this.#setIndex(target);
-            this.#properties.onIndexChange?.(target);
+        }
+    }
+
+    /** Start or stop autoplay. */
+    play(isPlaying: boolean): void {
+        this.#setPlaying(isPlaying);
+    }
+
+    /** Pause autoplay while the pointer or the focus rests in the carousel, as rotating content must. */
+    rest(isResting: boolean): void {
+        this.#isResting = isResting;
+    }
+
+    /** Move to the next slide on an autoplay tick unless autoplay is stopped or paused, wrapping at the end. */
+    tick(): void {
+        if (this.isPlaying() && !this.#isResting) {
+            const count = this.count();
+            this.#setIndex(count > 0 ? (this.index() + 1) % count : 0);
         }
     }
 
@@ -204,24 +263,30 @@ export class CarouselControl {
 /** The properties of a carousel, the native element's attributes included. */
 export interface CarouselProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style" | "onKeyDown"
+    "class" | "onKeyDown"
 > {
     /** The direction the slides line up in, horizontal by default. */
     readonly orientation?: "horizontal" | "vertical";
     /** The index of the slide shown, which makes it controlled. */
     readonly index?: number;
+    /** The index of the slide shown at first while uncontrolled, the first by default. */
+    readonly defaultIndex?: number;
+    /** Whether the carousel wraps from its last slide to its first and back. */
+    readonly loop?: boolean;
+    /** The time each slide shows before the next while autoplay runs, in milliseconds, which starts autoplay. */
+    readonly autoplay?: number;
     /** Handle another slide being shown, by a button, a key or a person's scrolling. */
     readonly onIndexChange?: (index: number) => void;
     /** Receive the carousel's commands and state once it mounts. */
     readonly api?: (api: CarouselApi) => void;
     /** The StyleX styles applied after the carousel's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a carousel, the native element's attributes included. */
-export type CarouselElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type CarouselElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** Read the carousel around an element, refusing elements outside one. */
@@ -240,7 +305,25 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
     const carousel = merge(DEFAULTS, properties);
     const control = new CarouselControl(properties, () => carousel.orientation);
     const locale = useLocale();
-    const rest = omit(carousel, "orientation", "index", "onIndexChange", "api", "style");
+    const rest = omit(
+        carousel,
+        "orientation",
+        "index",
+        "defaultIndex",
+        "onIndexChange",
+        "loop",
+        "autoplay",
+        "api",
+        "xstyle",
+        "style",
+    );
+
+    // move to the next slide on each autoplay tick
+    const delay = properties.autoplay;
+    if (delay !== undefined) {
+        const timer = setInterval(() => control.tick(), delay);
+        onCleanup(() => clearInterval(timer));
+    }
     createEffect(
         () => control.index(),
         (index) => control.scroll(index),
@@ -255,6 +338,10 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
                 data-slot="carousel"
                 data-orientation={carousel.orientation}
                 {...rest}
+                onPointerEnter={() => control.rest(true)}
+                onPointerLeave={() => control.rest(false)}
+                onFocusIn={() => control.rest(true)}
+                onFocusOut={() => control.rest(false)}
                 onKeyDown={(event) => {
                     // move to the previous or next slide along the reading direction
                     const step = stepOf(event.key, carousel.orientation, locale.direction);
@@ -263,7 +350,7 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
                         control.go(control.index() + step);
                     }
                 }}
-                {...style.attrs(styles.carousel, carousel.style)}
+                {...style.attributes([styles.carousel, carousel.xstyle], carousel.style)}
             />
         </CarouselContext>
     );
@@ -276,15 +363,19 @@ export function CarouselContent(
     >,
 ): JSX.Element {
     const control = useCarousel();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="carousel-content"
+            aria-live={control.isPlaying() ? "off" : "polite"}
             {...rest}
             ref={(element) => control.setViewport(element)}
             onScroll={(event) => control.follow(event.currentTarget)}
-            {...style.attrs(styles.viewport, viewports[control.orientation()], properties.style)}
+            {...style.attributes(
+                [styles.viewport, viewports[control.orientation()], properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -297,7 +388,7 @@ export function CarouselItem(
     const control = useCarousel();
     const locale = useLocale();
     const index = control.register();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
@@ -306,7 +397,7 @@ export function CarouselItem(
             aria-label={locale.render(t`${index + 1} of ${control.count()}`)}
             data-slot="carousel-item"
             {...rest}
-            {...style.attrs(styles.item, properties.style)}
+            {...style.attributes([styles.item, properties.xstyle], properties.style)}
         />
     );
 }
@@ -318,7 +409,7 @@ export function CarouselPrevious(
     // read the carousel, the locale and the reading direction
     const control = useCarousel();
     const locale = useLocale();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
     const isVertical = (): boolean => control.orientation() === "vertical";
     const isRightToLeft = (): boolean => locale.direction === "rtl";
 
@@ -327,11 +418,11 @@ export function CarouselPrevious(
             variant="outline"
             size="icon-sm"
             aria-label={locale.render(t`Previous slide`)}
-            disabled={control.index() === 0}
+            disabled={!control.isLooping() && control.index() === 0}
             data-slot="carousel-previous"
             {...rest}
             onClick={() => control.go(control.index() - 1)}
-            style={[styles.previous, previouses[control.orientation()], properties.style]}
+            xstyle={[styles.previous, previouses[control.orientation()], properties.xstyle]}
         >
             <Icon icon={isVertical() ? arrowUp : isRightToLeft() ? arrowRight : arrowLeft} />
         </Button>
@@ -345,7 +436,7 @@ export function CarouselNext(
     // read the carousel, the locale and the reading direction
     const control = useCarousel();
     const locale = useLocale();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
     const isVertical = (): boolean => control.orientation() === "vertical";
     const isRightToLeft = (): boolean => locale.direction === "rtl";
 
@@ -354,14 +445,71 @@ export function CarouselNext(
             variant="outline"
             size="icon-sm"
             aria-label={locale.render(t`Next slide`)}
-            disabled={control.index() >= control.count() - 1}
+            disabled={!control.isLooping() && control.index() >= control.count() - 1}
             data-slot="carousel-next"
             {...rest}
             onClick={() => control.go(control.index() + 1)}
-            style={[styles.next, nexts[control.orientation()], properties.style]}
+            xstyle={[styles.next, nexts[control.orientation()], properties.xstyle]}
         >
             <Icon icon={isVertical() ? arrowDown : isRightToLeft() ? arrowLeft : arrowRight} />
         </Button>
+    );
+}
+
+/** Render the button that stops and starts autoplay, which a rotating carousel must offer. */
+export function CarouselPlay(
+    properties: Omit<ButtonProperties, "onClick" | "children">,
+): JSX.Element {
+    const control = useCarousel();
+    const locale = useLocale();
+
+    return (
+        <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={locale.render(
+                control.isPlaying() ? t`Stop slide rotation` : t`Start slide rotation`,
+            )}
+            data-slot="carousel-play"
+            data-state={control.isPlaying() ? "playing" : "paused"}
+            {...properties}
+            onClick={() => control.play(!control.isPlaying())}
+        >
+            <Icon icon={control.isPlaying() ? pause : play} />
+        </Button>
+    );
+}
+
+/** Render a dot per slide that moves to it, marking the slide shown. */
+export function CarouselDots(
+    properties: CarouselElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
+): JSX.Element {
+    // read the slides and the one shown
+    const control = useCarousel();
+    const locale = useLocale();
+    const rest = omit(properties, "xstyle", "style");
+
+    return (
+        <div
+            role="group"
+            aria-label={locale.render(t`Slides`)}
+            data-slot="carousel-dots"
+            {...rest}
+            {...style.attributes([styles.dots, properties.xstyle], properties.style)}
+        >
+            <For each={Array.from({ length: control.count() }, (_, index) => index)}>
+                {(index) => (
+                    <button
+                        type="button"
+                        aria-label={locale.render(t`Go to slide ${index + 1}`)}
+                        aria-current={control.index() === index ? "true" : undefined}
+                        data-slot="carousel-dot"
+                        onClick={() => control.go(index)}
+                        {...style.attrs(styles.dot, control.index() === index && styles.current)}
+                    />
+                )}
+            </For>
+        </div>
     );
 }
 

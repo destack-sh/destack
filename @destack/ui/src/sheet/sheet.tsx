@@ -1,7 +1,6 @@
 import * as style from "@destack/style";
 import { color, motion, stroke } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
-import { merge, omit } from "solid-js";
+import { type JSX, merge, omit } from "@destack/view";
 import {
     Dialog,
     DialogClose,
@@ -18,7 +17,7 @@ import {
     type DialogProperties,
 } from "../dialog/index.ts";
 
-/** The widest a left or right sheet grows, Tailwind's sm width that shadcn/ui's sheet stops at. */
+/** The widest a left or right sheet grows. */
 const SHEET_WIDTH = "24rem";
 
 /** The side of a sheet that sets none. */
@@ -47,7 +46,10 @@ const styles = style.create({
 /** The placement and border of a sheet on each side. */
 const sides = style.create({
     top: {
-        inset: "0 0 auto 0",
+        top: 0,
+        right: 0,
+        bottom: "auto",
+        left: 0,
         width: "100%",
         height: "auto",
         borderBottomWidth: stroke.border,
@@ -55,7 +57,10 @@ const sides = style.create({
         borderBottomColor: color.border,
     },
     right: {
-        inset: "0 0 0 auto",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: "auto",
         width: `min(75%, ${SHEET_WIDTH})`,
         height: "100%",
         borderLeftWidth: stroke.border,
@@ -63,7 +68,10 @@ const sides = style.create({
         borderLeftColor: color.border,
     },
     bottom: {
-        inset: "auto 0 0 0",
+        top: "auto",
+        right: 0,
+        bottom: 0,
+        left: 0,
         width: "100%",
         height: "auto",
         borderTopWidth: stroke.border,
@@ -71,7 +79,10 @@ const sides = style.create({
         borderTopColor: color.border,
     },
     left: {
-        inset: "0 auto 0 0",
+        top: 0,
+        right: "auto",
+        bottom: 0,
+        left: 0,
         width: `min(75%, ${SHEET_WIDTH})`,
         height: "100%",
         borderRightWidth: stroke.border,
@@ -125,18 +136,18 @@ export function SheetContent(properties: SheetContentProperties): JSX.Element {
     // read the dialog and the sheet's side
     const control = useDialog();
     const sheet = merge(DEFAULTS, properties);
-    const rest = omit(sheet, "side", "style");
+    const rest = omit(sheet, "side", "xstyle", "style");
 
     return (
         <DialogContent
             data-slot="sheet-content"
             data-side={sheet.side}
             {...rest}
-            style={[
+            xstyle={[
                 styles.sheet,
                 sides[sheet.side],
                 control.isOpen() ? enters[sheet.side] : exits[sheet.side],
-                sheet.style,
+                sheet.xstyle,
             ]}
         />
     );
@@ -149,13 +160,13 @@ export function SheetHeader(properties: DialogElementProperties<HTMLDivElement>)
 
 /** Render the bottom of a sheet that holds its actions. */
 export function SheetFooter(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <DialogFooter
             data-slot="sheet-footer"
             {...rest}
-            style={[styles.footer, properties.style]}
+            xstyle={[styles.footer, properties.xstyle]}
         />
     );
 }

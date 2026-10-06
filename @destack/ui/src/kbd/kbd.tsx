@@ -1,8 +1,7 @@
 import * as style from "@destack/style";
 import { color, radius, size, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
+import { type JSX, omit } from "@destack/view";
 
 /** The styles of keys and key groups. */
 const styles = style.create({
@@ -30,27 +29,33 @@ const styles = style.create({
 });
 
 /** The properties of a key or key group, the native element's attributes included. */
-export interface KbdProperties extends Omit<JSX.HTMLAttributes<HTMLElement>, "class" | "style"> {
+export interface KbdProperties extends Omit<JSX.HTMLAttributes<HTMLElement>, "class"> {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Render a key of a keyboard shortcut. */
 export function Kbd(properties: KbdProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <kbd
             data-slot="kbd"
             {...rest}
-            {...style.attrs(text.caption, styles.kbd, properties.style)}
+            {...style.attributes([text.caption, styles.kbd, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render the keys of one shortcut side by side. */
 export function KbdGroup(properties: KbdProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <kbd data-slot="kbd-group" {...rest} {...style.attrs(styles.group, properties.style)} />;
+    return (
+        <kbd
+            data-slot="kbd-group"
+            {...rest}
+            {...style.attributes([styles.group, properties.xstyle], properties.style)}
+        />
+    );
 }

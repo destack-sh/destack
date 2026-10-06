@@ -7,6 +7,12 @@ const DEFAULT_FIRST_DAY = 1;
 /** The days of a week. */
 const WEEK = 7;
 
+/** The milliseconds of a day. */
+const DAY_MILLISECONDS = 86_400_000;
+
+/** The weekday of a week's Thursday, which names the ISO 8601 year and week. */
+const THURSDAY = 4;
+
 /** Calendar days as plain dates without time zones, read, stepped and written in one place. */
 export const Day = {
     /** Make the date of a year, month from 1 and day of month, overflowing into the next months. */
@@ -74,6 +80,37 @@ export const Day = {
         const offset = (PlainDate.weekday(date) - firstDay + WEEK) % WEEK;
 
         return PlainDate.add(date, -offset);
+    },
+
+    /** Read a date's ISO 8601 week number, counted from the week holding the year's first Thursday. */
+    isoWeek(date: PlainDate): number {
+        // find the Thursday of the date's week and its day of the year
+        const thursday = PlainDate.add(date, THURSDAY - PlainDate.weekday(date));
+        const days = (Day.time(thursday) - Date.UTC(thursday.year, 0, 1)) / DAY_MILLISECONDS;
+
+        return Math.floor(days / WEEK) + 1;
+    },
+
+    /** Keep a date within the earliest and latest dates allowed. */
+    clamp(
+        date: PlainDate,
+        earliest: PlainDate | undefined,
+        latest: PlainDate | undefined,
+    ): PlainDate {
+        if (earliest !== undefined && PlainDate.compare(date, earliest) < 0) {
+            return earliest;
+        }
+
+        return latest !== undefined && PlainDate.compare(date, latest) > 0 ? latest : date;
+    },
+
+    /** Report whether a date lies outside the earliest and latest dates allowed. */
+    isOutside(
+        date: PlainDate,
+        earliest: PlainDate | undefined,
+        latest: PlainDate | undefined,
+    ): boolean {
+        return !PlainDate.equals(Day.clamp(date, earliest, latest), date);
     },
 
     /** List the weeks a month's grid shows, from the week of its first day to the week of its last. */

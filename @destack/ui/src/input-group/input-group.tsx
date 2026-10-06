@@ -10,12 +10,12 @@ import {
     weight,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { merge, omit } from "solid-js";
+import { type JSX, merge, omit } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
 import { JoinContext, useJoin } from "../join/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
+import { addonMarker, controlMarker, multilineMarker } from "./marker.stylex.ts";
 
 /** The alignment of an addon that sets none. */
 const ADDON_DEFAULTS: Required<Pick<InputGroupAddonProperties, "align">> = {
@@ -29,42 +29,35 @@ const BUTTON_DEFAULTS: Required<Pick<InputGroupButtonProperties, "variant" | "si
     type: "button",
 };
 
-/** A group whose control is focused. */
-const FOCUSED = ":has(> [data-slot=input-group-control]:focus-visible)";
-
-/** A group whose control is invalid. */
-const INVALID = ":has(> [data-slot=input-group-control][aria-invalid=true])";
-
-/** A group holding a textarea. */
-const MULTILINE = ":has(> textarea[data-slot=input-group-control])";
-
-/** A group stacking an addon above its control. */
-const STACKED_START = ":has(> [data-slot=input-group-addon][data-align=block-start])";
-
-/** A group stacking an addon below its control. */
-const STACKED_END = ":has(> [data-slot=input-group-addon][data-align=block-end])";
-
 /** The styles of an input group and its elements. */
 const styles = style.create({
     group: {
         position: "relative",
         display: "flex",
-        flexDirection: { default: "row", [STACKED_START]: "column", [STACKED_END]: "column" },
-        alignItems: { default: "center", [STACKED_START]: "stretch", [STACKED_END]: "stretch" },
+        flexDirection: {
+            default: "row",
+            [style.when.descendant('[data-align="block-start"]', addonMarker)]: "column",
+            [style.when.descendant('[data-align="block-end"]', addonMarker)]: "column",
+        },
+        alignItems: {
+            default: "center",
+            [style.when.descendant('[data-align="block-start"]', addonMarker)]: "stretch",
+            [style.when.descendant('[data-align="block-end"]', addonMarker)]: "stretch",
+        },
         width: "100%",
         minWidth: 0,
         height: {
             default: size[3],
-            [MULTILINE]: "auto",
-            [STACKED_START]: "auto",
-            [STACKED_END]: "auto",
+            [style.when.descendant('[data-slot="input-group-control"]', multilineMarker)]: "auto",
+            [style.when.descendant('[data-align="block-start"]', addonMarker)]: "auto",
+            [style.when.descendant('[data-align="block-end"]', addonMarker)]: "auto",
         },
         borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: {
             default: color.input,
-            [FOCUSED]: color.ring,
-            [INVALID]: color.destructive,
+            [style.when.descendant(":focus-visible", controlMarker)]: color.ring,
+            [style.when.descendant('[aria-invalid="true"]', controlMarker)]: color.destructive,
         },
         borderRadius: radius[3],
         boxShadow: shadow.inset,
@@ -73,12 +66,13 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
         outlineStyle: {
             default: "none",
-            [FOCUSED]: "solid",
+            [style.when.descendant(":focus-visible", controlMarker)]: "solid",
         },
         outlineWidth: stroke.ring,
         outlineColor: {
             default: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-            [INVALID]: `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
+            [style.when.descendant('[aria-invalid="true"]', controlMarker)]:
+                `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
         },
     },
     control: {
@@ -141,10 +135,10 @@ export type InputGroupAlign = "inline-start" | "inline-end" | "block-start" | "b
 /** The properties of an element of an input group, the native element's attributes included. */
 export type InputGroupElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement>> = Omit<
     Attributes,
-    "class" | "style"
+    "class"
 > & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of an input group's addon, the native element's attributes included. */
@@ -160,14 +154,14 @@ export type InputGroupButtonProperties = ButtonProperties;
 export function InputGroup(properties: InputGroupElementProperties): JSX.Element {
     // join the group to its neighbours, never its own control and buttons
     const join = useJoin();
-    const rest = omit(properties, "style", "children");
+    const rest = omit(properties, "xstyle", "style", "children");
 
     return (
         <div
             data-slot="input-group"
             role="group"
             {...rest}
-            {...style.attrs(styles.group, join(), properties.style)}
+            {...style.attributes([styles.group, join(), properties.xstyle], properties.style)}
         >
             <JoinContext value={() => undefined}>{properties.children}</JoinContext>
         </div>
@@ -177,7 +171,7 @@ export function InputGroup(properties: InputGroupElementProperties): JSX.Element
 /** Render icons, text or buttons beside or around a group's control, focusing the control on a click outside a button. */
 export function InputGroupAddon(properties: InputGroupAddonProperties): JSX.Element {
     const addon = merge(ADDON_DEFAULTS, properties);
-    const rest = omit(addon, "align", "style", "onClick");
+    const rest = omit(addon, "align", "xstyle", "style", "onClick");
 
     return (
         <div
@@ -191,7 +185,10 @@ export function InputGroupAddon(properties: InputGroupAddonProperties): JSX.Elem
                     addon.onClick(event);
                 }
             }}
-            {...style.attrs(text.callout, styles.addon, alignments[addon.align], addon.style)}
+            {...style.attributes(
+                [text.callout, styles.addon, alignments[addon.align], addonMarker, addon.xstyle],
+                addon.style,
+            )}
         />
     );
 }
@@ -210,16 +207,21 @@ function focusControl(event: MouseEvent & { readonly currentTarget: HTMLDivEleme
 export function InputGroupButton(properties: InputGroupButtonProperties): JSX.Element {
     const button = merge(BUTTON_DEFAULTS, properties);
 
-    return <Button {...button} style={[styles.button, button.style]} />;
+    return <Button {...button} xstyle={[styles.button, button.xstyle]} />;
 }
 
 /** Render text or an icon inside an addon. */
 export function InputGroupText(
     properties: InputGroupElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <span {...rest} {...style.attrs(text.callout, styles.text, properties.style)} />;
+    return (
+        <span
+            {...rest}
+            {...style.attributes([text.callout, styles.text, properties.xstyle], properties.style)}
+        />
+    );
 }
 
 /** Render a group's input, tied to its field like any input. */
@@ -228,7 +230,7 @@ export function InputGroupInput(properties: InputProperties): JSX.Element {
         <Input
             data-slot="input-group-control"
             {...properties}
-            style={[styles.control, properties.style]}
+            xstyle={[styles.control, controlMarker, properties.xstyle]}
         />
     );
 }
@@ -239,7 +241,13 @@ export function InputGroupTextarea(properties: TextareaProperties): JSX.Element 
         <Textarea
             data-slot="input-group-control"
             {...properties}
-            style={[styles.control, styles.textarea, properties.style]}
+            xstyle={[
+                styles.control,
+                styles.textarea,
+                controlMarker,
+                multilineMarker,
+                properties.xstyle,
+            ]}
         />
     );
 }

@@ -1,7 +1,6 @@
 import * as style from "@destack/style";
 import { color, radius, space } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
+import { type JSX, omit } from "@destack/view";
 
 /** The track a progress bar fills, the primary color at a fifth of its strength. */
 const TRACK = `color-mix(in oklab, ${color.primary} 20%, transparent)`;
@@ -28,21 +27,21 @@ const styles = style.create({
 /** The properties of a progress bar, the native progress element's attributes included. */
 export interface ProgressProperties extends Omit<
     JSX.ProgressHTMLAttributes<HTMLProgressElement>,
-    "class" | "style"
+    "class"
 > {
     /** The StyleX styles applied after the progress bar's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Render a native progress bar, indeterminate without a value. */
 export function Progress(properties: ProgressProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <progress
             data-slot="progress"
             {...rest}
-            {...style.attrs(styles.progress, properties.style)}
+            {...style.attributes([styles.progress, properties.xstyle], properties.style)}
         />
     );
 }

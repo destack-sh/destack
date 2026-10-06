@@ -2,21 +2,23 @@ import { Icon } from "@destack/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
+    createControllableSignal,
     createSignal,
     createUniqueId,
+    type JSX,
     omit,
     onCleanup,
+    type Setter,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+} from "@destack/view";
 import { isTypeaheadKey } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
 
@@ -55,7 +57,10 @@ const styles = style.create({
         borderRadius: radius[2],
         cursor: "default",
         userSelect: "none",
-        backgroundColor: { default: "transparent", ":hover": color.accent },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.accent },
+        },
         transitionProperty: "background-color",
         transitionDuration: motion.durationShort,
     },
@@ -92,14 +97,12 @@ const styles = style.create({
 
 /** The selected and focused items of a tree, which its items share. */
 export class TreeControl {
-    /** The properties of the tree root, read for its controlled selection. */
-    readonly #properties: TreeProperties;
     /** The value of the item that holds the tab stop, the first item when none was focused. */
     readonly focused: Accessor<string | undefined>;
-    /** The selected value when uncontrolled. */
-    readonly #ownValue: Accessor<string | undefined>;
-    /** Replace the selected value when uncontrolled. */
-    readonly #setValue: Setter<string | undefined>;
+    /** The selected value, controlled or the tree's own. */
+    readonly value: Accessor<string | undefined>;
+    /** Replace the selected value and tell the change handler. */
+    readonly #setValue: (value: string | undefined) => void;
     /** Replace the item that holds the tab stop. */
     readonly #setFocused: Setter<string | undefined>;
     /** The values of the top-level items in document order. */
@@ -113,33 +116,36 @@ export class TreeControl {
 
     /** Create the state of a tree from its root's properties. */
     constructor(properties: TreeProperties) {
-        // start without a focused item or top-level items
-        const [ownValue, setValue] = createSignal(properties.defaultValue);
+        // start from the default value without a focused item or top-level items
+        const [value, setValue] = createControllableSignal({
+            isControlled: () => "value" in properties,
+            value: () => properties.value,
+            defaultValue: properties.defaultValue,
+            onChange: (next) => {
+                // tell the change handler of each selected item
+                if (next !== undefined) {
+                    properties.onValueChange?.(next);
+                }
+            },
+        });
         const [focused, setFocused] = createSignal<string | undefined>(undefined);
         const [roots, setRoots] = createSignal<readonly string[]>([], { ownedWrite: true });
         const [nodes, setNodes] = createSignal<ReadonlyMap<string, TreeNode>>(new Map(), {
             ownedWrite: true,
         });
-        this.#properties = properties;
         this.#roots = roots;
         this.#setRoots = setRoots;
         this.#nodes = nodes;
         this.#setNodes = setNodes;
         this.focused = focused;
-        this.#ownValue = ownValue;
+        this.value = value;
         this.#setValue = setValue;
         this.#setFocused = setFocused;
-    }
-
-    /** Read the selected value, controlled or the tree's own. */
-    value(): string | undefined {
-        return "value" in this.#properties ? this.#properties.value : this.#ownValue();
     }
 
     /** Select an item and tell the change handler. */
     select(value: string): void {
         this.#setValue(value);
-        this.#properties.onValueChange?.(value);
     }
 
     /** Add an item with its parent and expansion until the item unmounts, a top-level one among the roots. */
@@ -202,7 +208,7 @@ function nodeParent(
 /** The properties of a tree, the native list's attributes included. */
 export interface TreeProperties extends Omit<
     JSX.HTMLAttributes<HTMLUListElement>,
-    "class" | "style" | "onKeyDown"
+    "class" | "onKeyDown"
 > {
     /** The selected item's value, which makes the selection controlled. */
     readonly value?: string | undefined;
@@ -211,13 +217,13 @@ export interface TreeProperties extends Omit<
     /** Handle another item being selected. */
     readonly onValueChange?: (value: string) => void;
     /** The StyleX styles applied after the tree's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of a tree item, the native list item's attributes included. */
 export interface TreeItemProperties extends Omit<
     JSX.LiHTMLAttributes<HTMLLIElement>,
-    "class" | "style" | "value" | "onClick" | "onFocus"
+    "class" | "value" | "onClick" | "onFocus"
 > {
     /** The value the item stands for. */
     readonly value: string;
@@ -226,7 +232,7 @@ export interface TreeItemProperties extends Omit<
     /** Whether the item's children show at first. */
     readonly defaultExpanded?: boolean;
     /** The StyleX styles applied after the row's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Read the tree of the nearest tree, refusing items outside one. */
@@ -244,7 +250,7 @@ export function Tree(properties: TreeProperties): JSX.Element {
     // share one tree with its items and read the reading direction
     const control = new TreeControl(properties);
     const locale = useLocale();
-    const rest = omit(properties, "value", "defaultValue", "onValueChange", "style");
+    const rest = omit(properties, "value", "defaultValue", "onValueChange", "xstyle", "style");
 
     return (
         <TreeContext value={control}>
@@ -253,7 +259,10 @@ export function Tree(properties: TreeProperties): JSX.Element {
                 data-slot="tree"
                 {...rest}
                 onKeyDown={(event) => navigate(event, locale.direction)}
-                {...style.attrs(text.footnote, styles.tree, properties.style)}
+                {...style.attributes(
+                    [text.footnote, styles.tree, properties.xstyle],
+                    properties.style,
+                )}
             />
         </TreeContext>
     );
@@ -266,7 +275,15 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
     const locale = useLocale();
     const level = useContext(TreeLevelContext);
     const parent = useContext(TreeParentContext);
-    const rest = omit(properties, "value", "label", "defaultExpanded", "style", "children");
+    const rest = omit(
+        properties,
+        "value",
+        "label",
+        "defaultExpanded",
+        "xstyle",
+        "style",
+        "children",
+    );
     const [isExpanded, setExpanded] = createSignal(properties.defaultExpanded === true);
     const isParent = (): boolean => "children" in properties;
     const isSelected = (): boolean => control.value() === properties.value;
@@ -284,6 +301,7 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
             aria-selected={isSelected() ? "true" : "false"}
             tabindex={control.isTabStop(properties.value) ? 0 : -1}
             data-slot="tree-item"
+            data-state={isParent() ? (isExpanded() ? "open" : "closed") : undefined}
             data-value={properties.value}
             {...rest}
             onClick={(event) => {
@@ -312,7 +330,7 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
                 isExpanded={isExpanded()}
                 isFocused={control.focused() === properties.value}
                 isSelected={isSelected()}
-                style={properties.style}
+                xstyle={properties.xstyle}
             >
                 {properties.label}
             </TreeItemRow>
@@ -356,7 +374,7 @@ function TreeItemRow(properties: {
     readonly isExpanded: boolean;
     readonly isFocused: boolean;
     readonly isSelected: boolean;
-    readonly style: style.Styles | undefined;
+    readonly xstyle: style.Styles | undefined;
     readonly children: JSX.Element;
 }): JSX.Element {
     // turn the chevron along the reading direction
@@ -368,13 +386,13 @@ function TreeItemRow(properties: {
         <div
             id={properties.id}
             data-slot="tree-item-row"
-            {...style.attrs(
+            {...style.attributes([
                 styles.row,
                 styles.indent(properties.level),
                 properties.isFocused && styles.focused,
                 properties.isSelected && styles.selected,
-                properties.style,
-            )}
+                properties.xstyle,
+            ])}
         >
             <span
                 aria-hidden="true"

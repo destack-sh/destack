@@ -1,6 +1,7 @@
 import { Icon } from "@destack/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -10,36 +11,33 @@ import {
     space,
     stroke,
     weight,
+    width,
 } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
+    createControllableSignal,
     createSignal,
     createUniqueId,
+    type JSX,
     merge,
     omit,
     onSettled,
     Show,
     useContext,
-    type Accessor,
-} from "solid-js";
+} from "@destack/view";
+import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Sheet, SheetContent, SheetTitle } from "../sheet/index.ts";
 import { Skeleton } from "../skeleton/index.ts";
 import { Tooltip, TooltipContent, TooltipContext } from "../tooltip/index.ts";
 
-/** The width of an expanded sidebar, shadcn/ui's 16rem. */
-const SIDEBAR_WIDTH = "16rem";
-
-/** The width of a sidebar collapsed to its icons, shadcn/ui's 3rem. */
-const SIDEBAR_WIDTH_ICON = "3rem";
-
 /** The key the open state is remembered under in the viewer's local storage. */
 const STORAGE_KEY = "destack-sidebar-open";
 
-/** The viewports narrower than shadcn/ui's 768 pixel breakpoint, where the sidebar opens as a sheet. */
+/** The viewports narrower than 768 pixels, where the sidebar opens as a sheet. */
 const MOBILE_QUERY = "(max-width: 47.999rem)";
 
 /** The look and collapse of a sidebar that sets neither. */
@@ -96,13 +94,13 @@ const styles = style.create({
     inner: {
         display: "flex",
         flexDirection: "column",
-        width: SIDEBAR_WIDTH,
+        width: width.sidebar,
         height: "100%",
     },
-    expanded: { width: SIDEBAR_WIDTH },
+    expanded: { width: width.sidebar },
     offcanvas: { width: 0, borderWidth: 0 },
-    icon: { width: SIDEBAR_WIDTH_ICON },
-    sheet: { width: SIDEBAR_WIDTH, padding: 0 },
+    icon: { width: width.sidebarIcon },
+    sheet: { width: width.sidebar, padding: 0 },
     hidden: {
         position: "absolute",
         width: stroke.border,
@@ -176,8 +174,14 @@ const styles = style.create({
         paddingInline: space[2],
         borderWidth: 0,
         borderRadius: radius[3],
-        backgroundColor: { default: "transparent", ":hover": color.accent },
-        color: { default: "inherit", ":hover": color.accentForeground },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.accent },
+        },
+        color: {
+            default: "inherit",
+            ":hover": { default: null, [media.hover]: color.accentForeground },
+        },
         textAlign: "start",
         textDecoration: "none",
         whiteSpace: "nowrap",
@@ -217,8 +221,8 @@ const styles = style.create({
     skeletonText: {
         flex: 1,
     },
-    skeletonWidth: (width: string) => ({
-        width,
+    skeletonWidth: (textWidth: string) => ({
+        width: textWidth,
     }),
     skeletonLine: {
         width: "100%",
@@ -257,14 +261,14 @@ export type SidebarCollapsible = "offcanvas" | "icon" | "none";
 export class SidebarControl {
     /** The id of the sidebar element. */
     readonly id: string;
+    /** Whether the sidebar is open on wide screens, controlled or the provider's own. */
+    readonly isOpen: Accessor<boolean>;
     /** Whether the viewport is narrow enough to open the sidebar as a sheet. */
     readonly isMobile: Accessor<boolean>;
     /** Whether the sheet of a narrow viewport is open. */
     readonly isMobileOpen: Accessor<boolean>;
     /** The properties of the provider, read for its controlled state and change handler. */
     readonly #properties: SidebarProviderProperties;
-    /** The open state on wide screens when uncontrolled. */
-    readonly #ownOpen: Accessor<boolean>;
     /** Replace the open state on wide screens. */
     readonly #setOpen: (isOpen: boolean) => void;
     /** Replace the open state of the sheet. */
@@ -275,16 +279,20 @@ export class SidebarControl {
     /** Create the state of a sidebar, open unless told otherwise on a wide viewport until the browser says more. */
     constructor(properties: SidebarProviderProperties) {
         // start from the defaults a server renders too
-        const [ownOpen, setOpen] = createSignal(properties.defaultOpen !== false);
+        const [isOpen, setOpen] = createControllableSignal({
+            isControlled: () => properties.open !== undefined,
+            value: () => properties.open === true,
+            defaultValue: properties.defaultOpen !== false,
+        });
         const [isMobileOpen, setMobileOpen] = createSignal(false);
         const [isMobile, setMobile] = createSignal(false);
 
         // keep the state
         this.id = createUniqueId();
+        this.isOpen = isOpen;
         this.isMobile = isMobile;
         this.isMobileOpen = isMobileOpen;
         this.#properties = properties;
-        this.#ownOpen = ownOpen;
         this.#setOpen = setOpen;
         this.#setMobileOpen = setMobileOpen;
         this.#setMobile = setMobile;
@@ -305,11 +313,6 @@ export class SidebarControl {
         query.addEventListener("change", follow);
 
         return () => query.removeEventListener("change", follow);
-    }
-
-    /** Read whether the sidebar is open on wide screens, controlled or the provider's own. */
-    isOpen(): boolean {
-        return this.#properties.open ?? this.#ownOpen();
     }
 
     /** Open or close the sidebar on wide screens and tell the change handler. */
@@ -337,7 +340,7 @@ export class SidebarControl {
 /** The properties of a sidebar provider, the native element's attributes included. */
 export interface SidebarProviderProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
+    "class"
 > {
     /** Whether the sidebar is open, which makes the state controlled. */
     readonly open?: boolean;
@@ -346,13 +349,13 @@ export interface SidebarProviderProperties extends Omit<
     /** Handle the sidebar opening or closing on wide screens. */
     readonly onOpenChange?: (open: boolean) => void;
     /** The StyleX styles applied after the wrapper's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of a sidebar, the native element's attributes included. */
 export interface SidebarProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style" | "id"
+    "class" | "id"
 > {
     /** The side of the screen, left by default. */
     readonly side?: SidebarSide;
@@ -361,13 +364,13 @@ export interface SidebarProperties extends Omit<
     /** How it collapses, off the screen by default. */
     readonly collapsible?: SidebarCollapsible;
     /** The StyleX styles applied after the sidebar's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a sidebar, the native element's attributes included. */
-export type SidebarElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type SidebarElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a sidebar menu button, a link with `href` and a button otherwise. */
@@ -377,11 +380,23 @@ export type SidebarMenuButtonProperties = SidebarElementProperties<
     /** The link target, which renders the button as a link. */
     readonly href?: string;
     /** Whether the button stands for the current page. */
-    readonly isActive?: boolean;
+    readonly active?: boolean;
     /** The height of the button, default by default. */
     readonly size?: "default" | "sm" | "lg";
     /** The name a tooltip shows while the sidebar is collapsed to its icons. */
     readonly tooltip?: string;
+    /** Render another element with the button's attributes, such as a router's link. */
+    readonly render?: Render;
+};
+
+/** The properties of a sidebar sub-entry's link, the native anchor's attributes included. */
+export type SidebarMenuSubButtonProperties = SidebarElementProperties<
+    JSX.AnchorHTMLAttributes<HTMLAnchorElement>
+> & {
+    /** Whether the link stands for the current page. */
+    readonly active?: boolean;
+    /** Render another element with the link's attributes, such as a router's link. */
+    readonly render?: Render;
 };
 
 /** Read the sidebar state of the nearest provider, refusing elements outside one. */
@@ -398,7 +413,7 @@ export function useSidebar(): SidebarControl {
 export function SidebarProvider(properties: SidebarProviderProperties): JSX.Element {
     // share one state with the sidebar
     const control = new SidebarControl(properties);
-    const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "style");
+    const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "xstyle", "style");
 
     // follow the browser once mounted, and toggle the sidebar from the keyboard
     onSettled(() => {
@@ -425,7 +440,7 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
             <div
                 data-slot="sidebar-wrapper"
                 {...rest}
-                {...style.attrs(styles.wrapper, properties.style)}
+                {...style.attributes([styles.wrapper, properties.xstyle], properties.style)}
             />
         </SidebarContext>
     );
@@ -437,9 +452,9 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
     const control = useSidebar();
     const locale = useLocale();
     const sidebar = merge(DEFAULTS, properties);
-    const rest = omit(sidebar, "side", "variant", "collapsible", "style", "children");
+    const rest = omit(sidebar, "side", "variant", "collapsible", "xstyle", "style", "children");
     const state = (): "expanded" | "collapsed" => (control.isOpen() ? "expanded" : "collapsed");
-    const width = () =>
+    const sizing = () =>
         control.isOpen() || sidebar.collapsible === "none"
             ? styles.expanded
             : styles[sidebar.collapsible === "icon" ? "icon" : "offcanvas"];
@@ -456,9 +471,9 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                         side={sidebar.side}
                         data-slot="sidebar"
                         data-mobile="true"
-                        style={styles.sheet}
+                        xstyle={styles.sheet}
                     >
-                        <SheetTitle style={styles.hidden}>{locale.render(t`Sidebar`)}</SheetTitle>
+                        <SheetTitle xstyle={styles.hidden}>{locale.render(t`Sidebar`)}</SheetTitle>
                         <div {...style.attrs(styles.inner)}>{sidebar.children}</div>
                     </SheetContent>
                 </Sheet>
@@ -473,12 +488,15 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                 data-side={sidebar.side}
                 inert={state() === "collapsed" && sidebar.collapsible === "offcanvas"}
                 {...rest}
-                {...style.attrs(
-                    text.footnote,
-                    styles.sidebar,
-                    styles[sidebar.side],
-                    sidebar.variant === "sidebar" ? null : styles.floating,
-                    width(),
+                {...style.attributes(
+                    [
+                        text.footnote,
+                        styles.sidebar,
+                        styles[sidebar.side],
+                        sidebar.variant === "sidebar" ? null : styles.floating,
+                        sizing(),
+                        sidebar.xstyle,
+                    ],
                     sidebar.style,
                 )}
             >
@@ -520,7 +538,7 @@ export function SidebarRail(
     // read the sidebar and the locale
     const control = useSidebar();
     const locale = useLocale();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <button
@@ -530,7 +548,7 @@ export function SidebarRail(
             data-slot="sidebar-rail"
             {...rest}
             onClick={() => control.toggle()}
-            {...style.attrs(styles.rail, properties.style)}
+            {...style.attributes([styles.rail, properties.xstyle], properties.style)}
         />
     );
 }
@@ -539,13 +557,13 @@ export function SidebarRail(
 export function SidebarInset(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <main
             data-slot="sidebar-inset"
             {...rest}
-            {...style.attrs(styles.inset, properties.style)}
+            {...style.attributes([styles.inset, properties.xstyle], properties.style)}
         />
     );
 }
@@ -554,13 +572,13 @@ export function SidebarInset(
 export function SidebarHeader(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="sidebar-header"
             {...rest}
-            {...style.attrs(styles.header, properties.style)}
+            {...style.attributes([styles.header, properties.xstyle], properties.style)}
         />
     );
 }
@@ -569,13 +587,13 @@ export function SidebarHeader(
 export function SidebarFooter(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="sidebar-footer"
             {...rest}
-            {...style.attrs(styles.footer, properties.style)}
+            {...style.attributes([styles.footer, properties.xstyle], properties.style)}
         />
     );
 }
@@ -584,13 +602,13 @@ export function SidebarFooter(
 export function SidebarContent(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="sidebar-content"
             {...rest}
-            {...style.attrs(styles.content, properties.style)}
+            {...style.attributes([styles.content, properties.xstyle], properties.style)}
         />
     );
 }
@@ -599,14 +617,14 @@ export function SidebarContent(
 export function SidebarSeparator(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             role="separator"
             data-slot="sidebar-separator"
             {...rest}
-            {...style.attrs(styles.separator, properties.style)}
+            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
         />
     );
 }
@@ -615,14 +633,14 @@ export function SidebarSeparator(
 export function SidebarGroup(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             role="group"
             data-slot="sidebar-group"
             {...rest}
-            {...style.attrs(styles.group, properties.style)}
+            {...style.attributes([styles.group, properties.xstyle], properties.style)}
         />
     );
 }
@@ -632,16 +650,19 @@ export function SidebarGroupLabel(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useSidebar();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="sidebar-group-label"
             {...rest}
-            {...style.attrs(
-                text.caption,
-                styles.groupLabel,
-                !control.isOpen() && !control.isMobile() && styles.fade,
+            {...style.attributes(
+                [
+                    text.caption,
+                    styles.groupLabel,
+                    !control.isOpen() && !control.isMobile() && styles.fade,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         />
@@ -650,7 +671,7 @@ export function SidebarGroupLabel(
 
 /** Render a button in the corner of a group, such as one that adds an entry. */
 export function SidebarGroupAction(properties: ButtonProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Button
@@ -658,7 +679,7 @@ export function SidebarGroupAction(properties: ButtonProperties): JSX.Element {
             size="icon-xs"
             data-slot="sidebar-group-action"
             {...rest}
-            style={[styles.groupAction, properties.style]}
+            xstyle={[styles.groupAction, properties.xstyle]}
         />
     );
 }
@@ -667,19 +688,29 @@ export function SidebarGroupAction(properties: ButtonProperties): JSX.Element {
 export function SidebarGroupContent(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <div data-slot="sidebar-group-content" {...rest} {...style.attrs(properties.style)} />;
+    return (
+        <div
+            data-slot="sidebar-group-content"
+            {...rest}
+            {...style.attributes([properties.xstyle], properties.style)}
+        />
+    );
 }
 
 /** Render a list of menu entries. */
 export function SidebarMenu(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLUListElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <ul data-slot="sidebar-menu" {...rest} {...style.attrs(styles.menu, properties.style)} />
+        <ul
+            data-slot="sidebar-menu"
+            {...rest}
+            {...style.attributes([styles.menu, properties.xstyle], properties.style)}
+        />
     );
 }
 
@@ -687,13 +718,13 @@ export function SidebarMenu(
 export function SidebarMenuItem(
     properties: SidebarElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <li
             data-slot="sidebar-menu-item"
             {...rest}
-            {...style.attrs(styles.menuItem, properties.style)}
+            {...style.attributes([styles.menuItem, properties.xstyle], properties.style)}
         />
     );
 }
@@ -722,41 +753,51 @@ function SidebarMenuButtonElement(
     const control = useSidebar();
     const tooltip = useContext(TooltipContext);
     const isHinting = (): boolean => tooltip !== null && !control.isOpen() && !control.isMobile();
-    const rest = omit(properties, "href", "isActive", "size", "style");
-    const hint = () => {
+    const rest = omit(properties, "active", "size", "xstyle", "style", "render");
+    const hint = (event: PartEvent<Event>) => {
+        // anchor the tooltip to the hinted element and show it
+        tooltip?.setTrigger(event.currentTarget);
         if (isHinting()) {
             tooltip?.open();
         }
     };
-    const shared = () => ({
-        "data-slot": "sidebar-menu-button",
-        "data-active": properties.isActive === true ? "true" : undefined,
-        "aria-describedby": isHinting() ? tooltip?.id : undefined,
-        ref: (element: HTMLElement) => tooltip?.setTrigger(element),
-        onPointerEnter: () => hint(),
-        onPointerLeave: () => tooltip?.close(),
-        onFocus: () => hint(),
-        onBlur: () => tooltip?.close(),
-        ...style.attrs(
-            styles.menuButton,
-            sizes[properties.size ?? "default"],
-            properties.isActive === true && styles.active,
-            properties.style,
-        ),
-    });
-
-    return (
-        <Show when={properties.href} fallback={<button type="button" {...rest} {...shared()} />}>
-            {(href) => (
-                <a
-                    href={href()}
-                    aria-current={properties.isActive === true ? "page" : undefined}
-                    {...rest}
-                    {...shared()}
-                />
-            )}
-        </Show>
+    const part: PartAttributes = merge(
+        {
+            "data-slot": "sidebar-menu-button",
+            get "data-active"() {
+                return properties.active === true ? "true" : undefined;
+            },
+            get "aria-current"() {
+                return properties.active === true ? "page" : undefined;
+            },
+            get "aria-describedby"() {
+                return isHinting() ? tooltip?.id : undefined;
+            },
+            onPointerEnter: hint,
+            onPointerLeave: () => tooltip?.close(),
+            onFocus: hint,
+            onBlur: () => tooltip?.close(),
+        },
+        () =>
+            style.attributes(
+                [
+                    styles.menuButton,
+                    sizes[properties.size ?? "default"],
+                    properties.active === true && styles.active,
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
     );
+
+    return rendered(properties.render, part, rest, () => (
+        <Show
+            when={properties.href !== undefined}
+            fallback={<button type="button" {...part} {...rest} />}
+        >
+            <a {...part} {...rest} />
+        </Show>
+    ));
 }
 
 /** Render placeholder rows of a menu while its entries load, through the shared skeleton. */
@@ -766,21 +807,21 @@ export function SidebarMenuSkeleton(
         readonly showIcon?: boolean;
     },
 ): JSX.Element {
-    // vary the text's width between rows, as shadcn/ui's skeleton does
-    const rest = omit(properties, "showIcon", "style");
-    const width = `${50 + Math.floor(Math.random() * 40)}%`;
+    // vary the text's width between rows
+    const rest = omit(properties, "showIcon", "xstyle", "style");
+    const textWidth = `${50 + Math.floor(Math.random() * 40)}%`;
 
     return (
         <div
             data-slot="sidebar-menu-skeleton"
             {...rest}
-            {...style.attrs(styles.skeleton, properties.style)}
+            {...style.attributes([styles.skeleton, properties.xstyle], properties.style)}
         >
             <Show when={properties.showIcon === true}>
-                <Skeleton data-sidebar="menu-skeleton-icon" style={styles.skeletonIcon} />
+                <Skeleton data-sidebar="menu-skeleton-icon" xstyle={styles.skeletonIcon} />
             </Show>
-            <div {...style.attrs(styles.skeletonText, styles.skeletonWidth(width))}>
-                <Skeleton data-sidebar="menu-skeleton-text" style={styles.skeletonLine} />
+            <div {...style.attrs(styles.skeletonText, styles.skeletonWidth(textWidth))}>
+                <Skeleton data-sidebar="menu-skeleton-text" xstyle={styles.skeletonLine} />
             </div>
         </div>
     );
@@ -810,7 +851,7 @@ function remember(isOpen: boolean): void {
 
 /** Render a button at the end of an entry, such as one that opens the entry's menu. */
 export function SidebarMenuAction(properties: ButtonProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Button
@@ -818,7 +859,7 @@ export function SidebarMenuAction(properties: ButtonProperties): JSX.Element {
             size="icon-xs"
             data-slot="sidebar-menu-action"
             {...rest}
-            style={[styles.menuAction, properties.style]}
+            xstyle={[styles.menuAction, properties.xstyle]}
         />
     );
 }
@@ -827,13 +868,16 @@ export function SidebarMenuAction(properties: ButtonProperties): JSX.Element {
 export function SidebarMenuBadge(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="sidebar-menu-badge"
             {...rest}
-            {...style.attrs(text.caption, styles.menuBadge, properties.style)}
+            {...style.attributes(
+                [text.caption, styles.menuBadge, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -842,13 +886,13 @@ export function SidebarMenuBadge(
 export function SidebarMenuSub(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLUListElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <ul
             data-slot="sidebar-menu-sub"
             {...rest}
-            {...style.attrs(styles.menuSub, properties.style)}
+            {...style.attributes([styles.menuSub, properties.xstyle], properties.style)}
         />
     );
 }
@@ -857,37 +901,41 @@ export function SidebarMenuSub(
 export function SidebarMenuSubItem(
     properties: SidebarElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <li
             data-slot="sidebar-menu-sub-item"
             {...rest}
-            {...style.attrs(styles.menuItem, properties.style)}
+            {...style.attributes([styles.menuItem, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render a sub-entry's link, marked as the current page when active. */
-export function SidebarMenuSubButton(
-    properties: SidebarElementProperties<JSX.AnchorHTMLAttributes<HTMLAnchorElement>> & {
-        readonly isActive?: boolean;
-    },
-): JSX.Element {
-    const rest = omit(properties, "isActive", "style");
-
-    return (
-        <a
-            aria-current={properties.isActive === true ? "page" : undefined}
-            data-slot="sidebar-menu-sub-button"
-            data-active={properties.isActive === true ? "true" : undefined}
-            {...rest}
-            {...style.attrs(
-                styles.menuButton,
-                sizes.sm,
-                properties.isActive === true && styles.active,
+export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties): JSX.Element {
+    const rest = omit(properties, "active", "xstyle", "style", "render");
+    const part: PartAttributes = merge(
+        {
+            get "aria-current"() {
+                return properties.active === true ? "page" : undefined;
+            },
+            "data-slot": "sidebar-menu-sub-button",
+            get "data-active"() {
+                return properties.active === true ? "true" : undefined;
+            },
+        },
+        () =>
+            style.attributes(
+                [
+                    styles.menuButton,
+                    sizes.sm,
+                    properties.active === true && styles.active,
+                    properties.xstyle,
+                ],
                 properties.style,
-            )}
-        />
+            ),
     );
+
+    return rendered(properties.render, part, rest, () => <a {...part} {...rest} />);
 }

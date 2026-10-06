@@ -1,4 +1,6 @@
 import * as style from "@destack/style";
+import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -10,8 +12,7 @@ import {
     weight,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { createSignal, omit } from "solid-js";
+import { createControllableSignal, type JSX, merge, omit } from "@destack/view";
 
 /** The styles every toggle shares. */
 const styles = style.create({
@@ -25,8 +26,14 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: "transparent",
         borderRadius: radius[3],
-        backgroundColor: { default: "transparent", ":hover": color.muted },
-        color: { default: color.foreground, ":hover": color.mutedForeground },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.muted },
+        },
+        color: {
+            default: color.foreground,
+            ":hover": { default: null, [media.hover]: color.mutedForeground },
+        },
         fontWeight: weight.medium,
         whiteSpace: "nowrap",
         cursor: "pointer",
@@ -77,14 +84,16 @@ export interface ToggleStyleOptions {
 /** The properties of a toggle, the native button's attributes included. */
 export interface ToggleProperties
     extends
-        Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "onClick">,
+        Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "onClick">,
         ToggleStyleOptions {
     /** Whether the toggle starts on when its state is uncontrolled. */
     readonly defaultPressed?: boolean;
     /** Handle the toggle turning on or off. */
     readonly onPressedChange?: (pressed: boolean) => void;
     /** The StyleX styles applied after the toggle's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
+    /** Render another element with the toggle's attributes, the native button by default. */
+    readonly render?: Render;
 }
 
 /** Return the StyleX styles of a toggle in a variant, size and state, for toggle groups and other buttons that toggle. */
@@ -108,32 +117,47 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
         "pressed",
         "defaultPressed",
         "onPressedChange",
+        "xstyle",
         "style",
+        "render",
     );
-    const [ownPressed, setPressed] = createSignal(properties.defaultPressed === true);
-    const isPressed = (): boolean => properties.pressed ?? ownPressed();
+    const [isPressed, setPressed] = createControllableSignal({
+        isControlled: () => properties.pressed !== undefined,
+        value: () => properties.pressed === true,
+        defaultValue: properties.defaultPressed === true,
+        onChange: (isNext) => properties.onPressedChange?.(isNext),
+    });
 
-    return (
-        <button
-            type="button"
-            data-slot="toggle"
-            data-state={isPressed() ? "on" : "off"}
-            aria-pressed={isPressed() ? "true" : "false"}
-            {...rest}
-            onClick={() => {
+    // name the part and report and flip its state
+    const part: PartAttributes = merge(
+        {
+            "data-slot": "toggle",
+            get "data-state"() {
+                return isPressed() ? "on" : "off";
+            },
+            get "aria-pressed"() {
+                return isPressed() ? "true" : "false";
+            },
+            onClick: () => {
                 // flip the state and tell the change handler
-                const isNext = !isPressed();
-                setPressed(isNext);
-                properties.onPressedChange?.(isNext);
-            }}
-            {...style.attrs(
-                toggleStyle({
-                    variant: properties.variant ?? "default",
-                    size: properties.size ?? "default",
-                    pressed: isPressed(),
-                }),
+                setPressed(!isPressed());
+            },
+        },
+        () =>
+            style.attributes(
+                [
+                    toggleStyle({
+                        variant: properties.variant ?? "default",
+                        size: properties.size ?? "default",
+                        pressed: isPressed(),
+                    }),
+                    properties.xstyle,
+                ],
                 properties.style,
-            )}
-        />
+            ),
     );
+
+    return rendered(properties.render, part, rest, () => (
+        <button type="button" {...part} {...rest} />
+    ));
 }

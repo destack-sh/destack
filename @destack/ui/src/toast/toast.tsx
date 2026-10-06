@@ -5,32 +5,30 @@ import warning from "@destack/icon/phosphor/warning";
 import xCircle from "@destack/icon/phosphor/x-circle";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, shadow, space, stroke, weight, width } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createEffect,
     createSignal,
     For,
+    type JSX,
     merge,
     onCleanup,
     onSettled,
-    Show,
-    type Accessor,
     type Setter,
-} from "solid-js";
+    Show,
+} from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Spinner } from "../spinner/index.ts";
+import { createSwipe, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
 
-/** The time a toast shows before it leaves on its own, Sonner's default in milliseconds. */
+/** The time a toast shows before it leaves on its own, in milliseconds. */
 const DURATION = 4000;
 
-/** The most toasts a toaster shows at once, Sonner's default. */
+/** The most toasts a toaster shows at once. */
 const VISIBLE_TOASTS = 3;
-
-/** The width of a toast, Sonner's 356 pixels in rem. */
-const TOAST_WIDTH = "22.25rem";
 
 /** The position and limits of a toaster that sets none. */
 const DEFAULTS: Required<Pick<ToasterProperties, "position" | "duration" | "visibleToasts">> = {
@@ -52,7 +50,7 @@ const styles = style.create({
     toaster: {
         position: "fixed",
         inset: "auto",
-        width: `min(${TOAST_WIDTH}, 100% - 2 * ${space[4]})`,
+        width: `min(${width.toast}, 100% - 2 * ${space[4]})`,
         margin: 0,
         padding: 0,
         overflow: "visible",
@@ -99,6 +97,44 @@ const styles = style.create({
     warning: { color: color.warning },
     info: { color: color.info },
 });
+
+/** The surface of each kind of toast with rich colors. */
+const riches = style.create({
+    success: {
+        borderColor: `color-mix(in oklab, ${color.success} 40%, transparent)`,
+        backgroundColor: `color-mix(in oklab, ${color.success} 12%, ${color.popover})`,
+    },
+    error: {
+        borderColor: `color-mix(in oklab, ${color.destructive} 40%, transparent)`,
+        backgroundColor: `color-mix(in oklab, ${color.destructive} 12%, ${color.popover})`,
+    },
+    warning: {
+        borderColor: `color-mix(in oklab, ${color.warning} 40%, transparent)`,
+        backgroundColor: `color-mix(in oklab, ${color.warning} 12%, ${color.popover})`,
+    },
+    info: {
+        borderColor: `color-mix(in oklab, ${color.info} 40%, transparent)`,
+        backgroundColor: `color-mix(in oklab, ${color.info} 12%, ${color.popover})`,
+    },
+});
+
+/** Return the rich surface of a kind of toast, none for the default and loading kinds. */
+function richOf(type: ToastType): style.Styles {
+    return type === "success" || type === "error" || type === "warning" || type === "info"
+        ? riches[type]
+        : null;
+}
+
+/** Read the direction a swipe dismisses a toast toward from where the toasts stack: off the nearer side. */
+function swipeOf(position: ToasterPosition): SwipeDirection {
+    if (position.endsWith("right")) {
+        return "right";
+    } else if (position.endsWith("left")) {
+        return "left";
+    }
+
+    return position.startsWith("top") ? "up" : "down";
+}
 
 /** The corner of the viewport each position stacks toasts in. */
 const positions = style.create({
@@ -242,7 +278,7 @@ function follow<Value>(
     return promise;
 }
 
-/** Show toasts from anywhere on the page, after Sonner's `toast`. */
+/** Show toasts from anywhere on the page. */
 export const toast = Object.assign(show, {
     /** Show a toast of a success. */
     success: (title: string, options?: ToastOptions) => store.show(title, "success", options),
@@ -268,6 +304,8 @@ export interface ToasterProperties {
     readonly duration?: number;
     /** The most toasts shown at once, 3 by default. */
     readonly visibleToasts?: number;
+    /** Whether each kind of toast takes its color across its surface, not only its icon. */
+    readonly richColors?: boolean;
 }
 
 /** Render the live region the page's toasts appear and are announced in, focused with Alt+T. */
@@ -318,7 +356,12 @@ export function Toaster(properties: ToasterProperties): JSX.Element {
             >
                 <For each={store.toasts().slice(0, toaster.visibleToasts)}>
                     {(entry) => (
-                        <ToastItem toast={entry} duration={entry.duration ?? toaster.duration} />
+                        <ToastItem
+                            toast={entry}
+                            duration={entry.duration ?? toaster.duration}
+                            swipe={swipeOf(toaster.position)}
+                            isRich={toaster.richColors === true}
+                        />
                     )}
                 </For>
             </ol>
@@ -342,7 +385,16 @@ function focusOnShortcut(target: () => HTMLElement | undefined): void {
 }
 
 /** Render one toast, leaving after its duration unless the pointer or focus rests on it. */
-function ToastItem(properties: { readonly toast: Toast; readonly duration: number }): JSX.Element {
+function ToastItem(properties: {
+    /** The toast. */
+    readonly toast: Toast;
+    /** The time it shows, in milliseconds. */
+    readonly duration: number;
+    /** The direction a swipe dismisses it toward. */
+    readonly swipe: SwipeDirection;
+    /** Whether its kind colors its surface. */
+    readonly isRich: boolean;
+}): JSX.Element {
     // count down the toast's time, pausing while the pointer or focus is on it
     const locale = useLocale();
     const entry = properties.toast;
@@ -361,16 +413,30 @@ function ToastItem(properties: { readonly toast: Toast; readonly duration: numbe
     };
     resume();
     onCleanup(() => clearTimeout(timer));
+    const swipe = createSwipe(
+        () => properties.swipe,
+        () => store.dismiss(entry.id),
+    );
 
     return (
         <li
             data-slot="toast"
             data-type={entry.type}
+            data-swiping={swipe.offset() === undefined ? undefined : ""}
             onPointerEnter={pause}
             onPointerLeave={resume}
             onFocusIn={pause}
             onFocusOut={resume}
-            {...style.attrs(text.footnote, styles.toast)}
+            onPointerDown={swipe.onPointerDown}
+            onPointerMove={swipe.onPointerMove}
+            onPointerUp={swipe.onPointerUp}
+            onPointerCancel={swipe.onPointerCancel}
+            {...style.attrs(
+                text.footnote,
+                styles.toast,
+                properties.isRich && richOf(entry.type),
+                swipeStyle(swipe.translate()),
+            )}
         >
             <ToastIcon type={entry.type} />
             <div {...style.attrs(styles.body)}>

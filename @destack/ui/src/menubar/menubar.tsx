@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -11,16 +12,16 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
     createSignal,
+    type JSX,
     omit,
     onCleanup,
-    useContext,
-    type Accessor,
     type Setter,
-} from "solid-js";
+    useContext,
+} from "@destack/view";
 import { itemsOf, moveFocus } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
 import {
@@ -74,10 +75,14 @@ const styles = style.create({
         paddingInline: space[2],
         borderWidth: 0,
         borderRadius: radius[2],
-        backgroundColor: { default: "transparent", ":hover": color.accent, ":focus": color.accent },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.accent },
+            ":focus": color.accent,
+        },
         color: {
             default: "inherit",
-            ":hover": color.accentForeground,
+            ":hover": { default: null, [media.hover]: color.accentForeground },
             ":focus": color.accentForeground,
         },
         fontWeight: weight.medium,
@@ -170,7 +175,7 @@ export function Menubar(properties: MenuElementProperties<HTMLDivElement>): JSX.
     // share one bar with its menus and read the text direction
     const control = new MenubarControl();
     const locale = useLocale();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <MenubarContext value={control}>
@@ -189,7 +194,7 @@ export function Menubar(properties: MenuElementProperties<HTMLDivElement>): JSX.
                         );
                     }
                 }}
-                {...style.attrs(styles.menubar, properties.style)}
+                {...style.attributes([styles.menubar, properties.xstyle], properties.style)}
             />
         </MenubarContext>
     );
@@ -215,7 +220,7 @@ export function MenubarTrigger(
     // read the bar and the menu the trigger opens
     const bar = useMenubar();
     const menu = useMenu();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <button
@@ -248,10 +253,8 @@ export function MenubarTrigger(
                     menu.open("none");
                 }
             }}
-            {...style.attrs(
-                text.footnote,
-                styles.trigger,
-                menu.isOpen() && styles.open,
+            {...style.attributes(
+                [text.footnote, styles.trigger, menu.isOpen() && styles.open, properties.xstyle],
                 properties.style,
             )}
         />

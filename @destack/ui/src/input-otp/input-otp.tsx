@@ -1,19 +1,21 @@
 import { Icon } from "@destack/icon";
 import * as style from "@destack/style";
+import { inputMarker } from "./marker.stylex.ts";
 import { text } from "@destack/theme/text";
 import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
+    createControllableSignal,
     createSignal,
+    type JSX,
     merge,
     omit,
+    type Setter,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
-import { useField } from "../field/control.ts";
+} from "@destack/view";
+import { useFieldControl } from "../field/control.ts";
 
 /** The characters a code takes when its owner allows no others. */
 const DIGITS = "[0-9]";
@@ -35,7 +37,7 @@ const styles = style.create({
         alignItems: "center",
         gap: space[2],
         width: "fit-content",
-        opacity: { default: 1, ":has(> input:disabled)": 0.5 },
+        opacity: { default: 1, [style.when.descendant(":disabled", inputMarker)]: 0.5 },
     },
     input: {
         position: "absolute",
@@ -118,8 +120,8 @@ export class InputOTPControl {
     readonly maxLength: number;
     /** The properties of the root, read for its controlled value and change handlers. */
     readonly #properties: InputOTPProperties;
-    /** Replace the uncontrolled code. */
-    readonly #setValue: Setter<string>;
+    /** Replace the code and tell the change handler. */
+    readonly #setValue: (value: string) => void;
     /** Replace whether the input has the focus. */
     readonly #setFocused: Setter<boolean>;
     /** Replace the input's selection. */
@@ -128,11 +130,16 @@ export class InputOTPControl {
     /** Create the state of a one-time code input from its properties. */
     constructor(properties: InputOTPProperties, isInvalid: Accessor<boolean>) {
         // start from the default code, unfocused and with the caret at its end
-        const [value, setValue] = createSignal(properties.defaultValue ?? "");
+        const [value, setValue] = createControllableSignal({
+            isControlled: () => properties.value !== undefined,
+            value: () => properties.value ?? "",
+            defaultValue: properties.defaultValue ?? "",
+            onChange: (next) => properties.onValueChange?.(next),
+        });
         const [isFocused, setFocused] = createSignal(false);
         const [selection, setSelection] = createSignal<readonly [number, number]>([0, 0]);
         this.#properties = properties;
-        this.value = () => properties.value ?? value();
+        this.value = value;
         this.isFocused = isFocused;
         this.selection = selection;
         this.isInvalid = isInvalid;
@@ -167,11 +174,10 @@ export class InputOTPControl {
             .join("")
             .slice(0, this.maxLength);
         element.value = code;
-        this.#setValue(code);
         this.select(element);
 
-        // tell the owner the new code, and that it is complete
-        this.#properties.onValueChange?.(code);
+        // keep the new code and tell the owner of it and of its completion
+        this.#setValue(code);
         if (code.length === this.maxLength) {
             this.#properties.onComplete?.(code);
         }
@@ -192,7 +198,7 @@ export class InputOTPControl {
 /** The properties of a one-time code input, the native input's attributes included. */
 export interface InputOTPProperties extends Omit<
     JSX.InputHTMLAttributes<HTMLInputElement>,
-    "class" | "style" | "value" | "maxlength" | "pattern" | "children"
+    "class" | "value" | "maxlength" | "pattern" | "children"
 > {
     /** The number of characters the code takes. */
     readonly maxLength: number;
@@ -209,16 +215,13 @@ export interface InputOTPProperties extends Omit<
     /** The slot groups and separators. */
     readonly children?: JSX.Element;
     /** The StyleX styles applied after the root's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a one-time code input, the native element's attributes included. */
-export type InputOTPElementProperties = Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> & {
+export type InputOTPElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a one-time code input's slot. */
@@ -230,7 +233,7 @@ export interface InputOTPSlotProperties extends InputOTPElementProperties {
 /** Render a one-time code input as one character per slot over a native input that takes typing, pasting and autofill. */
 export function InputOTP(properties: InputOTPProperties): JSX.Element {
     // take the id, state and descriptions of the nearest field
-    const field = useField();
+    const field = useFieldControl();
     const code = merge(DEFAULTS, properties);
     const rest = omit(
         code,
@@ -241,6 +244,7 @@ export function InputOTP(properties: InputOTPProperties): JSX.Element {
         "onValueChange",
         "onComplete",
         "children",
+        "xstyle",
         "style",
     );
     const control = new InputOTPControl(
@@ -250,7 +254,10 @@ export function InputOTP(properties: InputOTPProperties): JSX.Element {
 
     return (
         <InputOTPContext value={control}>
-            <div data-slot="input-otp" {...style.attrs(styles.root, code.style)}>
+            <div
+                data-slot="input-otp"
+                {...style.attributes([styles.root, code.xstyle], code.style)}
+            >
                 {code.children}
                 <input
                     data-slot="input-otp-input"
@@ -266,7 +273,7 @@ export function InputOTP(properties: InputOTPProperties): JSX.Element {
                     onKeyUp={(event) => control.select(event.currentTarget)}
                     onFocus={(event) => control.focus(event.currentTarget, true)}
                     onBlur={(event) => control.focus(event.currentTarget, false)}
-                    {...style.attrs(styles.input)}
+                    {...style.attrs(styles.input, inputMarker)}
                 />
             </div>
         </InputOTPContext>
@@ -275,13 +282,13 @@ export function InputOTP(properties: InputOTPProperties): JSX.Element {
 
 /** Render slots side by side, joined into one box. */
 export function InputOTPGroup(properties: InputOTPElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="input-otp-group"
             {...rest}
-            {...style.attrs(styles.group, properties.style)}
+            {...style.attributes([styles.group, properties.xstyle], properties.style)}
         />
     );
 }
@@ -289,7 +296,7 @@ export function InputOTPGroup(properties: InputOTPElementProperties): JSX.Elemen
 /** Render one character of the code, with a blinking caret while it waits for it. */
 export function InputOTPSlot(properties: InputOTPSlotProperties): JSX.Element {
     const control = useInputOTP();
-    const rest = omit(properties, "index", "style");
+    const rest = omit(properties, "index", "xstyle", "style");
 
     return (
         <div
@@ -297,11 +304,14 @@ export function InputOTPSlot(properties: InputOTPSlotProperties): JSX.Element {
             data-active={control.isActive(properties.index) ? "true" : "false"}
             aria-hidden="true"
             {...rest}
-            {...style.attrs(
-                text.body,
-                styles.slot,
-                control.isActive(properties.index) && styles.active,
-                control.isInvalid() && styles.invalid,
+            {...style.attributes(
+                [
+                    text.body,
+                    styles.slot,
+                    control.isActive(properties.index) && styles.active,
+                    control.isInvalid() && styles.invalid,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -317,14 +327,14 @@ export function InputOTPSlot(properties: InputOTPSlotProperties): JSX.Element {
 
 /** Render a mark between groups of slots. */
 export function InputOTPSeparator(properties: InputOTPElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="input-otp-separator"
             role="separator"
             {...rest}
-            {...style.attrs(styles.separator, properties.style)}
+            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
         >
             <Icon name="minus" />
         </div>

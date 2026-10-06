@@ -76,12 +76,12 @@
         "@destack/schema": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/theme": "workspace:*",
-        "@solidjs/web": "2.0.0-rc.8",
-        "solid-js": "2.0.0-rc.8"
+        "@destack/view": "workspace:*",
+        "@tanstack/table-core": "9.2.6",
+        "@tanstack/virtual-core": "3.17.11"
     },
     "devDependencies": {
         "@destack/package": "workspace:*",
-        "@destack/test": "workspace:*",
-        "@destack/view": "workspace:*"
+        "@destack/test": "workspace:*"
     }
 }

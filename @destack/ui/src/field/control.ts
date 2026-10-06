@@ -6,22 +6,12 @@ import {
     useContext,
     type Accessor,
     type Setter,
-} from "solid-js";
+} from "@destack/view";
 
 /** The control of the nearest field, null outside a field. */
 export const FieldContext = createContext<FieldControl | null>(null);
 
-/** A value a field's owner shows in the field's control and commits from it, such as an object field. */
-export interface FieldValue {
-    /** Write the value as a text control shows it. */
-    text(): string;
-    /** Report whether an on and off control shows the value as on. */
-    isChecked(): boolean;
-    /** Take the input a person committed: a control's text, or an on and off control's state. */
-    commit(raw: string | boolean): void;
-}
-
-/** The control a field labels, describes and validates, showing the field's value when it has one. */
+/** The control a field labels, describes and validates. */
 export class FieldControl {
     /** The id of the control element. */
     readonly id: string;
@@ -29,25 +19,18 @@ export class FieldControl {
     readonly isInvalid: Accessor<boolean>;
     /** Whether the field is disabled. */
     readonly isDisabled: Accessor<boolean>;
-    /** The value the field's owner shows and commits, undefined for a control that keeps its own. */
-    readonly value: Accessor<FieldValue | undefined>;
     /** The ids of the descriptions and errors on screen, in the order they appeared. */
     readonly descriptions: Accessor<readonly string[]>;
     /** Replace the ids of the descriptions and errors on screen. */
     readonly #setDescriptions: Setter<readonly string[]>;
 
     /** Create the control of a field with a fresh id. */
-    constructor(
-        isInvalid: Accessor<boolean>,
-        isDisabled: Accessor<boolean>,
-        value: Accessor<FieldValue | undefined> = () => undefined,
-    ) {
+    constructor(isInvalid: Accessor<boolean>, isDisabled: Accessor<boolean>) {
         // start without descriptions under a fresh id
         const [descriptions, setDescriptions] = createSignal<readonly string[]>([]);
         this.id = createUniqueId();
         this.isInvalid = isInvalid;
         this.isDisabled = isDisabled;
-        this.value = value;
         this.descriptions = descriptions;
         this.#setDescriptions = setDescriptions;
     }
@@ -78,47 +61,6 @@ export class FieldControl {
             disabled: this.isDisabled() ? true : undefined,
         };
     }
-
-    /** Return the value and change handler a text control takes from the field's value, none without one. */
-    valueAttributes<
-        Target extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
-    >(): FieldValueAttributes<Target> {
-        const value = this.value();
-
-        return value === undefined
-            ? {}
-            : { value: value.text(), onChange: (event) => value.commit(event.currentTarget.value) };
-    }
-
-    /** Return the checked state and change handler an on and off control takes from the field's value, none without one. */
-    checkAttributes(): FieldCheckAttributes {
-        const value = this.value();
-
-        return value === undefined
-            ? {}
-            : {
-                  checked: value.isChecked(),
-                  onChange: (event) => value.commit(event.currentTarget.checked),
-              };
-    }
-}
-
-/** The value and change handler of a text control showing a field's value. */
-export interface FieldValueAttributes<
-    Target extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
-> {
-    /** The value as the control shows it. */
-    readonly value?: string;
-    /** Commit the value the person entered. */
-    readonly onChange?: (event: Event & { readonly currentTarget: Target }) => void;
-}
-
-/** The checked state and change handler of an on and off control showing a field's value. */
-export interface FieldCheckAttributes {
-    /** Whether the control is on. */
-    readonly checked?: boolean;
-    /** Commit the state the person chose. */
-    readonly onChange?: (event: Event & { readonly currentTarget: HTMLInputElement }) => void;
 }
 
 /** The attributes that connect a control element to its field. */
@@ -134,6 +76,6 @@ export interface FieldControlAttributes {
 }
 
 /** Read the control of the nearest field, null outside a field. */
-export function useField(): FieldControl | null {
+export function useFieldControl(): FieldControl | null {
     return useContext(FieldContext);
 }

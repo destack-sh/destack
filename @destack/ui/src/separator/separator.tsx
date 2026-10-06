@@ -1,7 +1,6 @@
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
-import { merge, omit } from "solid-js";
+import { type JSX, merge, omit } from "@destack/view";
 
 /** The orientation and role of a separator that sets neither. */
 const DEFAULTS: Required<Pick<SeparatorProperties, "orientation" | "decorative">> = {
@@ -35,22 +34,19 @@ const orientations = style.create({
 export type SeparatorOrientation = "horizontal" | "vertical";
 
 /** The properties of a separator, the native element's attributes included. */
-export interface SeparatorProperties extends Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> {
+export interface SeparatorProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The direction, horizontal by default. */
     readonly orientation?: SeparatorOrientation;
     /** Whether the separator only decorates, hidden from assistive technology, true by default. */
     readonly decorative?: boolean;
     /** The StyleX styles applied after the separator's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Render a line between content, exposed as a separator unless it only decorates. */
 export function Separator(properties: SeparatorProperties): JSX.Element {
     const separator = merge(DEFAULTS, properties);
-    const rest = omit(separator, "orientation", "decorative", "style");
+    const rest = omit(separator, "orientation", "decorative", "xstyle", "style");
 
     return (
         <div
@@ -63,7 +59,10 @@ export function Separator(properties: SeparatorProperties): JSX.Element {
                     : undefined
             }
             {...rest}
-            {...style.attrs(orientations[separator.orientation], separator.style)}
+            {...style.attributes(
+                [orientations[separator.orientation], separator.xstyle],
+                separator.style,
+            )}
         />
     );
 }

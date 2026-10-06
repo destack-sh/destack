@@ -1,5 +1,6 @@
 import { Icon } from "@destack/icon";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -12,18 +13,21 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { useLocale } from "@destack/locale/solid";
-import { Portal, type JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
     createSignal,
     createUniqueId,
-    onCleanup,
+    type JSX,
+    merge,
     omit,
+    onCleanup,
+    Portal,
+    type Setter,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+} from "@destack/view";
+import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { itemsOf, moveFocus } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
@@ -36,10 +40,10 @@ const TABBABLE =
 /** The anchor name of the open trigger, scoped to each navigation menu, which the indicator points at. */
 const ACTIVE_ANCHOR = "--destack-navigation-menu-active";
 
-/** The wait before a resting pointer opens a panel, Radix's default in milliseconds. */
+/** The wait before a resting pointer opens a panel, in milliseconds. */
 const DELAY_DURATION = 200;
 
-/** The time after the pointer leaves a trigger within which the next one opens at once, Radix's default in milliseconds. */
+/** The time after the pointer leaves a trigger within which the next one opens at once, in milliseconds. */
 const SKIP_DELAY_DURATION = 300;
 
 /** The navigation menu around an element, null outside one. */
@@ -80,10 +84,13 @@ const styles = style.create({
         borderRadius: radius[3],
         backgroundColor: {
             default: color.background,
-            ":hover": color.accent,
+            ":hover": { default: null, [media.hover]: color.accent },
             ":focus-visible": color.accent,
         },
-        color: { default: color.foreground, ":hover": color.accentForeground },
+        color: {
+            default: color.foreground,
+            ":hover": { default: null, [media.hover]: color.accentForeground },
+        },
         fontWeight: weight.medium,
         textDecoration: "none",
         cursor: "pointer",
@@ -154,7 +161,7 @@ const styles = style.create({
         textDecoration: "none",
         backgroundColor: {
             default: "transparent",
-            ":hover": color.accent,
+            ":hover": { default: null, [media.hover]: color.accent },
             ":focus-visible": color.accent,
         },
         outlineStyle: { default: "none", ":focus-visible": "solid" },
@@ -248,9 +255,9 @@ export class NavigationMenuControl {
 }
 
 /** The properties of an element of a navigation menu, the native element's attributes included. */
-export type NavigationMenuElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type NavigationMenuElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a navigation menu. */
@@ -298,6 +305,7 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
         "viewport",
         "delayDuration",
         "skipDelayDuration",
+        "xstyle",
         "style",
         "children",
     );
@@ -326,7 +334,10 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
                         document.getElementById(control.triggerId(item))?.focus();
                     }
                 }}
-                {...style.attrs(styles.menu, styles.menuScope, properties.style)}
+                {...style.attributes(
+                    [styles.menu, styles.menuScope, properties.xstyle],
+                    properties.style,
+                )}
             >
                 {properties.children}
                 <Show when={properties.viewport !== false}>
@@ -344,7 +355,7 @@ export function NavigationMenuList(
     >,
 ): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <ul
@@ -361,7 +372,7 @@ export function NavigationMenuList(
                     );
                 }
             }}
-            {...style.attrs(styles.list, properties.style)}
+            {...style.attributes([styles.list, properties.xstyle], properties.style)}
         />
     );
 }
@@ -371,14 +382,14 @@ export function NavigationMenuItem(
     properties: NavigationMenuElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
     const item = createUniqueId();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <NavigationMenuItemContext value={item}>
             <li
                 data-slot="navigation-menu-item"
                 {...rest}
-                {...style.attrs(styles.item, properties.style)}
+                {...style.attributes([styles.item, properties.xstyle], properties.style)}
             />
         </NavigationMenuItemContext>
     );
@@ -396,7 +407,7 @@ export function NavigationMenuTrigger(
     // read the menu and the item the trigger opens
     const control = useNavigationMenu();
     const item = useItem();
-    const rest = omit(properties, "style", "children");
+    const rest = omit(properties, "xstyle", "style", "children");
     const isOpen = (): boolean => control.open() === item;
 
     return (
@@ -428,11 +439,14 @@ export function NavigationMenuTrigger(
                     first.focus();
                 }
             }}
-            {...style.attrs(
-                text.footnote,
-                styles.trigger,
-                isOpen() && styles.open,
-                isOpen() && styles.anchor,
+            {...style.attributes(
+                [
+                    text.footnote,
+                    styles.trigger,
+                    isOpen() && styles.open,
+                    isOpen() && styles.anchor,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -453,7 +467,7 @@ export function NavigationMenuContent(
     // read the menu and the item the panel belongs to
     const control = useNavigationMenu();
     const item = useItem();
-    const rest = omit(properties, "style", "children");
+    const rest = omit(properties, "xstyle", "style", "children");
 
     // build the panel, framed on its own without a viewport
     const panel = (isFramed: boolean) => (
@@ -463,7 +477,10 @@ export function NavigationMenuContent(
             data-slot="navigation-menu-content"
             {...rest}
             onKeyDown={(event) => leavePanel(event, control.triggerId(item))}
-            {...style.attrs(isFramed && styles.surface, styles.content, properties.style)}
+            {...style.attributes(
+                [isFramed && styles.surface, styles.content, properties.xstyle],
+                properties.style,
+            )}
         >
             <NavigationMenuContentContext value={true}>
                 {properties.children}
@@ -483,7 +500,7 @@ export function NavigationMenuViewport(
     properties: NavigationMenuElementProperties<Omit<JSX.HTMLAttributes<HTMLDivElement>, "ref">>,
 ): JSX.Element {
     const control = useNavigationMenu();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
@@ -491,7 +508,7 @@ export function NavigationMenuViewport(
             data-slot="navigation-menu-viewport"
             {...rest}
             ref={(element) => control.setViewport(element)}
-            {...style.attrs(styles.surface, properties.style)}
+            {...style.attributes([styles.surface, properties.xstyle], properties.style)}
         />
     );
 }
@@ -501,7 +518,7 @@ export function NavigationMenuIndicator(
     properties: NavigationMenuElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useNavigationMenu();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
@@ -509,31 +526,41 @@ export function NavigationMenuIndicator(
             hidden={control.open() === undefined}
             data-slot="navigation-menu-indicator"
             {...rest}
-            {...style.attrs(styles.indicator, properties.style)}
+            {...style.attributes([styles.indicator, properties.xstyle], properties.style)}
         />
     );
 }
 
-/** Render a link of a navigation menu, marked as the current page when active. */
-export function NavigationMenuLink(
-    properties: NavigationMenuElementProperties<JSX.AnchorHTMLAttributes<HTMLAnchorElement>> & {
-        /** Whether the link points at the current page. */
-        readonly active?: boolean;
-    },
-): JSX.Element {
-    const isTop = !useContext(NavigationMenuContentContext);
-    const rest = omit(properties, "active", "style");
+/** The properties of a link of a navigation menu, the native anchor's attributes included. */
+export type NavigationMenuLinkProperties = NavigationMenuElementProperties<
+    JSX.AnchorHTMLAttributes<HTMLAnchorElement>
+> & {
+    /** Whether the link points at the current page. */
+    readonly active?: boolean;
+    /** Render another element with the link's attributes, such as a router's link. */
+    readonly render?: Render;
+};
 
-    return (
-        <a
-            aria-current={properties.active === true ? "page" : undefined}
-            data-active={properties.active === true ? "true" : undefined}
-            data-navigation-top={isTop ? "" : undefined}
-            data-slot="navigation-menu-link"
-            {...rest}
-            {...style.attrs(text.footnote, styles.link, properties.style)}
-        />
+/** Render a link of a navigation menu, marked as the current page when active. */
+export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JSX.Element {
+    // mark a top-level link and the current page over its styles
+    const isTop = !useContext(NavigationMenuContentContext);
+    const rest = omit(properties, "active", "xstyle", "style", "render");
+    const part: PartAttributes = merge(
+        {
+            get "aria-current"() {
+                return properties.active === true ? "page" : undefined;
+            },
+            get "data-active"() {
+                return properties.active === true ? "true" : undefined;
+            },
+            "data-navigation-top": isTop ? "" : undefined,
+            "data-slot": "navigation-menu-link",
+        },
+        () => style.attributes([text.footnote, styles.link, properties.xstyle], properties.style),
     );
+
+    return rendered(properties.render, part, rest, () => <a {...part} {...rest} />);
 }
 
 /** Move Tab past a panel's ends to its trigger and to the next top-level entry, as if the panel followed its trigger. */

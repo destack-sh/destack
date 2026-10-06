@@ -1,6 +1,5 @@
 import * as style from "@destack/style";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
+import { type JSX, omit } from "@destack/view";
 import {
     Menu,
     MenuCheckboxItem,
@@ -34,7 +33,7 @@ export function ContextMenuTrigger(
     properties: Omit<MenuElementProperties<HTMLDivElement>, "ref" | "onContextMenu">,
 ): JSX.Element {
     const control = useMenu();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
@@ -46,7 +45,7 @@ export function ContextMenuTrigger(
                 event.preventDefault();
                 control.open("first", { x: event.clientX, y: event.clientY });
             }}
-            {...style.attrs(properties.style)}
+            {...style.attributes([properties.xstyle], properties.style)}
         />
     );
 }

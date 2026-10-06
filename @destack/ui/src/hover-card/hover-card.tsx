@@ -1,24 +1,21 @@
 import * as style from "@destack/style";
-import { color, radius, shadow, space, stroke } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
-import { createContext, createEffect, merge, omit, useContext } from "solid-js";
+import { color, radius, shadow, space, stroke, width } from "@destack/theme/tokens.stylex";
+import { createContext, createEffect, type JSX, merge, omit, useContext } from "@destack/view";
 import {
     HoverPopover,
     placementStyle,
     type PopoverAlign,
     type PopoverProperties,
     type PopoverSide,
+    PopoverArrow,
 } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
-/** The wait before a resting pointer opens a hover card, Radix's default in milliseconds. */
+/** The wait before a resting pointer opens a hover card, in milliseconds. */
 const OPEN_DELAY = 700;
 
-/** The wait before a hover card the pointer left closes, Radix's default in milliseconds. */
+/** The wait before a hover card the pointer left closes, in milliseconds. */
 const CLOSE_DELAY = 300;
-
-/** The width of a hover card, Tailwind's w-64 that shadcn/ui's hover card takes. */
-const HOVER_CARD_WIDTH = "16rem";
 
 /** The side and alignment of a hover card that sets neither. */
 const DEFAULTS: Required<Pick<HoverCardContentProperties, "side" | "align">> = {
@@ -33,7 +30,7 @@ const HoverCardContext = createContext<HoverPopover | null>(null);
 const styles = style.create({
     content: {
         boxSizing: "border-box",
-        width: HOVER_CARD_WIDTH,
+        width: width.hoverCard,
         inset: { default: 0, "@supports (position-area: block-end)": "auto" },
         margin: { default: "auto", "@supports (position-area: block-end)": space[1] },
         padding: space[4],
@@ -64,14 +61,14 @@ export type HoverCardTriggerProperties = Omit<
 /** The properties of a hover card's content, the native element's attributes included. */
 export interface HoverCardContentProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style" | "ref" | "onToggle" | "onPointerEnter" | "onPointerLeave"
+    "class" | "ref" | "onToggle" | "onPointerEnter" | "onPointerLeave"
 > {
     /** The side of the trigger it opens on, bottom by default. */
     readonly side?: PopoverSide;
     /** The edge of the trigger it lines up with, center by default. */
     readonly align?: PopoverAlign;
     /** The StyleX styles applied after the hover card's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Read the hover card of the nearest hover card root, refusing elements outside one. */
@@ -117,7 +114,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     // read the hover card and its placement
     const card = useHoverCard();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "style");
+    const rest = omit(content, "side", "align", "xstyle", "style");
 
     // show and hide the card as it opens and closes
     createEffect(card.isOpen, (isOpen) => card.sync(isOpen));
@@ -134,12 +131,14 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                 onToggle={(event) => card.follow(event)}
                 onPointerEnter={() => card.open()}
                 onPointerLeave={() => card.closeLater()}
-                {...style.attrs(
-                    styles.content,
-                    placementStyle(content.side, content.align),
+                {...style.attributes(
+                    [styles.content, placementStyle(content.side, content.align), content.xstyle],
                     content.style,
                 )}
             />
         </TopLayer>
     );
 }
+
+/** Render the arrow of the nearest hover card, pointing at its trigger. */
+export const HoverCardArrow = PopoverArrow;

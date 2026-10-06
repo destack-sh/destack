@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import type { JSX } from "@destack/view";
 import { FieldContext } from "../field/control.ts";
 import { JoinContext } from "../join/index.ts";
 

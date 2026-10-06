@@ -1,8 +1,8 @@
 import * as style from "@destack/style";
 import { color, radius, size, space } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
-import { createContext, omit, Show, useContext } from "solid-js";
+import { createContext, type JSX, omit, Show, useContext } from "@destack/view";
 import {
+    useDialog,
     type DialogButtonProperties,
     type DialogContentProperties,
     type DialogElementProperties,
@@ -19,8 +19,9 @@ import {
     SheetTrigger,
     type SheetSide,
 } from "../sheet/index.ts";
+import { createSwipe, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
 
-/** The share of the viewport a drawer grows to at most, after vaul's drawer that shadcn/ui wraps. */
+/** The share of the viewport a drawer grows to at most. */
 const DRAWER_EXTENT = "80vh";
 
 /** The edge the nearest drawer slides in from. */
@@ -43,6 +44,14 @@ const styles = style.create({
         textAlign: "center",
     },
 });
+
+/** The direction a swipe closes a drawer against each edge. */
+const SWIPES: Readonly<Record<SheetSide, SwipeDirection>> = {
+    top: "up",
+    right: "right",
+    bottom: "down",
+    left: "left",
+};
 
 /** The rounded inner corners of a drawer against each edge. */
 const corners = style.create({
@@ -79,18 +88,35 @@ export function DrawerClose(properties: DialogButtonProperties): JSX.Element {
     return <SheetClose data-slot="drawer-close" {...properties} />;
 }
 
-/** Render the drawer against its edge, with a handle when it rises from the bottom. */
+/** Render the drawer against its edge, with a handle when it rises from the bottom, which a drag toward its edge closes. */
 export function DrawerContent(properties: DialogContentProperties): JSX.Element {
+    // close the drawer on a swipe toward its edge from unscrolled content
     const direction = useContext(DrawerContext);
-    const rest = omit(properties, "style", "children");
+    const dialog = useDialog();
+    const rest = omit(properties, "xstyle", "style", "children");
+    const swipe = createSwipe(
+        () => SWIPES[direction],
+        () => dialog.close(),
+        (element) => element.scrollTop === 0,
+    );
 
     return (
         <SheetContent
             data-slot="drawer-content"
+            data-swiping={swipe.offset() === undefined ? undefined : ""}
             side={direction}
             showCloseButton={false}
             {...rest}
-            style={[styles.drawer, corners[direction], properties.style]}
+            onPointerDown={swipe.onPointerDown}
+            onPointerMove={swipe.onPointerMove}
+            onPointerUp={swipe.onPointerUp}
+            onPointerCancel={swipe.onPointerCancel}
+            xstyle={[
+                styles.drawer,
+                corners[direction],
+                swipeStyle(swipe.translate()),
+                properties.xstyle,
+            ]}
         >
             <Show when={direction === "bottom"}>
                 <div data-slot="drawer-handle" aria-hidden="true" {...style.attrs(styles.handle)} />
@@ -102,13 +128,13 @@ export function DrawerContent(properties: DialogContentProperties): JSX.Element 
 
 /** Render the top of a drawer that holds its title and description. */
 export function DrawerHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <SheetHeader
             data-slot="drawer-header"
             {...rest}
-            style={[styles.header, properties.style]}
+            xstyle={[styles.header, properties.xstyle]}
         />
     );
 }

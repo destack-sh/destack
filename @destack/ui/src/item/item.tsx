@@ -1,8 +1,8 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { createContext, merge, omit, useContext } from "solid-js";
+import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
 
 /** The variant and size of an item that sets neither. */
@@ -98,19 +98,28 @@ const links = style.create({
     default: {
         backgroundColor: {
             default: "transparent",
-            ":hover": `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+            },
         },
     },
     outline: {
         backgroundColor: {
             default: "transparent",
-            ":hover": `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+            },
         },
     },
     muted: {
         backgroundColor: {
             default: `color-mix(in oklab, ${color.muted} 50%, transparent)`,
-            ":hover": `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+            },
         },
     },
 });
@@ -156,10 +165,10 @@ export type ItemMediaVariant = "default" | "icon" | "image";
 /** The properties of an element of an item, the native element's attributes included. */
 export type ItemElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement>> = Omit<
     Attributes,
-    "class" | "style"
+    "class"
 > & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The variant and size of an item's styles. */
@@ -197,7 +206,7 @@ export function Item(properties: ItemProperties): JSX.Element {
     // list the item when a group holds it
     const isGrouped = useContext(ItemGroupContext);
     const item = merge(DEFAULTS, properties);
-    const rest = omit(item, "variant", "size", "style");
+    const rest = omit(item, "variant", "size", "xstyle", "style");
 
     return (
         <div
@@ -206,11 +215,8 @@ export function Item(properties: ItemProperties): JSX.Element {
             data-size={item.size}
             role={isGrouped ? "listitem" : undefined}
             {...rest}
-            {...style.attrs(
-                text.callout,
-                styles.item,
-                variants[item.variant],
-                sizes[item.size],
+            {...style.attributes(
+                [text.callout, styles.item, variants[item.variant], sizes[item.size], item.xstyle],
                 item.style,
             )}
         />
@@ -219,7 +225,7 @@ export function Item(properties: ItemProperties): JSX.Element {
 
 /** Render items as a list. */
 export function ItemGroup(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <ItemGroupContext value={true}>
@@ -227,7 +233,7 @@ export function ItemGroup(properties: ItemElementProperties): JSX.Element {
                 data-slot="item-group"
                 role="list"
                 {...rest}
-                {...style.attrs(styles.group, properties.style)}
+                {...style.attributes([styles.group, properties.xstyle], properties.style)}
             />
         </ItemGroupContext>
     );
@@ -240,45 +246,52 @@ export function ItemSeparator(properties: SeparatorProperties): JSX.Element {
             data-slot="item-separator"
             {...properties}
             orientation="horizontal"
-            style={[styles.separator, properties.style]}
+            xstyle={[styles.separator, properties.xstyle]}
         />
     );
 }
 
 /** Render an item's icon, avatar or picture. */
 export function ItemMedia(properties: ItemMediaProperties): JSX.Element {
-    const media = merge(MEDIA_DEFAULTS, properties);
-    const rest = omit(media, "variant", "style");
+    const figure = merge(MEDIA_DEFAULTS, properties);
+    const rest = omit(figure, "variant", "xstyle", "style");
 
     return (
         <div
             data-slot="item-media"
-            data-variant={media.variant}
+            data-variant={figure.variant}
             {...rest}
-            {...style.attrs(styles.media, medias[media.variant], media.style)}
+            {...style.attributes(
+                [styles.media, medias[figure.variant], figure.xstyle],
+                figure.style,
+            )}
         />
     );
 }
 
 /** Render the title and description of an item, taking the row's free width. */
 export function ItemContent(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="item-content"
             {...rest}
-            {...style.attrs(styles.content, properties.style)}
+            {...style.attributes([styles.content, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render the title of an item. */
 export function ItemTitle(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="item-title" {...rest} {...style.attrs(styles.title, properties.style)} />
+        <div
+            data-slot="item-title"
+            {...rest}
+            {...style.attributes([styles.title, properties.xstyle], properties.style)}
+        />
     );
 }
 
@@ -286,44 +299,52 @@ export function ItemTitle(properties: ItemElementProperties): JSX.Element {
 export function ItemDescription(
     properties: ItemElementProperties<JSX.HTMLAttributes<HTMLParagraphElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <p
             data-slot="item-description"
             {...rest}
-            {...style.attrs(styles.description, properties.style)}
+            {...style.attributes([styles.description, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render the buttons at the end of an item. */
 export function ItemActions(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="item-actions"
             {...rest}
-            {...style.attrs(styles.actions, properties.style)}
+            {...style.attributes([styles.actions, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render a full-width row above an item's media and content. */
 export function ItemHeader(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="item-header" {...rest} {...style.attrs(styles.edge, properties.style)} />
+        <div
+            data-slot="item-header"
+            {...rest}
+            {...style.attributes([styles.edge, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render a full-width row below an item's media and content. */
 export function ItemFooter(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="item-footer" {...rest} {...style.attrs(styles.edge, properties.style)} />
+        <div
+            data-slot="item-footer"
+            {...rest}
+            {...style.attributes([styles.edge, properties.xstyle], properties.style)}
+        />
     );
 }

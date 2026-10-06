@@ -5,19 +5,21 @@ import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
+    createControllableSignal,
     createEffect,
     createSignal,
     createUniqueId,
+    type JSX,
     merge,
     omit,
+    type Setter,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+} from "@destack/view";
+import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
 import { isTypeaheadKey, itemsOf, moveFocus } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
 import { placementStyle, type PopoverAlign, type PopoverSide } from "../popover/index.ts";
@@ -59,6 +61,7 @@ const styles = style.create({
         color: color.popoverForeground,
         boxShadow: shadow.overlay,
     },
+    at: (left: string, top: string) => ({ left, top }),
     point: {
         margin: 0,
         positionArea: "none",
@@ -153,25 +156,27 @@ export class MenuControl {
     #focus: MenuFocus;
     /** Whether the trigger takes the focus back once the menu hides. */
     #isReturningFocus: boolean;
-    /** The properties of a top menu's root, read for its controlled state and change handler. */
-    readonly #properties: MenuRootProperties;
     /** The open submenus. */
     readonly #children: Set<MenuControl>;
-    /** Replace whether the menu is open. */
-    readonly #setOpen: Setter<boolean>;
+    /** Replace whether the menu is open and tell the change handler. */
+    readonly #setOpen: (isOpen: boolean) => void;
     /** Replace the point a context menu opens at. */
     readonly #setPoint: Setter<MenuPoint | undefined>;
 
     /** Create a closed menu, a submenu when it has a parent. */
     constructor(parent: MenuControl | null, properties: MenuRootProperties = {}) {
         // follow the controlled state, else the menu's own, without elements yet
-        const [isOpen, setOpen] = createSignal(properties.defaultOpen === true);
+        const [isOpen, setOpen] = createControllableSignal({
+            isControlled: () => properties.open !== undefined,
+            value: () => properties.open === true,
+            defaultValue: properties.defaultOpen === true,
+            onChange: (isNext) => properties.onOpenChange?.(isNext),
+        });
         const [point, setPoint] = createSignal<MenuPoint | undefined>(undefined);
         this.id = createUniqueId();
         this.triggerId = `${this.id}-trigger`;
         this.parent = parent;
-        this.isOpen = () => properties.open ?? isOpen();
-        this.#properties = properties;
+        this.isOpen = isOpen;
         this.point = point;
         this.onCross = undefined;
         this.#trigger = undefined;
@@ -235,7 +240,6 @@ export class MenuControl {
         this.#focus = focus;
         this.#setPoint(point);
         this.#setOpen(true);
-        this.#properties.onOpenChange?.(true);
         if (this.parent !== null) {
             this.parent.#children.add(this);
         }
@@ -249,7 +253,6 @@ export class MenuControl {
         // close the menu
         this.#isReturningFocus = isReturningFocus;
         this.#setOpen(false);
-        this.#properties.onOpenChange?.(false);
         if (this.parent !== null) {
             this.parent.#children.delete(this);
         }
@@ -309,10 +312,10 @@ export interface MenuRadioControl {
 /** The properties of an element of a menu, the native element's attributes included. */
 export type MenuElementProperties<Target extends HTMLElement> = Omit<
     JSX.HTMLAttributes<Target>,
-    "class" | "style"
+    "class"
 > & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a menu's content. */
@@ -339,6 +342,8 @@ export interface MenuItemProperties extends Omit<
     readonly inset?: boolean;
     /** The look of the item, destructive for an action that deletes. */
     readonly variant?: "default" | "destructive";
+    /** Render another element with the item's attributes, such as a link, the menu's own element by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a menu item that checks and unchecks. */
@@ -389,14 +394,14 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
     const control = useMenu();
     const locale = useLocale();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "style");
+    const rest = omit(content, "side", "align", "xstyle", "style");
     createEffect(control.isOpen, (isOpen) => control.sync(isOpen));
 
     // place a context menu at its point
-    const position = (): JSX.CSSProperties | undefined => {
+    const position = (): style.Styles => {
         const point = control.point();
 
-        return point === undefined ? undefined : { left: `${point.x}px`, top: `${point.y}px` };
+        return point === undefined ? null : styles.at(`${point.x}px`, `${point.y}px`);
     };
 
     return (
@@ -413,14 +418,17 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                 ref={(element) => control.setContent(element)}
                 onToggle={(event) => control.follow(event)}
                 onKeyDown={(event) => navigate(event, control, locale.direction)}
-                {...style.attrs(
-                    text.footnote,
-                    styles.content,
-                    placementStyle(content.side, content.align),
-                    control.point() !== undefined && styles.point,
+                {...style.attributes(
+                    [
+                        text.footnote,
+                        styles.content,
+                        placementStyle(content.side, content.align),
+                        control.point() !== undefined && styles.point,
+                        position(),
+                        content.xstyle,
+                    ],
                     content.style,
                 )}
-                style={position()}
             />
         </TopLayer>
     );
@@ -428,30 +436,51 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
 
 /** Render an item that runs its action and closes every menu when chosen with a click, Enter or Space. */
 export function MenuItem(properties: MenuItemProperties): JSX.Element {
+    // join the menu and report the item's state over its styles
     const control = useMenu();
-    const rest = omit(properties, "onSelect", "disabled", "inset", "variant", "style");
-
-    return (
-        <div
-            role="menuitem"
-            tabindex={-1}
-            data-menu-item=""
-            data-slot="menu-item"
-            data-variant={properties.variant ?? "default"}
-            aria-disabled={properties.disabled === true ? "true" : undefined}
-            {...rest}
-            onClick={(event) => choose(event, control, properties)}
-            onKeyDown={(event) => activate(event)}
-            onPointerEnter={(event) => hover(event, control)}
-            {...style.attrs(
-                styles.item,
-                properties.variant === "destructive" && styles.destructive,
-                properties.inset === true && styles.inset,
-                properties.disabled === true && styles.disabled,
-                properties.style,
-            )}
-        />
+    const rest = omit(
+        properties,
+        "onSelect",
+        "disabled",
+        "inset",
+        "variant",
+        "xstyle",
+        "style",
+        "render",
     );
+    const part: PartAttributes = merge(
+        {
+            role: "menuitem" as const,
+            tabindex: -1,
+            "data-menu-item": "",
+            "data-slot": "menu-item",
+            get "data-variant"() {
+                return properties.variant ?? "default";
+            },
+            get "aria-disabled"() {
+                return properties.disabled === true ? "true" : undefined;
+            },
+            get "data-disabled"() {
+                return properties.disabled === true ? "" : undefined;
+            },
+            onClick: (event: MouseEvent) => choose(event, control, properties),
+            onKeyDown: activate,
+            onPointerEnter: (event: PartEvent<PointerEvent>) => hover(event, control),
+        },
+        () =>
+            style.attributes(
+                [
+                    styles.item,
+                    properties.variant === "destructive" && styles.destructive,
+                    properties.inset === true && styles.inset,
+                    properties.disabled === true && styles.disabled,
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
+    );
+
+    return rendered(properties.render, part, rest, () => <div {...part} {...rest} />);
 }
 
 /** Render an item that checks and unchecks, reporting its state through `aria-checked`. */
@@ -465,6 +494,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         "disabled",
         "inset",
         "variant",
+        "xstyle",
         "style",
         "children",
     );
@@ -475,6 +505,8 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
             tabindex={-1}
             aria-checked={properties.checked ? "true" : "false"}
             aria-disabled={properties.disabled === true ? "true" : undefined}
+            data-state={properties.checked ? "checked" : "unchecked"}
+            data-disabled={properties.disabled === true ? "" : undefined}
             data-menu-item=""
             data-slot="menu-checkbox-item"
             {...rest}
@@ -487,10 +519,13 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
             }}
             onKeyDown={(event) => activate(event)}
             onPointerEnter={(event) => hover(event, control)}
-            {...style.attrs(
-                styles.item,
-                styles.inset,
-                properties.disabled === true && styles.disabled,
+            {...style.attributes(
+                [
+                    styles.item,
+                    styles.inset,
+                    properties.disabled === true && styles.disabled,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -506,7 +541,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
 
 /** Render a group of radio items that share one selected value. */
 export function MenuRadioGroup(properties: MenuRadioGroupProperties): JSX.Element {
-    const rest = omit(properties, "value", "onValueChange", "style");
+    const rest = omit(properties, "value", "onValueChange", "xstyle", "style");
     const radio: MenuRadioControl = {
         value: () => properties.value,
         select: (value) => properties.onValueChange?.(value),
@@ -518,7 +553,7 @@ export function MenuRadioGroup(properties: MenuRadioGroupProperties): JSX.Elemen
                 role="group"
                 data-slot="menu-radio-group"
                 {...rest}
-                {...style.attrs(properties.style)}
+                {...style.attributes([properties.xstyle], properties.style)}
             />
         </MenuRadioContext>
     );
@@ -539,6 +574,7 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
         "disabled",
         "inset",
         "variant",
+        "xstyle",
         "style",
         "children",
     );
@@ -550,6 +586,8 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
             tabindex={-1}
             aria-checked={isChecked() ? "true" : "false"}
             aria-disabled={properties.disabled === true ? "true" : undefined}
+            data-state={isChecked() ? "checked" : "unchecked"}
+            data-disabled={properties.disabled === true ? "" : undefined}
             data-menu-item=""
             data-slot="menu-radio-item"
             {...rest}
@@ -562,10 +600,13 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
             }}
             onKeyDown={(event) => activate(event)}
             onPointerEnter={(event) => hover(event, control)}
-            {...style.attrs(
-                styles.item,
-                styles.inset,
-                properties.disabled === true && styles.disabled,
+            {...style.attributes(
+                [
+                    styles.item,
+                    styles.inset,
+                    properties.disabled === true && styles.disabled,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -583,15 +624,14 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
 export function MenuLabel(
     properties: MenuElementProperties<HTMLDivElement> & { readonly inset?: boolean },
 ): JSX.Element {
-    const rest = omit(properties, "inset", "style");
+    const rest = omit(properties, "inset", "xstyle", "style");
 
     return (
         <div
             data-slot="menu-label"
             {...rest}
-            {...style.attrs(
-                styles.label,
-                properties.inset === true && styles.inset,
+            {...style.attributes(
+                [styles.label, properties.inset === true && styles.inset, properties.xstyle],
                 properties.style,
             )}
         />
@@ -600,34 +640,44 @@ export function MenuLabel(
 
 /** Render a group of related items. */
 export function MenuGroup(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <div role="group" data-slot="menu-group" {...rest} {...style.attrs(properties.style)} />;
+    return (
+        <div
+            role="group"
+            data-slot="menu-group"
+            {...rest}
+            {...style.attributes([properties.xstyle], properties.style)}
+        />
+    );
 }
 
 /** Render a line between groups of items. */
 export function MenuSeparator(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             role="separator"
             data-slot="menu-separator"
             {...rest}
-            {...style.attrs(styles.separator, properties.style)}
+            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render the keyboard shortcut of an item at its end. */
 export function MenuShortcut(properties: MenuElementProperties<HTMLSpanElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <span
             data-slot="menu-shortcut"
             {...rest}
-            {...style.attrs(text.caption, styles.shortcut, properties.style)}
+            {...style.attributes(
+                [text.caption, styles.shortcut, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -639,7 +689,7 @@ export function MenuSubTrigger(
     // read the submenu and the direction its arrow key points in
     const control = useMenu();
     const locale = useLocale();
-    const rest = omit(properties, "disabled", "inset", "style", "children");
+    const rest = omit(properties, "disabled", "inset", "xstyle", "style", "children");
     const isEnabled = (): boolean => properties.disabled !== true;
     const opens = (key: string): boolean =>
         key === "Enter" ||
@@ -676,10 +726,13 @@ export function MenuSubTrigger(
                     control.open("none");
                 }
             }}
-            {...style.attrs(
-                styles.item,
-                properties.inset === true && styles.inset,
-                properties.disabled === true && styles.disabled,
+            {...style.attributes(
+                [
+                    styles.item,
+                    properties.inset === true && styles.inset,
+                    properties.disabled === true && styles.disabled,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -740,16 +793,13 @@ function typeahead(letter: string, items: readonly HTMLElement[]): void {
 }
 
 /** Focus a hovered item and close the submenus of its menu. */
-function hover(
-    event: PointerEvent & { readonly currentTarget: HTMLDivElement },
-    control: MenuControl,
-): void {
+function hover(event: PartEvent<PointerEvent>, control: MenuControl): void {
     event.currentTarget.focus();
     control.closeSubmenus();
 }
 
 /** Click an item on Enter and Space, as buttons do. */
-function activate(event: KeyboardEvent & { readonly currentTarget: HTMLDivElement }): void {
+function activate(event: PartEvent<KeyboardEvent>): void {
     if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         event.currentTarget.click();

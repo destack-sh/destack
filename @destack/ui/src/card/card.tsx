@@ -1,8 +1,7 @@
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
+import { type JSX, omit } from "@destack/view";
 
 /** The styles of a card and its elements. */
 const styles = style.create({
@@ -52,83 +51,104 @@ const styles = style.create({
 });
 
 /** The properties of a card or one of its elements, the native element's attributes included. */
-export interface CardProperties extends Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> {
+export interface CardProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Render a raised surface that groups related content and actions. */
 export function Card(properties: CardProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <div data-slot="card" {...rest} {...style.attrs(styles.card, properties.style)} />;
+    return (
+        <div
+            data-slot="card"
+            {...rest}
+            {...style.attributes([styles.card, properties.xstyle], properties.style)}
+        />
+    );
 }
 
 /** Render the top of a card that holds its title, description and action. */
 export function CardHeader(properties: CardProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="card-header" {...rest} {...style.attrs(styles.header, properties.style)} />
+        <div
+            data-slot="card-header"
+            {...rest}
+            {...style.attributes([styles.header, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render the title of a card. */
 export function CardTitle(properties: CardProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="card-title"
             {...rest}
-            {...style.attrs(text.headline, styles.title, properties.style)}
+            {...style.attributes(
+                [text.headline, styles.title, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
 
 /** Render the description under a card's title. */
 export function CardDescription(properties: CardProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="card-description"
             {...rest}
-            {...style.attrs(text.footnote, styles.description, properties.style)}
+            {...style.attributes(
+                [text.footnote, styles.description, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
 
 /** Render an action in the top corner of a card's header. */
 export function CardAction(properties: CardProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="card-action" {...rest} {...style.attrs(styles.action, properties.style)} />
+        <div
+            data-slot="card-action"
+            {...rest}
+            {...style.attributes([styles.action, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render the main content of a card. */
 export function CardContent(properties: CardProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="card-content"
             {...rest}
-            {...style.attrs(styles.content, properties.style)}
+            {...style.attributes([styles.content, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render the bottom row of a card, usually its actions. */
 export function CardFooter(properties: CardProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="card-footer" {...rest} {...style.attrs(styles.footer, properties.style)} />
+        <div
+            data-slot="card-footer"
+            {...rest}
+            {...style.attributes([styles.footer, properties.xstyle], properties.style)}
+        />
     );
 }

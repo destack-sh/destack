@@ -13,23 +13,24 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
+    createControllableSignal,
     createEffect,
     createSignal,
     createUniqueId,
+    type JSX,
     omit,
     onCleanup,
+    type Setter,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+} from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
-/** The widest a dialog grows, Tailwind's lg width that shadcn/ui's dialog stops at. */
+/** The widest a dialog grows. */
 const DIALOG_WIDTH = "32rem";
 
 /** The styles of a dialog and its elements. */
@@ -94,24 +95,26 @@ export class DialogControl {
     readonly isOpen: Accessor<boolean>;
     /** Whether a description is on screen. */
     readonly isDescribed: Accessor<boolean>;
-    /** The properties of the dialog root, read for its controlled state and change handler. */
-    readonly #properties: DialogProperties;
-    /** Replace the uncontrolled open state. */
-    readonly #setOpen: Setter<boolean>;
+    /** Replace the open state and tell the change handler. */
+    readonly #setOpen: (isOpen: boolean) => void;
     /** Replace whether a description is on screen. */
     readonly #setDescribed: Setter<boolean>;
 
     /** Create the state of a dialog root, open when its properties ask for it. */
     constructor(properties: DialogProperties) {
         // follow the controlled state, else the dialog's own
-        const [isOpen, setOpen] = createSignal(properties.defaultOpen === true);
+        const [isOpen, setOpen] = createControllableSignal({
+            isControlled: () => properties.open !== undefined,
+            value: () => properties.open === true,
+            defaultValue: properties.defaultOpen === true,
+            onChange: (isNext) => properties.onOpenChange?.(isNext),
+        });
         const [isDescribed, setDescribed] = createSignal(false, { ownedWrite: true });
         this.id = createUniqueId();
         this.titleId = createUniqueId();
         this.descriptionId = createUniqueId();
-        this.isOpen = () => properties.open ?? isOpen();
+        this.isOpen = isOpen;
         this.isDescribed = isDescribed;
-        this.#properties = properties;
         this.#setOpen = setOpen;
         this.#setDescribed = setDescribed;
     }
@@ -119,13 +122,11 @@ export class DialogControl {
     /** Open the dialog and tell the root's change handler. */
     open(): void {
         this.#setOpen(true);
-        this.#properties.onOpenChange?.(true);
     }
 
     /** Close the dialog and tell the root's change handler. */
     close(): void {
         this.#setOpen(false);
-        this.#properties.onOpenChange?.(false);
     }
 
     /** Describe the dialog by its description until the description unmounts. */
@@ -156,21 +157,21 @@ export type DialogButtonProperties = Omit<ButtonProperties, "onClick"> & {
 /** The properties of a dialog's content, the native dialog's attributes included. */
 export interface DialogContentProperties extends Omit<
     JSX.DialogHtmlAttributes<HTMLDialogElement>,
-    "class" | "style" | "ref" | "onClose"
+    "class" | "ref" | "onClose"
 > {
     /** Whether to show a close button in the top corner, true by default. */
     readonly showCloseButton?: boolean;
     /** The StyleX styles applied after the dialog's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a dialog, the native element's attributes included. */
 export type DialogElementProperties<Target extends HTMLElement> = Omit<
     JSX.HTMLAttributes<Target>,
-    "class" | "style"
+    "class"
 > & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** Read the dialog of the nearest dialog root, refusing elements outside one. */
@@ -232,7 +233,7 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
     // read the dialog and keep its element for the effect below
     const control = useDialog();
     const locale = useLocale();
-    const rest = omit(properties, "showCloseButton", "style", "children");
+    const rest = omit(properties, "showCloseButton", "xstyle", "style", "children");
     let element: HTMLDialogElement | undefined;
 
     // show or close the dialog element as the state changes
@@ -266,9 +267,12 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
                         control.close();
                     }
                 }}
-                {...style.attrs(
-                    styles.content,
-                    control.isOpen() ? transition.enter : transition.exit,
+                {...style.attributes(
+                    [
+                        styles.content,
+                        control.isOpen() ? transition.enter : transition.exit,
+                        properties.xstyle,
+                    ],
                     properties.style,
                 )}
             >
@@ -280,7 +284,7 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
                         data-slot="dialog-close"
                         aria-label={locale.render(t`Close`)}
                         onClick={() => control.close()}
-                        style={styles.close}
+                        xstyle={styles.close}
                     >
                         <Icon name="x" />
                     </Button>
@@ -292,26 +296,26 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
 
 /** Render the top of a dialog that holds its title and description. */
 export function DialogHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="dialog-header"
             {...rest}
-            {...style.attrs(styles.header, properties.style)}
+            {...style.attributes([styles.header, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render the bottom row of a dialog that holds its actions. */
 export function DialogFooter(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="dialog-footer"
             {...rest}
-            {...style.attrs(styles.footer, properties.style)}
+            {...style.attributes([styles.footer, properties.xstyle], properties.style)}
         />
     );
 }
@@ -319,14 +323,17 @@ export function DialogFooter(properties: DialogElementProperties<HTMLDivElement>
 /** Render the title that names its dialog. */
 export function DialogTitle(properties: DialogElementProperties<HTMLHeadingElement>): JSX.Element {
     const control = useDialog();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <h2
             id={control.titleId}
             data-slot="dialog-title"
             {...rest}
-            {...style.attrs(text.headline, styles.title, properties.style)}
+            {...style.attributes(
+                [text.headline, styles.title, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -337,7 +344,7 @@ export function DialogDescription(
 ): JSX.Element {
     // describe the dialog for as long as the description renders
     const control = useDialog();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
     control.describe();
 
     return (
@@ -345,7 +352,10 @@ export function DialogDescription(
             id={control.descriptionId}
             data-slot="dialog-description"
             {...rest}
-            {...style.attrs(text.footnote, styles.description, properties.style)}
+            {...style.attributes(
+                [text.footnote, styles.description, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }

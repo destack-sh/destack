@@ -1,8 +1,9 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { merge, omit } from "solid-js";
+import { type JSX, merge, omit } from "@destack/view";
+import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 
 /** The variant of a badge that sets none. */
 const DEFAULTS: Required<Pick<BadgeProperties, "variant">> = { variant: "default" };
@@ -37,7 +38,10 @@ const variants = style.create({
     ghost: { color: color.foreground },
     link: {
         color: color.primary,
-        textDecoration: { default: "none", ":hover": "underline" },
+        textDecoration: {
+            default: "none",
+            ":hover": { default: null, [media.hover]: "underline" },
+        },
         textUnderlineOffset: "0.25em",
     },
 });
@@ -47,9 +51,11 @@ export type BadgeVariant = "default" | "secondary" | "destructive" | "outline" |
 
 /** The properties of a badge, the native span's attributes included. */
 export interface BadgeProperties
-    extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class" | "style">, BadgeStyleOptions {
+    extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class">, BadgeStyleOptions {
     /** The StyleX styles applied after the badge's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
+    /** Render another element with the badge's attributes, the native span by default. */
+    readonly render?: Render;
 }
 
 /** The variant of a badge's styles. */
@@ -65,15 +71,18 @@ export function badgeStyle(options: BadgeStyleOptions): style.Styles {
 
 /** Render a short label such as a status or count in a variant. */
 export function Badge(properties: BadgeProperties): JSX.Element {
+    // name the part and its variant over its styles
     const badge = merge(DEFAULTS, properties);
-    const rest = omit(badge, "variant", "style");
-
-    return (
-        <span
-            data-slot="badge"
-            data-variant={badge.variant}
-            {...rest}
-            {...style.attrs(badgeStyle(badge), badge.style)}
-        />
+    const rest = omit(badge, "variant", "xstyle", "style", "render");
+    const part: PartAttributes = merge(
+        {
+            "data-slot": "badge",
+            get "data-variant"() {
+                return badge.variant;
+            },
+        },
+        () => style.attributes([badgeStyle(badge), badge.xstyle], badge.style),
     );
+
+    return rendered(badge.render, part, rest, () => <span {...part} {...rest} />);
 }

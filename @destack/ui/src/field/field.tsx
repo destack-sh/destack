@@ -1,13 +1,12 @@
 import * as style from "@destack/style";
 import { color, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { children, createUniqueId, For, merge, omit, Show } from "solid-js";
+import { children, createUniqueId, For, type JSX, merge, omit, Show } from "@destack/view";
 import { Label, type LabelProperties } from "../label/index.ts";
-import { FieldContext, FieldControl, useField, type FieldValue } from "./control.ts";
+import { FieldContext, FieldControl, useFieldControl } from "./control.ts";
 import { Separator } from "../separator/index.ts";
 
-/** The width of a field group above which responsive fields lay out in a row, Tailwind's md container. */
+/** The width of a field group above which responsive fields lay out in a row. */
 const RESPONSIVE_QUERY = "@container field-group (min-width: 28rem)";
 
 /** The orientation of a field that sets none. */
@@ -124,10 +123,10 @@ export type FieldLegendVariant = "legend" | "label";
 /** The properties of an element of a field, the native element's attributes included. */
 export type FieldElementProperties<Target extends HTMLElement> = Omit<
     JSX.HTMLAttributes<Target>,
-    "class" | "style"
+    "class"
 > & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a field. */
@@ -138,8 +137,6 @@ export interface FieldProperties extends FieldElementProperties<HTMLDivElement> 
     readonly invalid?: boolean;
     /** Whether the field is disabled, which disables the control. */
     readonly disabled?: boolean;
-    /** The value its control shows and commits, such as an object field, the control's own by default. */
-    readonly value?: FieldValue;
 }
 
 /** The properties of a legend. */
@@ -156,13 +153,12 @@ export interface FieldErrorProperties extends FieldElementProperties<HTMLDivElem
 
 /** Render a field that connects its label, control, descriptions and errors. */
 export function Field(properties: FieldProperties): JSX.Element {
-    // share one control with the field's elements, showing the owner's value when it has one
+    // share one control with the field's elements
     const field = merge(DEFAULTS, properties);
-    const rest = omit(field, "orientation", "invalid", "disabled", "value", "style", "children");
+    const rest = omit(field, "orientation", "invalid", "disabled", "xstyle", "style", "children");
     const control = new FieldControl(
         () => field.invalid === true,
         () => field.disabled === true,
-        () => field.value,
     );
 
     return (
@@ -174,10 +170,13 @@ export function Field(properties: FieldProperties): JSX.Element {
                 data-invalid={control.isInvalid() ? "true" : undefined}
                 data-disabled={control.isDisabled() ? "true" : undefined}
                 {...rest}
-                {...style.attrs(
-                    styles.field,
-                    orientations[field.orientation],
-                    control.isInvalid() && styles.invalid,
+                {...style.attributes(
+                    [
+                        styles.field,
+                        orientations[field.orientation],
+                        control.isInvalid() && styles.invalid,
+                        field.xstyle,
+                    ],
                     field.style,
                 )}
             >
@@ -189,15 +188,15 @@ export function Field(properties: FieldProperties): JSX.Element {
 
 /** Render the label of the nearest field's control. */
 export function FieldLabel(properties: LabelProperties): JSX.Element {
-    const control = useField();
-    const rest = omit(properties, "style");
+    const control = useFieldControl();
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Label
             data-slot="field-label"
             for={control?.id}
             {...rest}
-            style={[control?.isDisabled() === true && styles.disabled, properties.style]}
+            xstyle={[control?.isDisabled() === true && styles.disabled, properties.xstyle]}
         />
     );
 }
@@ -208,15 +207,18 @@ export function FieldDescription(
 ): JSX.Element {
     // describe the field's control for as long as the description renders
     const id = createUniqueId();
-    const rest = omit(properties, "style");
-    useField()?.describe(id, () => true);
+    const rest = omit(properties, "xstyle", "style");
+    useFieldControl()?.describe(id, () => true);
 
     return (
         <p
             id={id}
             data-slot="field-description"
             {...rest}
-            {...style.attrs(text.footnote, styles.description, properties.style)}
+            {...style.attributes(
+                [text.footnote, styles.description, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -224,7 +226,7 @@ export function FieldDescription(
 /** Render the nearest field's errors as an alert, or nothing when there are none. */
 export function FieldError(properties: FieldErrorProperties): JSX.Element {
     // list the children, else each distinct error message
-    const rest = omit(properties, "errors", "style", "children");
+    const rest = omit(properties, "errors", "xstyle", "style", "children");
     const content = children(() => properties.children);
     const messages = (): string[] => [
         ...new Set(properties.errors?.flatMap((error) => error?.message ?? []) ?? []),
@@ -233,7 +235,7 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
     // describe the field's control while there is something to show
     const id = createUniqueId();
     const isShown = (): boolean => content.toArray().length > 0 || messages().length > 0;
-    useField()?.describe(id, isShown);
+    useFieldControl()?.describe(id, isShown);
 
     return (
         <Show when={isShown()}>
@@ -242,7 +244,10 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
                 role="alert"
                 data-slot="field-error"
                 {...rest}
-                {...style.attrs(text.footnote, styles.error, properties.style)}
+                {...style.attributes(
+                    [text.footnote, styles.error, properties.xstyle],
+                    properties.style,
+                )}
             >
                 <Show when={content.toArray().length === 0} fallback={content()}>
                     <Show when={messages().length > 1} fallback={messages()[0]}>
@@ -258,63 +263,77 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
 
 /** Render a fieldset that groups related fields. */
 export function FieldSet(properties: FieldElementProperties<HTMLFieldSetElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <fieldset data-slot="field-set" {...rest} {...style.attrs(styles.set, properties.style)} />
+        <fieldset
+            data-slot="field-set"
+            {...rest}
+            {...style.attributes([styles.set, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render the legend of a fieldset as a heading or a label. */
 export function FieldLegend(properties: FieldLegendProperties): JSX.Element {
     const legend = merge(LEGEND_DEFAULTS, properties);
-    const rest = omit(legend, "variant", "style");
+    const rest = omit(legend, "variant", "xstyle", "style");
 
     return (
         <legend
             data-slot="field-legend"
             data-variant={legend.variant}
             {...rest}
-            {...style.attrs(legends[legend.variant], styles.legend, legend.style)}
+            {...style.attributes(
+                [legends[legend.variant], styles.legend, legend.xstyle],
+                legend.style,
+            )}
         />
     );
 }
 
 /** Render a stack of fields that responsive fields measure their width against. */
 export function FieldGroup(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="field-group" {...rest} {...style.attrs(styles.group, properties.style)} />
+        <div
+            data-slot="field-group"
+            {...rest}
+            {...style.attributes([styles.group, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render a column beside a control that holds its label and description. */
 export function FieldContent(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="field-content"
             {...rest}
-            {...style.attrs(styles.content, properties.style)}
+            {...style.attributes([styles.content, properties.xstyle], properties.style)}
         />
     );
 }
 
 /** Render the title of a field as text instead of a label. */
 export function FieldTitle(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    const control = useField();
-    const rest = omit(properties, "style");
+    const control = useFieldControl();
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="field-label"
             {...rest}
-            {...style.attrs(
-                text.callout,
-                styles.title,
-                control?.isDisabled() === true && styles.disabled,
+            {...style.attributes(
+                [
+                    text.callout,
+                    styles.title,
+                    control?.isDisabled() === true && styles.disabled,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         />
@@ -323,7 +342,7 @@ export function FieldTitle(properties: FieldElementProperties<HTMLDivElement>): 
 
 /** Render a line between fields, with optional text in its middle. */
 export function FieldSeparator(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "style", "children");
+    const rest = omit(properties, "xstyle", "style", "children");
     const content = children(() => properties.children);
 
     return (
@@ -331,9 +350,12 @@ export function FieldSeparator(properties: FieldElementProperties<HTMLDivElement
             data-slot="field-separator"
             data-content={content.toArray().length > 0 ? "true" : "false"}
             {...rest}
-            {...style.attrs(text.footnote, styles.separator, properties.style)}
+            {...style.attributes(
+                [text.footnote, styles.separator, properties.xstyle],
+                properties.style,
+            )}
         >
-            <Separator style={styles.line} />
+            <Separator xstyle={styles.line} />
             <Show when={content.toArray().length > 0}>
                 <span data-slot="field-separator-content" {...style.attrs(styles.separatorContent)}>
                     {content()}

@@ -1,8 +1,7 @@
 import * as style from "@destack/style";
 import { color, size, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { createContext, merge, omit, useContext } from "solid-js";
+import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 
 /** The alignment of a message that sets none. */
 const DEFAULTS: Required<Pick<MessageProperties, "align">> = { align: "start" };
@@ -69,12 +68,9 @@ const MessageContext = createContext<() => MessageAlign>(() => "start");
 export type MessageAlign = "start" | "end";
 
 /** The properties of an element of a message, the native element's attributes included. */
-export type MessageElementProperties = Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> & {
+export type MessageElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a message, the native element's attributes included. */
@@ -85,17 +81,21 @@ export interface MessageProperties extends MessageElementProperties {
 
 /** Render consecutive messages stacked together. */
 export function MessageGroup(properties: MessageElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="message-group" {...rest} {...style.attrs(styles.group, properties.style)} />
+        <div
+            data-slot="message-group"
+            {...rest}
+            {...style.attributes([styles.group, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render a message in a conversation with its author's avatar beside its content. */
 export function Message(properties: MessageProperties): JSX.Element {
     const message = merge(DEFAULTS, properties);
-    const rest = omit(message, "align", "style");
+    const rest = omit(message, "align", "xstyle", "style");
 
     return (
         <MessageContext value={() => message.align}>
@@ -103,10 +103,13 @@ export function Message(properties: MessageProperties): JSX.Element {
                 data-slot="message"
                 data-align={message.align}
                 {...rest}
-                {...style.attrs(
-                    text.callout,
-                    styles.message,
-                    message.align === "end" && styles.end,
+                {...style.attributes(
+                    [
+                        text.callout,
+                        styles.message,
+                        message.align === "end" && styles.end,
+                        message.xstyle,
+                    ],
                     message.style,
                 )}
             />
@@ -116,13 +119,13 @@ export function Message(properties: MessageProperties): JSX.Element {
 
 /** Render the avatar of a message's author at the message's foot. */
 export function MessageAvatar(properties: MessageElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="message-avatar"
             {...rest}
-            {...style.attrs(styles.avatar, properties.style)}
+            {...style.attributes([styles.avatar, properties.xstyle], properties.style)}
         />
     );
 }
@@ -130,15 +133,14 @@ export function MessageAvatar(properties: MessageElementProperties): JSX.Element
 /** Render a message's bubbles, attachments and other content, aligned to its side. */
 export function MessageContent(properties: MessageElementProperties): JSX.Element {
     const align = useContext(MessageContext);
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="message-content"
             {...rest}
-            {...style.attrs(
-                styles.content,
-                align() === "end" && styles.contentEnd,
+            {...style.attributes(
+                [styles.content, align() === "end" && styles.contentEnd, properties.xstyle],
                 properties.style,
             )}
         />
@@ -147,13 +149,16 @@ export function MessageContent(properties: MessageElementProperties): JSX.Elemen
 
 /** Render the line above a message's content, such as its author's name. */
 export function MessageHeader(properties: MessageElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="message-header"
             {...rest}
-            {...style.attrs(text.caption, styles.caption, properties.style)}
+            {...style.attributes(
+                [text.caption, styles.caption, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -161,16 +166,19 @@ export function MessageHeader(properties: MessageElementProperties): JSX.Element
 /** Render the line below a message's content, such as when it was sent or read. */
 export function MessageFooter(properties: MessageElementProperties): JSX.Element {
     const align = useContext(MessageContext);
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="message-footer"
             {...rest}
-            {...style.attrs(
-                text.caption,
-                styles.caption,
-                align() === "end" && styles.captionEnd,
+            {...style.attributes(
+                [
+                    text.caption,
+                    styles.caption,
+                    align() === "end" && styles.captionEnd,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         />

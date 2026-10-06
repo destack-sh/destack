@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { createContext, useContext } from "solid-js";
+import { createContext, useContext } from "@destack/view";
 
 /** The orientation of the nearest group joining its controls, undefined outside one. */
 export const JoinContext = createContext<() => JoinOrientation | undefined>(() => undefined);

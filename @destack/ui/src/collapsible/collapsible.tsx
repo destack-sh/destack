@@ -1,42 +1,95 @@
 import * as style from "@destack/style";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
+import {
+    type Accessor,
+    createContext,
+    createControllableSignal,
+    type JSX,
+    omit,
+    useContext,
+} from "@destack/view";
+import { followToggle, refuseDisabled } from "../disclosure/index.ts";
+
+/** Whether the nearest collapsible is disabled, null outside one. */
+const CollapsibleContext = createContext<Accessor<boolean> | null>(null);
 
 /** The styles of a collapsible's trigger. */
 const styles = style.create({
     trigger: {
         listStyle: "none",
-        cursor: "pointer",
+        cursor: { default: "pointer", ":is([aria-disabled=true])": "not-allowed" },
         "::-webkit-details-marker": { display: "none" },
     },
 });
 
 /** The properties of an element of a collapsible, the native element's attributes included. */
-export type CollapsibleElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type CollapsibleElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
+};
+
+/** The properties of a collapsible, the native disclosure's attributes included. */
+export type CollapsibleProperties = CollapsibleElementProperties<
+    Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open" | "onToggle">
+> & {
+    /** Whether the content shows, which makes the state controlled. */
+    readonly open?: boolean | undefined;
+    /** Whether the content shows at first while uncontrolled. */
+    readonly defaultOpen?: boolean;
+    /** Handle the person showing or hiding the content. */
+    readonly onOpenChange?: (open: boolean) => void;
+    /** Whether the trigger ignores the person. */
+    readonly disabled?: boolean;
 };
 
 /** Render a native disclosure that shows and hides its content. */
-export function Collapsible(
-    properties: CollapsibleElementProperties<JSX.DetailsHtmlAttributes<HTMLDetailsElement>>,
-): JSX.Element {
-    const rest = omit(properties, "style");
+export function Collapsible(properties: CollapsibleProperties): JSX.Element {
+    // follow the controlled state or the collapsible's own
+    const rest = omit(
+        properties,
+        "open",
+        "defaultOpen",
+        "onOpenChange",
+        "disabled",
+        "xstyle",
+        "style",
+    );
+    const [isOpen, setOpen] = createControllableSignal({
+        isControlled: () => properties.open !== undefined,
+        value: () => properties.open === true,
+        defaultValue: properties.defaultOpen === true,
+        onChange: (open) => properties.onOpenChange?.(open),
+    });
 
-    return <details data-slot="collapsible" {...rest} {...style.attrs(properties.style)} />;
+    return (
+        <CollapsibleContext value={() => properties.disabled === true}>
+            <details
+                data-slot="collapsible"
+                data-disabled={properties.disabled === true ? "" : undefined}
+                open={isOpen()}
+                {...rest}
+                onToggle={(event) =>
+                    followToggle(event, isOpen, setOpen, properties.open !== undefined)
+                }
+                {...style.attributes([properties.xstyle], properties.style)}
+            />
+        </CollapsibleContext>
+    );
 }
 
 /** Render the summary that toggles its collapsible. */
 export function CollapsibleTrigger(
-    properties: CollapsibleElementProperties<JSX.HTMLAttributes<HTMLElement>>,
+    properties: CollapsibleElementProperties<Omit<JSX.HTMLAttributes<HTMLElement>, "ref">>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const isDisabled = useContext(CollapsibleContext) ?? (() => false);
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <summary
             data-slot="collapsible-trigger"
+            aria-disabled={isDisabled() ? "true" : undefined}
             {...rest}
-            {...style.attrs(styles.trigger, properties.style)}
+            ref={(element) => refuseDisabled(element, isDisabled)}
+            {...style.attributes([styles.trigger, properties.xstyle], properties.style)}
         />
     );
 }
@@ -45,7 +98,13 @@ export function CollapsibleTrigger(
 export function CollapsibleContent(
     properties: CollapsibleElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <div data-slot="collapsible-content" {...rest} {...style.attrs(properties.style)} />;
+    return (
+        <div
+            data-slot="collapsible-content"
+            {...rest}
+            {...style.attributes([properties.xstyle], properties.style)}
+        />
+    );
 }

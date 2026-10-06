@@ -4,18 +4,18 @@ import * as style from "@destack/style";
 import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
     createSignal,
     createUniqueId,
+    type JSX,
     omit,
     onCleanup,
+    type Setter,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+} from "@destack/view";
 import {
     Dialog,
     DialogContent,
@@ -258,21 +258,23 @@ export interface CommandListProperties {
 
 /** The properties of a command, the native element's attributes included. */
 export interface CommandProperties
-    extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style">, CommandListProperties {
+    extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class">, CommandListProperties {
     /** The StyleX styles applied after the command's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a command, the native element's attributes included. */
-export type CommandElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type CommandElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a command option. */
 export interface CommandItemProperties extends CommandElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onSelect" | "onClick" | "onPointerMove" | "ref">
 > {
+    /** The text the option stands for once chosen, its content by default. */
+    readonly textValue?: string;
     /** The text the search matches and the value chosen, the option's text by default. */
     readonly value?: string;
     /** Further words the search matches, such as synonyms. */
@@ -312,14 +314,17 @@ export function CommandProvider(properties: {
 /** Render a searchable list of commands, its search filtering them as the person types. */
 export function Command(properties: CommandProperties): JSX.Element {
     const control = new CommandControl(properties);
-    const rest = omit(properties, "shouldFilter", "value", "onValueChange", "style");
+    const rest = omit(properties, "shouldFilter", "value", "onValueChange", "xstyle", "style");
 
     return (
         <CommandProvider control={control}>
             <div
                 data-slot="command"
                 {...rest}
-                {...style.attrs(text.footnote, styles.command, properties.style)}
+                {...style.attributes(
+                    [text.footnote, styles.command, properties.xstyle],
+                    properties.style,
+                )}
             />
         </CommandProvider>
     );
@@ -332,7 +337,7 @@ export function CommandInput(
     >,
 ): JSX.Element {
     const control = useCommand();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div data-slot="command-input-wrapper" {...style.attrs(styles.search)}>
@@ -350,7 +355,10 @@ export function CommandInput(
                 value={control.search()}
                 onInput={(event) => control.type(event.currentTarget.value)}
                 onKeyDown={(event) => steer(event, control)}
-                {...style.attrs(text.callout, styles.input, properties.style)}
+                {...style.attributes(
+                    [text.callout, styles.input, properties.xstyle],
+                    properties.style,
+                )}
             />
         </div>
     );
@@ -361,7 +369,7 @@ export function CommandList(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useCommand();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
@@ -369,7 +377,7 @@ export function CommandList(
             role="listbox"
             data-slot="command-list"
             {...rest}
-            {...style.attrs(styles.list, properties.style)}
+            {...style.attributes([styles.list, properties.xstyle], properties.style)}
         />
     );
 }
@@ -379,7 +387,7 @@ export function CommandEmpty(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useCommand();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={control.shown().length === 0}>
@@ -387,9 +395,25 @@ export function CommandEmpty(
                 role="presentation"
                 data-slot="command-empty"
                 {...rest}
-                {...style.attrs(styles.empty, properties.style)}
+                {...style.attributes([styles.empty, properties.xstyle], properties.style)}
             />
         </Show>
+    );
+}
+
+/** Render the state of options the owner loads, announced as it changes. */
+export function CommandLoading(
+    properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
+): JSX.Element {
+    const rest = omit(properties, "xstyle", "style");
+
+    return (
+        <div
+            role="status"
+            data-slot="command-loading"
+            {...rest}
+            {...style.attributes([styles.empty, properties.xstyle], properties.style)}
+        />
     );
 }
 
@@ -402,7 +426,7 @@ export function CommandGroup(
     // name the group and hide it once none of its options match
     const control = useCommand();
     const id = createUniqueId();
-    const rest = omit(properties, "heading", "style", "children");
+    const rest = omit(properties, "heading", "xstyle", "style", "children");
     const isEmpty = (): boolean => !control.shown().some((option) => option.group === id);
 
     return (
@@ -413,7 +437,7 @@ export function CommandGroup(
                 hidden={isEmpty()}
                 data-slot="command-group"
                 {...rest}
-                {...style.attrs(properties.style)}
+                {...style.attributes([properties.xstyle], properties.style)}
             >
                 <Show when={"heading" in properties}>
                     <div
@@ -434,17 +458,31 @@ export function CommandGroup(
 export function CommandItem(properties: CommandItemProperties): JSX.Element {
     // join the list with the option's value, its text unless one is passed
     const control = useCommand();
-    const rest = omit(properties, "value", "keywords", "disabled", "onSelect", "style");
+    const rest = omit(
+        properties,
+        "value",
+        "textValue",
+        "keywords",
+        "disabled",
+        "onSelect",
+        "xstyle",
+        "style",
+    );
     let element: HTMLDivElement | undefined;
     const option: CommandOption = {
         id: createUniqueId(),
         group: useContext(CommandGroupContext),
         value: () => properties.value ?? element?.textContent?.trim() ?? "",
-        keywords: properties.keywords ?? [],
+        get keywords() {
+            return properties.keywords ?? [];
+        },
         isDisabled: () => properties.disabled === true,
         choose: () => {
             properties.onSelect?.(option.value());
-            control.onChoose?.(option.value(), element?.textContent?.trim() ?? option.value());
+            control.onChoose?.(
+                option.value(),
+                properties.textValue ?? element?.textContent?.trim() ?? option.value(),
+            );
         },
     };
     control.register(option);
@@ -458,6 +496,8 @@ export function CommandItem(properties: CommandItemProperties): JSX.Element {
             aria-disabled={properties.disabled === true ? "true" : undefined}
             hidden={!control.matches(option)}
             data-slot="command-item"
+            data-highlighted={isHighlighted() ? "" : undefined}
+            data-disabled={properties.disabled === true ? "" : undefined}
             {...rest}
             ref={(item) => (element = item)}
             onPointerDown={(event) => event.preventDefault()}
@@ -473,10 +513,13 @@ export function CommandItem(properties: CommandItemProperties): JSX.Element {
                     option.choose();
                 }
             }}
-            {...style.attrs(
-                styles.item,
-                isHighlighted() && styles.active,
-                properties.disabled === true && styles.disabled,
+            {...style.attributes(
+                [
+                    styles.item,
+                    isHighlighted() && styles.active,
+                    properties.disabled === true && styles.disabled,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         />
@@ -488,7 +531,7 @@ export function CommandSeparator(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useCommand();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={control.search() === ""}>
@@ -496,7 +539,7 @@ export function CommandSeparator(
                 role="separator"
                 data-slot="command-separator"
                 {...rest}
-                {...style.attrs(styles.separator, properties.style)}
+                {...style.attributes([styles.separator, properties.xstyle], properties.style)}
             />
         </Show>
     );
@@ -506,13 +549,16 @@ export function CommandSeparator(
 export function CommandShortcut(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <span
             data-slot="command-shortcut"
             {...rest}
-            {...style.attrs(text.caption, styles.shortcut, properties.style)}
+            {...style.attributes(
+                [text.caption, styles.shortcut, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -525,10 +571,10 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
     return (
         <Dialog {...rest}>
             <DialogContent showCloseButton={false}>
-                <DialogTitle style={styles.hidden}>
+                <DialogTitle xstyle={styles.hidden}>
                     {properties.title ?? locale.render(t`Command palette`)}
                 </DialogTitle>
-                <DialogDescription style={styles.hidden}>
+                <DialogDescription xstyle={styles.hidden}>
                     {properties.description ?? locale.render(t`Search for a command to run`)}
                 </DialogDescription>
                 <Command>{properties.children}</Command>

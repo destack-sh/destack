@@ -1,8 +1,8 @@
 import * as style from "@destack/style";
+import { groupMarker } from "./marker.stylex.ts";
 import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { merge, omit } from "solid-js";
+import { type JSX, merge, omit } from "@destack/view";
 import { JoinContext, useJoin } from "../join/index.ts";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
 
@@ -17,7 +17,7 @@ const styles = style.create({
         display: "flex",
         alignItems: "stretch",
         width: "fit-content",
-        gap: { default: 0, ":has(> [data-slot=button-group])": space[2] },
+        gap: { default: 0, [style.when.descendant("[data-slot]", groupMarker)]: space[2] },
     },
     text: {
         display: "flex",
@@ -54,12 +54,9 @@ const orientations = style.create({
 export type ButtonGroupOrientation = "horizontal" | "vertical";
 
 /** The properties of an element of a button group, the native element's attributes included. */
-export type ButtonGroupElementProperties = Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> & {
+export type ButtonGroupElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a button group, the native element's attributes included. */
@@ -71,7 +68,7 @@ export interface ButtonGroupProperties extends ButtonGroupElementProperties {
 /** Render buttons, inputs and selects joined into one control, or groups of them spaced apart. */
 export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
     const group = merge(DEFAULTS, properties);
-    const rest = omit(group, "orientation", "style");
+    const rest = omit(group, "orientation", "xstyle", "style");
 
     return (
         <JoinContext value={() => group.orientation}>
@@ -80,7 +77,10 @@ export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
                 data-orientation={group.orientation}
                 role="group"
                 {...rest}
-                {...style.attrs(styles.group, orientations[group.orientation], group.style)}
+                {...style.attributes(
+                    [styles.group, orientations[group.orientation], groupMarker, group.xstyle],
+                    group.style,
+                )}
             />
         </JoinContext>
     );
@@ -89,13 +89,16 @@ export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
 /** Render a label or icon joined to a group's buttons. */
 export function ButtonGroupText(properties: ButtonGroupElementProperties): JSX.Element {
     const join = useJoin();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="button-group-text"
             {...rest}
-            {...style.attrs(text.callout, styles.text, join(), properties.style)}
+            {...style.attributes(
+                [text.callout, styles.text, join(), properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
@@ -108,7 +111,7 @@ export function ButtonGroupSeparator(properties: SeparatorProperties): JSX.Eleme
         <Separator
             data-slot="button-group-separator"
             {...separator}
-            style={[styles.separator, separator.style]}
+            xstyle={[styles.separator, separator.xstyle]}
         />
     );
 }

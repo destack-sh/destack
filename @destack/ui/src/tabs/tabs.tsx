@@ -11,18 +11,20 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
+    createControllableSignal,
     createSignal,
     createUniqueId,
+    type JSX,
     merge,
     omit,
     onCleanup,
-    useContext,
-    type Accessor,
     type Setter,
-} from "solid-js";
+    useContext,
+} from "@destack/view";
+import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { itemsOf, moveFocus, type Orientation } from "../focus/index.ts";
 
 /** The orientation and activation of tabs that set neither. */
@@ -109,14 +111,14 @@ export class TabsControl {
     /** The properties of the tabs root, read for its controlled state and keyboard model. */
     readonly properties: Required<Pick<TabsProperties, "orientation" | "activationMode">> &
         TabsProperties;
+    /** The selected value, controlled or the root's own. */
+    readonly value: Accessor<string | undefined>;
     /** The values of the tabs in document order. */
     readonly values: Accessor<readonly string[]>;
     /** The prefix of every id of the tabs and panels. */
     readonly #prefix: string;
-    /** The selected value when uncontrolled. */
-    readonly #ownValue: Accessor<string | undefined>;
-    /** Replace the selected value when uncontrolled. */
-    readonly #setValue: Setter<string | undefined>;
+    /** Replace the selected value and tell the change handler. */
+    readonly #setValue: (value: string | undefined) => void;
     /** Replace the values of the tabs. */
     readonly #setValues: Setter<readonly string[]>;
 
@@ -126,19 +128,24 @@ export class TabsControl {
             TabsProperties,
     ) {
         // start from the default value with no tabs yet
-        const [ownValue, setValue] = createSignal(properties.defaultValue);
+        const [value, setValue] = createControllableSignal({
+            isControlled: () => properties.value !== undefined,
+            value: () => properties.value,
+            defaultValue: properties.defaultValue,
+            onChange: (next) => {
+                // tell the change handler of each selected tab
+                if (next !== undefined) {
+                    properties.onValueChange?.(next);
+                }
+            },
+        });
         const [values, setValues] = createSignal<readonly string[]>([], { ownedWrite: true });
         this.properties = properties;
+        this.value = value;
         this.values = values;
         this.#prefix = createUniqueId();
-        this.#ownValue = ownValue;
         this.#setValue = setValue;
         this.#setValues = setValues;
-    }
-
-    /** Read the selected value, controlled or the root's own. */
-    value(): string | undefined {
-        return this.properties.value ?? this.#ownValue();
     }
 
     /** Add a tab's value until the tab unmounts. */
@@ -150,7 +157,6 @@ export class TabsControl {
     /** Select a tab and tell the change handler. */
     select(value: string): void {
         this.#setValue(value);
-        this.properties.onValueChange?.(value);
     }
 
     /** Report whether a tab takes the tab stop: the selected one, else the first. */
@@ -170,10 +176,7 @@ export class TabsControl {
 }
 
 /** The properties of a tabs root, the native element's attributes included. */
-export interface TabsProperties extends Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> {
+export interface TabsProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The selected tab's value, which makes the selection controlled. */
     readonly value?: string;
     /** The tab selected at first when the selection is uncontrolled. */
@@ -185,13 +188,13 @@ export interface TabsProperties extends Omit<
     /** Whether focusing a tab selects it or Enter and Space do, automatic by default. */
     readonly activationMode?: TabsActivationMode;
     /** The StyleX styles applied after the root's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a set of tabs, the native element's attributes included. */
-export type TabsElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type TabsElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a tab or a tab's panel. */
@@ -221,6 +224,7 @@ export function Tabs(properties: TabsProperties): JSX.Element {
         "onValueChange",
         "orientation",
         "activationMode",
+        "xstyle",
         "style",
     );
     const control = new TabsControl(tabs);
@@ -231,7 +235,10 @@ export function Tabs(properties: TabsProperties): JSX.Element {
                 data-slot="tabs"
                 data-orientation={tabs.orientation}
                 {...rest}
-                {...style.attrs(styles.tabs, orientations[tabs.orientation], tabs.style)}
+                {...style.attributes(
+                    [styles.tabs, orientations[tabs.orientation], tabs.xstyle],
+                    tabs.style,
+                )}
             />
         </TabsContext>
     );
@@ -244,7 +251,7 @@ export function TabsList(
     // move the focus among the list's tabs, selecting them when activation is automatic
     const control = useTabs();
     const locale = useLocale();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
     const move = (event: KeyboardEvent & { readonly currentTarget: HTMLDivElement }) => {
         // move among the list's tabs
         const tabs = itemsOf(event.currentTarget, "[role=tab]");
@@ -262,42 +269,63 @@ export function TabsList(
             aria-orientation={control.properties.orientation}
             {...rest}
             onKeyDown={move}
-            {...style.attrs(styles.list, lists[control.properties.orientation], properties.style)}
-        />
-    );
-}
-
-/** Render a tab that selects its panel on click, or on focus when activation is automatic. */
-export function TabsTrigger(
-    properties: TabsValueProperties<Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "onClick">>,
-): JSX.Element {
-    // join the tabs and read whether this one is selected
-    const control = useTabs();
-    control.register(properties.value);
-    const rest = omit(properties, "value", "style");
-    const isSelected = (): boolean => control.value() === properties.value;
-
-    return (
-        <button
-            type="button"
-            role="tab"
-            id={control.tabId(properties.value)}
-            aria-controls={control.panelId(properties.value)}
-            aria-selected={isSelected() ? "true" : "false"}
-            tabindex={control.isTabStop(properties.value) ? 0 : -1}
-            data-slot="tabs-trigger"
-            data-state={isSelected() ? "active" : "inactive"}
-            data-value={properties.value}
-            {...rest}
-            onClick={() => control.select(properties.value)}
-            {...style.attrs(
-                text.footnote,
-                styles.trigger,
-                isSelected() && styles.selected,
+            {...style.attributes(
+                [styles.list, lists[control.properties.orientation], properties.xstyle],
                 properties.style,
             )}
         />
     );
+}
+
+/** The properties of a tab, the native button's attributes included. */
+export type TabsTriggerProperties = TabsValueProperties<
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "onClick">
+> & {
+    /** Render another element with the tab's attributes, the native button by default. */
+    readonly render?: Render;
+};
+
+/** Render a tab that selects its panel on click, or on focus when activation is automatic. */
+export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
+    // join the tabs and read whether this one is selected
+    const control = useTabs();
+    control.register(properties.value);
+    const rest = omit(properties, "value", "xstyle", "style", "render");
+    const isSelected = (): boolean => control.value() === properties.value;
+    const part: PartAttributes = merge(
+        {
+            role: "tab" as const,
+            get id() {
+                return control.tabId(properties.value);
+            },
+            get "aria-controls"() {
+                return control.panelId(properties.value);
+            },
+            get "aria-selected"() {
+                return isSelected() ? "true" : "false";
+            },
+            get tabindex() {
+                return control.isTabStop(properties.value) ? 0 : -1;
+            },
+            "data-slot": "tabs-trigger",
+            get "data-state"() {
+                return isSelected() ? "active" : "inactive";
+            },
+            get "data-value"() {
+                return properties.value;
+            },
+            onClick: () => control.select(properties.value),
+        },
+        () =>
+            style.attributes(
+                [text.footnote, styles.trigger, isSelected() && styles.selected, properties.xstyle],
+                properties.style,
+            ),
+    );
+
+    return rendered(properties.render, part, rest, () => (
+        <button type="button" {...part} {...rest} />
+    ));
 }
 
 /** Render the panel of a tab, hidden while another tab is selected. */
@@ -305,7 +333,7 @@ export function TabsContent(
     properties: TabsValueProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useTabs();
-    const rest = omit(properties, "value", "style");
+    const rest = omit(properties, "value", "xstyle", "style");
 
     return (
         <div
@@ -316,7 +344,7 @@ export function TabsContent(
             hidden={control.value() !== properties.value}
             data-slot="tabs-content"
             {...rest}
-            {...style.attrs(styles.content, properties.style)}
+            {...style.attributes([styles.content, properties.xstyle], properties.style)}
         />
     );
 }

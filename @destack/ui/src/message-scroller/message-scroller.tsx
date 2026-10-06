@@ -3,17 +3,17 @@ import { t } from "@destack/locale";
 import { useLocale } from "@destack/locale/solid";
 import * as style from "@destack/style";
 import { color, motion, space } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
     createSignal,
+    type JSX,
     merge,
     omit,
     onSettled,
-    useContext,
-    type Accessor,
     type Setter,
-} from "solid-js";
+    useContext,
+} from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 
 /** The distance from an edge, in pixels, that still counts as at the edge. */
@@ -159,12 +159,9 @@ export class MessageScrollerControl {
 }
 
 /** The properties of an element of a message scroller, the native element's attributes included. */
-export type MessageScrollerElementProperties = Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "style"
-> & {
+export type MessageScrollerElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of a message scroller's button, a secondary small icon button by default. */
@@ -176,14 +173,14 @@ export interface MessageScrollerButtonProperties extends ButtonProperties {
 /** Render a conversation's scrolling frame, which follows new messages while it rests at the newest. */
 export function MessageScroller(properties: MessageScrollerElementProperties): JSX.Element {
     const control = new MessageScrollerControl();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <MessageScrollerContext value={control}>
             <div
                 data-slot="message-scroller"
                 {...rest}
-                {...style.attrs(styles.scroller, properties.style)}
+                {...style.attributes([styles.scroller, properties.xstyle], properties.style)}
             />
         </MessageScrollerContext>
     );
@@ -193,7 +190,7 @@ export function MessageScroller(properties: MessageScrollerElementProperties): J
 export function MessageScrollerViewport(properties: MessageScrollerElementProperties): JSX.Element {
     // read the scroller and keep the viewport and its content for it
     const control = useMessageScroller();
-    const rest = omit(properties, "style", "children");
+    const rest = omit(properties, "xstyle", "style", "children");
     let viewport: HTMLDivElement | undefined;
     let content: HTMLDivElement | undefined;
 
@@ -211,7 +208,7 @@ export function MessageScrollerViewport(properties: MessageScrollerElementProper
             {...rest}
             ref={(element) => (viewport = element)}
             onScroll={() => control.measure()}
-            {...style.attrs(styles.viewport, properties.style)}
+            {...style.attributes([styles.viewport, properties.xstyle], properties.style)}
         >
             <div ref={(element) => (content = element)} {...style.attrs(styles.content)}>
                 {properties.children}
@@ -222,13 +219,13 @@ export function MessageScrollerViewport(properties: MessageScrollerElementProper
 
 /** Render one entry of a conversation, which the browser skips rendering while it is off screen. */
 export function MessageScrollerItem(properties: MessageScrollerElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="message-scroller-item"
             {...rest}
-            {...style.attrs(styles.item, properties.style)}
+            {...style.attributes([styles.item, properties.xstyle], properties.style)}
         />
     );
 }
@@ -239,7 +236,7 @@ export function MessageScrollerButton(properties: MessageScrollerButtonPropertie
     const control = useMessageScroller();
     const locale = useLocale();
     const button = merge(BUTTON_DEFAULTS, properties);
-    const rest = omit(button, "direction", "style", "children");
+    const rest = omit(button, "direction", "xstyle", "style", "children");
     const isAtEdge = (): boolean =>
         button.direction === "end" ? control.isAtEnd() : control.isAtStart();
 
@@ -255,11 +252,11 @@ export function MessageScrollerButton(properties: MessageScrollerButtonPropertie
             inert={isAtEdge()}
             {...rest}
             onClick={() => control.scrollTo(button.direction)}
-            style={[
+            xstyle={[
                 styles.button,
                 styles[button.direction],
                 isAtEdge() && styles.hidden,
-                button.style,
+                button.xstyle,
             ]}
         >
             {button.children ?? (

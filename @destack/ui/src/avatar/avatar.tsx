@@ -1,17 +1,17 @@
 import * as style from "@destack/style";
 import { color, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
 import {
+    type Accessor,
     createContext,
     createSignal,
+    type JSX,
     merge,
     omit,
+    type Setter,
     Show,
     useContext,
-    type Accessor,
-    type Setter,
-} from "solid-js";
+} from "@destack/view";
 
 /** The size of an avatar that sets none. */
 const DEFAULTS: Required<Pick<AvatarProperties, "size">> = { size: "default" };
@@ -110,9 +110,9 @@ interface AvatarImageState {
 export type AvatarSize = "sm" | "default" | "lg";
 
 /** The properties of an element of an avatar, the native element's attributes included. */
-export type AvatarElementProperties<Attributes> = Omit<Attributes, "class" | "style"> & {
+export type AvatarElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of an avatar, the native element's attributes included. */
@@ -135,7 +135,7 @@ export interface AvatarImageProperties extends AvatarElementProperties<
 export function Avatar(properties: AvatarProperties): JSX.Element {
     // overlap the avatar in a group and start with its image loading
     const avatar = merge(DEFAULTS, properties);
-    const rest = omit(avatar, "size", "style");
+    const rest = omit(avatar, "size", "xstyle", "style");
     const isGrouped = useContext(AvatarGroupContext);
     const [status, setStatus] = createSignal<AvatarImageStatus>("loading", { ownedWrite: true });
 
@@ -145,10 +145,8 @@ export function Avatar(properties: AvatarProperties): JSX.Element {
                 data-slot="avatar"
                 data-size={avatar.size}
                 {...rest}
-                {...style.attrs(
-                    styles.avatar,
-                    sizes[avatar.size],
-                    isGrouped && styles.grouped,
+                {...style.attributes(
+                    [styles.avatar, sizes[avatar.size], isGrouped && styles.grouped, avatar.xstyle],
                     avatar.style,
                 )}
             />
@@ -160,7 +158,7 @@ export function Avatar(properties: AvatarProperties): JSX.Element {
 export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
     // read the avatar the image reports to
     const state = useAvatar();
-    const rest = omit(properties, "style", "onStatusChange");
+    const rest = omit(properties, "xstyle", "style", "onStatusChange");
 
     // report the image's status to the avatar and its owner
     const report = (status: AvatarImageStatus): void => {
@@ -175,9 +173,12 @@ export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
                 {...rest}
                 onLoad={() => report("loaded")}
                 onError={() => report("error")}
-                {...style.attrs(
-                    styles.image,
-                    state.status() === "loading" && styles.loading,
+                {...style.attributes(
+                    [
+                        styles.image,
+                        state.status() === "loading" && styles.loading,
+                        properties.xstyle,
+                    ],
                     properties.style,
                 )}
             />
@@ -190,14 +191,17 @@ export function AvatarFallback(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
     const state = useAvatar();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={state.status() !== "loaded"}>
             <span
                 data-slot="avatar-fallback"
                 {...rest}
-                {...style.attrs(text.footnote, styles.fallback, properties.style)}
+                {...style.attributes(
+                    [text.footnote, styles.fallback, properties.xstyle],
+                    properties.style,
+                )}
             />
         </Show>
     );
@@ -207,10 +211,14 @@ export function AvatarFallback(
 export function AvatarBadge(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <span data-slot="avatar-badge" {...rest} {...style.attrs(styles.badge, properties.style)} />
+        <span
+            data-slot="avatar-badge"
+            {...rest}
+            {...style.attributes([styles.badge, properties.xstyle], properties.style)}
+        />
     );
 }
 
@@ -218,14 +226,14 @@ export function AvatarBadge(
 export function AvatarGroup(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <AvatarGroupContext value={true}>
             <div
                 data-slot="avatar-group"
                 {...rest}
-                {...style.attrs(styles.group, properties.style)}
+                {...style.attributes([styles.group, properties.xstyle], properties.style)}
             />
         </AvatarGroupContext>
     );
@@ -235,13 +243,16 @@ export function AvatarGroup(
 export function AvatarGroupCount(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="avatar-group-count"
             {...rest}
-            {...style.attrs(text.footnote, styles.count, properties.style)}
+            {...style.attributes(
+                [text.footnote, styles.count, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }

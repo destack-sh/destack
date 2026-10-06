@@ -2,11 +2,10 @@ import { Icon } from "@destack/icon";
 import { type Localization, plural, t } from "@destack/locale";
 import type { PlainDate } from "@destack/schema";
 import * as style from "@destack/style";
-import { color, size, weight } from "@destack/theme/tokens.stylex";
+import { color, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
-import type { JSX } from "@solidjs/web";
-import { createSignal, createUniqueId, Show } from "solid-js";
-import type { ButtonVariant } from "../button/index.ts";
+import { createControllableSignal, createUniqueId, For, type JSX, Show } from "@destack/view";
+import { Button, type ButtonVariant } from "../button/index.ts";
 import {
     Calendar,
     Day,
@@ -29,8 +28,21 @@ const styles = style.create({
         color: color.mutedForeground,
     },
     content: {
+        display: "flex",
         width: "auto",
         padding: 0,
+    },
+    presets: {
+        display: "flex",
+        flexDirection: "column",
+        gap: space[1],
+        padding: space[3],
+        borderInlineEndStyle: "solid",
+        borderInlineEndWidth: stroke.border,
+        borderInlineEndColor: color.border,
+    },
+    preset: {
+        justifyContent: "flex-start",
     },
 });
 
@@ -44,6 +56,16 @@ export interface DatePickerLook {
     readonly variant?: ButtonVariant;
     /** The name of the trigger, such as the field it fills, which the chosen days follow in its accessible name. */
     readonly "aria-label"?: string;
+    /** The choices offered beside the calendar, such as today or the next seven days. */
+    readonly presets?: readonly DatePickerPreset[];
+}
+
+/** A choice a date picker offers beside its calendar. */
+export interface DatePickerPreset {
+    /** The choice's name, such as "Next 7 days". */
+    readonly label: string;
+    /** The days it chooses, in the picker's mode. */
+    readonly value: CalendarValue;
 }
 
 /** The properties of a date picker: its look and the selection of its calendar's mode. */
@@ -62,13 +84,16 @@ export function DatePicker(properties: DatePickerProperties): JSX.Element {
 function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
     // read the popover and the chosen days
     const popover = usePopover();
-    const [ownValue, setValue] = createSignal<CalendarValue>(properties.defaultValue);
-    const value = (): CalendarValue => ("value" in properties ? properties.value : ownValue());
+    const [value, setValue] = createControllableSignal<CalendarValue>({
+        isControlled: () => "value" in properties,
+        value: () => properties.value,
+        defaultValue: properties.defaultValue,
+        onChange: (next) => report(properties, next),
+    });
 
     // keep and report a choice, closing the popover once it is complete
     const change = (next: CalendarValue, isComplete: boolean) => {
         setValue(next);
-        report(properties, next);
         if (isComplete) {
             popover.close();
         }
@@ -88,8 +113,30 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
                             ?.focus();
                     }
                 }}
-                style={styles.content}
+                xstyle={styles.content}
             >
+                <Show when={properties.presets}>
+                    {(presets) => (
+                        <div
+                            role="group"
+                            data-slot="date-picker-presets"
+                            {...style.attrs(styles.presets)}
+                        >
+                            <For each={presets()}>
+                                {(preset) => (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        xstyle={styles.preset}
+                                        onClick={() => change(preset.value, true)}
+                                    >
+                                        {preset.label}
+                                    </Button>
+                                )}
+                            </For>
+                        </div>
+                    )}
+                </Show>
                 <Calendar
                     {...selectionOf(properties.mode, value(), change)}
                     isDisabled={properties.isDisabled ?? (() => false)}
@@ -118,7 +165,7 @@ function DatePickerTrigger(properties: {
             }
             aria-haspopup="dialog"
             data-slot="date-picker-trigger"
-            style={[styles.trigger, properties.value === undefined && styles.placeholder]}
+            xstyle={[styles.trigger, properties.value === undefined && styles.placeholder]}
         >
             {/* Name and chosen days */}
             <Icon name="calendar-blank" />

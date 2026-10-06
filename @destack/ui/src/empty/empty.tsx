@@ -1,14 +1,10 @@
 import * as style from "@destack/style";
-import { color, radius, size, space, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, weight, width } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import type { JSX } from "@solidjs/web";
-import { merge, omit } from "solid-js";
+import { type JSX, merge, omit } from "@destack/view";
 
 /** The variant of an empty state's media that sets none. */
 const DEFAULTS: Required<Pick<EmptyMediaProperties, "variant">> = { variant: "default" };
-
-/** The widest an empty state's header and content grow, Tailwind's sm width. */
-const CONTENT_WIDTH = "24rem";
 
 /** The styles of an empty state and its elements. */
 const styles = style.create({
@@ -30,7 +26,7 @@ const styles = style.create({
         flexDirection: "column",
         alignItems: "center",
         gap: space[2],
-        maxWidth: CONTENT_WIDTH,
+        maxWidth: width.prose,
         textAlign: "center",
     },
     media: {
@@ -53,7 +49,7 @@ const styles = style.create({
         gap: space[4],
         width: "100%",
         minWidth: 0,
-        maxWidth: CONTENT_WIDTH,
+        maxWidth: width.prose,
         textWrap: "balance",
     },
 });
@@ -74,9 +70,9 @@ const medias = style.create({
 export type EmptyMediaVariant = "default" | "icon";
 
 /** The properties of an element of an empty state, the native element's attributes included. */
-export type EmptyElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style"> & {
+export type EmptyElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the element's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 };
 
 /** The properties of an empty state's media, the native element's attributes included. */
@@ -87,70 +83,89 @@ export interface EmptyMediaProperties extends EmptyElementProperties {
 
 /** Render what a list, search or page shows when it has nothing yet, with the actions that fill it. */
 export function Empty(properties: EmptyElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
-    return <div data-slot="empty" {...rest} {...style.attrs(styles.empty, properties.style)} />;
+    return (
+        <div
+            data-slot="empty"
+            {...rest}
+            {...style.attributes([styles.empty, properties.xstyle], properties.style)}
+        />
+    );
 }
 
 /** Render the top of an empty state that holds its media, title and description. */
 export function EmptyHeader(properties: EmptyElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
-        <div data-slot="empty-header" {...rest} {...style.attrs(styles.header, properties.style)} />
+        <div
+            data-slot="empty-header"
+            {...rest}
+            {...style.attributes([styles.header, properties.xstyle], properties.style)}
+        />
     );
 }
 
 /** Render an empty state's icon, avatar or picture. */
 export function EmptyMedia(properties: EmptyMediaProperties): JSX.Element {
     const media = merge(DEFAULTS, properties);
-    const rest = omit(media, "variant", "style");
+    const rest = omit(media, "variant", "xstyle", "style");
 
     return (
         <div
             data-slot="empty-media"
             data-variant={media.variant}
             {...rest}
-            {...style.attrs(styles.media, medias[media.variant], media.style)}
+            {...style.attributes([styles.media, medias[media.variant], media.xstyle], media.style)}
         />
     );
 }
 
 /** Render the title of an empty state. */
 export function EmptyTitle(properties: EmptyElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="empty-title"
             {...rest}
-            {...style.attrs(text.headline, styles.title, properties.style)}
+            {...style.attributes(
+                [text.headline, styles.title, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
 
 /** Render the description under an empty state's title. */
 export function EmptyDescription(properties: EmptyElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="empty-description"
             {...rest}
-            {...style.attrs(text.footnote, styles.description, properties.style)}
+            {...style.attributes(
+                [text.footnote, styles.description, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }
 
 /** Render the actions and links under an empty state's header. */
 export function EmptyContent(properties: EmptyElementProperties): JSX.Element {
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="empty-content"
             {...rest}
-            {...style.attrs(text.footnote, styles.content, properties.style)}
+            {...style.attributes(
+                [text.footnote, styles.content, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }

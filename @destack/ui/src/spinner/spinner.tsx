@@ -3,8 +3,7 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { motion } from "@destack/theme/tokens.stylex";
 import { useLocale } from "@destack/locale/solid";
-import type { JSX } from "@solidjs/web";
-import { omit } from "solid-js";
+import { type JSX, omit } from "@destack/view";
 
 /** The full turn a spinner repeats. */
 const spin = style.keyframes({
@@ -25,18 +24,15 @@ const styles = style.create({
 });
 
 /** The properties of a spinner, the native element's attributes included. */
-export interface SpinnerProperties extends Omit<
-    JSX.HTMLAttributes<HTMLSpanElement>,
-    "class" | "style"
-> {
+export interface SpinnerProperties extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> {
     /** The StyleX styles applied after the spinner's styles. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
 }
 
 /** Render a turning indicator that announces a loading state. */
 export function Spinner(properties: SpinnerProperties): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "style");
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <span
@@ -44,7 +40,7 @@ export function Spinner(properties: SpinnerProperties): JSX.Element {
             role="status"
             aria-label={locale.render(t`Loading`)}
             {...rest}
-            {...style.attrs(styles.spinner, properties.style)}
+            {...style.attributes([styles.spinner, properties.xstyle], properties.style)}
         >
             <Icon name="circle-notch" />
         </span>
