@@ -8,6 +8,7 @@ export {
     isDev,
     isServer,
     Portal,
+    renderToString,
 } from "@solidjs/web";
 export type {
     ArrayElement,

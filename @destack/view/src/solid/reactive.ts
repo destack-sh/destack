@@ -43,7 +43,8 @@ export {
     until,
     untrack,
 } from "solid-js";
-export { ContextNotFoundError, NoOwnerError } from "@destack/signals";
+export { ContextNotFoundError, createControllableSignal, NoOwnerError } from "@destack/signals";
+export type { ControllableValue } from "@destack/signals";
 export type {
     Accessor,
     ArrayFilterFn,
