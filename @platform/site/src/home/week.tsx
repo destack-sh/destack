@@ -5,16 +5,17 @@ import type { JSX } from "@destack/view";
 import { plate } from "../style/plate.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Fade } from "./fade";
+import { Glyph } from "./glyph";
 import type { Stagger } from "./stagger";
 import { Tile } from "./tile";
 
-/** The engine's services the week view runs on, numbered as its parts mark them: reading, writing back, repeating and changing. */
+/** The engine's services the week view runs on, numbered as the view marks them: reading, writing back, repeating and changing. */
 export const services: readonly string[] = ["Database", "Access", "Workflows", "Forge"];
 
 /** One event on the week: its title, its time, the objects it links to, and whether the agent just moved it. */
 type Event = readonly [title: string, time: string, links?: string | undefined, isMoved?: boolean];
 
-/** The days of the week in both states: the date, the events on it while rented and once owned, and when Kai is free once owned. */
+/** The days of the week in both states: the date, the events on it while rented and once owned, and when Friend is free once owned. */
 const days: readonly (readonly [
     day: string,
     stacked: readonly Event[],
@@ -26,12 +27,12 @@ const days: readonly (readonly [
     [
         "Wed 22",
         [
-            ["Demo with Kai", "11:00", undefined, true],
-            ["Lunch with Ada", "12:30"],
+            ["Demo with a friend", "11:00", undefined, true],
+            ["Lunch", "12:30"],
         ],
         [
-            ["Demo with Kai", "11:00", "LCH-14 · 1 page", true],
-            ["Lunch with Ada", "12:30"],
+            ["Demo with a friend", "11:00", "LCH-14 · 1 page", true],
+            ["Lunch", "12:30"],
         ],
     ],
     ["Thu 23", [["Waitlist invites", "09:00"]], [["Waitlist invites", "09:00", "LCH-16"]], "13–16"],
@@ -48,69 +49,22 @@ const tasks: readonly (readonly [title: string, due: string])[] = [
     ["Email the waitlist", "Fri 24"],
 ];
 
-/** What moving the demo touches in each app: the app, the change, the chore it leaves while rented, and the connector that makes it while rented, if any. */
-const ripple: readonly (readonly [app: string, done: string, chore: string, connector?: string])[] =
-    [
-        ["calendar", "Demo → Wed 11:00", "Move demo", "calendar"],
-        ["tasks", "LCH-14 → Wed 22", "Update LCH-14", "linear"],
-        ["pages", "Launch plan → Wed", "Edit launch plan"],
-        ["pages", "Replied to Kai", "Reply to Kai"],
-    ];
+/** What moving the demo touches: the change, the chore it leaves while rented, and the connector that makes it while rented, if any. */
+const ripple: readonly (readonly [done: string, chore: string, connector?: string])[] = [
+    ["Demo → Wed 11:00", "Move demo", "calendar"],
+    ["LCH-14 → Wed 22", "Update LCH-14", "linear"],
+    ["Launch plan → Wed", "Edit launch plan"],
+    ["Replied to your friend", "Reply to your friend"],
+];
 
 /** The threads waiting on you: who, the app it came from, and what they asked. */
-const waiting: readonly (readonly [person: "Kai" | "Ada", app: string, text: string])[] = [
-    ["Kai", "pages", "Can we move the demo to Wednesday?"],
-    ["Ada", "mail", "Is pricing-v4.pdf final?"],
+const waiting: readonly (readonly [person: "Friend" | "Me", app: string, text: string])[] = [
+    ["Friend", "pages", "Can we move the demo to Wednesday?"],
+    ["Friend", "mail", "Is pricing-v4.pdf final?"],
 ];
 
 /** The tint of each person's avatar. */
-const tints = { Kai: "#5b7f2e", Ada: "#6b5ca5" } as const;
-
-/** The strokes of each glyph the chat and the app draw, on a 24-unit grid. */
-const glyphs = {
-    copy: ["M8 8h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z", "M4 16V4a1 1 0 0 1 1-1h11"],
-    like: [
-        "M7 10v11",
-        "M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.6l-2.3 8a2 2 0 0 1-1.9 1.4H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.8a2 2 0 0 0 1.8-1.1L12 2a3.1 3.1 0 0 1 3 3.9Z",
-    ],
-    dislike: [
-        "M17 14V3",
-        "M9 18.1 10 14H4.2a2 2 0 0 1-1.9-2.6l2.3-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.8a2 2 0 0 0-1.8 1.1L12 22a3.1 3.1 0 0 1-3-3.9Z",
-    ],
-    share: ["M12 3v12", "m8 7 4-4 4 4", "M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"],
-    plus: ["M12 5v14", "M5 12h14"],
-    microphone: [
-        "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z",
-        "M19 10v2a7 7 0 0 1-14 0v-2",
-        "M12 19v3",
-    ],
-    up: ["M12 19V5", "m5 12 7-7 7 7"],
-    next: ["m9 18 6-6-6-6"],
-    previous: ["m15 18-6-6 6-6"],
-    down: ["m6 9 6 6 6-6"],
-    check: ["M20 6 9 17l-5-5"],
-    open: ["M7 17 17 7", "M7 7h10v10"],
-} as const;
-
-/** Draw a glyph in the current colour. */
-function Glyph(properties: { name: keyof typeof glyphs }) {
-    return (
-        <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            {...stylex.attrs(styles.glyph)}
-        >
-            {glyphs[properties.name].map((path) => (
-                <path d={path} />
-            ))}
-        </svg>
-    );
-}
+const tints = { Friend: "#5b7f2e", Me: "#2f7d8c" };
 
 /** Draw a message of yours as a rounded pill on the right. */
 function UserMessage(properties: { children: JSX.Element }) {
@@ -127,21 +81,32 @@ function Reply(properties: { time: string; children: JSX.Element }) {
         <div data-component="AssistantMessage" {...stylex.attrs(styles.reply)}>
             <p data-component="WorkSummary" {...stylex.attrs(styles.worked)}>
                 Worked for {properties.time}
-                <Glyph name="next" />
+                <Glyph size={15} name="forward" />
             </p>
             <div {...stylex.attrs(styles.replyText)}>{properties.children}</div>
             <p data-component="MessageActions" {...stylex.attrs(styles.actions)}>
-                <Glyph name="copy" />
-                <Glyph name="like" />
-                <Glyph name="dislike" />
-                <Glyph name="share" />
+                <Glyph size={15} name="copy" />
+                <Glyph size={15} name="like" />
+                <Glyph size={15} name="dislike" />
+                <Glyph size={15} name="share" />
             </p>
         </div>
     );
 }
 
+/** Say what you can do with a thread: open it in the vendor's app while rented, or answer it here once destacked. */
+function actionOf(app: string, isOpen: boolean) {
+    if (!isOpen) {
+        return "Open in Gmail ↗";
+    } else if (app === "pages") {
+        return "✓ Moved to Wed";
+    }
+
+    return "Reply here";
+}
+
 /** Draw a person's initial on their round avatar. */
-function Avatar(properties: { person: "Kai" | "Ada" }) {
+function Avatar(properties: { person: "Friend" | "Me" }) {
     return (
         <span
             data-component="Avatar"
@@ -153,24 +118,11 @@ function Avatar(properties: { person: "Kai" | "Ada" }) {
     );
 }
 
-/** Draw a connector the chat reads an app through. */
-function Connector(properties: { icon: string; name: string }) {
-    return (
-        <span data-component="Connector" {...stylex.attrs(styles.connector)}>
-            <span
-                style={{ "mask-image": `url(/diagram/${properties.icon}.svg)` }}
-                {...stylex.attrs(styles.mask)}
-            />
-            {properties.name}
-        </span>
-    );
-}
-
 /**
  * Draw a week view made by asking in one chat, with the conversation on the left and the view on the right.
  *
  * While rented, the view is a chat artifact: a snapshot of what the chat's connectors return, changed through each connector, with its schedule in the chat.
- * Once owned, the view is an app in your space: one live query over the objects every app shares, changing them all at once, with its schedule beside your apps.
+ * Once owned, the same chat builds an app in your space through Destack: one live query over the objects every app shares, changing them all at once, with its schedule beside your apps.
  */
 export function WeekApp(properties: { isOpenAt: Stagger }) {
     return (
@@ -178,7 +130,8 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
             <Fade
                 isOpen={properties.isOpenAt(0)}
                 style={styles.conversation}
-                component={properties.isOpenAt(0) ? "AgentChat" : "Chat"}
+                isLarge
+                component={properties.isOpenAt(0) ? "ConnectedChat" : "Chat"}
             >
                 <div {...stylex.attrs(styles.thread)}>
                     <p data-component="Timestamp" {...stylex.attrs(styles.date)}>
@@ -191,8 +144,9 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                     {properties.isOpenAt(0) ? (
                         <Reply time="31s">
                             <p {...stylex.attrs(styles.paragraph)}>
-                                Built <b {...stylex.attrs(styles.strong)}>My week</b> in your space.
-                                It reads <code {...stylex.attrs(styles.code)}>Event</code>,{" "}
+                                Built <b {...stylex.attrs(styles.strong)}>My week</b> in your
+                                Destack space. It reads{" "}
+                                <code {...stylex.attrs(styles.code)}>Event</code>,{" "}
                                 <code {...stylex.attrs(styles.code)}>Task</code> and{" "}
                                 <code {...stylex.attrs(styles.code)}>Thread</code> from your apps,
                                 so it stays current.
@@ -201,9 +155,9 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                     ) : (
                         <Reply time="52s">
                             <p {...stylex.attrs(styles.paragraph)}>
-                                Here's <b {...stylex.attrs(styles.strong)}>My week</b>, built from
-                                your Google Calendar, Linear and Gmail connectors as of 09:14. Ask
-                                me to refresh it.
+                                Here's <b {...stylex.attrs(styles.strong)}>My week</b> as an
+                                artifact. It's a snapshot from 09:14, so ask me to regenerate it
+                                when things change.
                             </p>
                         </Reply>
                     )}
@@ -211,25 +165,24 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                         Today 16:32
                     </p>
                     <UserMessage>
-                        Kai wants the demo on Wednesday. Move it, keep everything in sync, and send
-                        me a summary on Fridays.
+                        Your friend wants the demo on Wednesday. Move it, keep everything in sync,
+                        and send me a summary on Fridays.
                     </UserMessage>
                     {properties.isOpenAt(0) ? (
                         <Reply time="48s">
                             <p {...stylex.attrs(styles.paragraph)}>
-                                Moved <b {...stylex.attrs(styles.strong)}>Demo with Kai</b> to Wed
-                                11:00. That also moved{" "}
+                                Moved <b {...stylex.attrs(styles.strong)}>Demo with a friend</b> to
+                                Wed 11:00. That also moved{" "}
                                 <code {...stylex.attrs(styles.code)}>LCH-14</code>, the launch
-                                plan's date and your reply to Kai. Your summary arrives Fridays at
-                                17:00.
+                                plan's date and your reply to your friend. Your summary arrives
+                                Fridays at 17:00.
                             </p>
                         </Reply>
                     ) : (
                         <Reply time="1m 04s">
                             <p {...stylex.attrs(styles.paragraph)}>
-                                Moved the event in Google Calendar and{" "}
-                                <code {...stylex.attrs(styles.code)}>LCH-14</code> in Linear. Pages
-                                has no connector, so edit the launch plan and reply to Kai there.
+                                Moved the demo. I regenerated the artifact to show it, so your
+                                checked-off tasks and notes from Monday are gone.
                             </p>
                             <p data-service="3" {...stylex.attrs(styles.paragraph)}>
                                 Your summary is scheduled here for Fridays at 17:00.
@@ -237,61 +190,64 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                         </Reply>
                     )}
                     <UserMessage>
-                        Also show Kai's free slots next to mine, so I can pick times myself.
+                        Also show your friend's free slots next to mine, so I can pick times myself.
                     </UserMessage>
                     {properties.isOpenAt(0) ? (
                         <Reply time="1m 12s">
                             <p {...stylex.attrs(styles.paragraph)}>
-                                Kai shares free and busy times with you, so I added his free slots
-                                to each day on{" "}
-                                <code {...stylex.attrs(styles.code)}>kai-free-slots</code>. Preview
-                                it, then merge.
+                                Your friend shares their free and busy times with you in Destack, so
+                                I added their free slots on{" "}
+                                <code {...stylex.attrs(styles.code)}>friend-free-slots</code>.
+                                Preview it, then merge.
                             </p>
                         </Reply>
                     ) : (
                         <Reply time="1m 31s">
                             <p {...stylex.attrs(styles.paragraph)}>
-                                Kai's calendar isn't one of your connectors. Paste his free times
-                                and I'll add them. This is{" "}
-                                <b {...stylex.attrs(styles.strong)}>version 4</b>, so the layout is
-                                rebuilt.
+                                I can't edit this artifact in place, only rebuild it. Here's{" "}
+                                <b {...stylex.attrs(styles.strong)}>version 4</b>, with a new
+                                layout. Paste your friend's free times and I'll rebuild it again.
                             </p>
                         </Reply>
                     )}
                 </div>
                 <div data-component="Composer" {...stylex.attrs(styles.composer)}>
-                    <span {...stylex.attrs(styles.quiet)}>
-                        {properties.isOpenAt(0) ? "Ask your agent" : "Ask anything"}
-                    </span>
+                    <span {...stylex.attrs(styles.quiet)}>Ask anything</span>
                     <span {...stylex.attrs(styles.controls)}>
                         <span {...stylex.attrs(styles.iconButton)}>
-                            <Glyph name="plus" />
+                            <Glyph size={15} name="plus" />
                         </span>
                         {properties.isOpenAt(0) ? (
                             <span data-component="AgentScope" {...stylex.attrs(styles.chip)}>
                                 <Tile name="calendar" />
                                 <Tile name="tasks" />
-                                <Tile name="mail" />3 apps
+                                <Tile name="mail" />
+                                Your space · live
                             </span>
-                        ) : undefined}
+                        ) : (
+                            <span data-component="ConnectorScope" {...stylex.attrs(styles.chip)}>
+                                3 connectors · as of 09:14
+                            </span>
+                        )}
                         <span
                             data-component="ModelPicker"
                             {...stylex.attrs(styles.picker, styles.pushed)}
                         >
                             Thinking
-                            <Glyph name="down" />
+                            <Glyph size={15} name="caret" />
                         </span>
                         <span {...stylex.attrs(styles.iconButton)}>
-                            <Glyph name="microphone" />
+                            <Glyph size={15} name="microphone" />
                         </span>
                         <span {...stylex.attrs(styles.send)}>
-                            <Glyph name="up" />
+                            <Glyph size={15} name="up" />
                         </span>
                     </span>
                 </div>
             </Fade>
             <div
                 data-component={properties.isOpenAt(5) ? "SpaceApp" : "Artifact"}
+                data-artifact={properties.isOpenAt(0) ? undefined : ""}
                 {...stylex.attrs(styles.pane)}
             >
                 <Fade isOpen={properties.isOpenAt(4)} style={styles.bar} component="ArtifactHeader">
@@ -300,7 +256,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                     </span>
                     {properties.isOpenAt(4) ? (
                         <span data-service="4" {...stylex.attrs(plate.plate)}>
-                            kai-free-slots
+                            friend-free-slots
                         </span>
                     ) : (
                         <span
@@ -309,24 +265,18 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                             {...stylex.attrs(styles.picker)}
                         >
                             v4
-                            <Glyph name="down" />
+                            <Glyph size={15} name="caret" />
                         </span>
                     )}
-                    <span
-                        data-component={properties.isOpenAt(4) ? "ObjectList" : "ConnectorCount"}
-                        data-service="1"
-                        {...stylex.attrs(styles.sourcesNote)}
-                    >
-                        {properties.isOpenAt(4) ? (
-                            <>
-                                Reads <code {...stylex.attrs(styles.code)}>Event</code>,{" "}
-                                <code {...stylex.attrs(styles.code)}>Task</code> and{" "}
-                                <code {...stylex.attrs(styles.code)}>Thread</code>
-                            </>
-                        ) : (
-                            "From 3 connectors"
-                        )}
-                    </span>
+                    {properties.isOpenAt(4) ? undefined : (
+                        <span
+                            data-component="ConnectorCount"
+                            data-service="1"
+                            {...stylex.attrs(styles.sourcesNote)}
+                        >
+                            Frozen at v4
+                        </span>
+                    )}
                     <span {...stylex.attrs(styles.end)}>
                         {properties.isOpenAt(4) ? (
                             <span
@@ -336,12 +286,12 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                             >
                                 <span
                                     data-component="EditAppButton"
-                                    {...stylex.attrs(styles.button, styles.wide)}
+                                    {...stylex.attrs(styles.tab, styles.wide)}
                                 >
                                     Edit app
                                 </span>
-                                <span {...stylex.attrs(styles.button, styles.wide)}>Preview</span>
-                                <span {...stylex.attrs(styles.button, styles.primary)}>Merge</span>
+                                <span {...stylex.attrs(styles.tab, styles.wide)}>Preview</span>
+                                <span {...stylex.attrs(styles.button, styles.dark)}>Merge</span>
                             </span>
                         ) : (
                             <>
@@ -353,13 +303,13 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                     <span {...stylex.attrs(styles.tab)}>Code</span>
                                 </span>
                                 <span {...stylex.attrs(styles.iconButton, styles.wide)}>
-                                    <Glyph name="copy" />
+                                    <Glyph size={15} name="copy" />
                                 </span>
                                 <span
-                                    data-component="PublishButton"
+                                    data-component="RegenerateButton"
                                     {...stylex.attrs(styles.button, styles.dark)}
                                 >
-                                    Publish
+                                    ↻ Regenerate
                                 </span>
                             </>
                         )}
@@ -368,9 +318,9 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                 <div data-component="WeekView" {...stylex.attrs(styles.body)}>
                     <div data-component="Toolbar" {...stylex.attrs(styles.toolbar)}>
                         <span data-component="WeekPicker" {...stylex.attrs(styles.week)}>
-                            <Glyph name="previous" />
+                            <Glyph size={15} name="back" />
                             20 – 24 October
-                            <Glyph name="next" />
+                            <Glyph size={15} name="forward" />
                         </span>
                         <Fade
                             isOpen={properties.isOpenAt(1)}
@@ -380,14 +330,13 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                             {properties.isOpenAt(1) ? (
                                 <span data-service="1" {...stylex.attrs(styles.live)}>
                                     <span {...stylex.attrs(styles.dot)} />
-                                    Calendar, Tasks, Mail · live
+                                    Live · built from your space's standard parts
                                 </span>
                             ) : (
                                 <span data-service="1" {...stylex.attrs(styles.connectors)}>
-                                    <Connector icon="calendar" name="Google Calendar" />
-                                    <Connector icon="linear" name="Linear" />
-                                    <Connector icon="mail" name="Gmail" />
-                                    <span {...stylex.attrs(styles.snapshot)}>as of 16:40</span>
+                                    <span {...stylex.attrs(styles.snapshot)}>
+                                        Snapshot from 16:40 · version 4 of 4
+                                    </span>
                                 </span>
                             )}
                         </Fade>
@@ -410,7 +359,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                 >
                                     {day}
                                 </span>
-                                <Fade isOpen={properties.isOpenAt(1)} style={styles.events}>
+                                <Fade isOpen={properties.isOpenAt(1)} style={styles.events} isLarge>
                                     {(properties.isOpenAt(1) ? destacked : stacked).map(
                                         ([title, time, links, isMoved]) => (
                                             <span
@@ -441,7 +390,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                             data-service="4"
                                             {...stylex.attrs(styles.free)}
                                         >
-                                            <b {...stylex.attrs(styles.eventTitle)}>Kai free</b>
+                                            <b {...stylex.attrs(styles.eventTitle)}>Friend free</b>
                                             <span {...stylex.attrs(styles.eventTime)}>
                                                 {kaiFree}
                                             </span>
@@ -521,32 +470,34 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                             <Fade
                                 isOpen={properties.isOpenAt(2)}
                                 style={styles.threads}
+                                isLarge
                                 component={properties.isOpenAt(2) ? "Threads" : "ConnectedThreads"}
                             >
                                 {waiting
                                     .filter(([, app]) => properties.isOpenAt(2) || app === "mail")
                                     .map(([person, app, text]) => (
-                                        <p
+                                        <div
                                             data-component="ThreadRow"
                                             data-service="2"
-                                            {...stylex.attrs(styles.row)}
+                                            {...stylex.attrs(styles.waitingRow)}
                                         >
-                                            <Avatar person={person} />
-                                            <b {...stylex.attrs(styles.strong)}>{person}</b>
-                                            <span {...stylex.attrs(styles.quiet, styles.clip)}>
-                                                {text}
-                                            </span>
-                                            <span {...stylex.attrs(styles.source)}>
+                                            <span {...stylex.attrs(styles.threadHead)}>
+                                                <Avatar person={person} />
+                                                <b {...stylex.attrs(styles.strong)}>{person}</b>
                                                 <Tile name={app} />
+                                                <span {...stylex.attrs(styles.threadAction)}>
+                                                    {actionOf(app, properties.isOpenAt(2))}
+                                                </span>
                                             </span>
-                                        </p>
+                                            <span {...stylex.attrs(styles.threadText)}>{text}</span>
+                                        </div>
                                     ))}
                                 {properties.isOpenAt(2) ? undefined : (
                                     <p
                                         data-service="1"
                                         {...stylex.attrs(styles.row, styles.absent)}
                                     >
-                                        Pages has no connector
+                                        Changes rebuild the whole view
                                     </p>
                                 )}
                             </Fade>
@@ -566,7 +517,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                 </span>
                             </p>
                             <Fade isOpen={properties.isOpenAt(2)} style={styles.stack}>
-                                {ripple.map(([app, done, chore, connector]) => (
+                                {ripple.map(([done, chore, connector]) => (
                                     <p
                                         data-component={
                                             properties.isOpenAt(2)
@@ -580,12 +531,11 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                     >
                                         {properties.isOpenAt(2) ? (
                                             <>
-                                                <Tile name={app} />
                                                 <span {...stylex.attrs(styles.rowTitle)}>
                                                     {done}
                                                 </span>
                                                 <span {...stylex.attrs(styles.passed)}>
-                                                    <Glyph name="check" />
+                                                    <Glyph size={15} name="check" />
                                                 </span>
                                             </>
                                         ) : connector === undefined ? (
@@ -598,7 +548,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                                 </span>
                                                 <span {...stylex.attrs(styles.opens)}>
                                                     Pages
-                                                    <Glyph name="open" />
+                                                    <Glyph size={15} name="open" />
                                                 </span>
                                             </>
                                         ) : (
@@ -613,7 +563,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                                     {done}
                                                 </span>
                                                 <span {...stylex.attrs(styles.quiet)}>
-                                                    <Glyph name="check" />
+                                                    <Glyph size={15} name="check" />
                                                 </span>
                                             </>
                                         )}
@@ -639,11 +589,6 @@ const styles = stylex.create({
         },
         height: "100%",
         minHeight: 0,
-    },
-    glyph: {
-        flexShrink: 0,
-        height: "0.9375rem",
-        width: "0.9375rem",
     },
     mask: {
         backgroundColor: "currentColor",
@@ -734,7 +679,7 @@ const styles = stylex.create({
         display: "grid",
         gap: "0.625rem",
         gridTemplateColumns: "minmax(0, 1fr)",
-        marginTop: "1.25rem",
+        marginTop: "2rem",
         padding: "0.75rem 0.5rem 0.5rem 1rem",
     },
     controls: {
@@ -868,21 +813,15 @@ const styles = stylex.create({
         paddingInline: "0.625rem",
         whiteSpace: "nowrap",
     },
-    primary: {
-        backgroundColor: tokens.signal,
-        borderColor: tokens.signal,
-        color: tokens.signalInk,
-    },
     dark: {
         backgroundColor: color.foreground,
         borderColor: color.foreground,
         color: color.background,
     },
     body: {
-        alignContent: "start",
         display: "grid",
         gap: "1.25rem",
-        gridTemplateRows: "auto auto minmax(10rem, 1fr)",
+        gridTemplateRows: "auto minmax(0, 1fr) minmax(0, 1.1fr)",
         maskImage: "linear-gradient(to bottom, #000 calc(100% - 1.5rem), transparent)",
         minHeight: 0,
         overflow: "hidden",
@@ -925,19 +864,6 @@ const styles = stylex.create({
         display: "flex",
         gap: "0.375rem",
     },
-    connector: {
-        alignItems: "center",
-        borderColor: tokens.rule,
-        borderRadius: "6px",
-        borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        display: "inline-flex",
-        fontSize: "0.72rem",
-        gap: "0.3125rem",
-        paddingBlock: "0.125rem",
-        paddingInline: "0.5rem",
-        whiteSpace: "nowrap",
-    },
     snapshot: {
         color: color.mutedForeground,
         fontSize: "0.72rem",
@@ -953,8 +879,10 @@ const styles = stylex.create({
             default: "repeat(5, minmax(0, 1fr))",
             "@media (max-width: 767px)": "repeat(3, minmax(0, 1fr))",
         },
+        gridTemplateRows: "auto minmax(0, 1fr)",
         listStyle: "none",
         margin: 0,
+        minHeight: 0,
         overflow: "hidden",
         padding: 0,
     },
@@ -964,7 +892,7 @@ const styles = stylex.create({
         borderRightStyle: "solid",
         borderRightWidth: { default: tokens.hairline, ":last-child": 0 },
         display: "grid",
-        minHeight: "8.9375rem",
+        minHeight: 0,
         minWidth: 0,
     },
     today: {
@@ -1020,10 +948,11 @@ const styles = stylex.create({
     },
     columns: {
         alignItems: "stretch",
+        minHeight: 0,
         display: "grid",
         gap: "0.75rem",
         gridTemplateColumns: {
-            default: "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr)",
+            default: "minmax(0, 1.1fr) minmax(0, 1.15fr) minmax(0, 0.95fr)",
             "@media (max-width: 767px)": "minmax(0, 1fr)",
         },
     },
@@ -1043,11 +972,6 @@ const styles = stylex.create({
     absent: {
         color: color.mutedForeground,
         fontWeight: 500,
-    },
-    source: {
-        display: "flex",
-        flexShrink: 0,
-        marginLeft: "auto",
     },
     passed: {
         color: "#3c8f58",
@@ -1093,7 +1017,7 @@ const styles = stylex.create({
         fontSize: "0.75rem",
         fontWeight: 600,
         gap: "0.5rem",
-        height: "2.25rem",
+        height: "2rem",
         margin: 0,
         paddingInline: "0.75rem",
         whiteSpace: "nowrap",
@@ -1118,17 +1042,43 @@ const styles = stylex.create({
         display: "grid",
     },
     free: {
-        backgroundImage:
-            "repeating-linear-gradient(135deg, rgb(60 143 88 / 12%) 0 4px, transparent 4px 8px)",
-        borderLeftColor: "#3c8f58",
+        backgroundColor: "rgb(60 143 88 / 7%)",
+        borderLeftColor: "rgb(60 143 88 / 55%)",
         borderLeftStyle: "solid",
-        borderLeftWidth: "3px",
+        borderLeftWidth: "2px",
         borderRadius: "4px",
         color: "#3c8f58",
         display: "grid",
         minWidth: 0,
         paddingBlock: "0.25rem",
         paddingInline: "0.375rem",
+    },
+    waitingRow: {
+        borderBottomColor: tokens.rule,
+        borderBottomStyle: "solid",
+        borderBottomWidth: { default: tokens.hairline, ":last-child": 0 },
+        display: "grid",
+        gap: "0.25rem",
+        minWidth: 0,
+        padding: "0.5rem 0.75rem",
+    },
+    threadHead: {
+        minWidth: 0,
+        alignItems: "center",
+        display: "flex",
+        gap: "0.5rem",
+    },
+    threadText: {
+        color: color.foreground,
+        fontSize: "0.78rem",
+        lineHeight: 1.4,
+    },
+    threadAction: {
+        marginLeft: "auto",
+        whiteSpace: "nowrap",
+        color: color.mutedForeground,
+        fontSize: "0.72rem",
+        fontWeight: 600,
     },
     row: {
         alignItems: "center",
@@ -1138,9 +1088,9 @@ const styles = stylex.create({
         display: "flex",
         gap: "0.5rem",
         margin: 0,
-        minHeight: "2.375rem",
+        minHeight: "2.125rem",
         minWidth: 0,
-        paddingBlock: "0.3125rem",
+        paddingBlock: "0.1875rem",
         paddingInline: "0.75rem",
     },
     box: {
@@ -1159,14 +1109,6 @@ const styles = stylex.create({
     rowTitle: {
         flexGrow: 1,
         fontWeight: 600,
-        minWidth: 0,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
-    clip: {
-        flexGrow: 1,
-        flexShrink: 1,
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",

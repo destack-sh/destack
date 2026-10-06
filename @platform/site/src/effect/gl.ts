@@ -315,10 +315,11 @@ function createProgram(context: WebGLRenderingContext, fragmentSource: string): 
     const program = context.createProgram();
 
     // compile both stages, failing loudly on driver errors
-    for (const [kind, source] of [
+    const stages: readonly (readonly [kind: number, source: string])[] = [
         [context.VERTEX_SHADER, vertexSource],
         [context.FRAGMENT_SHADER, fragmentSource],
-    ] as const) {
+    ];
+    for (const [kind, source] of stages) {
         const shader = context.createShader(kind);
         if (shader === null) {
             throw new Error("could not create shader");

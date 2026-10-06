@@ -1,7 +1,9 @@
+import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createSignal } from "@destack/view";
 
 import { lattice } from "../style/lattice.stylex";
+import { tokens } from "../style/tokens.stylex";
 import { Entry, FigureLabel, type Form } from "./entry";
 import { Fade } from "./fade";
 import { Inspector } from "./inspector";
@@ -9,7 +11,7 @@ import { Label } from "./label";
 import { Ledger } from "./ledger";
 import { Tile } from "./tile";
 import { PagesApp, services } from "./page";
-import { createStagger } from "./stagger";
+import { createSteps } from "./stagger";
 import { StackSwitch } from "./switch";
 import { Window } from "./window";
 
@@ -25,10 +27,10 @@ const noun: Form = {
     pronunciation: "/ˈdiːstak/",
     partOfSpeech: "noun",
     sense: {
-        definition: "a complete software engine, absurdly integrated",
+        definition: "a complete, absurdly integrated software engine",
         highlight: ["complete", "integrated"],
         sentence:
-            "One open software engine with every library and service your apps need, fully standardised.",
+            "Auth, secrets, workflows, sync and more – everything serious software needs, already included.",
     },
 };
 
@@ -44,7 +46,17 @@ export function Noun(properties: { isOpen: boolean }) {
     };
 
     // switch the app's parts and the ledger's rows in service order before the rest
-    const isOpenAt = createStagger(() => properties.isOpen, services.length + 1, stepTime);
+    const steps = createSteps(() => properties.isOpen, services.length + 1, stepTime);
+    const isOpenAt = steps.isOpenAt;
+
+    // count the services still rented, which a row's switch changes one at a time
+    const rented = () => services.filter((_, index) => !isOpenAt(index + 1)).length;
+
+    // destack or rent one service alone, flipping its parts in as the stack switch does
+    const toggle = (row: number) => {
+        document.documentElement.dataset["switched"] = "";
+        steps.toggle(row);
+    };
 
     return (
         <section
@@ -57,11 +69,18 @@ export function Noun(properties: { isOpen: boolean }) {
             )}
         >
             <Entry form={noun} />
-            <FigureLabel number={2} title="A modern docs app and what it runs on">
+            <FigureLabel
+                number={4}
+                title={
+                    properties.isOpen
+                        ? "one app, on one engine"
+                        : "one app, wired to twelve vendors"
+                }
+            >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>Pages, with the launch plan open</Label>
+                <Label>Pages, the launch plan</Label>
                 <Window
                     title={
                         <span {...stylex.attrs(styles.title)}>
@@ -72,7 +91,7 @@ export function Noun(properties: { isOpen: boolean }) {
                     style={styles.window}
                 >
                     <Inspector
-                        isOpen={isOpenAt(services.length + 1)}
+                        isOpenAt={isOpenAt}
                         lighting={lighting}
                         services={services.map((service) => service.destacked.name)}
                     >
@@ -81,27 +100,66 @@ export function Noun(properties: { isOpen: boolean }) {
                 </Window>
             </div>
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.key)}>
-                <Fade isOpen={isOpenAt(0)}>
-                    <Label>
-                        {isOpenAt(0) ? "One software engine" : "Rented and glued together"}
-                    </Label>
-                </Fade>
+                <div {...stylex.attrs(styles.keyHead)}>
+                    <Fade isOpen={rented() === 0}>
+                        <Label>{keyOf(rented())}</Label>
+                    </Fade>
+                    <span {...stylex.attrs(styles.hint)}>Click a row to destack it</span>
+                </div>
                 <Ledger
                     entries={services}
-                    total={{
-                        stacked: ["12 vendors", "12 accounts · 12 bills"],
-                        destacked: ["1 engine", "1 account · 1 bill"],
-                    }}
+                    total={totalOf(rented())}
                     lighting={lighting}
                     isOpenAt={isOpenAt}
+                    onToggle={toggle}
                 />
             </div>
         </section>
     );
 }
 
+/** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
+function keyOf(rented: number) {
+    if (rented === services.length) {
+        return "Twelve vendors, wired together";
+    } else if (rented === 0) {
+        return "One software engine";
+    }
+
+    return "Some vendors, some engine";
+}
+
+/** Total the vendors, accounts and invoices behind the services still rented and the engine behind the rest. */
+function totalOf(rented: number): readonly [label: string, value: string] {
+    // count the engine once any service runs on it
+    const hasEngine = rented < services.length;
+    const accounts = rented + (hasEngine ? 1 : 0);
+    const vendors = rented === 0 ? "" : `${rented} ${rented === 1 ? "vendor" : "vendors"}`;
+    const label = [vendors, hasEngine ? "1 engine" : ""].filter((part) => part !== "").join(" + ");
+
+    return [
+        label,
+        `${accounts} ${accounts === 1 ? "account" : "accounts"} · ${accounts} ${accounts === 1 ? "invoice" : "invoices"}`,
+    ];
+}
+
 /** The noun section styles. */
 const styles = stylex.create({
+    keyHead: {
+        alignItems: "baseline",
+        display: "flex",
+        gap: "1rem",
+        justifyContent: "space-between",
+    },
+    hint: {
+        color: color.mutedForeground,
+        fontFamily: tokens.monoFont,
+        fontSize: "0.6875rem",
+        letterSpacing: "0.04em",
+        opacity: 0.7,
+        whiteSpace: "nowrap",
+        [narrow]: { display: "none" },
+    },
     section: {
         gridTemplateRows: "auto auto minmax(0, 1fr)",
         [narrow]: { gridTemplateRows: "auto" },

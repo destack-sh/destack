@@ -5,7 +5,7 @@ import { Entry, FigureLabel, type Form } from "./entry";
 import { services, WeekApp } from "./week";
 import { Inspector } from "./inspector";
 import { Label } from "./label";
-import { createStagger } from "./stagger";
+import { createSteps } from "./stagger";
 import { StackSwitch } from "./switch";
 import { Window } from "./window";
 
@@ -21,16 +21,16 @@ const destackable: Form = {
     pronunciation: "/diːˈstakəbl/",
     partOfSpeech: "adjective",
     sense: {
-        definition: "malleable, just-in-time software you can trust",
-        highlight: ["malleable", "just-in-time"],
-        sentence: "Made your way, yours to change, yours to keep, and built to trust.",
+        definition: "malleable, standardised, and built to trust",
+        highlight: ["malleable", "standardised"],
+        sentence: "Every app made from the same standard parts, so you can remix by just… asking.",
     },
 };
 
 /** Show the adjective at work: the same request answered as a chat artifact kept up by hand, or as an app in your space that works with the rest of it. */
 export function Adjective(properties: { isOpen: boolean }) {
     // switch the chat first and then the app's parts in service order
-    const isOpenAt = createStagger(() => properties.isOpen, services.length + 1, stepTime);
+    const { isOpenAt } = createSteps(() => properties.isOpen, services.length + 1, stepTime);
 
     return (
         <section
@@ -43,20 +43,23 @@ export function Adjective(properties: { isOpen: boolean }) {
             )}
         >
             <Entry form={destackable} />
-            <FigureLabel number={3} title="An app made by asking">
+            <FigureLabel
+                number={3}
+                title={
+                    properties.isOpen
+                        ? "an app you asked for, and can keep remixing"
+                        : "an app you can only regenerate, not (really) change"
+                }
+            >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>My week, built and changed in one chat</Label>
+                <Label>My week, in a chat</Label>
                 <Window
-                    title={
-                        <span {...stylex.attrs(styles.title)}>
-                            {isOpenAt(0) ? "Destack" : "Chat"}
-                        </span>
-                    }
+                    title={<span {...stylex.attrs(styles.title)}>Chat</span>}
                     style={styles.window}
                 >
-                    <Inspector isOpen={isOpenAt(services.length + 1)} services={services}>
+                    <Inspector isOpenAt={isOpenAt} services={services}>
                         <WeekApp isOpenAt={isOpenAt} />
                     </Inspector>
                 </Window>

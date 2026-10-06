@@ -4,6 +4,7 @@ import type { JSX } from "@destack/view";
 
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
+import { Fade } from "./fade";
 
 /** One sense of a form: its definition, the passages underlined in it, and the phrase under it. */
 type Sense = {
@@ -70,13 +71,15 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
     );
 }
 
-/** Label the figure under an entry with its number and title, as a reference book does. */
+/** Label the figure under an entry with its number and a usage example of the word, as a dictionary does. */
 export function FigureLabel(properties: { number: number; title: string; children?: JSX.Element }) {
     return (
         <div {...stylex.attrs(lattice.cell, styles.label)}>
-            <span>
+            <span {...stylex.attrs(styles.caption)}>
                 <span {...stylex.attrs(styles.figure)}>Fig. {properties.number}</span>
-                {properties.title}
+                <Fade isOpen={false} turn={properties.title} style={styles.title}>
+                    {properties.title}
+                </Fade>
             </span>
             <span {...stylex.attrs(styles.labelControl)}>{properties.children}</span>
         </div>
@@ -129,6 +132,13 @@ const styles = stylex.create({
         paddingInline: tokens.inset,
         rowGap: "0.75rem",
         "@media (max-width: 767px)": { paddingBlock: "2.5rem 1.75rem" },
+    },
+    title: {
+        display: "inline-block",
+    },
+    caption: {
+        alignItems: "baseline",
+        display: "flex",
     },
     label: {
         alignItems: "center",

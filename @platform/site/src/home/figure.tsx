@@ -3,10 +3,9 @@ import { present } from "@destack/schema";
 import * as stylex from "@destack/style";
 import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/view";
 
-import { Debris } from "../effect/debris";
 import { isDarkPage, isWeakGraphics } from "../effect/gl";
 import { charge } from "../effect/goo";
-import { type Bob, crackTime, Ice } from "../effect/ice";
+import { type Bob, Ice } from "../effect/ice";
 import { Sparks } from "../effect/sparks";
 import {
     nightWater,
@@ -33,7 +32,6 @@ import {
     rowCells,
 } from "./board";
 import { Flotsam } from "./flotsam";
-import { orbitOf } from "../site/mark";
 import { Remix, sceneSources, scenes, slotApps, todayScenes, usesOf } from "./remix";
 import { telemetry } from "@destack/telemetry";
 import { log } from "../site/telemetry.ts";
@@ -89,12 +87,11 @@ type Count = {
 const layers: readonly Layer[] = [
     {
         name: "Users",
-        claim: { today: "Bargain for entry", destack: "Bring everyone" },
+        claim: { today: "Juggle logins", destack: "Bring everyone in" },
         detail: { today: "Their accounts", destack: "One account, Every agent" },
         item: {
-            today: ({ people, vendors }) =>
-                `${people} people × ${vendors} logins = ${people * vendors} logins`,
-            destack: ({ people }) => `${people} people × 1 account = ${people} accounts`,
+            today: ({ people, vendors }) => `${people * vendors} logins`,
+            destack: ({ people }) => `${people} accounts`,
         },
     },
     {
@@ -102,18 +99,17 @@ const layers: readonly Layer[] = [
         claim: { today: "Duct-tape silos", destack: "Remix software" },
         detail: { today: "Closed apps", destack: "TS, HTML, CSS" },
         item: {
-            today: ({ people, vendors }) =>
-                `${vendors} vendors × ${people} seats = ${people * vendors} licences`,
+            today: ({ people, vendors }) => `${people * vendors} licences`,
             destack: () => "0 licences",
         },
     },
     {
         name: "Services",
-        claim: { today: "Await roadmaps", destack: "Standardise logic" },
+        claim: { today: "Wait on roadmaps", destack: "Share one API" },
         detail: { today: "Private APIs", destack: "HTTP, OpenAPI" },
         item: {
-            today: ({ vendors }) => `${vendors} separate rate-limited APIs`,
-            destack: () => "1 API for every app",
+            today: ({ vendors }) => `${vendors} APIs`,
+            destack: () => "1 API",
         },
     },
     {
@@ -121,8 +117,8 @@ const layers: readonly Layer[] = [
         claim: { today: "Rent your data", destack: "Own your data" },
         detail: { today: "Vendor formats", destack: "SQL, JSON, MD, S3" },
         item: {
-            today: ({ vendors }) => `${vendors} separate data silos`,
-            destack: () => "1 data plane",
+            today: ({ vendors }) => `${vendors} silos`,
+            destack: () => "1 data store",
         },
     },
     {
@@ -133,11 +129,11 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Hosts",
-        claim: { today: "Pay double markup", destack: "Run everywhere" },
+        claim: { today: "Pay their markup", destack: "Run anywhere" },
         detail: { today: "Their cloud", destack: "Node, Docker, Workers" },
         item: {
-            today: ({ vendors }) => `${vendors} extra compute planes`,
-            destack: () => "1 compute plane",
+            today: ({ vendors }) => `${vendors} compute bills`,
+            destack: () => "1 compute bill",
         },
     },
 ];
@@ -162,7 +158,11 @@ const locked: Readonly<Record<string, readonly Entity[]>> = {
         ["API throttled", "Export: owners", "Closed source", "On AWS"],
         "aws.svg",
     ),
-    loom: sunk("Theirs", ["No open API", "Video: theirs", "Closed source", "On AWS"], "aws.svg"),
+    granola: sunk(
+        "Theirs",
+        ["Read-only API", "Notes: theirs", "Closed source", "On AWS"],
+        "aws.svg",
+    ),
     calendly: sunk(
         "Theirs",
         ["Paid webhooks", "Invitees: theirs", "Closed source", "On GCP"],
@@ -322,12 +322,21 @@ const tapeDrops: readonly (readonly [number, number])[] = [
 ];
 
 /** The connectors taped between the vendor apps; the strides that pick them stay coprime to their count, so every swap beside a strip gives it a new one. */
-const tapeLabels = ["APIs", "MCPs", "Webhooks", "CSV", "Glue code", "Cron", "Scripts", "Plugins"];
+const tapeLabels = [
+    "APIs",
+    "Zapier",
+    "MCPs",
+    "Webhooks",
+    "n8n",
+    "CSV",
+    "Glue code",
+    "Make",
+    "Cron",
+    "Scripts",
+    "Plugins",
+];
 /** The gaps between the three icebergs that duct tape spans. */
 const tapeGaps = [0, 1];
-
-/** How many shards break off each berg and rise into the planet's ring. */
-const shardsPerBerg = 16;
 
 /** The seconds a berg takes to follow the water most of the way, so it moves like a heavy body. */
 const bergInertia = 0.9;
@@ -367,10 +376,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let sparks: Sparks | undefined;
     let sparkCanvasElement: HTMLCanvasElement | undefined;
     let ice: Ice | undefined;
-    let debris: Debris | undefined;
-    let debrisCanvasElement: HTMLCanvasElement | undefined;
     let settle: ReturnType<typeof setTimeout> | undefined;
-    let rising: ReturnType<typeof setTimeout> | undefined;
     let calm: ReturnType<typeof setTimeout> | undefined;
 
     // read the rendered elements or throw when the figure lacks them
@@ -380,8 +386,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             !drawingElement ||
             !canvasElement ||
             !iceCanvasElement ||
-            !sparkCanvasElement ||
-            !debrisCanvasElement
+            !sparkCanvasElement
         ) {
             throw new TypeError("the stack figure rendered without its drawing and canvases");
         }
@@ -392,7 +397,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             canvas: canvasElement,
             iceCanvas: iceCanvasElement,
             sparkCanvas: sparkCanvasElement,
-            debrisCanvas: debrisCanvasElement,
         };
     };
 
@@ -466,32 +470,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         }
     };
 
-    // pick points across the ice above and just below the waterline, in page pixels, where shards break off
-    const shardOrigins = () => {
-        // read the drawing and the bergs' size
-        const bounds = elements().drawing.getBoundingClientRect();
-        const third = frame.width / 3;
-        const waterline = (frame.height * dryRows) / layers.length;
-        const peak = Math.min(third * 0.42, waterline * 0.62);
-
-        // scatter shards over each berg's ridge, a few from just under the water
-        return columnCentres.flatMap((centre) =>
-            Array.from({ length: shardsPerBerg }, () => {
-                const isSunk = Math.random() < 0.25;
-                const depth = isSunk ? -Math.random() * 50 : Math.random() * peak * 0.85;
-
-                return {
-                    x:
-                        bounds.left +
-                        window.scrollX +
-                        (frame.width / boardCells) * centre +
-                        (Math.random() - 0.5) * third * 0.7,
-                    y: bounds.top + window.scrollY + waterline - depth,
-                };
-            }),
-        );
-    };
-
     // select a configuration, keep the reader's choice, and move the water
     const select = (next: Stack) => {
         // store the choice and tell the page
@@ -527,20 +505,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             }
         }
 
-        // crack each berg in turn, then send its shards up into the planet's ring once it bursts
-        clearTimeout(rising);
-        if (next === "destack") {
-            rising = setTimeout(() => {
-                if (debris) {
-                    debris.rise(shardOrigins());
-                }
-            }, crackTime);
-        }
-        // bring the shards home to the reforming ice
-        else if (debris) {
-            debris.fall();
-        }
-
         // shatter the ice as the water drains, or clump it together just before it returns
         ice?.breakTo(next === "destack" ? 1 : 0, next === "destack" ? 0 : reformDelay);
 
@@ -562,7 +526,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     // start the ice and water once the figure is in the page
     onSettled(() => {
         // require the rendered drawing and canvases
-        const { figure, drawing, canvas, iceCanvas, sparkCanvas, debrisCanvas } = elements();
+        const { figure, drawing, canvas, iceCanvas, sparkCanvas } = elements();
 
         // flip the stack whenever the page's switch asks for it
         const flip = () => select(isOpen() ? "today" : "destack");
@@ -774,12 +738,11 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 follow,
             );
             if (!isStill) {
-                debris = new Debris(debrisCanvas, orbitOf);
                 sparks = new Sparks(sparkCanvas);
             }
             water.shader.request();
         } catch (error) {
-            log.error("water.render.failed", telemetry.exceptionAttributes(error));
+            log.error("water.render.failed", telemetry.exceptionAttributes(error, false));
         }
 
         // repaint on theme changes and keep the ice and water on the waterline through resizes
@@ -817,7 +780,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             clearTimeout(calm);
             clearInterval(swapping);
             sparks?.stop();
-            debris?.stop();
             ice?.shader.dispose();
             water?.shader.dispose();
         };
@@ -850,13 +812,23 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         }}
                         {...stylex.attrs(styles.claim)}
                     >
-                        <span
-                            {...stylex.attrs(
-                                styles.number,
-                                (isOpen() || lit() === index()) && styles.numberLit,
-                            )}
-                        >
-                            0{index() + 1} {layer.name}
+                        {/* set the layer's number beside the count it costs */}
+                        <span {...stylex.attrs(styles.numberLine)}>
+                            <span
+                                {...stylex.attrs(
+                                    styles.number,
+                                    (isOpen() || lit() === index()) && styles.numberLit,
+                                )}
+                            >
+                                0{index() + 1} {layer.name}
+                            </span>
+                            <Swap
+                                row={index()}
+                                isOpen={isOpen()}
+                                today={layer.item.today(count())}
+                                destack={layer.item.destack(count())}
+                                style={styles.itemText}
+                            />
                         </span>
                         {/* set the verb and the things the layer is made of on one baseline */}
                         <span {...stylex.attrs(styles.claimLine)}>
@@ -876,15 +848,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                 style={styles.detailText}
                             />
                         </span>
-
-                        {/* itemise what the layer costs */}
-                        <Swap
-                            row={index()}
-                            isOpen={isOpen()}
-                            today={layer.item.today(count())}
-                            destack={layer.item.destack(count())}
-                            style={styles.itemText}
-                        />
                     </div>
                 )}
             </For>
@@ -1011,9 +974,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 }}
                 {...stylex.attrs(styles.water, !isPainted() && styles.unpainted)}
             />
-
-            {/* carry shards of ice between the bergs and the planet's ring, over the whole page */}
-            <canvas ref={debrisCanvasElement} aria-hidden="true" {...stylex.attrs(styles.debris)} />
 
             {/* glow sparks over the water */}
             <canvas ref={sparkCanvasElement} aria-hidden="true" {...stylex.attrs(styles.sparks)} />
@@ -1230,6 +1190,12 @@ const styles = stylex.create({
         margin: 0,
         position: "relative",
     },
+    numberLine: {
+        alignItems: "baseline",
+        display: "flex",
+        gap: "1rem",
+        justifyContent: "space-between",
+    },
     claim: {
         display: "flex",
         flexDirection: "column",
@@ -1445,14 +1411,6 @@ const styles = stylex.create({
     },
     tapeBack: {
         transition: `opacity 400ms ${easing} 2100ms`,
-    },
-    debris: {
-        height: "100%",
-        inset: 0,
-        pointerEvents: "none",
-        position: "fixed",
-        width: "100%",
-        zIndex: 5,
     },
     sparks: {
         height: "100%",

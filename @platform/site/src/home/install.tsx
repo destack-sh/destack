@@ -2,14 +2,13 @@ import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createSignal, type JSX } from "@destack/view";
 
-import { agentPrompt, installCommand } from "../content/site";
+import { installCommand } from "../content/site";
 import { lattice } from "../style/lattice.stylex";
-import { plate } from "../style/plate.stylex";
-import { paper } from "../style/paper.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { systemOf, systems } from "./download/catalog";
 import { createDownloads } from "./download/download";
 import { Mark } from "../site/mark";
+import { Glyph } from "./glyph";
 
 /** The media query for screens narrower than the desktop frame, where the ways stack. */
 const narrow = "@media (max-width: 1099px)";
@@ -17,7 +16,10 @@ const narrow = "@media (max-width: 1099px)";
 /** How long a copy key says it copied, in milliseconds. */
 const copiedTime = 1600;
 
-/** Download the published build for this machine, or open the setup guide when none fits. */
+/** A way to install: its name, what its field shows, and its key. */
+type Way = { name: string; field: () => JSX.Element; key: () => JSX.Element; isDark?: boolean };
+
+/** Download the published build for this machine, or open the setup guide when none fits, as an icon key. */
 function DownloadKey() {
     // hold the build chosen for this machine
     const { selected } = createDownloads();
@@ -26,19 +28,21 @@ function DownloadKey() {
 
         return download === undefined ? undefined : systemOf(download.label);
     };
+    const label = () => (system() === undefined ? "Download" : `Download for ${system()}`);
 
     return (
         <a
             href={selected()?.url ?? "/docs/setup/"}
-            title={selected() === undefined ? undefined : `Version ${selected()?.version}`}
-            {...stylex.attrs(paper.key, paper.primary)}
+            aria-label={label()}
+            title={label()}
+            {...stylex.attrs(styles.key, styles.keyPrimary)}
         >
-            {system() === undefined ? "Download" : `Download for ${system()}`}
+            <Glyph name="download" size={16} />
         </a>
     );
 }
 
-/** Copy a text, and say so on the key for a moment. */
+/** Copy a text, and show a check on the key for a moment. */
 function CopyKey(properties: { name: string; text: string }) {
     // hold whether the text was just copied
     const [isCopied, setIsCopied] = createSignal(false);
@@ -46,194 +50,176 @@ function CopyKey(properties: { name: string; text: string }) {
     return (
         <button
             type="button"
+            aria-label={`Copy ${properties.name}`}
+            title={isCopied() ? "Copied" : `Copy ${properties.name}`}
             onClick={() =>
                 void navigator.clipboard.writeText(properties.text).then(() => {
                     setIsCopied(true);
                     setTimeout(() => setIsCopied(false), copiedTime);
                 })
             }
-            {...stylex.attrs(paper.key)}
+            {...stylex.attrs(styles.key)}
         >
-            {isCopied() ? "Copied" : `Copy ${properties.name}`}
+            <Glyph name={isCopied() ? "check" : "copy"} size={16} />
         </button>
     );
 }
 
-/** The three ways to install, set as the figures set their ledgers: a label, a claim with its plates, a line under it, what it shows, and its key. */
-const ways: readonly {
-    label: string;
-    claim: string;
-    plates: readonly string[];
-    note: string;
-    body: () => JSX.Element;
-    key: () => JSX.Element;
-}[] = [
-    {
-        label: "Desktop",
-        claim: "Download the app",
-        plates: ["macOS", "Linux"],
-        note: "your apps and data on this machine",
-        body: () => (
-            <span {...stylex.attrs(styles.download)}>
-                <Mark style={styles.icon} />
-                <span {...stylex.attrs(styles.product)}>
-                    <b {...stylex.attrs(styles.productName)}>Destack</b>
-                    <span {...stylex.attrs(styles.productNote)}>for {systems}</span>
+/** Build the three ways to install, the agent prompt naming the tools you picked. */
+function waysOf(prompt: string): readonly Way[] {
+    return [
+        {
+            name: "Download Desktop",
+            field: () => (
+                <span title={`Destack for ${systems}`} {...stylex.attrs(styles.product)}>
+                    <Mark style={styles.icon} />
+                    Destack Desktop
                 </span>
-            </span>
-        ),
-        key: () => <DownloadKey />,
-    },
-    {
-        label: "Terminal",
-        claim: "Run one command",
-        plates: ["macOS", "Linux"],
-        note: "installs into ~/.destack",
-        body: () => (
-            <code {...stylex.attrs(styles.code, styles.dark)}>
-                <span>
+            ),
+            key: () => <DownloadKey />,
+        },
+        {
+            name: "Install via Terminal",
+            field: () => (
+                <code title={installCommand} {...stylex.attrs(styles.text)}>
                     <span {...stylex.attrs(styles.prompt)}>$ </span>
-                    {installCommand}
+                    curl destack.sh/install | sh
+                    <span {...stylex.attrs(styles.more)}>…</span>
+                </code>
+            ),
+            key: () => <CopyKey name="command" text={installCommand} />,
+            isDark: true,
+        },
+        {
+            name: "Ask your Agent",
+            field: () => (
+                <span title={prompt} {...stylex.attrs(styles.text)}>
+                    Set up my Destack.
+                    <span {...stylex.attrs(styles.more)}>…</span>
                 </span>
-            </code>
-        ),
-        key: () => <CopyKey name="command" text={installCommand} />,
-    },
-    {
-        label: "Agent",
-        claim: "Ask your agent",
-        plates: ["one prompt"],
-        note: "it follows the setup guide",
-        body: () => <code {...stylex.attrs(styles.code)}>{agentPrompt}</code>,
-        key: () => <CopyKey name="prompt" text={agentPrompt} />,
-    },
-];
+            ),
+            key: () => <CopyKey name="prompt" text={prompt} />,
+        },
+    ];
+}
 
-/** Show the three ways to install side by side, each with its key at the foot. */
-export function InstallWays() {
+/** Show the three ways to install side by side, each a name over one field with its key. */
+export function InstallWays(properties: { prompt: string }) {
     return (
-        <>
-            {ways.map((way, index) => (
-                <article {...stylex.attrs(lattice.cell, styles.way)}>
-                    <span {...stylex.attrs(styles.label)}>
-                        {String(index + 1).padStart(2, "0")} {way.label}
+        <ol {...stylex.attrs(lattice.cell, styles.column)}>
+            {waysOf(properties.prompt).map((way, index) => (
+                <li {...stylex.attrs(styles.way)}>
+                    <span {...stylex.attrs(styles.title)}>
+                        {String(index + 1).padStart(2, "0")} {way.name}
                     </span>
-                    <span {...stylex.attrs(styles.claim)}>
-                        <b {...stylex.attrs(styles.name)}>{way.claim}</b>
-                        <span {...stylex.attrs(styles.plates)}>
-                            {way.plates.map((name) => (
-                                <span {...stylex.attrs(plate.plate)}>{name}</span>
-                            ))}
-                        </span>
+                    <span {...stylex.attrs(styles.field, way.isDark === true && styles.dark)}>
+                        {way.field()}
+                        {way.key()}
                     </span>
-                    <span {...stylex.attrs(styles.note)}>{way.note}</span>
-                    {way.body()}
-                </article>
+                </li>
             ))}
-            {ways.map((way) => (
-                <div {...stylex.attrs(lattice.cell, styles.key)}>{way.key()}</div>
-            ))}
-        </>
+        </ol>
     );
 }
 
 /** The install styles. */
 const styles = stylex.create({
-    way: {
-        alignContent: "start",
+    column: {
+        columnGap: "1.5rem",
         display: "grid",
-        gridColumn: "span 4",
-        gridTemplateRows: "auto auto auto minmax(0, 1fr)",
+        gridColumn: "1 / -1",
+        gridTemplateColumns: {
+            default: "repeat(3, minmax(0, 1fr))",
+            [narrow]: "minmax(0, 1fr)",
+        },
+        listStyle: "none",
+        margin: 0,
         padding: `1.5rem ${tokens.inset}`,
-        rowGap: "0.25rem",
-        [narrow]: { gridColumn: "1 / -1" },
+        rowGap: "1rem",
     },
-    key: {
+    way: {
         display: "grid",
-        gridColumn: "span 4",
-        padding: `1rem ${tokens.inset}`,
-        [narrow]: { gridColumn: "1 / -1" },
+        gap: "0.5rem",
+        minWidth: 0,
     },
-    label: {
+    title: {
         color: tokens.signal,
         fontFamily: tokens.monoFont,
         fontSize: "0.6875rem",
         letterSpacing: "0.1em",
-        lineHeight: "1rem",
         textTransform: "uppercase",
     },
-    claim: {
-        alignItems: "center",
-        display: "flex",
-        gap: "0.5rem",
-    },
-    name: {
-        fontSize: "1rem",
-        fontWeight: 600,
-        lineHeight: "1.375rem",
-    },
-    plates: {
-        display: "flex",
-        gap: "0.25rem",
-        marginLeft: "auto",
-    },
-    note: {
-        fontFamily: tokens.monoFont,
-        fontSize: "0.75rem",
-        letterSpacing: "0.02em",
-        lineHeight: "1.125rem",
-        marginBottom: "1rem",
-        opacity: 0.8,
-    },
-    download: {
+    field: {
         alignItems: "center",
         backgroundColor: color.card,
         borderColor: tokens.rule,
-        borderRadius: "6px",
+        borderRadius: "8px",
         borderStyle: "solid",
-        borderWidth: "1px",
+        borderWidth: tokens.hairline,
         display: "flex",
-        gap: "0.875rem",
-        paddingBlock: "0.75rem",
-        paddingInline: "0.875rem",
-    },
-    icon: {
-        height: "2.5rem",
-        width: "2.5rem",
-    },
-    product: {
-        display: "grid",
-    },
-    productName: {
-        fontSize: "1rem",
-        fontWeight: 700,
-    },
-    productNote: {
-        color: color.mutedForeground,
-        fontSize: "0.8125rem",
-    },
-    code: {
-        alignItems: "center",
-        display: "flex",
-        backgroundColor: color.card,
-        borderColor: tokens.rule,
-        borderRadius: "6px",
-        borderStyle: "solid",
-        borderWidth: "1px",
-        color: color.cardForeground,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.75rem",
-        lineHeight: 1.6,
-        overflowWrap: "anywhere",
-        paddingBlock: "0.75rem",
-        paddingInline: "0.875rem",
+        gap: "0.75rem",
+        height: "3rem",
+        minWidth: 0,
+        paddingInline: "1rem 0.375rem",
+        transition: "background-color 160ms ease, color 160ms ease",
     },
     dark: {
         backgroundColor: tokens.signalInk,
         borderColor: tokens.signalInk,
         color: tokens.cream,
     },
+    product: {
+        alignItems: "center",
+        display: "flex",
+        flexGrow: 1,
+        fontSize: "0.875rem",
+        fontWeight: 600,
+        gap: "0.625rem",
+        minWidth: 0,
+        whiteSpace: "nowrap",
+    },
+    icon: {
+        flexShrink: 0,
+        height: "1.5rem",
+        width: "1.5rem",
+    },
+    text: {
+        flexGrow: 1,
+        fontFamily: tokens.monoFont,
+        fontSize: "0.8125rem",
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
     prompt: {
         color: tokens.signal,
+    },
+    more: {
+        borderRadius: "4px",
+        cursor: "help",
+        marginLeft: "0.5rem",
+        opacity: 0.55,
+        paddingInline: "0.25rem",
+        ":hover": { opacity: 1 },
+    },
+    key: {
+        alignItems: "center",
+        backgroundColor: { default: "transparent", ":hover": "rgb(127 127 127 / 14%)" },
+        borderRadius: "6px",
+        borderWidth: 0,
+        color: "inherit",
+        cursor: "pointer",
+        display: "inline-flex",
+        flexShrink: 0,
+        height: "2.25rem",
+        justifyContent: "center",
+        transition: "background-color 120ms ease, transform 120ms ease",
+        width: "2.25rem",
+        ":active": { transform: "scale(0.94)" },
+    },
+    keyPrimary: {
+        backgroundColor: { default: tokens.signal, ":hover": tokens.signal },
+        color: tokens.signalInk,
     },
 });

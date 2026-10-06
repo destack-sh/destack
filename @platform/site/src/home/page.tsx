@@ -7,7 +7,7 @@ import type { Item } from "./ledger";
 import type { Stagger } from "./stagger";
 import { Tile } from "./tile";
 
-/** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: rented one by one, or built into one engine. */
+/** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
     {
         stacked: {
@@ -15,69 +15,85 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { logo: "clerk.png" },
             name: "Clerk",
             chips: ["SDK", "webhook"],
-            note: "users synced in by webhook",
+            note: "users copied in by webhook",
         },
         destacked: {
             label: "Identity",
             mark: { icon: "user", tint: "#5b7f2e" },
             name: "Accounts",
             chips: ["passkeys"],
-            note: "one sign-in, apps and agents",
+            note: "people and agents, one sign-in",
         },
     },
     {
         stacked: {
             label: "Permissions",
-            mark: { logo: "spicedb.png" },
-            name: "SpiceDB",
+            mark: { logo: "workos.png" },
+            name: "WorkOS",
             chips: ["SDK", "sync"],
-            note: "permissions copied in by a job",
+            note: "a second permission model",
         },
         destacked: {
             label: "Permissions",
             mark: { icon: "auth", tint: "#a0485f" },
             name: "Access",
             chips: ["roles"],
-            note: "one rule set, agents included",
+            note: "one rule set for every app",
         },
     },
     {
         stacked: {
-            label: "Realtime",
-            mark: { logo: "liveblocks.png" },
-            name: "Liveblocks",
-            chips: ["SDK", "auth"],
-            note: "a room per page, its own auth",
+            label: "Secrets",
+            mark: { logo: "doppler.png" },
+            name: "Doppler",
+            chips: ["CLI"],
+            note: "keys pasted into every service",
         },
         destacked: {
-            label: "Realtime",
-            mark: { icon: "presence", tint: "#c64a17" },
-            name: "Multiplayer",
-            chips: ["presence"],
-            note: "every object live",
+            label: "Secrets",
+            mark: { icon: "vault", tint: "#12313c" },
+            name: "Vault",
+            chips: ["encrypted"],
+            note: "keys that never leave the server",
         },
     },
     {
         stacked: {
-            label: "Data",
+            label: "Database",
             mark: { logo: "supabase.svg" },
             name: "Supabase",
-            chips: ["schema"],
-            note: "a schema of its own",
+            chips: ["realtime"],
+            note: "a second backend to keep in step",
         },
         destacked: {
-            label: "Data",
+            label: "Database",
             mark: { icon: "storage", tint: "#2f7d8c" },
             name: "Database",
-            chips: ["SQL"],
+            chips: ["SQL", "live"],
             note: "live queries, offline too",
         },
     },
     {
         stacked: {
+            label: "Files",
+            mark: { logo: "dropbox.svg" },
+            name: "Dropbox",
+            chips: ["embed"],
+            note: "files kept outside the page",
+        },
+        destacked: {
+            label: "Files",
+            mark: { icon: "bucket", tint: "#2f7d8c" },
+            name: "Files",
+            chips: ["blobs"],
+            note: "files attached where they're used",
+        },
+    },
+    {
+        stacked: {
             label: "Search",
-            mark: { logo: "algolia.svg" },
-            name: "Algolia",
+            mark: { logo: "elastic.svg" },
+            name: "Elastic",
             chips: ["SDK", "sync"],
             note: "a second index to keep in sync",
         },
@@ -92,10 +108,10 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
     {
         stacked: {
             label: "Messaging",
-            mark: { logo: "knock.png" },
-            name: "Knock",
+            mark: { logo: "resend.svg" },
+            name: "Resend",
             chips: ["SDK"],
-            note: "called by every service",
+            note: "an extra SDK just for email",
         },
         destacked: {
             label: "Messaging",
@@ -111,78 +127,62 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { logo: "temporal.png" },
             name: "Temporal",
             chips: ["workers"],
-            note: "workers you deploy and watch",
+            note: "a worker fleet beside the app",
         },
         destacked: {
             label: "Jobs",
             mark: { icon: "sync", tint: "#4f8a5b" },
             name: "Workflows",
             chips: ["durable"],
-            note: "runs survive restarts",
+            note: "runs that survive restarts",
         },
     },
     {
         stacked: {
-            label: "Config",
-            mark: { logo: "doppler.png" },
-            name: "Doppler",
-            chips: ["CLI"],
-            note: "keys copied into every SDK",
+            label: "Analytics",
+            mark: { logo: "posthog.svg" },
+            name: "PostHog",
+            chips: ["snippet"],
+            note: "events sent to their cloud",
         },
         destacked: {
-            label: "Config",
-            mark: { icon: "vault", tint: "#12313c" },
-            name: "Secrets",
-            chips: ["vault"],
-            note: "keys stay on the server",
+            label: "Analytics",
+            mark: { icon: "telemetry", tint: "#6d7f86" },
+            name: "Telemetry",
+            chips: ["events"],
+            note: "events kept with your data",
         },
     },
     {
         stacked: {
-            label: "Integrations",
-            mark: { logo: "zapier.svg" },
-            name: "Zapier",
-            chips: ["MCP"],
-            note: "actions set up per app",
-        },
-        destacked: {
-            label: "Integrations",
-            mark: { icon: "agent", tint: "#6b5ca5" },
-            name: "API",
-            chips: ["MCP", "OpenAPI"],
-            note: "one API for every app and agent",
-        },
-    },
-    {
-        stacked: {
-            label: "Observability",
+            label: "Errors",
             mark: { logo: "sentry.png" },
             name: "Sentry",
             chips: ["SDK"],
-            note: "errors from each SDK alone",
+            note: "errors seen one SDK at a time",
         },
         destacked: {
-            label: "Observability",
+            label: "Errors",
             mark: { icon: "telemetry", tint: "#6d7f86" },
             name: "Telemetry",
             chips: ["traces"],
-            note: "every call traced",
+            note: "every call traced end to end",
         },
     },
     {
         stacked: {
-            label: "Deploys",
+            label: "Hosting",
             mark: { logo: "vercel.png" },
             name: "Vercel",
             chips: ["config"],
-            note: "their cloud only",
+            note: "runs only in their cloud",
         },
         destacked: {
-            label: "Deploys",
+            label: "Hosting",
             mark: { icon: "hosts", tint: "#4f8a5b" },
             name: "Hosting",
             chips: ["Node"],
-            note: "laptop, server or cloud",
+            note: "your laptop, server or cloud",
         },
     },
     {
@@ -206,7 +206,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
 /** The checklist before launch: each item and whether it is done. */
 const checklist: readonly (readonly [item: string, isDone: boolean])[] = [
     ["Freeze the pricing page", true],
-    ["Rehearse the demo with Kai", false],
+    ["Rehearse the demo", false],
     ["Schedule the announcement", false],
 ];
 
@@ -248,20 +248,39 @@ const tasks: readonly (readonly [
     due: string,
     change?: Change,
 ])[] = [
-    ["LCH-12", "Pricing page", "done", "Ada", "#6b5ca5", "Mon 20", ["#408", "pricing-page", true]],
+    ["LCH-12", "Pricing page", "done", "Me", "#2f7d8c", "Mon 20", ["#408", "pricing-page", true]],
     [
         "LCH-13",
         "Turn on the new prices",
         "todo",
-        "Ada",
+        "Me",
         "#6b5ca5",
         "Fri 24",
         ["#412", "new-prices", false],
     ],
-    ["LCH-14", "Record the demo", "started", "You", "#2f7d8c", "Thu 23"],
+    ["LCH-14", "Record the demo", "started", "Me", "#2f7d8c", "Thu 23"],
     ["LCH-15", "Draft the launch post", "todo", "Agent", "#b8862b", "Thu 23"],
-    ["LCH-16", "Email the waitlist", "todo", "Kai", "#5b7f2e", "Fri 24"],
+    ["LCH-16", "Email the waitlist", "todo", "Agent", "#6b5ca5", "Fri 24"],
 ];
+
+/** Say who can see the task table: everyone by one access rule, or not your agent without a seat. */
+function Access(properties: { isOpen: boolean }) {
+    return (
+        <span
+            data-component={properties.isOpen ? "AccessRule" : "SeatWall"}
+            data-service="2"
+            {...stylex.attrs(styles.access)}
+        >
+            <span
+                style={{
+                    "mask-image": `url(/diagram/${properties.isOpen ? "auth" : "lock"}.svg)`,
+                }}
+                {...stylex.attrs(styles.glyph)}
+            />
+            {properties.isOpen ? "You and your agent" : "No seat for your agent"}
+        </span>
+    );
+}
 
 /** Name the state of a change's checks: as last synced while rented, live once owned. */
 function checksOf(change: Change, isOpen: boolean) {
@@ -275,7 +294,7 @@ function checksOf(change: Change, isOpen: boolean) {
 /**
  * Draw the Pages app with the launch plan open, every part named for the inspector, and the twelve services marked where they show.
  *
- * While rented, the page shows its seams: vendor apps in its rail, an edit conflict, a key to paste, a failed automation, an embed behind seats, and a preview on another site.
+ * While rented, the page shows where its vendors meet: vendor apps in its rail, an edit conflict, a key to paste, a failed automation, an embed behind seats, and a preview on another site.
  * Once owned, the same page sits among your other apps and holds its tasks, prices, agent, code and previews natively, with a column you added, each switching on the step of its service.
  */
 export function PagesApp(properties: { isOpenAt: Stagger }) {
@@ -293,7 +312,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 </span>
                 <span
                     data-component="SearchButton"
-                    data-service="5"
+                    data-service="6"
                     title="Search"
                     {...stylex.attrs(styles.railButton)}
                 >
@@ -304,7 +323,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 </span>
                 <span
                     data-component="InboxButton"
-                    data-service="6"
+                    data-service="7"
                     title="Inbox"
                     {...stylex.attrs(styles.railButton)}
                 >
@@ -403,38 +422,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             </span>
                         </div>
                     </div>
-                    <Fade
-                        isOpen={properties.isOpenAt(3)}
-                        component={properties.isOpenAt(3) ? "PresenceBanner" : "ConflictBanner"}
-                    >
-                        <p
-                            data-service="3"
-                            {...stylex.attrs(
-                                styles.conflict,
-                                properties.isOpenAt(3) && styles.together,
-                            )}
-                        >
-                            {properties.isOpenAt(3) ? (
-                                <>
-                                    <span {...stylex.attrs(styles.row)}>
-                                        <span
-                                            {...stylex.attrs(styles.avatar)}
-                                            style={{ "background-color": "#5b7f2e" }}
-                                        >
-                                            K
-                                        </span>
-                                        Kai is editing Notes from Monday
-                                    </span>
-                                    <span {...stylex.attrs(styles.dot)} />
-                                </>
-                            ) : (
-                                <>
-                                    This page changed in another tab. Reload to see Kai's edits.
-                                    <span {...stylex.attrs(styles.reload)}>Reload</span>
-                                </>
-                            )}
-                        </p>
-                    </Fade>
                     <div data-component="PropertyList" {...stylex.attrs(styles.properties)}>
                         <span data-component="StatusProperty" {...stylex.attrs(styles.property)}>
                             <span {...stylex.attrs(styles.state, styles.started, styles.flush)} />
@@ -444,29 +431,29 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             Fri 24 Oct
                         </span>
                         <Fade
-                            isOpen={properties.isOpenAt(8)}
-                            component={properties.isOpenAt(8) ? "PriceProperty" : "StripeKeyPrompt"}
+                            isOpen={properties.isOpenAt(3)}
+                            component={properties.isOpenAt(3) ? "PriceProperty" : "StripeKeyPrompt"}
                             style={styles.slot}
                         >
                             <span
-                                data-service="8"
+                                data-service="3"
                                 {...stylex.attrs(
                                     styles.property,
-                                    !properties.isOpenAt(8) && styles.propertyMissing,
+                                    !properties.isOpenAt(3) && styles.propertyMissing,
                                 )}
                             >
                                 <span
                                     style={{ "mask-image": "url(/diagram/vault.svg)" }}
                                     {...stylex.attrs(styles.glyph)}
                                 />
-                                {properties.isOpenAt(8)
+                                {properties.isOpenAt(3)
                                     ? "Pro €12/mo · live"
                                     : "Paste a Stripe API key to show prices"}
                             </span>
                         </Fade>
                         <span
                             data-component="ScheduleProperty"
-                            data-service="7"
+                            data-service="8"
                             {...stylex.attrs(styles.property)}
                         >
                             Reminder Thu
@@ -474,31 +461,31 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                     </div>
                     <p data-component="Paragraph" {...stylex.attrs(styles.text)}>
                         Ship to the waitlist on Thursday.{" "}
-                        <span data-component="Presence" data-service="3">
+                        <span data-component="Presence">
                             Pricing stays in step with billing
                             <span data-component="Cursor" {...stylex.attrs(styles.cursor)}>
-                                <span {...stylex.attrs(styles.flag)}>Ada</span>
+                                <span {...stylex.attrs(styles.flag)}>Agent</span>
                             </span>
                         </span>
                     </p>
                     <Fade
-                        isOpen={properties.isOpenAt(9)}
-                        component={properties.isOpenAt(9) ? "AgentNote" : "AutomationError"}
+                        isOpen={properties.isOpenAt(8)}
+                        component={properties.isOpenAt(8) ? "AgentNote" : "AutomationError"}
                     >
                         <p
-                            data-service="9"
+                            data-service="8"
                             {...stylex.attrs(
                                 styles.agentNote,
-                                !properties.isOpenAt(9) && styles.error,
+                                !properties.isOpenAt(8) && styles.error,
                             )}
                         >
-                            {properties.isOpenAt(9) ? (
+                            {properties.isOpenAt(8) ? (
                                 <>
                                     <Tile name="agent" />
                                     <span>
                                         <b {...stylex.attrs(styles.strong)}>Agent</b>{" "}
                                         <span {...stylex.attrs(styles.quiet)}>
-                                            drafted LCH-15 and asked Kai to review it
+                                            drafted LCH-15 for you to review
                                         </span>
                                     </span>
                                 </>
@@ -506,12 +493,12 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                 <>
                                     <img
                                         alt=""
-                                        src="/logos/zapier.svg"
+                                        src="/logos/temporal.png"
                                         {...stylex.attrs(styles.logo)}
                                     />
                                     <span>
-                                        <b {...stylex.attrs(styles.strong)}>Zap failed</b>{" "}
-                                        <span>Draft the launch post · Notion token expired</span>
+                                        <b {...stylex.attrs(styles.strong)}>Run failed</b>{" "}
+                                        <span>Draft the launch post · retrying in 5 min</span>
                                     </span>
                                 </>
                             )}
@@ -521,11 +508,9 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         isOpen={properties.isOpenAt(4)}
                         component={properties.isOpenAt(4) ? "TaskTable" : "LinearEmbed"}
                         style={properties.isOpenAt(4) ? styles.tasks : styles.embed}
+                        isLarge
                     >
-                        <p
-                            data-service={properties.isOpenAt(4) ? "4" : "9"}
-                            {...stylex.attrs(styles.tableBar)}
-                        >
+                        <p data-service="4" {...stylex.attrs(styles.tableBar)}>
                             {properties.isOpenAt(4) ? (
                                 <>
                                     <Tile name="tasks" />
@@ -534,9 +519,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                         from Tasks, also in My week
                                     </span>
                                     <span {...stylex.attrs(styles.tools)}>
-                                        <span {...stylex.attrs(styles.quiet, styles.wide)}>
-                                            Filter
-                                        </span>
+                                        <Access isOpen={true} />
                                         <span {...stylex.attrs(styles.newTask)}>+ New task</span>
                                     </span>
                                 </>
@@ -548,28 +531,14 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                         Read-only · synced 3 h ago
                                     </span>
                                     <span {...stylex.attrs(styles.tools)}>
+                                        <Access isOpen={false} />
                                         <span {...stylex.attrs(styles.failing)}>Reconnect</span>
                                     </span>
                                 </>
                             )}
                         </p>
-                        <p
-                            data-component={properties.isOpenAt(4) ? "AccessNote" : "SeatWall"}
-                            data-service="2"
-                            {...stylex.attrs(styles.seatWall)}
-                        >
-                            <span
-                                style={{
-                                    "mask-image": `url(/diagram/${properties.isOpenAt(4) ? "auth" : "lock"}.svg)`,
-                                }}
-                                {...stylex.attrs(styles.glyph)}
-                            />
-                            {properties.isOpenAt(4)
-                                ? "Shared with Ada and Kai by one access rule"
-                                : "Kai can't see this table without a Linear seat"}
-                        </p>
                         <table
-                            data-service={properties.isOpenAt(4) ? "4" : "9"}
+                            data-service="4"
                             {...stylex.attrs(styles.table, !properties.isOpenAt(4) && styles.stale)}
                         >
                             <thead>
@@ -579,9 +548,9 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                     <th {...stylex.attrs(styles.head, styles.wide)}>Owner</th>
                                     <th {...stylex.attrs(styles.head, styles.wide)}>Due</th>
                                     <th {...stylex.attrs(styles.head, styles.wide)}>
-                                        {properties.isOpenAt(4) ? "Checks" : "Pull request"}
+                                        {properties.isOpenAt(12) ? "Checks" : "Pull request"}
                                     </th>
-                                    {properties.isOpenAt(4) ? (
+                                    {properties.isOpenAt(4) && properties.isOpenAt(12) ? (
                                         <th
                                             data-component="AddedColumn"
                                             data-service="12"
@@ -612,7 +581,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                                     {...stylex.attrs(styles.avatar)}
                                                     style={{ "background-color": tint }}
                                                 >
-                                                    {assignee.charAt(0)}
+                                                    {assignee === "Me" ? "Y" : assignee.charAt(0)}
                                                 </span>
                                             </span>
                                         </td>
@@ -627,7 +596,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                         </td>
                                         <td
                                             data-component={
-                                                properties.isOpenAt(4)
+                                                properties.isOpenAt(12)
                                                     ? "BranchCell"
                                                     : "PullRequestCell"
                                             }
@@ -642,31 +611,31 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                                 <span {...stylex.attrs(styles.row)}>
                                                     <span
                                                         style={{
-                                                            "mask-image": `url(/diagram/${properties.isOpenAt(4) ? "source" : "github"}.svg)`,
+                                                            "mask-image": `url(/diagram/${properties.isOpenAt(12) ? "source" : "github"}.svg)`,
                                                         }}
                                                         {...stylex.attrs(styles.glyph)}
                                                     />
-                                                    {properties.isOpenAt(4)
+                                                    {properties.isOpenAt(12)
                                                         ? undefined
                                                         : `${change[0]} ↗`}
                                                     <span
                                                         {...stylex.attrs(
                                                             change[2]
                                                                 ? styles.passing
-                                                                : properties.isOpenAt(4)
+                                                                : properties.isOpenAt(12)
                                                                   ? styles.running
                                                                   : styles.failing,
-                                                            !properties.isOpenAt(4) &&
+                                                            !properties.isOpenAt(12) &&
                                                                 change[2] &&
                                                                 styles.quiet,
                                                         )}
                                                     >
-                                                        {checksOf(change, properties.isOpenAt(4))}
+                                                        {checksOf(change, properties.isOpenAt(12))}
                                                     </span>
                                                 </span>
                                             )}
                                         </td>
-                                        {properties.isOpenAt(4) ? (
+                                        {properties.isOpenAt(4) && properties.isOpenAt(12) ? (
                                             <td
                                                 data-component="BlockerCell"
                                                 data-service="12"
@@ -689,29 +658,33 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         Notes from Monday
                     </b>
                     <p data-component="Paragraph" {...stylex.attrs(styles.text)}>
-                        The waitlist has 1,840 people. Kai sends the first batch of invites on
-                        Thursday morning, and the rest follow once the demo is live.
+                        The waitlist has 1,840 people. Your agent sends the first batch of invites
+                        on Thursday morning, and the rest follow once the demo is live.
                     </p>
-                    <p data-component="Attachment" {...stylex.attrs(styles.file)}>
+                    <p data-component="Attachment" data-service="5" {...stylex.attrs(styles.file)}>
                         <span
                             style={{ "mask-image": "url(/diagram/file.svg)" }}
                             {...stylex.attrs(styles.glyph)}
                         />
                         pricing-v4.pdf
-                        <span {...stylex.attrs(styles.quiet)}>1.2 MB · added by Ada</span>
+                        <span {...stylex.attrs(styles.quiet)}>
+                            {properties.isOpenAt(5)
+                                ? "1.2 MB · added by you"
+                                : "Dropbox ↗ · request access"}
+                        </span>
                     </p>
-                    <p data-component="Comment" data-service="3" {...stylex.attrs(styles.comment)}>
+                    <p data-component="Comment" {...stylex.attrs(styles.comment)}>
                         <span
                             data-component="Avatar"
                             {...stylex.attrs(styles.avatar)}
-                            style={{ "background-color": "#5b7f2e" }}
+                            style={{ "background-color": "#6b5ca5" }}
                         >
-                            K
+                            A
                         </span>
                         <span>
-                            <b {...stylex.attrs(styles.strong)}>Kai</b>{" "}
+                            <b {...stylex.attrs(styles.strong)}>Agent</b>{" "}
                             <span {...stylex.attrs(styles.quiet)}>
-                                Can we move the demo to Wednesday?
+                                The launch post draft is ready for you
                             </span>
                         </span>
                     </p>
@@ -743,22 +716,42 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                     />
                     {properties.isOpenAt(11) ? "Yours · on your laptop" : "Saved to their cloud"}
                 </span>
-                <span data-component="PresenceList" {...stylex.attrs(styles.status, styles.wide)}>
+                <span
+                    data-component={properties.isOpenAt(4) ? "PresenceList" : "ConflictNotice"}
+                    data-service="4"
+                    {...stylex.attrs(styles.status, styles.wide)}
+                >
+                    <span
+                        {...stylex.attrs(styles.avatar, styles.small)}
+                        style={{ "background-color": "#2f7d8c" }}
+                    >
+                        Y
+                    </span>
                     <span
                         {...stylex.attrs(styles.avatar, styles.small)}
                         style={{ "background-color": "#6b5ca5" }}
                     >
                         A
                     </span>
-                    <span
-                        {...stylex.attrs(styles.avatar, styles.small)}
-                        style={{ "background-color": "#5b7f2e" }}
-                    >
-                        K
-                    </span>
-                    <span {...stylex.attrs(styles.presenceText)}>Ada and Kai here</span>
+                    {properties.isOpenAt(4) ? (
+                        <span {...stylex.attrs(styles.presenceText)}>
+                            You and your agent editing
+                        </span>
+                    ) : (
+                        <span {...stylex.attrs(styles.presenceText)}>
+                            Agent's edits
+                            <span {...stylex.attrs(styles.reload)}>Reload</span>
+                        </span>
+                    )}
                 </span>
                 <span {...stylex.attrs(styles.statusEnd)}>
+                    <span
+                        data-component={properties.isOpenAt(9) ? "ViewCount" : "AnalyticsSnippet"}
+                        data-service="9"
+                        {...stylex.attrs(styles.status, styles.wide)}
+                    >
+                        {properties.isOpenAt(9) ? "182 views" : "PostHog ↗"}
+                    </span>
                     <span
                         data-component="ErrorCount"
                         data-service="10"
@@ -775,7 +768,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             style={{ "mask-image": "url(/diagram/source.svg)" }}
                             {...stylex.attrs(styles.glyph)}
                         />
-                        main · pages 1.4
+                        main
                     </span>
                 </span>
             </div>
@@ -911,23 +904,20 @@ const styles = stylex.create({
         whiteSpace: "nowrap",
     },
     added: {
-        backgroundColor: "rgb(255 121 46 / 10%)",
-        color: tokens.signal,
+        color: color.foreground,
         fontWeight: 600,
         paddingLeft: "0.5rem",
     },
     addedCell: {
-        backgroundColor: "rgb(255 121 46 / 6%)",
         paddingLeft: "0.5rem",
     },
     yours: {
-        backgroundColor: tokens.signal,
-        borderRadius: "3px",
-        color: tokens.signalInk,
+        color: color.mutedForeground,
+        fontFamily: tokens.monoFont,
         fontSize: "0.58rem",
-        fontWeight: 700,
+        fontWeight: 400,
+        letterSpacing: "0.06em",
         marginLeft: "0.375rem",
-        paddingInline: "0.25rem",
         textTransform: "uppercase",
     },
     roomy: {
@@ -945,27 +935,16 @@ const styles = stylex.create({
         lineHeight: "1.25rem",
         whiteSpace: "nowrap",
     },
-    conflict: {
-        alignItems: "center",
-        borderColor: color.mutedForeground,
-        borderRadius: "6px",
-        borderStyle: "dashed",
-        borderWidth: tokens.hairline,
-        color: color.mutedForeground,
-        display: "flex",
-        gap: "0.75rem",
-        justifyContent: "space-between",
-        margin: 0,
-        paddingBlock: "0.375rem",
-        paddingInline: "0.625rem",
-    },
-    together: {
-        borderColor: tokens.rule,
-        borderStyle: "solid",
-    },
     reload: {
         color: color.foreground,
         fontWeight: 600,
+        marginLeft: "0.5rem",
+    },
+    access: {
+        alignItems: "center",
+        color: color.mutedForeground,
+        display: { default: "flex", "@media (max-width: 767px)": "none" },
+        gap: "0.375rem",
     },
     change: {
         fontSize: "0.75rem",
@@ -978,22 +957,12 @@ const styles = stylex.create({
         color: "#b8862b",
         fontWeight: 600,
     },
-    seatWall: {
-        alignItems: "center",
-        borderBottomColor: tokens.rule,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        color: color.mutedForeground,
-        display: "flex",
-        gap: "0.5rem",
-        margin: 0,
-        paddingBlock: "0.5rem",
-        paddingInline: "0.75rem",
-    },
     newTask: {
-        backgroundColor: tokens.signal,
+        borderColor: tokens.rule,
         borderRadius: "5px",
-        color: tokens.signalInk,
+        borderStyle: "solid",
+        borderWidth: tokens.hairline,
+        color: color.foreground,
         fontWeight: 600,
         paddingBlock: "0.125rem",
         paddingInline: "0.5rem",

@@ -936,20 +936,95 @@
     animation-play-state: paused !important;
 }
 
-/* flip each rebuilt part of a figure in once the stack has switched */
+/* flip each small rebuilt part of a figure in once the stack has switched */
 @keyframes flip-in {
     from {
         opacity: 0;
-        transform: perspective(40rem) rotateX(-90deg);
+        transform: perspective(40rem) rotateX(-70deg);
     }
 }
 
-:root[data-switched] [data-fade] {
-    animation: flip-in 450ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+/* fade each large rebuilt part in through a slight blur */
+@keyframes settle-in {
+    from {
+        filter: blur(3px);
+        opacity: 0.35;
+    }
+}
+
+:root[data-switched] [data-fade="small"] {
+    animation: flip-in 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+[data-turn],
+:root[data-switched] [data-fade="large"] {
+    animation: settle-in 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
+    [data-turn],
     :root[data-switched] [data-fade] {
         animation: none;
     }
+}
+
+/* drop the first switch's hint once the reader has switched */
+:root[data-switched] [data-hint] {
+    display: none;
+}
+
+/* set a chat's generated artifact in the look of a first draft, apart from everything you own */
+[data-artifact] {
+    background: linear-gradient(180deg, #f6f3ff 0%, #ffffff 40%);
+    color: #2a2440;
+    font-family: "Comic Neue", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    letter-spacing: 0.005em;
+    transition:
+        background 480ms cubic-bezier(0.23, 1, 0.32, 1),
+        color 480ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+[data-artifact] [data-component="DueList"],
+[data-artifact] [data-component="WaitingList"],
+[data-artifact] [data-component="RippleList"],
+[data-artifact] [data-component="WeekStrip"] {
+    border: 2px solid #d9cffc;
+    border-radius: 22px 6px 22px 6px;
+    box-shadow: 4px 4px 0 #e6defd;
+}
+
+[data-artifact] [data-component="DueList"] > p:first-child,
+[data-artifact] [data-component="WaitingList"] > p:first-child,
+[data-artifact] [data-component="RippleList"] > p:first-child {
+    background: linear-gradient(90deg, #8b5cf6, #ec4899);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+[data-artifact] [data-component="CalendarEvent"] {
+    border-radius: 14px;
+    border-left-width: 4px;
+}
+
+[data-artifact] [data-component="RegenerateButton"] {
+    background: linear-gradient(90deg, #8b5cf6, #ec4899);
+    border-color: transparent;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgb(139 92 246 / 35%);
+}
+
+[data-artifact] [data-component="ArtifactTitle"]::before {
+    content: "✨ ";
+}
+
+/* carry the artifact's parts between both looks smoothly */
+[data-component="DueList"],
+[data-component="WaitingList"],
+[data-component="RippleList"],
+[data-component="WeekStrip"],
+[data-component="CalendarEvent"] {
+    transition:
+        border-radius 480ms cubic-bezier(0.23, 1, 0.32, 1),
+        box-shadow 480ms cubic-bezier(0.23, 1, 0.32, 1),
+        border-color 480ms cubic-bezier(0.23, 1, 0.32, 1);
 }

@@ -1,5 +1,6 @@
 import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
+import type { JSX } from "@destack/view";
 
 import { plate } from "../style/plate.stylex";
 import { tokens } from "../style/tokens.stylex";
@@ -15,9 +16,9 @@ export type Item = {
     mark: ItemMark;
     /** The claim: the product rented for the job, or what the job lets you do. */
     name: string;
-    /** The plates beside the claim: dashed while rented, solid once owned. */
+    /** The plates beside the claim while rented, which owning drops. */
     chips: readonly string[];
-    /** The mono line under the claim. */
+    /** The line under the claim. */
     note: string;
 };
 
@@ -54,18 +55,18 @@ function ItemBadge(properties: { mark: ItemMark }) {
 /** One row of a ledger in both states of the stack. */
 export type Entry = { stacked: Item; destacked: Item };
 
-/** A ledger's closing line in both states of the stack. */
-export type Total = Record<"stacked" | "destacked", readonly [label: string, value: string]>;
-
 /**
- * Draw a numbered ledger of a figure's items in the stack figure's legend style, in two columns, closed by a total.
+ * Draw a numbered ledger of a figure's items in the stack figure's legend style, in one or two columns, closed by a total.
  *
  * Each row keeps its number and label in place, and flips its claim from the stacked item to the destacked one on its own step.
+ * When the ledger takes presses, pressing a row destacks its item alone.
  */
 export function Ledger(properties: {
     entries: readonly Entry[];
-    total: Total;
+    total: readonly [label: string, value: string];
     isOpenAt: Stagger;
+    onToggle?: (row: number) => void;
+    columns?: 1 | 2;
     lighting?: Lighting;
 }) {
     // draw one face of a row shown in its state and hidden in the other
@@ -80,59 +81,72 @@ export function Ledger(properties: {
             <span {...stylex.attrs(styles.claim)}>
                 <ItemBadge mark={item.mark} />
                 <b {...stylex.attrs(styles.name)}>{item.name}</b>
-                <span {...stylex.attrs(styles.plates)}>
-                    {item.chips.map((chip) => (
-                        <span {...stylex.attrs(plate.plate, isRented && plate.closed)}>{chip}</span>
-                    ))}
-                </span>
+                {isRented ? (
+                    <span {...stylex.attrs(styles.plates)}>
+                        {item.chips.map((chip) => (
+                            <span {...stylex.attrs(plate.plate, plate.closed)}>{chip}</span>
+                        ))}
+                    </span>
+                ) : undefined}
             </span>
             <span {...stylex.attrs(styles.note)}>{item.note}</span>
         </span>
     );
 
+    // draw one row: its number and label, and both faces of its claim
+    const rowOf = (entry: Entry, index: number) => (
+        <li
+            {...(properties.onToggle === undefined ? {} : switchOf(index + 1, entry))}
+            onPointerEnter={() => properties.lighting?.onLight(index + 1)}
+            onPointerLeave={() => properties.lighting?.onLight(undefined)}
+            {...stylex.attrs(
+                styles.row,
+                properties.columns === 1 && styles.rowSingle,
+                properties.onToggle !== undefined && styles.rowPressable,
+                properties.lighting?.lit === index + 1 && styles.rowLit,
+            )}
+        >
+            <span
+                {...stylex.attrs(
+                    styles.label,
+                    (properties.isOpenAt(index + 1) || properties.lighting?.lit === index + 1) &&
+                        styles.labelLit,
+                )}
+            >
+                {numberOf(index + 1)} {entry.destacked.label}
+            </span>
+            <span {...stylex.attrs(styles.faces)}>
+                {face(entry.stacked, true, index + 1)}
+                {face(entry.destacked, false, index + 1)}
+            </span>
+        </li>
+    );
+
+    // make a row a switch that destacks its item alone, when the ledger takes presses
+    const switchOf = (row: number, entry: Entry): JSX.LiHTMLAttributes<HTMLLIElement> => ({
+        role: "switch",
+        tabindex: "0",
+        "aria-checked": properties.isOpenAt(row) ? "true" : "false",
+        title: properties.isOpenAt(row)
+            ? `Rent ${entry.stacked.name} again`
+            : `Destack ${entry.destacked.label} alone`,
+        onClick: () => properties.onToggle?.(row),
+        onKeyDown: (event: KeyboardEvent) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                properties.onToggle?.(row);
+            }
+        },
+    });
+
     return (
         <div {...stylex.attrs(styles.ledger)}>
-            <ol {...stylex.attrs(styles.rows)}>
-                {properties.entries.map((entry, index) => (
-                    <li
-                        onPointerEnter={() => properties.lighting?.onLight(index + 1)}
-                        onPointerLeave={() => properties.lighting?.onLight(undefined)}
-                        {...stylex.attrs(
-                            styles.row,
-                            properties.lighting?.lit === index + 1 && styles.rowLit,
-                        )}
-                    >
-                        <span
-                            {...stylex.attrs(
-                                styles.label,
-                                (properties.isOpenAt(index + 1) ||
-                                    properties.lighting?.lit === index + 1) &&
-                                    styles.labelLit,
-                            )}
-                        >
-                            {numberOf(index + 1)} {entry.destacked.label}
-                        </span>
-                        <span {...stylex.attrs(styles.faces)}>
-                            {face(entry.stacked, true, index + 1)}
-                            {face(entry.destacked, false, index + 1)}
-                        </span>
-                    </li>
-                ))}
+            <ol {...stylex.attrs(styles.rows, properties.columns === 1 && styles.rowsSingle)}>
+                {properties.entries.map(rowOf)}
             </ol>
             <p {...stylex.attrs(styles.total)}>
-                {(["stacked", "destacked"] as const).map((state) => (
-                    <span
-                        {...stylex.attrs(
-                            styles.face,
-                            styles.totalFace,
-                            properties.isOpenAt(properties.entries.length + 1) ===
-                                (state === "stacked") && styles.faceHidden,
-                        )}
-                    >
-                        <span>{properties.total[state][0]}</span>
-                        <span>{properties.total[state][1]}</span>
-                    </span>
-                ))}
+                <span>{properties.total[0]}</span>
+                <span>{properties.total[1]}</span>
             </p>
         </div>
     );
@@ -160,6 +174,14 @@ const styles = stylex.create({
         padding: 0,
         "@media (max-width: 767px)": { gridTemplateColumns: "minmax(0, 1fr)" },
     },
+    rowsSingle: {
+        gridTemplateColumns: "minmax(0, 1fr)",
+    },
+    rowSingle: {
+        alignItems: "baseline",
+        columnGap: "1rem",
+        gridTemplateColumns: "8rem minmax(0, 1fr)",
+    },
     row: {
         alignContent: "center",
         backgroundColor: "rgb(255 121 46 / 0%)",
@@ -171,6 +193,9 @@ const styles = stylex.create({
         paddingInline: "0.75rem",
         rowGap: "0.3125rem",
         transition: "background-color 250ms ease",
+    },
+    rowPressable: {
+        cursor: "pointer",
     },
     rowLit: {
         backgroundColor: "rgb(255 121 46 / 10%)",
@@ -207,17 +232,6 @@ const styles = stylex.create({
         gap: "0.25rem",
         marginLeft: "auto",
     },
-    note: {
-        display: { default: "block", "@media (max-height: 999px)": "none" },
-        fontFamily: tokens.monoFont,
-        fontSize: "0.75rem",
-        letterSpacing: "0.02em",
-        lineHeight: "1.125rem",
-        opacity: 0.8,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
     logo: {
         borderRadius: "5px",
         flexShrink: 0,
@@ -251,18 +265,22 @@ const styles = stylex.create({
         gridArea: "1 / 1",
         minWidth: 0,
         rowGap: "0.3125rem",
-        transitionDuration: "450ms",
+        transitionDuration: "320ms",
         transitionProperty: "opacity, transform",
-        transitionTimingFunction: "cubic-bezier(0.6, 0, 0.2, 1)",
+        transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
     },
     faceHidden: {
         opacity: 0,
         pointerEvents: "none",
-        transform: "perspective(40rem) rotateX(90deg)",
+        transform: "perspective(40rem) rotateX(70deg)",
     },
-    totalFace: {
-        display: "flex",
-        justifyContent: "space-between",
+    note: {
+        color: color.mutedForeground,
+        fontSize: "0.8125rem",
+        lineHeight: "1.125rem",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
     total: {
         alignItems: "center",
@@ -270,7 +288,8 @@ const styles = stylex.create({
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         boxSizing: "border-box",
-        display: "grid",
+        display: "flex",
+        justifyContent: "space-between",
         fontFamily: tokens.monoFont,
         fontSize: "0.875rem",
         fontWeight: 700,

@@ -64,7 +64,13 @@ export const entities: Record<string, Entity> = {
     dropbox: { label: "Dropbox", icon: "dropbox", role: "$18/seat/mo", tint: "#0061ff" },
     figma: { label: "Figma", icon: "figma", role: "$55/seat/mo + credits", tint: "#f24e1e" },
     slack: { label: "Slack", icon: "slack", role: "$15/seat/mo", tint: "#4a154b" },
-    loom: { label: "Loom", icon: "loom", role: "$15/seat/mo", tint: "#625df5" },
+    granola: {
+        label: "Granola",
+        icon: "file",
+        role: "$14/seat/mo",
+        tint: "#9cbb3c",
+        logos: ["granola.png"],
+    },
     gdocs: { label: "Google Docs", icon: "googledocs", role: "$14/seat/mo", tint: "#4285f4" },
     calendly: { label: "Calendly", icon: "calendly", role: "$16/seat/mo", tint: "#006bff" },
     linear: { label: "Linear", icon: "linear", role: "$16/seat/mo + credits", tint: "#5e6ad2" },
@@ -80,78 +86,91 @@ export const entities: Record<string, Entity> = {
     pipeline: { label: "Hiring board", icon: "user", role: "Built with Replit", tint: "#5b7f2e" },
     budget: { label: "Family budget", icon: "table", role: "Built with Bolt", tint: "#a0485f" },
 
+    // the homemade apps rebuilt on Destack
+    ownTracker: {
+        label: "Launch tracker",
+        icon: "tasks",
+        role: "Built on Destack",
+        tint: "#b8862b",
+    },
+    ownPortal: { label: "Client portal", icon: "pages", role: "Built on Destack", tint: "#3d6fb0" },
+    ownPipeline: { label: "Hiring board", icon: "user", role: "Built on Destack", tint: "#5b7f2e" },
+    ownBudget: { label: "Family budget", icon: "table", role: "Built on Destack", tint: "#a0485f" },
+
     // apps
     pages: { label: "Pages", icon: "pages", role: "App", tint: "#3d6fb0" },
     notes: { label: "Notes", icon: "file", role: "App", tint: "#b8862b" },
     chat: { label: "Chat", icon: "chat", role: "App", tint: "#4f8a5b" },
     tasks: { label: "Tasks", icon: "tasks", role: "App", tint: "#c64a17" },
     source: { label: "Source", icon: "source", role: "App", tint: "#24292f" },
-    crm: { label: "CRM", icon: "user", role: "App", tint: "#a0485f" },
     forms: { label: "Forms", icon: "template", role: "App", tint: "#6b5ca5" },
     calendar: { label: "Calendar", icon: "calendar", role: "App", tint: "#c64a17" },
     sheets: { label: "Sheets", icon: "table", role: "App", tint: "#4f8a5b" },
     mail: { label: "Mail", icon: "mail", role: "App", tint: "#3d6fb0" },
-    expenses: { label: "Expenses", icon: "vault", role: "App", tint: "#8a6d3b" },
     files: { label: "Files", icon: "bucket", role: "App", tint: "#2f7d8c" },
+    canvas: { label: "Canvas", icon: "vector", role: "App", tint: "#c64a17" },
 
     // remixes, each named after the apps it joins
-    standup: { label: "Standup", icon: "chat", role: "Chat + Tasks", tint: "#4f8a5b" },
-    incidents: {
-        label: "Incidents",
-        icon: "notify",
-        role: "Chat + Tasks + Source",
-        tint: "#c64a17",
+    room: { label: "Launch room", icon: "chat", role: "Pages + Chat", tint: "#4f8a5b" },
+    roadmap: { label: "Roadmap", icon: "tasks", role: "Pages + Tasks", tint: "#c64a17" },
+    issues: { label: "Issues", icon: "notify", role: "Source + Tasks", tint: "#24292f" },
+    review: { label: "Design review", icon: "vector", role: "Canvas + Notes", tint: "#c64a17" },
+    research: { label: "User research", icon: "template", role: "Forms + Notes", tint: "#6b5ca5" },
+    interviews: {
+        label: "Interviews",
+        icon: "calendar",
+        role: "Forms + Calendar",
+        tint: "#a0485f",
     },
-    feedback: {
-        label: "Feedback loop",
-        icon: "sync",
-        role: "Forms + Tasks + CRM",
-        tint: "#6b5ca5",
-    },
-    hiring: { label: "Hiring", icon: "user", role: "Forms + CRM + Calendar", tint: "#a0485f" },
-    update: {
-        label: "Investor update",
-        icon: "vector",
-        role: "Sheets + Pages + Mail",
-        tint: "#3f6f73",
-    },
-    invoices: { label: "Invoices", icon: "table", role: "Sheets + CRM + Mail", tint: "#8a6d3b" },
-    household: {
-        label: "Household",
-        icon: "storage",
-        role: "Sheets + Expenses + Files",
-        tint: "#2f7d8c",
-    },
-    contacts: {
-        label: "Personal CRM",
-        icon: "user",
-        role: "Notes + Calendar + Mail",
-        tint: "#b0567f",
-    },
+    bookings: { label: "Bookings", icon: "calendar", role: "Sheets + Calendar", tint: "#3f6f73" },
+    report: { label: "Report", icon: "table", role: "Sheets + Pages", tint: "#4f8a5b" },
+    handbook: { label: "Handbook", icon: "pages", role: "Files + Pages", tint: "#3d6fb0" },
+    hub: { label: "Family hub", icon: "storage", role: "Files + Chat", tint: "#2f7d8c" },
 };
 
 /** The apps each remix joins, in the order its role names them. */
 const remixes: Readonly<Record<string, readonly string[]>> = {
-    standup: ["chat", "tasks"],
-    incidents: ["chat", "tasks", "source"],
-    feedback: ["forms", "tasks", "crm"],
-    hiring: ["forms", "crm", "calendar"],
-    update: ["sheets", "pages", "mail"],
-    invoices: ["sheets", "crm", "mail"],
-    household: ["sheets", "expenses", "files"],
-    contacts: ["notes", "calendar", "mail"],
+    room: ["pages", "chat"],
+    roadmap: ["pages", "tasks"],
+    issues: ["source", "tasks"],
+    review: ["canvas", "notes"],
+    research: ["forms", "notes"],
+    interviews: ["forms", "calendar"],
+    bookings: ["sheets", "calendar"],
+    report: ["sheets", "pages"],
+    handbook: ["files", "pages"],
+    hub: ["files", "chat"],
 };
 
-/** Every card the scenes can show. */
-const ids = Object.keys(entities);
+/** The Destack app that replaces each silo, in the silo's place. */
+const replacements: Readonly<Record<string, string>> = {
+    notion: "pages",
+    figma: "canvas",
+    typeform: "forms",
+    airtable: "sheets",
+    dropbox: "files",
+    github: "source",
+    slack: "chat",
+    granola: "notes",
+    calendly: "calendar",
+    gdocs: "pages",
+    linear: "tasks",
+    tracker: "ownTracker",
+    portal: "ownPortal",
+    pipeline: "ownPipeline",
+    budget: "ownBudget",
+};
+
 /** The silos each iceberg carries in turn, from the left berg to the right. */
 export const slotApps: readonly (readonly string[])[] = [
     ["notion", "figma", "typeform", "airtable", "dropbox", "github"],
-    ["slack", "loom", "calendly", "gdocs", "linear"],
+    ["slack", "granola", "calendly", "gdocs", "linear"],
     ["tracker", "portal", "pipeline", "budget"],
 ];
 /** The iceberg each silo rides. */
-const slots = new Map(slotApps.flatMap((apps, slot) => apps.map((id) => [id, slot] as const)));
+const slots = new Map(
+    slotApps.flatMap((apps, slot) => apps.map((id): [string, number] => [id, slot])),
+);
 /** The silos, which ride the icebergs today. */
 const vendors = new Set(slots.keys());
 /** The milliseconds a silo takes to bob up after the one it replaces starts to sink. */
@@ -159,11 +178,7 @@ const swapDelay = 1000;
 /** The milliseconds a silo waits to land on the reformed ice after the water returns. */
 const landingDelay = 2700;
 /** The open apps and remixes, which anyone can fork. */
-const apps = new Set(
-    Object.entries(entities)
-        .filter(([id, entity]) => entity.role === "App" || id in remixes)
-        .map(([id]) => id),
-);
+const apps = new Set([...Object.values(replacements), ...Object.keys(remixes)]);
 
 /** One arrangement of the top two layers. */
 type Scene = {
@@ -194,18 +209,18 @@ export const todayScenes: readonly Scene[] = [
     ),
     locked(
         ["you", "cofounder", "designer", "claude"],
-        ["figma", "loom", "tracker"],
-        ["figma", "loom", "figma", "tracker"],
+        ["figma", "granola", "tracker"],
+        ["figma", "granola", "figma", "tracker"],
     ),
     locked(
         ["you", "cofounder", "client", "claude"],
-        ["figma", "loom", "portal"],
-        ["loom", "portal", "portal", "figma"],
+        ["figma", "granola", "portal"],
+        ["granola", "portal", "portal", "figma"],
     ),
     locked(
         ["you", "cofounder", "client", "claude"],
-        ["typeform", "loom", "portal"],
-        ["portal", "loom", "typeform", "portal"],
+        ["typeform", "granola", "portal"],
+        ["portal", "granola", "typeform", "portal"],
     ),
     locked(
         ["you", "cofounder", "candidate", "claude"],
@@ -239,94 +254,48 @@ export const todayScenes: readonly Scene[] = [
     ),
 ];
 
-/** The open loop: everyone shares the apps, and each step joins apps into a remix or brings the next set of apps in. */
-export const scenes: readonly Scene[] = [
-    // team: a standup, then an incident room
-    open(
-        ["you", "cofounder", "designer", "agent"],
-        ["chat", "tasks", "source"],
-        ["tasks", "chat", "tasks", "source"],
-    ),
-    open(
-        ["you", "cofounder", "designer", "agent"],
-        ["standup", "source"],
-        ["standup", "standup", "standup", "source"],
-    ),
-    open(
-        ["you", "cofounder", "designer", "claude"],
-        ["chat", "tasks", "source"],
-        ["source", "chat", "tasks", "tasks"],
-    ),
-    open(
-        ["you", "cofounder", "designer", "claude"],
-        ["incidents"],
-        ["incidents", "incidents", "incidents", "incidents"],
-    ),
+/** The open loop: each locked scene with every silo replaced in its place, then its two replaced apps joined into a remix. */
+export const scenes: readonly Scene[] = todayScenes.flatMap((scene) => {
+    // replace each silo in its place, and point each person at the replacement
+    const swap = (id: string) => replacements[id] ?? id;
+    const lower = scene.lower.map((card) => swap(card.id));
+    const [first, second, third] = lower;
+    if (first === undefined || second === undefined || third === undefined) {
+        throw new TypeError("a locked scene holds three silos");
+    }
+    const replaced: Scene = {
+        upper: scene.upper,
+        lower: lower.map((id) => ({ id, span: 1 })),
+        links: scene.links.map(([person, target]): [string, string] => [person, swap(target)]),
+    };
 
-    // startup: close the loop with customers, then hire
-    open(
-        ["you", "cofounder", "client", "claude"],
-        ["forms", "tasks", "crm"],
-        ["tasks", "crm", "forms", "tasks"],
-    ),
-    open(
-        ["you", "cofounder", "client", "claude"],
-        ["feedback"],
-        ["feedback", "feedback", "feedback", "feedback"],
-    ),
-    open(
-        ["you", "cofounder", "candidate", "claude"],
-        ["forms", "crm", "calendar"],
-        ["calendar", "crm", "forms", "crm"],
-    ),
-    open(
-        ["you", "cofounder", "candidate", "claude"],
-        ["hiring"],
-        ["hiring", "hiring", "hiring", "hiring"],
-    ),
+    // join the first two replacements into their remix beside the third
+    const remix = remixOf(first, second);
+    const joined = (id: string) => (id === first || id === second ? remix : id);
 
-    // founder and freelancer: report to investors, then bill clients
-    open(
-        ["you", "cofounder", "investor", "chatgpt"],
-        ["sheets", "pages", "mail"],
-        ["sheets", "pages", "mail", "sheets"],
-    ),
-    open(
-        ["you", "cofounder", "investor", "chatgpt"],
-        ["update"],
-        ["update", "update", "update", "update"],
-    ),
-    open(
-        ["you", "designer", "client", "chatgpt"],
-        ["sheets", "crm", "mail"],
-        ["sheets", "crm", "mail", "sheets"],
-    ),
-    open(
-        ["you", "designer", "client", "chatgpt"],
-        ["invoices"],
-        ["invoices", "invoices", "invoices", "invoices"],
-    ),
+    return [
+        replaced,
+        {
+            upper: scene.upper,
+            lower: [
+                { id: remix, span: 2 },
+                { id: third, span: 1 },
+            ],
+            links: replaced.links.map(([person, target]): [string, string] => [
+                person,
+                joined(target),
+            ]),
+        },
+    ];
+});
 
-    // life: run a household, then keep up with people
-    open(
-        ["you", "partner", "roommate", "chatgpt"],
-        ["sheets", "expenses", "files"],
-        ["sheets", "expenses", "files", "expenses"],
-    ),
-    open(
-        ["you", "partner", "roommate", "chatgpt"],
-        ["household"],
-        ["household", "household", "household", "household"],
-    ),
-    open(
-        ["you", "partner", "roommate", "agent"],
-        ["notes", "calendar", "mail"],
-        ["notes", "calendar", "mail", "mail"],
-    ),
-    open(
-        ["you", "partner", "roommate", "agent"],
-        ["contacts"],
-        ["contacts", "contacts", "contacts", "contacts"],
+/** Every card the scenes show, locked or open. */
+const ids = [
+    ...new Set(
+        [...todayScenes, ...scenes].flatMap((scene) => [
+            ...scene.upper,
+            ...scene.lower.map((card) => card.id),
+        ]),
     ),
 ];
 
@@ -337,7 +306,7 @@ const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> 
         ["Search", "Bucket"],
     ],
     notes: [
-        ["Access", "DB"],
+        ["AI", "Vault"],
         ["Search", "DB"],
     ],
     chat: [
@@ -352,10 +321,6 @@ const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> 
         ["Access", "Audit"],
         ["Search", "Bucket"],
     ],
-    crm: [
-        ["Access", "DB"],
-        ["Search", "DB"],
-    ],
     forms: [
         ["Access", "DB"],
         ["Settings", "DB"],
@@ -368,18 +333,29 @@ const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> 
         ["Access", "DB"],
         ["AI", "Vault"],
     ],
-    mail: [
-        ["Access", "DB"],
-        ["Search", "DB"],
-        ["AI", "Vault"],
-    ],
-    expenses: [
-        ["Access", "Audit"],
-        ["Settings", "DB"],
-    ],
     files: [
         ["Access", "Bucket"],
         ["Search", "Bucket"],
+    ],
+    canvas: [
+        ["Access", "Bucket"],
+        ["AI", "Vault"],
+    ],
+    ownTracker: [
+        ["Access", "DB"],
+        ["Settings", "Audit"],
+    ],
+    ownPortal: [
+        ["Access", "DB"],
+        ["Search", "Bucket"],
+    ],
+    ownPipeline: [
+        ["Access", "DB"],
+        ["AI", "Vault"],
+    ],
+    ownBudget: [
+        ["Access", "Audit"],
+        ["Settings", "DB"],
     ],
 });
 
@@ -608,7 +584,7 @@ export function Remix(properties: {
                 const next = upcoming(id, scene());
                 const following = properties.isOpen
                     ? present(scenePlacements[(scene() + 1) % scenes.length], "scene")
-                    : present(scenePlacements[0], "scene");
+                    : present(scenePlacements[properties.today * 2], "scene");
                 const origins = following.has(id)
                     ? [...current]
                           .filter(
@@ -1083,12 +1059,12 @@ export function Remix(properties: {
             wasScene = scene();
             wasToday = properties.today;
 
-            // reset the scenes while locked, and step them while open and live
+            // hold the open scene on the locked one while locked, and step it while open and live
             if (!properties.isOpen) {
                 nextScene = undefined;
-                if (scene() !== 0) {
-                    setScene(0);
-                    properties.onScene(0);
+                if (scene() !== properties.today * 2) {
+                    setScene(properties.today * 2);
+                    properties.onScene(properties.today * 2);
                 }
             } else if (properties.isLive && !isStill) {
                 nextScene ??= now + firstSceneTime;
@@ -1542,17 +1518,16 @@ function locked(
     };
 }
 
-/** Build an open scene: the people above, the apps below each as wide as the apps it joins, and the app each person works in. */
-function open(
-    upper: readonly string[],
-    lower: readonly string[],
-    targets: readonly string[],
-): Scene {
-    return {
-        upper,
-        lower: lower.map((id) => ({ id, span: remixes[id]?.length ?? 1 })),
-        links: linksOf(upper, targets),
-    };
+/** Return the remix that joins two apps, or throw when none does. */
+function remixOf(first: string, second: string): string {
+    const found = Object.entries(remixes).find(
+        ([, parts]) => parts.includes(first) && parts.includes(second),
+    );
+    if (!found) {
+        throw new TypeError(`no remix joins ${first} and ${second}`);
+    }
+
+    return found[0];
 }
 
 /** Pair each person with the target at the same index, or throw when a person has none. */
@@ -1592,20 +1567,22 @@ function withRemixes(
     uses: Record<string, readonly (readonly [string, string])[]>,
 ): Record<string, readonly (readonly [string, string])[]> {
     // join the pairs of each remix's apps, once each
-    const joined = Object.entries(remixes).map(([remix, parts]) => {
-        const pairs = parts.flatMap((part) => {
-            // reject a remix of an app without services
-            const used = uses[part];
-            if (!used) {
-                throw new TypeError(`remix ${remix} joins unknown app ${part}`);
-            }
+    const joined = Object.entries(remixes).map(
+        ([remix, parts]): [string, readonly (readonly [string, string])[]] => {
+            const pairs = parts.flatMap((part) => {
+                // reject a remix of an app without services
+                const used = uses[part];
+                if (!used) {
+                    throw new TypeError(`remix ${remix} joins unknown app ${part}`);
+                }
 
-            return used;
-        });
-        const unique = [...new Map(pairs.map((pair) => [pair.join(":"), pair])).values()];
+                return used;
+            });
+            const unique = [...new Map(pairs.map((pair) => [pair.join(":"), pair])).values()];
 
-        return [remix, unique] as const;
-    });
+            return [remix, unique];
+        },
+    );
 
     return { ...uses, ...Object.fromEntries(joined) };
 }
@@ -1622,17 +1599,17 @@ const dance = stylex.keyframes({
 /** The cable strokes for each cable kind. */
 const cableKinds = stylex.create({
     locked: { stroke: color.mutedForeground },
-    link: { stroke: `color-mix(in srgb, ${color.foreground} 55%, transparent)` },
-    chain: { stroke: `color-mix(in srgb, ${color.foreground} 55%, transparent)` },
-    drop: { stroke: `color-mix(in srgb, ${color.foreground} 55%, transparent)` },
+    link: { stroke: `color-mix(in srgb, ${color.foreground} 22%, transparent)` },
+    chain: { stroke: `color-mix(in srgb, ${color.foreground} 22%, transparent)` },
+    drop: { stroke: `color-mix(in srgb, ${color.foreground} 22%, transparent)` },
 });
 
 /** The plug fills for each cable kind. */
 const plugKinds = stylex.create({
     locked: { fill: color.mutedForeground },
-    link: { fill: color.primary },
-    chain: { fill: color.primary },
-    drop: { fill: color.primary },
+    link: { fill: `color-mix(in srgb, ${color.foreground} 30%, transparent)` },
+    chain: { fill: `color-mix(in srgb, ${color.foreground} 30%, transparent)` },
+    drop: { fill: `color-mix(in srgb, ${color.foreground} 30%, transparent)` },
 });
 
 /** The remix layer styles. */

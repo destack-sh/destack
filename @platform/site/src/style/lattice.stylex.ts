@@ -30,8 +30,9 @@ export const lattice = stylex.create({
         height: { default: tokens.section, "@media (max-width: 1099px)": "auto" },
     },
 
-    /** A band whose cells sit on the rule colour a hairline apart, so every rule between them is drawn once and meets its neighbours. */
+    /** A band whose cells sit on the rule colour a hairline apart, so every rule between them is drawn once and meets its neighbours, the colour kept inside the band's own edge rules so those are drawn once too. */
     ruled: {
+        backgroundClip: "padding-box",
         backgroundColor: tokens.rule,
         gap: tokens.hairline,
     },

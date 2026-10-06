@@ -5,15 +5,16 @@ import { createMemo, createSignal, type JSX } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
 import type { Lighting } from "./ledger";
+import type { Stagger } from "./stagger";
 
 /**
- * Inspect an app figure the way browser tools do: point at any part marked `data-component` to see what it is.
+ * Show which service each part of an app figure runs on: point at a part to outline it, name its service, and light that service in the ledger.
  *
- * Once owned, a part shows its outline, its component and the service it runs on, and lights that service in the ledger.
- * While rented, a part shows only a faint dashed outline and the minified markup of a closed build.
+ * Once its service is owned, a part shows a solid outline and the service's name.
+ * While its service is rented, a part shows a faint dashed outline and says the service is rented.
  */
 export function Inspector(properties: {
-    isOpen: boolean;
+    isOpenAt: Stagger;
     lighting?: Lighting;
     services: readonly string[];
     children: JSX.Element;
@@ -26,8 +27,8 @@ export function Inspector(properties: {
     const point = (event: PointerEvent) => {
         // find the nearest named part and the service around it
         const target = event.target instanceof Element ? event.target : undefined;
-        const part = target?.closest<HTMLElement>("[data-component]") ?? undefined;
-        const service = target?.closest<HTMLElement>("[data-service]")?.dataset["service"];
+        const part = target?.closest<HTMLElement>("[data-service]") ?? undefined;
+        const service = part?.dataset["service"];
 
         // show the part and light its service in the ledger
         setPointed(part);
@@ -54,6 +55,15 @@ export function Inspector(properties: {
         return undefined;
     };
 
+    // read whether the shown part's service or else the figure's last step is open
+    const isOpenFor = (part: HTMLElement) => {
+        const service = part.closest<HTMLElement>("[data-service]")?.dataset["service"];
+
+        return properties.isOpenAt(
+            service === undefined ? properties.services.length + 1 : Number(service),
+        );
+    };
+
     // name the shown part by its component and service once owned and by its markup while rented
     const label = (part: HTMLElement) => {
         // read the nearest named component and the service around it
@@ -63,9 +73,7 @@ export function Inspector(properties: {
         const serviceName =
             service === undefined ? undefined : properties.services[Number(service) - 1];
 
-        return properties.isOpen
-            ? [component, serviceName].filter((name) => name !== undefined).join(" · ")
-            : `${part.tagName.toLowerCase()}.${minified(component)}`;
+        return isOpenFor(part) ? (serviceName ?? component) : `${serviceName ?? component}, rented`;
     };
 
     // measure the shown part against the frame with its label
@@ -87,11 +95,12 @@ export function Inspector(properties: {
             height: bounds.height,
             label: label(part),
             isEnd: bounds.left + bounds.width / 2 > origin.left + origin.width / 2,
+            isOpen: isOpenFor(part),
         };
     });
 
     // keep the last box in place while it fades out
-    let last = { left: 0, top: 0, width: 0, height: 0, label: "", isEnd: false };
+    let last = { left: 0, top: 0, width: 0, height: 0, label: "", isEnd: false, isOpen: false };
     const placed = createMemo(() => {
         last = box() ?? last;
 
@@ -116,7 +125,7 @@ export function Inspector(properties: {
                 }}
                 {...stylex.attrs(
                     styles.box,
-                    properties.isOpen && styles.boxOpen,
+                    placed().isOpen && styles.boxOpen,
                     box() === undefined && styles.boxGone,
                 )}
             >
@@ -124,7 +133,7 @@ export function Inspector(properties: {
                     {...stylex.attrs(
                         styles.tag,
                         placed().isEnd && styles.tagEnd,
-                        properties.isOpen && styles.tagOpen,
+                        placed().isOpen && styles.tagOpen,
                     )}
                 >
                     {placed().label}
@@ -132,16 +141,6 @@ export function Inspector(properties: {
             </span>
         </div>
     );
-}
-
-/** Return a short, stable class name for a component, as a minifier would print it. */
-function minified(component: string) {
-    let hash = 7;
-    for (const character of component) {
-        hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-    }
-
-    return hash.toString(36).slice(-6);
 }
 
 /** The inspector styles. */

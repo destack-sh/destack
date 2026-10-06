@@ -297,9 +297,9 @@ const styles = stylex.create({
     item: {
         position: "relative",
         alignItems: "center",
-        borderLeftColor: tokens.signalInk,
+        borderLeftColor: `color-mix(in srgb, ${tokens.signalInk} 16%, transparent)`,
         borderLeftStyle: "solid",
-        borderLeftWidth: "2px",
+        borderLeftWidth: "1px",
         boxShadow: `inset 0 0 0 ${tokens.signal}`,
         color: tokens.signalInk,
         display: "flex",
@@ -325,7 +325,7 @@ const styles = stylex.create({
         [mobile]: { display: "none" },
     },
     itemActive: {
-        boxShadow: `inset 0 -2px 0 ${tokens.signal}`,
+        boxShadow: `inset 0 -1px 0 color-mix(in srgb, ${tokens.signal} 55%, transparent)`,
     },
     chip: {
         opacity: "var(--ink, 1)",

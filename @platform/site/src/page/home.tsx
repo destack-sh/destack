@@ -4,6 +4,7 @@ import { createSignal } from "@destack/view";
 import { Adjective } from "../home/adjective";
 import { Noun } from "../home/noun";
 import { Participle } from "../home/participle";
+import { PastParticiple } from "../home/past";
 import { Verb } from "../home/verb";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
@@ -17,10 +18,11 @@ export function HomePage() {
     return (
         <Shell>
             <Seo />
-            <Verb isOpen={isOpen()} onChange={setIsOpen} />
-            <Noun isOpen={isOpen()} />
+            <Verb isOpen={isOpen()} />
+            <PastParticiple isOpen={isOpen()} onChange={setIsOpen} />
             <Adjective isOpen={isOpen()} />
-            <Participle />
+            <Noun isOpen={isOpen()} />
+            <Participle isOpen={isOpen()} />
             <Interval />
         </Shell>
     );
