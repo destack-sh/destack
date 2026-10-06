@@ -17,6 +17,21 @@ createRoot(() => {
 });
 ```
 
+## Controllable signals
+
+`createControllableSignal` follows a value its owner passes, else keeps its own, and tells the owner of each change, as a component's `value`, `defaultValue` and `onValueChange` do.
+
+```ts
+import { createControllableSignal } from "@destack/signals";
+
+const [open, setOpen] = createControllableSignal({
+    isControlled: () => properties.open !== undefined,
+    value: () => properties.open === true,
+    defaultValue: properties.defaultOpen === true,
+    onChange: (next) => properties.onOpenChange?.(next),
+});
+```
+
 ## Store
 
 `createStore` holds nested reactive state, and `@destack/signals/store` exports it without the rest of the package.
