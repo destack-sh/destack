@@ -25,6 +25,7 @@
         "./bun/preload": "./src/bun/preload.ts",
         "./declare": "./src/declare/index.ts",
         "./build": "./src/build/index.ts",
+        "./test": "./src/test/index.ts",
         "./schemas/destack.json": "./schemas/destack.json"
     },
     "scripts": {

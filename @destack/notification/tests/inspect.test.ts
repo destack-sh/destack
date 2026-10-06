@@ -1,10 +1,8 @@
+import { MemoryBuild } from "@destack/package/test";
 import { plural, t } from "@destack/locale";
 import { expect, test } from "@destack/test";
-import { found, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { defineNotification } from "../src/declare/index.ts";
-import { PackageFile } from "@destack/package/file";
-import { BuildReader } from "@destack/package/manifest";
-import { graph } from "@destack/package";
 import { notification } from "../src/index.ts";
 import {
     describeNotification,
@@ -49,7 +47,7 @@ test("describe a declared notification for manifests with its actions, and its p
         description: "Someone mentions you in a remark.",
         apply: "immediate",
         scope: "user",
-        overrides: ["space", "installation", "device"],
+        overrides: ["space", "installation", "client"],
         package: notes,
         default: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         schema: {
@@ -85,55 +83,10 @@ test("refuse declarations whose names cannot identify a setting, and unlabeled a
 
 test("read the notifications a build declares from its graph, and none another package declares", async () => {
     // declare the mention, and a notification of the notes package's kind beside it
-    const symbol = graph.Moniker.of({
-        packageId: notes.id,
-        module: "src/notification.ts",
-        name: "mention",
-    });
-    const declaration = (packageId: typeof notes.id): graph.Declaration => ({
-        moniker: graph.Moniker.parse(`${symbol}:notification`),
-        symbol,
-        kind: "notification",
-        package: packageId,
-        name: "mention",
-        description: describeNotification(mention),
-    });
-    const module = await graph.Module.file({
-        path: "src/notification.ts",
-        digest: "0".repeat(64),
-        imports: [],
-        exports: [],
-        symbols: [],
-        declarations: [declaration(notification.package.id), declaration(notes.id)],
-        edges: [],
-    });
-
-    // keep the module's graph file under the root, and the manifest's other files empty
-    const files = new Map([[`graph/${module.digest}.json`, module.bytes]]);
-    const root = new TextEncoder().encode(
-        JSON.stringify({ modules: { "src/notification.ts": module.digest } }),
-    );
-    files.set("manifest/graph.json", root);
-    const empty = await PackageFile.describe(
-        "manifest/empty.json",
-        "application/json",
-        new Uint8Array(),
-    );
-    const reader = new BuildReader(
-        {
-            formatVersion: 1,
-            package: notes,
-            language: "typescript",
-            lists: {
-                dependencies: empty,
-                files: empty,
-                sourceMaps: empty,
-                graph: await PackageFile.describe("manifest/graph.json", "application/json", root),
-            },
-            outputs: {},
-        },
-        async (path) => found(files, path),
-    );
+    const { reader } = await MemoryBuild.declaring(notes, [
+        declaration(notification.package.id),
+        declaration(notes.id),
+    ]);
 
     // read the described mention once, leaving the notes package's kind out
     expect(await readNotifications(reader)).toEqual([describeNotification(mention)]);
@@ -176,4 +129,15 @@ function issues(build: () => unknown) {
     }
 
     return [];
+}
+
+/** Declare the mention as a notification of a package's kind, as the build records it. */
+function declaration(packageId: typeof notes.id) {
+    return {
+        kind: "notification",
+        package: packageId,
+        module: "src/notification.ts",
+        name: "mention",
+        description: describeNotification(mention),
+    };
 }
