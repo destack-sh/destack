@@ -8,7 +8,7 @@ A `repository` holds the references of one Git origin, and a `package` holds the
 
 ```text
 account
-├── repository { name, hosting, host?, provider?, providerRepositoryId?, remote?, defaultReference?, ... }
+├── repository { name, hosting, machine?, provider?, providerRepositoryId?, remote?, defaultReference?, ... }
 │   └── reference { name, object, commit?, observedAt, deletedAt? }
 └── package { id: package id, name, visibility, vocabulary }
     ├── release { version, manifest, commit, distribution, metadata, upgrade?, deprecation?, unpublishedAt? }
@@ -45,8 +45,8 @@ const origins: RepositoryOrigin[] = [
     { hosting: "platform" }, // the region's GitStorage
     { hosting: "github", remote, connectedAccountId }, // a GitHub App token limited to the repository
     { hosting: "git", remote, authentication: "anonymous" }, // the remote alone, for pulls
-    { hosting: "git", remote, authentication: "secret", secretSpaceId, secretId }, // the secret in the space's vault
-    { hosting: "host", host }, // the host's report calls
+    { hosting: "git", remote, authentication: "secret", secret }, // a secret of a space's vault
+    { hosting: "machine", machine }, // the machine's report calls
 ];
 ```
 
@@ -57,7 +57,7 @@ Account roles grant the repository permissions.
 ```ts
 import { repository } from "@destack/forge/object";
 
-// a read lease needs pull, a write lease also needs push, and only the repository's host has report
+// a read lease needs pull, a write lease also needs push, and only the repository's machine has report
 // a cell leases as a space it serves by naming the space on the request, which the copied zone lets it represent
 await authorization.createRole(account, {
     name: "deployer",
@@ -83,7 +83,7 @@ await GitLease.checkout(lease, commit, directory, signal);
 
 ## Reports
 
-`repository.report` records the references a host observed in a repository.
+`repository.report` records the references a machine observed in a repository.
 
 ```ts
 await client.repository.report({

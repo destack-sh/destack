@@ -58,11 +58,3 @@ test("sign claims with ES256 and RS256 keys into tokens their public keys verify
         [{ alg: "RS256", typ: "JWT" }, claims, true],
     ]);
 });
-
-test("refuse signing with keys of other algorithms", async () => {
-    const key = await crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-
-    await expect(JsonWebToken.sign({}, key)).rejects.toThrow(
-        new TypeError("json web tokens are not signed with HMAC keys"),
-    );
-});

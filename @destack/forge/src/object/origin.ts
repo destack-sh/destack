@@ -1,16 +1,16 @@
 import { principal } from "@destack/access";
-import { Subject } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
 import { schema } from "@destack/schema";
 
-/** A host as a subject, read from the key in the repository's host field: the host itself in its account, never a set of hosts. */
-const HostSubject = Subject.omit({ relation: true }).extend({
-    packageId: schema.literal(principal.host.definition.packageId),
-    type: schema.literal(principal.host.name),
-    id: schema.identifier("host"),
+/** A machine as a subject, read from the key in the repository's machine field: the machine itself in its account, never a set of machines. */
+const MachineSubject = Subject.omit({ relation: true }).extend({
+    packageId: schema.literal(principal.machine.definition.packageId),
+    type: schema.literal(principal.machine.name),
+    id: schema.identifier("machine"),
 });
 
-/** Where a repository's authoritative history lives: platform storage, GitHub, any Git remote, or a host. */
-export const HOSTINGS = ["platform", "github", "git", "host"] as const;
+/** Where a repository's authoritative history lives: platform storage, GitHub, any Git remote, or a machine. */
+export const HOSTINGS = ["platform", "github", "git", "machine"] as const;
 
 /** The ways the platform authenticates to a Git remote. */
 export const AUTHENTICATIONS = ["anonymous", "secret"] as const;
@@ -18,7 +18,7 @@ export const AUTHENTICATIONS = ["anonymous", "secret"] as const;
 /** Where a repository's authoritative history lives, and how the platform authenticates to it. */
 export const RepositoryOrigin = schema.union([
     schema.object({ hosting: schema.literal("platform") }),
-    schema.object({ hosting: schema.literal("host"), host: HostSubject }),
+    schema.object({ hosting: schema.literal("machine"), machine: MachineSubject }),
     schema.object({
         hosting: schema.literal("github"),
         remote: schema.url(),
@@ -33,8 +33,7 @@ export const RepositoryOrigin = schema.union([
         hosting: schema.literal("git"),
         remote: schema.url(),
         authentication: schema.literal("secret"),
-        secretSpaceId: schema.identifier("space"),
-        secretId: schema.identifier("secret"),
+        secret: ObjectReference,
     }),
 ]);
 /** Where a repository's authoritative history lives, and how the platform authenticates to it. */
@@ -43,35 +42,32 @@ export type RepositoryOrigin = schema.Infer<typeof RepositoryOrigin>;
 /** The fields naming a repository's origin, as callers write them. */
 export const ORIGIN_FIELDS = [
     "hosting",
-    "host",
+    "machine",
     "remote",
     "authentication",
     "connectedAccountId",
-    "secretSpaceId",
-    "secretId",
+    "secret",
 ] as const;
 
-/** The origin fields a repository's update may change: every one but its host, which keeps reporting. */
+/** The origin fields a repository's update may change: every one but its machine, which keeps reporting. */
 export const MOVABLE_ORIGIN_FIELDS = ORIGIN_FIELDS.filter(
-    (name): name is Exclude<(typeof ORIGIN_FIELDS)[number], "host"> => name !== "host",
+    (name): name is Exclude<(typeof ORIGIN_FIELDS)[number], "machine"> => name !== "machine",
 );
 
 /** The columns naming a repository's origin and its identity in storage or at GitHub. */
 export const OriginColumns = schema.object({
     /** Where the repository is hosted. */
     hosting: schema.enum(HOSTINGS),
-    /** The host serving a host repository. */
-    host: schema.string().nullable(),
+    /** The machine serving a machine repository. */
+    machine: schema.string().nullable(),
     /** The remote of a GitHub, Git or platform repository. */
     remote: schema.string().nullable(),
     /** How a Git repository authenticates. */
     authentication: schema.enum(AUTHENTICATIONS).nullable(),
     /** The connected account opening a GitHub repository. */
     connectedAccountId: schema.identifier("connected-account").nullable(),
-    /** The space holding a Git repository's secret. */
-    secretSpaceId: schema.identifier("space").nullable(),
-    /** The secret a Git repository authenticates with. */
-    secretId: schema.identifier("secret").nullable(),
+    /** The vault secret a Git repository authenticates with. */
+    secret: ObjectReference.nullable(),
     /** The storage provider of a platform repository. */
     provider: schema.string().nullable(),
     /** The repository's identity in storage or at GitHub. */

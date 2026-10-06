@@ -1,6 +1,6 @@
 import { type Table, defineDatabase } from "@destack/db";
 import { journal } from "@destack/audit/stack";
-import { account, connection, host, hostKey, zone } from "@destack/account/object";
+import { account, connection, key, machine, zone } from "@destack/account/object";
 import { dependency, packageObject, reference, release, repository, tag } from "../object/index.ts";
 
 /** The forge's tables: repositories, references, packages, releases, tags, dependencies and its journal. */
@@ -14,9 +14,9 @@ export const forgeTables: readonly Table[] = [
     journal,
 ];
 
-/** The forge's database, with copies of its residency's accounts, the connections it opens repositories through, the hosts and keys tokens name, and the zones standing for spaces. */
+/** The forge's database, with copies of its residency's accounts, the connections it opens repositories through, the machines and keys tokens name, and the zones standing for spaces. */
 export const forgeDatabase = defineDatabase({
     name: "main",
     tables: forgeTables,
-    copies: [account.table, connection.table, host.table, hostKey.table, zone.table],
+    copies: [account.table, connection.table, machine.table, key.table, zone.table],
 });

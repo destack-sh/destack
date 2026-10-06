@@ -5,14 +5,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inject } from "vitest";
-import { type BuildOptions, PackageBuild, PackageBuilder, readDependencies } from "@destack/build";
+import {
+    type BuildOptions,
+    PackageBuild,
+    PackageBuilder,
+    readDependencies,
+    readOutputs,
+} from "@destack/build";
 import { PackageStore } from "@destack/build/store";
 import { principal } from "@destack/access";
 import { Journal } from "@destack/audit/server";
 import { LocalBucket } from "@destack/bucket/local";
 import type { Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { PackageDefinition, type PackageId } from "@destack/package";
+import type { PackageId } from "@destack/package";
 import { History, Vocabulary } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { Commit, found, type Identifier, schema } from "@destack/schema";
@@ -146,7 +152,7 @@ export class PackageFixture implements AsyncDisposable {
             resources: new ResourceContext(),
             health: new Health("forge"),
             authenticate: async (request) => PackageFixture.#authenticate(request),
-            authorizeHost: async () => {},
+            authorizeMachine: async () => {},
             drainTimeout: 1000,
         });
     }
@@ -173,7 +179,7 @@ export class PackageFixture implements AsyncDisposable {
         });
         const placement = await accounts.place(forgeService.package.id);
 
-        // follow and reach the account service as the forge's workload through a host of the platform's region, once copied
+        // follow and reach the account service as the forge's workload through a machine of the platform's region, once copied
         const region = await accounts.enroll(ids.platform);
         const fixture = new PackageFixture(
             directory,
@@ -359,17 +365,11 @@ export class FixtureSource implements AsyncDisposable {
             .parse(await readJson(join(this.directory, "package.json")));
         const dependencies = await readDependencies(this.directory);
 
-        // build the module outputs destack.json publishes, as a build worker does
-        const definition = PackageDefinition.parse(
-            await readJson(join(this.directory, "destack.json")),
-        );
-        if (definition.publication === undefined) {
-            throw new TypeError(`fixture ${this.name} declares no publication`);
-        }
+        // build one unbundled module per runtime the package ships, as a build worker does
         const outputs = Object.fromEntries(
-            Object.entries(definition.publication.outputs).map(([name, output]) => [
+            Object.entries(await readOutputs(this.directory)).map(([name, { kind, runtime }]) => [
                 name,
-                { kind: "module" as const, ...output },
+                { kind, runtime },
             ]),
         );
 

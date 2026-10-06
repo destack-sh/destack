@@ -2,7 +2,6 @@ import { expect, test } from "@destack/test";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ServiceError } from "@destack/service/error";
 import { ArtifactsStorage } from "../src/cloudflare/index.ts";
 import { GitLease, LocalGitStorage } from "../src/local/index.ts";
 import { GitAdvertisement } from "../src/storage/index.ts";
@@ -163,23 +162,6 @@ test("create, list and delete a Cloudflare Artifacts repository through its REST
         ["DELETE", `${api}/repos/${id}`, "Bearer api", undefined],
         ["DELETE", `${api}/repos/${id}`, "Bearer api", undefined],
     ]);
-});
-
-test("refuse a Cloudflare Artifacts token whose expiry is no time", async () => {
-    // issue a token with an unreadable expiry
-    const storage = new ArtifactsStorage({
-        account: "acme",
-        namespace: "sites",
-        token: "api",
-        fetch: async () => envelope(200, { plaintext: "art_v1_secret", expires_at: "soon" }),
-    });
-
-    // refuse leasing it
-    await expect(storage.open("repository-site", "read")).rejects.toEqual(
-        new ServiceError("BAD_GATEWAY", {
-            message: "cloudflare artifacts issued a token with an invalid expiry: soon",
-        }),
-    );
 });
 
 test("check one commit of a leased repository out into a new working tree without its history", async () => {

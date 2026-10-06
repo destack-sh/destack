@@ -47,15 +47,14 @@ test.each(TEST_DIALECTS)(
             created.scope,
             created.name,
             created.hosting,
-            created.host,
+            created.machine,
             created.provider,
             created.providerRepositoryId,
             created.remote,
             created.defaultReference,
             created.authentication,
             created.connectedAccountId,
-            created.secretSpaceId,
-            created.secretId,
+            created.secret,
             created.revision,
         ]).toEqual([
             accountId,
@@ -65,7 +64,6 @@ test.each(TEST_DIALECTS)(
             "local",
             created.id,
             `file://${region.storage.directory}/${created.id}.git`,
-            null,
             null,
             null,
             null,
@@ -262,18 +260,30 @@ test.each(TEST_DIALECTS)(
         const [commit] = await history.write(remotePath(site.remote));
         await owner.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() });
 
-        // place a space of the account and one of another account on the host's cell, as the directory's zones
+        // place a space of the account and one of another account on the machine's cell, as the directory's zones
         const [inside, outside] = [Identifier.create("space"), Identifier.create("space")];
         await region.accounts.database.insert(zoneTable).values([
-            { id: inside, scope: Scope.universe.id, parent: accountId, cell: ids.host, epoch: 1 },
-            { id: outside, scope: Scope.universe.id, parent: ids.other, cell: ids.host, epoch: 1 },
+            {
+                id: inside,
+                scope: Scope.universe.id,
+                parent: accountId,
+                cell: ids.machine,
+                epoch: 1,
+            },
+            {
+                id: outside,
+                scope: Scope.universe.id,
+                parent: ids.other,
+                cell: ids.machine,
+                epoch: 1,
+            },
         ]);
         await region.settle();
 
         // follow the selected branch as a cell for a space below
-        const follow = async (host: string, below: string) => {
+        const follow = async (machine: string, below: string) => {
             const controller = new AbortController();
-            const pages = await region.connectHost(host).replica.stream(
+            const pages = await region.connectMachine(machine).replica.stream(
                 referenceShape.subscription({
                     name: referenceShape.copy(below),
                     scope: accountId,
@@ -293,9 +303,9 @@ test.each(TEST_DIALECTS)(
 
         // copy the branch for the space inside the account, nothing for the other account's space, and refuse a cell not serving the space
         expect([
-            await follow(ids.host, inside),
-            await follow(ids.host, outside),
-            await refusal(follow(ids.otherHost, inside)),
+            await follow(ids.machine, inside),
+            await follow(ids.machine, outside),
+            await refusal(follow(ids.otherMachine, inside)),
         ]).toEqual([
             [["refs/heads/main", commit]],
             [],
@@ -320,17 +330,31 @@ test.each(TEST_DIALECTS)(
             visibility: "private",
         });
 
-        // place a space of the account and one of another account on the host's cell, as the directory's zones
+        // place a space of the account and one of another account on the machine's cell, as the directory's zones
         const [inside, outside] = [Identifier.create("space"), Identifier.create("space")];
         await region.accounts.database.insert(zoneTable).values([
-            { id: inside, scope: Scope.universe.id, parent: accountId, cell: ids.host, epoch: 1 },
-            { id: outside, scope: Scope.universe.id, parent: ids.other, cell: ids.host, epoch: 1 },
+            {
+                id: inside,
+                scope: Scope.universe.id,
+                parent: accountId,
+                cell: ids.machine,
+                epoch: 1,
+            },
+            {
+                id: outside,
+                scope: Scope.universe.id,
+                parent: ids.other,
+                cell: ids.machine,
+                epoch: 1,
+            },
         ]);
         await region.settle();
 
-        // read the package as each space through the host's cell
+        // read the package as each space through the machine's cell
         const read = async (space: string) => {
-            const found = await region.connectSpace(ids.host, space).package.get({ accountId, id });
+            const found = await region
+                .connectSpace(ids.machine, space)
+                .package.get({ accountId, id });
 
             return found.name;
         };
@@ -356,11 +380,23 @@ test.each(TEST_DIALECTS)(
             residencyId: "us",
         });
 
-        // place a space of each account on the host's cell, as the directory's zones
+        // place a space of each account on the machine's cell, as the directory's zones
         const [inside, outside] = [Identifier.create("space"), Identifier.create("space")];
         await region.accounts.database.insert(zoneTable).values([
-            { id: inside, scope: Scope.universe.id, parent: ids.account, cell: ids.host, epoch: 1 },
-            { id: outside, scope: Scope.universe.id, parent: abroad.id, cell: ids.host, epoch: 1 },
+            {
+                id: inside,
+                scope: Scope.universe.id,
+                parent: ids.account,
+                cell: ids.machine,
+                epoch: 1,
+            },
+            {
+                id: outside,
+                scope: Scope.universe.id,
+                parent: abroad.id,
+                cell: ids.machine,
+                epoch: 1,
+            },
         ]);
         await region.settle();
 
@@ -375,10 +411,10 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const region = await RepositoryFixture.open(dialect);
         const owner = region.connect(ids.owner);
-        const host = region.connectHost(ids.host);
+        const machine = region.connectMachine(ids.machine);
         const accountId = ids.account;
 
-        // observe two branches of a platform repository, and place a space of the account on the host's cell
+        // observe two branches of a platform repository, and place a space of the account on the machine's cell
         const site = await owner.repository.create({
             accountId,
             requestId: RequestId.create(),
@@ -395,7 +431,7 @@ test.each(TEST_DIALECTS)(
             id: space,
             scope: Scope.universe.id,
             parent: accountId,
-            cell: ids.host,
+            cell: ids.machine,
             epoch: 1,
         });
         await region.settle();
@@ -408,7 +444,7 @@ test.each(TEST_DIALECTS)(
             from: Pick<Subscription, "after" | "previous"> = {},
         ) => {
             const controller = new AbortController();
-            const pages = await host.replica.stream(
+            const pages = await machine.replica.stream(
                 {
                     ...referenceShape.subscription({
                         name: referenceShape.copy(space),
@@ -555,8 +591,8 @@ test.each(TEST_DIALECTS)(
                 accountId,
                 requestId: RequestId.create(),
                 name: "laptop",
-                hosting: "host",
-                host: Subject.key(principal.host.reference(ids.account, ids.host)),
+                hosting: "machine",
+                machine: Subject.key(principal.machine.reference(ids.account, ids.machine)),
             }),
         ];
 
@@ -578,7 +614,7 @@ test.each(TEST_DIALECTS)(
             "BAD_REQUEST",
         ]);
 
-        // leave a host repository's references and checkouts to its host
+        // leave a machine repository's references and checkouts to its machine
         expect([
             await outcome(
                 owner.repository.refresh({
@@ -619,7 +655,7 @@ test.each(TEST_DIALECTS)(
             region.reported,
         ]).toEqual([[], [["repository", "create", site.id]], [new Error("storage unavailable")]]);
 
-        // create it through the host's settlement controller after the grace and the failed settle's claim pass
+        // create it through the machine's settlement controller after the grace and the failed settle's claim pass
         await region.database
             .update(settlement)
             .set({ createdAt: first.createdAt - 61_000, claimedAt: first.createdAt - 61_000 })
@@ -673,22 +709,22 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "record the references a host reports of the repository it keeps, and refuse other hosts and its owner on %s",
+    "record the references a machine reports of the repository it keeps, and refuse other machines and its owner on %s",
     async (dialect) => {
         const region = await RepositoryFixture.open(dialect);
         const owner = region.connect(ids.owner);
         const reader = region.connect(ids.reader);
-        const host = region.connectHost(ids.host);
+        const machine = region.connectMachine(ids.machine);
         const accountId = ids.account;
         const laptop = await owner.repository.create({
             accountId,
             requestId: RequestId.create(),
             name: "laptop",
-            hosting: "host",
-            host: Subject.key(principal.host.reference(ids.account, ids.host)),
+            hosting: "machine",
+            machine: Subject.key(principal.machine.reference(ids.account, ids.machine)),
         });
 
-        // report a branch and an annotated tag as the repository's host for readers to see
+        // report a branch and an annotated tag as the repository's machine for readers to see
         const [commit, tag] = ["a".repeat(40), "b".repeat(40)];
         const listing = {
             defaultReference: "refs/heads/main",
@@ -697,7 +733,7 @@ test.each(TEST_DIALECTS)(
                 { name: "refs/tags/v1", object: tag, commit },
             ],
         };
-        const report = await host.repository.report({
+        const report = await machine.repository.report({
             accountId,
             id: laptop.id,
             requestId: RequestId.create(),
@@ -712,7 +748,7 @@ test.each(TEST_DIALECTS)(
                     orderBy: { name: "asc" },
                 })
             ).items.map((item) => [item.name, item.object, item.commit, item.deletedAt]),
-            (await host.repository.list({ accountId })).items.map((item) => item.name),
+            (await machine.repository.list({ accountId })).items.map((item) => item.name),
         ]).toEqual([
             ["refs/heads/main", 2],
             [
@@ -722,7 +758,7 @@ test.each(TEST_DIALECTS)(
             ["laptop"],
         ]);
 
-        // hide the repository from another host, and forbid its owner reporting for the host
+        // hide the repository from another machine, and forbid its owner reporting for the machine
         const hiding = (client: ReturnType<RepositoryFixture["connect"]>) =>
             outcome(
                 client.repository.report({
@@ -732,10 +768,10 @@ test.each(TEST_DIALECTS)(
                     ...listing,
                 }),
             );
-        expect([await hiding(region.connectHost(ids.otherHost)), await hiding(owner)]).toEqual([
-            "NOT_FOUND",
-            "FORBIDDEN",
-        ]);
+        expect([
+            await hiding(region.connectMachine(ids.otherMachine)),
+            await hiding(owner),
+        ]).toEqual(["NOT_FOUND", "FORBIDDEN"]);
     },
 );
 

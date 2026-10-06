@@ -27,15 +27,17 @@ import { APP_ID, GITHUB_API, GitHubInstallations, GitHubStandIn } from "./github
 import { githubPrivateKey } from "./key.ts";
 import { testCallKey } from "@destack/service/test";
 
-/** The identifiers the fixture's accounts, users and hosts take. */
+/** The identifiers the fixture's accounts, users and machines take. */
 export const ids = {
     account: hostTest.ids.account,
     other: hostTest.ids.other,
     owner: hostTest.ids.owner,
     reader: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000d"),
     stranger: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000e"),
-    host: schema.identifier("host").parse("host-01996ab0-0000-7000-8000-000000000008"),
-    otherHost: schema.identifier("host").parse("host-01996ab0-0000-7000-8000-000000000009"),
+    machine: schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000008"),
+    otherMachine: schema
+        .identifier("machine")
+        .parse("machine-01996ab0-0000-7000-8000-000000000009"),
 };
 
 /** The origin clients call the fixture forge at. */
@@ -53,7 +55,7 @@ export class RepositoryFixture {
     readonly accounts: hostTest.AccountFixture;
     /** The forge's database of repositories and references. */
     readonly database: DatabaseConnection;
-    /** The directory as the region's host reaches it. */
+    /** The directory as the region's machine reaches it. */
     readonly directory: DirectoryClient;
     /** The connection of the owner's account to its GitHub App installation. */
     readonly connection: Identifier<"connected-account">;
@@ -74,7 +76,7 @@ export class RepositoryFixture {
 
     /** Keep a started region. */
     private constructor(
-        fields: Omit<RepositoryFixture, "connect" | "connectHost" | "connectSpace" | "settle">,
+        fields: Omit<RepositoryFixture, "connect" | "connectMachine" | "connectSpace" | "settle">,
     ) {
         this.accounts = fields.accounts;
         this.database = fields.database;
@@ -117,22 +119,22 @@ export class RepositoryFixture {
             [ids.account, INSTALLATION],
             [ids.other, OTHER_INSTALLATION],
         ] as const) {
-            const pending = await owner.connection.authorize({
+            const pending = await owner.authorizationRequest.create({
                 accountId,
                 requestId: RequestId.create(),
                 provider: installations.name,
                 scopes: [],
             });
-            const page = new URL(present(pending.authorizationUrl, "the installation page"));
+            const page = new URL(pending.authorizationUrl);
             const state = present(page.searchParams.get("state"), "the installation's state");
-            const installed = await owner.connection.complete({
+            const { connectionId } = await owner.authorizationRequest.complete({
                 accountId,
                 id: pending.id,
                 requestId: RequestId.create(),
                 state,
                 parameters: { installation_id: String(installation), state },
             });
-            connections.push(installed.id);
+            connections.push(connectionId);
         }
 
         // let the reader read and pull the owner's account's repositories
@@ -151,7 +153,7 @@ export class RepositoryFixture {
             subject: principal.user.reference(Scope.universe.id, ids.reader),
         });
 
-        // place the service in the platform's region, following and reaching the account service as its workload through the region's host
+        // place the service in the platform's region, following and reaching the account service as its workload through the region's machine
         const placement = await accounts.place(forgeService.package.id);
         const region = await accounts.enroll(hostTest.ids.platform);
         const identity = accounts.identity(region, placement);
@@ -212,20 +214,20 @@ export class RepositoryFixture {
         });
     }
 
-    /** Connect to the forge as a host of the account. */
-    connectHost(host: string) {
+    /** Connect to the forge as a machine of the account. */
+    connectMachine(machine: string) {
         return connect({
             url: ORIGIN,
-            headers: { "x-host": host },
+            headers: { "x-machine": machine },
             fetch: (request) => this.http.fetch(request),
         });
     }
 
-    /** Connect to the forge service as a host's cell representing a space. */
-    connectSpace(host: string, space: string) {
+    /** Connect to the forge service as a machine's cell representing a space. */
+    connectSpace(machine: string, space: string) {
         return connect({
             url: ORIGIN,
-            headers: { "x-host": host },
+            headers: { "x-machine": machine },
             fetch: Represented.fetch(
                 (request) => this.http.fetch(request),
                 principal.space.reference(Scope.universe.id, space),
@@ -233,7 +235,7 @@ export class RepositoryFixture {
         });
     }
 
-    /** Serve the forge to the user in an x-user header or the host in an x-host header. */
+    /** Serve the forge to the user in an x-user header or the machine in an x-machine header. */
     static #serve(implementation: ForgeImplementation): Server {
         // settle through the controllers by hand when each test chooses
         const audience = implementation.service.package.id;
@@ -246,25 +248,25 @@ export class RepositoryFixture {
             resources: new ResourceContext(),
             health: new Health("forge"),
             drainTimeout: 1000,
-            authorizeHost: async () => {},
+            authorizeMachine: async () => {},
             authenticate: async (request) => {
-                const host = request.headers.get("x-host");
+                const machine = request.headers.get("x-machine");
                 const userId = request.headers.get("x-user");
                 const subject =
-                    host !== null
-                        ? principal.host.reference(ids.account, host)
+                    machine !== null
+                        ? principal.machine.reference(ids.account, machine)
                         : userId !== null
                           ? principal.user.reference("universe", userId)
                           : null;
                 if (subject === null) {
-                    throw new TypeError("a fixture request names no host or user");
+                    throw new TypeError("a fixture request names no machine or user");
                 }
                 const now = Date.now();
 
                 return new Authentication({
                     subject,
                     subjects: [subject],
-                    credential: { kind: host === null ? "user" : "host-key", id: subject.id },
+                    credential: { kind: machine === null ? "user" : "machine-key", id: subject.id },
                     audience,
                     verifiedAt: now,
                     expiresAt: now + 60_000,

@@ -84,16 +84,15 @@ async function record(call: RecordCall, listing: GitListing): Promise<Row> {
 /** Read a repository's origin columns. */
 function readColumns(target: Row): OriginColumns {
     const { hosting, remote, authentication, connectedAccountId } = target;
-    const { secretSpaceId, secretId, provider, providerRepositoryId } = target;
+    const { secret, provider, providerRepositoryId } = target;
 
     return {
         hosting,
-        host: target.host,
+        machine: target.machine,
         remote,
         authentication,
         connectedAccountId,
-        secretSpaceId,
-        secretId,
+        secret,
         provider,
         providerRepositoryId,
     };
@@ -110,16 +109,19 @@ function createdId(call: CallOf<typeof repository, "create">): string {
 
 /** Read the origin from a call's fields and refuse invalid combinations. */
 function readOrigin(fields: OriginFields): RepositoryOrigin {
-    // parse the call's origin fields and read a host's subject from its key
+    // parse the call's origin fields and read a machine's subject from its key
     const named = Object.fromEntries(
         ORIGIN_FIELDS.filter((name) => fields[name] !== undefined && fields[name] !== null).map(
-            (name) => [name, name === "host" ? Subject.read(String(fields[name])) : fields[name]],
+            (name) => [
+                name,
+                name === "machine" ? Subject.read(String(fields[name])) : fields[name],
+            ],
         ),
     );
     const parsed = RepositoryOrigin.safeParse(named);
     if (!parsed.success) {
         throw new ServiceError("BAD_REQUEST", {
-            message: "repository origin names no platform, github, git or host origin",
+            message: "repository origin names no platform, github, git or machine origin",
             data: { issues: parsed.error.issues },
         });
     }

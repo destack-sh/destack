@@ -1,5 +1,5 @@
 import { AccessContext } from "@destack/access";
-import { account, connection, host, hostKey, zone } from "@destack/account/object";
+import { account, connection, key, machine, zone } from "@destack/account/object";
 import type { WorkloadIdentity } from "@destack/account/client";
 import type { Resolver } from "@destack/account/directory";
 import { PackageServer, type PackageStore } from "@destack/build/store";
@@ -12,7 +12,7 @@ import { PackageManifest } from "@destack/package/manifest";
 import { LeaseMode, Upgrade, type Lease } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { conceal, isServiceError, ServiceError } from "@destack/service/error";
-import type { CallKey } from "@destack/service/request";
+import { type CallKey, RequestBody } from "@destack/service/request";
 import {
     implement,
     type ServiceContext,
@@ -46,9 +46,6 @@ import { requireTagName, tag } from "./tag.ts";
 /** Typed implementations of the forge's procedures. */
 const implementation = implement(manifests).$context<ServiceContext>();
 
-/** The most bytes of a pushed manifest the forge reads to authorize it: a manifest names its lists by digest, so it stays within kilobytes. */
-const MAX_MANIFEST_BYTES = 1024 * 1024;
-
 /** How long a pushed build stays without a release before a sweep drops it: a day, far longer than pushing a build and publishing it takes. */
 export const UNRELEASED_MILLISECONDS = 24 * 60 * 60 * 1000;
 
@@ -60,12 +57,11 @@ const MOVABLE_HOSTINGS: ReadonlySet<OriginColumns["hosting"]> = new Set(["github
 
 /** The origin columns no origin names, which the columns of each origin overwrite. */
 const BLANK_COLUMNS = {
-    host: null,
+    machine: null,
     remote: null,
     authentication: null,
     connectedAccountId: null,
-    secretSpaceId: null,
-    secretId: null,
+    secret: null,
     provider: null,
     providerRepositoryId: null,
 } as const satisfies Omit<OriginColumns, "hosting">;
@@ -174,7 +170,7 @@ export class Forge {
                 dependency,
             },
             // decide methods by the copied accounts' roles
-            policies: [account, connection, host, hostKey, zone],
+            policies: [account, connection, machine, key, zone],
             database: options.database,
             // claim names in the directory
             directory: this.resolver.directory,
@@ -547,9 +543,9 @@ export class Forge {
 
             return { ...BLANK_COLUMNS, ...origin, providerRepositoryId };
         }
-        // keep a host by its subject's key
-        else if (origin.hosting === "host") {
-            return { ...BLANK_COLUMNS, hosting: "host", host: Subject.key(origin.host) };
+        // keep a machine by its subject's key
+        else if (origin.hosting === "machine") {
+            return { ...BLANK_COLUMNS, hosting: "machine", machine: Subject.key(origin.machine) };
         }
         // keep a Git remote as named
         else {
@@ -580,10 +576,10 @@ export class Forge {
         else if (target.hosting === "github") {
             return this.#requireGitHub().open(target, mode);
         }
-        // leave host repositories to their host
-        else if (target.hosting === "host") {
+        // leave machine repositories to their machine
+        else if (target.hosting === "machine") {
             throw new ServiceError("BAD_REQUEST", {
-                message: "host repositories are refreshed and opened through their host",
+                message: "machine repositories are refreshed and opened through their machine",
             });
         }
         // pull an anonymous remote unchanged
@@ -685,34 +681,7 @@ async function concealed(message: string, read: () => Promise<unknown>): Promise
 /** Read the package a pushed manifest names, leaving the request's body to the store. */
 async function pushedPackage(request: Request): Promise<PackageId> {
     // read a copy of the body within the limit
-    const body: ReadableStream<Uint8Array<ArrayBuffer>> | null = request.clone().body;
-    if (body === null) {
-        throw new ServiceError("BAD_REQUEST", { message: "the pushed manifest is empty" });
-    }
-    const reader = body.getReader();
-    const chunks: Uint8Array<ArrayBuffer>[] = [];
-    let size = 0;
-    for (let read = await reader.read(); !read.done; read = await reader.read()) {
-        size += read.value.byteLength;
-        if (size > MAX_MANIFEST_BYTES) {
-            await reader.cancel();
-            throw new ServiceError("PAYLOAD_TOO_LARGE", {
-                message: "the pushed manifest exceeds 1 MiB",
-            });
-        }
-        chunks.push(read.value);
-    }
-
-    // parse the manifest
-    let value: unknown;
-    try {
-        value = JSON.parse(await new Blob(chunks).text());
-    } catch (error) {
-        if (!(error instanceof SyntaxError)) {
-            throw error;
-        }
-        throw new ServiceError("BAD_REQUEST", { message: "the pushed manifest is not JSON" });
-    }
+    const value = await RequestBody.json(request.clone(), "the pushed manifest");
     const parsed = PackageManifest.safeParse(value);
     if (!parsed.success) {
         throw new ServiceError("BAD_REQUEST", { message: "the pushed manifest is invalid" });
