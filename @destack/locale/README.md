@@ -11,6 +11,7 @@ import { Localization } from "@destack/locale";
 
 const german = Localization.of("de-AT", catalogs); // messages written in "en", the default source
 german.tag; // "de-AT"
+german.direction; // "ltr", the locale's own unless the options set another
 german.render(archived); // "3 Notizen in ⁨Trips⁩ archiviert", values isolated by direction
 german.number(1234.5); // "1.234,5"
 german.money(1200, "EUR"); // "12,00 €"
@@ -19,6 +20,7 @@ german.dateRange(start, end, { dateStyle: "medium" }); // "04.–07.10.2026"
 german.list(["Notizen", "Aufgaben"]); // "Notizen und Aufgaben"
 german.relative(threeDaysAgo, Date.now()); // "vor 3 Tagen"
 Localization.of("en", []).money(1200, "x-credits"); // "1,200 credits", formatting without catalogs
+Localization.of("en", [], { direction: "rtl" }).direction; // "rtl", such as an example mirrored for review
 ```
 
 ## Locales
@@ -32,6 +34,7 @@ Locale.parse("de-at"); // "de-AT"
 Locale.fallback("es-MX", "en"); // ["es-MX", "es-419", "es", "en"]
 Locale.negotiate(["de-AT", "en"], ["fr", "de"]); // "de", the RFC 4647 lookup
 Locale.accepted("fr-CH, de;q=0.7, *;q=0.5"); // ["fr-CH", "de"], an Accept-Language header by weight
+Locale.direction("ar-EG"); // "rtl", from the script the locale most likely writes in
 ```
 
 ## Messages
@@ -91,7 +94,13 @@ import { useLocale } from "@destack/locale/solid";
 export function Archived(properties: { count: number; notebook: string }) {
     const locale = useLocale(); // provided by renderView for views, by LocaleContext for websites
 
-    return <p>{locale.render(t`Archived ${plural(properties.count, { one: "# note", other: "# notes" })} in ${properties.notebook}`)}</p>;
+    return (
+        <p>
+            {locale.render(
+                t`Archived ${plural(properties.count, { one: "# note", other: "# notes" })} in ${properties.notebook}`,
+            )}
+        </p>
+    );
 }
 
 // a website provides it itself

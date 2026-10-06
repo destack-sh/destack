@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Locale } from "./locale.ts";
+import { Localization } from "../localization/localization.ts";
 
 test("read language tags in their canonical casing and refuse malformed ones", () => {
     expect([Locale.parse("de-at"), Locale.parse("ZH-hant-tw"), Locale.parse("es-419")]).toEqual([
@@ -45,4 +46,12 @@ test("read the tags an Accept-Language header asks for by weight, leaving out th
         Locale.accepted("en;q=0.5, de-at, x y, es;q=0"),
         Locale.accepted(""),
     ]).toEqual([["fr-CH", "fr", "en", "de"], ["de-AT", "en"], []]);
+});
+
+test("read a locale's direction from the script it most likely writes in, unless a localization sets another", () => {
+    expect([
+        ...["ar-EG", "he", "fa", "de-AT", "sr-Cyrl", "zh-Hant"].map((tag) => Locale.direction(tag)),
+        Localization.of("ar", []).direction,
+        Localization.of("en", [], { direction: "rtl" }).direction,
+    ]).toEqual(["rtl", "rtl", "rtl", "ltr", "ltr", "ltr", "rtl", "rtl"]);
 });

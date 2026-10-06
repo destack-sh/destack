@@ -1,5 +1,5 @@
 import { MessageFormat } from "messageformat";
-import { Locale, type LocaleTag } from "../locale/locale.ts";
+import { type Direction, Locale, type LocaleTag } from "../locale/locale.ts";
 import type { Catalog } from "../message/catalog.ts";
 import type { Message } from "../message/message.ts";
 
@@ -24,6 +24,8 @@ const COMPILED = new Map<string, MessageFormat>();
 export interface Localization {
     /** The language and region the person reads. */
     readonly tag: LocaleTag;
+    /** The direction text and controls run in, the locale's own unless a host sets another. */
+    readonly direction: Direction;
 
     /** Render a message in the nearest locale its package's catalogs translate it into, else in its source language. */
     render(message: Message): string;
@@ -42,10 +44,22 @@ export interface Localization {
     relative(time: number, now: number): string;
 }
 
+/** How a localization reads its messages and runs its text. */
+export interface LocalizationOptions {
+    /** The language messages are written in, English when absent. */
+    readonly source?: LocaleTag;
+    /** The direction text and controls run in, the locale's own when absent. */
+    readonly direction?: Direction;
+}
+
 /** The localizations people read in. */
 export const Localization = {
     /** Bind a locale to the catalogs of the packages whose messages it renders, messages written in the source language. */
-    of(tag: LocaleTag, catalogs: readonly Catalog[], source: LocaleTag = "en"): Localization {
+    of(
+        tag: LocaleTag,
+        catalogs: readonly Catalog[],
+        { source = "en", direction }: LocalizationOptions = {},
+    ): Localization {
         // index the translations by package and locale, and walk the fallback chain once
         const translations = new Map(
             catalogs.map((catalog) => [`${catalog.package}\u0000${catalog.locale}`, catalog]),
@@ -54,6 +68,7 @@ export const Localization = {
 
         return {
             tag,
+            direction: direction ?? Locale.direction(tag),
             render: (message) => render(message, chain, source, translations),
             number: (value, options) => new Intl.NumberFormat(tag, options).format(value),
             money: (amount, currency) => money(amount, currency, tag),

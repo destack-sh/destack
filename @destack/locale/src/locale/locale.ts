@@ -24,6 +24,21 @@ const PARENTS: Readonly<Record<string, string>> = {
     "zh-TW": "zh-Hant",
 };
 
+/** The scripts written right to left, after CLDR's character order data. */
+const RIGHT_TO_LEFT_SCRIPTS = new Set([
+    "Adlm",
+    "Arab",
+    "Hebr",
+    "Mand",
+    "Mend",
+    "Nkoo",
+    "Rohg",
+    "Samr",
+    "Syrc",
+    "Thaa",
+    "Yezi",
+]);
+
 /** A BCP 47 language tag, such as de-AT, in its canonical casing: language, script, region or UN M.49 area, variants. */
 export const LocaleTag = defineSchema(
     schema
@@ -36,8 +51,21 @@ export const LocaleTag = defineSchema(
 /** A BCP 47 language tag. */
 export type LocaleTag = schema.Infer<typeof LocaleTag>;
 
+/** The direction a script runs in: left to right or right to left. */
+export const Direction = defineSchema(schema.enum(["ltr", "rtl"]));
+
+/** The direction a script runs in. */
+export type Direction = schema.Infer<typeof Direction>;
+
 /** The language tags people read and packages write in. */
 export const Locale = {
+    /** Read the direction a locale writes in from the script it most likely uses. */
+    direction(tag: LocaleTag): Direction {
+        const script = new Intl.Locale(tag).maximize().script;
+
+        return script !== undefined && RIGHT_TO_LEFT_SCRIPTS.has(script) ? "rtl" : "ltr";
+    },
+
     /** Read a language tag in its canonical form, refusing one that is no tag. */
     parse(tag: string): LocaleTag {
         const canonical = canonicalize(tag);
