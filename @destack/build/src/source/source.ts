@@ -9,11 +9,12 @@ import {
     PackageDefinition,
     PackageDescription,
     type PackageExport,
-    Publication,
+    TEST_EXPORT,
 } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
+import type { ModulePackage } from "@destack/package/transform";
 import { isMissing } from "../error/index.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
@@ -34,6 +35,13 @@ export interface PackageSource extends AsyncDisposable {
     entries: readonly string[];
 }
 
+/** Name the package a source compiles as the build releases it, with the metadata its modules receive. */
+export function compiledPackage(
+    source: Pick<PackageSource, "directory" | "declaration">,
+): ModulePackage {
+    return { directory: source.directory, metadata: { package: source.declaration.package } };
+}
+
 /** Open package inputs and prepare one compiler configuration for inspection and compilation. */
 export async function openSource(
     options: InspectOptions & {
@@ -41,6 +49,8 @@ export async function openSource(
         entries?: Readonly<Record<string, string>>;
         /** Framework modules compiled in addition to package exports. */
         files?: readonly string[];
+        /** The version the build releases the package at, absent for the one its package.json names. */
+        version?: string;
     },
 ): Promise<PackageSource> {
     // read the package declaration
@@ -48,6 +58,7 @@ export async function openSource(
         options.directory,
         options.runtime,
         options.entries,
+        options.version,
     );
     const authored = resolve(definition.directory, options.configuration ?? "tsconfig.json");
 
@@ -131,15 +142,16 @@ function compilerSettings(
     }
 }
 
-/** Read package manifests and select exports for one runtime. */
+/** Read package manifests at the version the build releases, and select exports for one runtime. */
 async function readPackageDeclaration(
     directory: string,
     runtime: Runtime,
-    entries?: Readonly<Record<string, string>>,
+    entries: Readonly<Record<string, string>> | undefined,
+    version: string | undefined,
 ): Promise<Omit<PackageSource, "configuration" | "entries" | typeof Symbol.asyncDispose>> {
     // read the package's manifests
     directory = await realpath(directory);
-    const declaration = await readPackageDescription(directory);
+    const declaration = await readPackageDescription(directory, version);
     const definition = declaration.definition;
 
     // select package exports using the runtime's standard conditions
@@ -182,9 +194,6 @@ async function readPackageDeclaration(
         runtime,
     };
 }
-
-/** The export of a package's test layer, which serves its dependents' tests and never ships in a build. */
-export const TEST_EXPORT = "./test";
 
 /** Decide whether an output compiles an export, refusing invalid names and selected entries the runtime lacks. */
 function isCompiled(
@@ -249,8 +258,11 @@ function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): st
     return /\.d\.[cm]?ts$/u.test(path) ? undefined : PackagePath.parse(path.slice(2));
 }
 
-/** Read a package's manifests into its description. */
-export async function readPackageDescription(directory: string): Promise<PackageDescription> {
+/** Read a package's manifests into its description, at the version a build releases it at when given. */
+export async function readPackageDescription(
+    directory: string,
+    version?: string,
+): Promise<PackageDescription> {
     // read package.json and destack.json
     const metadata = schema
         .record(schema.string(), schema.json())
@@ -259,7 +271,11 @@ export async function readPackageDescription(directory: string): Promise<Package
         await readFile(resolve(directory, "destack.json"), "utf8"),
     );
     const declaration = PackageDescription.parse({
-        package: { id: configuration.id, name: metadata["name"], version: metadata["version"] },
+        package: {
+            id: configuration.id,
+            name: metadata["name"],
+            version: version ?? metadata["version"],
+        },
         definition: configuration,
         ...(metadata["exports"] === undefined ? {} : { exports: metadata["exports"] }),
         dependencies: field(metadata, "dependencies"),
@@ -270,10 +286,7 @@ export async function readPackageDescription(directory: string): Promise<Package
     });
     const definition = declaration.definition;
 
-    // require a publishable TypeScript package
-    if (definition.publication !== undefined) {
-        Publication.require(definition.publication);
-    }
+    // require a TypeScript package
     if (definition.language !== "typescript") {
         throw new PackageError(
             "UNSUPPORTED_LANGUAGE",

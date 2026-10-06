@@ -1,16 +1,16 @@
-import { type DependencyResolution, PackageDefinition } from "@destack/package";
+import { type DependencyResolution, PackageDefinition, TEST_EXPORT } from "@destack/package";
 import type { History } from "@destack/resource";
 import type { PackageStore } from "../store/index.ts";
-import { mapExports, readPackageDescription, TEST_EXPORT } from "../source/source.ts";
+import { mapExports, readPackageDescription } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
-import { type Commit, schema } from "@destack/schema";
+import { type Commit, schema, type Version } from "@destack/schema";
 import { mkdir, readFile, writeFile, copyFile, rm } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { BuildReader, PackageManifest, type PackageDistribution } from "@destack/package/manifest";
 import { type PackageFile, PackagePath } from "@destack/package/file";
-import { digestFile } from "./file.ts";
+import { digestFile } from "./directory.ts";
 import { PackageError } from "@destack/package/error";
 
 /** A package manifest and its file-backed distribution. */
@@ -275,27 +275,28 @@ export interface BuildOptions {
     history?: History;
     /** The commit the source directory holds, absent for a working tree with uncommitted changes. */
     commit?: Commit;
+    /** The version the build releases the package at, such as a prerelease, absent for the one its package.json names. */
+    version?: Version;
     /** The store whose cache the build reuses and fills, absent to build without a cache. */
     store?: PackageStore;
 }
 
-/** Read the outputs a package's exports imply: a browser module and one server module per server runtime. */
+/** Read the module outputs a package ships: one bundled module per runtime its exports but the test layer compile for, named after the runtime. */
 export async function readOutputs(
     directory: string,
 ): Promise<Readonly<Record<string, ModuleOptions>>> {
-    // read the package's declaration
+    // read the runtimes every export but the test layer compiles for
     const declaration = await readPackageDescription(directory);
-    const definition = declaration.definition;
-    const outputs: Record<string, ModuleOptions> = {};
-    for (const name of Object.keys(mapExports(declaration))) {
-        // compile one module per runtime each shipped export compiles for
-        if (name === TEST_EXPORT) {
-            continue;
-        }
-        for (const runtime of PackageDefinition.runtimes(definition, name)) {
-            outputs[runtime] = { kind: "module", runtime, bundle: true };
-        }
-    }
+    const runtimes = new Set(
+        Object.keys(mapExports(declaration))
+            .filter((name) => name !== TEST_EXPORT)
+            .flatMap((name) => PackageDefinition.runtimes(declaration.definition, name)),
+    );
 
-    return outputs;
+    // compile each as one bundled module named after it, in the runtimes' declared order
+    return Object.fromEntries(
+        Runtime.options
+            .filter((runtime) => runtimes.has(runtime))
+            .map((runtime) => [runtime, { kind: "module" as const, runtime, bundle: true }]),
+    );
 }

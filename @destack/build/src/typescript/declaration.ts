@@ -22,7 +22,7 @@ import {
 } from "@destack/package";
 import { BuildError, isMissing } from "../error/index.ts";
 import { schema } from "@destack/schema";
-import { PackageLocator } from "@destack/package/transform";
+import { type ModulePackage, PackageLocator } from "@destack/package/transform";
 import { modulePackage } from "../source/dependency.ts";
 import type { TestDeclaration } from "@destack/test/inspect";
 
@@ -80,7 +80,15 @@ export class ConstructorCatalog {
         Promise<Readonly<Record<string, PackageExport>> | undefined>
     >();
     /** The packages and declared constructors the inspection finds. */
-    readonly #packages = new PackageLocator();
+    readonly #packages: PackageLocator;
+    /** The package the inspection's build compiles, as it releases it. */
+    readonly #compiled: ModulePackage;
+
+    /** Inspect the constructors of a build's packages, the compiled one as the build releases it. */
+    constructor(compiled: ModulePackage) {
+        this.#compiled = compiled;
+        this.#packages = new PackageLocator(compiled);
+    }
 
     /** Resolve a call target to an inspected constructor, or undefined for any other function. */
     async resolve(
@@ -136,11 +144,14 @@ export class ConstructorCatalog {
         return location;
     }
 
-    /** Read a package's identity, with the stable id its destack.json declares when it has one. */
+    /** Read a package's identity, with the stable id its destack.json declares when it has one, the compiled package's as its build releases it. */
     owner(location: PackageLocation): Promise<Package | DependencyPackage> {
         let owner = this.#owners.get(location.directory);
         if (owner === undefined) {
-            owner = readOwner(location);
+            owner =
+                location.directory === this.#compiled.directory
+                    ? Promise.resolve(this.#compiled.metadata.package)
+                    : readOwner(location);
             this.#owners.set(location.directory, owner);
         }
 
@@ -398,7 +409,7 @@ function collectCalls(source: SourceFile, tests: readonly TestDeclaration[]): Ca
 }
 
 /** Name each symbol a module exports through the compiler, including export lists and aliases, by symbol. */
-async function exportedNames(
+export async function exportedNames(
     source: SourceFile,
     inspector: SymbolInspector,
 ): Promise<Map<number, string>> {

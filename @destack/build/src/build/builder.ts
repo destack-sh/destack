@@ -408,21 +408,14 @@ export class PackageBuilder implements AsyncDisposable {
             this.#fail(new BuildError("BUILD_FAILED", "compiler closed during a build"));
         }
         this.#sandbox.stdin.end();
-        let timeout: BuildError | undefined;
-        const timer = setTimeout(() => {
-            timeout = new BuildError("BUILD_FAILED", "compiler shutdown timed out");
-            this.#fail(timeout);
-        }, 5000);
+
+        // await the compiler's exit once it read the end: its startup, its native compilers' exits and its sandbox's release
         try {
             await this.#closed;
-            if (timeout) {
-                throw timeout;
-            }
             if (this.#exitCode !== 0 && !this.#stopping) {
                 throw present(this.#failure, "the failure of the exited compiler");
             }
         } finally {
-            clearTimeout(timer);
             await rm(this.#temporary, { recursive: true });
         }
     }

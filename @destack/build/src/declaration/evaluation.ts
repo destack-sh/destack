@@ -13,7 +13,7 @@ import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { runtimeConditions } from "@destack/package/build";
-import { selectExport } from "../source/source.ts";
+import { compiledPackage, selectExport } from "../source/source.ts";
 
 /** The exports of a module. */
 const Exports = schema.record(schema.string(), schema.unknown());
@@ -176,7 +176,7 @@ async function evaluateEntry(
             external: isBuiltin,
             resolve: { conditionNames: runtimeConditions(project.runtime) },
             treeshake: { moduleSideEffects: true },
-            plugins: [entryPlugin(source), modulePlugin()],
+            plugins: [entryPlugin(source), modulePlugin(compiledPackage(project))],
         });
         const generated = await bundle.generate({ format: "esm", codeSplitting: false });
         if (generated.output.length !== 1 || generated.output[0].type !== "chunk") {

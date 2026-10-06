@@ -41,6 +41,9 @@ const REFERENCE_FLAGS =
     SymbolFlags.Function |
     SymbolFlags.ValueModule;
 
+/** The name the compiler gives a private class member, `__#<class symbol id>@#name`, whose id numbers symbols per program. */
+const PRIVATE_NAME = /^__#\d+@(#.+)$/u;
+
 /** One step of a reference walk: a type's named declaration and the types it leads to. */
 interface TypeStep {
     /** The named declaration, absent for a structural type. */
@@ -227,7 +230,7 @@ export class SymbolInspector {
         ]);
 
         return {
-            name: symbol.name,
+            name: declaredName(symbol),
             declarations: described,
             isOptional: Boolean(symbol.flags & SymbolFlags.Optional),
             type: typed,
@@ -686,6 +689,11 @@ export class SymbolInspector {
 
         return node;
     }
+}
+
+/** Read the name a symbol's declaration writes, a private member's without the compiler's per-program prefix, which differs between compilations. */
+export function declaredName(symbol: TypeScriptSymbol): string {
+    return PRIVATE_NAME.exec(symbol.name)?.[1] ?? symbol.name;
 }
 
 /** Read a declaration's node list property, requiring each node to pass a guard. */

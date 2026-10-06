@@ -34,7 +34,7 @@ import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
 import { type Runtime } from "@destack/package/runtime";
-import { type PackageSource } from "../source/index.ts";
+import { compiledPackage, type PackageSource } from "../source/index.ts";
 import { relativePath } from "../source/dependency.ts";
 import { type DirectoryReference } from "../typescript/index.ts";
 import { type ModuleOptions } from "../build/build.ts";
@@ -312,7 +312,7 @@ export class OutputCompilation implements Compilation {
             plugins: [
                 ...this.#packagePlugins(compiled, facades, input, locations),
                 ...plugins,
-                modulePlugin(),
+                modulePlugin(compiledPackage(project)),
             ],
             build: {
                 emitAssets: true,

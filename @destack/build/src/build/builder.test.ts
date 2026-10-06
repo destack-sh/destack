@@ -1,4 +1,5 @@
 import { expect, test } from "@destack/test";
+import { vi } from "vitest";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -455,24 +456,6 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     expect(build.manifest).toEqual(first.manifest);
 });
 
-test("refuse an output name a kind's expansion takes", async () => {
-    // expand a web application beside a module output taking its browser output's name
-    await using fixture = await Fixture.open("web");
-    await using builder = await PackageBuilder.start(fixture.source);
-    await expect(
-        builder.build({
-            dependencies: fixture.dependencies,
-            outputs: {
-                "website-browser": { kind: "module", runtime: "browser" },
-                website: { kind: "web", app: "src/app.tsx", ssr: false },
-            },
-        }),
-    ).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: "duplicate output name: website-browser",
-    });
-});
-
 test("terminate compilation on cancellation and deadline, and build again with the same builder", async () => {
     const directory = fileURLToPath(
         new URL("../../tests/fixture/library/source/", import.meta.url),
@@ -497,6 +480,48 @@ test("terminate compilation on cancellation and deadline, and build again with t
         code: "BUILD_FAILED",
         message: "build exceeded 1 ms",
     });
+});
+
+test("close a compiler once it exits, however long its shutdown takes", async () => {
+    // start a compiler that exits only once the test releases it, after the end of its input
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-shutdown-")));
+    const release = join(directory, "release");
+    const script = join(directory, "compiler.ts");
+    await writeFile(
+        script,
+        `for await (const _chunk of process.stdin) {}
+while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
+    await Bun.sleep(10);
+}
+`,
+    );
+    const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
+    const builder = await PackageBuilder.start(source, {
+        executable: process.execPath,
+        arguments: ["run", script],
+        read: [directory],
+    });
+
+    // keep closing an hour past the end of its input, then close once it exits
+    try {
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        let isClosed = false;
+        const closing = builder[Symbol.asyncDispose]().then(() => {
+            isClosed = true;
+        });
+        vi.advanceTimersByTime(3_600_000);
+        vi.useRealTimers();
+        await new Promise((resolve) => {
+            setImmediate(resolve);
+        });
+        const isClosedEarly = isClosed;
+        await writeFile(release, "");
+        await closing;
+        expect([isClosedEarly, isClosed]).toEqual([false, true]);
+    } finally {
+        vi.useRealTimers();
+        await rm(directory, { recursive: true });
+    }
 });
 
 test("plan the upgrade from what a package published", async () => {

@@ -6,7 +6,7 @@ import { OutputRequest } from "@destack/package/build";
 import { PackageManifest } from "@destack/package/manifest";
 import { Runtime } from "@destack/package/runtime";
 import { History } from "@destack/resource";
-import { Commit, schema } from "@destack/schema";
+import { Commit, schema, Version } from "@destack/schema";
 import { BuildError, BuildErrorCode } from "../error/index.ts";
 import { BuildKeys, CachedOutput } from "../cache/index.ts";
 import { ModuleOptions } from "./build.ts";
@@ -72,6 +72,8 @@ export const RequestedBuild = schema.object({
     history: History.exactOptional(),
     /** The commit the source directory holds, absent for a working tree with uncommitted changes. */
     commit: Commit.exactOptional(),
+    /** The version the build releases the package at, such as a prerelease, absent for the one its package.json names. */
+    version: Version.exactOptional(),
 });
 
 /** The options of a build beside its package directory. */

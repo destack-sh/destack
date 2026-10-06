@@ -1,15 +1,16 @@
-import { readFile, realpath, writeFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import type { TestDeclaration } from "@destack/test/inspect";
-import { resolve, join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
     type DependencyResolution,
     graph,
     type Package,
+    type PackageId,
     type DeclarationDescription,
 } from "@destack/package";
 import type { ModuleDescription } from "@destack/package/code";
-import { aligned, type Commit, Digest, found, type JsonValue, present } from "@destack/schema";
+import { aligned, type Commit, Digest, found, present, schema } from "@destack/schema";
 import {
     type BuildExtension,
     type ExpandedOutput,
@@ -17,13 +18,14 @@ import {
     type OutputRequest,
     type BuildDescription,
 } from "@destack/package/build";
-import { PackageFile } from "@destack/package/file";
-import { type PackageOutput, type PackageManifest } from "@destack/package/manifest";
+import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/transform";
 import { checkPackage, formatPackage, Toolchain } from "@destack/check";
 import {
+    type ExampleDeclaration,
     type ProgramImports,
+    type ScenarioDeclaration,
     type TypeScriptInspection,
     TypeScriptCompiler,
 } from "../typescript/index.ts";
@@ -35,7 +37,12 @@ import {
     selectDeclarations,
     type Evaluation,
 } from "../declaration/index.ts";
-import { type PackageSource, openSource, readPackageDescription } from "../source/index.ts";
+import {
+    compiledPackage,
+    type PackageSource,
+    openSource,
+    readPackageDescription,
+} from "../source/index.ts";
 import { OutputCompilation, type CompiledFiles } from "../compile/compilation.ts";
 import { type LoadedExtension, loadExtensions } from "../compile/extension.ts";
 import {
@@ -51,11 +58,10 @@ import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import { PackageBuild, type BuildOptions, type ModuleOptions } from "./build.ts";
-import { BuildFiles } from "./file.ts";
+import { BuildDirectory } from "./directory.ts";
 import { readCatalogs } from "./catalog.ts";
 import { comparePath, stringifyInspection } from "./serialization.ts";
 import { describeGraph } from "../graph/module.ts";
-import { encodeDescription, MANIFEST_LISTS, type ManifestDescription } from "./manifest.ts";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -125,12 +131,32 @@ export class BuildCompiler implements AsyncDisposable {
         const { modules, tests, declarations } = await this.typescript.inspect(
             project.configuration,
             project.entries,
+            compiledPackage(project),
         );
 
         // evaluate the collected domain declarations
         const evaluation = await evaluateDeclarations(declarations, project);
 
         return inspectModules(project.declaration.package, modules, tests, evaluation.declarations);
+    }
+
+    /** Identify a build's inputs beside its modules: the toolchain, the extensions, the package's manifests and its catalogs. */
+    async #identifyInputs(
+        directory: string,
+        packageId: PackageId,
+        loaded: Awaited<ReturnType<typeof loadExtensions>>,
+        identities: Identities,
+    ) {
+        this.#toolchain ??= identifyToolchain(new Identities());
+        const files = (paths: Iterable<string>) =>
+            Promise.all([...paths].map((path) => identities.file(join(directory, path))));
+
+        return {
+            toolchain: await this.#toolchain,
+            extensions: await Promise.all(loaded.map((entry) => this.#identify(entry))),
+            manifests: await files(["package.json", "destack.json"]),
+            catalogs: await files((await readCatalogs(directory, packageId)).keys()),
+        };
     }
 
     /** Derive the cache keys of a build without checking, evaluating or compiling it. */
@@ -143,20 +169,13 @@ export class BuildCompiler implements AsyncDisposable {
             loaded.map((entry) => entry.extension),
         );
 
-        // identify the toolchain, the extensions and the package's manifests
+        // identify the toolchain, the extensions, the package's manifests and its catalogs
         const identities = new Identities();
-        this.#toolchain ??= identifyToolchain(new Identities());
-        const toolchain = await this.#toolchain;
-        const extensions = await Promise.all(loaded.map((entry) => this.#identify(entry)));
-        const manifests = await Promise.all(
-            ["package.json", "destack.json"].map((path) =>
-                identities.file(join(options.directory, path)),
-            ),
-        );
-        const catalogs = await Promise.all(
-            [...(await readCatalogs(options.directory, declaration.package.id)).keys()].map(
-                (path) => identities.file(join(options.directory, path)),
-            ),
+        const { toolchain, extensions, manifests, catalogs } = await this.#identifyInputs(
+            options.directory,
+            declaration.package.id,
+            loaded,
+            identities,
         );
 
         // key each requested output by its request, its toolchain and the modules it imports
@@ -172,6 +191,7 @@ export class BuildCompiler implements AsyncDisposable {
                 toolchain,
                 extensions,
                 manifests,
+                version: options.version ?? null,
                 request: present(options.outputs[request], `the requested output ${request}`),
                 configuration: options.configuration ?? null,
                 modules: [...imported].toSorted(),
@@ -188,6 +208,7 @@ export class BuildCompiler implements AsyncDisposable {
             toolchain,
             extensions,
             manifests,
+            version: options.version ?? null,
             catalogs,
             outputs: keys,
             modules: modules.toSorted(),
@@ -215,7 +236,7 @@ export class BuildCompiler implements AsyncDisposable {
 
         // inspect, check, evaluate and retain every output's sources before compiling any
         const inspected = await this.#inspect(options, planned);
-        const files = new BuildFiles(destination);
+        const files = new BuildDirectory(destination);
         await retain(inspected, files);
 
         // compile the outputs the cache lacks
@@ -229,7 +250,7 @@ export class BuildCompiler implements AsyncDisposable {
         const upgrade =
             options.history === undefined
                 ? undefined
-                : planUpgrade(options.history, source, description.manifest, inspected);
+                : planUpgrade(options.history, source, description.graph, inspected);
 
         // write the manifest
         const build = await writeManifest(
@@ -308,6 +329,7 @@ export class BuildCompiler implements AsyncDisposable {
             runtime: output.options.runtime,
             ...(output.options.entries === undefined ? {} : { entries: output.options.entries }),
             files: output.files,
+            ...(options.version === undefined ? {} : { version: options.version }),
         });
     }
 
@@ -394,7 +416,11 @@ export class BuildCompiler implements AsyncDisposable {
             // reuse identical inspections within this build
             let inspection = inspections.get(project.configuration);
             if (!inspection) {
-                inspection = await this.typescript.inspect(project.configuration, project.entries);
+                inspection = await this.typescript.inspect(
+                    project.configuration,
+                    project.entries,
+                    compiledPackage(project),
+                );
                 inspections.set(project.configuration, inspection);
             }
             opened.set(name, { project, inspection });
@@ -424,7 +450,7 @@ export class BuildCompiler implements AsyncDisposable {
         planned: ReadonlyMap<string, PlannedOutput>,
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
-        files: BuildFiles,
+        files: BuildDirectory,
         reuse: Readonly<Record<string, CachedOutput>>,
     ): Promise<{
         outputs: Map<string, Pick<CompiledFiles, "output" | "inspection">>;
@@ -488,7 +514,7 @@ export class BuildCompiler implements AsyncDisposable {
         options: BuildOptions,
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
-        files: BuildFiles,
+        files: BuildDirectory,
     ): Promise<CachedOutput> {
         // compile the output and keep its files
         const compilation = createCompilation(name, output, inspected, extensions);
@@ -513,7 +539,7 @@ export class BuildCompiler implements AsyncDisposable {
         planned: ReadonlyMap<string, PlannedOutput>,
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
-        files: BuildFiles,
+        files: BuildDirectory,
     ): Promise<CachedOutput> {
         // lend the kind the build's inputs for the outputs its request expanded into
         const plans = [...planned].filter(([, plan]) => plan.pass?.name === request.name);
@@ -570,11 +596,13 @@ export class BuildCompiler implements AsyncDisposable {
         planned: ReadonlyMap<string, PlannedOutput>,
         inspected: ReadonlyMap<string, InspectedOutput>,
         compiled: { outputs: ReadonlyMap<string, Pick<CompiledFiles, "output" | "inspection">> },
-    ): Promise<{ manifest: ManifestDescription; resolved: Record<string, DependencyResolution> }> {
+    ): Promise<{ graph: graph.Module[]; resolved: Record<string, DependencyResolution> }> {
         // share equal tests across outputs
         const modules = new Map<string, ModuleDescription>();
         const evaluated = new Set<DeclarationDescription>();
         const tests = new SharedValues<TestDeclaration>();
+        const examples = new SharedValues<ExampleDeclaration>();
+        const scenarios = new SharedValues<ScenarioDeclaration>();
         const resolved: Record<string, DependencyResolution> = {};
         for (const [name, { output, inspection: description }] of compiled.outputs) {
             // check the output's dependency declarations and runtime
@@ -589,13 +617,19 @@ export class BuildCompiler implements AsyncDisposable {
             // keep each module's first description and every evaluated declaration for the graph
             retainGraphInputs(entry, modules, evaluated);
 
-            // keep each test once across outputs
+            // keep each test, example and scenario once across outputs
             for (const test of entry.inspection.tests) {
                 tests.retain(test);
             }
+            for (const example of entry.inspection.examples) {
+                examples.retain(example);
+            }
+            for (const scenario of entry.inspection.scenarios) {
+                scenarios.retain(scenario);
+            }
         }
 
-        // describe the package's graph from its modules, every evaluated declaration and its tests
+        // describe the package's graph from its modules, every evaluated declaration, its tests, examples and scenarios
         const described = describeGraph(
             sourcePackage(inspected),
             [...modules.values()],
@@ -604,14 +638,14 @@ export class BuildCompiler implements AsyncDisposable {
                 package: await findPackage("@destack/test", this.#packages),
                 declarations: tests.values,
             },
+            {
+                package: await findPackage("@destack/package", this.#packages),
+                examples: examples.values,
+                scenarios: scenarios.values,
+            },
         );
 
-        return {
-            manifest: {
-                graph: described,
-            },
-            resolved,
-        };
+        return { graph: described, resolved };
     }
 
     /** Require an output's dependency declarations at their resolved versions and check its runtime. */
@@ -662,6 +696,19 @@ function sourcePackage(inspected: ReadonlyMap<string, InspectedOutput>): Package
         .package;
 }
 
+/** Read a source's package.json as its build releases it: as authored, or at the release's version. */
+async function releasedManifest(project: PackageSource): Promise<Uint8Array<ArrayBuffer>> {
+    // keep the authored bytes of the version they name
+    const authored = await readFile(resolve(project.directory, "package.json"), "utf8");
+    const manifest = schema.record(schema.string(), schema.json()).parse(JSON.parse(authored));
+    const { version } = project.declaration.package;
+    if (manifest["version"] === version) {
+        return new TextEncoder().encode(authored);
+    }
+
+    return new TextEncoder().encode(`${JSON.stringify({ ...manifest, version }, null, 4)}\n`);
+}
+
 /** Report whether two identities name the same package release. */
 function isSamePackage(left: Package, right: Package): boolean {
     return left.id === right.id && left.name === right.name && left.version === right.version;
@@ -683,7 +730,7 @@ async function readOptional(path: string): Promise<string | undefined> {
 /** Record the files of reused outputs the caller wrote, refusing one that changed. */
 async function recordReused(
     reuse: Readonly<Record<string, CachedOutput>>,
-    files: BuildFiles,
+    files: BuildDirectory,
 ): Promise<void> {
     for (const entry of Object.values(reuse)) {
         for (const file of entry.files) {
@@ -809,7 +856,7 @@ function createCompilation(
     );
 }
 
-/** Reject source diagnostics and uncanonical formatting before compiling publication outputs. */
+/** Reject source diagnostics and uncanonical formatting before compiling shipped outputs. */
 async function check(
     options: BuildOptions,
     inspected: ReadonlyMap<string, Pick<InspectedOutput, "inspection">>,
@@ -839,7 +886,7 @@ async function check(
 /** Retain every inspected source, template asset, authored manifest and catalog before compiling. */
 async function retain(
     inspected: ReadonlyMap<string, InspectedOutput>,
-    files: BuildFiles,
+    files: BuildDirectory,
 ): Promise<void> {
     for (const { project, inspection } of inspected.values()) {
         // retain inspected sources
@@ -847,18 +894,22 @@ async function retain(
             files.retain(path, bytes);
         }
 
-        // retain template assets
+        // retain template assets, leaving package.json to its release's copy below
         if (project.declaration.definition.template) {
             const template = await Template.read(project.directory);
             for (const [path, bytes] of template.files) {
-                files.retain(path, new Uint8Array(bytes));
+                if (path !== "package.json") {
+                    files.retain(path, new Uint8Array(bytes));
+                }
             }
         }
 
-        // retain the authored package declarations
-        for (const path of ["package.json", "destack.json"]) {
-            files.retain(path, new Uint8Array(await readFile(resolve(project.directory, path))));
-        }
+        // retain the authored package declarations, package.json at the version the build releases
+        files.retain("package.json", await releasedManifest(project));
+        files.retain(
+            "destack.json",
+            new Uint8Array(await readFile(resolve(project.directory, "destack.json"))),
+        );
 
         // retain the package's catalogs
         const owner = project.declaration.package.id;
@@ -872,7 +923,7 @@ async function retain(
 async function keep(
     generated: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     paths: readonly string[],
-    files: BuildFiles,
+    files: BuildDirectory,
 ): Promise<void> {
     // write the generated files
     for (const [path, bytes] of generated) {
@@ -921,7 +972,7 @@ function requirePresent(
     }
 }
 
-/** Serialize the descriptions and lists, then write the manifest referring to them. */
+/** Write the build's sources, graph, lists and upgrade, then the manifest referring to them. */
 async function writeManifest(
     source: Package,
     commit: Commit | undefined,
@@ -929,113 +980,46 @@ async function writeManifest(
         outputs: ReadonlyMap<string, Pick<CompiledFiles, "output" | "inspection">>;
         sourceMaps: SourceMapReference[];
     },
-    description: { manifest: ManifestDescription; resolved: Record<string, DependencyResolution> },
+    description: { graph: graph.Module[]; resolved: Record<string, DependencyResolution> },
     upgrade: Upgrade | undefined,
-    files: BuildFiles,
+    files: BuildDirectory,
     locator: PackageLocator,
 ): Promise<PackageBuild> {
-    // collect the outputs by name
-    const outputs = Object.fromEntries(
-        [...compiled.outputs].map(([name, { output }]) => [name, output]),
-    );
-
-    // write the retained sources and each module's graph file by its digest
-    await files.flush();
-    const root = await writeGraph(description.manifest.graph, files);
-    const described = files.list();
-
-    // publish lists separately from source and executable files
-    const references = {
-        dependencies: await writeList(files, "dependencies", description.resolved),
-        files: await writeList(files, "files", described),
-        sourceMaps: await writeList(files, "sourceMaps", compiled.sourceMaps),
-        graph: await writeList(files, "graph", root),
-    };
-
-    // keep the upgrade from the published release in a file of its kind
-    const upgraded =
-        upgrade === undefined ? undefined : await writeUpgrade(upgrade, files, locator);
-
-    // assemble the manifest
-    const result: PackageManifest = {
-        formatVersion: 1,
+    // write the build in its format, the upgrade qualified by the package defining it
+    const manifest = await files.finish({
         package: source,
-        language: "typescript",
         ...(commit === undefined ? {} : { commit }),
-        lists: references,
-        ...(upgraded === undefined ? {} : { upgrade: upgraded }),
-        outputs,
-    };
-    await writeFile(join(files.directory, "manifest.json"), JSON.stringify(result), { flag: "wx" });
+        outputs: Object.fromEntries(
+            [...compiled.outputs].map(([name, { output }]) => [name, output]),
+        ),
+        dependencies: description.resolved,
+        sourceMaps: compiled.sourceMaps,
+        graph: description.graph,
+        ...(upgrade === undefined
+            ? {}
+            : {
+                  upgrade: {
+                      package: await findPackage("@destack/resource", locator),
+                      description: upgrade,
+                  },
+              }),
+    });
 
-    return new PackageBuild(result, files.directory, "retained");
-}
-
-/** Write each module's graph file by its digest, returning the graph's root. */
-async function writeGraph(
-    modules: readonly graph.Module[],
-    files: BuildFiles,
-): Promise<graph.Root> {
-    const root: graph.Root = { modules: {} };
-    for (const module of modules) {
-        if (!files.has(module.path)) {
-            throw new BuildError(
-                "BUILD_FAILED",
-                `inspected file is absent from build: ${module.path}`,
-            );
-        }
-        const encoded = await graph.Module.file(module);
-        await files.write(`graph/${encoded.digest}.json`, encoded.bytes);
-        root.modules[module.path] = encoded.digest;
-    }
-
-    return root;
-}
-
-/** Write one of a manifest's lists and describe its file. */
-async function writeList(
-    files: BuildFiles,
-    name: (typeof MANIFEST_LISTS)[number],
-    value: JsonValue,
-): Promise<PackageFile> {
-    // write the list's file
-    const path = `manifest/${name}.json`;
-    const bytes = encodeDescription(value);
-    await files.write(path, bytes);
-
-    return await PackageFile.describe(path, "application/json", bytes);
-}
-
-/** Write the upgrade from the published release and refer to it with the package describing it. */
-async function writeUpgrade(
-    upgrade: Upgrade,
-    files: BuildFiles,
-    locator: PackageLocator,
-): Promise<NonNullable<PackageManifest["upgrade"]>> {
-    // describe the upgrade's file before writing it
-    const path = "manifest/upgrade.json";
-    const bytes = encodeDescription(upgrade);
-    const reference = {
-        package: await findPackage("@destack/resource", locator),
-        file: await PackageFile.describe(path, "application/json", bytes),
-    };
-    await files.write(path, bytes);
-
-    return reference;
+    return new PackageBuild(manifest, files.directory, "retained");
 }
 
 /** Plan the upgrade from what the package has published. */
 function planUpgrade(
     history: History,
     source: Package,
-    manifest: ManifestDescription,
+    modules: readonly graph.Module[],
     inspected: ReadonlyMap<string, InspectedOutput>,
 ): Upgrade {
     // compare the package's declarations by their kinds' comparisons
     const compare = new Map(
         [...inspected.values()].flatMap((output) => [...output.evaluation.compare]),
     );
-    const declarations = manifest.graph
+    const declarations = modules
         .flatMap((module) => module.declarations)
         .filter((declaration) => !graph.Declaration.isMember(declaration));
 

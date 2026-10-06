@@ -8,6 +8,7 @@ import { BuildError } from "../error/index.ts";
 import { collectImports, type ProgramImports } from "./program.ts";
 import { describeProject, type TypeScriptInspection } from "./module.ts";
 import { isAuthored } from "../source/dependency.ts";
+import type { ModulePackage } from "@destack/package/transform";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -35,8 +36,12 @@ export class TypeScriptCompiler implements AsyncDisposable {
         return join(Toolchain.locate(["typescript", platform], PACKAGE), "lib", "tsc");
     }
 
-    /** Inspect a configuration, collecting the declarations of the modules its entries import. */
-    inspect(configuration: string, entries: readonly string[]): Promise<TypeScriptInspection> {
+    /** Inspect a configuration, collecting the declarations of the modules its entries import, the package as its build releases it. */
+    inspect(
+        configuration: string,
+        entries: readonly string[],
+        compiled: ModulePackage,
+    ): Promise<TypeScriptInspection> {
         return this.#read(configuration, async (project) => {
             // check the configuration and the package's modules
             const authored = (await project.program.getSourceFileNames()).filter((file) =>
@@ -60,7 +65,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
                 );
             }
 
-            return await describeProject(project, this.directory, entries);
+            return await describeProject(project, compiled, entries);
         });
     }
 

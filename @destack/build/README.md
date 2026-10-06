@@ -32,7 +32,7 @@ await build.write(destination);
 
 ## Outputs
 
-`readOutputs` lists one module output per runtime the package's exports declare.
+`readOutputs` lists the module outputs a package ships: one bundled module per runtime its exports compile for, named after the runtime.
 
 ```ts
 await using build = await buildPackage({
@@ -49,6 +49,8 @@ await using build = await buildPackage({
 ```json
 { "runtimes": ["browser", "bun", "workerd"], "exports": { "./view": { "runtimes": ["browser"] } } }
 ```
+
+## Host modules
 
 The build refuses a host module the runtime lacks, unless the importing package's `browser` field replaces it with `false`, which the build bundles as an empty module.
 
@@ -71,6 +73,20 @@ await using build = await buildPackage({
 });
 const upgrade =
     build.manifest.upgrade && (await build.reader.read(build.manifest.upgrade, Upgrade));
+```
+
+## Prereleases
+
+`version` releases the build at another version than its `package.json` names, such as a dev prerelease: its manifest, its `package.json` file, its modules' metadata and its declarations carry it.
+
+```ts
+await using build = await buildPackage({
+    directory,
+    dependencies,
+    outputs,
+    version: "2026.9.0-dev.3",
+});
+build.manifest.package.version; // "2026.9.0-dev.3"
 ```
 
 ## Builder
@@ -150,10 +166,10 @@ The compiler derives the cache keys without checking or compiling, and counts an
 module   the module's bytes, the API digest of each import, the compiler options and packages, the toolchain
          feeds the output and build keys
 output   the keys of the modules the output imports, its request and configuration, the package's manifests,
-         the extensions and the toolchain
+         the released version, the extensions and the toolchain
          names the output's files, description and source maps
 build    every output key, every module key, the package's catalogs, the dependency resolutions,
-         the published history, the template and the toolchain
+         the released version, the published history, the template and the toolchain
          names the stored build's manifest
 ```
 
@@ -266,7 +282,7 @@ const catalogs = await Catalog.read(reader); // [{ package, locale: "de", messag
 
 ## Graph files
 
-A build writes its graph as one file per module named by its digest, which stays the same for an unchanged module, and a root file that names them.
+A build writes its graph as one file per module named by its digest, which stays the same for an unchanged module because symbols carry the names their declarations write (a private member's as `#name`), and a root file that names them.
 
 ```text
 manifest.json             { …, "graph": { "path": "manifest/graph.json", "digest": … } }

@@ -1,4 +1,4 @@
-import { defineAlertRule } from "@destack/monitor/declare";
+import { defineAlertRule } from "@destack/observability/declare";
 
 /** Roll an installation back to its previous revision when a new fatal issue opens. */
 export const rollback = defineAlertRule({

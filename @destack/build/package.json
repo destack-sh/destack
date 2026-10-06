@@ -42,6 +42,13 @@
         "@destack/sync": "workspace:*",
         "uuid": "14.0.2",
         "@types/bun": "1.4.2",
-        "@destack/web": "workspace:*"
+        "@destack/web": "workspace:*",
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/space": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/vault": "workspace:*"
     }
 }

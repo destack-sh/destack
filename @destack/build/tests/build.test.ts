@@ -82,38 +82,10 @@ test.concurrent.for(fixtures)(
         // run each output's declared workload
         else if (fixture.name === "service") {
             for (const output of Object.values(build.manifest.outputs)) {
-                // start the declared workload from its package export
-                const module = await importBuilt(destination, exported(output, "./server"));
-                if (!isServiceModule(module)) {
-                    throw new TypeError("the server exports no workload and service");
-                }
-                await using instance = await WorkloadInstance.start(module.web, {
-                    callKey: testCallKey,
-                    report: (error) => {
-                        throw error;
-                    },
-                    resources: new ResourceContext(),
-                    history: { ingest: async () => 0 },
-                    runs: {
-                        send: async () => {
-                            throw new TypeError("the fixture workload records no runs");
-                        },
-                    },
-                    service: () => ({
-                        audience: build.manifest.package.id,
-                        scope: "fixture",
-                        drainTimeout: 1000,
-                        authenticate: async () => null,
-                        authorizeHost: async () => {},
-                    }),
-                });
-                const response = await instance.fetch(
-                    module.service,
-                    new Request("https://example.test/notes", {
-                        headers: { [VERSION_HEADER]: build.manifest.package.version },
-                    }),
-                );
-                expect([response.status, await response.json()]).toEqual([200, { path: "/notes" }]);
+                expect(await callNotes(build, destination, output)).toEqual([
+                    200,
+                    { path: "/notes" },
+                ]);
             }
         }
         // read the declared database from the bundle
@@ -199,6 +171,74 @@ test.concurrent.for(fixtures)(
         }
     },
 );
+
+test.concurrent("release a build at a prerelease version its manifest, package.json and modules carry", async ({
+    expect,
+}) => {
+    // build the service at a dev prerelease newer than its declared version, after removing its source checkout
+    await using input = await Fixture.open("service");
+    await using build = await input.build({ ...service.request, version: "2026.10.0-dev.3" });
+    const destination = join(input.directory, "build");
+    await build.write(destination);
+    await rm(input.source, { recursive: true });
+
+    // call its workload naming the prerelease, which its service refuses unless its modules carry it, and read its package.json
+    const output = build.manifest.outputs["bun"];
+    const called = output === undefined ? undefined : await callNotes(build, destination, output);
+    const manifest: unknown = JSON.parse(await readFile(join(destination, "package.json"), "utf8"));
+    expect({
+        release: build.manifest.package.version,
+        manifest: property(manifest, "version"),
+        called,
+    }).toEqual({
+        release: "2026.10.0-dev.3",
+        manifest: "2026.10.0-dev.3",
+        called: [200, { path: "/notes" }],
+    });
+});
+
+/** Start a written build's declared workload from an output's package export and call its notes route with the build's version. */
+async function callNotes(
+    build: PackageBuild,
+    destination: string,
+    output: NonNullable<PackageBuild["manifest"]["outputs"][string]>,
+): Promise<[number, unknown]> {
+    // start the declared workload from its package export
+    const module = await importBuilt(destination, exported(output, "./server"));
+    if (!isServiceModule(module)) {
+        throw new TypeError("the server exports no workload and service");
+    }
+    await using instance = await WorkloadInstance.start(module.web, {
+        callKey: testCallKey,
+        report: (error) => {
+            throw error;
+        },
+        resources: new ResourceContext(),
+        history: { ingest: async () => 0 },
+        runs: {
+            send: async () => {
+                throw new TypeError("the fixture workload records no runs");
+            },
+        },
+        service: () => ({
+            audience: build.manifest.package.id,
+            scope: "fixture",
+            drainTimeout: 1000,
+            authenticate: async () => null,
+            authorizeMachine: async () => {},
+        }),
+    });
+
+    // call the notes route with the build's version
+    const response = await instance.fetch(
+        module.service,
+        new Request("https://example.test/notes", {
+            headers: { [VERSION_HEADER]: build.manifest.package.version },
+        }),
+    );
+
+    return [response.status, await response.json()];
+}
 
 /** List the text of a page's headings. */
 function headings(document: string): string[] {

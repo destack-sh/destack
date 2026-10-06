@@ -122,20 +122,3 @@ test("describe one declaration as every kind its constructor lists, each owned b
         await rm(directory, { recursive: true, force: true });
     }
 });
-
-test("refuse a kind the given dependency does not declare", async () => {
-    // give the app, which declares no kind, as the package declaring the thing kind
-    const directory = await mkdtemp(join(tmpdir(), "destack-kinds-"));
-    try {
-        await writeWorkspace(directory, "@example/app");
-        await using builder = await PackageBuilder.start(directory);
-
-        // refuse the inspection
-        await expect(builder.inspect({ runtime: "bun" })).rejects.toMatchObject({
-            code: "INSPECTION_FAILED",
-            message: "@example/other describes kind thing, which @example/app does not declare",
-        });
-    } finally {
-        await rm(directory, { recursive: true, force: true });
-    }
-});

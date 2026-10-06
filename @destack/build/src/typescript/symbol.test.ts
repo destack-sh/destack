@@ -66,3 +66,36 @@ test("describe a symbol by the package's declarations, leaving a linked dependen
         await rm(directory, { recursive: true, force: true });
     }
 });
+
+test("describe a class's private members by the names their declarations write", async () => {
+    // write a package with a class keeping a private field and method
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-private-")));
+    try {
+        await writeFile(join(directory, "bun.lock"), FILES["bun.lock"] ?? "");
+        await mkdir(join(directory, "app/src"), { recursive: true });
+        await writeFile(join(directory, "app/destack.json"), FILES["app/destack.json"] ?? "");
+        await writeFile(
+            join(directory, "app/package.json"),
+            JSON.stringify({ ...JSON.parse(FILES["app/package.json"] ?? "{}"), dependencies: {} }),
+        );
+        await writeFile(
+            join(directory, "app/src/index.ts"),
+            "/** An inbox. */\nexport class Inbox {\n    /** The unread count. */\n    #unread = 0;\n\n    /** Read every message. */\n    read(): number {\n        return this.#clear();\n    }\n\n    /** Clear the unread count. */\n    #clear(): number {\n        this.#unread = 0;\n\n        return this.#unread;\n    }\n}\n",
+        );
+
+        // inspect the app
+        await using builder = await PackageBuilder.start(join(directory, "app"));
+        const inspection = await builder.inspect({ runtime: "bun" });
+        const symbols = inspection.code.flatMap((module) => module.symbols);
+
+        // name the private members, and the private method the public one calls, without the compiler's per-program prefix
+        expect(
+            symbols.map((symbol) => [symbol.name, symbol.members.map((member) => member.name)]),
+        ).toEqual([
+            ["Inbox", ["#unread", "read", "#clear"]],
+            ["Inbox.#clear", []],
+        ]);
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});
