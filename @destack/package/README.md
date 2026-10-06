@@ -35,19 +35,15 @@ Define Destack packages, transform their modules, and read their built manifests
 
 ## Description functions
 
-An entry in `describes` lists up to four functions for one kind.
+An entry in `describes` names the kind's functions: `function` describes a declaration, `compare` what changed between releases, `vocabulary` the terms stored values hold, `symbols` the members it derives.
 
-```jsonc
+```json
 {
     "kind": "note",
-    // what a declaration is, read by the build into the graph
     "function": "./inspect#describeNote",
-    // what changed between two releases, read by the build's upgrade
     "compare": "./inspect#compareNote",
-    // which terms stored values hold, such as object/note/relation/editor, read by the build, the registry and spaces
     "vocabulary": "./inspect#noteVocabulary",
-    // which symbols a declaration derives and which declarations they name, read by the build into the graph
-    "symbols": "./inspect#noteSymbols",
+    "symbols": "./inspect#noteSymbols"
 }
 ```
 
@@ -124,18 +120,6 @@ export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSy
 }
 ```
 
-## Enforcement
-
-The host's sandbox enforces host capabilities, and the browser enforces Permissions Policy features.
-
-```text
-the host's sandbox  process, network, listen, fs, env, run
-the browser         camera, microphone, geolocation, display-capture, clipboard-read, clipboard-write,
-                     fullscreen, midi, usb, hid, serial, bluetooth, screen-wake-lock, idle-detection,
-                     local-fonts, window-management, xr-spatial-tracking
-no capability       the package's file, cache and temporary folders, WebGPU, Web Audio, gamepads, notifications
-```
-
 ## Optional capabilities
 
 `optional` marks a capability that an installation must allow by name.
@@ -149,12 +133,19 @@ no capability       the package's file, cache and temporary folders, WebGPU, Web
 `capabilities` in `defineWorkload` limits a workload to a subset of its package's capabilities.
 
 ```ts
-import { Capabilities } from "@destack/package";
 import { defineWorkload } from "@destack/service/workload";
 
 export const indexer = defineWorkload({ name: "indexer", capabilities: ["network", "run"], start });
+```
 
-const running = Capabilities.grant(description.capabilities, ["fs", "camera"]);
+## Granted capabilities
+
+`Capabilities.grant` gives an installation the required capabilities and the optional ones it allows.
+
+```ts
+import { Capabilities } from "@destack/package";
+
+Capabilities.grant(workload.capabilities, ["fs"]); // required ones plus fs, never camera
 ```
 
 ## Described capabilities
@@ -177,6 +168,98 @@ export default definePackage({
     resources: { main: notesDatabase },
     secrets: { "github-webhook": webhookSecret },
 });
+```
+
+## Examples
+
+`defineExample` declares one declaration in a given state, which a host renders with the example's properties or with ones a control changed.
+
+```tsx
+import { defineExample } from "@destack/package/declare";
+
+export const GhostButton = defineExample({
+    of: Button,
+    name: "ghost",
+    properties: { variant: "ghost" },
+    render: (properties) => <Button {...properties}>Cancel</Button>,
+});
+
+GhostButton.render({ variant: "outline" });
+```
+
+## Scenarios
+
+`defineScenario` declares examples set in motion as data: the interaction its steps and observations speak, the examples it is given, the steps a driver takes on them, and the named observations it expects after each step or once at the end.
+
+```ts
+import { defineScenario } from "@destack/package/declare";
+import { uiInteraction } from "@destack/view/scenario";
+
+export const MoveCalendarDay = defineScenario({
+    interaction: uiInteraction,
+    name: "move the focused day with the arrow keys, crossing months",
+    given: { examples: [LateOctoberExample], environment: { locale: "de-AT" } },
+    when: [
+        { action: "focus", target: { role: "button", name: "Freitag, 30. Oktober 2026" } },
+        { action: "press", key: "ArrowRight" },
+        { action: "press", key: "ArrowRight" },
+    ],
+    then: {
+        observe: { month: { kind: "text", target: { role: "heading" } } },
+        each: [{ month: "Oktober 2026" }, { month: "Oktober 2026" }, { month: "November 2026" }],
+    },
+});
+```
+
+## Interactions
+
+An `Interaction` names the schemas of the steps, observations and environment its scenarios speak, and a runner picks a scenario's driver by its name.
+
+```ts
+import type { Interaction } from "@destack/package/declare";
+
+export const uiInteraction: Interaction<Step, Observation, Environment> = {
+    name: "ui",
+    step: Step,
+    observation: Observation,
+    environment: Environment,
+};
+```
+
+## Set steps
+
+`SetStep` changes properties an example declares, as its owner or a control would, in every interaction.
+
+```ts
+{ action: "set", properties: { open: true }, example: "controlled" }
+```
+
+## Example graph
+
+The build declares each example with a `shows` edge to the symbol its `of` names, and each scenario with `covers` edges to what its examples show.
+
+```text
+src/button/button.example.tsx#GhostButton:example   shows   src/button/button.tsx#Button
+src/tabs/tabs.scenario.ts#MoveManualTabs:scenario    covers  src/tabs/tabs.tsx#Tabs
+```
+
+## Controls
+
+An example's description holds a control for each property its package declares on the shown symbol: a select for a union of literals, a switch, a number or a text field, labelled by the property's documentation.
+
+```json
+{
+    "properties": { "variant": "ghost" },
+    "controls": [
+        {
+            "property": "variant",
+            "label": "The look.",
+            "isOptional": true,
+            "input": { "kind": "select", "options": ["default", "outline", "ghost"] }
+        },
+        { "property": "isPending", "isOptional": true, "input": { "kind": "boolean" } }
+    ]
+}
 ```
 
 ## Modules
@@ -202,7 +285,7 @@ const { id, name, version } = import.meta.destack.package;
 
 ## Transforms
 
-`vite` installs the module transform in Vite and Vitest.
+`@destack/package/bun/preload` installs the module transform in Bun, and `modulePlugin` from `@destack/package/vite` in Vite and Vitest.
 
 ```toml
 # bunfig.toml
@@ -234,21 +317,46 @@ export const spaceBuild: BuildExtension = {
 
 ## Manifests
 
-`BuildReader.open` opens a built package and lists its declarations.
+`BuildReader.open` opens a built package by its manifest digest and reads its files and declarations, verifying every digest.
 
 ```ts
 import { BuildReader } from "@destack/package/manifest";
 
 const reader = await BuildReader.open(location, fetch, signal);
-const files = await reader.files();
-const settings = await reader.declared(
-    import.meta.destack.package.id,
-    "setting",
-    SettingDescription,
-);
+const settings = await reader.declared(import.meta.destack.package.id, "setting", SettingDescription);
 ```
 
-### Build caches
+## Build writers
+
+`BuildWriter` writes a build in the format `BuildReader` reads: its files by digest, a graph file per module, the lists, and the manifest last.
+
+```ts
+import { BuildWriter } from "@destack/package/manifest";
+
+const writer = new BuildWriter({
+    write: async (path, bytes) => {
+        await Bun.write(join(directory, path), bytes);
+    },
+});
+await writer.write("src/index.js", bytes);
+const manifest = await writer.finish({ package: notes, outputs, graph });
+```
+
+## Memory builds
+
+`MemoryBuild` from `@destack/package/test` keeps a build in memory, written through a `BuildWriter`, for tests that install or run a release without compiling it.
+
+```ts
+import { MemoryBuild } from "@destack/package/test";
+
+const empty = await MemoryBuild.write(new Map(), { package: notes });
+const declaring = await MemoryBuild.declaring(notes, [
+    { kind: "setting", package: setting.package.id, name: "theme", description: describeSetting(theme) },
+]);
+await declaring.reader.declarations(); // [{ kind: "setting", name: "theme", … }]
+```
+
+## Build caches
 
 `BuildCache` keeps a value read from each build, keyed by its graph's digest.
 
@@ -276,52 +384,11 @@ const object = graph.Moniker.of({ packageId, module: "src/note.ts", name: "Note"
 
 ## Graph modules
 
-A `graph.Module` holds a module's symbols, declarations and outgoing edges.
+A `graph.Module` holds a module's symbols, the declarations at them and its outgoing edges, and `graph.Declaration.at` declares a symbol as a kind.
 
-```json
-{
-    "path": "src/server.ts",
-    "digest": "bfc1f6ca…",
-    "imports": ["@destack/service"],
-    "exports": [
-        { "name": "service", "symbol": "package-…/src/server.ts#service", "isTypeOnly": false }
-    ],
-    "symbols": [
-        {
-            "moniker": "package-…/src/server.ts#service",
-            "kind": "variable",
-            "source": { "file": "src/server.ts", "start": 1686, "end": 1726 },
-            "signature": "service: import(\"@destack/service\").Service<…>",
-            "comment": "The public HTTP service.",
-            "isExported": true
-        }
-    ],
-    "declarations": [
-        {
-            "moniker": "package-…/src/server.ts#service:service",
-            "symbol": "package-…/src/server.ts#service",
-            "kind": "service",
-            "package": "package-…",
-            "name": "notes",
-            "description": { "name": "notes" }
-        },
-        {
-            "moniker": "package-…/src/server.ts#service.list:procedure",
-            "symbol": "package-…/src/server.ts#service",
-            "kind": "procedure",
-            "package": "package-…",
-            "name": "list",
-            "description": { "method": "GET", "path": "/notes" }
-        }
-    ],
-    "edges": [
-        {
-            "from": "package-…/src/server.ts#service:service",
-            "to": "package-…/src/server.ts#service.list:procedure",
-            "kind": "serves"
-        }
-    ]
-}
+```ts
+const declaration = graph.Declaration.at(service, { kind: "service", package: packageId, name: "notes", description });
+// { moniker: "package-…/src/server.ts#service:service", symbol: "package-…/src/server.ts#service", kind: "service", … }
 ```
 
 ## Graph reads
