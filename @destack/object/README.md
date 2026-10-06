@@ -381,22 +381,22 @@ await created.predicted;
 await created.confirmed;
 ```
 
-## Remote clients
+## Dynamic clients
 
-`RemoteClient` calls, lists and watches an installation's objects by the descriptions its manifest declares, without their object types.
+`DynamicObjectClient` calls, lists and watches an installation's objects by the descriptions its manifest declares, without their object types.
 
 ```ts
-const remote = new RemoteClient({
+const client = new DynamicObjectClient({
     package: release, // the installed release every call is made against
-    objects: [RemoteObject.of(description, states)], // a description with its table, from the release's declared states
+    objects: [DynamicObject.of(description, states)], // a description with its table, from the release's declared states
     scope: spaceId,
     endpoint: { url: `${origin}/.destack/service`, fetch },
     database, // the local copies of watched rows
 });
 
-await remote.call("task", "complete", { id }); // validated by the method's JSON Schema
-const open = await remote.list("task", { where: { status: "open" }, limit: 50 });
-for await (const rows of remote.watch("task", { orderBy: { due: "asc" } }, signal)) {
+await client.call("task", "complete", { id }); // validated by the method's JSON Schema
+const open = await client.list("task", { where: { status: "open" }, limit: 50 });
+for await (const rows of client.watch("task", { orderBy: { due: "asc" } }, signal)) {
     render(rows);
 }
 ```

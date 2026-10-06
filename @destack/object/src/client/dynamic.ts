@@ -34,7 +34,7 @@ const Listed = schema.looseObject({
 const CALL_RESULTS = schema.array(schema.json());
 
 /** An object type an installation serves, as its manifest describes it, with the table a watch copies its rows into. */
-export interface RemoteObject {
+export interface DynamicObject {
     /** The object type as its package's manifest describes it. */
     readonly description: ObjectDescription;
     /** The table a watch copies the type's rows into. */
@@ -42,16 +42,16 @@ export interface RemoteObject {
 }
 
 /** Installed object types paired with the tables their databases declare. */
-export const RemoteObject = {
+export const DynamicObject = {
     /** Pair an installed type's description with its table, built from its database's declared state under the type's properties. */
-    of(description: ObjectDescription, states: readonly TableState[]): RemoteObject {
+    of(description: ObjectDescription, states: readonly TableState[]): DynamicObject {
         const properties = Object.fromEntries(
             Object.entries(description.columns).map(([property, column]) => [column, property]),
         );
 
         return {
             description,
-            table: Table.describe(RemoteObject.state(description, states), properties),
+            table: Table.describe(DynamicObject.state(description, states), properties),
         };
     },
 
@@ -74,11 +74,11 @@ export const RemoteObject = {
 };
 
 /** An installation's objects, reached through the service serving them. */
-export interface RemoteInstallation {
+export interface DynamicObjectClientOptions {
     /** The installed release, which every call is made against. */
     readonly package: Package;
     /** The object types the installation serves. */
-    readonly objects: readonly RemoteObject[];
+    readonly objects: readonly DynamicObject[];
     /** The scope the calls and watches name, such as a space. */
     readonly scope: string;
     /** Where and how to reach the service serving the objects. */
@@ -88,9 +88,9 @@ export interface RemoteInstallation {
 }
 
 /** An installation's objects called by name, as their descriptions declare them, without their object types. */
-export class RemoteClient {
+export class DynamicObjectClient {
     /** The installation the client reaches. */
-    readonly installation: RemoteInstallation;
+    readonly installation: DynamicObjectClientOptions;
     /** The replica procedures of the service serving the objects. */
     readonly #service: Client<ReplicaProcedures>;
     /** The validators of method inputs, built once per method. */
@@ -99,7 +99,7 @@ export class RemoteClient {
     #migrated: Promise<unknown> | undefined;
 
     /** Reach an installation's objects through the service serving them. */
-    constructor(installation: RemoteInstallation) {
+    constructor(installation: DynamicObjectClientOptions) {
         this.installation = installation;
         this.#service = createClient(
             { package: installation.package, router: { replica: replicaProcedures } },
@@ -108,7 +108,7 @@ export class RemoteClient {
     }
 
     /** Find an object type by name, refusing one the installation does not serve. */
-    object(type: string): RemoteObject {
+    object(type: string): DynamicObject {
         const found = this.installation.objects.find((entry) => entry.description.name === type);
         if (found === undefined) {
             throw new ServiceError("NOT_FOUND", { message: `no object type ${type}` });
