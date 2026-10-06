@@ -1,7 +1,7 @@
 import { color } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as stylex from "@destack/style";
-import { createMemo, createSignal, type JSX } from "@destack/view";
+import { createEffect, createMemo, createSignal, type JSX } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
 import type { Lighting } from "./ledger";
@@ -76,9 +76,22 @@ export function Inspector(properties: {
         return isOpenFor(part) ? (serviceName ?? component) : `${serviceName ?? component}, rented`;
     };
 
+    // count the shown part's resizes so the box follows a part that eases to a new size
+    const [resizes, setResizes] = createSignal(0);
+    createEffect(shown, (part) => {
+        if (part === undefined) {
+            return undefined;
+        }
+        const observer = new ResizeObserver(() => setResizes((count) => count + 1));
+        observer.observe(part);
+
+        return () => observer.disconnect();
+    });
+
     // measure the shown part against the frame with its label
     const box = createMemo(() => {
         // box nothing while no part is shown
+        resizes();
         const part = shown();
         if (part === undefined || frame === undefined) {
             return undefined;

@@ -229,7 +229,14 @@ export function SpaceBrowser(properties: {
                             )}
                         >
                             <Favicon icon={icon} tint={tint} />
-                            <span {...stylex.attrs(styles.tabTitle)}>{title}</span>
+                            <span
+                                {...stylex.attrs(
+                                    styles.tabTitle,
+                                    row !== properties.page.row && styles.tabTitleHidden,
+                                )}
+                            >
+                                {title}
+                            </span>
                         </span>
                     ))
                 )}
@@ -716,9 +723,12 @@ const styles = stylex.create({
         flexShrink: 1,
         justifyContent: "flex-start",
         maxWidth: "12rem",
-        transition: "background-color 160ms ease, color 160ms ease",
+        transition:
+            "flex-grow 240ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease",
+        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
     },
     tabOn: {
+        flexGrow: 5,
         backgroundColor: color.card,
         color: color.foreground,
         "::before": {
@@ -740,8 +750,12 @@ const styles = stylex.create({
             width: "8px",
         },
     },
+    tabTitleHidden: {
+        opacity: 0,
+    },
     tabTitle: {
         flexGrow: 1,
+        transition: "opacity 160ms ease",
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
