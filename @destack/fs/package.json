@@ -17,6 +17,7 @@
         "@types/bun": "1.4.2"
     },
     "dependencies": {
-        "@destack/schema": "workspace:*"
+        "@destack/schema": "workspace:*",
+        "@destack/error": "workspace:*"
     }
 }

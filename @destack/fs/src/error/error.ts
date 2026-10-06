@@ -1,7 +1,7 @@
-import type { ReportableError, ServiceErrorReport } from "@destack/schema";
+import type { DomainError, ServiceErrorReport } from "@destack/error";
 
 /** A failed host filesystem operation. */
-export class FileSystemError extends Error implements ReportableError {
+export class FileSystemError extends Error implements DomainError {
     /** The failed filesystem operation. */
     readonly operation: string;
     /** The affected absolute path. */
