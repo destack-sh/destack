@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each binding failure: every binding failure is the host's. */
 const SERVICE_CODES = {
@@ -10,7 +10,7 @@ const SERVICE_CODES = {
 export type ResourceErrorCode = keyof typeof SERVICE_CODES;
 
 /** A resource binding failure. */
-export class ResourceError extends Error implements ReportableError {
+export class ResourceError extends Error implements DomainError {
     /** The binding operation that failed. */
     readonly code: ResourceErrorCode;
 
@@ -28,7 +28,7 @@ export class ResourceError extends Error implements ReportableError {
 }
 
 /** A desired state no plan can reach until its declarations change. */
-export class PlanError extends Error implements ReportableError {
+export class PlanError extends Error implements DomainError {
     /** What the declarations must change, by the part of the resource it concerns. */
     readonly problems: readonly {
         /** The part of the resource, such as a table. */
