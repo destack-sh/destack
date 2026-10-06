@@ -59,6 +59,8 @@ export interface JournalOptions {
     readonly batch?: number;
     /** How long delivered calls stay for retries: a request identifier's retry lifetime. */
     readonly lifetime?: Duration;
+    /** Read the current time in Unix milliseconds, the clock of the server keeping the journal, the system clock by default. */
+    readonly clock?: () => number;
 }
 
 /** The calls of one service database: executed once per request, replayed on retries, and delivered to the audit history. */
@@ -73,6 +75,8 @@ export class Journal {
     readonly batch: number;
     /** How long delivered calls stay, in milliseconds. */
     readonly lifetime: number;
+    /** Read the current time in Unix milliseconds, which retry periods and lifetimes run on. */
+    readonly clock: () => number;
 
     /** Keep a database's calls, fingerprinting sensitive inputs under the deployment's key. */
     constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions = {}) {
@@ -81,6 +85,7 @@ export class Journal {
         this.#key = key;
         this.batch = options.batch ?? DELIVERY_CALLS;
         this.lifetime = Duration.milliseconds(options.lifetime ?? LIFETIME);
+        this.clock = options.clock ?? Date.now;
     }
 
     /** Fingerprint a redacted input and the sensitive values it left out, the latter under the key. */
@@ -197,28 +202,38 @@ export class Journal {
         },
         options: TransactionOptions = {},
     ): Promise<unknown[]> {
-        // reject an expired or future key
-        RequestId.expiry(request.requestId);
+        // reject a key expired or in the future on the journal's clock
+        RequestId.expiry(request.requestId, this.clock());
 
         try {
             return await this.database.transaction(async (transaction) => {
                 // authorize before replaying a recorded request
                 const authorized = await steps.authorize(transaction);
-                const previous = await this.#recorded(transaction, request);
-                if (previous.length > 0) {
-                    return Journal.#replay(previous, fingerprint);
-                }
 
-                return steps.run(transaction, authorized);
+                return (
+                    (await this.replay(request, fingerprint, transaction)) ??
+                    steps.run(transaction, authorized)
+                );
             }, options);
         } catch (error) {
             // answer the outcome a concurrent copy committed, which made this copy fail
-            const committed = await this.#recorded(this.database, request);
-            if (committed.length > 0) {
-                return Journal.#replay(committed, fingerprint);
+            const committed = await this.replay(request, fingerprint);
+            if (committed !== undefined) {
+                return committed;
             }
             throw error;
         }
+    }
+
+    /** Answer a request a previous copy recorded with its results or its failure, absent before it ran. */
+    async replay(
+        request: RequestIdentity,
+        fingerprint: string,
+        database: DatabaseConnection = this.database,
+    ): Promise<unknown[] | undefined> {
+        const recorded = await this.#recorded(database, request);
+
+        return recorded.length === 0 ? undefined : Journal.#replay(recorded, fingerprint);
     }
 
     /** Read recorded calls oldest first: the audited ones unless asked for every call, the pending ones when asked. */
@@ -255,7 +270,7 @@ export class Journal {
     }
 
     /** Remove delivered calls past their lifetime, up to a limit, returning how many. */
-    async prune(limit: number, now = Date.now()): Promise<number> {
+    async prune(limit: number, now = this.clock()): Promise<number> {
         // bound the batch
         if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PRUNE_CALLS) {
             throw new ServiceError("BAD_REQUEST", {
@@ -301,7 +316,7 @@ export class Journal {
             { calls: rows.map((row) => AuditHistory.kept(row.call)) },
             { signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]) },
         );
-        const now = Date.now();
+        const now = this.clock();
         for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
             await this.database
                 .update(journal)
@@ -364,7 +379,7 @@ export class Journal {
                 }
 
                 // remove a batch and look again at the earliest removable expiry, or a lifetime on when no later call expires sooner
-                const now = Date.now();
+                const now = this.clock();
                 if ((await this.prune(MAX_PRUNE_CALLS, now)) === MAX_PRUNE_CALLS) {
                     return 0;
                 }

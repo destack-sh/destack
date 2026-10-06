@@ -31,7 +31,16 @@ const results = await calls.execute(request, fingerprint, {
     authorize: (transaction) => authorization.within(transaction).require(permission, target),
     run: (transaction) => updateAccount(transaction, input),
 });
+await calls.replay(request, fingerprint); // the recorded results, or undefined before the request ran
 Replay.failure(new ServiceError("CONFLICT", { message: "name is taken" })); // { kind: "failure", error: { code: "CONFLICT", status: 409, … } }
+```
+
+### Clock
+
+`clock` sets the time a journal checks request identifiers' retry periods and call lifetimes on, the system clock by default.
+
+```ts
+const calls = new Journal(database, callKey, { clock: server.clock });
 ```
 
 ## Tables
@@ -114,8 +123,6 @@ Server.start({ ...implementAudit({ history, access, record }), ...hosting });
 const page = await history.list({ scope: spaceId, limit: 100 });
 await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
 ```
-
-The audit service reads and prunes a history, and takes no calls to record: only the history's host stores them.
 
 ## Relays
 
