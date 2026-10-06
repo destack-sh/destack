@@ -25,7 +25,7 @@ jobs:
         timeout-minutes: 20
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up platform tools
@@ -43,7 +43,7 @@ jobs:
         timeout-minutes: 20
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up platform tools
@@ -73,7 +73,7 @@ jobs:
             DESTACK_TEST_POSTGRES: ${{ matrix.dialect == 'postgres' && 'postgres://postgres@127.0.0.1:55432/postgres' || '' }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
                   # the merge base with the target branch selects the affected packages
@@ -99,7 +99,7 @@ jobs:
         timeout-minutes: 10
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
