@@ -66,12 +66,14 @@ Identifier.uuid(id); // "01995f12-3456-7890-8abc-123456789abc"
 
 ## Versions
 
-`Version.compare` orders calendar versions and sorts a nightly build before its release, and `Version.between` lists the entries after one release and up to another.
+`Version.compare` orders calendar versions with dev and nightly builds before their release, `Version.next` names the release after one, and `Version.between` lists the entries after one release and up to another.
 
 ```ts
 import { Version } from "@destack/schema";
 
 Version.compare("2026.10.0-nightly.3", "2026.10.0"); // -1
+Version.compare("2026.10.0-dev.9", "2026.10.0-nightly.1"); // -1
+Version.next("2026.10.0"); // "2026.10.1"
 Version.between({ "2026.9.0": a, "2026.10.0": b }, "2026.8.0", "2026.9.0"); // [["2026.9.0", a]]
 ```
 
@@ -146,20 +148,4 @@ import { canonicalize, Commit, Digest } from "@destack/schema";
 canonicalize({ b: 1, a: [true] }); // '{"a":[true],"b":1}'
 await Digest.json({ b: 1, a: [true] }); // the SHA-256 of the canonical form, as hex
 Commit.parse(sha); // a SHA-1 or SHA-256 commit in lowercase hex
-```
-
-## Reportable errors
-
-`ReportableError` is an error whose `toServiceError` returns the `ServiceErrorReport` its caller receives, so packages below the service report failures without depending on it.
-
-```ts
-import { ReportableError, SERVICE_ERROR_STATUSES, type ServiceErrorReport } from "@destack/schema";
-
-class TakenError extends Error implements ReportableError {
-    toServiceError(): ServiceErrorReport {
-        return { code: "CONFLICT", message: this.message };
-    }
-}
-ReportableError.is(new TakenError("name is taken")); // true
-SERVICE_ERROR_STATUSES.CONFLICT; // 409
 ```

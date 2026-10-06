@@ -70,3 +70,27 @@ test("list the releases after one release and up to another in release order", (
         [["2026.8.0", 1]],
     ]);
 });
+
+test("order dev builds by their sequence before the nightly builds and the release they lead to", () => {
+    const versions = [
+        "2026.9.0",
+        "2026.9.0-nightly.1",
+        "2026.9.0-dev.10",
+        "2026.9.0-dev.2",
+        "2026.8.0",
+    ];
+
+    expect(versions.toSorted((left, right) => Version.compare(left, right))).toEqual([
+        "2026.8.0",
+        "2026.9.0-dev.2",
+        "2026.9.0-dev.10",
+        "2026.9.0-nightly.1",
+        "2026.9.0",
+    ]);
+});
+
+test("name the release after a version's release in its year and month", () => {
+    expect(
+        ["2026.9.0", "2026.12.4", "2026.9.0-dev.3"].map((version) => Version.next(version)),
+    ).toEqual(["2026.9.1", "2026.12.5", "2026.9.1"]);
+});
