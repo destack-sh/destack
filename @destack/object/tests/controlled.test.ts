@@ -126,7 +126,7 @@ test.each(TEST_DIALECTS)(
             8_000,
         );
         await expect(moved).rejects.toMatchObject({
-            code: "MOVED",
+            code: "MISDIRECTED_REQUEST",
             message: `${spaceId} moves to host-2`,
         });
 
