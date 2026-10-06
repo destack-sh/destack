@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 import type { StepUp } from "../context/elevation.ts";
 
 /** The service error code of each access failure. */
@@ -16,7 +16,7 @@ const SERVICE_CODES = {
 export type AccessErrorCode = keyof typeof SERVICE_CODES;
 
 /** Reject an invalid declaration, unavailable record, or unauthorized operation. */
-export class AccessError extends Error implements ReportableError {
+export class AccessError extends Error implements DomainError {
     /** The stable failure classification. */
     readonly code: AccessErrorCode;
     /** The authentication that would admit the caller, for insufficient authentication. */
