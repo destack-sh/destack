@@ -75,25 +75,55 @@ export function stubPopovers(): void {
     const show = Object.getOwnPropertyDescriptor(prototype, "showPopover");
     const hide = Object.getOwnPropertyDescriptor(prototype, "hidePopover");
 
-    // mark a shown popover with the slot of the element it anchors to
+    // mark a shown popover with the slot of the element it anchors to, firing its toggle
     Object.defineProperty(prototype, "showPopover", {
         configurable: true,
         value(this: HTMLElement, options?: ShowPopoverOptions) {
-            this.setAttribute("data-popover-open", String(options?.source?.dataset["slot"]));
+            if (!this.hasAttribute("data-popover-open")) {
+                this.setAttribute("data-popover-open", String(options?.source?.dataset["slot"]));
+                toggle(this, "open");
+            }
         },
     });
     Object.defineProperty(prototype, "hidePopover", {
         configurable: true,
         value(this: HTMLElement) {
-            this.removeAttribute("data-popover-open");
+            if (this.hasAttribute("data-popover-open")) {
+                this.removeAttribute("data-popover-open");
+                toggle(this, "closed");
+            }
         },
     });
 
-    // restore the prototype after the test
+    // toggle the popover a clicked button targets, as its default action
+    document.addEventListener("click", toggleTarget);
+
+    // restore the prototype and the document after the test
     onTestFinished(() => {
         restore(prototype, "showPopover", show);
         restore(prototype, "hidePopover", hide);
+        document.removeEventListener("click", toggleTarget);
     });
+}
+
+/** Toggle the popover a clicked button targets, unless a handler prevented the click. */
+function toggleTarget(event: Event): void {
+    const button = event.target instanceof Element ? event.target.closest("[popovertarget]") : null;
+    const popover = document.getElementById(button?.getAttribute("popovertarget") ?? "");
+    if (event.defaultPrevented || !(button instanceof HTMLElement) || popover === null) {
+        return;
+    } else if (popover.hasAttribute("data-popover-open")) {
+        popover.hidePopover();
+    } else {
+        popover.showPopover({ source: button });
+    }
+}
+
+/** Fire the toggle event a popover fires as it opens or closes. */
+function toggle(popover: HTMLElement, newState: "open" | "closed"): void {
+    const event = new Event("toggle");
+    Object.assign(event, { oldState: newState === "open" ? "closed" : "open", newState });
+    popover.dispatchEvent(event);
 }
 
 /** Put back a member of a prototype, or remove it when the prototype had none. */

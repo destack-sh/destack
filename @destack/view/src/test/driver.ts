@@ -260,9 +260,26 @@ function press(shortcut: string): void {
     const target = document.activeElement ?? document.body;
     for (const type of ["keydown", "keyup"]) {
         target.dispatchEvent(
-            new KeyboardEvent(type, { key, ...flags, bubbles: true, cancelable: true }),
+            new KeyboardEvent(type, {
+                key,
+                code: codeOf(key),
+                ...flags,
+                bubbles: true,
+                cancelable: true,
+            }),
         );
     }
+}
+
+/** Read the physical key a key value sits on in a US layout, such as `KeyT` for `t`. */
+function codeOf(key: string): string {
+    if (/^[a-z]$/iu.test(key)) {
+        return `Key${key.toUpperCase()}`;
+    } else if (/^[0-9]$/u.test(key)) {
+        return `Digit${key}`;
+    }
+
+    return key === " " ? "Space" : key;
 }
 
 /** Replace a field's value as a person typing it would, focusing it first. */
