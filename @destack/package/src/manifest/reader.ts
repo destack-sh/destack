@@ -185,7 +185,7 @@ export class BuildReader {
         signal: AbortSignal | undefined,
     ): Promise<Uint8Array<ArrayBuffer>> {
         const response = await fetch(url, {
-            redirect: "error",
+            redirect: "manual",
             ...(signal === undefined ? {} : { signal }),
         });
         if (!response.ok) {
