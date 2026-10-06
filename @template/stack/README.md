@@ -19,3 +19,15 @@ export const personal = defineSpace({
     },
 });
 ```
+
+## Alerts
+
+`rollback` declares an alert rule each installation of the stack keeps in its space, rolling an installation back to its previous revision when a new fatal issue opens.
+
+```ts
+export const rollback = defineAlertRule({
+    name: "Roll back new fatal issues",
+    condition: { kind: "issue", on: "open", filter: "level = fatal" },
+    actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+});
+```
