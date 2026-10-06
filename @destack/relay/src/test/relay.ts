@@ -2,7 +2,7 @@ import { Snapshot } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { createServer } from "node:net";
 import { serve } from "bun";
-import type { HostIdentity } from "@destack/host/identity";
+import type { MachineIdentity } from "@destack/host/identity";
 import { type AccountFixture, ACCOUNTS_URL, ids, ISSUER } from "@destack/host/test";
 import { TokenVerifier } from "@destack/service/authentication";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -29,15 +29,15 @@ export const QUICK = {
 /** The code of a refusal's JSON body. */
 const Refusal = schema.looseObject({ code: schema.string() });
 
-/** The relay's workload: its placement in the platform's region, and a host of the region running it. */
+/** The relay's workload: its placement in the platform's region, and a machine of the region running it. */
 export interface RelayWorkload {
     /** The relay's placement. */
     readonly placement: Identifier<"placement">;
-    /** The host of the platform's region running the relays. */
-    readonly region: HostIdentity;
+    /** The machine of the platform's region running the relays. */
+    readonly region: MachineIdentity;
 }
 
-/** An enrolled host serving a space, and the relays reaching it. */
+/** An enrolled machine serving a space, and the relays reaching it. */
 export class RelayFixture implements AsyncDisposable {
     /** The account service. */
     readonly accounts: AccountFixture;
@@ -45,17 +45,17 @@ export class RelayFixture implements AsyncDisposable {
     readonly workload: RelayWorkload;
     /** The directory over the account service's database. */
     readonly directory: DirectoryStore;
-    /** The host serving the space. */
-    readonly identity: HostIdentity;
-    /** The host's identifier. */
-    readonly hostId: Identifier<"host">;
-    /** The name of the host's space. */
+    /** The machine serving the space. */
+    readonly identity: MachineIdentity;
+    /** The machine's identifier. */
+    readonly machineId: Identifier<"machine">;
+    /** The name of the machine's space. */
     readonly space: string;
-    /** The host's space. */
+    /** The machine's space. */
     readonly spaceId: Identifier<"space">;
-    /** The requests the host answered, as method and URL. */
+    /** The requests the machine answered, as method and URL. */
     readonly received: string[] = [];
-    /** The names the relays told the host they route to it, in order. */
+    /** The names the relays told the machine they route to it, in order. */
     readonly names: string[] = [];
     /** The failures the relays and tunnels reported. */
     readonly reports: unknown[] = [];
@@ -64,13 +64,13 @@ export class RelayFixture implements AsyncDisposable {
     /** The relays' databases, closed on disposal. */
     readonly #databases: TestDatabase[] = [];
     /** The clients and region servers started, closed on disposal. */
-    readonly #hosts: { close(): Promise<void> }[] = [];
+    readonly #machines: { close(): Promise<void> }[] = [];
 
     /** Keep a prepared account service. */
     private constructor(
         accounts: AccountFixture,
         workload: RelayWorkload,
-        identity: HostIdentity,
+        identity: MachineIdentity,
         name: string,
         spaceId: Identifier<"space">,
     ) {
@@ -79,46 +79,46 @@ export class RelayFixture implements AsyncDisposable {
         this.workload = workload;
         this.directory = new DirectoryStore(accounts.database);
 
-        // keep the host and its space
+        // keep the machine and its space
         this.identity = identity;
-        this.hostId = schema.identifier("host").parse(identity.hostId);
+        this.machineId = schema.identifier("machine").parse(identity.machineId);
         this.space = name;
         this.spaceId = spaceId;
     }
 
-    /** Place the relay's workload in the platform's region, reading the accounts, hosts, host keys and zones names resolve with. */
+    /** Place the relay's workload in the platform's region, reading the accounts, machines, machine keys and zones names resolve with. */
     static async workload(accounts: AccountFixture): Promise<RelayWorkload> {
         const placement = await accounts.place(RELAY_PACKAGE.id, RELAY_ROLE.permissions);
 
         return { placement, region: await accounts.enroll(ids.platform) };
     }
 
-    /** Enroll a new host of the acme account in an account service, and place a new space in it. */
+    /** Enroll a new machine of the acme account in an account service, and place a new space in it. */
     static async open(accounts: AccountFixture, workload: RelayWorkload): Promise<RelayFixture> {
-        // enroll the host and place its space in it
+        // enroll the machine and place its space in it
         const identity = await accounts.enroll(ids.account);
         const name = `space-${v7().slice(-12)}`;
-        const cell = schema.identifier("host").parse(identity.hostId);
+        const cell = schema.identifier("machine").parse(identity.machineId);
         const spaceId = await RelayFixture.place(accounts, name, cell);
 
         return new RelayFixture(accounts, workload, identity, name, spaceId);
     }
 
-    /** The name of the notes app of the host's space. */
+    /** The name of the notes app of the machine's space. */
     get notes(): string {
         return `notes.${this.space}.acme.destack.space`;
     }
 
-    /** Read the name of the host itself. */
+    /** Read the name of the machine itself. */
     async computer(): Promise<string> {
         const { name } = await this.accounts
-            .host(this.identity)
-            .host.get({ accountId: ids.account, id: this.hostId });
+            .machine(this.identity)
+            .machine.get({ accountId: ids.account, id: this.machineId });
 
         return `${name}.acme.destack.computer`;
     }
 
-    /** Place the host's space under another name, releasing its current one. */
+    /** Place the machine's space under another name, releasing its current one. */
     async rename(name: string): Promise<void> {
         const row = { id: this.spaceId, scope: ids.account, name };
         await this.directory.replace(
@@ -127,7 +127,7 @@ export class RelayFixture implements AsyncDisposable {
         );
     }
 
-    /** Name a space of the acme account, and place its zone in a host or region. */
+    /** Name a space of the acme account, and place its zone in a machine or region. */
     static async place(
         accounts: AccountFixture,
         name: string,
@@ -187,7 +187,7 @@ export class RelayFixture implements AsyncDisposable {
             service: (service) => ({
                 audience: service.package.id,
                 authenticate: async () => null,
-                authorizeHost: async () => {},
+                authorizeMachine: async () => {},
                 drainTimeout: 1000,
             }),
         });
@@ -210,7 +210,7 @@ export class RelayFixture implements AsyncDisposable {
         await instance.close();
     }
 
-    /** Read a token of the host for its relays. */
+    /** Read a token of the machine for its relays. */
     async token(): Promise<string> {
         const granted = await this.identity.token(RELAY_PACKAGE.id, ACCOUNTS_URL, (request) =>
             this.accounts.server.fetch(request),
@@ -219,12 +219,12 @@ export class RelayFixture implements AsyncDisposable {
         return granted.accessToken;
     }
 
-    /** Keep a tunnel from the host to a relay, greeting each request with its method, path and body. */
+    /** Keep a tunnel from the machine to a relay, greeting each request with its method, path and body. */
     async tunnel(
         relay: BunRelay,
         options: Partial<TunnelClientOptions> = {},
     ): Promise<TunnelClient> {
-        // dial with the host's relay tokens, recording and greeting each request
+        // dial with the machine's relay tokens, recording and greeting each request
         const client = TunnelClient.open({
             url: relay.url,
             token: () => this.token(),
@@ -242,7 +242,7 @@ export class RelayFixture implements AsyncDisposable {
             report: (error) => this.reports.push(error),
             ...options,
         });
-        this.#hosts.push(client);
+        this.#machines.push(client);
         await client.opened();
 
         return client;
@@ -255,7 +255,7 @@ export class RelayFixture implements AsyncDisposable {
             port: 0,
             fetch: (request) => new Response(`${name} ${request.headers.get("forwarded")}`),
         });
-        this.#hosts.push({ close: () => server.stop(true) });
+        this.#machines.push({ close: () => server.stop(true) });
         await this.directory.publish(
             ids.region,
             Scope.universe.id,
@@ -289,7 +289,7 @@ export class RelayFixture implements AsyncDisposable {
 
     /** Close every tunnel and relay. */
     async [Symbol.asyncDispose](): Promise<void> {
-        for (const started of this.#hosts) {
+        for (const started of this.#machines) {
             await started.close();
         }
         for (const instance of this.#relays.values()) {

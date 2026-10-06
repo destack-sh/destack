@@ -1,12 +1,12 @@
 import type { RoleRequest } from "@destack/access";
 import { workloadIdentity } from "@destack/account/client";
-import { account, host, hostKey, zone } from "@destack/account/object";
+import { account, key, machine, zone } from "@destack/account/object";
 import { ResourceHandle } from "@destack/resource";
 import { defineWorkload } from "@destack/service/workload";
 import { implementRelay, RELAY_PACKAGE, type Relay, type RelayOptions } from "../server/index.ts";
 import { relayDatabase } from "../stack/index.ts";
 
-/** What the process running a relay binds: its origin, the verifier of hosts' tokens, its domains and reach to regions, and the runtime serving it. */
+/** What the process running a relay binds: its origin, the verifier of machines' tokens, its domains and reach to regions, and the runtime serving it. */
 export interface RelayConfiguration extends Pick<
     RelayOptions,
     "origin" | "tokens" | "domains" | "fetch"
@@ -15,14 +15,14 @@ export interface RelayConfiguration extends Pick<
     serve(relay: Relay): { close(): Promise<void> };
 }
 
-/** The universe role operators bind the relay's workload: reading the accounts, hosts, host keys and zones names resolve with. */
+/** The universe role operators bind the relay's workload: reading the accounts, machines, machine keys and zones names resolve with. */
 export const RELAY_ROLE = {
     name: "relay",
-    description: "Route Destack's names to the hosts and regions serving them",
+    description: "Route Destack's names to the machines and regions serving them",
     permissions: [
         account.permission("read"),
-        host.permission("read"),
-        hostKey.permission("read"),
+        machine.permission("read"),
+        key.permission("read"),
         zone.permission("read"),
     ],
 } as const satisfies RoleRequest;

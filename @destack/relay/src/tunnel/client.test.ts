@@ -116,7 +116,7 @@ async function silentRelay() {
 }
 
 test("refuse callers waiting for a tunnel once the client closes", async () => {
-    // dial a relay that never answers, as a host with a token
+    // dial a relay that never answers, as a machine with a token
     const client = TunnelClient.open({
         url: `http://127.0.0.1:${await freePort()}/tunnel`,
         token: async () => "token",

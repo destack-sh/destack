@@ -5,17 +5,19 @@ import type { Alarm } from "@destack/service/control";
 import { MAX_STREAMS, Session } from "../session/index.ts";
 import { Tunnel } from "./tunnel.ts";
 
-/** The host whose tunnel the scenarios keep. */
-const hostId = schema.identifier("host").parse("host-01996ab0-0000-7000-8000-0000000000d1");
+/** The machine whose tunnel the scenarios keep. */
+const machineId = schema
+    .identifier("machine")
+    .parse("machine-01996ab0-0000-7000-8000-0000000000d1");
 
-/** The name the relay routes to the host. */
+/** The name the relay routes to the machine. */
 const NAME = "laptop.acme.destack.computer";
 
-/** A host's end of a tunnel joined to the relay in memory, answering with its label. */
+/** A machine's end of a tunnel joined to the relay in memory, answering with its label. */
 async function connect(tunnel: Tunnel, label: string, lapsesAt: number) {
-    // join the host's session to the relay's
+    // join the machine's session to the relay's
     let relay: Session | undefined;
-    const host: Session = new Session(
+    const machine: Session = new Session(
         { send: (message) => setImmediate(() => relay?.receive(message)), close: () => {} },
         "client",
         {
@@ -25,13 +27,13 @@ async function connect(tunnel: Tunnel, label: string, lapsesAt: number) {
     );
     relay = tunnel.attach(
         {
-            send: (message) => setImmediate(() => host.receive(message)),
-            close: () => host.terminate(),
+            send: (message) => setImmediate(() => machine.receive(message)),
+            close: () => machine.terminate(),
         },
         lapsesAt,
     );
 
-    return host;
+    return machine;
 }
 
 /** Fail on a reported failure, which no scenario expects. */
@@ -59,7 +61,7 @@ function forward(tunnel: Tunnel, path: string): Promise<string> {
 
 test("forward through the newest tunnel, close each tunnel once its token lapses, and set the alarm to the earliest lapse", async () => {
     const alarm = recording();
-    const tunnel = new Tunnel(hostId, {
+    const tunnel = new Tunnel(machineId, {
         verify: async () => ({ lapsesAt: 0, name: NAME }),
         alarm,
         report: fail,
@@ -84,9 +86,9 @@ test("forward through the newest tunnel, close each tunnel once its token lapses
     ]);
 });
 
-test("renew a tunnel's token through a stream the host opens, and close the tunnel on the verifier's refusal", async () => {
+test("renew a tunnel's token through a stream the machine opens, and close the tunnel on the verifier's refusal", async () => {
     const alarm = recording();
-    const tunnel = new Tunnel(hostId, {
+    const tunnel = new Tunnel(machineId, {
         verify: async (request) => {
             if (request.headers.get("authorization") !== "Bearer fresh") {
                 throw new ServiceError("UNAUTHORIZED", { message: "invalid token" });
@@ -97,11 +99,11 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
         alarm,
         report: fail,
     });
-    const host = await connect(tunnel, "host", 1000);
+    const machine = await connect(tunnel, "host", 1000);
 
     // renew with a fresh token and reach no other path before closing the tunnel on a stale one
     const renew = (path: string, token: string) =>
-        host
+        machine
             .fetch(
                 new Request(`https://relay.destack.space${path}`, {
                     method: "PUT",
@@ -130,29 +132,29 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
     ]);
 });
 
-test("refuse a request beyond a host's open requests, and time out the ones the host answers no head for", async () => {
-    // join a host that never answers, with a short answer timeout
-    const tunnel = new Tunnel(hostId, {
+test("refuse a request beyond a machine's open requests, and time out the ones the machine answers no head for", async () => {
+    // join a machine that never answers, with a short answer timeout
+    const tunnel = new Tunnel(machineId, {
         verify: async () => ({ lapsesAt: 0, name: NAME }),
         alarm: recording(),
         report: fail,
         answerTimeout: 50,
     });
     let relay: Session | undefined;
-    const host: Session = new Session(
+    const machine: Session = new Session(
         { send: (message) => setImmediate(() => relay?.receive(message)), close: () => {} },
         "client",
         { accept: () => {} },
     );
     relay = tunnel.attach(
         {
-            send: (message) => setImmediate(() => host.receive(message)),
-            close: () => host.terminate(),
+            send: (message) => setImmediate(() => machine.receive(message)),
+            close: () => machine.terminate(),
         },
         Number.MAX_SAFE_INTEGER,
     );
 
-    // fill the host's open requests, refuse one more and time the open ones out
+    // fill the machine's open requests, refuse one more and time the open ones out
     const open = Array.from({ length: MAX_STREAMS }, () => forward(tunnel, "/slow"));
     const refused = await forward(tunnel, "/one-more");
     const timedOut = new Set(await Promise.all(open));

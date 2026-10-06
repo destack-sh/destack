@@ -4,7 +4,7 @@ import { RequestId } from "@destack/service/request";
 import { TUNNEL_PROTOCOL, TunnelProtocol } from "../src/session/index.ts";
 import { freePort, RelayFixture, type RelayWorkload, until } from "../src/test/index.ts";
 
-/** The account service with each scenario's enrolled host. */
+/** The account service with each scenario's enrolled machine. */
 let accounts: AccountFixture;
 
 /** The relay's workload in the platform's region. */
@@ -19,46 +19,46 @@ afterAll(async () => {
     await accounts[Symbol.asyncDispose]();
 });
 
-test("forward a request for a space's name through its host's tunnel, keeping its name, method and body", async () => {
+test("forward a request for a space's name through its machine's tunnel, keeping its name, method and body", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
 
-    // reach the host's app by the space's name
+    // reach the machine's app by the space's name
     expect(
         await fixture.request(relay, fixture.notes, "/notes/1", { method: "POST", body: "pinned" }),
     ).toBe("hello POST /notes/1 pinned");
     expect([fixture.received, fixture.reports]).toEqual([[`POST ${fixture.notes}/notes/1`], []]);
 });
 
-test("reach a host by its name within its account through its tunnel", async () => {
+test("reach a machine by its name within its account through its tunnel", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
 
-    // reach the host itself, and nothing by a name no standing host of the account has
+    // reach the machine itself, and nothing by a name no standing machine of the account has
     expect([
         await fixture.request(relay, await fixture.computer(), "/status"),
         await fixture.request(relay, "missing.acme.destack.computer", "/status"),
     ]).toEqual(["hello GET /status", "404 NOT_FOUND"]);
 });
 
-test("tell a host its name as its tunnel opens, and again at once after its rename", async () => {
+test("tell a machine its name as its tunnel opens, and again at once after its rename", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay, { heartbeat: 60_000 });
     const before = await fixture.computer();
     await until(async () => fixture.names.length > 0);
 
-    // rename the host
-    await accounts.host(fixture.identity).host.rename({
+    // rename the machine
+    await accounts.machine(fixture.identity).machine.rename({
         accountId: ids.account,
-        id: fixture.hostId,
+        id: fixture.machineId,
         requestId: RequestId.create(),
         name: "renamed",
     });
 
-    // call the host by its new name once the relay tells it
+    // call the machine by its new name once the relay tells it
     await until(async () => fixture.names.at(-1) === "renamed.acme.destack.computer");
     expect([
         fixture.names,
@@ -73,11 +73,11 @@ test("tell a host its name as its tunnel opens, and again at once after its rena
     ]);
 });
 
-test("refuse names that lead nowhere, and a named host that keeps no tunnel", async () => {
+test("refuse names that lead nowhere, and a named machine that keeps no tunnel", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
 
-    // refuse other handles, spaces, shapes and domains, and the host before it connects
+    // refuse other handles, spaces, shapes and domains, and the machine before it connects
     expect(
         await Promise.all(
             [
@@ -97,7 +97,7 @@ test("refuse names that lead nowhere, and a named host that keeps no tunnel", as
     ]);
 });
 
-test("refuse a tunnel without a valid host token among its subprotocols", async () => {
+test("refuse a tunnel without a valid machine token among its subprotocols", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
 
@@ -119,7 +119,7 @@ test("open a tunnel with the token offered as a subprotocol, answering the tunne
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
 
-    // open a WebSocket as the host, and read the protocol the relay chose
+    // open a WebSocket as the machine, and read the protocol the relay chose
     const socket = new WebSocket(
         relay.url.replace("http:", "ws:"),
         TunnelProtocol.offer(await fixture.token()),
@@ -132,7 +132,7 @@ test("open a tunnel with the token offered as a subprotocol, answering the tunne
     expect(protocol).toBe(TUNNEL_PROTOCOL);
 });
 
-test("keep the route while the host renews its tunnel's token", async () => {
+test("keep the route while the machine renews its tunnel's token", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
@@ -147,13 +147,13 @@ test("keep the route while the host renews its tunnel's token", async () => {
     ]);
 });
 
-test("restore the route when the host reconnects after its relay restarts", async () => {
+test("restore the route when the machine reconnects after its relay restarts", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const port = await freePort();
     const first = await fixture.relay(port);
     await fixture.tunnel(first);
 
-    // restart the relay on the same port, and wait for the host to dial it again
+    // restart the relay on the same port, and wait for the machine to dial it again
     await fixture.stop(first);
     const second = await fixture.relay(port);
     await until(
@@ -161,7 +161,7 @@ test("restore the route when the host reconnects after its relay restarts", asyn
     );
 });
 
-test("route a branch to its space's host under the branch's name", async () => {
+test("route a branch to its space's machine under the branch's name", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
@@ -173,7 +173,7 @@ test("route a branch to its space's host under the branch's name", async () => {
     ]);
 });
 
-test("forward a name a region serves to the region's endpoint, keeping the host asked for", async () => {
+test("forward a name a region serves to the region's endpoint, keeping the machine asked for", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     const cloud = `cloud-${fixture.space}`;
@@ -182,10 +182,10 @@ test("forward a name a region serves to the region's endpoint, keeping the host 
     await fixture.settle(relay);
 
     const name = `notes.${cloud}.acme.destack.space`;
-    expect(await fixture.request(relay, name, "/")).toBe(`region host="${name}";proto=http`);
+    expect(await fixture.request(relay, name, "/")).toBe(`region machine="${name}";proto=http`);
 });
 
-test("follow a space's move from its host to a region", async () => {
+test("follow a space's move from its machine to a region", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
@@ -193,7 +193,7 @@ test("follow a space's move from its host to a region", async () => {
 
     // move the zone to the region at the next epoch
     await fixture.region("region");
-    const zone = { id: fixture.spaceId, scope: ids.account, cell: fixture.hostId, epoch: 1 };
+    const zone = { id: fixture.spaceId, scope: ids.account, cell: fixture.machineId, epoch: 1 };
     await fixture.directory.move(zone, ids.region);
     await fixture.directory.place({ ...zone, cell: ids.region, epoch: 2 });
 
@@ -253,17 +253,17 @@ test("resolve a handle from the relay's copy after the account service renames i
     }
 });
 
-test("follow a host's revocation", async () => {
+test("follow a machine's revocation", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     await fixture.tunnel(relay);
     const computer = await fixture.computer();
     expect(await fixture.request(relay, computer, "/")).toBe("hello GET /");
 
-    // revoke the host as its owner
-    await accounts.user(ids.owner).host.revoke({
+    // revoke the machine as its owner
+    await accounts.user(ids.owner).machine.revoke({
         accountId: ids.account,
-        id: fixture.hostId,
+        id: fixture.machineId,
         requestId: RequestId.create(),
     });
 
@@ -278,7 +278,7 @@ test("follow a region's new endpoint", async () => {
     await RelayFixture.place(fixture.accounts, cloud, ids.region);
     await fixture.settle(relay);
     const name = `notes.${cloud}.acme.destack.space`;
-    expect(await fixture.request(relay, name, "/")).toBe(`first host="${name}";proto=http`);
+    expect(await fixture.request(relay, name, "/")).toBe(`first machine="${name}";proto=http`);
 
     // publish the region's new endpoint
     await fixture.region("second");

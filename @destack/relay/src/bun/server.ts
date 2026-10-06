@@ -2,16 +2,16 @@ import { serve, type Server, type ServerWebSocket, type TLSOptions } from "bun";
 import { MAX_FRAME_BYTES, type Session, TUNNEL_PROTOCOL } from "../session/index.ts";
 import type { Admission, Relay } from "../server/index.ts";
 
-/** A tunnel connection's WebSocket: its host's admission, and its session once open. */
+/** A tunnel connection's WebSocket: its machine's admission, and its session once open. */
 interface Socket {
-    /** The admitted host. */
+    /** The admitted machine. */
     readonly admission: Admission;
     /** The session over the socket, once open. */
     session?: Session;
 }
 
 /** Where a Bun process listens for a relay, with TLS unless a proxy in front terminates it. */
-export interface RelayListener {
+export interface BunRelayListener {
     /** The network interface. */
     readonly hostname: string;
     /** The port. */
@@ -20,7 +20,7 @@ export interface RelayListener {
     readonly tls?: TLSOptions;
 }
 
-/** A relay's listener in a Bun process: its names and its hosts' tunnels on one port. */
+/** A relay's listener in a Bun process: its names and its machines' tunnels on one port. */
 export class BunRelay {
     /** The relay the listener serves. */
     readonly relay: Relay;
@@ -28,7 +28,7 @@ export class BunRelay {
     readonly #listener: Server<Socket>;
 
     /** Listen for a relay's names and tunnels. */
-    private constructor(relay: Relay, listener: RelayListener) {
+    private constructor(relay: Relay, listener: BunRelayListener) {
         this.relay = relay;
         this.#listener = serve<Socket>({
             hostname: listener.hostname,
@@ -47,7 +47,7 @@ export class BunRelay {
                 close: (socket) => {
                     const { session } = socket.data;
                     if (session !== undefined) {
-                        relay.detach(socket.data.admission.hostId, session);
+                        relay.detach(socket.data.admission.machineId, session);
                     }
                 },
             },
@@ -55,11 +55,11 @@ export class BunRelay {
     }
 
     /** Listen for a relay on a Bun process's port. */
-    static listen(relay: Relay, listener: RelayListener): BunRelay {
+    static listen(relay: Relay, listener: BunRelayListener): BunRelay {
         return new BunRelay(relay, listener);
     }
 
-    /** The URL hosts open their tunnels at. */
+    /** The URL machines open their tunnels at. */
     get url(): string {
         return this.relay.url;
     }
@@ -79,7 +79,7 @@ export class BunRelay {
         await this.#listener.stop(true);
     }
 
-    /** Upgrade a host's admitted tunnel with the tunnel protocol, and answer every other request. */
+    /** Upgrade a machine's admitted tunnel with the tunnel protocol, and answer every other request. */
     async #serve(request: Request, bun: Server<Socket>): Promise<Response | undefined> {
         // answer a request for a name or a refused tunnel
         const routed = await this.relay.route(request);
@@ -87,7 +87,7 @@ export class BunRelay {
             return routed;
         }
 
-        // upgrade the admitted host's connection
+        // upgrade the admitted machine's connection
         const headers = { "sec-websocket-protocol": TUNNEL_PROTOCOL };
 
         return bun.upgrade(request, { data: { admission: routed }, headers })

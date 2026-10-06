@@ -7,13 +7,13 @@ import { NameController, Relay, type RelayOptions } from "./relay.ts";
 export interface RelayImplementation extends ServiceImplementation {
     /** The copies of the rows names resolve with. */
     readonly objects: ObjectServer;
-    /** The relay routing names and keeping its hosts' tunnels. */
+    /** The relay routing names and keeping its machines' tunnels. */
     readonly relay: Relay;
 }
 
-/** Implement the relay's service: follow the copies names resolve with, telling connected hosts their changed names. */
+/** Implement the relay's service: follow the copies names resolve with, telling connected machines their changed names. */
 export function implementRelay(options: RelayOptions): RelayImplementation {
-    // follow the copies, serving no procedures since hosts reach the relay through its runtime's WebSockets
+    // follow the copies, serving no procedures since machines reach the relay through its runtime's WebSockets
     const relay = new Relay(options);
 
     return {

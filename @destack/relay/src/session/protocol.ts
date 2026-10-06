@@ -1,12 +1,12 @@
-/** The WebSocket subprotocol of a host's tunnel, the only one the relay answers with. */
+/** The WebSocket subprotocol of a machine's tunnel, the only one the relay answers with. */
 export const TUNNEL_PROTOCOL = "destack.tunnel";
 
-/** The prefix of the subprotocol carrying a host's bearer token in base64url. */
+/** The prefix of the subprotocol carrying a machine's bearer token in base64url. */
 const BEARER_PREFIX = "destack.bearer.";
 
-/** The subprotocols a host opens its tunnel with. */
+/** The subprotocols a machine opens its tunnel with. */
 export const TunnelProtocol = {
-    /** List the tunnel protocol and the bearer token a host offers. */
+    /** List the tunnel protocol and the bearer token a machine offers. */
     offer(token: string): string[] {
         const encoded = new TextEncoder()
             .encode(token)

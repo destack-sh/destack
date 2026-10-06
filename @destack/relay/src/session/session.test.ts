@@ -13,7 +13,7 @@ const head: RequestHead = {
     headers: [["content-type", "text/plain"]],
 };
 
-/** A relay's and a host's session joined by an in-memory channel, delivering after a delay. */
+/** A relay's and a machine's session joined by an in-memory channel, delivering after a delay. */
 function pair(delay?: number) {
     const accepted: Stream[] = [];
     const sent: Frame[] = [];
@@ -30,17 +30,17 @@ function pair(delay?: number) {
         close: () => setImmediate(() => deliver().terminate()),
     });
     const relay: Session = new Session(
-        channel(() => host),
+        channel(() => machine),
         "server",
         { accept: () => {} },
     );
-    const host: Session = new Session(
+    const machine: Session = new Session(
         channel(() => relay),
         "client",
         { accept: (stream) => accepted.push(stream) },
     );
 
-    return { relay, host, accepted, sent };
+    return { relay, machine, accepted, sent };
 }
 
 /** Read a stream of bytes to its end. */
@@ -49,7 +49,7 @@ async function drain(readable: ReadableStream<Uint8Array>): Promise<Uint8Array> 
 }
 
 test("forward a request with its head and body, and answer with the response's head and body", async () => {
-    const { relay, host, accepted } = pair();
+    const { relay, machine, accepted } = pair();
 
     // answer each forwarded request with its method, path and body
     const answering = until(() => accepted.length === 1).then(async () => {
@@ -82,13 +82,13 @@ test("forward a request with its head and body, and answer with the response's h
         response.headers.getSetCookie(),
         await response.text(),
     ]).toEqual([2, head, 201, ["a=1", "b=2"], "POST /notes hello"]);
-    await until(() => relay.size === 0 && host.size === 0);
+    await until(() => relay.size === 0 && machine.size === 0);
 });
 
-test("abort the host's request once the relay's caller cancels it while the host streams its answer", async () => {
-    const { relay, host, accepted } = pair();
+test("abort the machine's request once the relay's caller cancels it while the machine streams its answer", async () => {
+    const { relay, machine, accepted } = pair();
 
-    // answer with a stream the host keeps open until its request aborts
+    // answer with a stream the machine keeps open until its request aborts
     const aborted = Promise.withResolvers<unknown>();
     void until(() => accepted.length === 1).then(async () => {
         const stream = aligned(accepted, 0);
@@ -104,7 +104,7 @@ test("abort the host's request once the relay's caller cancels it while the host
     );
     cancelling.abort();
     const reason = await aborted.promise;
-    expect([response.status, reason, host.size]).toEqual([
+    expect([response.status, reason, machine.size]).toEqual([
         200,
         new Error("stream 2 was reset by the peer"),
         0,
@@ -170,18 +170,23 @@ test("reset a stream cancelled early, and fail the peer's side and its answer", 
 });
 
 test("answer pings", async () => {
-    const { host } = pair();
+    const { machine } = pair();
 
-    await expect(Promise.all([host.ping(), host.ping()])).resolves.toEqual([undefined, undefined]);
+    await expect(Promise.all([machine.ping(), machine.ping()])).resolves.toEqual([
+        undefined,
+        undefined,
+    ]);
 });
 
 test("fail the pings waiting for an answer once the session ends", async () => {
-    const host = new Session({ send: () => {}, close: () => {} }, "client", { accept: () => {} });
-    const waiting = host.ping();
+    const machine = new Session({ send: () => {}, close: () => {} }, "client", {
+        accept: () => {},
+    });
+    const waiting = machine.ping();
 
-    host.terminate();
+    machine.terminate();
 
-    await expect(Promise.allSettled([waiting, host.ping()])).resolves.toEqual([
+    await expect(Promise.allSettled([waiting, machine.ping()])).resolves.toEqual([
         { status: "rejected", reason: new Error("session is closed") },
         { status: "rejected", reason: new Error("session is closed") },
     ]);
@@ -209,11 +214,11 @@ test("end a session whose peer opens a stream of this side's parity", () => {
 });
 
 test("reset a stream answered with no response head, keeping the session", async () => {
-    const { relay, host, accepted } = pair();
+    const { relay, machine, accepted } = pair();
 
     // answer the forwarded request with a head that is no response head
     const answering = until(() => accepted.length === 1).then(() =>
-        host.send(
+        machine.send(
             new Frame(
                 FrameType.data,
                 FrameFlag.ack,
@@ -230,15 +235,15 @@ test("reset a stream answered with no response head, keeping the session", async
     await answering;
 
     await until(() => relay.size === 0);
-    expect([failed, relay.isClosed, host.isClosed]).toEqual([
+    expect([failed, relay.isClosed, machine.isClosed]).toEqual([
         "stream 2 was answered with no response head",
         false,
         false,
     ]);
 });
 
-test("end both sides of a stream whose request body the host answered without reading", async () => {
-    const { relay, host, accepted } = pair();
+test("end both sides of a stream whose request body the machine answered without reading", async () => {
+    const { relay, machine, accepted } = pair();
 
     // answer a large request at once and stop its unread body
     const answering = until(() => accepted.length === 1).then(async () => {
@@ -254,7 +259,7 @@ test("end both sides of a stream whose request body the host answered without re
     await answering;
 
     expect(await response.text()).toBe("early");
-    await until(() => relay.size === 0 && host.size === 0);
+    await until(() => relay.size === 0 && machine.size === 0);
 });
 
 test("end a session whose peer sends a frame longer than a frame may be", () => {

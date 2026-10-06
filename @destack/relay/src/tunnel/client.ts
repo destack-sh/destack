@@ -2,32 +2,32 @@ import { schema } from "@destack/schema";
 import { RetryPolicy } from "@destack/service/timer";
 import { Session, type Stream, TunnelProtocol } from "../session/index.ts";
 
-/** How often a host renews its tunnel's token: four times a 60 s token, so a missed renewal still leaves time. */
+/** How often a machine renews its tunnel's token: four times a 60 s token, so a missed renewal still leaves time. */
 const HEARTBEAT_MILLISECONDS = 15_000;
 
-/** The status a host answers a forwarded request with when its handler fails without an answer. */
+/** The status a machine answers a forwarded request with when its handler fails without an answer. */
 const BAD_GATEWAY = 502;
 /** The WebSocket close code refusing a message's data type, from RFC 6455 section 7.4.1. */
 const UNSUPPORTED_DATA = 1003;
 
-/** How a host waits before dialing again: half a second, doubling up to 30 seconds, jittered. */
+/** How a machine waits before dialing again: half a second, doubling up to 30 seconds, jittered. */
 const RETRY = RetryPolicy.of({ initialInterval: 500, maximumInterval: 30_000, jitter: "full" });
 
-/** The name the relay routes to the host, as a renewal answers it or the relay sends it once it changes. */
-const HostName = schema.object({
+/** The name the relay routes to the machine, as a renewal answers it or the relay sends it once it changes. */
+const MachineName = schema.object({
     /** The name, such as `laptop.florian.destack.computer`. */
     name: schema.string().min(1),
 });
 
-/** How a host keeps its tunnel. */
+/** How a machine keeps its tunnel. */
 export interface TunnelClientOptions {
     /** The relay's tunnel URL. */
     readonly url: string;
-    /** Read the host's current access token for the relay. */
+    /** Read the machine's current access token for the relay. */
     readonly token: () => Promise<string>;
     /** Answer a request the relay forwards. */
     readonly fetch: (request: Request) => Promise<Response>;
-    /** Learn the name the relay routes to the host, once the tunnel opens, at each renewal and once it changes. */
+    /** Learn the name the relay routes to the machine, once the tunnel opens, at each renewal and once it changes. */
     readonly name: (name: string) => void;
     /** How often to renew the tunnel's token, in milliseconds. */
     readonly heartbeat?: number;
@@ -37,7 +37,7 @@ export interface TunnelClientOptions {
     readonly report: (error: unknown) => void;
 }
 
-/** A host's tunnel to its relay, dialed again with backoff whenever it ends until closed. */
+/** A machine's tunnel to its relay, dialed again with backoff whenever it ends until closed. */
 export class TunnelClient {
     /** How the tunnel is kept. */
     readonly #options: TunnelClientOptions;
@@ -115,7 +115,7 @@ export class TunnelClient {
 
     /** Dial the relay once and resolve whether the tunnel opened after it ends. */
     async #dial(): Promise<boolean> {
-        // connect with the host's token
+        // connect with the machine's token
         let socket: WebSocket;
         try {
             socket = await this.#connect();
@@ -138,13 +138,13 @@ export class TunnelClient {
         return connection.ended.promise;
     }
 
-    /** Open a socket to the relay that offers the host's token as a subprotocol. */
+    /** Open a socket to the relay that offers the machine's token as a subprotocol. */
     async #connect(): Promise<WebSocket> {
         // address the relay's tunnel over WebSocket
         const url = new URL(this.#options.url);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 
-        // offer the host's token
+        // offer the machine's token
         const token = await this.#options.token();
         const socket = new WebSocket(url, TunnelProtocol.offer(token));
         socket.binaryType = "arraybuffer";
@@ -192,14 +192,14 @@ export class TunnelClient {
         );
     }
 
-    /** Open the tunnel over a session the relay answered and learn the host's name. */
+    /** Open the tunnel over a session the relay answered and learn the machine's name. */
     #release(session: Session): void {
         // release the callers
         this.#session = session;
         this.#waiting?.resolve();
         this.#waiting = undefined;
 
-        // learn the host's name, reporting a refusal while the session lasts
+        // learn the machine's name, reporting a refusal while the session lasts
         this.#renew(session).catch((error: unknown) => {
             if (!session.isClosed) {
                 this.#options.report(error);
@@ -273,7 +273,7 @@ export class TunnelClient {
         }, interval);
     }
 
-    /** Renew the tunnel's token through a stream to the relay, learning the host's name, and refuse a failed renewal. */
+    /** Renew the tunnel's token through a stream to the relay, learning the machine's name, and refuse a failed renewal. */
     async #renew(session: Session): Promise<void> {
         // renew with the current token
         const token = await this.#options.token();
@@ -289,8 +289,8 @@ export class TunnelClient {
             );
         }
 
-        // learn the name the relay routes to the host
-        this.#options.name(HostName.parse(await response.json()).name);
+        // learn the name the relay routes to the machine
+        this.#options.name(MachineName.parse(await response.json()).name);
     }
 
     /** Answer a request the relay forwards, or take the name the relay sends to its own tunnel path, reporting a handler that failed without an answer. */
@@ -301,7 +301,7 @@ export class TunnelClient {
         try {
             // take the name the relay sends to its own tunnel URL
             if (request.method === "PUT" && request.url === this.#options.url) {
-                this.#options.name(HostName.parse(await request.json()).name);
+                this.#options.name(MachineName.parse(await request.json()).name);
                 response = new Response(null, { status: 204 });
             }
             // answer a forwarded request

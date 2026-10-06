@@ -25,7 +25,7 @@ interface Upgrade extends ResponseInit {
     readonly webSocket: unknown;
 }
 
-/** A relay in a Durable Object: its names, and its hosts' tunnels over WebSockets the object accepts and keeps open. */
+/** A relay in a Durable Object: its names, and its machines' tunnels over WebSockets the object accepts and keeps open. */
 export class DurableObjectRelayServer {
     /** The relay the object serves. */
     readonly relay: Relay;
@@ -37,7 +37,7 @@ export class DurableObjectRelayServer {
         this.relay = relay;
     }
 
-    /** Accept a host's admitted tunnel with the tunnel protocol, and answer every other request. */
+    /** Accept a machine's admitted tunnel with the tunnel protocol, and answer every other request. */
     async fetch(request: Request): Promise<Response> {
         // answer a request for a name or a refused tunnel
         const routed = await this.relay.route(request);
@@ -45,7 +45,7 @@ export class DurableObjectRelayServer {
             return routed;
         }
 
-        // run the host's session over the server's end
+        // run the machine's session over the server's end
         const pair = new WebSocketPair();
         const socket = pair[1];
         socket.accept();
@@ -70,10 +70,10 @@ export class DurableObjectRelayServer {
         // forget the socket once it closes
         socket.addEventListener("close", () => {
             this.#sockets.delete(socket);
-            this.relay.detach(routed.hostId, session);
+            this.relay.detach(routed.machineId, session);
         });
 
-        // switch protocols, handing the client's end to the host
+        // switch protocols, handing the client's end to the machine
         const upgrade: Upgrade = {
             status: 101,
             headers: { "sec-websocket-protocol": TUNNEL_PROTOCOL },
