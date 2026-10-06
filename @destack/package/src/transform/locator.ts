@@ -34,6 +34,13 @@ export class PackageLocator {
     readonly #definitions = new Map<string, PackageDefinition | undefined>();
     /** The module parameter positions of each package's stamped functions, by package name and directory. */
     readonly #imported = new Map<string, ReadonlyMap<string, number>>();
+    /** The package a build compiles, as it releases it, in place of what its directory declares. */
+    readonly #compiled: ModulePackage | undefined;
+
+    /** Find packages by their directories, taking the package a build compiles as it releases it, such as at a prerelease's version. */
+    constructor(compiled?: ModulePackage) {
+        this.#compiled = compiled;
+    }
 
     /** Find the Destack package containing a module, or nothing outside Destack packages. */
     find(path: string): Promise<ModulePackage | undefined> {
@@ -135,8 +142,12 @@ export class PackageLocator {
 
     /** Read the nearest package definition at or above a directory. */
     async #read(directory: string): Promise<ModulePackage | undefined> {
+        // take the compiled package as the build releases it
+        if (directory === this.#compiled?.directory) {
+            return this.#compiled;
+        }
         // stop at dependency installations and the filesystem root
-        if (basename(directory) === "node_modules" || dirname(directory) === directory) {
+        else if (basename(directory) === "node_modules" || dirname(directory) === directory) {
             return undefined;
         }
 

@@ -1,17 +1,17 @@
 import type { Plugin } from "vite";
-import { PackageLocator } from "../transform/locator.ts";
+import { type ModulePackage, PackageLocator } from "../transform/locator.ts";
 import { transformModule } from "../transform/transform.ts";
 
-/** Inject Destack module metadata while Vite loads package sources. */
-export function modulePlugin(): Plugin {
-    let packages = new PackageLocator();
+/** Inject Destack module metadata while Vite loads package sources, the compiled package's as the build releases it. */
+export function modulePlugin(compiled?: ModulePackage): Plugin {
+    let packages = new PackageLocator(compiled);
 
     return {
         name: "destack-module",
         enforce: "pre",
         buildStart() {
             // read package definitions afresh for each build of a warm builder
-            packages = new PackageLocator();
+            packages = new PackageLocator(compiled);
         },
         transform: {
             filter: { id: /\.[cm]?tsx?$/u },
