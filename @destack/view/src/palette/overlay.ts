@@ -3,7 +3,7 @@ import { Accelerator } from "./keybinding.ts";
 import { COMMAND_PATH } from "../declare/context.ts";
 import { schema } from "@destack/schema";
 
-/** The key combination opening the command palette over a view, as Linear and VS Code open theirs. */
+/** The key combination opening the command palette over a view. */
 const PALETTE_ACCELERATOR = "mod+k";
 
 /** The palette's size over a view, in CSS pixels, as the desktop's floating palette takes it. */

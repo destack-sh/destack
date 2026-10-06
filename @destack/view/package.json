@@ -9,7 +9,6 @@
         "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./form": "./src/form/index.ts",
         "./router": "./src/router/index.ts",
         "./media": "./src/media/index.ts",
         "./example": "./src/example/index.ts",
@@ -20,8 +19,7 @@
         "./jsx-dev-runtime": "./src/jsx-dev-runtime/index.ts",
         "./build": "./src/build/index.ts",
         "./test": "./src/test/index.ts",
-        "./palette": "./src/palette/index.ts",
-        "./command": "./src/command/index.ts"
+        "./palette": "./src/palette/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -41,7 +39,6 @@
         "@destack/telemetry": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/theme": "workspace:*",
-        "@destack/ui": "workspace:*",
         "@solidjs/router": "2.0.0-next.24",
         "@solidjs/vite-plugin": "3.0.0-next.43",
         "@solidjs/web": "2.0.0-rc.8",
