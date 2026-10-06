@@ -63,18 +63,21 @@ import { NoteCard } from "./card.ts";
 import { cardInteraction } from "./card.interaction.ts";
 
 /** A loud card. */
-export const LoudCard = defineExample({
+export const noteCardLoud = defineExample({
     of: NoteCard,
     name: "loud",
+    description: "a loud card",
     properties: { title: "Groceries", tone: "loud", lines: -2 },
     render: (properties) => NoteCard({ title: "Groceries", ...properties }),
 });
 
 /** Complete a loud card. */
-export const CompleteCard = defineScenario({
+export const noteCardComplete = defineScenario({
+    of: NoteCard,
     interaction: cardInteraction,
-    name: "complete a card",
-    given: { examples: [LoudCard], environment: { width: 320 } },
+    name: "complete",
+    description: "complete a card",
+    given: { examples: [noteCardLoud], environment: { width: 320 } },
     when: [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }],
     then: {
         observe: { state: { kind: "state" } },
@@ -215,10 +218,11 @@ test.concurrent("declare each example showing its symbol with controls, and each
     }).toEqual({
         declarations: [
             {
-                moniker: "src/card.example.ts#CompleteCard:scenario",
+                moniker: "src/card.example.ts#noteCardComplete:scenario",
                 kind: "scenario",
-                name: "complete a card",
+                name: "complete",
                 description: {
+                    description: "complete a card",
                     interaction: graph.Moniker.of({
                         packageId: build.manifest.package.id,
                         module: "src/card.interaction.ts",
@@ -234,10 +238,11 @@ test.concurrent("declare each example showing its symbol with controls, and each
                 },
             },
             {
-                moniker: "src/card.example.ts#LoudCard:example",
+                moniker: "src/card.example.ts#noteCardLoud:example",
                 kind: "example",
                 name: "loud",
                 description: {
+                    description: "a loud card",
                     properties: { title: "Groceries", tone: "loud", lines: -2 },
                     objects: {},
                     controls: [
@@ -270,8 +275,8 @@ test.concurrent("declare each example showing its symbol with controls, and each
             },
         ],
         edges: [
-            ["src/card.example.ts#CompleteCard:scenario", "covers", "src/card.ts#NoteCard"],
-            ["src/card.example.ts#LoudCard:example", "shows", "src/card.ts#NoteCard"],
+            ["src/card.example.ts#noteCardComplete:scenario", "covers", "src/card.ts#NoteCard"],
+            ["src/card.example.ts#noteCardLoud:example", "shows", "src/card.ts#NoteCard"],
         ],
     });
 });

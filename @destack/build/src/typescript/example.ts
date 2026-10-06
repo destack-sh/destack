@@ -67,6 +67,7 @@ export async function collectExamples(
             // describe the example by its properties and the controls of what it shows
             const of = await fields.symbol("of", inspector);
             const description = ExampleDescription.omit({ objects: true }).parse({
+                description: fields.text("description"),
                 properties: fields.literal("properties") ?? {},
                 controls: await describeControls(of, inspector),
             });

@@ -7,6 +7,8 @@ import type { SymbolInspector } from "./symbol.ts";
 
 /** A scenario a module exports, located and described without evaluating the module. */
 export interface ScenarioDeclaration extends DefinitionSite {
+    /** The declaration the scenario exercises. */
+    readonly of: SymbolReference;
     /** The interaction the steps and observations speak. */
     readonly interaction: SymbolReference;
     /** The examples the scenario starts from. */
@@ -31,7 +33,8 @@ export async function collectScenarios(
 
     return await Promise.all(
         definitions.map(async ({ site, fields }) => {
-            // read the interaction, the examples and environment it is given, then its steps and observations
+            // read what it exercises, its interaction, the examples and environment it is given, and its steps and observations
+            const of = await fields.symbol("of", inspector);
             const interaction = await fields.symbol("interaction", inspector);
             const given = new DefinitionFields(fields.object("given"), "scenario", fields.location);
             const examples = await given.symbols("examples", inspector);
@@ -39,11 +42,13 @@ export async function collectScenarios(
 
             return {
                 ...site,
+                of: await inspector.reference(of),
                 interaction: await inspector.reference(interaction),
                 examples: await Promise.all(
                     examples.map((example) => inspector.reference(example)),
                 ),
                 description: {
+                    description: fields.text("description"),
                     ...(environment === undefined ? {} : { environment }),
                     when: schema.array(schema.json()).min(1).parse(fields.literal("when")),
                     then: Then.parse(fields.literal("then")),

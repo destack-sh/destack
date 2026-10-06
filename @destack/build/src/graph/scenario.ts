@@ -52,14 +52,16 @@ export class ScenarioGraph {
                 }),
             };
 
-            // cover what each example shows
-            const edges = given.flatMap((example) =>
-                example.edges.map((edge) => ({
-                    from: declaration.moniker,
-                    to: edge.to,
-                    kind: "covers" as const,
-                })),
-            );
+            // cover what it exercises and what each example shows
+            const covered = new Set([
+                name(scenario.of),
+                ...given.flatMap((example) => example.edges.map((edge) => edge.to)),
+            ]);
+            const edges = [...covered].map((to) => ({
+                from: declaration.moniker,
+                to,
+                kind: "covers" as const,
+            }));
             this.#modules.set(scenario.source.file, [
                 ...(this.#modules.get(scenario.source.file) ?? []),
                 {
