@@ -585,6 +585,23 @@ export class SystemAuthorization extends Authorization {
         return new SystemAuthorization(authorizer, database, bind, resolved);
     }
 
+    /** Authorize the system in one scope of a call's database at the call's time. */
+    static of(
+        call: {
+            readonly database: DatabaseConnection;
+            readonly now: number;
+            requireAuthorization(): { readonly authorizer: Authorizer };
+        },
+        scope: string,
+    ): Promise<SystemAuthorization> {
+        return SystemAuthorization.open(
+            call.requireAuthorization().authorizer,
+            call.database,
+            scope,
+            call.now,
+        );
+    }
+
     /** Authorize the system within a transaction. */
     override within(transaction: DatabaseConnection): SystemAuthorization {
         return new SystemAuthorization(

@@ -204,12 +204,24 @@ await new ControlLoop(database, server.controllers(), { report }).run(signal);
 await server.executeAsSystem(upload, "finish", calls, Date.now());
 ```
 
+### System authorization
+
+`SystemAuthorization.of` admits the system to every permission in one scope of a call's database, for the grants and invitations only the system makes.
+
+```ts
+const system = await SystemAuthorization.of(call, Scope.universe.id);
+await system.grant({ object, relation: "joined", subject: space });
+```
+
 ### System requests
 
 A `SystemCall` naming a `requestId` runs once: a repeat answers the result the journal recorded, and other input under the same identifier fails with `CONFLICT`.
 
 ```ts
-const requestId = await RequestId.derive(call.execution.startedAt, `${call.execution.id} ${endpointId}`);
+const requestId = await RequestId.derive(
+    call.execution.startedAt,
+    `${call.execution.id} ${endpointId}`,
+);
 await server.executeAsSystem(message, "create", [{ scope, requestId, input }], Date.now()); // twice, one message
 ```
 
