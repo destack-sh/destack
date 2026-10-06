@@ -17,14 +17,20 @@ interface Finding {
     readonly offset: number;
 }
 
-/** A Markdown source line and whether it holds prose. */
+/** The region of a Markdown file a line belongs to. */
+type Region = "prose" | "front matter" | "fence" | "comment";
+
+/** What a line of a package README section holds. */
+type Block = "prose" | "listing" | "table";
+
+/** A Markdown source line and the region holding it. */
 interface SourceLine {
     /** The line text. */
     readonly text: string;
     /** The character offset where the line starts. */
     readonly start: number;
-    /** Whether the line is inside front matter, a fence or an HTML comment. */
-    readonly isVerbatim: boolean;
+    /** The region holding the line. */
+    readonly region: Region;
 }
 
 /** Check Markdown against the Destack prose rules, returning diagnostics with UTF-8 spans. */
@@ -35,6 +41,7 @@ export function checkMarkdown(filename: string, text: string): Diagnostic[] {
         ...checkSentences(lines),
         ...checkHeadings(lines, /^---\n(?:.*\n)*?title:/u.test(text)),
         ...checkFences(lines),
+        ...(/(?:^|\/)README\.md$/u.test(filename) ? checkReadme(lines) : []),
     ];
 
     // convert character positions to UTF-8 byte offsets
@@ -69,7 +76,7 @@ export function fixMarkdown(text: string): string {
     return lines
         .map((line) => {
             // leave verbatim content and single-sentence lines unchanged
-            const breaks = line.isVerbatim ? [] : sentenceBoundaries(line.text);
+            const breaks = line.region === "prose" ? sentenceBoundaries(line.text) : [];
             if (!breaks.length) {
                 return line.text;
             }
@@ -108,13 +115,17 @@ function classifyLines(text: string): SourceLine[] {
         // track the region each line belongs to
         const trimmed = line.trim();
         const opensFence = /^(```|~~~)/u.exec(trimmed)?.[1];
-        const isVerbatim =
-            isFrontMatter ||
-            fence !== undefined ||
-            isComment ||
-            opensFence !== undefined ||
-            trimmed.startsWith("<!--");
-        lines.push({ text: line, start, isVerbatim });
+        let region: Region = "prose";
+        if (isFrontMatter) {
+            region = "front matter";
+        } else if (isComment) {
+            region = "comment";
+        } else if (fence !== undefined || opensFence !== undefined) {
+            region = "fence";
+        } else if (trimmed.startsWith("<!--")) {
+            region = "comment";
+        }
+        lines.push({ text: line, start, region });
         start += line.length + 1;
 
         // leave the region at its closing line
@@ -143,9 +154,8 @@ function classifyLines(text: string): SourceLine[] {
 /** Report prose lines that hold more than one sentence. */
 function checkSentences(lines: readonly SourceLine[]): Finding[] {
     return lines.flatMap((line, index) =>
-        line.isVerbatim
-            ? []
-            : sentenceBoundaries(line.text)
+        line.region === "prose"
+            ? sentenceBoundaries(line.text)
                   .slice(0, 1)
                   .map((column) => ({
                       code: "one-sentence-per-line",
@@ -153,7 +163,8 @@ function checkSentences(lines: readonly SourceLine[]): Finding[] {
                       line: index,
                       column,
                       offset: line.start + column,
-                  })),
+                  }))
+            : [],
     );
 }
 
@@ -191,7 +202,7 @@ function checkHeadings(lines: readonly SourceLine[], hasTitle: boolean): Finding
     let titles = 0;
     for (const [index, line] of lines.entries()) {
         // read ATX heading levels outside verbatim regions
-        const heading = line.isVerbatim ? undefined : /^#{1,6}(?=\s)/u.exec(line.text);
+        const heading = line.region === "prose" ? /^#{1,6}(?=\s)/u.exec(line.text) : undefined;
         if (!heading) {
             continue;
         }
@@ -246,4 +257,67 @@ function checkFences(lines: readonly SourceLine[]): Finding[] {
     }
 
     return findings;
+}
+
+/** Report package README sections other than one prose line followed by listings, and tables. */
+function checkReadme(lines: readonly SourceLine[]): Finding[] {
+    // track what the current section holds, starting with the opening line under the title
+    const findings: Finding[] = [];
+    let section: Block | undefined;
+    let previous: Block | undefined;
+    for (const [index, line] of lines.entries()) {
+        // start a section at each heading
+        if (line.region === "prose" && /^#{1,6}\s/u.test(line.text)) {
+            section = undefined;
+            previous = undefined;
+            continue;
+        }
+
+        // skip blank lines and comments
+        const block = readmeBlock(line, previous);
+        if (block === undefined) {
+            continue;
+        }
+
+        // report a table once at its first row
+        const position = { line: index, column: 0, offset: line.start };
+        if (block === "table" && previous !== "table") {
+            const message = "replace the table with a listing";
+            findings.push({ code: "readme-table", message, ...position });
+        }
+        // report a second prose line and prose after a listing
+        else if (block === "prose" && section !== undefined) {
+            const message =
+                section === "prose"
+                    ? "open the section with one prose line, then a listing"
+                    : "move the prose after the listing into its own section";
+            findings.push({ code: "readme-section", message, ...position });
+        }
+
+        // keep the section's first block until a listing follows its prose
+        section = section === undefined || block !== "prose" ? block : section;
+        previous = block;
+    }
+
+    return findings;
+}
+
+/** Classify a package README line as prose, a listing or a table, absent for blank lines and comments. */
+function readmeBlock(line: SourceLine, previous: Block | undefined): Block | undefined {
+    // read code blocks as listings and skip front matter, comments and blank lines
+    if (line.region === "fence") {
+        return "listing";
+    } else if (line.region !== "prose" || !line.text.trim()) {
+        return undefined;
+    }
+
+    // read list items and their indented continuations as listings
+    if (
+        /^\s*(?:[-*+]|\d+\.)\s/u.test(line.text) ||
+        (previous === "listing" && /^\s/u.test(line.text))
+    ) {
+        return "listing";
+    }
+
+    return /^\s*\|/u.test(line.text) ? "table" : "prose";
 }

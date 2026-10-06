@@ -37,3 +37,20 @@ test("require stepwise headings, one title and fenced code languages", () => {
 test("allow top-level sections when front matter names the title", () => {
     expect(codes('---\ntitle: "Notes"\n---\n\n# Read\n\n# Write\n')).toEqual([]);
 });
+
+test("require one prose line then listings in each package README section", () => {
+    // accept the opening line, a section's prose line with a code block and a list
+    const valid =
+        "# @example/notes\n\nKeep notes.\n\n## Read\n\n`read` reads a note.\n\n```ts\nread();\n```\n\n- one\n  more\n";
+    expect(checkMarkdown("README.md", valid)).toEqual([]);
+
+    // report a second prose line, prose after a listing and a table, only in a README
+    const invalid =
+        "# @example/notes\n\nKeep notes.\nShare them.\n\n## Read\n\nRead.\n\n```ts\nread();\n```\n\nThen write.\n\n| A |\n| - |\n";
+    expect(checkMarkdown("notes/README.md", invalid).map((diagnostic) => diagnostic.code)).toEqual([
+        "markdown(readme-section)",
+        "markdown(readme-section)",
+        "markdown(readme-table)",
+    ]);
+    expect(codes(invalid)).toEqual([]);
+});

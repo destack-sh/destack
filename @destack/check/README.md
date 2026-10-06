@@ -69,6 +69,23 @@ Share each notebook with the people who need it.
 A notebook's owner shares it with a person or a group.
 ```
 
+## Package README
+
+`check` requires each section of a `README.md` to be one prose line followed by listings, such as code blocks and lists, and reports tables.
+
+```md
+# @example/notes
+
+Keep notes in notebooks.
+
+## Sharing
+
+`Notebook.share` shares a notebook in one of two roles.
+
+- `reader` reads the notebook.
+- `writer` edits the notebook.
+```
+
 ## API
 
 `checkPackage`, `fixPackage`, `formatPackage` and `formatSource` run the commands from code.
