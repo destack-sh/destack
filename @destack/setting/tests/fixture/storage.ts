@@ -24,7 +24,7 @@ import { setting } from "../../src/object/index.ts";
 import { serveSettings } from "../../src/server/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { defineService } from "@destack/service";
-import { type OpenSettingCatalog, type Setting, SettingCatalog } from "../../src/setting/index.ts";
+import { type Setting, SettingCatalog } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./setting/index.ts";
 import { alice } from "./value.ts";
 import { subjectContext, testCallKey } from "@destack/service/test";
@@ -43,7 +43,7 @@ export class Storage {
     /** The fixture release declaring the settings. */
     readonly reader: Promise<BuildReader>;
     /** Open the fixture release's settings for every written value. */
-    readonly catalog: OpenSettingCatalog;
+    readonly catalog: ReturnType<typeof SettingCatalog.cached>;
     /** The served setting values and clients. */
     readonly objects: ObjectServer<ReturnType<typeof serveSettings> & { client: typeof client }>;
 
@@ -53,7 +53,7 @@ export class Storage {
         this.database = test.database;
         this.subject = Subject.parse(principal.user.reference(Scope.universe.id, alice));
         this.reader = release(declarations);
-        this.catalog = SettingCatalog.releases(() => this.reader);
+        this.catalog = SettingCatalog.cached(() => this.reader);
         this.objects = new ObjectServer({
             objects: { ...serveSettings(this.catalog), client },
             // decide access in the scopes the values live in

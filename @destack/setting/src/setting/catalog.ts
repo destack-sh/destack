@@ -8,14 +8,6 @@ import { SettingError } from "../error/error.ts";
 import type { SettingPlacement } from "./placement.ts";
 import { Setting, SettingReference, type SettingWrite } from "./setting.ts";
 
-/** Open the settings declared where a written value is checked: its release's, or the ones a process ships. */
-export type OpenSettingCatalog = (
-    written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
-) => Promise<SettingCatalog>;
-
-/** Open the build declaring a written value's setting: the release its space installs, or the release the value names. */
-export type OpenSettingRelease = (written: Parameters<OpenSettingCatalog>[0]) => Promise<BuildReader>;
-
 /** The serializable fields of a setting description beside its scope. */
 const description = SettingMetadata.extend({
     /** The declaring package. */
@@ -87,8 +79,14 @@ export class SettingCatalog {
         );
     }
 
-    /** Open each written value's catalog from the build its release opens, reading each build's settings once. */
-    static releases(open: OpenSettingRelease): OpenSettingCatalog {
+    /** Read each written value's catalog from the build `open` opens for it, reading each build's settings once. */
+    static cached(
+        open: (
+            written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+        ) => Promise<BuildReader>,
+    ): (
+        written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+    ) => Promise<SettingCatalog> {
         const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
 
         return async (written) => catalogs.read(await open(written));
