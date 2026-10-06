@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import {
-    type ReportableError,
+    type DomainError,
     SERVICE_ERROR_STATUSES,
     type ServiceErrorCode,
     type ServiceErrorReport,
@@ -22,7 +22,7 @@ const SERVICE_CODES: Readonly<Record<BuildErrorCode, ServiceErrorCode>> = {
 const BundleErrors = schema.array(schema.looseObject({ message: schema.string() })).min(1);
 
 /** A build failure with its original cause. */
-export class BuildError extends Error implements ReportableError {
+export class BuildError extends Error implements DomainError {
     /** The stable failure code. */
     readonly code: BuildErrorCode;
 
