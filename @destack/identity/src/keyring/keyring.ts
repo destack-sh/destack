@@ -1,6 +1,7 @@
 import type { JWK } from "jose";
 import { schema } from "@destack/schema";
 import { Ciphertext } from "../ciphertext/ciphertext.ts";
+import { Derivation, type Deriver } from "../derivation/derivation.ts";
 import { IdentityError } from "../error/error.ts";
 import { Keychain } from "../keychain/keychain.ts";
 
@@ -9,15 +10,6 @@ const ROOT_KEY_BYTES = 32;
 
 /** The label of the key a root key encrypts under, apart from every secret it derives. */
 const ENCRYPTION_LABEL = "destack keyring encryption v1";
-
-/** The curve of derived private keys. */
-const P256 = { name: "ECDSA", namedCurve: "P-256" } as const;
-
-/** The order of P-256's base point. */
-const P256_ORDER = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551n;
-
-/** The DER of a PKCS #8 P-256 private key up to its 32-byte scalar, carrying no public point. */
-const PKCS8_PREFIX = "3041020100301306072a8648ce3d020106082a8648ce3d030107042730250201010420";
 
 /** The root keys a keychain keeps under one name: each version's bytes, and the active version. */
 const Keyset = schema.object({
@@ -38,7 +30,7 @@ interface RootKey {
 }
 
 /** A process's one root of custody: versioned root keys that encrypt its keys at rest and derive its other secrets. */
-export interface Keyring {
+export interface Keyring extends Deriver {
     /** Encrypt bytes under the active root key, binding an encryption context. */
     encrypt(
         plaintext: Uint8Array<ArrayBuffer>,
@@ -49,14 +41,10 @@ export interface Keyring {
         ciphertext: Ciphertext,
         context: Uint8Array<ArrayBuffer>,
     ): Promise<Uint8Array<ArrayBuffer>>;
-    /** Derive a 256-bit secret under a label from the active root key, such as the key journals fingerprint inputs under. */
-    derive(label: string): Promise<Uint8Array<ArrayBuffer>>;
     /** Derive a secret under a label from every root key version, newest first, so what an earlier version's secret protects still opens. */
     deriveEach(
         label: string,
     ): Promise<readonly { readonly version: number; readonly secret: Uint8Array<ArrayBuffer> }[]>;
-    /** Derive a P-256 private key under a label from the active root key, as a JSON Web Key the same until the root key rotates. */
-    derivePrivateKey(label: string): Promise<JWK>;
 }
 
 /** A keyring over root keys the process holds itself, kept in a keychain or a secret. */
@@ -135,17 +123,8 @@ export class LocalKeyring implements Keyring {
             }
 
             // derive the version's encryption key apart from the secrets its root derives
-            const root = await crypto.subtle.importKey("raw", value, "HKDF", false, [
-                "deriveBits",
-                "deriveKey",
-            ]);
-            const encryption = await crypto.subtle.deriveKey(
-                hkdf(ENCRYPTION_LABEL),
-                root,
-                { name: "AES-GCM", length: 256 },
-                false,
-                ["encrypt", "decrypt"],
-            );
+            const root = await Derivation.root(value);
+            const encryption = await Derivation.encryptionKey(root, ENCRYPTION_LABEL);
             keys.set(version, { encryption, root });
         }
 
@@ -188,17 +167,9 @@ export class LocalKeyring implements Keyring {
         );
     }
 
-    /** Derive a P-256 private key under a label from the active root key, reducing 320 derived bits into a scalar as FIPS 186-5 does. */
+    /** Derive a P-256 private key under a label from the active root key, the same until the root key rotates. */
     async derivePrivateKey(label: string): Promise<JWK> {
-        // reduce the derived bits to a scalar below the curve's order
-        const bits = await crypto.subtle.deriveBits(hkdf(label), this.#get(this.active).root, 320);
-        const scalar = (BigInt(`0x${new Uint8Array(bits).toHex()}`) % (P256_ORDER - 1n)) + 1n;
-
-        // import the scalar as a PKCS #8 key without its public point
-        const der = Uint8Array.fromHex(`${PKCS8_PREFIX}${scalar.toString(16).padStart(64, "0")}`);
-        const key = await crypto.subtle.importKey("pkcs8", der, P256, true, ["sign"]);
-
-        return crypto.subtle.exportKey("jwk", key);
+        return Derivation.privateKey(this.#get(this.active).root, label);
     }
 
     /** Read the root key version a ciphertext is encrypted under, refusing one naming none. */
@@ -264,14 +235,8 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Derive a 256-bit secret under a label from a root key version. */
-    async #derive(version: number, label: string): Promise<Uint8Array<ArrayBuffer>> {
-        const bits = await crypto.subtle.deriveBits(
-            hkdf(label),
-            this.#get(version).root,
-            ROOT_KEY_BYTES * 8,
-        );
-
-        return new Uint8Array(bits);
+    #derive(version: number, label: string): Promise<Uint8Array<ArrayBuffer>> {
+        return Derivation.secret(this.#get(version).root, label);
     }
 
     /** Reject unavailable root key versions explicitly. */
@@ -283,14 +248,4 @@ export class LocalKeyring implements Keyring {
 
         return key;
     }
-}
-
-/** Name an HKDF-SHA256 derivation of a root key under a label, with no salt. */
-function hkdf(label: string) {
-    return {
-        name: "HKDF" as const,
-        hash: "SHA-256",
-        salt: new Uint8Array(),
-        info: new TextEncoder().encode(label),
-    };
 }
