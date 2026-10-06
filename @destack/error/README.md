@@ -13,14 +13,14 @@ SERVICE_ERROR_STATUSES.TOO_MANY_REQUESTS; // 429
 SERVICE_ERROR_STATUSES.INSUFFICIENT_GRANT; // 403
 ```
 
-## Reports
+## Domain errors
 
-`ReportableError` recognises a package's failure that converts to the `ServiceErrorReport` its caller receives.
+A `DomainError` is a package's failure that knows the `ServiceErrorReport` its caller receives, which a service answers without the package depending on it.
 
 ```ts
-import { ReportableError } from "@destack/error";
+import { DomainError } from "@destack/error";
 
-if (ReportableError.is(error)) {
+if (DomainError.is(error)) {
     error.toServiceError(); // { code: "NOT_FOUND", message: "no note-0199…" }
 }
 ```

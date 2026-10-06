@@ -19,7 +19,7 @@ export const SERVICE_ERROR_STATUSES = {
     PRECONDITION_FAILED: 412,
     PAYLOAD_TOO_LARGE: 413,
     UNSUPPORTED_MEDIA_TYPE: 415,
-    MOVED: 421,
+    MISDIRECTED_REQUEST: 421,
     UNPROCESSABLE_CONTENT: 422,
     TOO_MANY_REQUESTS: 429,
     CLIENT_CLOSED_REQUEST: 499,
@@ -43,16 +43,16 @@ export interface ServiceErrorReport {
     readonly data?: JsonValue;
 }
 
-/** An error that knows the service error its caller receives. */
-export interface ReportableError extends Error {
+/** A package's failure that knows the service error its caller receives. */
+export interface DomainError extends Error {
     /** Convert the failure to the service error a caller receives. */
     toServiceError(): ServiceErrorReport;
 }
 
-/** Recognise errors that know the service error their caller receives. */
-export const ReportableError = {
+/** Recognise a package's failures that know the service error their caller receives. */
+export const DomainError = {
     /** Report whether a value is an error with a service error. */
-    is(value: unknown): value is ReportableError {
+    is(value: unknown): value is DomainError {
         return (
             value instanceof Error &&
             "toServiceError" in value &&
