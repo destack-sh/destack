@@ -1,5 +1,5 @@
 import { defineSchema, Duration, schema } from "@destack/schema";
-import { DeclarationName, type Package } from "@destack/package";
+import { DeclarationName, Package } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import type { Connector } from "../provider/provider.ts";
 import { ResourceHandle } from "./handle.ts";
@@ -37,15 +37,15 @@ export const ResourceRetention = defineSchema(
 /** What deleting a resource does to its content. */
 export type ResourceRetention = schema.Infer<typeof ResourceRetention>;
 
-/** Where a resource is asked to live: its provider, and the provider's location and host. */
+/** Where a resource is asked to live: its provider, and the provider's location and machine. */
 export const ResourcePlacement = defineSchema(
     schema.object({
         /** The provider adapter. */
         provider: schema.string().min(1),
         /** The location code accepted by the provider adapter. */
         location: schema.string().min(1).exactOptional(),
-        /** The host administering the resource. */
-        host: schema.identifier("host").exactOptional(),
+        /** The machine administering the resource. */
+        machine: schema.identifier("machine").exactOptional(),
     }),
 );
 /** Where a resource is asked to live. */

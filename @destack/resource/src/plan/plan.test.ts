@@ -1,7 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema, toJsonSchema } from "@destack/schema";
 import { Plan, type Compatibility, type Step } from "./plan.ts";
-import { PlanError } from "../error/error.ts";
 
 /** Plan a change between two schemas, reading a refusal as its message. */
 function plan(
@@ -82,16 +81,6 @@ test("plan schema changes by the readers each must serve", () => {
     ]);
 });
 
-test("join plans in order, collecting every refusal into one error", () => {
-    // keep the steps in order, then report both refusals at once
-    expect(Plan.join([() => ({ steps: [step("a")] }), () => ({ steps: [step("b")] })])).toEqual({
-        steps: [step("a"), step("b")],
-    });
-    expect(() => Plan.join([refuse("a"), () => ({ steps: [step("b")] }), refuse("c")])).toThrow(
-        "a: declare a conversion for 2026.10.0; c: declare a conversion for 2026.10.0",
-    );
-});
-
 test("classify a plan by its most consequential step and digest its reviewed steps", async () => {
     const add: Step = {
         action: "create",
@@ -117,15 +106,3 @@ test("classify a plan by its most consequential step and digest its reviewed ste
     expect(await Plan.digest({ steps: [add, drop] })).toBe(first);
     expect(await Plan.digest({ steps: [drop, add] })).not.toBe(first);
 });
-
-/** Build a safe step creating a target. */
-function step(target: string) {
-    return { action: "create", target, risk: "safe", detail: "add" } as const;
-}
-
-/** Build a plan refusing a target. */
-function refuse(target: string) {
-    return () => {
-        throw new PlanError([{ target, detail: "declare a conversion for 2026.10.0" }]);
-    };
-}

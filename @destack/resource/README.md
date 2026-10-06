@@ -14,6 +14,21 @@ const BucketKind = defineResourceKind("bucket", { spec: BucketSpec });
 const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec: {} });
 ```
 
+## Definitions
+
+`ResourceDefinition` is the declarable schema of a resource of any kind: its package's declaration, retention, placement and tags, or an existing resource to adopt or a reference to connect.
+
+```ts
+import { ResourceDefinition } from "@destack/resource";
+
+const declared = ResourceDefinition.parse({
+    declaration: { ...files, package: import.meta.destack.package },
+    retention: { within: { days: 30 } },
+    placement: { provider: "r2" },
+    tags: {},
+});
+```
+
 ## Kind descriptions
 
 `describeResourceKind` returns the JSON Schemas of a kind's spec and state.
@@ -83,7 +98,7 @@ const connection = await connector.connect(binding, notes);
 
 ```ts
 await provider.fence?.fence(record);
-const handle = await provider.open.open(record, desired); // { database, blobs?, migrate, close }
+const handle = await provider.open.open(record, desired); // { database, migrate, close }
 const recipient = await Recipient.generate();
 const wrapped = await source.rewrap.wrap(row, Recipient.of(recipient.key));
 const unwrapped = await target.rewrap.unwrap(wrapped, recipient);
@@ -116,7 +131,7 @@ await Plan.digest(plan); // what an approval holds
 
 ```ts
 const history = await History.read(latest.reader, vocabulary);
-const upgrade = Upgrade.plan(history, declarations, (declaration) =>
+const upgrade = Upgrade.plan(history, build.package, declarations, (declaration) =>
     compares.get(declaration.kind),
 );
 // { from: "2026.9.0", steps: [{ action: "delete", target: "object/note/relation/editor", risk: "backward-incompatible", ... }] }
@@ -133,7 +148,7 @@ const advanced = Vocabulary.advance(vocabulary, declarations, "2026.11.0");
 
 ## Errors
 
-A missing or duplicate binding throws a `ResourceError`.
+`PlanError` reports every refusal of a plan at once, which callers receive as a conflict.
 
 ```ts
 import { PlanError } from "@destack/resource/error";
