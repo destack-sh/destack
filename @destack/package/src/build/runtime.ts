@@ -11,8 +11,9 @@ export function runtimeConditions(
             return ["browser", "module", mode];
         case "bun":
             return ["server", "bun", "node", "module", mode];
+        // resolve as Wrangler does, falling back to a package's browser entry over its Node one
         case "workerd":
-            return ["server", "worker", "workerd", "module", mode];
+            return ["server", "worker", "workerd", "browser", "module", mode];
     }
 }
 
