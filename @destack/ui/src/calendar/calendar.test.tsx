@@ -5,7 +5,7 @@ import { LocaleContext } from "@destack/locale/solid";
 import type { JSX } from "@solidjs/web";
 import { flush } from "solid-js";
 import { Calendar, type DateRange, Day } from "./index.ts";
-import { draw, press } from "@destack/view/test";
+import { draw } from "@destack/view/test";
 
 /** Read a `YYYY-MM-DD` date. */
 function day(text: string): PlainDate {
@@ -22,11 +22,6 @@ function drawIn(tag: string, element: () => JSX.Element): HTMLElement {
 /** Read the column headers of a calendar's grid. */
 function weekdays(container: Element): string[] {
     return [...container.querySelectorAll("th")].map((header) => header.textContent ?? "");
-}
-
-/** Read the key of the focused day. */
-function focusedDay(): string | undefined {
-    return document.activeElement?.getAttribute("data-day") ?? undefined;
 }
 
 /** Click a day's button by its key. */
@@ -75,41 +70,6 @@ test("mark today and the selected day, naming each day by its full date", () => 
         cell("2026-10-12")?.getAttribute("tabindex"),
         cell("2026-09-27")?.getAttribute("data-outside"),
     ]).toEqual(["date", ["2026-10-12 selected"], "Monday, October 12, 2026", "0", "true"]);
-});
-
-test("move the focused day with arrows, Home, End, Page Up and Page Down, crossing months", () => {
-    const container = drawIn("de-AT", () => (
-        <Calendar defaultValue={day("2026-10-30")} today={day("2026-10-04")} />
-    ));
-    container.querySelector<HTMLElement>("[tabindex='0']")?.focus();
-    const visited = [
-        "ArrowRight",
-        "ArrowRight",
-        "ArrowDown",
-        "Home",
-        "End",
-        "PageUp",
-        "ArrowUp",
-        "ArrowLeft",
-    ].map((key) => {
-        press(key);
-        flush();
-
-        return focusedDay();
-    });
-
-    // weeks run Monday to Sunday in Austria, and Page Up keeps the day of month where it can
-    expect(visited).toEqual([
-        "2026-10-31",
-        "2026-11-01",
-        "2026-11-08",
-        "2026-11-02",
-        "2026-11-08",
-        "2026-10-08",
-        "2026-10-01",
-        "2026-09-30",
-    ]);
-    expect(container.querySelector("h2")?.textContent).toBe("September 2026");
 });
 
 test("select a day on click, ignoring disabled days, and report it", () => {

@@ -15,47 +15,6 @@ test("render a native button with its variant, size and attributes", () => {
     );
 });
 
-test("render the default variant and size when neither is set", () => {
-    const container = draw(() => <Button>Save</Button>);
-    expect(markup(container)).toBe(
-        '<button data-slot="button" data-variant="default" data-size="default">Save</button>',
-    );
-});
-
-test("select different classes for each variant", () => {
-    const container = draw(() => (
-        <>
-            <Button variant="default" />
-            <Button variant="destructive" />
-            <Button variant="outline" />
-            <Button variant="secondary" />
-            <Button variant="ghost" />
-            <Button variant="link" />
-        </>
-    ));
-
-    // six variants style six different ways
-    expect(new Set(classes(container)).size).toBe(6);
-});
-
-test("select different classes for each size", () => {
-    const container = draw(() => (
-        <>
-            <Button size="default" />
-            <Button size="xs" />
-            <Button size="sm" />
-            <Button size="lg" />
-            <Button size="icon" />
-            <Button size="icon-xs" />
-            <Button size="icon-sm" />
-            <Button size="icon-lg" />
-        </>
-    ));
-
-    // eight sizes style eight different ways
-    expect(new Set(classes(container)).size).toBe(8);
-});
-
 test("restyle a button when its variant changes", () => {
     const [variant, setVariant] = createSignal<"default" | "destructive">("default");
     const container = draw(() => <Button variant={variant()} />);

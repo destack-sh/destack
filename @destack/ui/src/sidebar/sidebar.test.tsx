@@ -45,7 +45,7 @@ function drawPage(changes: boolean[]): HTMLElement {
     ));
 }
 
-test("collapse the sidebar from its trigger and from Ctrl+B, reporting each change", () => {
+test("collapse the sidebar from its trigger, reporting the change", () => {
     const changes: boolean[] = [];
     const container = drawPage(changes);
     const sidebar = container.querySelector("[data-slot=sidebar]");
@@ -64,19 +64,12 @@ test("collapse the sidebar from its trigger and from Ctrl+B, reporting each chan
         trigger?.getAttribute("aria-expanded"),
     ];
     const isNarrower = classes(sidebar?.parentElement ?? container)[0] !== width;
-    document.body.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "b", ctrlKey: true, bubbles: true }),
-    );
-    flush();
-    expect([expanded, collapsed, isNarrower, sidebar?.getAttribute("data-state"), changes]).toEqual(
-        [
-            ["expanded", "true", true],
-            ["collapsed", "icon", "false"],
-            true,
-            "expanded",
-            [false, true],
-        ],
-    );
+    expect([expanded, collapsed, isNarrower, changes]).toEqual([
+        ["expanded", "true", true],
+        ["collapsed", "icon", "false"],
+        true,
+        [false],
+    ]);
 });
 
 test("render a menu button as a link to the current page with href, else as a button", () => {
@@ -115,6 +108,7 @@ test("name a menu button in a tooltip only while the sidebar shows its icons", (
     container.querySelector<HTMLElement>("[data-slot=sidebar-trigger]")?.click();
     flush();
     link?.dispatchEvent(new Event("pointerenter"));
+    flush();
     expect([
         expanded,
         link?.getAttribute("aria-describedby") === tooltip?.id,

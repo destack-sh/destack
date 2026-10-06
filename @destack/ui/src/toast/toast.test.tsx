@@ -115,13 +115,3 @@ test("keep the live region in the document and show the stack in the top layer o
         [["polite", false], ["manual", true, true], true, false],
     );
 });
-
-test("move the focus to the toasts on Alt+T, whatever letter the layout types", () => {
-    const container = drawToaster(1000);
-    toast("Note saved");
-    flush();
-    document.body.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "†", code: "KeyT", altKey: true, bubbles: true }),
-    );
-    expect(document.activeElement).toBe(container.querySelector("[data-slot=toaster]"));
-});

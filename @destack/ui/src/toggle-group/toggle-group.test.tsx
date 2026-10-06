@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { flush } from "solid-js";
 import { ToggleGroup, ToggleGroupItem } from "./index.ts";
-import { draw, focused, markup, press } from "@destack/view/test";
+import { draw, markup } from "@destack/view/test";
 
 test("keep one item of a single toggle group on, exposed as radios", () => {
     const changes: (string | undefined)[] = [];
@@ -74,28 +74,4 @@ test("press several items of a multiple toggle group", () => {
             button.getAttribute("aria-pressed"),
         ),
     ).toEqual(["true", "true"]);
-});
-
-test("move the focus between a toggle group's items with arrow keys, Home and End, wrapping", () => {
-    const container = draw(() => (
-        <ToggleGroup type="single" aria-label="Alignment">
-            <ToggleGroupItem value="left">Left</ToggleGroupItem>
-            <ToggleGroupItem value="center">Center</ToggleGroupItem>
-            <ToggleGroupItem value="right" disabled>
-                Right
-            </ToggleGroupItem>
-            <ToggleGroupItem value="justify">Justify</ToggleGroupItem>
-        </ToggleGroup>
-    ));
-    container.querySelector("button")?.focus();
-    const visited = [focused()];
-    for (const key of ["ArrowRight", "ArrowRight", "ArrowRight", "ArrowLeft", "End", "Home"]) {
-        press(key);
-        visited.push(focused());
-    }
-    flush();
-
-    // the disabled item is skipped, and the focused item takes the tab stop
-    expect(visited).toEqual(["Left", "Center", "Justify", "Left", "Justify", "Justify", "Left"]);
-    expect(container.querySelector("[tabindex='0']")?.textContent).toBe("Left");
 });

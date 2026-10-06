@@ -40,10 +40,11 @@ test("show the chosen day in the locale's medium date after its name and close t
     const container = drawIn("en-US", () => (
         <DatePicker aria-label="Due date" onValueChange={(entry) => changes.push(entry)} />
     ));
-    const trigger = container.querySelector("[data-slot=date-picker-trigger]");
+    const trigger = container.querySelector<HTMLElement>("[data-slot=date-picker-trigger]");
     const placeholder = labelledName(trigger);
     const content = container.querySelector<HTMLElement>("[data-slot=date-picker-content]");
-    content?.setAttribute("data-popover-open", "date-picker-trigger");
+    trigger?.click();
+    flush();
     container.querySelector<HTMLElement>("[data-day]:not([data-outside])")?.click();
     flush();
     const chosen = changes[0];
@@ -68,14 +69,16 @@ test("keep a range date picker open until the range closes, then show the span",
     const container = drawIn("en-US", () => (
         <DatePicker mode="range" defaultValue={{ from: day("2026-10-05") }} aria-label="Trip" />
     ));
+    const trigger = container.querySelector<HTMLElement>("[data-slot=date-picker-trigger]");
     const content = container.querySelector<HTMLElement>("[data-slot=date-picker-content]");
-    content?.setAttribute("data-popover-open", "date-picker-trigger");
+    trigger?.click();
+    flush();
     click(container, "2026-10-04");
-    const reopened = content?.hasAttribute("data-popover-open");
+    const isOpen = content?.hasAttribute("data-popover-open");
     click(container, "2026-10-09");
-    expect([
-        reopened,
-        content?.hasAttribute("data-popover-open"),
-        labelledName(container.querySelector("[data-slot=date-picker-trigger]")),
-    ]).toEqual([true, false, "Trip Oct 4 – 9, 2026"]);
+    expect([isOpen, content?.hasAttribute("data-popover-open"), labelledName(trigger)]).toEqual([
+        true,
+        false,
+        "Trip Oct 4 – 9, 2026",
+    ]);
 });

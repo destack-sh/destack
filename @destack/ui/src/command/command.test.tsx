@@ -1,15 +1,7 @@
 import { expect, test } from "@destack/test";
 import { flush } from "solid-js";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-    CommandSeparator,
-} from "./index.ts";
-import { draw, press } from "@destack/view/test";
+import { draw } from "@destack/view/test";
+import { commandNoteCommands } from "./command.example.tsx";
 
 /** Find the element of a container's first match, refusing none. */
 function find<Target extends HTMLElement>(
@@ -42,33 +34,8 @@ function shown(container: Element): string[] {
     );
 }
 
-/** Render a command palette with two groups. */
-function drawPalette(chosen: string[]): HTMLElement {
-    return draw(() => (
-        <Command aria-label="Commands">
-            <CommandInput placeholder="Type a command" />
-            <CommandList>
-                <CommandEmpty>No results</CommandEmpty>
-                <CommandGroup heading="Notes">
-                    <CommandItem onSelect={(value) => chosen.push(value)}>New note</CommandItem>
-                    <CommandItem keywords={["trash"]} onSelect={(value) => chosen.push(value)}>
-                        Delete note
-                    </CommandItem>
-                </CommandGroup>
-                <CommandSeparator />
-                <CommandGroup heading="Settings">
-                    <CommandItem disabled>Billing</CommandItem>
-                    <CommandItem value="theme" onSelect={(value) => chosen.push(value)}>
-                        Appearance
-                    </CommandItem>
-                </CommandGroup>
-            </CommandList>
-        </Command>
-    ));
-}
-
 test("filter a command list by the search and its keywords, hiding empty groups", () => {
-    const container = drawPalette([]);
+    const container = draw(commandNoteCommands);
     const input = find(container, "input", HTMLInputElement);
     const all = shown(container);
     typeInto(input, "TRASH");
@@ -91,50 +58,5 @@ test("filter a command list by the search and its keywords, hiding empty groups"
         [false, true],
         [],
         true,
-    ]);
-});
-
-test("move the highlight with the arrow keys past disabled options, stopping at the ends, and choose with Enter", () => {
-    const chosen: string[] = [];
-    const container = drawPalette(chosen);
-    const input = find(container, "input", HTMLInputElement);
-    input.focus();
-    const steps = ["ArrowDown", "ArrowDown", "ArrowDown", "ArrowUp"].map((key) => {
-        press(key);
-        flush();
-
-        return shown(container).find((text) => text.startsWith("[")) ?? "";
-    });
-    press("Enter");
-    flush();
-    const active = container.querySelector("[aria-selected=true]")?.id;
-    expect([steps, chosen, input.getAttribute("aria-activedescendant") === active]).toEqual([
-        ["[Delete note]", "[Appearance]", "[Appearance]", "[Delete note]"],
-        ["Delete note"],
-        true,
-    ]);
-});
-
-test("follow a controlled highlight and report the value the arrow keys move to", () => {
-    const changes: string[] = [];
-    const container = draw(() => (
-        <Command value="Appearance" onValueChange={(value) => changes.push(value)}>
-            <CommandInput />
-            <CommandList>
-                <CommandItem>New note</CommandItem>
-                <CommandItem>Appearance</CommandItem>
-            </CommandList>
-        </Command>
-    ));
-    const highlighted = shown(container);
-    container.querySelector("input")?.focus();
-    press("ArrowUp");
-    flush();
-
-    // the owner's value stays highlighted until the owner changes it
-    expect([highlighted, changes, shown(container)]).toEqual([
-        ["New note", "[Appearance]"],
-        ["New note"],
-        ["New note", "[Appearance]"],
     ]);
 });

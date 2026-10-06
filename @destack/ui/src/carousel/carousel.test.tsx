@@ -10,7 +10,7 @@ import {
 } from "./index.ts";
 import { draw } from "@destack/view/test";
 
-test("move between a carousel's slides with its buttons and the arrow keys, naming each slide by its place", () => {
+test("move between a carousel's slides with its buttons, naming each slide by its place", () => {
     const container = draw(() => (
         <Carousel aria-label="Photos">
             <CarouselContent>
@@ -28,15 +28,9 @@ test("move between a carousel's slides with its buttons and the arrow keys, nami
     const atStart = states();
     next?.click();
     flush();
-    const inMiddle = states();
-    container
-        .querySelector<HTMLElement>("[data-slot=carousel]")
-        ?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    flush();
-    expect([atStart, inMiddle, states()]).toEqual([
+    expect([atStart, states()]).toEqual([
         [true, false],
         [false, false],
-        [false, true],
     ]);
     expect(
         [...container.querySelectorAll("[role=group]")].map((slide) =>

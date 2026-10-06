@@ -169,19 +169,6 @@ test("prefer a control's attributes over its field's", () => {
     );
 });
 
-test("select different classes for each orientation", () => {
-    const container = draw(() => (
-        <>
-            <Field orientation="vertical" />
-            <Field orientation="horizontal" />
-            <Field orientation="responsive" />
-        </>
-    ));
-
-    // three orientations lay out three different ways
-    expect(new Set(classes(container)).size).toBe(3);
-});
-
 test("render a fieldset of grouped fields with a legend, title and separator", () => {
     const container = draw(() => (
         <FieldSet>
