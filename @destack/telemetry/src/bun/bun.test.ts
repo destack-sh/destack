@@ -15,9 +15,7 @@ const exporter = new OtlpExporter(async (signal, body) => {
         process.stdout.write(new TextDecoder().decode(body) + "\\n");
     }
 }, () => {});
-await startTelemetry(
-    exporter.options({ name: "@example/notes", version: "2026.9.0" }, { manifest: "a".repeat(64) }),
-);
+await startTelemetry(exporter.options({ name: "@example/notes", version: "2026.9.0" }));
 if (process.env.FAILURE === "rejection") {
     void Promise.reject(new TypeError("note sync rejected"));
 } else {
@@ -51,12 +49,11 @@ async function fail(failure: "exception" | "rejection") {
     };
 }
 
-/** The resource of the release, naming its build manifest. */
+/** The resource of the release. */
 const resource: unknown = expect.objectContaining({
     attributes: [
         { key: "service.name", value: { stringValue: "@example/notes" } },
         { key: "service.version", value: { stringValue: "2026.9.0" } },
-        { key: "destack.build.manifest", value: { stringValue: "a".repeat(64) } },
     ],
 });
 

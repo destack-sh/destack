@@ -74,8 +74,10 @@ await withTelemetry(options, () => handle(request), context);
 ```ts
 import { ServiceError } from "@destack/service";
 
+const missing = Object.assign(new Error("gone"), { code: "ENOENT" });
+
 telemetry.exceptionAttributes(new ServiceError("NOT_FOUND"), false)["error.type"]; // "NOT_FOUND"
-telemetry.exceptionAttributes(Object.assign(new Error("gone"), { code: "ENOENT" }), false)["error.type"]; // "ENOENT"
+telemetry.exceptionAttributes(missing, false)["error.type"]; // "ENOENT"
 ```
 
 ## Sessions
@@ -109,19 +111,16 @@ const createdAt = Number.parseInt(id.slice(0, 12), 16);
 
 ## Export
 
-`OtlpExporter.http` exports every signal as OTLP/JSON to the scope's monitor.
+`OtlpExporter.http` exports every signal as OTLP/JSON to an endpoint, such as the instance's host at `/.destack/telemetry`.
+The exporter names only the service and its release: the receiver stamps the scope, installation, instance and build it verified, as an `OtlpEmitter`.
 
 ```ts
 import { startTelemetry } from "@destack/telemetry/bun";
-import { OtlpExporter } from "@destack/telemetry/otlp";
+import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 
-const exporter = OtlpExporter.http(start.monitor, () => `Bearer ${credential}`, report);
-await startTelemetry(
-    exporter.options(runner.package, {
-        attributes: { "service.instance.id": instance },
-        manifest: start.manifest, // destack.build.manifest beside service.version
-    }),
-);
+const host = new URL(OTLP_ORIGIN_PATH, start.egress).href;
+const exporter = OtlpExporter.http(host, () => `Bearer ${start.secret}`, report);
+await startTelemetry(exporter.options(runner.package, { ratio: start.sampling }));
 ```
 
 ## Browser export
@@ -133,5 +132,16 @@ import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 
 const exporter = OtlpExporter.origin(reportToDevtools);
-await startTelemetry(exporter.options(view.package, { manifest: bootstrap.manifest }));
+await startTelemetry(exporter.options(view.package));
+```
+
+## Receive
+
+`OtlpReceiver` takes an export under the `OtlpEmitter` its caller verified, and `OtlpSignal.at` reads the signal of an export's path.
+
+```ts
+import { OtlpSignal } from "@destack/telemetry/otlp";
+
+const signal = OtlpSignal.at("/.destack/telemetry/v1/logs"); // "logs"
+await observability.receive({ scope, installation, instance, build }, signal, body); // an OtlpReceiver
 ```

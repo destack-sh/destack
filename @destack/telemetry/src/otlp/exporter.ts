@@ -1,5 +1,4 @@
-import { schema } from "@destack/schema";
-import type { Attributes } from "@opentelemetry/api";
+import { type Digest, type Identifier, schema } from "@destack/schema";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
     JsonLogsSerializer,
@@ -24,7 +23,7 @@ import type { TelemetryOptions } from "../sdk/index.ts";
 import { RatioSampler } from "../trace/sampler.ts";
 import { TailSampler } from "../trace/tail.ts";
 
-/** How often metrics export: once a minute, the resolution monitors store points at. */
+/** How often metrics export: once a minute, the resolution observability stores points at. */
 const METRIC_INTERVAL_MILLISECONDS = 60_000;
 
 /** An OTLP/HTTP export response, reporting rejected items in its partial success. */
@@ -34,16 +33,49 @@ const ExportResponse = schema.looseObject({
         .exactOptional(),
 });
 
-/** The same-origin path below which an installation's origin receives its pages' OTLP/HTTP exports. */
+/** The path below which an origin receives OTLP/HTTP exports: an installation's origin its pages', a host's egress origin its instances'. */
 export const OTLP_ORIGIN_PATH = "/.destack/telemetry";
 
 /** The OTLP signals, named as their HTTP paths name them. */
 export type OtlpSignal = "traces" | "logs" | "metrics";
 
+/** The OTLP signals by their HTTP paths below the origin path. */
+const SIGNAL_PATHS: ReadonlyMap<string, OtlpSignal> = new Map([
+    [`${OTLP_ORIGIN_PATH}/v1/traces`, "traces"],
+    [`${OTLP_ORIGIN_PATH}/v1/logs`, "logs"],
+    [`${OTLP_ORIGIN_PATH}/v1/metrics`, "metrics"],
+]);
+
+/** Read the OTLP signals of origin paths. */
+export const OtlpSignal = {
+    /** Read the signal an OTLP/HTTP path below the origin path takes, absent for any other path. */
+    at(pathname: string): OtlpSignal | undefined {
+        return SIGNAL_PATHS.get(pathname);
+    },
+};
+
+/** The emitter of an OTLP export, as its receiver verified it: the export itself claims none of it. */
+export interface OtlpEmitter {
+    /** The space of the installation, or the machine whose own telemetry it is. */
+    readonly scope: string;
+    /** The installation, absent for the scope's own telemetry. */
+    readonly installation?: Identifier<"installation">;
+    /** The workload instance, absent for a page. */
+    readonly instance?: Identifier<"instance">;
+    /** The digest of the emitting build's manifest, absent for a release no host resolved. */
+    readonly build?: Digest;
+}
+
+/** A receiver of OTLP/JSON exports, recording each under the emitter its caller verified. */
+export interface OtlpReceiver {
+    /** Take an export of a signal from a verified emitter. */
+    receive(emitter: OtlpEmitter, signal: OtlpSignal, body: unknown): Promise<void>;
+}
+
 /** Deliver one OTLP/JSON export request of a signal, rejecting a refused delivery. */
 export type OtlpSend = (signal: OtlpSignal, body: Uint8Array) => Promise<void>;
 
-/** Exports every signal as OTLP/JSON through one delivery, such as HTTP to a monitor. */
+/** Exports every signal as OTLP/JSON through one delivery, such as HTTP to an observability service. */
 export class OtlpExporter {
     /** Deliver one request. */
     readonly #send: OtlpSend;
@@ -117,11 +149,7 @@ export class OtlpExporter {
     /** Build telemetry options sampling an owner's traces and batching its signals through this exporter. */
     options(
         owner: { readonly name: string; readonly version: string },
-        options: {
-            readonly attributes?: Attributes;
-            readonly ratio?: number;
-            readonly manifest?: string;
-        } = {},
+        options: { readonly ratio?: number } = {},
     ): TelemetryOptions {
         // keep a ratio of traces, and every failed or slow one
         const tail = new TailSampler(
@@ -132,8 +160,6 @@ export class OtlpExporter {
         return {
             name: owner.name,
             version: owner.version,
-            ...(options.manifest === undefined ? {} : { manifest: options.manifest }),
-            attributes: options.attributes ?? {},
             report: this.#report,
             traces: {
                 sampler: new RatioSampler(options.ratio ?? 1),

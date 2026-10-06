@@ -141,10 +141,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
     const exporter = OtlpExporter.origin((error) => {
         throw error;
     }, send);
-    const telemetry = await startTelemetry(
-        exporter.options(source, { manifest: "b".repeat(64) }),
-        page,
-    );
+    const telemetry = await startTelemetry(exporter.options(source), page);
     try {
         // fail with an uncaught error and with an unhandled rejection
         page.dispatchEvent(new ErrorEvent("error", { error: new TypeError("note is missing") }));
@@ -169,7 +166,6 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
         const resource = [
             { key: "service.name", value: { stringValue: "@example/notes" } },
             { key: "service.version", value: { stringValue: "2026.9.0" } },
-            { key: "destack.build.manifest", value: { stringValue: "b".repeat(64) } },
         ];
         expect([thrown, rejected, hidden, left]).toEqual([
             {

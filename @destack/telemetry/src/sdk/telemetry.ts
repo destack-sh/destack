@@ -1,5 +1,4 @@
 import {
-    type Attributes,
     context,
     type ContextManager,
     type Counter,
@@ -22,7 +21,6 @@ import { LoggerProvider, type LoggerProviderOptions } from "@opentelemetry/sdk-l
 import { MeterProvider, type MeterProviderOptions } from "@opentelemetry/sdk-metrics";
 import { TracerProvider, type TracerProviderOptions } from "@opentelemetry/sdk-trace";
 import type { Package } from "@destack/package";
-import { ATTR_DESTACK_BUILD_MANIFEST } from "../convention/source.ts";
 import {
     emitException,
     exceptionAttributes,
@@ -38,10 +36,6 @@ export interface TelemetryOptions {
     name: string;
     /** The deployed package version, the release every signal names. */
     version: string;
-    /** The digest of the running build's manifest, naming the exact build on every signal. */
-    manifest?: string;
-    /** Deployment attributes shared by every exported signal. */
-    attributes?: Attributes;
     /** The HTTP propagator, W3C trace context and baggage by default. */
     propagator?: TextMapPropagator;
     /** Trace processors, sampling, and limits. */
@@ -91,12 +85,8 @@ export class Telemetry {
 
         // identify every signal with the same application resource
         const resource = resourceFromAttributes({
-            ...options.attributes,
             "service.name": options.name,
             "service.version": options.version,
-            ...(options.manifest === undefined
-                ? {}
-                : { [ATTR_DESTACK_BUILD_MANIFEST]: options.manifest }),
         });
         this.traces = new TracerProvider({
             idGenerator: new TraceIdGenerator(),

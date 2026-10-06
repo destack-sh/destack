@@ -1,4 +1,3 @@
-import type { Attributes } from "@opentelemetry/api";
 import { SeverityNumber } from "@opentelemetry/api-logs";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
@@ -51,14 +50,10 @@ export class DevtoolsExporter {
     };
 
     /** Build telemetry options writing an owner's log records and spans to the console at once. */
-    options(
-        owner: { readonly name: string; readonly version: string },
-        options: { readonly attributes?: Attributes } = {},
-    ): TelemetryOptions {
+    options(owner: { readonly name: string; readonly version: string }): TelemetryOptions {
         return {
             name: owner.name,
             version: owner.version,
-            attributes: options.attributes ?? {},
             traces: { spanProcessors: [new SimpleSpanProcessor({ exporter: this.traces })] },
             logs: { processors: [new SimpleLogRecordProcessor({ exporter: this.logs })] },
             metrics: {},
