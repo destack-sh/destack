@@ -1,13 +1,10 @@
 import { ModuleMetadata } from "@destack/package";
 import { type Connector, ResourceDeclaration, type ResourceBinding } from "@destack/resource";
-import { spaceService } from "@destack/space/service";
+import { vaultService } from "../service/index.ts";
 import { SecretClient } from "../object/index.ts";
-import { VaultKind, type VaultDescription } from "./kind.ts";
+import { VAULT_PROVIDER, VaultKind, type VaultDescription } from "./kind.ts";
 
-/** The provider code of vaults, whose secrets the space's own service serves. */
-const VAULT_PROVIDER = "vault";
-
-/** A package's vault, whose secrets its workloads reach through their space's service. */
+/** A package's vault, whose secrets its workloads reach through the vault service. */
 class VaultDeclaration extends ResourceDeclaration<SecretClient, VaultDescription> {
     /** The connector reaching the vault's secrets at the bound address as the installation. */
     override get connectors(): { readonly vault: Connector<SecretClient> } {
@@ -21,13 +18,8 @@ class VaultDeclaration extends ResourceDeclaration<SecretClient, VaultDescriptio
                         throw new TypeError(`vault ${this.name} is bound without its credential`);
                     }
 
-                    // reach the space's service as the installation, disposing nothing
-                    const client = new SecretClient(spaceService, {
-                        url: binding.reference,
-                        headers: () => ({ authorization: `Bearer ${credential}` }),
-                    });
-
-                    return Object.assign(client, {
+                    // reach the vault service as the installation
+                    return Object.assign(installationClient(binding.reference, credential), {
                         [Symbol.asyncDispose]: () => Promise.resolve(),
                     });
                 },
@@ -47,4 +39,12 @@ export function defineVault(
         owner,
         VaultKind.description.parse({ ...declaration, kind: "vault" }),
     );
+}
+
+/** Reach the vault service at a bound address as the installation a credential names. */
+export function installationClient(reference: string, credential: string): SecretClient {
+    return new SecretClient(vaultService, {
+        url: reference,
+        headers: () => ({ authorization: `Bearer ${credential}` }),
+    });
 }

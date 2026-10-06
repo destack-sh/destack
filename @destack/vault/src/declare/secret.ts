@@ -5,29 +5,11 @@ import {
     ResourceDeclaration,
     type ResourceBinding,
     SECRET_KIND,
-    SECRET_PROVIDER,
 } from "@destack/resource";
-import { spaceService } from "@destack/space/service";
 import { Secret } from "../secret/client.ts";
-import { SecretClient } from "../object/index.ts";
-
-/** The algorithms a space generates a secret's first version with: ES256 writes an ECDSA P-256 private key as a JWK (RFC 7518 6.2). */
-export const SECRET_ALGORITHMS = ["ES256"] as const;
-
-/** An algorithm a space generates a secret's first version with. */
-export type SecretAlgorithm = (typeof SECRET_ALGORITHMS)[number];
-
-/** How a space generates a secret's first version when it installs the package: in one of the package's vaults, with an algorithm. */
-export const SecretGeneration = defineSchema(
-    schema.object({
-        /** The package's vault declaration keeping the secret. */
-        vault: DeclarationName,
-        /** The algorithm writing the first version. */
-        algorithm: schema.enum(SECRET_ALGORITHMS),
-    }),
-);
-/** How a space generates a secret's first version when it installs the package. */
-export type SecretGeneration = schema.Infer<typeof SecretGeneration>;
+import { SecretGeneration } from "../secret/secret.ts";
+import { VAULT_PROVIDER } from "./kind.ts";
+import { installationClient } from "./vault.ts";
 
 /** A secret a package declares, which a space binds to one of its secrets or generates at install. */
 export const SecretDescription = defineSchema(
@@ -57,24 +39,21 @@ class SecretDeclaration extends ResourceDeclaration<
         }
     }
 
-    /** The connector reading the captured version through the space's service at the bound address. */
-    override get connectors(): { readonly space: Connector<Secret> } {
+    /** The connector reading the captured version through the vault service at the bound address. */
+    override get connectors(): { readonly vault: Connector<Secret> } {
         return {
-            space: {
-                code: SECRET_PROVIDER,
+            vault: {
+                code: VAULT_PROVIDER,
                 connect: async (binding: ResourceBinding) => {
-                    // require the credential, the space and the version the host binds
+                    // require the credential, space and version the host binds
                     const { credential, scope, version } = binding;
                     if (credential === undefined || scope === undefined || version === undefined) {
                         throw new TypeError(`secret ${this.name} is bound without its version`);
                     }
 
-                    // read through the space's service as the installation, disposing nothing
-                    const client = new SecretClient(spaceService, {
-                        url: binding.reference,
-                        headers: () => ({ authorization: `Bearer ${credential}` }),
-                    });
+                    // read through the vault service as the installation
                     const captured = { scope, target: binding.resource, version };
+                    const client = installationClient(binding.reference, credential);
 
                     return Object.assign(new Secret(client, captured), {
                         [Symbol.asyncDispose]: () => Promise.resolve(),
