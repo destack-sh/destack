@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each sandbox failure: an unsupported restriction, or the host's. */
 const SERVICE_CODES = {
@@ -11,7 +11,7 @@ const SERVICE_CODES = {
 export type SandboxErrorCode = keyof typeof SERVICE_CODES;
 
 /** A process could not start or stop under the requested OS restrictions. */
-export class SandboxError extends Error implements ReportableError {
+export class SandboxError extends Error implements DomainError {
     /** The failed sandbox operation. */
     readonly code: SandboxErrorCode;
 
