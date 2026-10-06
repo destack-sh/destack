@@ -8,12 +8,12 @@ export const radioGroupListDensity = defineExample({
     name: "list-density",
     description: "the density choices of a list",
     render: () => (
-        <RadioGroup name="density" aria-label="Density">
+        <RadioGroup name="density" aria-label="Density" defaultValue="regular">
             <Label>
                 <RadioGroupItem value="compact" /> Compact
             </Label>
             <Label>
-                <RadioGroupItem value="regular" checked /> Regular
+                <RadioGroupItem value="regular" /> Regular
             </Label>
         </RadioGroup>
     ),
@@ -25,9 +25,9 @@ export const radioGroupListDensityCompact = defineExample({
     name: "list-density-compact",
     description: "the density choices of a list with compact chosen",
     render: () => (
-        <RadioGroup name="density" aria-label="Density">
+        <RadioGroup name="density" aria-label="Density" defaultValue="compact">
             <Label>
-                <RadioGroupItem value="compact" checked /> Compact
+                <RadioGroupItem value="compact" /> Compact
             </Label>
             <Label>
                 <RadioGroupItem value="regular" /> Regular
@@ -42,12 +42,12 @@ export const radioGroupListDensityDisabled = defineExample({
     name: "list-density-disabled",
     description: "the density choices of a list unavailable",
     render: () => (
-        <RadioGroup name="density" aria-label="Density">
+        <RadioGroup name="density" aria-label="Density" defaultValue="regular" disabled>
             <Label>
-                <RadioGroupItem value="compact" disabled /> Compact
+                <RadioGroupItem value="compact" /> Compact
             </Label>
             <Label>
-                <RadioGroupItem value="regular" checked disabled /> Regular
+                <RadioGroupItem value="regular" /> Regular
             </Label>
         </RadioGroup>
     ),

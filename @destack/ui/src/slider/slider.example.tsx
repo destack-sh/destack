@@ -7,7 +7,7 @@ export const sliderFontSize = defineExample({
     name: "font-size",
     description: "a slider that sets the font size of a note",
     render: () => (
-        <Slider name="size" min={12} max={24} step={1} value={16} aria-label="Font size" />
+        <Slider name="size" min={12} max={24} defaultValue={[16]} aria-label="Font size" />
     ),
 });
 
@@ -17,6 +17,32 @@ export const sliderFontSizeDisabled = defineExample({
     name: "font-size-disabled",
     description: "the font size slider unavailable",
     render: () => (
-        <Slider name="size" min={12} max={24} step={1} value={16} aria-label="Font size" disabled />
+        <Slider name="size" min={12} max={24} defaultValue={[16]} aria-label="Font size" disabled />
     ),
+});
+
+/** A price range filter with marks at every hundred. */
+export const sliderPriceRange = defineExample({
+    of: Slider,
+    name: "price-range",
+    description: "a price range filter with marks at every hundred",
+    render: () => (
+        <Slider
+            name="price"
+            min={0}
+            max={500}
+            step={10}
+            defaultValue={[100, 300]}
+            marks={[0, 100, 200, 300, 400, 500]}
+            aria-label="Price"
+        />
+    ),
+});
+
+/** A volume slider standing upright. */
+export const sliderVolumeVertical = defineExample({
+    of: Slider,
+    name: "volume-vertical",
+    description: "a volume slider standing upright",
+    render: () => <Slider orientation="vertical" defaultValue={[60]} aria-label="Volume" />,
 });

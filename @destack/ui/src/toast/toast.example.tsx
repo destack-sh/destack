@@ -22,3 +22,19 @@ export const toasterArchiveUndo = defineExample({
         </>
     ),
 });
+
+/** A toaster whose toasts take their kind's color, with buttons that save, fail and warn. */
+export const toasterRichKinds = defineExample({
+    of: Toaster,
+    name: "rich-kinds",
+    description:
+        "a toaster whose toasts take their kind's color, with buttons that save, fail and warn",
+    render: () => (
+        <>
+            <Button onClick={() => toast.success("Note saved")}>Save</Button>
+            <Button onClick={() => toast.error("Upload failed")}>Upload</Button>
+            <Button onClick={() => toast.warning("Storage almost full")}>Check storage</Button>
+            <Toaster position="top-center" richColors />
+        </>
+    ),
+});

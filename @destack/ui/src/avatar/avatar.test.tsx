@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { classes, draw, markup } from "@destack/view/test";
-import { flush } from "solid-js";
+import { flush } from "@destack/view";
 import {
     Avatar,
     AvatarFallback,

@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
-import { flush } from "solid-js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./index.ts";
+import { flush } from "@destack/view";
+import { Tooltip, TooltipArrow, TooltipContent, TooltipProvider, TooltipTrigger } from "./index.ts";
 import { draw, markup, stubPopovers, wait } from "@destack/view/test";
 
 /** Find the element of a container's first match, refusing none. */
@@ -66,4 +66,53 @@ test("show a tooltip after the delay a resting pointer waits, keeping it while t
     const leaving = isShown();
     await wait(120);
     expect([early, late, hovered, leaving, isShown()]).toEqual([false, true, true, true, false]);
+});
+
+test("show the next tooltip of a group at once while the last one just hid", async () => {
+    stubPopovers();
+    const container = draw(() => (
+        <TooltipProvider delayDuration={20} skipDelayDuration={200}>
+            <Tooltip>
+                <TooltipTrigger>Archive</TooltipTrigger>
+                <TooltipContent>Archive note</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger>Pin</TooltipTrigger>
+                <TooltipContent>Pin note</TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    ));
+    const [archive, pin] = [...container.querySelectorAll("[data-slot=tooltip-trigger]")];
+    const [, pinTooltip] = [...container.querySelectorAll("[role=tooltip]")];
+    if (archive === undefined || pin === undefined || pinTooltip === undefined) {
+        throw new TypeError("the tooltips did not render");
+    }
+    fire(archive, "pointerenter");
+    await wait(40);
+    fire(archive, "pointerleave");
+    await wait(120);
+    fire(pin, "pointerenter");
+    await wait(0);
+    flush();
+    expect(pinTooltip.hasAttribute("data-popover-open")).toBe(true);
+});
+
+test("point a tooltip's arrow from the side it shows on, hidden from assistive technology", () => {
+    stubPopovers();
+    const container = draw(() => (
+        <Tooltip>
+            <TooltipTrigger>Archive</TooltipTrigger>
+            <TooltipContent side="right">
+                <TooltipArrow />
+                Archive note
+            </TooltipContent>
+        </Tooltip>
+    ));
+    const arrow = find(container, "[data-slot=popover-arrow]");
+    const content = find(container, "[role=tooltip]");
+    expect([
+        arrow.getAttribute("aria-hidden"),
+        content.textContent,
+        arrow.className === "",
+    ]).toEqual(["true", "Archive note", false]);
 });

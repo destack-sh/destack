@@ -1,5 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { createSignal } from "solid-js";
+import { createSignal } from "@destack/view";
 import { Tree, TreeItem } from "./tree.tsx";
 
 /** Notebooks and their notes as a tree, opening a note on selection. */

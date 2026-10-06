@@ -1,9 +1,10 @@
 import { expect, test } from "@destack/test";
-import { createSignal, flush } from "solid-js";
+import { createSignal, flush } from "@destack/view";
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
     DropdownMenuContent,
+    DropdownMenuItem,
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
@@ -55,4 +56,27 @@ test("name each menu by the trigger that opens it", () => {
         (menu) => document.getElementById(menu.getAttribute("aria-labelledby") ?? "")?.textContent,
     );
     expect(named).toEqual(["Note", "Move to"]);
+});
+
+test("render an item as a link that keeps the item's role and closes the menu when followed", () => {
+    stubPopovers();
+    const container = draw(() => (
+        <DropdownMenu defaultOpen>
+            <DropdownMenuTrigger>Note</DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuItem render={(item) => <a href="#settings" {...item} />}>
+                    Settings
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    ));
+    const link = find(container, "a[role=menuitem]");
+    link.click();
+    flush();
+    expect([
+        link.getAttribute("href"),
+        link.dataset["slot"],
+        link.textContent,
+        find(container, "[data-slot=dropdown-menu-trigger]").getAttribute("aria-expanded"),
+    ]).toEqual(["#settings", "menu-item", "Settings", "false"]);
 });

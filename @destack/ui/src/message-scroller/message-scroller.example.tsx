@@ -1,6 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { For } from "solid-js";
+import { For } from "@destack/view";
 import { Bubble, BubbleContent } from "../bubble/index.ts";
 import { Message, MessageContent } from "../message/index.ts";
 import {
@@ -29,7 +29,7 @@ export const messageScrollerTripConversation = defineExample({
     description:
         "a conversation that keeps its newest message in view and offers a jump back to it",
     render: () => (
-        <MessageScroller style={styles.conversation}>
+        <MessageScroller xstyle={styles.conversation}>
             <MessageScrollerViewport aria-label="Conversation">
                 <For each={MESSAGES}>
                     {(message) => (

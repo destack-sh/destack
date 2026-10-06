@@ -31,7 +31,7 @@ export const sidebarNotebooks = defineExample({
                         <SidebarGroupLabel>Notebooks</SidebarGroupLabel>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton href="/trips" isActive>
+                                <SidebarMenuButton href="/trips" active>
                                     <Icon name="notebook" />
                                     Trips
                                 </SidebarMenuButton>
@@ -65,7 +65,7 @@ export const sidebarNotebooksCollapsed = defineExample({
                         <SidebarGroupLabel>Notebooks</SidebarGroupLabel>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton href="/trips" isActive>
+                                <SidebarMenuButton href="/trips" active>
                                     <Icon name="notebook" />
                                     Trips
                                 </SidebarMenuButton>

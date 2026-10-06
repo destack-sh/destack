@@ -7,12 +7,12 @@ export const accordionHelpQuestions = defineExample({
     name: "help-questions",
     description: "a help page's questions, one answer open at a time",
     render: () => (
-        <Accordion>
-            <AccordionItem open>
+        <Accordion defaultValue="sharing">
+            <AccordionItem value="sharing">
                 <AccordionTrigger>Who can see my notes?</AccordionTrigger>
                 <AccordionContent>Only the people you share a notebook with.</AccordionContent>
             </AccordionItem>
-            <AccordionItem>
+            <AccordionItem value="offline">
                 <AccordionTrigger>Can I work offline?</AccordionTrigger>
                 <AccordionContent>Yes, changes sync when you are back online.</AccordionContent>
             </AccordionItem>
@@ -26,12 +26,35 @@ export const accordionHelpQuestionsExpanded = defineExample({
     name: "help-questions-expanded",
     description: "a help page's questions with every answer open",
     render: () => (
-        <Accordion type="multiple">
-            <AccordionItem open>
+        <Accordion multiple defaultValue={["sharing", "offline"]}>
+            <AccordionItem value="sharing">
                 <AccordionTrigger>Who can see my notes?</AccordionTrigger>
                 <AccordionContent>Only the people you share a notebook with.</AccordionContent>
             </AccordionItem>
-            <AccordionItem open>
+            <AccordionItem value="offline">
+                <AccordionTrigger>Can I work offline?</AccordionTrigger>
+                <AccordionContent>Yes, changes sync when you are back online.</AccordionContent>
+            </AccordionItem>
+        </Accordion>
+    ),
+});
+
+/** A help page's questions with one question unavailable. */
+export const accordionHelpQuestionsDisabled = defineExample({
+    of: Accordion,
+    name: "help-questions-disabled",
+    description: "a help page's questions with one question unavailable",
+    render: () => (
+        <Accordion>
+            <AccordionItem value="sharing">
+                <AccordionTrigger>Who can see my notes?</AccordionTrigger>
+                <AccordionContent>Only the people you share a notebook with.</AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="billing" disabled>
+                <AccordionTrigger>How do I pay?</AccordionTrigger>
+                <AccordionContent>Your workspace owner handles billing.</AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="offline">
                 <AccordionTrigger>Can I work offline?</AccordionTrigger>
                 <AccordionContent>Yes, changes sync when you are back online.</AccordionContent>
             </AccordionItem>

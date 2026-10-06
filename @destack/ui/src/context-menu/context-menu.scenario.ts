@@ -23,6 +23,6 @@ export const contextMenuOpenAtPointer = defineScenario({
             style: { kind: "attribute", target: { role: "menu" }, name: "style" },
             focused: { kind: "focused" },
         },
-        end: { anchor: "undefined", style: "left: 40px; top: 120px;", focused: "Open ↵" },
+        end: { anchor: "undefined", style: "--x-left: 40px; --x-top: 120px;", focused: "Open ↵" },
     },
 });

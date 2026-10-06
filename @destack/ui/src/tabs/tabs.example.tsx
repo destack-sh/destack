@@ -1,5 +1,5 @@
 import { defineExample, type PropertiesOf } from "@destack/package/declare";
-import type { JSX } from "@solidjs/web";
+import type { JSX } from "@destack/view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs.tsx";
 
 /** A note's editor and preview as tabs. */

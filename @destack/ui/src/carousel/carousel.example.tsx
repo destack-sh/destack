@@ -1,10 +1,12 @@
 import { defineExample } from "@destack/package/declare";
-import { For } from "solid-js";
+import { For } from "@destack/view";
 import {
     Carousel,
     CarouselContent,
+    CarouselDots,
     CarouselItem,
     CarouselNext,
+    CarouselPlay,
     CarouselPrevious,
 } from "./carousel.tsx";
 
@@ -33,6 +35,25 @@ export const carouselTripPhotos = defineExample({
             </CarouselContent>
             <CarouselPrevious />
             <CarouselNext />
+        </Carousel>
+    ),
+});
+
+/** Trip photos that rotate on their own, with a button that stops them and a dot per photo. */
+export const carouselTripPhotosRotating = defineExample({
+    of: Carousel,
+    name: "trip-photos-rotating",
+    description:
+        "trip photos that rotate on their own, with a button that stops them and a dot per photo",
+    render: () => (
+        <Carousel aria-label="Trip photos" loop autoplay={5000}>
+            <CarouselContent>
+                <CarouselItem>Lisbon</CarouselItem>
+                <CarouselItem>Porto</CarouselItem>
+                <CarouselItem>Faro</CarouselItem>
+            </CarouselContent>
+            <CarouselPlay />
+            <CarouselDots />
         </Carousel>
     ),
 });

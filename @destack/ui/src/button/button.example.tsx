@@ -37,3 +37,11 @@ export const buttonNoteToolbarDisabled = defineExample({
         </div>
     ),
 });
+
+/** A save button while the note saves. */
+export const buttonSaveLoading = defineExample({
+    of: Button,
+    name: "save-loading",
+    description: "a save button while the note saves",
+    render: () => <Button loading>Save</Button>,
+});

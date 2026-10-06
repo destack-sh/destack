@@ -1,14 +1,16 @@
 import { expect, test } from "@destack/test";
-import { createSignal, flush } from "solid-js";
+import { createSignal, flush } from "@destack/view";
 import {
     Carousel,
     type CarouselApi,
     CarouselContent,
+    CarouselDots,
     CarouselItem,
     CarouselNext,
+    CarouselPlay,
     CarouselPrevious,
 } from "./index.ts";
-import { draw } from "@destack/view/test";
+import { draw, wait } from "@destack/view/test";
 
 test("move between a carousel's slides with its buttons, naming each slide by its place", () => {
     const container = draw(() => (
@@ -76,4 +78,54 @@ test("follow a controlled index, reporting each move the API, buttons or keys as
         3,
         true,
     ]);
+});
+
+test("wrap a looping carousel from its last slide to its first, and move to a slide by its dot", () => {
+    const container = draw(() => (
+        <Carousel aria-label="Photos" loop defaultIndex={2}>
+            <CarouselContent>
+                <CarouselItem>Lisbon</CarouselItem>
+                <CarouselItem>Porto</CarouselItem>
+                <CarouselItem>Faro</CarouselItem>
+            </CarouselContent>
+            <CarouselNext />
+            <CarouselDots />
+        </Carousel>
+    ));
+    const current = (): string | null | undefined =>
+        container
+            .querySelector("[data-slot=carousel-dot][aria-current]")
+            ?.getAttribute("aria-label");
+    const next = container.querySelector<HTMLButtonElement>("[data-slot=carousel-next]");
+    next?.click();
+    flush();
+    const wrapped = [current(), next?.disabled];
+    container.querySelectorAll<HTMLElement>("[data-slot=carousel-dot]")[1]?.click();
+    flush();
+    expect([wrapped, current()]).toEqual([["Go to slide 1", false], "Go to slide 2"]);
+});
+
+test("advance an autoplaying carousel until its play button stops it, pausing its live region while it rotates", async () => {
+    const container = draw(() => (
+        <Carousel aria-label="Photos" autoplay={20}>
+            <CarouselContent>
+                <CarouselItem>Lisbon</CarouselItem>
+                <CarouselItem>Porto</CarouselItem>
+                <CarouselItem>Faro</CarouselItem>
+            </CarouselContent>
+            <CarouselPlay />
+            <CarouselDots />
+        </Carousel>
+    ));
+    const content = container.querySelector("[data-slot=carousel-content]");
+    const live = content?.getAttribute("aria-live");
+    await wait(50);
+    flush();
+    const advanced =
+        container
+            .querySelector("[data-slot=carousel-dot][aria-current]")
+            ?.getAttribute("aria-label") !== "Go to slide 1";
+    container.querySelector<HTMLElement>("[data-slot=carousel-play]")?.click();
+    flush();
+    expect([live, advanced, content?.getAttribute("aria-live")]).toEqual(["off", true, "polite"]);
 });

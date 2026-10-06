@@ -1,5 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { createSignal } from "solid-js";
+import { createSignal } from "@destack/view";
 import { toast } from "../toast/index.ts";
 import {
     Command,

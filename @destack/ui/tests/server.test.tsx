@@ -1,8 +1,7 @@
 import { expect, test } from "@destack/test";
-import type { JSX } from "@solidjs/web";
+import { type JSX, renderToString } from "@destack/view";
 import type { Example } from "@destack/package/declare";
 import manifest from "../package.json" with { type: "json" };
-import { renderToString } from "@solidjs/web";
 import { Sidebar, SidebarContent, SidebarProvider, SidebarTrigger } from "../src/sidebar/index.ts";
 import { Toaster } from "../src/toast/index.ts";
 
@@ -35,7 +34,7 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
         '<div data-slot="sidebar-wrapper">' +
             '<div id="0" data-slot="sidebar" data-state="expanded" data-variant="sidebar" data-side="left">' +
             '<div><div data-slot="sidebar-content">Notebooks</div></div></div>' +
-            '<button data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="0" aria-expanded="true">' +
+            '<button data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="0" aria-expanded="true" >' +
             '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true"></svg></button>' +
             '<section aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
             '<ol popover="manual" data-slot="toaster-stack"></ol></section></div>',

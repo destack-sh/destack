@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { flush } from "solid-js";
+import { flush } from "@destack/view";
 import {
     NavigationMenu,
     NavigationMenuContent,

@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { createSignal, flush } from "solid-js";
+import { createSignal, flush } from "@destack/view";
 import {
     Dialog,
     DialogClose,
@@ -116,4 +116,23 @@ test("open and close a controlled dialog with its open property", () => {
     flush();
     states.push(dialog.open);
     expect(states).toEqual([false, true, false]);
+});
+
+test("open a dialog from a trigger rendered as another element, which keeps the trigger's state and behaviour", () => {
+    const container = draw(() => (
+        <Dialog>
+            <DialogTrigger render={(part) => <span tabindex={0} {...part} />}>Rename</DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Rename note</DialogTitle>
+            </DialogContent>
+        </Dialog>
+    ));
+    find(container, "[data-slot=dialog-trigger]").click();
+    flush();
+    expect([
+        find(container, "[data-slot=dialog-trigger]").tagName,
+        find(container, "[data-slot=dialog-trigger]").textContent,
+        find(container, "[data-slot=dialog-trigger]").getAttribute("aria-expanded"),
+        dialogOf(container).open,
+    ]).toEqual(["SPAN", "Rename", "true", true]);
 });

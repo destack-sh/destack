@@ -1,7 +1,7 @@
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { size } from "@destack/theme/tokens.stylex";
-import { For } from "solid-js";
+import { For } from "@destack/view";
 import { ScrollArea } from "./scroll-area.tsx";
 
 /** The height of the tag list. */
@@ -18,7 +18,7 @@ export const scrollAreaNotebookTags = defineExample({
     name: "notebook-tags",
     description: "a long list of tags in a scrolling region",
     render: () => (
-        <ScrollArea aria-label="Tags" style={styles.tags}>
+        <ScrollArea aria-label="Tags" xstyle={styles.tags}>
             <For each={TAGS}>{(tag) => <p>{tag}</p>}</For>
         </ScrollArea>
     ),

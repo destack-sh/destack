@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { flush } from "solid-js";
+import { flush } from "@destack/view";
 import { ToggleGroup, ToggleGroupItem } from "./index.ts";
 import { draw, markup } from "@destack/view/test";
 
@@ -7,7 +7,6 @@ test("keep one item of a single toggle group on, exposed as radios", () => {
     const changes: (string | undefined)[] = [];
     const container = draw(() => (
         <ToggleGroup
-            type="single"
             defaultValue="left"
             aria-label="Alignment"
             onValueChange={(value) => changes.push(value)}
@@ -33,14 +32,13 @@ test("report none once a single group's pressed item turns off, and keep a contr
     const container = draw(() => (
         <>
             <ToggleGroup
-                type="single"
                 defaultValue="left"
                 aria-label="Alignment"
                 onValueChange={(value) => changes.push(value)}
             >
                 <ToggleGroupItem value="left">Left</ToggleGroupItem>
             </ToggleGroup>
-            <ToggleGroup type="single" value={undefined} aria-label="Fixed">
+            <ToggleGroup value={undefined} aria-label="Fixed">
                 <ToggleGroupItem value="right">Right</ToggleGroupItem>
             </ToggleGroup>
         </>
@@ -60,7 +58,7 @@ test("report none once a single group's pressed item turns off, and keep a contr
 
 test("press several items of a multiple toggle group", () => {
     const container = draw(() => (
-        <ToggleGroup type="multiple" aria-label="Style">
+        <ToggleGroup multiple aria-label="Style">
             <ToggleGroupItem value="bold">B</ToggleGroupItem>
             <ToggleGroupItem value="italic">I</ToggleGroupItem>
         </ToggleGroup>

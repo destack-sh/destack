@@ -1,6 +1,6 @@
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { comboboxMoveNote } from "./combobox.example.tsx";
+import { comboboxMoveNote, comboboxTagNote } from "./combobox.example.tsx";
 import { Combobox } from "./combobox.tsx";
 
 /** Type into a combobox and choose an option with Enter. */
@@ -66,6 +66,59 @@ export const comboboxCloseAndClearOnEscape = defineScenario({
             { expanded: true, value: "tr" },
             { expanded: false, value: "tr" },
             { expanded: false, value: "" },
+        ],
+    },
+});
+
+/** Choose several tags, keeping the list open, and drop the last with Backspace. */
+export const comboboxChooseSeveralAndDropLast = defineScenario({
+    of: Combobox,
+    interaction: viewInteraction,
+    name: "choose-several-and-drop-last",
+    description:
+        "add tags to a multiple combobox with Enter, keeping its list open, and drop the last chip with Backspace from the empty input",
+    given: { examples: [comboboxTagNote] },
+    when: [
+        { action: "fill", target: { role: "combobox", name: "Tags" }, value: "fo" },
+        { action: "press", key: "Enter" },
+        { action: "press", key: "Backspace" },
+    ],
+    then: {
+        observe: {
+            chips: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+            expanded: {
+                kind: "state",
+                target: { role: "combobox", name: "Tags" },
+                state: "expanded",
+            },
+        },
+        each: [
+            { chips: ["travel"], expanded: true },
+            { chips: ["travel", "food"], expanded: true },
+            { chips: ["travel"], expanded: true },
+        ],
+    },
+});
+
+/** Create a tag from text no option has. */
+export const comboboxCreateFromText = defineScenario({
+    of: Combobox,
+    interaction: viewInteraction,
+    name: "create-from-text",
+    description: "offer to create an option from text no option has, and choose it with Enter",
+    given: { examples: [comboboxTagNote] },
+    when: [
+        { action: "fill", target: { role: "combobox", name: "Tags" }, value: "summer" },
+        { action: "press", key: "Enter" },
+    ],
+    then: {
+        observe: {
+            options: { kind: "texts", target: { role: "option" } },
+            chips: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+        },
+        each: [
+            { options: ['Create "\u2068summer\u2069"'], chips: ["travel"] },
+            { options: ["travel", "food", "family"], chips: ["travel", "summer"] },
         ],
     },
 });

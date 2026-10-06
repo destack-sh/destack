@@ -16,3 +16,20 @@ export const resizablePanelGroupNotebookSplit = defineExample({
         </ResizablePanelGroup>
     ),
 });
+
+/** A notebook list collapsed beside the open note, its split saved for the next visit. */
+export const resizablePanelGroupNotebookCollapsed = defineExample({
+    of: ResizablePanelGroup,
+    name: "notebook-collapsed",
+    description:
+        "a notebook list collapsed beside the open note, its split saved for the next visit",
+    render: () => (
+        <ResizablePanelGroup direction="horizontal" autoSaveId="notebook-split">
+            <ResizablePanel defaultSize={0} minSize={20} maxSize={50} collapsible>
+                Notebooks
+            </ResizablePanel>
+            <ResizableHandle withHandle aria-label="Resize the notebook list" />
+            <ResizablePanel>Note</ResizablePanel>
+        </ResizablePanelGroup>
+    ),
+});

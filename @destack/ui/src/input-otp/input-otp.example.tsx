@@ -1,5 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { createSignal, Show } from "solid-js";
+import { createSignal, Show } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "./input-otp.tsx";
 

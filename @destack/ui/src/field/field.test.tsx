@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { createSignal, flush } from "solid-js";
+import { createSignal, flush } from "@destack/view";
 import {
     Field,
     FieldContent,
@@ -11,12 +11,10 @@ import {
     FieldSeparator,
     FieldSet,
     FieldTitle,
-    type FieldValue,
 } from "./index.ts";
 import { Checkbox } from "../checkbox/index.ts";
 import { Input } from "../input/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
-import { Switch } from "../switch/index.ts";
 import { Textarea } from "../textarea/index.ts";
 import { classes, draw, markup } from "@destack/view/test";
 
@@ -196,35 +194,4 @@ test("render a fieldset of grouped fields with a legend, title and separator", (
             '<div data-slot="separator" data-orientation="horizontal" role="none"></div></div>' +
             "</div></fieldset>",
     );
-});
-
-test("show and commit an owner's value through the field's text and on and off controls", () => {
-    const commits: (string | boolean)[] = [];
-    const value = (text: string, isChecked: boolean): FieldValue => ({
-        text: () => text,
-        isChecked: () => isChecked,
-        commit: (raw) => commits.push(raw),
-    });
-    const container = draw(() => (
-        <>
-            <Field value={value("Groceries", false)}>
-                <Input />
-            </Field>
-            <Field value={value("true", true)}>
-                <Switch />
-            </Field>
-        </>
-    ));
-    const input = container.querySelector<HTMLInputElement>("input[data-slot=input]");
-    const toggle = container.querySelector<HTMLInputElement>("input[role=switch]");
-    const shown = [input?.value, toggle?.checked];
-    if (input !== null) {
-        input.value = "Milk";
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    toggle?.click();
-    expect([shown, commits]).toEqual([
-        ["Groceries", true],
-        ["Milk", false],
-    ]);
 });

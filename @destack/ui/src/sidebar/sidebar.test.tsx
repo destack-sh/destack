@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { flush } from "solid-js";
+import { flush } from "@destack/view";
 import {
     Sidebar,
     SidebarContent,
@@ -27,7 +27,7 @@ function drawPage(changes: boolean[]): HTMLElement {
                         <SidebarGroupLabel>Notebooks</SidebarGroupLabel>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton href="/trips" isActive tooltip="Trips">
+                                <SidebarMenuButton href="/trips" active tooltip="Trips">
                                     Trips
                                 </SidebarMenuButton>
                             </SidebarMenuItem>

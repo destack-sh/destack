@@ -7,7 +7,7 @@ export const toggleGroupParagraphAlignment = defineExample({
     name: "paragraph-alignment",
     description: "the alignment of a paragraph as a single toggle group",
     render: () => (
-        <ToggleGroup type="single" defaultValue="left" variant="outline" aria-label="Alignment">
+        <ToggleGroup defaultValue="left" variant="outline" aria-label="Alignment">
             <ToggleGroupItem value="left">Left</ToggleGroupItem>
             <ToggleGroupItem value="center">Center</ToggleGroupItem>
             <ToggleGroupItem value="right">Right</ToggleGroupItem>
@@ -22,7 +22,7 @@ export const toggleGroupUnaligned = defineExample({
     description:
         "the alignment of a paragraph with none chosen yet and right alignment unavailable",
     render: () => (
-        <ToggleGroup type="single" aria-label="Alignment">
+        <ToggleGroup aria-label="Alignment">
             <ToggleGroupItem value="left">Left</ToggleGroupItem>
             <ToggleGroupItem value="center">Center</ToggleGroupItem>
             <ToggleGroupItem value="right" disabled>

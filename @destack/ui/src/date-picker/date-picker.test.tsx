@@ -3,8 +3,7 @@ import { LocaleContext } from "@destack/locale/solid";
 import type { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { draw, stubPopovers } from "@destack/view/test";
-import type { JSX } from "@solidjs/web";
-import { flush } from "solid-js";
+import { flush, type JSX } from "@destack/view";
 import { Day } from "../calendar/index.ts";
 import { DatePicker } from "./index.ts";
 
@@ -81,4 +80,27 @@ test("keep a range date picker open until the range closes, then show the span",
         false,
         "Trip Oct 4 – 9, 2026",
     ]);
+});
+
+test("choose a preset beside the calendar, closing the popover", () => {
+    stubPopovers();
+    const container = drawIn("en-US", () => (
+        <DatePicker
+            aria-label="Due date"
+            presets={[{ label: "Christmas", value: day("2026-12-25") }]}
+        />
+    ));
+    const trigger = container.querySelector<HTMLElement>("[data-slot=date-picker-trigger]");
+    trigger?.click();
+    flush();
+    [...container.querySelectorAll<HTMLElement>("[data-slot=date-picker-presets] button")]
+        .find((button) => button.textContent === "Christmas")
+        ?.click();
+    flush();
+    expect([
+        labelledName(trigger),
+        container
+            .querySelector("[data-slot=date-picker-content]")
+            ?.hasAttribute("data-popover-open"),
+    ]).toEqual(["Due date Dec 25, 2026", false]);
 });

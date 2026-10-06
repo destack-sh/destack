@@ -1,6 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/icon";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.tsx";
+import { Tooltip, TooltipArrow, TooltipContent, TooltipTrigger } from "./tooltip.tsx";
 
 /** What an icon-only archive button does. */
 export const tooltipArchiveButton = defineExample({
@@ -28,6 +28,24 @@ export const tooltipArchiveButtonOpen = defineExample({
                 <Icon name="archive" />
             </TooltipTrigger>
             <TooltipContent>Archive note</TooltipContent>
+        </Tooltip>
+    ),
+});
+
+/** The archive button's tooltip shown above it with an arrow pointing at the button. */
+export const tooltipArchiveButtonArrow = defineExample({
+    of: Tooltip,
+    name: "archive-button-arrow",
+    description: "the archive button's tooltip shown above it with an arrow pointing at the button",
+    render: () => (
+        <Tooltip defaultOpen>
+            <TooltipTrigger variant="ghost" size="icon" aria-label="Archive">
+                <Icon name="archive" />
+            </TooltipTrigger>
+            <TooltipContent>
+                <TooltipArrow />
+                Archive note
+            </TooltipContent>
         </Tooltip>
     ),
 });

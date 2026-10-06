@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { draw } from "@destack/view/test";
-import { flush } from "solid-js";
+import { flush } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "./index.ts";
 

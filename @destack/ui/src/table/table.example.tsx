@@ -1,6 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import { useLocale } from "@destack/locale/solid";
-import { For } from "solid-js";
+import { For } from "@destack/view";
 import {
     Table,
     TableBody,

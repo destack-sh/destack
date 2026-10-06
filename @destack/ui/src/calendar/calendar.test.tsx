@@ -2,8 +2,7 @@ import { Locale, Localization } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { LocaleContext } from "@destack/locale/solid";
-import type { JSX } from "@solidjs/web";
-import { flush } from "solid-js";
+import { flush, type JSX } from "@destack/view";
 import { Calendar, type DateRange, Day } from "./index.ts";
 import { draw } from "@destack/view/test";
 
@@ -144,4 +143,81 @@ test("count days and months across year ends without time zones", () => {
         Day.weeks(day("2021-02-01"), 1).length,
         PlainDate.compare(day("2026-10-04"), day("2026-10-05")) < 0,
     ]).toEqual(["2027-01-01", "2026-02-28", "2024-02-29", 4, true]);
+});
+
+/** Read the captions of a calendar's months. */
+function captions(container: Element): string[] {
+    return [...container.querySelectorAll("[data-slot=calendar-caption]")].map(
+        (caption) => caption.textContent ?? "",
+    );
+}
+
+test("show months side by side, moving them together", () => {
+    const container = drawIn("en-US", () => (
+        <Calendar months={2} defaultMonth={day("2026-10-01")} today={day("2026-10-04")} />
+    ));
+    const before = captions(container);
+    container.querySelector<HTMLElement>("[data-slot=calendar-next]")?.click();
+    flush();
+    expect([before, captions(container)]).toEqual([
+        ["October 2026", "November 2026"],
+        ["November 2026", "December 2026"],
+    ]);
+});
+
+test("refuse days and months outside the earliest and latest days", () => {
+    const container = drawIn("en-US", () => (
+        <Calendar
+            min={day("2026-10-10")}
+            max={day("2026-10-20")}
+            defaultMonth={day("2026-10-01")}
+            today={day("2026-10-04")}
+        />
+    ));
+    const isDisabled = (key: string): boolean | undefined =>
+        container.querySelector<HTMLButtonElement>(`[data-day="${key}"]`)?.disabled;
+    const isStepDisabled = (slot: string): boolean | undefined =>
+        container.querySelector<HTMLButtonElement>(`[data-slot=${slot}]`)?.disabled;
+    expect([
+        isDisabled("2026-10-09"),
+        isDisabled("2026-10-10"),
+        isDisabled("2026-10-21"),
+        isStepDisabled("calendar-previous"),
+        isStepDisabled("calendar-next"),
+    ]).toEqual([true, false, true, true, true]);
+});
+
+test("number weeks by ISO 8601 and leave neighbouring months' days empty", () => {
+    const container = drawIn("en-GB", () => (
+        <Calendar
+            weekNumbers
+            outsideDays={false}
+            defaultMonth={day("2027-01-01")}
+            today={day("2026-10-04")}
+        />
+    ));
+    const weeks = [...container.querySelectorAll("tbody th")].map((cell) => cell.textContent);
+    expect([weeks, container.querySelector('[data-day="2026-12-28"]')]).toEqual([
+        ["53", "1", "2", "3", "4"],
+        null,
+    ]);
+});
+
+test("move to the month and year picked from a dropdown caption", () => {
+    const container = drawIn("en-US", () => (
+        <Calendar
+            captionLayout="dropdown"
+            defaultMonth={day("2026-10-01")}
+            today={day("2026-10-04")}
+        />
+    ));
+    const [, year] = [...container.querySelectorAll("select")];
+    for (const option of year?.options ?? []) {
+        option.selected = option.value === "1990";
+    }
+    year?.dispatchEvent(new Event("change", { bubbles: true }));
+    flush();
+    expect(container.querySelector("[data-slot=calendar-caption] span")?.textContent).toBe(
+        "October 1990",
+    );
 });

@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { flush } from "solid-js";
+import { flush } from "@destack/view";
 import { toast, Toaster } from "./index.ts";
 import { draw, stubPopovers, wait } from "@destack/view/test";
 
@@ -9,6 +9,11 @@ function drawToaster(duration: number): HTMLElement {
     onTestFinished(() => toast.dismiss());
 
     return draw(() => <Toaster duration={duration} />);
+}
+
+/** Make a pointer event at a position along the swipe's axis. */
+function pointer(type: string, position: number): PointerEvent {
+    return new PointerEvent(type, { bubbles: true, clientX: position, pointerId: 1 });
 }
 
 /** Read each shown toast as its kind and title, newest first. */
@@ -114,4 +119,22 @@ test("keep the live region in the document and show the stack in the top layer o
     expect([empty, isShown, region?.isConnected, stack?.hasAttribute("data-popover-open")]).toEqual(
         [["polite", false], ["manual", true, true], true, false],
     );
+});
+
+test("dismiss a toast swiped off the toaster's side, keeping one swiped a little", () => {
+    const container = drawToaster(10_000);
+    toast("Note saved", { id: "saved" });
+    flush();
+    const swipeRight = (distance: number): void => {
+        const entry = container.querySelector("[data-slot=toast-title]");
+        entry?.dispatchEvent(pointer("pointerdown", 0));
+        entry?.dispatchEvent(pointer("pointermove", distance));
+        flush();
+        entry?.dispatchEvent(pointer("pointerup", distance));
+        flush();
+    };
+    swipeRight(4);
+    const kept = shown(container);
+    swipeRight(300);
+    expect([kept, shown(container)]).toEqual([["default: Note saved"], []]);
 });

@@ -17,8 +17,8 @@ export const skeletonLoadingRow = defineExample({
     description: "a list row's avatar and title while the row loads",
     render: () => (
         <div aria-busy="true" {...style.attrs(styles.row)}>
-            <Skeleton style={styles.avatar} />
-            <Skeleton style={styles.line} />
+            <Skeleton xstyle={styles.avatar} />
+            <Skeleton xstyle={styles.line} />
         </div>
     ),
 });

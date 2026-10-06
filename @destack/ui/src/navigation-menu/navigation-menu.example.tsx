@@ -26,7 +26,11 @@ export const navigationMenuSiteNavigation = defineExample({
                     </NavigationMenuContent>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                    <NavigationMenuLink href="/pricing" active style={navigationMenuTriggerStyle()}>
+                    <NavigationMenuLink
+                        href="/pricing"
+                        active
+                        xstyle={navigationMenuTriggerStyle()}
+                    >
                         Pricing
                     </NavigationMenuLink>
                 </NavigationMenuItem>

@@ -1,10 +1,13 @@
 import { defineExample } from "@destack/package/declare";
 import {
     Combobox,
+    ComboboxChips,
     ComboboxContent,
+    ComboboxCreate,
     ComboboxEmpty,
     ComboboxInput,
     ComboboxItem,
+    ComboboxLoading,
 } from "./combobox.tsx";
 
 /** A combobox that picks the notebook a note moves to. */
@@ -38,6 +41,41 @@ export const comboboxMoveNoteOpen = defineExample({
                 <ComboboxItem value="Trips">Trips</ComboboxItem>
                 <ComboboxItem value="Work">Work</ComboboxItem>
                 <ComboboxItem value="Recipes">Recipes</ComboboxItem>
+            </ComboboxContent>
+        </Combobox>
+    ),
+});
+
+/** A combobox that tags a note, several tags at once and new ones from the typed text. */
+export const comboboxTagNote = defineExample({
+    of: Combobox,
+    name: "tag-note",
+    description:
+        "a combobox that tags a note, several tags at once and new ones from the typed text",
+    render: () => (
+        <Combobox multiple defaultValue={["travel"]}>
+            <ComboboxChips />
+            <ComboboxInput aria-label="Tags" placeholder="Add a tag" />
+            <ComboboxContent>
+                <ComboboxItem value="travel">travel</ComboboxItem>
+                <ComboboxItem value="food">food</ComboboxItem>
+                <ComboboxItem value="family">family</ComboboxItem>
+                <ComboboxCreate />
+            </ComboboxContent>
+        </Combobox>
+    ),
+});
+
+/** A combobox that searches people while their matches load. */
+export const comboboxFindPersonLoading = defineExample({
+    of: Combobox,
+    name: "find-person-loading",
+    description: "a combobox that searches people while their matches load",
+    render: () => (
+        <Combobox shouldFilter={false} defaultOpen>
+            <ComboboxInput aria-label="Person" placeholder="Find a person" />
+            <ComboboxContent>
+                <ComboboxLoading>Searching…</ComboboxLoading>
             </ComboboxContent>
         </Combobox>
     ),
