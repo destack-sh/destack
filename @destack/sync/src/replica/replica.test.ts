@@ -289,12 +289,12 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await following;
 
-        // capture every column once the source stops writing, rewrapping the key for the target
-        const wrap = async (table: Table, row: Row) => rewrapped(table, row, "source:", "moving:");
-        const unwrap = async (table: Table, row: Row) =>
+        // capture every column once the source stops writing
+        const seal = async (table: Table, row: Row) => rewrapped(table, row, "source:", "moving:");
+        const unseal = async (table: Table, row: Row) =>
             rewrapped(table, row, "moving:", "target:");
-        const applied = copy.apply(target, feed.capture(copy.captured, signal, { rewrap: wrap }), {
-            unwrap,
+        const applied = copy.apply(target, feed.capture(copy.captured, signal, { seal }), {
+            open: unseal,
         });
         while ((await applied.next()).done !== true) {
             // apply each captured page

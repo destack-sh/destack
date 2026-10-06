@@ -1038,10 +1038,10 @@ export class Replica {
         transaction: DatabaseConnection,
         page: Page,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
-        { unwrap }: ApplyOptions,
+        { open }: ApplyOptions,
     ): Promise<Origin | undefined> {
         // batch each table's writes and each projected table's rows
-        const { batches, projected, origin } = await this.#collect(page, delivered, unwrap);
+        const { batches, projected, origin } = await this.#collect(page, delivered, open);
 
         // take the removed rows out of the copy children first and write the kept rows parents first
         const ordered = this.tables.flatMap((table): [Table, Batch][] => {
@@ -1070,7 +1070,7 @@ export class Replica {
     async #collect(
         page: Page,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
-        unwrap: ApplyOptions["unwrap"],
+        open: ApplyOptions["open"],
     ): Promise<{
         readonly batches: Map<Table, Batch>;
         readonly projected: Map<Projector, ProjectionPage>;
@@ -1105,9 +1105,9 @@ export class Replica {
                     `page names a table outside copy ${this.name}: ${change.table}`,
                 );
             }
-            // stage a copied row's change, unwrapping its host-bound values
+            // stage a copied row's change with its host-bound values opened
             else {
-                await collectBatched(batches, table, change, delivered, unwrap);
+                await collectBatched(batches, table, change, delivered, open);
             }
         }
 
@@ -1480,14 +1480,12 @@ async function collectBatched(
     table: Table,
     change: RowChange,
     delivered: ReadonlyMap<string, Set<string>> | undefined,
-    unwrap: ApplyOptions["unwrap"],
+    open: ApplyOptions["open"],
 ): Promise<void> {
-    // unwrap the row and note its key for a snapshot's retractions
+    // open the row and note its key for a snapshot's retractions
     const decoded = table[TABLE].decode(change.row);
     const row =
-        unwrap === undefined || change.operation === "delete"
-            ? decoded
-            : await unwrap(table, decoded);
+        open === undefined || change.operation === "delete" ? decoded : await open(table, decoded);
     if (delivered !== undefined) {
         found(delivered, change.table).add(Key.name(table, row));
     }
@@ -1678,8 +1676,8 @@ export interface ApplyOptions {
     readonly prediction?: Prediction;
     /** The subscription the copy follows, recorded as it completes a run. */
     readonly subscription?: Subscription;
-    /** Unwrap the host-bound values a fenced source wrapped for this copy. */
-    readonly unwrap?: (table: Table, row: Row) => Promise<Row>;
+    /** Open the host-bound values a fenced source sealed to this copy. */
+    readonly open?: (table: Table, row: Row) => Promise<Row>;
 }
 
 /** How a copy projects a source table's rows into rows of its own, as a read model of them. */

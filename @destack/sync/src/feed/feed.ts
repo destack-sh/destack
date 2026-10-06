@@ -196,13 +196,13 @@ export class Feed implements Cache {
      * Read every column of the queries' rows as one consistent snapshot run, in one read transaction.
      *
      * The run includes what the log leaves out: unlogged tables and sensitive columns.
-     * Rewrapping turns a row's host-bound values into values only the target unwraps.
+     * Sealing turns a row's host-bound values into values only the target opens.
      */
     async *capture(
         queries: Readonly<Record<string, Query>>,
         signal: AbortSignal,
         options: {
-            readonly rewrap?: (table: Table, row: Row) => Promise<Row>;
+            readonly seal?: (table: Table, row: Row) => Promise<Row>;
         } = {},
     ): AsyncGenerator<Page> {
         // read in one transaction, handing each page over before reading the next
@@ -210,7 +210,7 @@ export class Feed implements Cache {
         const reading = this.database
             .transaction(
                 async (transaction) => {
-                    for await (const page of Feed.#pages(transaction, queries, options.rewrap)) {
+                    for await (const page of Feed.#pages(transaction, queries, options.seal)) {
                         await handoff.give(page);
                     }
                     handoff.end();
@@ -230,23 +230,23 @@ export class Feed implements Cache {
     static async *#pages(
         database: DatabaseConnection,
         queries: Readonly<Record<string, Query>>,
-        rewrap: ((table: Table, row: Row) => Promise<Row>) | undefined,
+        seal: ((table: Table, row: Row) => Promise<Row>) | undefined,
     ): AsyncGenerator<Page> {
         // read every query's rows page by page in key order
         const position = await database.log.position();
         const entries = Object.values(queries);
         let isFirst = true;
         for (const [index, query] of entries.entries()) {
-            // send each page rewrapped and complete the run with the last page
+            // send each page sealed and complete the run with the last page
             for await (const { rows, isLast } of Feed.#tablePages(database, query)) {
-                const rewrapped =
-                    rewrap === undefined
+                const sealed =
+                    seal === undefined
                         ? rows
-                        : await Promise.all(rows.map((row) => rewrap(query.table, row)));
+                        : await Promise.all(rows.map((row) => seal(query.table, row)));
                 yield {
                     reset: isFirst,
                     complete: isLast && index === entries.length - 1,
-                    changes: rewrapped.map((row) => captured(query.table, row)),
+                    changes: sealed.map((row) => captured(query.table, row)),
                     position,
                 };
                 isFirst = false;
