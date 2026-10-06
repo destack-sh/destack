@@ -32,6 +32,44 @@ export function defineProject(configuration: UserWorkspaceConfig): UserWorkspace
     });
 }
 
+/** The modules declaring a package's scenarios, which the runner plays as tests. */
+export const SCENARIO_MODULES = "src/**/*.scenario.{ts,tsx}";
+
+/** A driver type a package's scenarios play through, as its module and export. */
+export interface DriverReference {
+    /** The module exporting the driver type, such as `@destack/view/test`. */
+    readonly module: string;
+    /** The export, such as `DomDriver`. */
+    readonly name: string;
+}
+
+/** Play each scenario a scenario module exports as a test of that module, through the driver of its interaction. */
+export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
+    return {
+        name: "destack-scenarios",
+        transform: {
+            filter: { id: /\.scenario\.tsx?$/u },
+            handler(code, id) {
+                // import the module itself, the runner and the driver types, then play what it exports
+                const self = JSON.stringify(`./${basename(id)}`);
+                const imported = drivers.map(
+                    (driver, index) =>
+                        `import { ${driver.name} as __DestackDriver${index} } from ${JSON.stringify(driver.module)};`,
+                );
+                const types = drivers.map((_, index) => `__DestackDriver${index}`).join(", ");
+                const played = [
+                    `import { Runner as __DestackRunner } from "@destack/test";`,
+                    `import * as __destackScenarios from ${self};`,
+                    ...imported,
+                    `__DestackRunner.playModule(__destackScenarios, [${types}]);`,
+                ];
+
+                return { code: `${code}\n${played.join("\n")}\n`, map: null };
+            },
+        },
+    };
+}
+
 /** Key cached module transforms by every package definition the module transform reads, and by its own sources. */
 function cachePlugin(): Plugin {
     let fingerprint: string | undefined;

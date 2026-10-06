@@ -39,6 +39,34 @@ import { single } from "@destack/test";
 const row = single(await database.select().from(note));
 ```
 
+## Scenarios
+
+`Runner.play` plays a scenario as a test through the driver type of its interaction, expecting the observations it names.
+
+```ts
+import { type DriverType, Runner } from "@destack/test";
+
+const TallyDriver: DriverType<Tallying, Tally> = {
+    interaction: tallyInteraction,
+    start: (given) => ({ act: (step) => …, observe: (observation) => … }),
+};
+Runner.play(MarkTwice, [TallyDriver, DomDriver]); // picks TallyDriver by the interaction's name
+await Runner.observe(MarkTwice, TallyDriver); // [{ marks: "3" }, { marks: "4" }, { marks: "0" }]
+```
+
+## Scenario discovery
+
+`scenarioPlugin` plays every scenario a `*.scenario.ts` module exports through the driver types it names, and a configuration includes `SCENARIO_MODULES`.
+
+```ts
+import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
+
+export default defineConfiguration({
+    plugins: [scenarioPlugin([{ module: "@destack/view/test", name: "DomDriver" }])],
+    test: { include: ["src/**/*.test.ts", SCENARIO_MODULES] },
+});
+```
+
 ## Configuration
 
 `defineConfiguration` and `defineProject` add Destack module metadata to package sources and set the `expect.poll` interval to 5 ms.
