@@ -59,48 +59,7 @@ export class TestCertificate {
 
         // describe the certificate: issuer and subject 127.0.0.1, valid an hour either side of now
         const algorithm = der(TAG.sequence, der(TAG.identifier, OBJECT.ecdsaWithSha256));
-        const name = der(
-            TAG.sequence,
-            der(
-                TAG.set,
-                der(
-                    TAG.sequence,
-                    der(TAG.identifier, OBJECT.commonName),
-                    der(TAG.utf8String, new TextEncoder().encode("127.0.0.1")),
-                ),
-            ),
-        );
-        const now = Date.now();
-        const validity = der(
-            TAG.sequence,
-            der(TAG.utcTime, utcTime(new Date(now - VALIDITY_MILLISECONDS))),
-            der(TAG.utcTime, utcTime(new Date(now + VALIDITY_MILLISECONDS))),
-        );
-
-        // list 127.0.0.1 as the subject's IP address, which TLS clients verify
-        const alternativeNames = der(TAG.sequence, der(TAG.ipAddress, [127, 0, 0, 1]));
-        const extensions = der(
-            TAG.extensions,
-            der(
-                TAG.sequence,
-                der(
-                    TAG.sequence,
-                    der(TAG.identifier, OBJECT.subjectAltName),
-                    der(TAG.octetString, alternativeNames),
-                ),
-            ),
-        );
-        const body = der(
-            TAG.sequence,
-            der(TAG.version, der(TAG.integer, [VERSION_3])),
-            der(TAG.integer, [1]),
-            algorithm,
-            name,
-            validity,
-            name,
-            publicKey,
-            extensions,
-        );
+        const body = certificateBody(algorithm, publicKey, Date.now());
 
         // sign the body and wrap it with its signature
         const signature = await crypto.subtle.sign(
@@ -117,6 +76,57 @@ export class TestCertificate {
 
         return new TestCertificate(pem("CERTIFICATE", certificate), pem("PRIVATE KEY", privateKey));
     }
+}
+
+/** Encode a certificate's signed body: issuer and subject 127.0.0.1, its validity, key and address. */
+function certificateBody(
+    algorithm: Uint8Array<ArrayBuffer>,
+    publicKey: Uint8Array,
+    now: number,
+): Uint8Array<ArrayBuffer> {
+    // name 127.0.0.1, valid an hour either side of now
+    const name = der(
+        TAG.sequence,
+        der(
+            TAG.set,
+            der(
+                TAG.sequence,
+                der(TAG.identifier, OBJECT.commonName),
+                der(TAG.utf8String, new TextEncoder().encode("127.0.0.1")),
+            ),
+        ),
+    );
+    const validity = der(
+        TAG.sequence,
+        der(TAG.utcTime, utcTime(new Date(now - VALIDITY_MILLISECONDS))),
+        der(TAG.utcTime, utcTime(new Date(now + VALIDITY_MILLISECONDS))),
+    );
+
+    // list 127.0.0.1 as the subject's IP address, which TLS clients verify
+    const alternativeNames = der(TAG.sequence, der(TAG.ipAddress, [127, 0, 0, 1]));
+    const extensions = der(
+        TAG.extensions,
+        der(
+            TAG.sequence,
+            der(
+                TAG.sequence,
+                der(TAG.identifier, OBJECT.subjectAltName),
+                der(TAG.octetString, alternativeNames),
+            ),
+        ),
+    );
+
+    return der(
+        TAG.sequence,
+        der(TAG.version, der(TAG.integer, [VERSION_3])),
+        der(TAG.integer, [1]),
+        algorithm,
+        name,
+        validity,
+        name,
+        publicKey,
+        extensions,
+    );
 }
 
 /** Encode one DER element: its tag, its length and its contents. */

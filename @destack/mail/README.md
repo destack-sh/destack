@@ -111,16 +111,26 @@ const transport = new SesTransport(client, { from: "Destack <notices@destack.app
 
 ### Signing
 
-`signRequest` signs an AWS request with Signature Version 4.
+`awsSigner` opens the Signature Version 4 signer of `@smithy/signature-v4` for an AWS service over WebCrypto (`@aws-crypto/sha256-browser`).
 
 ```ts
-import { signRequest } from "@destack/mail/aws";
+import { awsSigner } from "@destack/mail/aws";
 
-const signed = await signRequest(
-    { method: "POST", url, headers: { "content-type": "application/json" }, body },
-    { credentials, region: "eu-central-1", service: "ses", date: new Date() },
-);
-await fetch(url, { method: "POST", headers: signed.headers, body });
+const signer = awsSigner({
+    service: "ses",
+    region: "eu-central-1",
+    credentials: async () => credentials,
+});
+const signed = await signer.sign({
+    method: "POST",
+    protocol: "https:",
+    hostname,
+    path,
+    query: {},
+    headers,
+    body,
+});
+await fetch(url, { method: "POST", headers: signed.headers, body }); // authorization, x-amz-date, x-amz-security-token
 ```
 
 ## Errors

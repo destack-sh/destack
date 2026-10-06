@@ -1,7 +1,8 @@
 import { schema } from "@destack/schema";
 import type { Envelope, MimeMessage } from "../mime/index.ts";
 import { SesError, type SesErrorCode } from "./error.ts";
-import { signRequest, type AwsCredentials } from "./signature.ts";
+import { type AwsCredentials, awsSigner } from "./signature.ts";
+import type { SignatureV4 } from "@smithy/signature-v4";
 
 /** The SESv2 operation that sends one message. */
 const SEND_PATH = "/v2/email/outbound-emails";
@@ -65,6 +66,8 @@ export class SesClient {
     readonly endpoint: string;
     /** The options. */
     readonly #options: SesOptions;
+    /** The signer of SES requests in the region. */
+    readonly #signer: SignatureV4;
     /** The fetch function. */
     readonly #fetch: SesFetch;
 
@@ -79,6 +82,11 @@ export class SesClient {
         this.region = options.region;
         this.endpoint = `https://email.${options.region}.amazonaws.com`;
         this.#options = options;
+        this.#signer = awsSigner({
+            service: SERVICE,
+            region: options.region,
+            credentials: options.credentials,
+        });
         this.#fetch = options.fetch ?? fetch;
     }
 
@@ -95,15 +103,15 @@ export class SesClient {
 
         // sign the request with the current credentials
         const url = new URL(SEND_PATH, this.endpoint);
-        const signed = await signRequest(
-            { method: "POST", url, headers: { "content-type": "application/json" }, body },
-            {
-                credentials: await this.#options.credentials(),
-                region: this.region,
-                service: SERVICE,
-                date: new Date(),
-            },
-        );
+        const signed = await this.#signer.sign({
+            method: "POST",
+            protocol: url.protocol,
+            hostname: url.hostname,
+            path: url.pathname,
+            query: {},
+            headers: { "content-type": "application/json", host: url.host },
+            body,
+        });
 
         // post it, reading a network failure as retryable
         let response: Response;

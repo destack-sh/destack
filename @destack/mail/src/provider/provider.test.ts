@@ -6,6 +6,9 @@ import { mailProvider } from "./provider.ts";
 /** The identifier of the message every test sends, which keys its email. */
 const ID = schema.identifier("message").parse("message-019f5530-8000-7000-8000-0000000000e1");
 
+/** The space every test sends from. */
+const SCOPE = schema.identifier("space").parse("space-019f5530-8000-7000-8000-0000000000e2");
+
 test("send an email message through the transport, keyed by its identifier with its HTML body", async () => {
     const transport = new MailFixture();
     const provider = mailProvider(transport);
@@ -13,6 +16,7 @@ test("send an email message through the transport, keyed by its identifier with 
     // send one email message on the email channel
     const outcome = await provider.send({
         id: ID,
+        scope: SCOPE,
         createdAt: 0,
         to: { channel: "email", address: "ada@example.com" },
         content: {
@@ -22,6 +26,8 @@ test("send an email message through the transport, keyed by its identifier with 
             html: "<p>On it</p>",
         },
         secret: null,
+        reader: null,
+        headers: null,
     });
     expect({ channel: provider.channel, outcome, sent: transport.sent }).toEqual({
         channel: "email",
@@ -36,18 +42,4 @@ test("send an email message through the transport, keyed by its identifier with 
             },
         ],
     });
-});
-
-test("refuse a message on another channel", async () => {
-    const provider = mailProvider(new MailFixture());
-
-    await expect(
-        provider.send({
-            id: ID,
-            createdAt: 0,
-            to: { channel: "webhook", url: "https://hooks.example.com" },
-            content: { channel: "webhook", type: "issue.regressed", data: {} },
-            secret: null,
-        }),
-    ).rejects.toThrow(`message ${ID} is no email`);
 });

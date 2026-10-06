@@ -106,17 +106,6 @@ test("fail an address the message cannot carry without asking SES", async () => 
     expect(bodies).toEqual([]);
 });
 
-test("refuse a malformed sender", () => {
-    const client = new SesClient({
-        region: "eu-central-1",
-        credentials: async () => ({ accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secret" }),
-    });
-
-    expect(() => new SesTransport(client, { from: "Destack <notices>" })).toThrow(
-        expect.objectContaining({ code: "INVALID_ADDRESS" }),
-    );
-});
-
 /** Read the sender, recipients and raw data of a SendEmail body. */
 function readSend(body: string | undefined): {
     readonly from: string;

@@ -23,7 +23,9 @@
         "@types/bun": "1.4.2"
     },
     "dependencies": {
+        "@aws-crypto/sha256-browser": "5.2.0",
         "@destack/message": "workspace:*",
-        "@destack/schema": "workspace:*"
+        "@destack/schema": "workspace:*",
+        "@smithy/signature-v4": "5.7.4"
     }
 }

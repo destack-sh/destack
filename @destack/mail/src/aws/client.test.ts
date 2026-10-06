@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { MimeMessage, type Envelope } from "../mime/index.ts";
-import { SesError, SesClient, signRequest, type SesErrorCode, type SesFetch } from "./index.ts";
+import { awsSigner, SesError, SesClient, type SesErrorCode, type SesFetch } from "./index.ts";
 
 /** The credentials every client signs with. */
 const CREDENTIALS = {
@@ -100,23 +100,28 @@ test("post the raw message to the region's SESv2 endpoint, signed, and return th
         header(request.initialize, "x-amz-security-token"),
         /^\d{8}T\d{6}Z$/u.test(date),
     ]).toEqual(["email.eu-central-1.amazonaws.com", "application/json", "session-token", true]);
-    const expected = await signRequest(
+    const url = new URL(request.url);
+    const expected = await awsSigner({
+        service: "ses",
+        region: "eu-central-1",
+        credentials: async () => CREDENTIALS,
+    }).sign(
         {
             method: "POST",
-            url: new URL(request.url),
-            headers: { "content-type": "application/json" },
+            protocol: url.protocol,
+            hostname: url.hostname,
+            path: url.pathname,
+            query: {},
+            headers: { "content-type": "application/json", host: url.host },
             body,
         },
         {
-            credentials: CREDENTIALS,
-            region: "eu-central-1",
-            service: "ses",
-            date: new Date(
+            signingDate: new Date(
                 `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T${date.slice(9, 11)}:${date.slice(11, 13)}:${date.slice(13, 15)}Z`,
             ),
         },
     );
-    expect(header(request.initialize, "authorization")).toBe(expected.authorization);
+    expect(header(request.initialize, "authorization")).toBe(expected.headers["authorization"]);
 });
 
 test("leave the configuration set out when none is set, and ask the credentials on each send", async () => {
