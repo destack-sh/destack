@@ -24,6 +24,8 @@ export const WorkloadDefinition = defineSchema(
             capabilities: schema.array(CapabilityName).exactOptional(),
             /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
             placement: Placement.exactOptional(),
+            /** The permissions the workload requests by scope, as `@destack/access` reads a `PermissionRequest`. */
+            permissions: schema.record(schema.string(), schema.json()).exactOptional(),
         })
         .strict(),
 );
@@ -51,6 +53,8 @@ export const WorkloadDescription = defineSchema(
         capabilities: Capabilities,
         /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
         placement: Placement.exactOptional(),
+        /** The permissions the workload requests by scope, as `@destack/access` reads a `PermissionRequest`. */
+        permissions: schema.record(schema.string(), schema.json()),
     }),
 );
 /** A workload located in a compiled output with the declarations its code reaches. */

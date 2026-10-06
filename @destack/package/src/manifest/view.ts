@@ -33,46 +33,6 @@ export const ViewPresentation = defineSchema(
 /** An object type a view presents, as its declaration describes it. */
 export type ViewPresentation = schema.Infer<typeof ViewPresentation>;
 
-/** A permission a view requests on an object type. */
-export const ViewPermission = defineSchema(
-    schema
-        .object({
-            /** The package declaring the permission. */
-            packageId: PackageId,
-            /** The object type. */
-            type: schema.string().min(1),
-            /** The permission on that type. */
-            name: schema.string().min(1),
-        })
-        .strict(),
-);
-/** A permission a view requests on an object type. */
-export type ViewPermission = schema.Infer<typeof ViewPermission>;
-
-/** The scopes a view's permissions apply in, relative to its context. */
-const VIEW_SCOPES = ["space", "home", "account"] as const;
-
-/** A scope relative to a view's context, with a later fourth for objects the person picks, granted per object through a shell picker. */
-export const ViewScope = defineSchema(schema.enum(VIEW_SCOPES));
-/** A scope relative to a view's context: its space, the person's home, or the space's account. */
-export type ViewScope = schema.Infer<typeof ViewScope>;
-
-/** The permissions a view requests, by the scope they apply in. */
-export const ViewPermissions = defineSchema(
-    schema
-        .object({
-            /** The permissions in the space the view runs in. */
-            space: schema.array(ViewPermission).exactOptional(),
-            /** The permissions in the person's home. */
-            home: schema.array(ViewPermission).exactOptional(),
-            /** The permissions in the account of the view's space. */
-            account: schema.array(ViewPermission).exactOptional(),
-        })
-        .strict(),
-);
-/** The permissions a view requests, by the scope they apply in. */
-export type ViewPermissions = schema.Infer<typeof ViewPermissions>;
-
 /** A view a browser output compiles, as manifests describe it. */
 export const ViewDescription = Object.assign(
     defineSchema(
@@ -80,8 +40,8 @@ export const ViewDescription = Object.assign(
             .object({
                 /** The emitted chunk mounting the view. */
                 entrypoint: PackagePath,
-                /** The permissions the view requests, by the scope they apply in. */
-                permissions: ViewPermissions,
+                /** The permissions the view requests by scope, as `@destack/access` reads a `PermissionRequest`. */
+                permissions: schema.record(schema.string(), schema.json()),
                 /** The browser features the view may use, as its package declares them. */
                 capabilities: Capabilities,
                 /** The object types the view presents, so opening an object picks its view. */
@@ -92,28 +52,6 @@ export const ViewDescription = Object.assign(
             .strict(),
     ),
     {
-        /** Grant a view's permissions in the scopes they name, dropping those of a scope the view's context lacks. */
-        grants(
-            view: { readonly permissions: ViewPermissions },
-            scopes: {
-                readonly space: string;
-                readonly home: string | undefined;
-                readonly account: string | undefined;
-            },
-        ): (ViewPermission & { readonly scope: string })[] {
-            return ViewScope.options.flatMap((name) => {
-                // grant the scope's permissions where the context names the scope
-                const scope = scopes[name];
-
-                return scope === undefined
-                    ? []
-                    : (view.permissions[name] ?? []).map((permission) => ({
-                          ...permission,
-                          scope,
-                      }));
-            });
-        },
-
         /** List view names from the top-ranked: views presenting no type first, the rest by their strongest presentation and by name. */
         rank(views: Readonly<Record<string, Pick<ViewDescription, "presents">>>): string[] {
             return Object.entries(views)
