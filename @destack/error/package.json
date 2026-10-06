@@ -1,0 +1,17 @@
+{
+    "name": "@destack/error",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Name the service errors Destack's callers receive.",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*"
+    }
+}

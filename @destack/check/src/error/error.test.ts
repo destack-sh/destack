@@ -1,4 +1,4 @@
-import type { ServiceErrorReport } from "@destack/schema";
+import type { ServiceErrorReport } from "@destack/error";
 import { expect, test } from "@destack/test";
 import { CheckError, type CheckErrorCode } from "./error.ts";
 

@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each setting failure. */
 const SERVICE_CODES = {

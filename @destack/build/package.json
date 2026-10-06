@@ -36,7 +36,8 @@
         "@destack/bucket": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/sandbox": "workspace:*"
+        "@destack/sandbox": "workspace:*",
+        "@destack/error": "workspace:*"
     },
     "devDependencies": {
         "@destack/sync": "workspace:*",

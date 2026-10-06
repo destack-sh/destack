@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each sync failure: capacity, an unready copy, a bad stream or scope, a copy cycle. */
 const SERVICE_CODES = {

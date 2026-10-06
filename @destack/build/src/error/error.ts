@@ -1,11 +1,10 @@
+import { defineSchema, schema } from "@destack/schema";
 import {
-    defineSchema,
     type ReportableError,
-    schema,
     SERVICE_ERROR_STATUSES,
     type ServiceErrorCode,
     type ServiceErrorReport,
-} from "@destack/schema";
+} from "@destack/error";
 
 /** Failures during source inspection and compilation. */
 export const BuildErrorCode = defineSchema(schema.enum(["INSPECTION_FAILED", "BUILD_FAILED"]));

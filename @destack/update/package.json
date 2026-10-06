@@ -24,7 +24,8 @@
         "@destack/service": "workspace:*",
         "@tufjs/models": "5.0.0",
         "tar": "7.5.22",
-        "tuf-js": "6.0.0"
+        "tuf-js": "6.0.0",
+        "@destack/error": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

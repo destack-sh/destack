@@ -1,10 +1,11 @@
-import type { JsonValue } from "../json/index.ts";
+import type { JsonValue } from "@destack/schema";
 
 /** The HTTP status of each service error code (RFC 9110, 6585 and 8470), beside Destack's own codes. */
 export const SERVICE_ERROR_STATUSES = {
     BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
     INSUFFICIENT_AUTHENTICATION: 401,
+    QUOTA_EXCEEDED: 402,
     FORBIDDEN: 403,
     INSUFFICIENT_GRANT: 403,
     NOT_FOUND: 404,
@@ -26,7 +27,6 @@ export const SERVICE_ERROR_STATUSES = {
     NOT_IMPLEMENTED: 501,
     BAD_GATEWAY: 502,
     SERVICE_UNAVAILABLE: 503,
-    UNAVAILABLE: 503,
     GATEWAY_TIMEOUT: 504,
 } as const;
 

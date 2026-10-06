@@ -16,7 +16,8 @@
         "@destack/package": "workspace:*",
         "@destack/db": "workspace:*",
         "uuid": "14.0.2",
-        "@destack/sync": "workspace:*"
+        "@destack/sync": "workspace:*",
+        "@destack/error": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

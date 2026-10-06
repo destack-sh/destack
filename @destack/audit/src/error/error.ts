@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each audit failure. */
 const SERVICE_CODES = {
@@ -6,7 +6,7 @@ const SERVICE_CODES = {
     CONFLICT: "CONFLICT",
     FORBIDDEN: "FORBIDDEN",
     NOT_FOUND: "NOT_FOUND",
-    UNAVAILABLE: "UNAVAILABLE",
+    UNAVAILABLE: "SERVICE_UNAVAILABLE",
 } as const satisfies Readonly<Record<string, ServiceErrorCode>>;
 
 /** A failure code of audit history. */

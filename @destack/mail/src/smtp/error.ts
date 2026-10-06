@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 import type { Reply } from "./reply.ts";
 
 /** The service error code of each SMTP failure: a bad envelope, a refused message, the relay's, or the host's. */

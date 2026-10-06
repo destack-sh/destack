@@ -26,6 +26,7 @@
         "@aws-crypto/sha256-browser": "5.2.0",
         "@destack/message": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@smithy/signature-v4": "5.7.4"
+        "@smithy/signature-v4": "5.7.4",
+        "@destack/error": "workspace:*"
     }
 }

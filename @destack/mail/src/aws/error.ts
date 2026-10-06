@@ -1,16 +1,16 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each SES failure: a refused message, a throttle, SES's, or the host's. */
 const SERVICE_CODES = {
     INVALID_OPTIONS: "INTERNAL_SERVER_ERROR",
     CONNECTION: "BAD_GATEWAY",
     THROTTLED: "TOO_MANY_REQUESTS",
-    UNAVAILABLE: "UNAVAILABLE",
-    EXPIRED: "UNAVAILABLE",
+    UNAVAILABLE: "SERVICE_UNAVAILABLE",
+    EXPIRED: "SERVICE_UNAVAILABLE",
     UNAUTHORIZED: "INTERNAL_SERVER_ERROR",
     REJECTED: "UNPROCESSABLE_CONTENT",
     UNVERIFIED: "UNPROCESSABLE_CONTENT",
-    SUSPENDED: "UNAVAILABLE",
+    SUSPENDED: "SERVICE_UNAVAILABLE",
     INVALID_REQUEST: "BAD_REQUEST",
     INVALID_RESPONSE: "BAD_GATEWAY",
 } as const satisfies Readonly<Record<string, ServiceErrorCode>>;

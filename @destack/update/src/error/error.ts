@@ -1,9 +1,9 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/schema";
+import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each update failure: a busy or closed updater, a bad release, or the host's. */
 const SERVICE_CODES = {
     BUSY: "CONFLICT",
-    CLOSED: "UNAVAILABLE",
+    CLOSED: "SERVICE_UNAVAILABLE",
     RELEASE: "BAD_GATEWAY",
     REPOSITORY: "BAD_GATEWAY",
     DOWNLOAD: "BAD_GATEWAY",
