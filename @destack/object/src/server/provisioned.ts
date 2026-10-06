@@ -18,6 +18,7 @@ import {
     type ObjectController,
     type ObjectReconciliation,
 } from "../object/controller.ts";
+import type { Condition } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ProvisionedObject, type ProvisionedRecord } from "../trait/provisioned.ts";
@@ -34,16 +35,6 @@ export interface ProvisionedOptions {
     >[];
     /** The machine keeping the resources its providers provision, absent for a region. */
     readonly machine: Identifier<"machine"> | null;
-}
-
-/** A condition a reconciliation observes: its status, reason and message. */
-interface Observed {
-    /** Whether the condition holds. */
-    readonly status: "true" | "false";
-    /** The machine-readable explanation. */
-    readonly reason: string;
-    /** The human-readable explanation. */
-    readonly message: string;
 }
 
 /** The control loop of one kind's provisioned objects: it provisions, observes, plans, applies with approval and retires them through the providers a process holds. */
@@ -500,7 +491,7 @@ async function observe(
     row: ProvisionedRecord,
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
     fields: Partial<Record<keyof ProvisionedRecord, unknown>>,
-    conditions: Readonly<Record<string, Observed>>,
+    conditions: Readonly<Record<string, Condition>>,
 ): Promise<ProvisionedRecord> {
     // skip an observation the row has
     const columns: Readonly<Record<string, unknown>> = row;
@@ -534,7 +525,7 @@ async function observe(
 }
 
 /** Describe a condition that does not hold. */
-function unready(reason: string, message: string): Observed {
+function unready(reason: string, message: string): Condition {
     return { status: "false", reason, message };
 }
 

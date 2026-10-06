@@ -18,6 +18,13 @@ export const StatusCondition = defineSchema(
 /** A controller's observation of a record. */
 export type StatusCondition = schema.Infer<typeof StatusCondition>;
 
+/** A condition a controller decides: whether it holds, and why, before its record stamps the generation and transition time. */
+export const Condition = defineSchema(
+    StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true }),
+);
+/** A condition a controller decides. */
+export type Condition = schema.Infer<typeof Condition>;
+
 /** Status conditions keyed by their unique domain-specific names. */
 export const ConditionMap = defineSchema(schema.record(schema.string().min(1), StatusCondition));
 
@@ -27,10 +34,7 @@ export const Observation = defineSchema(
         /** The desired generation the controller evaluated. */
         observedGeneration: schema.number().int().min(0),
         /** The conditions by name, their transition times kept while their status stays. */
-        conditions: schema.record(
-            schema.string().min(1),
-            StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true }),
-        ),
+        conditions: schema.record(schema.string().min(1), Condition),
         /** The observed fields the controller writes. */
         fields: schema.record(schema.string(), schema.json()).exactOptional(),
     }),
