@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each composition failure: every one is the caller's. */
 const SERVICE_CODES = {
@@ -12,7 +12,7 @@ const SERVICE_CODES = {
 export type MimeErrorCode = keyof typeof SERVICE_CODES;
 
 /** A message composition failure with a stable code. */
-export class MimeError extends Error implements ReportableError {
+export class MimeError extends Error implements DomainError {
     /** The failure code. */
     readonly code: MimeErrorCode;
 

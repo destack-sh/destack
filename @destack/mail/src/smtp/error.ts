@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 import type { Reply } from "./reply.ts";
 
 /** The service error code of each SMTP failure: a bad envelope, a refused message, the relay's, or the host's. */
@@ -17,7 +17,7 @@ const SERVICE_CODES = {
 export type SmtpErrorCode = keyof typeof SERVICE_CODES;
 
 /** An SMTP failure with a stable code. */
-export class SmtpError extends Error implements ReportableError {
+export class SmtpError extends Error implements DomainError {
     /** The failure code. */
     readonly code: SmtpErrorCode;
     /** The server's reply that rejected the session, present for REJECTED only. */

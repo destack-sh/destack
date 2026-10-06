@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each SES failure: a refused message, a throttle, SES's, or the host's. */
 const SERVICE_CODES = {
@@ -27,7 +27,7 @@ const RETRYABLE: ReadonlySet<SesErrorCode> = new Set([
 ]);
 
 /** A failure sending mail through SES, with a stable code and the AWS error code. */
-export class SesError extends Error implements ReportableError {
+export class SesError extends Error implements DomainError {
     /** The failure code. */
     readonly code: SesErrorCode;
     /** The AWS error code, such as MessageRejected, absent for failures SES did not answer. */
