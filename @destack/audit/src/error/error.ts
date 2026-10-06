@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each audit failure. */
 const SERVICE_CODES = {
@@ -13,7 +13,7 @@ const SERVICE_CODES = {
 export type AuditErrorCode = keyof typeof SERVICE_CODES;
 
 /** An audit failure. */
-export class AuditError extends Error implements ReportableError {
+export class AuditError extends Error implements DomainError {
     /** The error classification. */
     readonly code: AuditErrorCode;
 
