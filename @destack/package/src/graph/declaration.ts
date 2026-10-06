@@ -22,10 +22,15 @@ export const Declaration = Object.assign(
             vocabulary: schema.record(schema.string(), Digest).exactOptional(),
         }),
     ),
-    { isMember },
+    { at, isMember },
 );
 /** A Destack entity a module declares. */
 export type Declaration = schema.Infer<typeof Declaration>;
+
+/** Declare a symbol as a kind: the declaration's moniker is its symbol's with the kind. */
+function at(symbol: Moniker, declared: Omit<Declaration, "moniker" | "symbol">): Declaration {
+    return { moniker: Moniker.parse(`${symbol}:${declared.kind}`), symbol, ...declared };
+}
 
 /** Report whether a declaration is a member another declaration derives, such as a service's procedure. */
 function isMember(declaration: Pick<Declaration, "moniker" | "symbol" | "kind">): boolean {

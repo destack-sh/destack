@@ -141,15 +141,13 @@ function describe(declaration: DeclarationDescription): graph.Declaration {
         name: declaration.symbol.symbol.name,
     };
 
-    return {
-        moniker: graph.Moniker.of({ ...location, kind: declaration.kind }),
-        symbol: graph.Moniker.of(location),
+    return graph.Declaration.at(graph.Moniker.of(location), {
         kind: declaration.kind,
         package: declaration.package.id,
         name: declaration.name,
         description: declaration.description,
         ...(declaration.vocabulary === undefined ? {} : { vocabulary: declaration.vocabulary }),
-    };
+    });
 }
 
 /** Describe a member a declaration's symbols derive, as a member of its symbol. */
