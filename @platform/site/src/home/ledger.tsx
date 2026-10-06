@@ -101,7 +101,7 @@ export function Ledger(properties: {
             onPointerLeave={() => properties.lighting?.onLight(undefined)}
             {...stylex.attrs(
                 styles.row,
-                properties.columns === 1 && styles.rowSingle,
+                properties.columns === 1 && index > 0 && styles.rowRuled,
                 properties.onToggle !== undefined && styles.rowPressable,
                 properties.lighting?.lit === index + 1 && styles.rowLit,
             )}
@@ -177,10 +177,15 @@ const styles = stylex.create({
     rowsSingle: {
         gridTemplateColumns: "minmax(0, 1fr)",
     },
-    rowSingle: {
-        alignItems: "baseline",
-        columnGap: "1rem",
-        gridTemplateColumns: "8rem minmax(0, 1fr)",
+    rowRuled: {
+        "::before": {
+            backgroundColor: tokens.rule,
+            content: "''",
+            height: tokens.hairline,
+            insetInline: "0.75rem",
+            position: "absolute",
+            top: 0,
+        },
     },
     row: {
         alignContent: "center",
@@ -191,6 +196,7 @@ const styles = stylex.create({
         minWidth: 0,
         paddingBlock: "0.625rem",
         paddingInline: "0.75rem",
+        position: "relative",
         rowGap: "0.3125rem",
         transition: "background-color 250ms ease",
     },
