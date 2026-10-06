@@ -65,7 +65,6 @@ export type Provider<
     Table = never,
     Row extends object = never,
     Controller = never,
-    Store = never,
 > = {
     /** The resource kind managed. */
     readonly kind: Kind;
@@ -84,7 +83,7 @@ export type Provider<
     /** Refuse writes into the resources' content while a transfer copies it. */
     readonly fence?: Fence<Kind>;
     /** Copy the resources' content at a point in time into a content-addressed store, and restore such a copy. */
-    readonly snapshot?: Snapshotter<Kind, Store>;
+    readonly snapshot?: Snapshotter<Kind>;
     /** The controllers the host runs beside the provider, such as a sweep of its resources' content. */
     readonly controllers?: readonly Controller[];
 } & (Kind["state"] extends schema.Schema
@@ -119,13 +118,25 @@ export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unkno
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
 }
 
+/** A content-addressed store keeping parts, such as snapshots' pages, each under the SHA-256 digest of its bytes. */
+export interface ContentStore {
+    /** Read a part's bytes. */
+    read(digest: Digest): AsyncIterable<Uint8Array>;
+    /** Keep bytes under their digest and return it, refusing bytes whose digest differs from the expected one. */
+    write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest>;
+    /** Keep the parts the store lacks among some digests, read from another store. */
+    fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void>;
+    /** Delete the parts outside a retained set last used before a moment, as a garbage collector with a grace period sweeps. */
+    sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void>;
+}
+
 /** Copy a resource's content at a point in time into a content-addressed store and restore such a copy into another resource of the kind, as a storage driver takes volume snapshots. */
-export interface Snapshotter<Kind extends ResourceKind = ResourceKind, Store = unknown> {
+export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
     /** Copy the resource's content into the store, wrapping its host-bound values for a recipient when given, and answer the digest naming the copy. */
     snapshot(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
-        store: Store,
+        store: ContentStore,
         recipient?: Recipient,
     ): Promise<Digest>;
     /** Restore the copy a digest names into a provisioned resource, unwrapping values wrapped for this host's recipient when given, onto the base copy it holds already when given. */
@@ -133,7 +144,7 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind, Store = u
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
         digest: Digest,
-        store: Store,
+        store: ContentStore,
         recipient?: Recipient,
         base?: Digest,
     ): Promise<void>;
