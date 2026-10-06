@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readOutputs } from "./build.ts";
 
-test("read one module per runtime each export declares", async () => {
+test("read one module per runtime the shipped exports compile for", async () => {
     // declare packages with every runtime, with runtimes per export, with a test layer and without runtimes
     const directory = await mkdtemp(join(tmpdir(), "destack-outputs-"));
     const read = async (exports: object, definition: object) => {

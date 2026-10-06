@@ -4,9 +4,11 @@ import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
 import { DeclarationConstructorMap, FunctionReference, StampMap } from "./constructor.ts";
-import { Publication } from "./publication.ts";
 import { Capabilities } from "./capability.ts";
 import { PackageError } from "../error/index.ts";
+
+/** The export of a package's test layer, which serves its dependents' tests and never ships in a build. */
+export const TEST_EXPORT = "./test";
 
 /** A finding the package accepts in named files with its reason, failing the check once nothing matches it. */
 export const Expectation = defineSchema(
@@ -64,8 +66,6 @@ const definition = defineSchema(
         stamps: StampMap.exactOptional(),
         /** The extension building the packages that use this one, such as `./build#viewExtension`. */
         build: FunctionReference.exactOptional(),
-        /** How the registry publishes the package. */
-        publication: Publication.schema.exactOptional(),
         /** How checking treats the package: the findings it accepts. */
         check: CheckSettings.exactOptional(),
         /** The settings of the workspace this package's directory roots. */

@@ -1,17 +1,16 @@
 import { createHash } from "node:crypto";
 import { Tarball, type TarballEntry } from "@destack/package/archive";
-import {
-    type DependencyRelease,
-    PackageDefinition,
-    Publication,
-    type PackageId,
-} from "@destack/package";
+import { type DependencyRelease, PackageDefinition, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
+import type { Runtime } from "@destack/package/runtime";
 import type { PackageDistribution, PackageManifest } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { valid } from "semver";
 import type { Distribution, PackageMetadata } from "../object/index.ts";
+
+/** The runtimes in the order their export conditions load, `default` loading the last one emitted. */
+const CONDITION_ORDER = ["browser", "workerd", "bun"] as const satisfies readonly Runtime[];
 
 /** The source metadata the generated installation declaration keeps. */
 const Source = schema
@@ -229,7 +228,7 @@ export class PackageArchive {
         return contents;
     }
 
-    /** Describe the npm exports and exact dependencies the build's publication loads. */
+    /** Describe the npm exports and exact dependencies of the outputs the build's export conditions load. */
     static #describe(
         manifest: PackageManifest,
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
@@ -241,7 +240,7 @@ export class PackageArchive {
     } {
         // read the declarations matching the manifest
         const source = PackageArchive.#source(manifest, files);
-        const publication = PackageArchive.#publication(manifest, files);
+        const conditions = PackageArchive.#conditions(manifest);
 
         // declare the source exports' TypeScript and each loaded output's exports and dependencies
         const metadata = PackageArchive.#metadata(source, commit);
@@ -250,14 +249,14 @@ export class PackageArchive {
             metadata,
             source,
             manifest,
-            publication,
+            conditions,
             paths,
         );
 
         return { metadata, dependencies };
     }
 
-    /** Read the build's package.json, requiring the manifest's name and version and no executables. */
+    /** Read the build's package.json, requiring the manifest's name, version and package id and no executables. */
     static #source(
         manifest: PackageManifest,
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
@@ -268,6 +267,16 @@ export class PackageArchive {
             throw new ServiceError("BAD_REQUEST", { message: "build has no package.json" });
         }
         const source = Source.parse(JSON.parse(DECODER.decode(bytes)));
+
+        // require the manifest's package id in destack.json
+        const declaration = files.get("destack.json");
+        if (!declaration) {
+            throw new ServiceError("BAD_REQUEST", { message: "build has no destack.json" });
+        } else if (PackageDefinition.read(DECODER.decode(declaration)).id !== manifest.package.id) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: "package ID does not match its source declaration",
+            });
+        }
 
         // require the declared npm name and the manifest's release version
         if (source.name !== manifest.package.name || source.version !== manifest.package.version) {
@@ -285,32 +294,26 @@ export class PackageArchive {
         return source;
     }
 
-    /** Read the publication of the build's destack.json, requiring the manifest's package id. */
-    static #publication(
-        manifest: PackageManifest,
-        files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
-    ): Publication {
-        // parse the definition and match its identity to the manifest
-        const declaration = files.get("destack.json");
-        if (!declaration) {
-            throw new ServiceError("BAD_REQUEST", { message: "build has no destack.json" });
-        }
-        const definition = PackageDefinition.read(DECODER.decode(declaration));
-        if (definition.id !== manifest.package.id) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: "package ID does not match its source declaration",
-            });
+    /** Map each npm export condition to the emitted output it loads: browser and workerd their own, `default` the last of browser, workerd and bun, which unknown consumers such as Node load. */
+    static #conditions(manifest: PackageManifest): ReadonlyMap<string, Runtime> {
+        // order the emitted outputs named after their runtimes
+        const emitted = new Set(
+            Object.entries(manifest.outputs).flatMap(([name, output]) =>
+                output.emit && name === output.runtime ? [output.runtime] : [],
+            ),
+        );
+        const ordered = CONDITION_ORDER.filter((runtime) => emitted.has(runtime));
+        const fallback = ordered.at(-1);
+        if (fallback === undefined) {
+            throw new ServiceError("BAD_REQUEST", { message: "build emits no runtime output" });
         }
 
-        // require a valid publication
-        if (definition.publication === undefined) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: "destack.json declares no publication",
-            });
-        }
-        Publication.require(definition.publication);
+        // give each runtime its own condition but the default's
+        const conditions = new Map<string, Runtime>(
+            ordered.filter((runtime) => runtime !== fallback).map((runtime) => [runtime, runtime]),
+        );
 
-        return definition.publication;
+        return conditions.set("default", fallback);
     }
 
     /** Start the npm declaration from the source's descriptive fields and peers, with no exports or dependencies yet. */
@@ -381,13 +384,13 @@ export class PackageArchive {
         metadata: PackageMetadata,
         source: Source,
         manifest: PackageManifest,
-        publication: Publication,
+        conditions: ReadonlyMap<string, Runtime>,
         paths: ReadonlySet<string>,
     ): { readonly name: string; readonly version: string }[] {
         // collect the required releases and each dependency's resolution across outputs
         const required: { readonly name: string; readonly version: string }[] = [];
         const resolutions = new Map<string, string>();
-        for (const [condition, outputName] of Object.entries(publication.conditions)) {
+        for (const [condition, outputName] of conditions) {
             // require the condition's output to be built and emitted
             const output = manifest.outputs[outputName];
             if (!output) {

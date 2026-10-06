@@ -542,51 +542,6 @@
                     "type": "string",
                     "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
                 },
-                "publication": {
-                    "type": "object",
-                    "properties": {
-                        "outputs": {
-                            "type": "object",
-                            "propertyNames": {
-                                "type": "string",
-                                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
-                            },
-                            "additionalProperties": {
-                                "type": "object",
-                                "properties": {
-                                    "runtime": {
-                                        "type": "string",
-                                        "enum": [
-                                            "browser",
-                                            "bun",
-                                            "workerd"
-                                        ]
-                                    }
-                                },
-                                "required": [
-                                    "runtime"
-                                ],
-                                "additionalProperties": false
-                            }
-                        },
-                        "conditions": {
-                            "type": "object",
-                            "propertyNames": {
-                                "type": "string",
-                                "pattern": "^[a-z][a-z0-9_-]*$(?![\\s\\S])"
-                            },
-                            "additionalProperties": {
-                                "type": "string",
-                                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
-                            }
-                        }
-                    },
-                    "required": [
-                        "outputs",
-                        "conditions"
-                    ],
-                    "additionalProperties": false
-                },
                 "check": {
                     "type": "object",
                     "properties": {
