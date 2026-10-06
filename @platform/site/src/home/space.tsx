@@ -277,7 +277,6 @@ export function SpaceBrowser(properties: {
             <Fade
                 isOpen={isOpen()}
                 style={styles.viewport}
-                turn={properties.page.row}
                 isLarge
                 component={isOpen() ? "SitePage" : "RentedPage"}
             >
@@ -724,7 +723,7 @@ const styles = stylex.create({
         justifyContent: "flex-start",
         maxWidth: "12rem",
         transition:
-            "flex-grow 240ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease",
+            "flex-grow 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease",
         "@media (prefers-reduced-motion: reduce)": { transition: "none" },
     },
     tabOn: {

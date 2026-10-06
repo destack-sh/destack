@@ -19,10 +19,10 @@ const narrow = "@media (max-width: 1099px)";
 const stepTime = 110;
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
-const settleIn = 140;
+const settleIn = 80;
 
 /** The milliseconds after the pointer leaves before the browser turns back. */
-const settleOut = 400;
+const settleOut = 300;
 
 /** The milliseconds each page of your corner holds before the browser turns to the next. */
 const pageTime = 5200;
