@@ -1,35 +1,10 @@
-import type { LocaleTag } from "@destack/locale";
-
-/** The scripts written right to left, after CLDR's character order data. */
-const RIGHT_TO_LEFT_SCRIPTS = new Set([
-    "Adlm",
-    "Arab",
-    "Hebr",
-    "Mand",
-    "Mend",
-    "Nkoo",
-    "Rohg",
-    "Samr",
-    "Syrc",
-    "Thaa",
-    "Yezi",
-]);
-
-/** The direction a locale writes its text in. */
-export type Direction = "ltr" | "rtl";
+import type { Direction } from "@destack/locale";
 
 /** The arrow keys that move focus through a list: left and right, up and down, or all four. */
 export type Orientation = "horizontal" | "vertical" | "both";
 
 /** The step each key moves focus by within a list, or the end it moves focus to. */
 type Move = "next" | "previous" | "first" | "last";
-
-/** Read the direction a locale writes in from the script it most likely uses. */
-export function directionOf(tag: LocaleTag): Direction {
-    const script = new Intl.Locale(tag).maximize().script;
-
-    return script !== undefined && RIGHT_TO_LEFT_SCRIPTS.has(script) ? "rtl" : "ltr";
-}
 
 /** Read the move a key asks for in a list of an orientation and direction, if any. */
 function moveOf(key: string, orientation: Orientation, direction: Direction): Move | undefined {

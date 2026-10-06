@@ -14,7 +14,6 @@ import {
     type Accessor,
     type Setter,
 } from "solid-js";
-import { directionOf } from "../focus/index.ts";
 
 /** The share a keyboard step moves a handle by, in percent of the group. */
 const KEYBOARD_STEP = 10;
@@ -39,6 +38,9 @@ const styles = style.create({
         flexBasis: 0,
         flexShrink: 1,
     },
+    share: (share: number) => ({
+        flexGrow: share,
+    }),
     handle: {
         position: "relative",
         display: "flex",
@@ -249,8 +251,7 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
             id={panel.id}
             data-slot="resizable-panel"
             {...rest}
-            {...style.attrs(styles.panel, properties.style)}
-            style={{ "flex-grow": String(control.sizeOf(panel)) }}
+            {...style.attrs(styles.panel, styles.share(control.sizeOf(panel)), properties.style)}
         />
     );
 }
@@ -278,7 +279,7 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
             {...rest}
             onKeyDown={(event) => {
                 // move by a step, or to the panel's limits on Home and End
-                const delta = keyDelta(event.key, control, before(), directionOf(locale.tag));
+                const delta = keyDelta(event.key, control, before(), locale.direction);
                 if (delta !== undefined) {
                     event.preventDefault();
                     control.move(handle, delta);

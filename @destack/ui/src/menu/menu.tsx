@@ -18,7 +18,8 @@ import {
     type Accessor,
     type Setter,
 } from "solid-js";
-import { directionOf, isTypeaheadKey, itemsOf, moveFocus, type Direction } from "../focus/index.ts";
+import { isTypeaheadKey, itemsOf, moveFocus } from "../focus/index.ts";
+import type { Direction } from "@destack/locale";
 import { placementStyle, type PopoverAlign, type PopoverSide } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
@@ -150,6 +151,8 @@ export class MenuControl {
     #content: HTMLElement | undefined;
     /** The item to focus once the menu shows. */
     #focus: MenuFocus;
+    /** Whether the trigger takes the focus back once the menu hides. */
+    #isReturningFocus: boolean;
     /** The properties of a top menu's root, read for its controlled state and change handler. */
     readonly #properties: MenuRootProperties;
     /** The open submenus. */
@@ -174,6 +177,7 @@ export class MenuControl {
         this.#trigger = undefined;
         this.#content = undefined;
         this.#focus = "first";
+        this.#isReturningFocus = false;
         this.#children = new Set();
         this.#setOpen = setOpen;
         this.#setPoint = setPoint;
@@ -208,7 +212,11 @@ export class MenuControl {
             this.#focusItem(content);
         } else {
             content.hidePopover();
+            if (this.#isReturningFocus) {
+                this.#trigger?.focus();
+            }
         }
+        this.#isReturningFocus = false;
     }
 
     /** Focus the item a newly shown menu asks for, or the menu itself when it has no items. */
@@ -233,19 +241,17 @@ export class MenuControl {
         }
     }
 
-    /** Close the menu and its submenus, returning the focus to its trigger when asked. */
+    /** Close the menu and its submenus, returning the focus to its trigger once it hides when asked. */
     close(isReturningFocus: boolean): void {
         // close the submenus first
         this.closeSubmenus();
 
-        // close the menu and return the focus
+        // close the menu
+        this.#isReturningFocus = isReturningFocus;
         this.#setOpen(false);
         this.#properties.onOpenChange?.(false);
         if (this.parent !== null) {
             this.parent.#children.delete(this);
-        }
-        if (isReturningFocus) {
-            this.#trigger?.focus();
         }
     }
 
@@ -406,7 +412,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                 {...rest}
                 ref={(element) => control.setContent(element)}
                 onToggle={(event) => control.follow(event)}
-                onKeyDown={(event) => navigate(event, control, directionOf(locale.tag))}
+                onKeyDown={(event) => navigate(event, control, locale.direction)}
                 {...style.attrs(
                     text.footnote,
                     styles.content,
@@ -638,7 +644,7 @@ export function MenuSubTrigger(
     const opens = (key: string): boolean =>
         key === "Enter" ||
         key === " " ||
-        key === (directionOf(locale.tag) === "rtl" ? "ArrowLeft" : "ArrowRight");
+        key === (locale.direction === "rtl" ? "ArrowLeft" : "ArrowRight");
 
     return (
         <div
@@ -679,7 +685,7 @@ export function MenuSubTrigger(
         >
             {properties.children}
             <span {...style.attrs(styles.chevron)}>
-                <Icon icon={directionOf(locale.tag) === "rtl" ? caretLeft : caretRight} />
+                <Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />
             </span>
         </div>
     );

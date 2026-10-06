@@ -15,12 +15,12 @@ import {
     merge,
     omit,
     onCleanup,
+    untrack,
     useContext,
     type Accessor,
     type Setter,
 } from "solid-js";
 import { Button, type ButtonProperties } from "../button/index.ts";
-import { directionOf } from "../focus/index.ts";
 
 /** The orientation of a carousel that sets none. */
 const DEFAULTS: Required<Pick<CarouselProperties, "orientation">> = { orientation: "horizontal" };
@@ -149,7 +149,7 @@ export class CarouselControl {
     /** Count a slide until it unmounts, returning its index. */
     register(): number {
         // take the next index and count the slide until it unmounts
-        const index = this.count();
+        const index = untrack(this.count);
         this.#setCount((count) => count + 1);
         onCleanup(() => this.#setCount((count) => count - 1));
 
@@ -257,7 +257,7 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
                 {...rest}
                 onKeyDown={(event) => {
                     // move to the previous or next slide along the reading direction
-                    const step = stepOf(event.key, carousel.orientation, directionOf(locale.tag));
+                    const step = stepOf(event.key, carousel.orientation, locale.direction);
                     if (step !== 0) {
                         event.preventDefault();
                         control.go(control.index() + step);
@@ -320,7 +320,7 @@ export function CarouselPrevious(
     const locale = useLocale();
     const rest = omit(properties, "style");
     const isVertical = (): boolean => control.orientation() === "vertical";
-    const isRightToLeft = (): boolean => directionOf(locale.tag) === "rtl";
+    const isRightToLeft = (): boolean => locale.direction === "rtl";
 
     return (
         <Button
@@ -347,7 +347,7 @@ export function CarouselNext(
     const locale = useLocale();
     const rest = omit(properties, "style");
     const isVertical = (): boolean => control.orientation() === "vertical";
-    const isRightToLeft = (): boolean => directionOf(locale.tag) === "rtl";
+    const isRightToLeft = (): boolean => locale.direction === "rtl";
 
     return (
         <Button

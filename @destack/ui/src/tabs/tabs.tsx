@@ -23,7 +23,7 @@ import {
     type Accessor,
     type Setter,
 } from "solid-js";
-import { directionOf, itemsOf, moveFocus, type Orientation } from "../focus/index.ts";
+import { itemsOf, moveFocus, type Orientation } from "../focus/index.ts";
 
 /** The orientation and activation of tabs that set neither. */
 const DEFAULTS: Required<Pick<TabsProperties, "orientation" | "activationMode">> = {
@@ -248,12 +248,7 @@ export function TabsList(
     const move = (event: KeyboardEvent & { readonly currentTarget: HTMLDivElement }) => {
         // move among the list's tabs
         const tabs = itemsOf(event.currentTarget, "[role=tab]");
-        const target = moveFocus(
-            event,
-            tabs,
-            control.properties.orientation,
-            directionOf(locale.tag),
-        );
+        const target = moveFocus(event, tabs, control.properties.orientation, locale.direction);
         const value = target?.dataset["value"];
         if (value !== undefined && control.properties.activationMode === "automatic") {
             control.select(value);

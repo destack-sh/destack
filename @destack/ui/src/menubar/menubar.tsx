@@ -21,7 +21,8 @@ import {
     type Accessor,
     type Setter,
 } from "solid-js";
-import { directionOf, itemsOf, moveFocus, type Direction } from "../focus/index.ts";
+import { itemsOf, moveFocus } from "../focus/index.ts";
+import type { Direction } from "@destack/locale";
 import {
     Menu,
     MenuCheckboxItem,
@@ -184,7 +185,7 @@ export function Menubar(properties: MenuElementProperties<HTMLDivElement>): JSX.
                             event,
                             itemsOf(event.currentTarget, TRIGGER),
                             "horizontal",
-                            directionOf(locale.tag),
+                            locale.direction,
                         );
                     }
                 }}

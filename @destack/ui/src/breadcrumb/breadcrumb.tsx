@@ -8,7 +8,6 @@ import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import type { JSX } from "@solidjs/web";
 import { omit, Show } from "solid-js";
-import { directionOf } from "../focus/index.ts";
 
 /** The styles of a breadcrumb and its elements. */
 const styles = style.create({
@@ -150,9 +149,7 @@ export function BreadcrumbSeparator(
         >
             <Show
                 when={"children" in properties}
-                fallback={
-                    <Icon icon={directionOf(locale.tag) === "rtl" ? caretLeft : caretRight} />
-                }
+                fallback={<Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />}
             >
                 {properties.children}
             </Show>

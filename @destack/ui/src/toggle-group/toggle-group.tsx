@@ -12,7 +12,7 @@ import {
     type Accessor,
     type Setter,
 } from "solid-js";
-import { directionOf, itemsOf, moveFocus, type Orientation } from "../focus/index.ts";
+import { itemsOf, moveFocus, type Orientation } from "../focus/index.ts";
 import { toggleStyle, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
 
 /** The orientation of a toggle group that sets none. */
@@ -203,7 +203,7 @@ export function ToggleGroup(properties: ToggleGroupProperties): JSX.Element {
                         event,
                         itemsOf(event.currentTarget, "[data-slot=toggle-group-item]"),
                         group.orientation,
-                        directionOf(locale.tag),
+                        locale.direction,
                     )
                 }
                 {...style.attrs(orientations[group.orientation], properties.style)}

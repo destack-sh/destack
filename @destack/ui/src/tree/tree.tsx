@@ -9,6 +9,7 @@ import type { JSX } from "@solidjs/web";
 import {
     createContext,
     createSignal,
+    createUniqueId,
     omit,
     onCleanup,
     Show,
@@ -16,7 +17,8 @@ import {
     type Accessor,
     type Setter,
 } from "solid-js";
-import { directionOf, isTypeaheadKey, type Direction } from "../focus/index.ts";
+import { isTypeaheadKey } from "../focus/index.ts";
+import type { Direction } from "@destack/locale";
 
 /** The selector of a tree's items. */
 const ITEM = "[role=treeitem]";
@@ -250,7 +252,7 @@ export function Tree(properties: TreeProperties): JSX.Element {
                 role="tree"
                 data-slot="tree"
                 {...rest}
-                onKeyDown={(event) => navigate(event, directionOf(locale.tag))}
+                onKeyDown={(event) => navigate(event, locale.direction)}
                 {...style.attrs(text.footnote, styles.tree, properties.style)}
             />
         </TreeContext>
@@ -270,9 +272,13 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
     const isSelected = (): boolean => control.value() === properties.value;
     control.register(properties.value, { parent, isExpanded });
 
+    // name the item by its own row
+    const rowId = createUniqueId();
+
     return (
         <li
             role="treeitem"
+            aria-labelledby={rowId}
             aria-level={level}
             aria-expanded={isParent() ? (isExpanded() ? "true" : "false") : undefined}
             aria-selected={isSelected() ? "true" : "false"}
@@ -294,12 +300,13 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
             onKeyDown={(event) => {
                 // expand and collapse with the arrow keys along the reading direction
                 if (event.target === event.currentTarget && isParent()) {
-                    expandOrCollapse(event, isExpanded(), setExpanded, directionOf(locale.tag));
+                    expandOrCollapse(event, isExpanded(), setExpanded, locale.direction);
                 }
             }}
             {...style.attrs(styles.item)}
         >
             <TreeItemRow
+                id={rowId}
                 level={level}
                 isParent={isParent()}
                 isExpanded={isExpanded()}
@@ -343,6 +350,7 @@ function TreeGroup(properties: {
 
 /** Render an item's row: indented by its level, with a chevron that turns as a parent expands. */
 function TreeItemRow(properties: {
+    readonly id: string;
     readonly level: number;
     readonly isParent: boolean;
     readonly isExpanded: boolean;
@@ -353,11 +361,12 @@ function TreeItemRow(properties: {
 }): JSX.Element {
     // turn the chevron along the reading direction
     const locale = useLocale();
-    const isRightToLeft = (): boolean => directionOf(locale.tag) === "rtl";
+    const isRightToLeft = (): boolean => locale.direction === "rtl";
     const turned = () => (isRightToLeft() ? styles.expandedBack : styles.expanded);
 
     return (
         <div
+            id={properties.id}
             data-slot="tree-item-row"
             {...style.attrs(
                 styles.row,

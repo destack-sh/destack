@@ -9,7 +9,7 @@ import { text } from "@destack/theme/text";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createUniqueId, For, omit } from "solid-js";
 import { buttonStyle } from "../button/index.ts";
-import { directionOf, type Direction } from "../focus/index.ts";
+import type { Direction } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
 import { Day } from "./day.ts";
 import {
@@ -154,7 +154,7 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
             <CalendarHeader
                 captionId={captionId}
                 month={month()}
-                direction={directionOf(locale.tag)}
+                direction={locale.direction}
                 onMove={(months) => setFocused(Day.addMonths(focused(), months))}
             />
             <CalendarGrid
@@ -219,7 +219,7 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
             aria-labelledby={properties.captionId}
             onKeyDown={(event) => {
                 // move the focused day with the arrow keys, Home, End, Page Up and Page Down
-                const next = moveOf(event, properties, directionOf(locale.tag));
+                const next = moveOf(event, properties, locale.direction);
                 if (next !== undefined) {
                     event.preventDefault();
                     grid = event.currentTarget;

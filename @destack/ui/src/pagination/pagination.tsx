@@ -8,7 +8,6 @@ import { useLocale } from "@destack/locale/solid";
 import type { JSX } from "@solidjs/web";
 import { omit } from "solid-js";
 import { buttonStyle, type ButtonSize } from "../button/index.ts";
-import { directionOf } from "../focus/index.ts";
 
 /** The styles of a pagination and its elements. */
 const styles = style.create({
@@ -138,7 +137,7 @@ export function PaginationPrevious(
             {...rest}
             style={[styles.step, properties.style]}
         >
-            <Icon icon={directionOf(locale.tag) === "rtl" ? caretRight : caretLeft} />
+            <Icon icon={locale.direction === "rtl" ? caretRight : caretLeft} />
             <span>{locale.render(t`Previous`)}</span>
         </PaginationLink>
     );
@@ -160,7 +159,7 @@ export function PaginationNext(
             style={[styles.step, properties.style]}
         >
             <span>{locale.render(t`Next`)}</span>
-            <Icon icon={directionOf(locale.tag) === "rtl" ? caretLeft : caretRight} />
+            <Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />
         </PaginationLink>
     );
 }

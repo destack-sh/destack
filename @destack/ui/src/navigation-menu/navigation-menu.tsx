@@ -24,7 +24,7 @@ import {
     type Accessor,
     type Setter,
 } from "solid-js";
-import { directionOf, itemsOf, moveFocus } from "../focus/index.ts";
+import { itemsOf, moveFocus } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
 const TOP = "[data-navigation-top]";
@@ -357,7 +357,7 @@ export function NavigationMenuList(
                         event,
                         itemsOf(event.currentTarget, TOP),
                         "horizontal",
-                        directionOf(locale.tag),
+                        locale.direction,
                     );
                 }
             }}
