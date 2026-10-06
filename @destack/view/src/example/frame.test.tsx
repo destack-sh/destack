@@ -25,9 +25,10 @@ function Greeting(properties: GreetingProperties): JSX.Element {
 }
 
 /** A loud greeting of Ada. */
-const LoudGreeting = defineExample({
+const greetingLoud = defineExample({
     of: Greeting,
     name: "loud",
+    description: "a loud greeting of Ada",
     properties: { tone: "loud" },
     render: (properties) => <Greeting name="Ada" {...properties} />,
 });
@@ -54,7 +55,7 @@ function frames(...rendered: ExampleFrame[]): HTMLElement[] {
 test("render an example in its environment's locale, direction, width and theme settings, giving components the frame's direction", () => {
     const [arabic, plain, mirrored] = frames(
         {
-            example: LoudGreeting,
+            example: greetingLoud,
             environment: {
                 locale: "ar-EG",
                 direction: "rtl",
@@ -62,8 +63,8 @@ test("render an example in its environment's locale, direction, width and theme 
                 theme: { appearance: "dark", textSize: "large" },
             },
         },
-        { example: LoudGreeting, properties: { tone: "quiet" } },
-        { example: LoudGreeting, environment: { locale: "en", direction: "rtl" } },
+        { example: greetingLoud, properties: { tone: "quiet" } },
+        { example: greetingLoud, environment: { locale: "en", direction: "rtl" } },
     );
 
     // the frame carries the environment, and the example reads its locale, the frame's direction and its properties

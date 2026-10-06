@@ -44,9 +44,10 @@ const cards = defineView({
 
 test("render a view's example over the objects its declared calls bring about", async () => {
     // declare an example of the view holding two cards
-    const example = defineExample({
+    const cardsTwoCards = defineExample({
         of: cards,
         name: "two-cards",
+        description: "the view holding two cards",
         objects: {
             space: [
                 { object: card, method: "create", input: { title: "Bread" } },
@@ -55,7 +56,7 @@ test("render a view's example over the objects its declared calls bring about", 
         },
     });
     const element = document.createElement("main");
-    onTestFinished(renderExample(element, { example }));
+    onTestFinished(renderExample(element, { example: cardsTwoCards }));
 
     // list the cards in the view's order
     await expect.poll(() => element.textContent).toBe("ApplesBread");

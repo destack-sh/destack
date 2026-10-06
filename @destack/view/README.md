@@ -317,7 +317,7 @@ export function Metadata() {
 import { renderExample } from "@destack/view/example";
 
 const unmount = renderExample(element, {
-    example: GhostButton,
+    example: buttonGhost,
     environment: { locale: "ar-EG", direction: "rtl", width: 320, theme: { appearance: "dark" } },
     properties: { variant: "outline" }, // the properties a control changed
     catalogs,
@@ -358,10 +358,12 @@ const unmount = renderView(
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 
-export const OpenNoteMenu = defineScenario({
+export const dropdownMenuOpenOntoFirstItem = defineScenario({
+    of: DropdownMenu,
     interaction: viewInteraction,
-    name: "open the note menu onto its first item",
-    given: { examples: [NoteMenuExample] },
+    name: "open-onto-first-item",
+    description: "open the note menu onto its first item",
+    given: { examples: [dropdownMenuNoteMenu] },
     when: [{ action: "click", target: { role: "button", name: "Note" } }],
     then: { observe: { focused: { kind: "focused" } }, end: { focused: "Rename" } },
 });
@@ -409,7 +411,7 @@ An observation reads one JSON value after Playwright's assertions: the focused e
 ```ts
 import { ViewDriver } from "@destack/view/test";
 
-const driver = ViewDriver.start({ examples: [NoteMenuExample] }); // ViewDriver.interaction is viewInteraction
+const driver = ViewDriver.start({ examples: [dropdownMenuNoteMenu] }); // ViewDriver.interaction is viewInteraction
 driver.act({ action: "click", target: { role: "button", name: "Note" } });
 driver.observe({ kind: "focused" }); // "Rename"
 ```
