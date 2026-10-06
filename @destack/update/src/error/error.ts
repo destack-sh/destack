@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each update failure: a busy or closed updater, a bad release, or the host's. */
 const SERVICE_CODES = {
@@ -15,7 +15,7 @@ const SERVICE_CODES = {
 export type UpdateErrorCode = keyof typeof SERVICE_CODES;
 
 /** A failure reported by the distribution updater. */
-export class UpdateError extends Error implements ReportableError {
+export class UpdateError extends Error implements DomainError {
     /** Stable failure category for native callers. */
     readonly code: UpdateErrorCode;
 
