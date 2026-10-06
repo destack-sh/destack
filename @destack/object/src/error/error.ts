@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each object failure: every declaration failure is the host's. */
 const SERVICE_CODES = {
@@ -11,7 +11,7 @@ const SERVICE_CODES = {
 export type ObjectErrorCode = keyof typeof SERVICE_CODES;
 
 /** An object failure with a stable code. */
-export class ObjectError extends Error implements ReportableError {
+export class ObjectError extends Error implements DomainError {
     /** The failure code. */
     readonly code: ObjectErrorCode;
 
