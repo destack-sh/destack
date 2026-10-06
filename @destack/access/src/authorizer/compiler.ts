@@ -1,8 +1,11 @@
 import { ObjectReference, Subject } from "@destack/sync";
 import {
     alias,
+    type CommonTable,
     from,
+    hashName,
     inArray,
+    jsonElements,
     sql,
     type SQL,
     type SQLWrapper,
@@ -12,7 +15,7 @@ import {
 } from "@destack/db";
 import { aligned } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
-import { type PermissionReference } from "../declare/policy.ts";
+import { PermissionReference } from "../declare/policy.ts";
 import {
     CONTAINED,
     type AccessExpression,
@@ -23,7 +26,7 @@ import { AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship, type RelationshipColumnMap } from "../relationship/table.ts";
-import type { Access } from "./access.ts";
+import { type Access, UNIVERSAL } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { GrantCondition } from "./condition.ts";
@@ -38,6 +41,12 @@ interface Compilation {
     /** The next free alias number. */
     readonly aliases: { next: number };
 }
+
+/** The name of the list element a value is matched against. */
+const LISTED = "access_listed";
+
+/** The name of the list element a binding's role is read from. */
+const GRANTED = "access_granted";
 
 /** A relation kept in a field of a mapped table. */
 type Field = TableMapping["relations"][string];
@@ -181,7 +190,7 @@ export class Compiler {
         if (selected === "every") {
             return sql`true`;
         }
-        const named = selected.length === 0 ? sql`false` : inArray(id, selected);
+        const named = selected.length === 0 ? sql`false` : listed(id, selected);
 
         // match a derivation as its source is matched: on the same object, or on the related one each row names
         const source = this.#authorizer.source(permission);
@@ -257,7 +266,7 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        return matchBinding(compilation.access.granting(permission), compilation, (relationship) =>
+        return matchBinding(permission, compilation, (relationship) =>
             this.#covers(relationship, mapping, source, compilation),
         );
     }
@@ -441,17 +450,14 @@ export class Compiler {
             accessRelationship,
             `access_enclosing_${compilation.aliases.next++}`,
         );
-        const { access, authority } = compilation;
         const matches = steps.map(
             ({ object, relations }) =>
                 sql`(${Relationship.on(object, relationship)} AND ${inArray(relationship.relation, [...relations])})`,
         );
 
         return sql`EXISTS (
-            SELECT 1 FROM ${from(relationship)}
+            SELECT 1 FROM ${current(compilation)} AS ${relationship}
             WHERE (${sql.join(matches, sql` OR `)})
-                AND ${GrantCondition.where(relationship, GrantCondition.values(access.context, authority.delegator))}
-                AND ${authority.member(relationship)}
         )`;
     }
 
@@ -567,18 +573,15 @@ export class Compiler {
             `access_relationship_${compilation.aliases.next++}`,
         );
         const definition = mapping.policy.definition;
-        const authority = compilation.authority;
 
         return sql`EXISTS (
-            SELECT 1 FROM ${from(relationship)}
+            SELECT 1 FROM ${current(compilation)} AS ${relationship}
             WHERE ${relationship.objectScope} = ${TableMapping.scopeColumn(source, mapping)}
                 AND ${relationship.packageId} = ${definition.packageId}
                 AND ${relationship.type} = ${definition.name}
                 AND ${relationship.objectId} = ${column(source, mapping.id)}
                 AND ${relationship.relation} = ${name}
-                AND ${GrantCondition.where(relationship, GrantCondition.values(compilation.access.context, authority.delegator))}
                 AND ${accepted(relationship, relation)}
-                AND ${authority.member(relationship)}
         )`;
     }
 
@@ -603,7 +606,7 @@ export class Compiler {
 
             return keys.length === 0
                 ? sql`false`
-                : sql`coalesce(${inArray(column(source, field.column), keys)}, false)`;
+                : sql`coalesce(${listed(column(source, field.column), keys)}, false)`;
         }
         // match a subject by the type, scope and relation in the row's columns
         else if (field.subject !== undefined) {
@@ -828,24 +831,29 @@ function followAncestors(
     )`;
 }
 
-/** Match a current binding of one of the roles to the compiled authority on a covered object. */
+/** Match a current binding of a role granting the permission to the compiled authority on a covered object, the access's roles bound as one list; none for a reserved permission. */
 function matchBinding(
-    roles: readonly string[],
+    permission: PermissionReference,
     compilation: Compilation,
     covers: (relationship: RelationshipColumnMap) => SQL,
 ): SQL {
-    // skip bindings no role could satisfy
-    if (roles.length === 0) {
+    // grant a reserved permission through no role
+    if (compilation.access.isReserved(permission)) {
         return sql`false`;
     }
+
+    // list the roles granting the permission or every one
     const relationship = alias(accessRelationship, `access_binding_${compilation.aliases.next++}`);
-    const { access, authority } = compilation;
+    const granted = sql.identifier(GRANTED);
+    const key = sql`${granted}.value ->> 0`;
+    const isGranting = sql`(${key} = ${PermissionReference.key(permission)} OR ${key} = ${UNIVERSAL})`;
 
     return sql`EXISTS (
-        SELECT 1 FROM ${from(relationship)}
-        WHERE ${inArray(relationship.roleId, roles)}
-            AND ${GrantCondition.where(relationship, GrantCondition.values(access.context, authority.delegator))}
-            AND ${authority.member(relationship)}
+        SELECT 1 FROM ${current(compilation)} AS ${relationship}
+        WHERE EXISTS (
+                SELECT 1 FROM ${jsonElements(sql`${compilation.access.grantedRoles}`, GRANTED)}
+                WHERE ${isGranting} AND ${granted}.value ->> 1 = ${relationship.roleId}
+            )
             AND ${covers(relationship)}
     )`;
 }
@@ -893,4 +901,30 @@ function bindAttributes(
             );
         },
     };
+}
+
+/** Match a value in a list bound as one JSON list, whatever the list's length. */
+function listed(value: SQLWrapper, values: readonly string[]): SQL {
+    const entry = sql.identifier(LISTED);
+    const list = JSON.stringify(values.map((element) => [element]));
+
+    return sql`${value} IN (SELECT ${entry}.value ->> 0 FROM ${jsonElements(sql`${list}`, LISTED)})`;
+}
+
+/** Read the relationships current for a compiled authority: those whose conditions pass for the request and whose subject the authority is, defined once per statement. */
+function current(compilation: Compilation): CommonTable {
+    // name the query by everything it reads of the request and the authority
+    const { access, authority } = compilation;
+    const bindings = GrantCondition.bindings(access.context, authority.delegator);
+    const name = `access_current_${hashName(JSON.stringify([bindings, authority.subjects]))}`;
+
+    // keep the relationships whose conditions pass and whose subject the authority is
+    const relationship = alias(accessRelationship, "access_current");
+
+    return sql.common(
+        name,
+        sql`SELECT ${relationship}.* FROM ${from(relationship)}
+            WHERE ${GrantCondition.where(relationship, GrantCondition.values(access.context, authority.delegator))}
+                AND ${authority.member(relationship)}`,
+    );
 }

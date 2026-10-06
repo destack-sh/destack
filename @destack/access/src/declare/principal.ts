@@ -14,14 +14,14 @@ export const principal = {
     /** A person, identified globally, and the scope with their own objects. */
     user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
     /** A machine running Destack, living in its account, and the scope of its local operations. */
-    host: new Policy(OWNER, { name: "host", permissions: {}, scope: true }),
+    machine: new Policy(OWNER, { name: "machine", permissions: {}, scope: true }),
     /** A region of Destack's hosted platform, administering the spaces placed in it. */
     region: new Policy(OWNER, { name: "region", permissions: {}, isGlobal: true }),
     /** An application installed into an account or space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
     /** A space, the principal its cell copies rows for. */
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
-    /** A host or region serving zones, as the directory knows it. */
+    /** A machine or region serving zones, as the directory knows it. */
     cell: new Policy(OWNER, { name: "cell", permissions: {}, isGlobal: true }),
     /** A platform workload placed in a region, which that region's hosts run and act as through workload tokens. */
     workload: new Policy(OWNER, { name: "workload", permissions: {}, isGlobal: true }),
@@ -55,7 +55,9 @@ export const role = new Policy(OWNER, {
 /** A relation or role binding between a subject and an object. */
 export const relationship = new Policy(OWNER, {
     name: "relationship",
-    relations: { subject: { subjects: [principal.user, principal.host, principal.installation] } },
+    relations: {
+        subject: { subjects: [principal.user, principal.machine, principal.installation] },
+    },
     permissions: { read: union(relation("subject"), readersOf("object", "relation")) },
 });
 
@@ -63,11 +65,16 @@ export const relationship = new Policy(OWNER, {
 export const invitation = new Policy(OWNER, {
     name: "invitation",
     relations: {
-        inviter: { subjects: [principal.user, principal.host, principal.installation] },
+        inviter: { subjects: [principal.user, principal.machine, principal.installation] },
         addressee: {
-            subjects: [principal.user, principal.host, principal.installation, principal.contact],
+            subjects: [
+                principal.user,
+                principal.machine,
+                principal.installation,
+                principal.contact,
+            ],
         },
-        lender: { subjects: [principal.user, principal.host, principal.installation] },
+        lender: { subjects: [principal.user, principal.machine, principal.installation] },
     },
     permissions: {
         read: union(
@@ -83,7 +90,7 @@ export const invitation = new Policy(OWNER, {
 export const INTRINSIC_POLICIES: readonly Policy[] = [
     universe,
     principal.user,
-    principal.host,
+    principal.machine,
     principal.region,
     principal.installation,
     principal.contact,

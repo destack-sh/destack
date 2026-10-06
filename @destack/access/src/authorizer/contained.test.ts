@@ -119,7 +119,7 @@ test.for(TEST_DIALECTS)(
         expect([
             await decide(plot, "inside"),
             await decide(plot, "near"),
-            await decide(plot, "near", principal.host.reference("near", "laptop")),
+            await decide(plot, "near", principal.machine.reference("near", "laptop")),
             await decide(plot, "outside"),
         ]).toEqual([
             ["inside", true, true],

@@ -228,6 +228,24 @@ await system.keepRelationships({ scope: space.id, manager }, [
 ]);
 ```
 
+## Grants
+
+`keepGrant` keeps one managed role granting exactly some permissions bound to one subject, and drops both when it grants none.
+
+```ts
+await system.keepGrant(
+    home,
+    {
+        name: `installation/${installationId}`,
+        description: "What the inbox may do for Ada",
+        permissions, // [] drops the role and its binding
+        subject: principal.installation.reference(spaceId, installationId),
+        conditions: { onBehalfOf: ada }, // applies only while the installation acts for Ada
+    },
+    manager,
+);
+```
+
 ## Storage
 
 `accessTables` lists the tables every database with protected objects includes.

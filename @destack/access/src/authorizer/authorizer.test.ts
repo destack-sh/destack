@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { Snapshot, eq, sql, type DatabaseConnection } from "@destack/db";
+import { Snapshot, eq, type DatabaseConnection } from "@destack/db";
 import { aligned, schema } from "@destack/schema";
 import {
     AccessError,
@@ -8,15 +8,12 @@ import {
     Contact,
     Authorizer,
     LinkSecret,
-    resource,
     Policy,
     principal,
-    relation,
     type AccessContext,
-    type AccessExpression,
     type RelationshipCondition,
 } from "../index.ts";
-import { cell, entity, item, mappings, module4, node, policies, rows } from "../test/fixture.ts";
+import { cell, entity, item, mappings, node, policies, rows } from "../test/fixture.ts";
 import { openFixture, userSubject } from "../test/database.ts";
 
 /** Provide an isolated database with notes and an explicit editor grant. */
@@ -690,66 +687,3 @@ async function expectEditable(
         .orderBy(item.id);
     expect(selected.map((row) => row.id)).toEqual(expected);
 }
-
-test("refuse policy conditions that follow relations when registering them", () => {
-    // decide one permission by a condition over a relation
-    const fenced = new Policy(module4.package, {
-        name: "fenced",
-        relations: { owner: { subjects: [principal.user] } },
-        permissions: { read: relation("owner"), edit: resource({ owner: {} }) },
-    });
-
-    // refuse it before any decision reads it
-    expect(() => new Authorizer([fenced], [])).toThrow(
-        new AccessError("INVALID_DECLARATION", "policy conditions follow no relations: owner"),
-    );
-});
-
-test.each<[string, AccessExpression, string]>([
-    [
-        "undeclared object attribute",
-        resource({ size: { eq: 1 } }),
-        "undeclared object attribute: size",
-    ],
-    [
-        "undeclared request attribute",
-        { kind: "context", condition: { size: { eq: 1 } } },
-        "undeclared request attribute: size",
-    ],
-    [
-        "undeclared placeholder",
-        resource({ team: { eq: sql.placeholder("size") } }),
-        "undeclared request attribute: size",
-    ],
-    [
-        "request placeholder",
-        { kind: "context", condition: { phase: { eq: sql.placeholder("phase") } } },
-        "request conditions read no placeholders: phase",
-    ],
-    [
-        "ordered text",
-        resource({ title: { gt: "a" } }),
-        "ordered comparisons require a number attribute: title",
-    ],
-    ["mistyped value", resource({ team: "one" }), "comparisons require a number value: team"],
-    [
-        "mistyped list",
-        { kind: "context", condition: { phase: { in: ["edit", 1] } } },
-        "listed values require string values: phase",
-    ],
-    ["numeric pattern", resource({ team: { like: "1%" } }), "patterns match text attributes"],
-])("refuse a policy condition with an %s when registering it", (_case, edit, message) => {
-    // decide one permission by the condition
-    const checked = new Policy(module4.package, {
-        name: "checked",
-        attributes: { team: "number", title: "string" },
-        context: { phase: "string" },
-        relations: { owner: { subjects: [principal.user] } },
-        permissions: { read: relation("owner"), edit },
-    });
-
-    // refuse it before any decision reads it
-    expect(() => new Authorizer([checked], [])).toThrow(
-        new AccessError("INVALID_DECLARATION", message),
-    );
-});

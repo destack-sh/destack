@@ -769,6 +769,48 @@ export class Authorization {
         this.renew();
     }
 
+    /** Keep one role by name in a scope granting exactly some permissions, bound to one subject on the scope or an object in it under a manager and the binding's conditions, dropping both when it grants none. */
+    async keepGrant(
+        scope: ObjectReference,
+        grant: Omit<RoleRequest, "permissions"> & {
+            /** The permissions the role grants, none to drop the grant. */
+            readonly permissions: RoleRequest["permissions"];
+            /** The one subject the role is bound to. */
+            readonly subject: Subject;
+            /** The object in the scope the role is bound on, the scope itself when absent. */
+            readonly object?: ObjectReference;
+            /** What a request must satisfy for the binding to apply, such as the principal a delegate acts for. */
+            readonly conditions?: RelationshipCondition;
+        },
+        manager: Manager,
+    ): Promise<void> {
+        // drop the binding and the role of a grant of nothing
+        const { subject, object, conditions, ...request } = grant;
+        if (request.permissions.length === 0) {
+            await this.keepRelationships({ scope: scope.id, manager }, []);
+            const [kept] = await this.database
+                .select({ id: accessRole.id, revision: accessRole.revision })
+                .from(accessRole)
+                .where(and(eq(accessRole.scope, scope.id), eq(accessRole.name, request.name)));
+            if (kept !== undefined) {
+                await this.deleteRole(scope, kept.id, kept.revision);
+            }
+
+            return;
+        }
+
+        // keep the role with exactly the permissions, bound to the subject alone
+        const role = await this.keepRole(scope, request, manager);
+        await this.keepRelationships({ scope: scope.id, manager }, [
+            {
+                object: object ?? scope,
+                role: role.id,
+                subject,
+                ...(conditions === undefined ? {} : { conditions }),
+            },
+        ]);
+    }
+
     /** Require permissions to change roles in a scope this database keeps as a transaction shows the caller's access afresh, refusing a role a declaration manages. */
     protected async authorizeRole(
         transaction: DatabaseConnection,

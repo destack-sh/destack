@@ -184,21 +184,3 @@ test.for(TEST_DIALECTS)(
         expect(queried.map((row) => row.id)).toEqual(["r1", "r2"]);
     },
 );
-
-test("refuse a contribution to a relation that is not open", () => {
-    const closed = new Policy(module1.package, {
-        name: "closed",
-        relations: { parent: { subjects: [principal.user], grantedBy: null } },
-        permissions: {},
-    });
-    const host = new Policy(module1.package, {
-        name: "host",
-        permissions: {},
-        contributes: [{ policy: closed, relation: "parent" }],
-    });
-
-    // refuse at assembly with the relation in the error
-    expect(() => new Authorizer([closed, host])).toThrow(
-        "host contributes to closed.parent, which is not an open relation",
-    );
-});

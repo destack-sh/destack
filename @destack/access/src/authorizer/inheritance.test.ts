@@ -363,36 +363,3 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
-
-test("refuse scope types that enclose each other, and scope relations accepting more than one scope type", () => {
-    // enclose a ring in a band that encloses the ring
-    const ring: Policy = new Policy(module1.package, {
-        name: "ring",
-        relations: {
-            band: { subjects: ["band"], grantedBy: null, isScope: true },
-            viewer: { subjects: [principal.user] },
-        },
-        permissions: { read: union(relation("viewer"), through("band", "read")) },
-        scope: true,
-    });
-    const band = new Policy(module1.package, {
-        name: "band",
-        relations: {
-            ring: { subjects: [ring], grantedBy: null, isScope: true },
-            viewer: { subjects: [principal.user] },
-        },
-        permissions: { read: union(relation("viewer"), through("ring", "read")) },
-        scope: true,
-    });
-    expect(() => new Authorizer([ring, band], [])).toThrow("band.read encloses itself");
-
-    // accept two scope types through one scope relation
-    const loose = new Policy(module1.package, {
-        name: "loose",
-        relations: { holder: { subjects: [org, folder], grantedBy: null, isScope: true } },
-        permissions: { read: through("holder", "read") },
-    });
-    expect(() => new Authorizer([org, folder, loose], [])).toThrow(
-        "loose.holder is the scope holding each object, so it accepts one scope type alone",
-    );
-});

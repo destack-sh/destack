@@ -777,11 +777,12 @@ export class Authorizer {
         );
     }
 
-    /** Request the one copy of the scope chains above the scopes a follower replicates, recorded at the universe. */
+    /** Request the one copy of the scope chains above the scopes a follower replicates, recorded at the universe, with the scoped types the publisher keeps, every copied one by default. */
     async chainVia(
         database: DatabaseConnection,
         follower: string,
         via: readonly ObjectReference[],
+        scoped: readonly ObjectTypeReference[] = this.scoped,
     ): Promise<Subscription | undefined> {
         // request nothing without a replicated scope
         if (via.length === 0) {
@@ -812,7 +813,7 @@ export class Authorizer {
                 // take the scopes' own rows from the follower's copy of the universe
                 copied: [
                     ...this.copied.filter((type) => this.mapping(type).inherited !== undefined),
-                    ...this.scoped,
+                    ...scoped,
                 ],
                 via: [...replicated].toSorted(),
                 between: [...between].toSorted(),

@@ -164,13 +164,26 @@ export const Caller = {
         });
     },
 
-    /** Act as the principal an object stands for, with the caller as its actor (RFC 8693 4.1). */
-    represent(caller: Caller, standing: Standing): Caller {
+    /** Act as the principal an object stands for, with the caller as its actor (RFC 8693 4.1), or as that principal lent the authority of a person it acts for. */
+    represent(caller: Caller, standing: Standing, onBehalfOf?: Subject): Caller {
         // refuse a delegated caller, whose chain the representation would drop
         if ((caller.delegates ?? []).length > 0) {
             throw new AccessError("FORBIDDEN", "a delegated caller represents no principal");
         }
         const actor = Caller.requirePrincipal(caller);
+
+        // act for the lending person with the principal as the delegate lent their authority
+        if (onBehalfOf !== undefined) {
+            return {
+                subject: onBehalfOf,
+                delegates: [
+                    { subject: standing.subject, authority: "lent" },
+                    { subject: actor, authority: "full" },
+                ],
+                subjects: [onBehalfOf],
+                ...(caller.permissions === undefined ? {} : { permissions: caller.permissions }),
+            };
+        }
 
         return {
             subject: standing.subject,
@@ -222,10 +235,10 @@ export const AccessContext = {
         return value;
     },
 
-    /** Let each host or region of a context act for the cell it is, which zones name. */
+    /** Let each machine or region of a context act for the cell it is, which zones name. */
     withCells(context: AccessContext): AccessContext {
         const cells = context.subjects
-            .filter((subject) => principal.host.is(subject) || principal.region.is(subject))
+            .filter((subject) => principal.machine.is(subject) || principal.region.is(subject))
             .map((subject) => principal.cell.reference(Scope.universe.id, subject.id));
 
         return cells.length === 0

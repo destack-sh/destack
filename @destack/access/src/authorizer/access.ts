@@ -21,6 +21,9 @@ import type { Gate } from "./decision.ts";
 import { Authorizer } from "./authorizer.ts";
 import { type FieldRelation, TableMapping } from "./mapping.ts";
 
+/** The permission key the roles granting every permission but reserved ones are listed under. */
+export const UNIVERSAL = "*";
+
 /** A caller's access in one scope: its authorities, the scope chain, the roles along it, and the time it is valid for. */
 export class Access {
     /** The scope every protected row of a query belongs to. */
@@ -35,10 +38,14 @@ export class Access {
     readonly grants: ReadonlyMap<string, RoleGrant>;
     /** Whether the scope or one enclosing it is suspended, withholding every permission but administration. */
     readonly isSuspended: boolean;
+    /** Whether the storage of the scope or one enclosing it is capped, refusing writes but deletes. */
+    readonly isCapped: boolean;
     /** The fenced scope nearest in the chain and the cell it moves to. */
     readonly moved: { readonly scope: string; readonly cell: string } | undefined;
     /** The next moment time changes the caller's subject sets, roles or elevation. */
     readonly until: number | undefined;
+    /** The roles along the scope chain under each permission key they grant as one JSON list, each `[permission, role]`, the roles granting every permission under `*`. */
+    readonly grantedRoles: string;
     /** The roles along the scope chain that grant each permission, by permission key. */
     readonly #roles: ReadonlyMap<string, readonly string[]>;
     /** The roles along the scope chain that grant every permission but reserved ones, as owners' do. */
@@ -69,6 +76,7 @@ export class Access {
         this.scopes = resolved.links.map((link) => link.object);
         this.grants = resolved.grants;
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
+        this.isCapped = resolved.links.some((link) => link.isCapped);
         const [moved] = resolved.links.flatMap((link) =>
             link.movedTo === undefined ? [] : [{ scope: link.object.id, cell: link.movedTo }],
         );
@@ -93,6 +101,10 @@ export class Access {
         }
         this.#roles = roles;
         this.#universal = universal;
+        this.grantedRoles = JSON.stringify([
+            ...[...roles].flatMap(([key, granted]) => granted.map((role) => [key, role])),
+            ...universal.map((role) => [UNIVERSAL, role]),
+        ]);
     }
 
     /**
@@ -285,6 +297,7 @@ export class Access {
                 },
                 parent: current.parent,
                 isSuspended: current.suspendedAt !== null,
+                isCapped: current.cappedAt !== null,
                 movedTo: current.movedTo ?? undefined,
             });
             if (current.parent === this.scope) {
@@ -481,13 +494,16 @@ export class Access {
         return added;
     }
 
-    /** List the roles along the scope chain that grant a permission. */
-    granting(permission: PermissionReference): readonly string[] {
-        const key = PermissionReference.key(permission);
+    /** Report whether a permission is reserved, which no role grants. */
+    isReserved(permission: PermissionReference): boolean {
+        return this.#authorizer.reserved.has(PermissionReference.key(permission));
+    }
 
-        return this.#authorizer.reserved.has(key)
+    /** List the roles along the scope chain that grant a permission, none for a reserved one. */
+    granting(permission: PermissionReference): readonly string[] {
+        return this.isReserved(permission)
             ? []
-            : [...(this.#roles.get(key) ?? []), ...this.#universal];
+            : [...(this.#roles.get(PermissionReference.key(permission)) ?? []), ...this.#universal];
     }
 
     /** List the roles along the scope chain granting every permission but reserved ones, as owners' do. */
