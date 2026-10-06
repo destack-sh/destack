@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each setting failure. */
 const SERVICE_CODES = {
@@ -12,7 +12,7 @@ const SERVICE_CODES = {
 export type SettingErrorCode = keyof typeof SERVICE_CODES;
 
 /** A setting declaration, placement or resolution failure. */
-export class SettingError extends Error implements ReportableError {
+export class SettingError extends Error implements DomainError {
     /** The failure category. */
     readonly code: SettingErrorCode;
 
