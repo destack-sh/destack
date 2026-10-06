@@ -1,4 +1,4 @@
-import type { ReportableError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each database failure: a conflict, a bad request, a lost history, or the host's. */
 const SERVICE_CODES = {
@@ -26,7 +26,7 @@ const SERVICE_CODES = {
 export type DatabaseErrorCode = keyof typeof SERVICE_CODES;
 
 /** A database failure with a stable code. */
-export class DatabaseError extends Error implements ReportableError {
+export class DatabaseError extends Error implements DomainError {
     /** The failure code. */
     readonly code: DatabaseErrorCode;
 
