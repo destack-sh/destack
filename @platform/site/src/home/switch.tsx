@@ -23,22 +23,20 @@ export function StackSwitch(properties: { isOpen: boolean; isHinted?: boolean })
         <span {...stylex.attrs(styles.holder)}>
             {properties.isHinted === true && !properties.isOpen ? (
                 <span data-hint aria-hidden="true" {...stylex.attrs(styles.hint)}>
-                    <span {...stylex.attrs(styles.hintWords)}>destack it</span>
-                    <svg viewBox="0 0 44 60" fill="none" {...stylex.attrs(styles.arrow)}>
+                    <span {...stylex.attrs(styles.hintWords)}>Destack it</span>
+                    <svg viewBox="0 0 26 30" fill="none" {...stylex.attrs(styles.leader)}>
                         <path
-                            d="M2 8 C 22 2, 36 12, 34 42"
+                            d="M0 6 H23 V25"
                             stroke="currentColor"
-                            stroke-width="1.75"
-                            stroke-linecap="round"
+                            stroke-width="1.25"
                             pathLength="1"
                             {...stylex.attrs(styles.stroke)}
                         />
-                        <path
-                            d="M28 36 L34 44 L40 36"
-                            stroke="currentColor"
-                            stroke-width="1.75"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
+                        <circle
+                            cx="23"
+                            cy="27"
+                            r="2.5"
+                            fill="currentColor"
                             {...stylex.attrs(styles.head)}
                         />
                     </svg>
@@ -85,13 +83,13 @@ export function StackSwitch(properties: { isOpen: boolean; isHinted?: boolean })
     );
 }
 
-/** The arrow drawing itself from its tail to the switch. */
+/** The leader drawing itself from the words to the switch. */
 const draw = stylex.keyframes({
     from: { strokeDashoffset: 1 },
     to: { strokeDashoffset: 0 },
 });
 
-/** The arrowhead fading in once the line arrives. */
+/** The leader's dot fading in once the line arrives. */
 const appear = stylex.keyframes({
     from: { opacity: 0 },
 });
@@ -159,34 +157,31 @@ const styles = stylex.create({
         position: "relative",
     },
     hint: {
-        alignItems: "flex-end",
+        alignItems: "flex-start",
         bottom: "100%",
         color: tokens.signal,
         display: "flex",
-        gap: "0.25rem",
-        marginBottom: "0.5rem",
+        gap: "0.5rem",
+        marginBottom: "0.125rem",
         pointerEvents: "none",
         position: "absolute",
-        right: "6.58rem",
+        right: "6.14rem",
         "@media (max-width: 1099px)": { display: "none" },
     },
     hintWords: {
-        fontSize: "1.375rem",
-        fontStyle: "italic",
+        fontFamily: tokens.monoFont,
+        fontSize: "0.75rem",
         fontWeight: 700,
-        textDecorationLine: "underline",
-        textDecorationThickness: "2px",
-        textUnderlineOffset: "0.25rem",
-        paddingBottom: "1.25rem",
+        letterSpacing: "0.1em",
+        lineHeight: "0.75rem",
+        textTransform: "uppercase",
         whiteSpace: "nowrap",
     },
-    arrow: {
+    leader: {
         display: "block",
-        height: "3.75rem",
-        marginBottom: "-1.25rem",
-        marginRight: "-0.875rem",
+        height: "1.875rem",
         overflow: "visible",
-        width: "2.75rem",
+        width: "1.625rem",
     },
     stroke: {
         animationDelay: "600ms",
