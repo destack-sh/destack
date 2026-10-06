@@ -80,6 +80,7 @@
         "solid-js": "2.0.0-rc.8"
     },
     "devDependencies": {
+        "@destack/package": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/view": "workspace:*"
     }

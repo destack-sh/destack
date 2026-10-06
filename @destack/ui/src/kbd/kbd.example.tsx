@@ -1,9 +1,12 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { Kbd, KbdGroup } from "./kbd.tsx";
 
-/** Show the shortcut that opens the command menu. */
-export function KbdExample(): JSX.Element {
-    return (
+/** The shortcut that opens the command menu. */
+export const kbdCommandShortcut = defineExample({
+    of: Kbd,
+    name: "command-shortcut",
+    description: "the shortcut that opens the command menu",
+    render: () => (
         <p>
             Open the command menu with{" "}
             <KbdGroup>
@@ -11,5 +14,5 @@ export function KbdExample(): JSX.Element {
                 <Kbd>K</Kbd>
             </KbdGroup>
         </p>
-    );
-}
+    ),
+});

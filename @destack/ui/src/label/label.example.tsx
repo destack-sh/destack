@@ -1,12 +1,15 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { Label } from "./label.tsx";
 
-/** Show a label next to the checkbox it names. */
-export function LabelExample(): JSX.Element {
-    return (
+/** A label next to the checkbox it names. */
+export const labelTermsCheckbox = defineExample({
+    of: Label,
+    name: "terms-checkbox",
+    description: "a label next to the checkbox it names",
+    render: () => (
         <Label>
             <input type="checkbox" name="terms" />
             Accept the terms
         </Label>
-    );
-}
+    ),
+});

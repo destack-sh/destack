@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import type { JSX } from "@solidjs/web";
+import type { Example } from "@destack/package/declare";
 import manifest from "../package.json" with { type: "json" };
 import { renderToString } from "@solidjs/web";
 import { Sidebar, SidebarContent, SidebarProvider, SidebarTrigger } from "../src/sidebar/index.ts";
@@ -10,6 +11,13 @@ const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
 
 /** The bodies of inline icons. */
 const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
+
+/** The examples module of each component the package exports, loaded once before the tests run. */
+const EXAMPLES: readonly (readonly [string, object])[] = await Promise.all(
+    Object.keys(manifest.exports)
+        .map((path) => path.slice(2))
+        .map(async (name) => [name, await import(`../src/${name}/${name}.example.tsx`)] as const),
+);
 
 test("render a sidebar and a toaster to a string without a browser, open and with no toasts", () => {
     const html = renderToString(() => (
@@ -37,14 +45,17 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
 test("render every exported component's examples to strings without a browser", async () => {
     // render the examples of each component the package exports
     const rendered: string[] = [];
-    for (const name of Object.keys(manifest.exports).map((path) => path.slice(2))) {
-        const examples: unknown = await import(`../src/${name}/${name}.example.tsx`);
-        for (const [example, render] of Object.entries(examples ?? {})) {
+    for (const [name, examples] of EXAMPLES) {
+        for (const [exported, example] of Object.entries(examples)) {
             // skip the module URL the server compile adds to component modules
-            if (!example.endsWith("Example") || !isExample(render)) {
+            const render = isExample(example) ? example.render : undefined;
+            if (render === undefined) {
                 continue;
             }
-            expect(renderToString(render), example).not.toBe("");
+            expect(
+                renderToString(() => render()),
+                exported,
+            ).not.toBe("");
             rendered.push(name);
         }
     }
@@ -53,7 +64,7 @@ test("render every exported component's examples to strings without a browser", 
     expect(new Set(rendered).size).toBe(Object.keys(manifest.exports).length);
 });
 
-/** Report whether an export is an example component, which takes no properties. */
-function isExample(value: unknown): value is () => JSX.Element {
-    return typeof value === "function" && value.length === 0;
+/** Report whether an export is an example, which renders an element. */
+function isExample(value: unknown): value is Example<object, JSX.Element> {
+    return typeof value === "object" && value !== null && "render" in value && "of" in value;
 }

@@ -1,10 +1,13 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import { Toaster, toast } from "./toast.tsx";
 
-/** Show a toaster and a button that archives a note with an undo action. */
-export function ToastExample(): JSX.Element {
-    return (
+/** A toaster and a button that archives a note with an undo action. */
+export const toasterArchiveUndo = defineExample({
+    of: Toaster,
+    name: "archive-undo",
+    description: "a toaster and a button that archives a note with an undo action",
+    render: () => (
         <>
             <Button
                 onClick={() =>
@@ -17,5 +20,5 @@ export function ToastExample(): JSX.Element {
             </Button>
             <Toaster position="bottom-right" />
         </>
-    );
-}
+    ),
+});

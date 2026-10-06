@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import {
     Pagination,
     PaginationContent,
@@ -9,9 +9,12 @@ import {
     PaginationPrevious,
 } from "./pagination.tsx";
 
-/** Show the pages of a long note list, on its second page. */
-export function PaginationExample(): JSX.Element {
-    return (
+/** The pages of a long note list, on its second page. */
+export const paginationSecondPage = defineExample({
+    of: Pagination,
+    name: "second-page",
+    description: "the pages of a long note list, on its second page",
+    render: () => (
         <Pagination>
             <PaginationContent>
                 <PaginationItem>
@@ -33,5 +36,5 @@ export function PaginationExample(): JSX.Element {
                 </PaginationItem>
             </PaginationContent>
         </Pagination>
-    );
-}
+    ),
+});

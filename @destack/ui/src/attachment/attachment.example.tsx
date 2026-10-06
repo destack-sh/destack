@@ -1,5 +1,5 @@
+import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/icon";
-import type { JSX } from "@solidjs/web";
 import {
     Attachment,
     AttachmentAction,
@@ -12,9 +12,12 @@ import {
     AttachmentTrigger,
 } from "./attachment.tsx";
 
-/** Show a note's attachments: a ready itinerary that opens, and a photo still uploading. */
-export function AttachmentExample(): JSX.Element {
-    return (
+/** A note's attachments: a ready itinerary that opens, and a photo still uploading. */
+export const attachmentNoteAttachments = defineExample({
+    of: Attachment,
+    name: "note-attachments",
+    description: "a note's attachments: a ready itinerary that opens, and a photo still uploading",
+    render: () => (
         <AttachmentGroup aria-label="Attachments">
             <Attachment>
                 <AttachmentTrigger aria-label="Open itinerary.pdf" />
@@ -41,5 +44,5 @@ export function AttachmentExample(): JSX.Element {
                 </AttachmentContent>
             </Attachment>
         </AttachmentGroup>
-    );
-}
+    ),
+});

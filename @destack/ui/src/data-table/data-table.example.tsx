@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { DataTable, type DataTableColumn } from "./data-table.tsx";
 
 /** A note the table lists. */
@@ -36,9 +36,12 @@ const NOTES: readonly NoteRow[] = [
     { id: "bread", title: "Rye bread recipe", words: 455 },
 ];
 
-/** Show notes in a table that sorts, filters, selects and pages. */
-export function DataTableExample(): JSX.Element {
-    return (
+/** Notes in a table that sorts, filters, selects and pages. */
+export const dataTableNotes = defineExample({
+    of: DataTable,
+    name: "notes",
+    description: "notes in a table that sorts, filters, selects and pages",
+    render: () => (
         <DataTable
             rows={NOTES}
             columns={COLUMNS}
@@ -46,5 +49,5 @@ export function DataTableExample(): JSX.Element {
             isSelectable
             filterPlaceholder="Filter notes"
         />
-    );
-}
+    ),
+});

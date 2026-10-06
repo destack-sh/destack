@@ -1176,16 +1176,34 @@ const locale = useLocale();
 // locale/de.json ships machine-translated German drafts of each, listed under drafts
 ```
 
-## Examples
+## Examples and scenarios
 
-Each component's directory holds its source, its tests and a self-contained example of real usage.
+Each component declares an example per visible state with `defineExample`, and a scenario per keyboard or focus behaviour it implements with `defineScenario`, which the tests play through the DOM.
 
-```text
-src/field/
-├── field.tsx           Field, FieldLabel, FieldDescription, FieldError, ...
-├── field.example.tsx   FieldExample: a notebook form with a required name
-├── field.test.tsx
-└── index.ts
+```tsx
+export const fieldNotebookForm = defineExample({
+    of: Field,
+    name: "notebook-form",
+    description: "a notebook form whose name field reports an error until it has a value",
+    render: () => <form>...</form>,
+});
+
+export const tabsSelectWithArrowKeys = defineScenario({
+    of: Tabs,
+    interaction: viewInteraction,
+    name: "select-with-arrow-keys",
+    description:
+        "select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping",
+    given: { examples: [tabsHistoryUnavailable] },
+    when: [
+        { action: "focus", target: { role: "tab", name: "Edit" } },
+        { action: "press", key: "ArrowRight" },
+    ],
+    then: {
+        observe: { selected: { kind: "name", target: { role: "tab", selected: true } } },
+        each: [{ selected: "Edit" }, { selected: "Preview" }],
+    },
+});
 ```
 
 ## License

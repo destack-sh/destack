@@ -1,9 +1,12 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { Bubble, BubbleContent, BubbleGroup, BubbleReactions } from "./bubble.tsx";
 
-/** Show two messages in a row, the second with reactions. */
-export function BubbleExample(): JSX.Element {
-    return (
+/** Two messages in a row, the second with reactions. */
+export const bubbleReactions = defineExample({
+    of: Bubble,
+    name: "reactions",
+    description: "two messages in a row, the second with reactions",
+    render: () => (
         <BubbleGroup>
             <Bubble variant="secondary">
                 <BubbleContent>The tickets are booked.</BubbleContent>
@@ -13,5 +16,5 @@ export function BubbleExample(): JSX.Element {
                 <BubbleReactions aria-label="Reactions">🎉 2</BubbleReactions>
             </Bubble>
         </BubbleGroup>
-    );
-}
+    ),
+});

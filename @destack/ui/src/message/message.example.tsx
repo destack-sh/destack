@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { Avatar, AvatarFallback } from "../avatar/index.ts";
 import { Bubble, BubbleContent } from "../bubble/index.ts";
 import {
@@ -10,9 +10,12 @@ import {
     MessageHeader,
 } from "./message.tsx";
 
-/** Show a reply under a note: Ada's question and the reader's own answer. */
-export function MessageExample(): JSX.Element {
-    return (
+/** A reply under a note: Ada's question and the reader's own answer. */
+export const messageNoteReply = defineExample({
+    of: Message,
+    name: "note-reply",
+    description: "a reply under a note: Ada's question and the reader's own answer",
+    render: () => (
         <MessageGroup>
             <Message>
                 <MessageAvatar>
@@ -36,5 +39,5 @@ export function MessageExample(): JSX.Element {
                 </MessageContent>
             </Message>
         </MessageGroup>
-    );
-}
+    ),
+});

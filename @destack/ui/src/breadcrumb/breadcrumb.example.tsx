@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -8,9 +8,12 @@ import {
     BreadcrumbSeparator,
 } from "./breadcrumb.tsx";
 
-/** Show the trail from a notebook to one of its notes. */
-export function BreadcrumbExample(): JSX.Element {
-    return (
+/** The trail from a notebook to one of its notes. */
+export const breadcrumbNoteTrail = defineExample({
+    of: Breadcrumb,
+    name: "note-trail",
+    description: "the trail from a notebook to one of its notes",
+    render: () => (
         <Breadcrumb>
             <BreadcrumbList>
                 <BreadcrumbItem>
@@ -26,5 +29,5 @@ export function BreadcrumbExample(): JSX.Element {
                 </BreadcrumbItem>
             </BreadcrumbList>
         </Breadcrumb>
-    );
-}
+    ),
+});

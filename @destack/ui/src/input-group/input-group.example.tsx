@@ -1,5 +1,5 @@
+import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/icon";
-import type { JSX } from "@solidjs/web";
 import { Kbd } from "../kbd/index.ts";
 import {
     InputGroup,
@@ -9,9 +9,12 @@ import {
     InputGroupText,
 } from "./input-group.tsx";
 
-/** Show a note search with a leading icon, its shortcut and a clear button. */
-export function InputGroupExample(): JSX.Element {
-    return (
+/** A note search with a leading icon, its shortcut and a clear button. */
+export const inputGroupNoteSearch = defineExample({
+    of: InputGroup,
+    name: "note-search",
+    description: "a note search with a leading icon, its shortcut and a clear button",
+    render: () => (
         <InputGroup>
             <InputGroupInput type="search" placeholder="Search notes" aria-label="Search notes" />
             <InputGroupAddon>
@@ -26,5 +29,5 @@ export function InputGroupExample(): JSX.Element {
                 </InputGroupButton>
             </InputGroupAddon>
         </InputGroup>
-    );
-}
+    ),
+});

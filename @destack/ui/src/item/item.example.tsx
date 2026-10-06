@@ -1,6 +1,6 @@
+import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { Icon } from "@destack/icon";
-import type { JSX } from "@solidjs/web";
 import { Button } from "../button/index.ts";
 import {
     Item,
@@ -14,9 +14,12 @@ import {
     itemStyle,
 } from "./item.tsx";
 
-/** Show a notebook's recent notes, one archivable and one opened by a link. */
-export function ItemExample(): JSX.Element {
-    return (
+/** A notebook's recent notes, one archivable and one opened by a link. */
+export const itemRecentNotes = defineExample({
+    of: Item,
+    name: "recent-notes",
+    description: "a notebook's recent notes, one archivable and one opened by a link",
+    render: () => (
         <ItemGroup aria-label="Recent notes">
             <Item>
                 <ItemMedia variant="icon">
@@ -39,5 +42,5 @@ export function ItemExample(): JSX.Element {
                 </ItemContent>
             </a>
         </ItemGroup>
-    );
-}
+    ),
+});

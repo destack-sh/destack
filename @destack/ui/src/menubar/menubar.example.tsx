@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import {
     Menubar,
     MenubarContent,
@@ -9,9 +9,12 @@ import {
     MenubarTrigger,
 } from "./menubar.tsx";
 
-/** Show an editor's File and Edit menus. */
-export function MenubarExample(): JSX.Element {
-    return (
+/** An editor's File and Edit menus. */
+export const menubarEditorMenus = defineExample({
+    of: Menubar,
+    name: "editor-menus",
+    description: "an editor's File and Edit menus",
+    render: () => (
         <Menubar aria-label="Editor">
             <MenubarMenu>
                 <MenubarTrigger>File</MenubarTrigger>
@@ -34,5 +37,5 @@ export function MenubarExample(): JSX.Element {
                 </MenubarContent>
             </MenubarMenu>
         </Menubar>
-    );
-}
+    ),
+});

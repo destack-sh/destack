@@ -1,5 +1,5 @@
+import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import type { JSX } from "@solidjs/web";
 import { For } from "solid-js";
 import { Bubble, BubbleContent } from "../bubble/index.ts";
 import { Message, MessageContent } from "../message/index.ts";
@@ -22,9 +22,13 @@ const MESSAGES = [
     { id: "3", mine: false, text: "Then I'll book the tram tour." },
 ];
 
-/** Show a conversation that keeps its newest message in view and offers a jump back to it. */
-export function MessageScrollerExample(): JSX.Element {
-    return (
+/** A conversation that keeps its newest message in view and offers a jump back to it. */
+export const messageScrollerTripConversation = defineExample({
+    of: MessageScroller,
+    name: "trip-conversation",
+    description:
+        "a conversation that keeps its newest message in view and offers a jump back to it",
+    render: () => (
         <MessageScroller style={styles.conversation}>
             <MessageScrollerViewport aria-label="Conversation">
                 <For each={MESSAGES}>
@@ -43,5 +47,5 @@ export function MessageScrollerExample(): JSX.Element {
             </MessageScrollerViewport>
             <MessageScrollerButton />
         </MessageScroller>
-    );
-}
+    ),
+});

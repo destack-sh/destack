@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import {
     Card,
@@ -10,9 +10,12 @@ import {
     CardTitle,
 } from "./card.tsx";
 
-/** Show a storage plan with an upgrade action and a footer link. */
-export function CardExample(): JSX.Element {
-    return (
+/** A storage plan with an upgrade action and a footer link. */
+export const cardStoragePlan = defineExample({
+    of: Card,
+    name: "storage-plan",
+    description: "a storage plan with an upgrade action and a footer link",
+    render: () => (
         <Card>
             <CardHeader>
                 <CardTitle>Storage</CardTitle>
@@ -28,5 +31,5 @@ export function CardExample(): JSX.Element {
                 <Button variant="link">Manage storage</Button>
             </CardFooter>
         </Card>
-    );
-}
+    ),
+});

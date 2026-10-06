@@ -1,10 +1,13 @@
+import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/icon";
-import type { JSX } from "@solidjs/web";
 import { Marker, MarkerContent, MarkerIcon } from "./marker.tsx";
 
-/** Show the day a conversation continues on and a person joining it. */
-export function MarkerExample(): JSX.Element {
-    return (
+/** The day a conversation continues on and a person joining it. */
+export const markerConversationDay = defineExample({
+    of: Marker,
+    name: "conversation-day",
+    description: "the day a conversation continues on and a person joining it",
+    render: () => (
         <>
             <Marker variant="separator">
                 <MarkerContent>Yesterday</MarkerContent>
@@ -16,5 +19,5 @@ export function MarkerExample(): JSX.Element {
                 <MarkerContent>Grace Hopper joined the notebook</MarkerContent>
             </Marker>
         </>
-    );
-}
+    ),
+});

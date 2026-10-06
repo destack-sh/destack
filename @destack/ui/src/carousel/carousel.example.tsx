@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import { For } from "solid-js";
 import {
     Carousel,
@@ -15,9 +15,12 @@ const PHOTOS = [
     { url: "/photos/belem.jpg", caption: "Pastries in Belém" },
 ];
 
-/** Show the photos of a note one at a time. */
-export function CarouselExample(): JSX.Element {
-    return (
+/** The photos of a note one at a time. */
+export const carouselTripPhotos = defineExample({
+    of: Carousel,
+    name: "trip-photos",
+    description: "the photos of a note one at a time",
+    render: () => (
         <Carousel aria-label="Photos">
             <CarouselContent>
                 <For each={PHOTOS}>
@@ -31,5 +34,5 @@ export function CarouselExample(): JSX.Element {
             <CarouselPrevious />
             <CarouselNext />
         </Carousel>
-    );
-}
+    ),
+});

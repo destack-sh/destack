@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -8,9 +8,12 @@ import {
     ContextMenuTrigger,
 } from "./context-menu.tsx";
 
-/** Show the actions of a note card on right click. */
-export function ContextMenuExample(): JSX.Element {
-    return (
+/** The actions of a note card on right click. */
+export const contextMenuNoteCardActions = defineExample({
+    of: ContextMenu,
+    name: "note-card-actions",
+    description: "the actions of a note card on right click",
+    render: () => (
         <ContextMenu>
             <ContextMenuTrigger>Groceries: milk, bread, apples</ContextMenuTrigger>
             <ContextMenuContent>
@@ -23,5 +26,5 @@ export function ContextMenuExample(): JSX.Element {
                 <ContextMenuItem variant="destructive">Delete</ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
-    );
-}
+    ),
+});

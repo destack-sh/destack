@@ -1,6 +1,6 @@
+import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { size, space } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@solidjs/web";
 import { Skeleton } from "./skeleton.tsx";
 
 /** The sizes of a loading list row. */
@@ -10,12 +10,15 @@ const styles = style.create({
     line: { flex: 1, height: space[4] },
 });
 
-/** Show a list row's avatar and title while the row loads. */
-export function SkeletonExample(): JSX.Element {
-    return (
+/** A list row's avatar and title while the row loads. */
+export const skeletonLoadingRow = defineExample({
+    of: Skeleton,
+    name: "loading-row",
+    description: "a list row's avatar and title while the row loads",
+    render: () => (
         <div aria-busy="true" {...style.attrs(styles.row)}>
             <Skeleton style={styles.avatar} />
             <Skeleton style={styles.line} />
         </div>
-    );
-}
+    ),
+});

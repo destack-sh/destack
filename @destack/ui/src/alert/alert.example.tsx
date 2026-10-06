@@ -1,10 +1,13 @@
+import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/icon";
-import type { JSX } from "@solidjs/web";
 import { Alert, AlertDescription, AlertTitle } from "./alert.tsx";
 
-/** Show a failed sync with what to do about it. */
-export function AlertExample(): JSX.Element {
-    return (
+/** A failed sync with what to do about it. */
+export const alertFailedSync = defineExample({
+    of: Alert,
+    name: "failed-sync",
+    description: "a failed sync with what to do about it",
+    render: () => (
         <Alert variant="destructive">
             <Icon name="warning-circle" />
             <AlertTitle>Sync paused</AlertTitle>
@@ -12,5 +15,5 @@ export function AlertExample(): JSX.Element {
                 Your notebooks are over the storage limit. Free up space or upgrade to keep syncing.
             </AlertDescription>
         </Alert>
-    );
-}
+    ),
+});

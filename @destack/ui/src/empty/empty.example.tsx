@@ -1,5 +1,5 @@
+import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/icon";
-import type { JSX } from "@solidjs/web";
 import { Button } from "../button/index.ts";
 import {
     Empty,
@@ -10,9 +10,12 @@ import {
     EmptyTitle,
 } from "./empty.tsx";
 
-/** Show a notebook list with no notebooks yet and the action that creates the first. */
-export function EmptyExample(): JSX.Element {
-    return (
+/** A notebook list with no notebooks yet and the action that creates the first. */
+export const emptyNoNotebooks = defineExample({
+    of: Empty,
+    name: "no-notebooks",
+    description: "a notebook list with no notebooks yet and the action that creates the first",
+    render: () => (
         <Empty>
             <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -25,5 +28,5 @@ export function EmptyExample(): JSX.Element {
                 <Button>Create a notebook</Button>
             </EmptyContent>
         </Empty>
-    );
-}
+    ),
+});
