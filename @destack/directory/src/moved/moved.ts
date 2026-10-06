@@ -20,24 +20,24 @@ export const Moved = {
     }),
 
     /** Build the failure that points to the cell a scope moved to. */
-    error(moved: Moved): ServiceError<"MOVED", Moved> {
-        return new ServiceError("MOVED", {
+    error(moved: Moved): ServiceError<"MISDIRECTED_REQUEST", Moved> {
+        return new ServiceError("MISDIRECTED_REQUEST", {
             message: `${moved.scope} moves to ${moved.cell}`,
             data: moved,
         });
     },
 
-    /** Read the cell a MOVED failure points to, absent for other failures. */
+    /** Read the cell a misdirected failure points to, absent for other failures. */
     of(error: unknown): Moved | undefined {
-        return isServiceError(error) && error.code === "MOVED"
+        return isServiceError(error) && error.code === "MISDIRECTED_REQUEST"
             ? Moved.schema.parse(error.data)
             : undefined;
     },
 
-    /** Read the cell a MOVED response points to, absent for other responses such as another origin's 421. */
+    /** Read the cell a misdirected response points to, absent for other responses such as another origin's 421. */
     async read(response: Response): Promise<Moved | undefined> {
         // skip other statuses without reading their body
-        if (response.status !== ServiceError.status("MOVED")) {
+        if (response.status !== ServiceError.status("MISDIRECTED_REQUEST")) {
             return undefined;
         }
 
@@ -49,9 +49,9 @@ export const Moved = {
             return undefined;
         }
 
-        // read the moved scope of a MOVED answer, skipping an answer of another shape
+        // read the moved scope of a misdirected answer
         const answer = schema
-            .looseObject({ code: schema.literal("MOVED"), data: Moved.schema })
+            .looseObject({ code: schema.literal("MISDIRECTED_REQUEST"), data: Moved.schema })
             .safeParse(body);
 
         return answer.success ? answer.data.data : undefined;

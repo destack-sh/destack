@@ -13,9 +13,11 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/identity": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
+        "@destack/sync": "workspace:*",
         "jose": "6.2.12"
     },
     "devDependencies": {

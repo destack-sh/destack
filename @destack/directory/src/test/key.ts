@@ -1,4 +1,4 @@
-import { PublicKey } from "../identity/identity.ts";
+import { PublicKey } from "@destack/identity";
 
 /** Generate a P-256 key pair, its public half as a JSON Web Key. */
 export async function keyPair(): Promise<{
@@ -9,7 +9,6 @@ export async function keyPair(): Promise<{
         "sign",
         "verify",
     ]);
-    const { kty, crv, x, y } = await crypto.subtle.exportKey("jwk", pair.publicKey);
 
-    return { key: PublicKey.parse({ kty, crv, x, y }), privateKey: pair.privateKey };
+    return { key: await PublicKey.of(pair.publicKey), privateKey: pair.privateKey };
 }

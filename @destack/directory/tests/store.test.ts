@@ -5,7 +5,7 @@ import { directoryTables, DirectoryStore } from "../src/index.ts";
 test.each(TEST_DIALECTS)(
     "keep the directory's reads until their rows change on %s",
     async (dialect) => {
-        // place a zone in host-1, publish its endpoint, and claim a name
+        // place a zone in host-1, publish its endpoint and claim a name
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
@@ -40,7 +40,7 @@ test.each(TEST_DIALECTS)(
             })
             .toEqual([zone, 0]);
 
-        // follow a move to another cell, its endpoint, and a renamed claim
+        // follow a move to another cell, its endpoint and a renamed claim
         await directory.move(zone, "host-2");
         await directory.place({ ...zone, cell: "host-2", epoch: 2 });
         await directory.publish("host-2", "account-1", "https://host-2.test/");
@@ -73,7 +73,7 @@ test.each(TEST_DIALECTS)(
         await directory.place(first);
         await directory.place(second);
 
-        // give laptop work in both, twice in one, and withdraw it from the second
+        // give laptop work in both and withdraw it from the second
         await directory.assign(first, "laptop");
         await directory.assign(first, "laptop");
         await directory.assign(second, "laptop");

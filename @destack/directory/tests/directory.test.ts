@@ -4,14 +4,9 @@ import { schema } from "@destack/schema";
 import { defineProcedure, defineService, ServiceMount } from "@destack/service";
 import { ServiceError } from "@destack/service/error";
 import { expect, onTestFinished, test } from "@destack/test";
-import {
-    directoryTables,
-    DirectoryStore,
-    IdentityOperation,
-    RECOVERY_MILLISECONDS,
-    Zone,
-    zoneTable,
-} from "../src/index.ts";
+import { directoryTables, DirectoryStore, Zone, zoneTable } from "../src/index.ts";
+import { IdentityError, IdentityOperation } from "@destack/identity";
+import { RECOVERY_MILLISECONDS } from "../src/directory/store.ts";
 
 /** A service a cell mounts, answering a zone's location. */
 const zones = defineService("zones", {
@@ -29,7 +24,7 @@ test.each(TEST_DIALECTS)(
         const directory = new DirectoryStore(storage.database);
         const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
 
-        // place a zone in its host, again without change, and find nothing for other scopes
+        // place a zone in its host twice
         await directory.place(zone);
         await directory.place(zone);
         expect([await directory.locate("space-1"), await directory.locate("account-1")]).toEqual([
@@ -37,7 +32,7 @@ test.each(TEST_DIALECTS)(
             undefined,
         ]);
 
-        // refuse an arrival without a move, and one whose move a cancel ended by placing the zone again
+        // refuse an arrival without a move
         const moved = { ...zone, cell: "region-1", epoch: 2 };
         const unmoved = {
             code: "CONFLICT",
@@ -48,7 +43,7 @@ test.each(TEST_DIALECTS)(
         await directory.place(zone);
         await expect(directory.place(moved)).rejects.toMatchObject(unmoved);
 
-        // take it over in the region its move targets, refusing the stale host and a rival at that epoch
+        // take it over in the region its move targets
         await directory.move(zone, "region-1");
         await directory.place(moved);
         await expect(directory.place(zone)).rejects.toMatchObject({
@@ -80,7 +75,7 @@ test.each(TEST_DIALECTS)(
         const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
         await directory.place(zone);
 
-        // mark the zone moving to the target, and clear the mark once the target takes it
+        // mark the zone moving to the target
         const target = async () => {
             const [zoneRow] = await storage.database
                 .select({ target: zoneTable.target })
@@ -103,7 +98,7 @@ test.each(TEST_DIALECTS)(
             message: "space-1 is no longer placed in host-1 at epoch 1",
         });
 
-        // publish a cell's endpoint, and find none of an unknown cell
+        // publish a cell's endpoint
         await directory.publish("host-2", "account-1", "https://host-2.test/");
         expect([seen, await directory.cell("host-2"), await directory.cell("host-9")]).toEqual([
             [null, "host-2", null],
@@ -150,7 +145,7 @@ test.each(TEST_DIALECTS)(
             scope: "account-1",
         });
 
-        // reserve a name, return it as taken to another object, and confirm it once the write committed
+        // reserve a name and confirm it once the write committed
         expect([
             await directory.claim([claim("notes", "space-1")], "request-1"),
             await directory.claim([claim("notes", "space-2")], "request-2"),
@@ -160,7 +155,7 @@ test.each(TEST_DIALECTS)(
             { indexes: [index], objectId: "space-1", claims: [claim("notes", "space-1")] },
         ]);
 
-        // refuse another object's replacement and rename the object, releasing the old name
+        // refuse another object's replacement and rename the object
         const taken = await directory.replace(
             { indexes: [index], objectId: "space-2", claims: [claim("notes", "space-2")] },
             "request-3",
@@ -192,7 +187,7 @@ test.each(TEST_DIALECTS)(
         await directory.publish("host-1", "account-1", "https://host-1.test/");
         await directory.publish("host-2", "account-1", "https://host-2.test");
 
-        // answer MOVED at the first cell, and the zone at the second, where each mounts the service
+        // answer misdirected at the first cell and the zone at the second
         const mount = ServiceMount.path(zones.package.id);
         const zone = { id: "space-1", scope: "account-1", cell: "host-2", epoch: 2 };
         const sent: string[] = [];
@@ -200,7 +195,7 @@ test.each(TEST_DIALECTS)(
             sent.push(`${request.method} ${request.url}`);
             const moved = {
                 defined: true,
-                code: "MOVED",
+                code: "MISDIRECTED_REQUEST",
                 status: 421,
                 message: "space-1 moves to host-2",
                 data: { scope: "space-1", cell: "host-2" },
@@ -244,12 +239,17 @@ test.each(TEST_DIALECTS)(
 
         // refuse a malformed operation
         await expect(directory.apply("not.an.operation", zone)).rejects.toEqual(
-            new ServiceError("BAD_REQUEST", { message: "the operation is no identity operation" }),
+            new IdentityError("INVALID_OPERATION", "the operation is no identity operation"),
         );
 
-        // start the identity only from the serving cell, signed by its rotation key
+        // start the identity only from the serving cell
         const first = await IdentityOperation.sign(
-            { space: "space-1", previous: null, signingKey: signing.key, rotationKeys: [cell.key] },
+            {
+                subject: "space-1",
+                previous: null,
+                signingKeys: [signing.key],
+                rotationKeys: [cell.key],
+            },
             cell.privateKey,
         );
         const unserved = new ServiceError("FORBIDDEN", {
@@ -259,14 +259,14 @@ test.each(TEST_DIALECTS)(
         await expect(directory.apply(first, { ...zone, cell: "host-2" })).rejects.toEqual(unserved);
         await directory.apply(first, zone);
         expect(await directory.identity("space-1")).toEqual({
-            signingKey: signing.key,
+            signingKeys: [signing.key],
             rotationKeys: [cell.key],
             digest: await IdentityOperation.digest(first),
         });
 
-        // add the owner's key above the cell's, refusing an operation no rotation key signed
+        // add the owner's key above the cell's
         const previous = await IdentityOperation.digest(first);
-        const owned = { space: "space-1", previous, signingKey: signing.key };
+        const owned = { subject: "space-1", previous, signingKeys: [signing.key] };
         const rotationKeys = [owner.key, cell.key];
         await expect(
             directory.apply(
@@ -280,30 +280,30 @@ test.each(TEST_DIALECTS)(
         const second = await IdentityOperation.sign({ ...owned, rotationKeys }, cell.privateKey);
         await directory.apply(second);
 
-        // let the cell's key replace the signing key and the owner's key nullify that, refusing the cell's retry
+        // let the cell's key replace the signing key
         const unrecoverable = new ServiceError("CONFLICT", {
             message: "the operation cannot nullify the later operations of space-1",
         });
         const after = {
-            space: "space-1",
+            subject: "space-1",
             previous: await IdentityOperation.digest(second),
             rotationKeys,
         };
         const stolen = await IdentityOperation.sign(
-            { ...after, signingKey: intruder.key },
+            { ...after, signingKeys: [intruder.key] },
             cell.privateKey,
         );
         await directory.apply(stolen);
-        expect((await directory.identity("space-1"))?.signingKey).toEqual(intruder.key);
+        expect((await directory.identity("space-1"))?.signingKeys).toEqual([intruder.key]);
         const recovered = await IdentityOperation.sign(
-            { ...after, signingKey: signing.key },
+            { ...after, signingKeys: [signing.key] },
             owner.privateKey,
         );
         await directory.apply(recovered);
         await expect(
             directory.apply(
                 await IdentityOperation.sign(
-                    { ...after, signingKey: intruder.key },
+                    { ...after, signingKeys: [intruder.key] },
                     cell.privateKey,
                 ),
             ),
@@ -313,7 +313,7 @@ test.each(TEST_DIALECTS)(
             await directory.operations("space-1"),
         ]).toEqual([
             {
-                signingKey: signing.key,
+                signingKeys: [signing.key],
                 rotationKeys,
                 digest: await IdentityOperation.digest(recovered),
             },
@@ -322,18 +322,21 @@ test.each(TEST_DIALECTS)(
 
         // refuse the owner's key nullifying the cell's next operation once the recovery window passed
         const settled = {
-            space: "space-1",
+            subject: "space-1",
             previous: await IdentityOperation.digest(recovered),
             rotationKeys,
         };
         await directory.apply(
-            await IdentityOperation.sign({ ...settled, signingKey: intruder.key }, cell.privateKey),
+            await IdentityOperation.sign(
+                { ...settled, signingKeys: [intruder.key] },
+                cell.privateKey,
+            ),
         );
         now += RECOVERY_MILLISECONDS + 1000;
         await expect(
             directory.apply(
                 await IdentityOperation.sign(
-                    { ...settled, signingKey: signing.key },
+                    { ...settled, signingKeys: [signing.key] },
                     owner.privateKey,
                 ),
             ),
