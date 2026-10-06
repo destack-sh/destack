@@ -54,7 +54,7 @@ A label is whichever of white, its scale's step 12 and the gray's step 12 reads 
 const theme = defineTheme({ name: "sunset", accent: "#ff8800" });
 theme.scales.accent.color(9, "light"); // "#ff9946", 0.031 lighter, labelled with the gray's step 12 at Lc 60
 theme.scales.accent.color(10, "light"); // the hover step, derived from the shifted step 9
-defineTheme({ name: "signal", roles: { primary: { scale: "amber", step: 9 } } }); // primaryForeground "#1c2024" on amber
+defineTheme({ name: "signal", roles: { primary: { scale: "amber", step: 9 } } }); // primaryForeground "#1e1f26" on amber
 ```
 
 ## Tokens
@@ -63,7 +63,7 @@ defineTheme({ name: "signal", roles: { primary: { scale: "amber", step: 9 } } })
 
 ```json
 "space": {
-    "$description": "Spacing steps after Radix Themes, scaled by the scaling and density.",
+    "$description": "Spacing steps, scaled by the scaling and density.",
     "4": { "$type": "dimension", "$value": { "value": 16, "unit": "px" }, "$description": "Spacing step 4." }
 }
 ```
@@ -91,7 +91,7 @@ motion.easingSpring; // "var(--destack-motion-easing-spring)"
 
 ## Roles
 
-Color roles take shadcn/ui's names plus surface levels and status roles, each a step of the theme's gray, accent or a status scale.
+Color roles name surfaces, text, actions and status, each a step of the theme's gray, accent or a status scale.
 
 ```text
 background, card, popover   gray 1, 2, 1 (dark 3)    = surface.base, surface.raised, surface.overlay
@@ -121,7 +121,7 @@ defineTheme({
 
 ## Scales
 
-`Scale.preset` reads the Radix Colors scales, and `Scale.generate` builds the same twelve steps in OKLCH around a seed that stays step 9 in both appearances.
+`Scale.generate` grows twelve steps in OKLCH around a seed that stays step 9 in both appearances, and `Scale.preset` grows a preset the same way from its solid, a neutral from its own light and dark solids.
 
 ```ts
 import { apca, Scale } from "@destack/theme";
@@ -134,7 +134,7 @@ apca("#888888", "#ffffff"); // 63.06, dark text on a light background
 
 ## Text
 
-`text` holds one StyleX style per text style, named like Apple's at Apple's Medium sizes and scaled by the person's text size.
+`text` holds one StyleX style per text style, scaled by the person's text size.
 
 ```tsx
 import { text } from "@destack/theme/text";
@@ -183,7 +183,7 @@ destackTheme.variables("system", DEFAULT_PREFERENCES);
 
 ## License
 
-The package includes palettes from Radix Colors 3.0.0 and tokens from Radix Themes under the MIT License.
+The preset solid colors derive from Radix Colors 3.0.0 and some token values from Radix Themes, under the MIT License.
 
 ```text
 Copyright (c) 2021 Radix

@@ -1,5 +1,5 @@
 import { defineSetting } from "@destack/setting/declare";
-import { Preset } from "../radix/index.ts";
+import { Preset } from "../preset/index.ts";
 import { DEFAULT_PREFERENCES } from "../theme/index.ts";
 
 /** The accent a person selects over every app's own, overridden per package, space, installation or client. */

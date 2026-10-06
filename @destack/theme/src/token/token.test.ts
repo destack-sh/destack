@@ -29,13 +29,14 @@ test("declare the token families with their text styles and motion tokens", () =
         "weight",
         "space",
         "size",
+        "width",
         "radius",
         "stroke",
         "shadow",
         "motion",
     ]);
 
-    // the text styles named like Apple's, one constant per typography member
+    // the text styles named by role, one constant per typography member
     const styles = [
         "caption",
         "footnote",

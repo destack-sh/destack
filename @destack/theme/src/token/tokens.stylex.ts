@@ -2,7 +2,7 @@
 
 import { defineConsts } from "@destack/style";
 
-/** Semantic color roles after shadcn/ui and status roles, with the default theme's values. */
+/** Semantic color roles and status roles, with the default theme's values. */
 export const color = defineConsts({
     /** The page background, the base surface. */
     background: "var(--destack-color-background)",
@@ -68,7 +68,7 @@ export const surface = defineConsts({
     overlay: "var(--destack-surface-overlay)",
 });
 
-/** Text styles named like Apple's, at Apple's Medium text size with 16px body text, scaled by the person's text size. */
+/** Text styles at the medium text size with 16px body text, scaled by the person's text size. */
 export const text = defineConsts({
     /** The interface font stack. */
     family: "var(--destack-text-family)",
@@ -178,7 +178,7 @@ export const weight = defineConsts({
     bold: "var(--destack-weight-bold)",
 });
 
-/** Spacing steps after Radix Themes, scaled by the scaling and density. */
+/** Spacing steps, scaled by the scaling and density. */
 export const space = defineConsts({
     /** Spacing step 1. */
     "1": "var(--destack-space-1)",
@@ -200,7 +200,7 @@ export const space = defineConsts({
     "9": "var(--destack-space-9)",
 });
 
-/** Control heights after Radix Themes, scaled by the scaling and density. */
+/** Control heights, scaled by the scaling and density. */
 export const size = defineConsts({
     /** Control height 1. */
     "1": "var(--destack-size-1)",
@@ -212,7 +212,27 @@ export const size = defineConsts({
     "4": "var(--destack-size-4)",
 });
 
-/** Corner radii after Radix Themes, scaled by the scaling and the theme's radius. */
+/** Widths of panels and overlays, scaled by the scaling and density. */
+export const width = defineConsts({
+    /** A popover's width. */
+    popover: "var(--destack-width-popover)",
+    /** A hover card's width. */
+    hoverCard: "var(--destack-width-hover-card)",
+    /** An expanded sidebar's width. */
+    sidebar: "var(--destack-width-sidebar)",
+    /** A sidebar's width while it shows its icons. */
+    sidebarIcon: "var(--destack-width-sidebar-icon)",
+    /** A toast's width. */
+    toast: "var(--destack-width-toast)",
+    /** The widest a block of centred text runs, such as an empty state's. */
+    prose: "var(--destack-width-prose)",
+    /** A vertical attachment tile's width. */
+    tile: "var(--destack-width-tile)",
+    /** The narrowest a horizontal attachment row runs. */
+    row: "var(--destack-width-row)",
+});
+
+/** Corner radii, scaled by the scaling and the theme's radius. */
 export const radius = defineConsts({
     /** Corner radius 1. */
     "1": "var(--destack-radius-1)",
@@ -234,15 +254,15 @@ export const radius = defineConsts({
 export const stroke = defineConsts({
     /** Borders of controls, cards and separators. */
     border: "var(--destack-stroke-border)",
-    /** Focus rings, after shadcn/ui's ring width. */
+    /** Focus rings. */
     ring: "var(--destack-stroke-ring)",
 });
 
-/** Elevation shadows of the surface levels after Radix Themes. */
+/** Elevation shadows of the surface levels. */
 export const shadow = defineConsts({
-    /** The hairline around raised and overlaid surfaces, after Radix gray alpha steps 3 and 6. */
+    /** The hairline around raised and overlaid surfaces, the gray's alpha steps 3 and 6. */
     edge: "var(--destack-shadow-edge)",
-    /** The cast shadow color, after Radix black alpha steps 2 and 6. */
+    /** The cast shadow color, black's alpha steps 2 and 6. */
     cast: "var(--destack-shadow-cast)",
     /** Sunken fields such as text inputs. */
     inset: "var(--destack-shadow-inset)",
@@ -252,17 +272,17 @@ export const shadow = defineConsts({
     overlay: "var(--destack-shadow-overlay)",
 });
 
-/** Durations and easings after Material Design 3, collapsed to zero by the person's motion setting. */
+/** Durations and easings, collapsed to zero by the person's motion setting. */
 export const motion = defineConsts({
-    /** Small changes such as hover and press, Material short3. */
+    /** Small changes such as hover and press. */
     durationShort: "var(--destack-motion-duration-short)",
-    /** Elements entering and leaving, Material medium2. */
+    /** Elements entering and leaving. */
     durationMedium: "var(--destack-motion-duration-medium)",
-    /** Large surfaces and full-screen changes, Material long2. */
+    /** Large surfaces and full-screen changes. */
     durationLong: "var(--destack-motion-duration-long)",
-    /** Movement within the screen, Material standard. */
+    /** Movement within the screen. */
     easingStandard: "var(--destack-motion-easing-standard)",
-    /** Elements entering the screen, Material emphasized decelerate. */
+    /** Elements entering the screen. */
     easingEmphasised: "var(--destack-motion-easing-emphasised)",
     /** Playful movement with a slight overshoot, sampled from a spring as linear(), with an overshooting cubic Bézier as its portable form. */
     easingSpring: "var(--destack-motion-easing-spring)",

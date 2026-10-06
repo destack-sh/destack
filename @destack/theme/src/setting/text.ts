@@ -5,7 +5,7 @@ import { DEFAULT_PREFERENCES, TextSize } from "../theme/index.ts";
 export const textSize = defineSetting({
     name: "textSize",
     title: "Text size",
-    description: "Read text smaller or larger, after Apple's Dynamic Type sizes.",
+    description: "Read text smaller or larger.",
     schema: TextSize,
     default: DEFAULT_PREFERENCES.textSize,
     scope: "user",

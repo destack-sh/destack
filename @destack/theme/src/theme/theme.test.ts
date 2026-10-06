@@ -2,7 +2,7 @@ import { Package } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
 import { apca, Color, Scale } from "../palette/index.ts";
-import { GRAY_PRESETS, PRESET_NAMES } from "../radix/index.ts";
+import { GRAY_PRESETS, PRESET_NAMES } from "../preset/index.ts";
 import {
     DEFAULT_PREFERENCES,
     ROLE_NAMES,
@@ -39,6 +39,18 @@ const SPACE = [4, 8, 12, 16, 24, 32, 40, 48, 64];
 /** The control heights of tokens.json. */
 const SIZE = [24, 32, 40, 48];
 
+/** The panel and overlay widths of tokens.json, by their custom property's name. */
+const WIDTH = {
+    "hover-card": 256,
+    popover: 288,
+    prose: 384,
+    row: 160,
+    sidebar: 256,
+    "sidebar-icon": 48,
+    tile: 120,
+    toast: 356,
+};
+
 /** The text sizes and letter spacings at the largest text size, 23 over 16 points of the default. */
 const LARGEST_TEXT = {
     "--destack-text-caption-font-size": "15.813px",
@@ -63,6 +75,14 @@ const LARGEST_TEXT = {
 /** Format a length in pixels as themes do, to three decimals. */
 function pixels(length: number): string {
     return `${Number(length.toFixed(3))}px`;
+}
+
+/** List the scaled custom properties of the width family. */
+function widths(factor: number): [string, string][] {
+    return Object.entries(WIDTH).map(([name, length]) => [
+        `--destack-width-${name}`,
+        pixels(length * factor),
+    ]);
 }
 
 /** List the scaled custom properties of a numbered token family. */
@@ -139,13 +159,13 @@ test("check the roles a theme replaces like every other role", async () => {
     ]).toEqual([
         "light-dark(#f8f5ee, #0b2029)",
         "light-dark(#f8f5ee, #0b2029)",
-        "light-dark(#1c2024, #edeef0)",
+        "light-dark(#1e1f26, #edeef0)",
     ]);
 
     // a background too close to its text is refused
     const illegible = Promise.resolve().then(() =>
         defineTheme(
-            { name: "fog", roles: { background: { light: "#8b8d98", dark: "#111113" } } },
+            { name: "fog", roles: { background: { light: "#8b8d98", dark: "#101113" } } },
             { package: notes },
         ),
     );
@@ -164,7 +184,7 @@ test("label an overridden primary with the candidate that reads best on it", () 
 
     // the gray's darkest step reads on amber, where the indigo accent's white label would not
     expect([style["--destack-color-primary"], style["--destack-color-primary-foreground"]]).toEqual(
-        ["#ffc53d", "#1c2024"],
+        ["#ffc53d", "#1e1f26"],
     );
 });
 
@@ -196,38 +216,38 @@ test("emit the default theme's custom properties for the system appearance", () 
     // follow the device's contrast through color-mix() and its motion through the duration scale
     expect(standard.variables("system", DEFAULT_PREFERENCES)).toEqual({
         "color-scheme": "light dark",
-        "--destack-color-background": "light-dark(#fcfcfd, #111113)",
-        "--destack-color-foreground": "light-dark(#1c2024, #edeef0)",
-        "--destack-color-card": "light-dark(#f9f9fb, #18191b)",
-        "--destack-color-card-foreground": "light-dark(#1c2024, #edeef0)",
-        "--destack-color-popover": "light-dark(#fcfcfd, #212225)",
-        "--destack-color-popover-foreground": "light-dark(#1c2024, #edeef0)",
+        "--destack-color-background": "light-dark(#fcfcfe, #101113)",
+        "--destack-color-foreground": "light-dark(#1e1f26, #edeef0)",
+        "--destack-color-card": "light-dark(#f8f9fb, #18191b)",
+        "--destack-color-card-foreground": "light-dark(#1e1f26, #edeef0)",
+        "--destack-color-popover": "light-dark(#fcfcfe, #212224)",
+        "--destack-color-popover-foreground": "light-dark(#1e1f26, #edeef0)",
         "--destack-color-primary": "#3e63dd",
         "--destack-color-primary-foreground": "#ffffff",
-        "--destack-color-secondary": "light-dark(#f0f0f3, #212225)",
-        "--destack-color-secondary-foreground": "light-dark(#1c2024, #edeef0)",
-        "--destack-color-muted": "light-dark(#f0f0f3, #212225)",
+        "--destack-color-secondary": "light-dark(#f0f0f3, #212224)",
+        "--destack-color-secondary-foreground": "light-dark(#1e1f26, #edeef0)",
+        "--destack-color-muted": "light-dark(#f0f0f3, #212224)",
         "--destack-color-muted-foreground":
-            "light-dark(color-mix(in oklab, #60646c, #1c2024 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b0b4ba, #edeef0 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-accent": "light-dark(#edf2fe, #182449)",
-        "--destack-color-accent-foreground": "light-dark(#1f2d5c, #d6e1ff)",
+            "light-dark(color-mix(in oklab, #62636c, #1e1f26 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b0b4bb, #edeef0 calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-accent": "light-dark(#ecf1ff, #182341)",
+        "--destack-color-accent-foreground": "light-dark(#223364, #d7e3ff)",
         "--destack-color-destructive": "#e5484d",
         "--destack-color-destructive-foreground": "#ffffff",
         "--destack-color-success": "#30a46c",
         "--destack-color-success-foreground": "#ffffff",
         "--destack-color-warning": "#ffc53d",
-        "--destack-color-warning-foreground": "#1c2024",
+        "--destack-color-warning-foreground": "#1e1f26",
         "--destack-color-info": "#0090ff",
         "--destack-color-info-foreground": "#ffffff",
         "--destack-color-border":
-            "light-dark(color-mix(in oklab, #d9d9e0, #b9bbc6 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #363a3f, #5a6169 calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #d8d9df, #b9bbc3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #383a3e, #5d6168 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-input":
-            "light-dark(color-mix(in oklab, #cdced6, #b9bbc6 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #43484e, #5a6169 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-ring": "light-dark(#8da4ef, #435db1)",
-        "--destack-color-scrim": "light-dark(#1c202480, #11111380)",
-        "--destack-surface-base": "light-dark(#fcfcfd, #111113)",
-        "--destack-surface-raised": "light-dark(#f9f9fb, #18191b)",
-        "--destack-surface-overlay": "light-dark(#fcfcfd, #212225)",
+            "light-dark(color-mix(in oklab, #cdced5, #b9bbc3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #45484d, #5d6168 calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-ring": "light-dark(#83a6ff, #4967b9)",
+        "--destack-color-scrim": "light-dark(#1e1f2680, #10111380)",
+        "--destack-surface-base": "light-dark(#fcfcfe, #101113)",
+        "--destack-surface-raised": "light-dark(#f8f9fb, #18191b)",
+        "--destack-surface-overlay": "light-dark(#fcfcfe, #212224)",
         "--destack-text-family":
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
         "--destack-text-code-family":
@@ -280,6 +300,14 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-weight-regular": "400",
         "--destack-weight-medium": "500",
         "--destack-weight-semibold": "600",
+        "--destack-width-hover-card": "256px",
+        "--destack-width-popover": "288px",
+        "--destack-width-prose": "384px",
+        "--destack-width-row": "160px",
+        "--destack-width-sidebar": "256px",
+        "--destack-width-sidebar-icon": "48px",
+        "--destack-width-tile": "120px",
+        "--destack-width-toast": "356px",
         "--destack-weight-bold": "700",
         "--destack-space-1": "4px",
         "--destack-space-2": "8px",
@@ -368,12 +396,13 @@ test("override the theme with the person's accent, density, text size, contrast 
         "--destack-color-accent": step(3),
         "--destack-color-accent-foreground": step(12),
         "--destack-color-ring": step(8),
-        "--destack-color-muted-foreground": "light-dark(#1c2024, #edeef0)",
-        "--destack-color-border": "light-dark(#b9bbc6, #5a6169)",
-        "--destack-color-input": "light-dark(#b9bbc6, #5a6169)",
+        "--destack-color-muted-foreground": "light-dark(#1e1f26, #edeef0)",
+        "--destack-color-border": "light-dark(#b9bbc3, #5d6168)",
+        "--destack-color-input": "light-dark(#b9bbc3, #5d6168)",
         ...LARGEST_TEXT,
         ...Object.fromEntries(scaled("space", SPACE, 1.125)),
         ...Object.fromEntries(scaled("size", SIZE, 1.125)),
+        ...Object.fromEntries(widths(1.125)),
         "--destack-motion-scale": "0",
     });
 });
@@ -412,6 +441,7 @@ test("apply the theme's radius, scaling and fonts", () => {
         ...Object.fromEntries(text),
         ...Object.fromEntries(scaled("space", SPACE, 0.9)),
         ...Object.fromEntries(scaled("size", SIZE, 0.9)),
+        ...Object.fromEntries(widths(0.9)),
         ...Object.fromEntries(scaled("radius", [3, 4, 6, 8, 12, 16], 1.35)),
         "--destack-radius-full": "13498.65px",
     });

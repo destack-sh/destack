@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
-import { Preset } from "../radix/index.ts";
+import { Preset } from "../preset/index.ts";
 
-/** The body size of each Apple Dynamic Type size relative to the default medium, from 14 to 23 points over 16. */
+/** The body size of each text size relative to the default medium, from 14 to 23 points over 16. */
 export const TEXT_SCALES = {
     xSmall: 14 / 16,
     small: 15 / 16,
@@ -12,7 +12,7 @@ export const TEXT_SCALES = {
     xxxLarge: 23 / 16,
 } as const;
 
-/** The spacing of each density, one Material density step of 4 pixels on a 32-pixel control apart. */
+/** The spacing of each density, one step of 4 pixels on a 32-pixel control apart. */
 export const DENSITY_SCALES = {
     compact: 0.875,
     regular: 1,
@@ -24,7 +24,7 @@ export const Appearance = defineSchema(schema.enum(["system", "light", "dark"]))
 /** The appearance a person sees. */
 export type Appearance = schema.Infer<typeof Appearance>;
 
-/** The text size a person reads at, named after Apple's Dynamic Type sizes. */
+/** The text size a person reads at. */
 export const TextSize = defineSchema(
     schema.enum(["xSmall", "small", "medium", "large", "xLarge", "xxLarge", "xxxLarge"]),
 );

@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { apca, Color, Scale, STEPS, type Scheme, type Step } from "./index.ts";
-import { PRESET_NAMES, PRESETS } from "../radix/index.ts";
+import { ACCENT_SOLIDS, GRAY_SOLIDS, PRESET_NAMES } from "../preset/index.ts";
 
 /** Seeds across hues, lightness and chroma. */
 const SEEDS = ["#3e63dd", "#f76b15", "#ffc53d", "#46a758", "#ff0000", "#7c3aed", "#888888"];
@@ -22,10 +22,13 @@ test("measure the APCA-W3 reference contrasts", () => {
     expect(apca("#777777", "#777777")).toBe(0);
 });
 
-test("roundtrip every preset color through OKLCH", () => {
-    const colors = PRESET_NAMES.flatMap((name) => [...PRESETS[name].light, ...PRESETS[name].dark]);
+test("roundtrip every preset solid through OKLCH", () => {
+    const solids = [
+        ...Object.values(ACCENT_SOLIDS),
+        ...Object.values(GRAY_SOLIDS).flatMap((gray) => [gray.light, gray.dark]),
+    ];
 
-    expect(colors.filter((hex) => Color.parse(hex).hex() !== hex)).toEqual([]);
+    expect(solids.filter((hex) => Color.parse(hex).hex() !== hex)).toEqual([]);
 });
 
 test("order generated steps from background to text in both appearances", () => {
@@ -63,18 +66,28 @@ test("keep the seed as both appearances' step 9 and its hue on every colored ste
     }
 });
 
-test("follow the Radix lightness of indigo when generating from its solid step", () => {
-    const preset = Scale.preset("indigo");
-    const generated = Scale.generate(preset.color(9, "light"));
+test("grow every preset around its solids, ordering its steps from background to text", () => {
+    const misordered = PRESET_NAMES.filter((name) => {
+        // read the preset's lightness along its background and text steps
+        const scale = Scale.preset(name);
+        const lightness = (steps: readonly Step[], scheme: Scheme) =>
+            steps.map((step) => Color.parse(scale.color(step, scheme)).lightness);
 
-    // every step lands within 0.03 OKLCH lightness of the hand-tuned preset
-    const differences = STEPS.flatMap((step) =>
-        (["light", "dark"] as const).map((scheme) =>
-            Math.abs(
-                Color.parse(generated.color(step, scheme)).lightness -
-                    Color.parse(preset.color(step, scheme)).lightness,
-            ),
-        ),
-    );
-    expect(Math.max(...differences)).toBeLessThan(0.03);
+        // light steps darken and dark steps lighten
+        return [BACKGROUNDS, TEXT].some((steps) => {
+            const light = lightness(steps, "light");
+            const dark = lightness(steps, "dark");
+
+            return (
+                light.join() !== light.toSorted((left, right) => right - left).join() ||
+                dark.join() !== dark.toSorted((left, right) => left - right).join()
+            );
+        });
+    });
+    const solids = [
+        Scale.preset("slate").color(9, "dark"),
+        Scale.preset("indigo").color(9, "light"),
+    ];
+
+    expect([misordered, solids]).toEqual([[], [GRAY_SOLIDS.slate.dark, ACCENT_SOLIDS.indigo]]);
 });

@@ -1,7 +1,7 @@
 import { PackageError, type Package } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { apca, HexColor, Scale, type Scheme } from "../palette/index.ts";
-import { GRAY_PRESETS, Preset, type GrayPreset } from "../radix/index.ts";
+import { GRAY_PRESETS, Preset, type GrayPreset } from "../preset/index.ts";
 import { MOTION_VARIABLE, TOKENS, type Variable } from "../token/index.ts";
 import {
     DENSITY_SCALES,
@@ -24,16 +24,16 @@ import {
     type RoleScales,
 } from "./role.ts";
 
-/** The radius multiplier of each corner treatment, after Radix Themes. */
+/** The radius multiplier of each corner treatment. */
 const RADIUS_SCALES = { none: 0, small: 0.75, medium: 1, large: 1.5, full: 1.5 } as const;
 
-/** The accent of a theme that names none, after Radix Themes. */
+/** The accent of a theme that names none. */
 const DEFAULT_ACCENT = "indigo";
 
-/** The gray of a theme that names none, after Radix Themes. */
+/** The gray of a theme that names none. */
 const DEFAULT_GRAY = "slate";
 
-/** The corner treatment of a theme that names none, after Radix Themes. */
+/** The corner treatment of a theme that names none. */
 const DEFAULT_RADIUS = "medium";
 
 /** The interface scale of a theme that names none. */
@@ -225,6 +225,7 @@ export class Theme {
                 return undefined;
             case "space":
             case "size":
+            case "width":
                 return scaling * density;
             case "radius":
                 return scaling * RADIUS_SCALES[this.definition.radius ?? DEFAULT_RADIUS];

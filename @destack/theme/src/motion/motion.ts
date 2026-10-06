@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { motion } from "../token/tokens.stylex.ts";
 
-/** The scale an element enters from and exits to, after Radix Themes' popover animation. */
+/** The scale an element enters from and exits to. */
 const HIDDEN_SCALE = "scale(0.96)";
 
 /** Transition presets for elements entering and leaving, discrete properties included. */

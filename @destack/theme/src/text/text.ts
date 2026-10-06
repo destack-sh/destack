@@ -2,7 +2,7 @@
 
 import * as style from "@destack/style";
 
-/** Text styles named like Apple's, at Apple's Medium text size with 16px body text, scaled by the person's text size. */
+/** Text styles at the medium text size with 16px body text, scaled by the person's text size. */
 export const text = style.create({
     /** Captions and labels. */
     caption: {

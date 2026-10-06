@@ -3,7 +3,7 @@ import { describeSetting } from "@destack/setting/inspect";
 import { expect, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
 import { describeTheme } from "../inspect/index.ts";
-import { PRESET_NAMES } from "../radix/index.ts";
+import { PRESET_NAMES } from "../preset/index.ts";
 import { accent, appearance, contrast, density, motion, textSize } from "../setting/index.ts";
 
 /** The package release declaring the fixture's theme. */
@@ -52,7 +52,7 @@ const DESCRIPTIONS = [
         owner: "@destack/theme",
         name: "textSize",
         title: "Text size",
-        description: "Read text smaller or larger, after Apple's Dynamic Type sizes.",
+        description: "Read text smaller or larger.",
         schema: enumeration([
             "xSmall",
             "small",

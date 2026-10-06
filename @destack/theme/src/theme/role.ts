@@ -12,10 +12,10 @@ export const CONTENT_CONTRAST = 60;
 /** The custom property the stylesheet sets to 1 when the device asks for more contrast. */
 const CONTRAST_VARIABLE = `${VARIABLE_PREFIX}-contrast`;
 
-/** The opacity of the scrim behind modal surfaces, after shadcn/ui's black at half strength. */
+/** The opacity of the scrim behind modal surfaces: black at half strength. */
 const SCRIM_ALPHA = 0.5;
 
-/** The color role names after shadcn/ui, with status roles. */
+/** The color role names, with status roles. */
 export const ROLE_NAMES = [
     "background",
     "foreground",

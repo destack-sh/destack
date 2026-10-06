@@ -1,12 +1,19 @@
 import { aligned } from "@destack/schema";
 import { apca } from "./apca.ts";
 import { Color } from "./color.ts";
-import { PRESETS, type Preset } from "../radix/index.ts";
+import {
+    ACCENT_SOLIDS,
+    GRAY_PRESETS,
+    GRAY_SOLIDS,
+    type GrayPreset,
+    type Preset,
+    type Solids,
+} from "../preset/index.ts";
 
 /** The steps of a scale. */
 export const STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
-/** The OKLCH targets of generated light steps, averaged over the Radix Colors 3.0.0 accent scales. */
+/** The OKLCH targets of light accent steps around their solid. */
 const LIGHT_TARGET: Target = {
     background: [0.993, 0.982, 0.959, 0.931, 0.9, 0.86, 0.807, 0.736],
     hover: -0.029,
@@ -14,12 +21,28 @@ const LIGHT_TARGET: Target = {
     chroma: [0.02, 0.08, 0.19, 0.3, 0.39, 0.48, 0.58, 0.75, 1, 0.99, 0.89, 0.46],
 };
 
-/** The OKLCH targets of generated dark steps, averaged over the Radix Colors 3.0.0 accent scales. */
+/** The OKLCH targets of dark accent steps around their solid. */
 const DARK_TARGET: Target = {
     background: [0.187, 0.211, 0.264, 0.305, 0.348, 0.396, 0.456, 0.532],
     hover: 0.04,
     text: [0.795, 0.915],
     chroma: [0.1, 0.14, 0.3, 0.43, 0.49, 0.53, 0.59, 0.7, 1, 0.96, 0.87, 0.38],
+};
+
+/** The OKLCH targets of light neutral steps around their solid, lighter backgrounds and darker text than an accent's. */
+const GRAY_LIGHT_TARGET: Target = {
+    background: [0.992, 0.982, 0.956, 0.932, 0.909, 0.886, 0.852, 0.792],
+    hover: -0.034,
+    text: [0.502, 0.242],
+    chroma: [0.136, 0.193, 0.271, 0.324, 0.441, 0.471, 0.578, 0.755, 1, 0.954, 0.829, 0.818],
+};
+
+/** The OKLCH targets of dark neutral steps around their solid. */
+const GRAY_DARK_TARGET: Target = {
+    background: [0.179, 0.213, 0.252, 0.283, 0.312, 0.348, 0.4, 0.49],
+    hover: 0.046,
+    text: [0.768, 0.948],
+    chroma: [0.231, 0.226, 0.261, 0.368, 0.43, 0.514, 0.603, 0.801, 1, 0.93, 0.71, 0.184],
 };
 
 /** The light label candidate on solid steps. */
@@ -28,7 +51,7 @@ const WHITE = "#ffffff";
 /** The OKLCH lightness change of each search step when shifting step 9 for its label, below one 8-bit step. */
 const SHIFT_STEP = 0.001;
 
-/** A step of a scale, with Radix semantics: 1–2 backgrounds, 3–5 component fills, 6–8 borders, 9–10 solid, 11–12 text. */
+/** A step of a scale: 1–2 backgrounds, 3–5 component fills, 6–8 borders, 9–10 solid, 11–12 text. */
 export type Step = (typeof STEPS)[number];
 
 /** The light or dark appearance a scale step resolves in. */
@@ -50,20 +73,23 @@ export class Scale {
         this.dark = dark;
     }
 
-    /** Read a preset scale. */
+    /** Grow a preset's scale from its solid: a neutral's from its own light and dark solids, an accent's from one. */
     static preset(name: Preset): Scale {
-        const { light, dark } = PRESETS[name];
-
-        return new Scale(light, dark);
+        return isGray(name)
+            ? Scale.#grow(GRAY_SOLIDS[name], GRAY_LIGHT_TARGET, GRAY_DARK_TARGET)
+            : Scale.generate(ACCENT_SOLIDS[name]);
     }
 
-    /** Generate a scale around a seed color in OKLCH: the seed is step 9 of both appearances, at its hue. */
+    /** Generate an accent scale around a seed color in OKLCH: the seed is step 9 of both appearances, at its hue. */
     static generate(seed: string): Scale {
-        // read the seed's lightness, chroma and hue
-        const solid = Color.parse(seed);
+        return Scale.#grow({ light: seed, dark: seed }, LIGHT_TARGET, DARK_TARGET);
+    }
 
-        // place each step at its target lightness and relative chroma, with the seed as step 9
-        const generate = (target: Target) => {
+    /** Place each step of both appearances at its target lightness and relative chroma around the solids. */
+    static #grow(solids: Solids, light: Target, dark: Target): Scale {
+        const steps = (seed: string, target: Target) => {
+            // read the solid's lightness, chroma and hue
+            const solid = Color.parse(seed);
             const lightness = [
                 ...target.background,
                 solid.lightness,
@@ -71,16 +97,19 @@ export class Scale {
                 ...target.text,
             ];
 
-            return STEPS.map((step, index) => {
-                const chroma = solid.chroma * aligned(target.chroma, index);
-
-                return step === 9
+            // keep the solid as step 9 and place the rest at the solid's hue
+            return STEPS.map((step, index) =>
+                step === 9
                     ? seed.toLowerCase()
-                    : new Color(aligned(lightness, index), chroma, solid.hue).hex();
-            });
+                    : new Color(
+                          aligned(lightness, index),
+                          solid.chroma * aligned(target.chroma, index),
+                          solid.hue,
+                      ).hex(),
+            );
         };
 
-        return new Scale(generate(LIGHT_TARGET), generate(DARK_TARGET));
+        return new Scale(steps(solids.light, light), steps(solids.dark, dark));
     }
 
     /** Pick the label that reads best on a background: white, this scale's darkest step or another dark text color. */
@@ -154,4 +183,9 @@ interface Target {
     readonly text: readonly number[];
     /** The chroma of steps 1 through 12 relative to step 9. */
     readonly chroma: readonly number[];
+}
+
+/** Report whether a preset is a neutral one. */
+function isGray(name: Preset): name is GrayPreset {
+    return GRAY_PRESETS.some((gray) => gray === name);
 }
