@@ -21,7 +21,8 @@ import { EphemeralStorage, ObjectServer } from "@destack/object/server";
 import { aligned, type Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import { emptyBuild, subjectContext, testCallKey } from "@destack/service/test";
+import { subjectContext, testCallKey } from "@destack/service/test";
+import { memoryBuild } from "@destack/package/test";
 import { space } from "@destack/space/object";
 import { afterAll, onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
@@ -114,7 +115,7 @@ export async function serveArticles(dialect: Dialect) {
         installation: {
             id: INSTALLATION,
             scope: spaceId,
-            build: await emptyBuild(article.package),
+            build: (await memoryBuild(article.package)).reader,
             publisher: silent,
             publisherAt: () => silent,
             directory: {

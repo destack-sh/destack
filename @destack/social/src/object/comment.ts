@@ -31,10 +31,10 @@ export const Mention = schema.object({
     offset: schema.int().min(0),
     /** The span's length in UTF-16 code units. */
     length: schema.int().min(1),
-    /** The mentioned user, host or installation. */
+    /** The mentioned user, machine or installation. */
     principal: Subject.omit({ relation: true }).extend({
         packageId: schema.literal(ACCESS_PACKAGE_ID),
-        type: schema.enum(["user", "host", "installation"]),
+        type: schema.enum(["user", "machine", "installation"]),
     }),
 });
 /** A principal a comment mentions. */
