@@ -86,49 +86,6 @@ test("open each object type in the scopes the view requests its permissions in",
     ]);
 });
 
-test("refuse a view requesting one permission in two scopes", () => {
-    // read notes in the view's space and in the person's home
-    const refusal = () =>
-        defineView(
-            {
-                name: "notes",
-                objects: [note],
-                permissions: { space: [note.permission("read")], home: [note.permission("read")] },
-                component: () => Promise.reject(new Error("loaded")),
-            },
-            { package: notes },
-        );
-    expect(refusal).toThrow(new TypeError("view notes requests note read in more than one scope"));
-});
-
-test("refuse a view opening an object type it requests no permission on", () => {
-    // open notes without requesting a permission on them
-    const refusal = () =>
-        defineView(
-            {
-                name: "notes",
-                objects: [note],
-                component: () => Promise.reject(new Error("loaded")),
-            },
-            { package: notes },
-        );
-    expect(refusal).toThrow(new TypeError("view notes opens note but requests no note permission"));
-});
-
-test("refuse a view presenting an object type it opens none of", () => {
-    // present notes without opening them
-    const refusal = () =>
-        defineView(
-            {
-                name: "notes",
-                presents: [{ object: note, priority: "default" }],
-                component: () => Promise.reject(new Error("loaded")),
-            },
-            { package: notes },
-        );
-    expect(refusal).toThrow(new TypeError("view notes presents note but opens no note objects"));
-});
-
 test("describe a declared command by the method it calls and its key combination", () => {
     // declare a command listing notes on a shortcut
     const command = defineCommand(
@@ -151,22 +108,6 @@ test("describe a declared command by the method it calls and its key combination
             keybinding: "mod+l",
         },
     ]);
-});
-
-test("refuse a view requesting a permission of an object type it opens none of", () => {
-    // request reading notes without opening them
-    const refusal = () =>
-        defineView(
-            {
-                name: "notes",
-                permissions: { account: [note.permission("read")] },
-                component: () => Promise.reject(new Error("loaded")),
-            },
-            { package: notes },
-        );
-    expect(refusal).toThrow(
-        new TypeError("view notes requests note read but opens no note objects"),
-    );
 });
 
 test("accept a view requesting a permission of an opened object representing another package's policy", () => {

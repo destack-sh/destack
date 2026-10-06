@@ -1,13 +1,13 @@
 import { type Undo, type ObjectType, TextChange } from "@destack/object";
 import { LiveText, type Submission } from "@destack/object/client";
-import type { ViewScope } from "@destack/package/manifest";
+import { type PermissionScope } from "@destack/access";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
 import { scopeOf, useClient, useView } from "../page/view.ts";
 
 /** Where a text field is followed. */
 export interface ScopeOptions {
     /** The view's scope holding the object, its space by default. */
-    readonly scope?: ViewScope;
+    readonly scope?: PermissionScope;
 }
 
 /** A text field followed live and replaced by whole values. */

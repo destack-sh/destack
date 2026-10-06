@@ -1,5 +1,6 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
-import { ViewScope, type ViewPresentationPriority } from "@destack/package/manifest";
+import { type ViewPresentationPriority } from "@destack/package/manifest";
+import { PermissionScope } from "@destack/access";
 import { type Permission, PermissionReference } from "@destack/access";
 import type { ObjectType } from "@destack/object";
 import type { Service } from "@destack/service";
@@ -12,10 +13,10 @@ export interface ViewDefinition {
     /** The object types the view reads and changes, opened before it renders in each scope it requests their permissions in. */
     readonly objects?: readonly ObjectType[];
     /** The permissions the view requests, by the scope they apply in relative to its context. */
-    readonly permissions?: { readonly [Scope in ViewScope]?: readonly Permission[] };
+    readonly permissions?: { readonly [Scope in PermissionScope]?: readonly Permission[] };
     /** The object types the view presents, and how strongly, so opening an object picks its view. */
     readonly presents?: readonly Presentation[];
-    /** The platform services the view calls as its person, such as the monitor service. */
+    /** The platform services the view calls as its person, such as the observability service. */
     readonly services?: readonly Service[];
     /** Load the module whose default export is the root component. */
     readonly component: () => Promise<{ readonly default: Component }>;
@@ -59,7 +60,7 @@ export class View {
     }
 
     /** List the object types the view opens in a scope: those it requests permissions on there. */
-    opens(scope: ViewScope): ObjectType[] {
+    opens(scope: PermissionScope): ObjectType[] {
         const permissions = this.permissions[scope] ?? [];
 
         return this.objects.filter((object) =>
@@ -76,7 +77,7 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
 
     // list each requested permission with its scope
     const objects = definition.objects ?? [];
-    const requested = ViewScope.options.flatMap((scope) =>
+    const requested = PermissionScope.options.flatMap((scope) =>
         (definition.permissions?.[scope] ?? []).map((permission) => ({ scope, permission })),
     );
 

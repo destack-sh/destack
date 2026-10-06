@@ -2,7 +2,7 @@ import "@destack/theme/theme.css";
 import { Catalog } from "@destack/locale";
 import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
-import { ViewScope } from "@destack/package/manifest";
+import { PermissionScope } from "@destack/access";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import {
@@ -15,6 +15,7 @@ import {
 import type { View } from "../declare/view.ts";
 import { renderView } from "../page/mount.ts";
 import { mountServices } from "../page/view.ts";
+import { listenForCommands } from "../palette/overlay.ts";
 
 /** How long to wait before following the display again after its stream drops. */
 const RECONNECT_MILLISECONDS = 1000;
@@ -29,17 +30,14 @@ export async function mount(view: View): Promise<() => Promise<void>> {
     if (element === null) {
         throw new TypeError(`the page has no ${LAUNCH_ELEMENT} launch`);
     }
-    const { release, endpoint, manifest, catalogs, ...context } = ViewLaunch.parse(
+    const { release, endpoint, catalogs, ...context } = ViewLaunch.parse(
         JSON.parse(element.textContent),
     );
 
-    // export the page's telemetry and uncaught failures to its origin as the release serving it
+    // export the page's telemetry and uncaught failures to its origin, which stamps the build it serves
     const exporter = OtlpExporter.origin(reportToDevtools);
     const telemetry = await startTelemetry(
-        exporter.options(
-            { name: view.package.name, version: release },
-            manifest === undefined ? {} : { manifest },
-        ),
+        exporter.options({ name: view.package.name, version: release }),
     );
 
     // open the view's scopes over the launch's endpoint while fetching its catalogs
@@ -52,47 +50,32 @@ export async function mount(view: View): Promise<() => Promise<void>> {
 
     // render the root component under the view, its clients and the launch's catalogs
     const { default: Component } = await view.component();
-    let dispose = renderView(Component, document.body, context, clients, translations, services);
-
-    // restyle the page on each display change and render again in a new language
-    let locale = context.locale;
-    let switches = 0;
+    const rendering = new LocalizedRendering(
+        (locale, translated) =>
+            renderView(
+                Component,
+                document.body,
+                locale === undefined ? context : { ...context, locale },
+                clients,
+                translated,
+                services,
+            ),
+        context.locale,
+        translations,
+    );
     const stopping = new AbortController();
-    void followDisplay(stopping.signal, (next) => {
-        // restyle in place and keep the language when it stays
-        restyle(next);
-        if (next.locale === locale) {
-            return;
-        }
 
-        // render in the latest language once its catalogs arrive, reporting a failed fetch
-        locale = next.locale;
-        switches += 1;
-        const switched = switches;
-        fetchCatalogs(next.catalogs).then(
-            (fetched) => {
-                // drop a switch a later one replaced
-                if (switched !== switches || stopping.signal.aborted) {
-                    return;
-                }
-                dispose();
-                dispose = renderView(
-                    Component,
-                    document.body,
-                    { ...context, locale: next.locale },
-                    clients,
-                    fetched,
-                    services,
-                );
-            },
-            (error: unknown) => reportError(error),
-        );
+    // open the command palette, restyle on each display change and render again in a new language
+    void listenForCommands(stopping.signal).catch(reportError);
+    void followDisplay(stopping.signal, (next) => {
+        restyle(next);
+        rendering.switch(next, stopping.signal);
     });
 
     // release the page's display, render, tabs and telemetry on unmount
     const unmount = async () => {
         stopping.abort();
-        dispose();
+        rendering.dispose();
         try {
             await Promise.all([...tabs.values()].map((tab) => tab.close()));
         } finally {
@@ -104,6 +87,57 @@ export async function mount(view: View): Promise<() => Promise<void>> {
     window.addEventListener("pagehide", () => void unmount(), { once: true });
 
     return unmount;
+}
+
+/** A view rendered into the page, rendered again in each new language once that language's catalogs arrive. */
+class LocalizedRendering {
+    /** Render the view in a language with its catalogs, returning how to remove it. */
+    readonly #render: (locale: ViewContext["locale"], catalogs: Catalog[]) => () => void;
+    /** Remove the current rendering. */
+    #dispose: () => void;
+    /** The language rendered or being fetched. */
+    #locale: ViewContext["locale"];
+    /** The count of language switches, which drops a switch a later one replaced. */
+    #switches = 0;
+
+    /** Render the view in a language with its catalogs. */
+    constructor(
+        render: (locale: ViewContext["locale"], catalogs: Catalog[]) => () => void,
+        locale: ViewContext["locale"],
+        catalogs: Catalog[],
+    ) {
+        this.#render = render;
+        this.#locale = locale;
+        this.#dispose = render(locale, catalogs);
+    }
+
+    /** Render in a display's language once its catalogs arrive, keeping a language that stays and reporting a failed fetch. */
+    switch(next: ViewDisplay, signal: AbortSignal): void {
+        // keep the language when it stays
+        if (next.locale === this.#locale) {
+            return;
+        }
+
+        // render the latest switch once its catalogs arrive
+        this.#locale = next.locale;
+        this.#switches += 1;
+        const switched = this.#switches;
+        fetchCatalogs(next.catalogs).then(
+            (fetched) => {
+                if (switched !== this.#switches || signal.aborted) {
+                    return;
+                }
+                this.#dispose();
+                this.#dispose = this.#render(next.locale, fetched);
+            },
+            (error: unknown) => reportError(error),
+        );
+    }
+
+    /** Remove the rendering. */
+    dispose(): void {
+        this.#dispose();
+    }
 }
 
 /** Follow the host's display events until the signal aborts, reconnecting after a dropped stream. */
@@ -211,7 +245,7 @@ async function openTabs(
 ): Promise<Map<string, BrowserTab>> {
     // group the object types by the scope each opens in, merging a home that is the view's space
     const byScope = new Map<string, Readonly<Record<string, ObjectType>>>();
-    for (const name of ViewScope.options) {
+    for (const name of PermissionScope.options) {
         const scope = context[name];
         const objects = view.opens(name);
         if (scope !== undefined && objects.length > 0) {

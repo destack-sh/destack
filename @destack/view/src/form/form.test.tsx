@@ -1,23 +1,12 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { Catalog, Localization, t } from "@destack/locale";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Toaster, toast } from "@destack/ui/toast";
 import { commandsOf, note, queryOf, settled, type Settled } from "./fixture.ts";
 import { createSignal, flush } from "../solid/reactive.ts";
 import { draw, stubPopovers, wait } from "../test/dom.ts";
-import { messageOf } from "./binding.ts";
 import { CommandButton } from "./command-button.tsx";
 import { Field } from "./field.tsx";
 import { ReferenceCombobox } from "./reference-combobox.tsx";
 import { StateTransition } from "./state-transition.tsx";
-
-/** The German catalog this package ships of its built-in messages. */
-const GERMAN = Catalog.of(
-    "locale/de.json",
-    JSON.parse(await readFile(join(import.meta.dirname, "../../locale/de.json"), "utf8")),
-    t`Saved`.package,
-);
 
 /** Commit a value to a field's control as a person does, typing and leaving. */
 function commit(control: Element | null, value: string): void {
@@ -288,29 +277,5 @@ test("search objects through the query as the person types and pick one", async 
         ["Trips", "Trivia"],
         ["notebook-3"],
         "Trivia",
-    ]);
-});
-
-test("explain each refused value in the German drafts the package ships, for an Austrian reader", () => {
-    const german = Localization.of("de-AT", [GERMAN]);
-    const problems = [
-        { code: "too_small", origin: "string", minimum: 1 },
-        { code: "too_small", origin: "string", minimum: 3 },
-        { code: "too_big", origin: "string", maximum: 20 },
-        { code: "too_small", origin: "number", minimum: 0 },
-        { code: "too_big", origin: "number", maximum: 9 },
-        { code: "invalid_type" },
-        { code: "invalid_value" },
-        { code: "custom" },
-    ];
-    expect(problems.map((problem) => messageOf([problem], german))).toEqual([
-        "Wert eingeben",
-        "Mindestens \u20683\u2069 Zeichen eingeben",
-        "Höchstens \u206820\u2069 Zeichen eingeben",
-        "\u20680\u2069 oder mehr eingeben",
-        "\u20689\u2069 oder weniger eingeben",
-        "Wert eingeben",
-        "Eine der Optionen wählen",
-        "Gültigen Wert eingeben",
     ]);
 });

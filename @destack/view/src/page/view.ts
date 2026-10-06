@@ -1,6 +1,6 @@
 import { createContext, useContext } from "solid-js";
 import type { ObjectClient } from "@destack/object/client";
-import type { ViewScope } from "@destack/package/manifest";
+import { type PermissionScope } from "@destack/access";
 import type { ObjectReference } from "@destack/sync";
 import { type Client, type Service, type ServiceRouter, ServiceMount } from "@destack/service";
 import { type ClientOptions, createClient } from "@destack/service/client";
@@ -31,7 +31,7 @@ export function useView(): ViewContext {
 }
 
 /** Read the identifier of one of a view's scopes, refusing a home the host opens none for. */
-export function scopeOf(context: ViewContext, scope: ViewScope): string {
+export function scopeOf(context: ViewContext, scope: PermissionScope): string {
     // require a scope the host opens
     const found = context[scope];
     if (found === undefined) {

@@ -1,6 +1,6 @@
 import { DeclarationName } from "@destack/package";
 import { Catalog, LocaleTag } from "@destack/locale";
-import { defineSchema, Digest, schema } from "@destack/schema";
+import { defineSchema, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 
 /** The same-origin host path opening an object in the view presenting it. */
@@ -12,11 +12,26 @@ export const CATALOG_PATH = "/.destack/catalog";
 /** The same-origin host path streaming a view's display as server-sent events. */
 export const DISPLAY_PATH = "/.destack/display";
 
-/** The same-origin host path below which a browser registers its device and binds its view credential to it. */
-export const DEVICE_PATH = "/.destack/device";
+/** The same-origin host path below which a browser registers its client and binds its view credential to it. */
+export const CLIENT_PATH = "/.destack/client";
 
 /** The same-origin host path below which a view calls the platform services it declares, each at its service mount. */
 export const PLATFORM_PATH = "/.destack/platform";
+
+/** The same-origin host path of the command palette on a space's origin, and below which it reaches the space's commands. */
+export const COMMAND_PATH = "/.destack/command";
+
+/** The header the command palette's page sends its page token in, as Rails and Laravel send theirs. */
+export const PAGE_TOKEN_HEADER = "x-csrf-token";
+
+/** The name of the meta element carrying the command palette's page token in its document. */
+export const PAGE_TOKEN_META = "csrf-token";
+
+/** The query parameter of the command palette's path with the link of the window it opens over. */
+export const FOCUS_PARAMETER = "focus";
+
+/** The query parameter of the command palette's path with the command to run right away, as `<package>/<name>`. */
+export const COMMAND_PARAMETER = "command";
 
 /** The query parameter of the open path with the object to open, as JSON. */
 export const OBJECT_PARAMETER = "object";
@@ -27,14 +42,17 @@ export const VIEW_PARAMETER = "view";
 /** The query parameter of a view's address with the object it opens for, as JSON. */
 export const TARGET_PARAMETER = "target";
 
+/** The query parameter with the one-time code a view origin redeems for its credential. */
+export const LAUNCH_PARAMETER = "launch";
+
 /** A path every browser resolves on the page's own origin. */
 const SameOriginPath = schema.string().regex(/^\/(?!\/)[^\t\n\r\\]*$/u);
 
 /** What the host gives a view: where and for whom it runs. */
 export const ViewContext = defineSchema(
     schema.object({
-        /** The installation serving the view. */
-        installation: schema.string().min(1),
+        /** The installation serving the view, absent for the shell's own pages such as the command palette. */
+        installation: schema.string().min(1).exactOptional(),
         /** The space of the installation. */
         space: schema.string().min(1),
         /** The account of the space. */
@@ -89,8 +107,6 @@ export const ViewLaunch = defineSchema(
         release: schema.string().min(1),
         /** The same-origin path answering the replica procedures of every scope. */
         endpoint: SameOriginPath,
-        /** The digest of the manifest of the build serving the view, absent for a release no host resolved. */
-        manifest: Digest.exactOptional(),
         /** The catalogs translating the messages of the view's package and its dependencies along the person's locale's fallback chain. */
         catalogs: schema.array(CatalogReference),
     }),

@@ -40,13 +40,13 @@ export const issues = defineView({
     name: "issues",
     objects,
     permissions,
-    services: [monitorService],
+    services: [observabilityService],
     component,
 });
 
-const monitor = useService(monitorService);
+const observability = useService(observabilityService);
 const page = createMemo(() =>
-    monitor.search({ scope, attributes: { "destack.issue": id }, from, before, limit }),
+    observability.search({ scope, attributes: { "destack.issue": id }, from, before, limit }),
 );
 ```
 
@@ -64,6 +64,29 @@ export const archive = defineCommand({
     method: "archive",
     keybinding: "mod+shift+a",
 });
+```
+
+## Command palette
+
+`CommandPalette` from `@destack/view/command` is a palette an app composes into its chrome, searching the commands and views of every space a person uses, their windows and recent objects, the focused window's first.
+
+```tsx
+import { CommandPalette } from "@destack/view/command";
+
+<CommandPalette client={client} focus={{ space, installation: "work", object: task }} />;
+```
+
+## Palette ranking
+
+`Palette` from `@destack/view/palette`, the palette's target-neutral model, ranks entries by the typed text and the focus, reads a command's keybinding and honours the sources a person turned off.
+
+```ts
+import { Accelerator, Palette } from "@destack/view/palette";
+
+Palette.rank(entries, "arch", focus); // titles starting with the text first, then a word's start, then anywhere
+Palette.keybinding({ packageId, name: "archive" }, "mod+e", { [`${packageId}/archive`]: null }); // null
+Palette.isOffered(entry, { recent: false, [packageId]: false }); // false for a recent object or that package's commands
+Accelerator.matches("mod+k", event, isMac); // ⌘K on macOS, Ctrl+K elsewhere
 ```
 
 ## Context
@@ -153,6 +176,15 @@ import { Field } from "@destack/view/form";
 />;
 // string → Input, integer and number → number Input, boolean → Switch, time → datetime-local Input,
 // enum → Select, state → StateTransition with `id` and `access`; other types need their own control
+```
+
+## Schema forms
+
+`SchemaForm` renders a form for an object a JSON Schema describes, a field per property, as a method's input asks for it.
+
+```tsx
+<SchemaForm schema={method.input} submit="Snooze task" onSubmit={(input) => call(input)} />
+// strings as text, numbers, booleans as checkboxes, enumerations as choices, anything else as JSON
 ```
 
 ## State transitions
@@ -257,7 +289,7 @@ export const theme = defineTheme({ name: "notes", gray: "sand", accent: "orange"
 import { ViewLaunch } from "@destack/view/declare";
 
 const launch = ViewLaunch.parse(JSON.parse(element.textContent));
-// { installation, space, account, view, user, home?, target?, locale?, release, manifest?, endpoint, catalogs }
+// { installation, space, account, view, user, home?, target?, locale?, release, endpoint, catalogs }
 ```
 
 ## Document
@@ -275,6 +307,21 @@ export function Metadata() {
         </Head>
     );
 }
+```
+
+## Examples
+
+`renderExample` from `@destack/view/example` renders an example into an element in one environment: its locale, its theme settings, its width, and the direction its localization gives components.
+
+```ts
+import { renderExample } from "@destack/view/example";
+
+const unmount = renderExample(element, {
+    example: GhostButton,
+    environment: { locale: "ar-EG", direction: "rtl", width: 320, theme: { appearance: "dark" } },
+    properties: { variant: "outline" }, // the properties a control changed
+    catalogs,
+});
 ```
 
 ## Builds
@@ -301,4 +348,68 @@ const unmount = renderView(
     catalogs,
     services,
 );
+```
+
+## Scenario interaction
+
+`viewInteraction` from `@destack/view/scenario` is the UI interaction scenarios speak, after Playwright's actions, locators and assertions.
+
+```ts
+import { defineScenario } from "@destack/package/declare";
+import { viewInteraction } from "@destack/view/scenario";
+
+export const OpenNoteMenu = defineScenario({
+    interaction: viewInteraction,
+    name: "open the note menu onto its first item",
+    given: { examples: [NoteMenuExample] },
+    when: [{ action: "click", target: { role: "button", name: "Note" } }],
+    then: { observe: { focused: { kind: "focused" } }, end: { focused: "Rename" } },
+});
+```
+
+## Steps
+
+A step is `focus`, `click`, `rightClick`, `press` in Playwright's key syntax, or `fill`, beside the `set` step every interaction shares.
+
+```ts
+{ action: "click", target: { role: "button", name: "Note" } }
+{ action: "rightClick", target: { text: "Groceries" }, position: { x: 40, y: 120 } }
+{ action: "press", key: "Control+r", target: { role: "treeitem", name: "Trips" } }
+{ action: "fill", target: { label: "Notebook" }, value: "wo" }
+```
+
+## Locators
+
+A locator finds an element by role and accessible name first, then by label, text or test id, and by CSS only as a last resort, with `nth` and `within` where several match.
+
+```ts
+{ role: "tab", name: "Edit" }
+{ role: "option", selected: true }
+{ label: "Notebook" }
+{ text: "Groceries" }
+{ testId: "toolbar" }
+{ css: "[data-slot=menubar-trigger][tabindex='0']", within: { role: "menubar" }, nth: 0 }
+```
+
+## Observations
+
+An observation reads one JSON value after Playwright's assertions: the focused element's accessible name, a name, text, texts, value, attribute, ARIA state, visibility or count.
+
+```ts
+{ kind: "focused" }
+{ kind: "state", target: { role: "button", name: "Note" }, state: "expanded" }
+{ kind: "attribute", target: { css: "[role=listbox]" }, name: "data-popover-open" }
+{ kind: "texts", target: { role: "option" } }
+```
+
+## Scenario tests
+
+`ViewDriver` plays the UI interaction in the test DOM, and `defineConfiguration` from `@destack/view/test` plays every `*.scenario.ts` module through it.
+
+```ts
+import { ViewDriver } from "@destack/view/test";
+
+const driver = ViewDriver.start({ examples: [NoteMenuExample] }); // ViewDriver.interaction is viewInteraction
+driver.act({ action: "click", target: { role: "button", name: "Note" } });
+driver.observe({ kind: "focused" }); // "Rename"
 ```

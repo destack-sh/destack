@@ -12,3 +12,4 @@ export {
     type StateTransitionProperties,
     transitionsOf,
 } from "./state-transition.tsx";
+export { SchemaForm, type SchemaFormProperties, fieldsOf, valueOf } from "./schema.tsx";
