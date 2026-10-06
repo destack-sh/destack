@@ -39,7 +39,7 @@ const account = new Policy(
 );
 
 /** A document action recorded through the service. */
-const publishDocument = defineAuditAction(
+const documentPublish = defineAuditAction(
     {
         name: "document.publish",
         targets: schema.object({
@@ -64,7 +64,7 @@ test("authorize readers, stream history, record denied access, and take no calls
         // bind the producer context
         const context = AuditContext.parse({
             caller: { type: "system", name: "document" },
-            package: publishDocument.package,
+            package: documentPublish.package,
             service: "document",
             scope: "account-01995da9-7223-7000-8000-000000000001",
         });
@@ -118,21 +118,21 @@ test("authorize readers, stream history, record denied access, and take no calls
                         request.authentication,
                         journal,
                         {
-                            package: publishDocument.package,
+                            package: documentPublish.package,
                             service: "audit",
                             scope: context.scope,
                         },
                         request.requestId,
                     ),
             }),
-            audience: publishDocument.package.id,
+            audience: documentPublish.package.id,
             scope: "universe",
             resources: new ResourceContext(),
             health: new Health("audit"),
             authenticate: async () =>
                 new Authentication({
                     credential: { kind: "fixture", id: "fixture" },
-                    audience: publishDocument.package.id,
+                    audience: documentPublish.package.id,
                     subject: principal.user.reference("universe", "reader"),
                     subjects: [principal.user.reference("universe", "reader")],
                     verifiedAt: Date.now(),
@@ -148,7 +148,7 @@ test("authorize readers, stream history, record denied access, and take no calls
 
         // deliver two publishes to the history as one batch, and page through them
         const publish = (revision: number) =>
-            recorder.record(undefined, publishDocument, {
+            recorder.record(undefined, documentPublish, {
                 targets: { document: { type: "document", id: "one" } },
                 details: { revision },
                 outcome: { kind: "success" },
@@ -157,7 +157,7 @@ test("authorize readers, stream history, record denied access, and take no calls
         const later = await publish(4);
         expect(await journal.deliver(history)).toBe(2);
         const scope = context.scope;
-        const query = { scope, method: publishDocument.name, limit: 1 };
+        const query = { scope, method: documentPublish.name, limit: 1 };
         const first = await history.list(query);
         expect(first.items.map((record) => record.call)).toEqual([earlier]);
         if (first.cursor === null) {

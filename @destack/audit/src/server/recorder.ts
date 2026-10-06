@@ -15,7 +15,7 @@ import {
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import type { AuditAction } from "../declare/action.ts";
 import { AuditError } from "../error/index.ts";
-import { invokeService } from "../record/action.ts";
+import { serviceInvoke } from "../record/action.ts";
 
 /** The host-selected origin of calls. */
 export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceId">;
@@ -189,7 +189,7 @@ export class AuditRecorder<Transaction = never> {
             const writer = await recorder(event.call);
             await writer.record(
                 undefined,
-                invokeService,
+                serviceInvoke,
                 {
                     targets: { procedure: { type: "procedure", id: event.call.path.join(".") } },
                     details: { authentication: access.authentication },

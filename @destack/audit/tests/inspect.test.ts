@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { renameDocument } from "./storage.ts";
+import { documentRename } from "./storage.ts";
 import { auditActionVocabulary, describeAuditAction } from "../src/inspect/index.ts";
 
 /** The JSON Schema dialect every described shape names. */
@@ -33,7 +33,7 @@ const details = {
 
 test("describe an action with its package and call shapes, and list its term from the description", () => {
     // describe the action and read its term from the serialized description
-    const described = describeAuditAction(renameDocument);
+    const described = describeAuditAction(documentRename);
     const serialized = schema
         .record(schema.string(), schema.json())
         .parse(JSON.parse(JSON.stringify(described)));

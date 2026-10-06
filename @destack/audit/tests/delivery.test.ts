@@ -7,13 +7,13 @@ import { AuditError } from "../src/error/index.ts";
 import type { AuditCall } from "../src/record/index.ts";
 import { AuditRecorder, Journal } from "../src/server/index.ts";
 import { journal } from "../src/stack/index.ts";
-import { AuditStorage, renameDocument, rename } from "./storage.ts";
+import { AuditStorage, documentRename, rename } from "./storage.ts";
 
 test("deliver a batch again after its acceptance was lost, the history holding each call once", async () => {
     let storage = await AuditStorage.open();
     try {
         // lose a delivery's acknowledgement
-        const call = storage.recorder.begin(renameDocument, rename);
+        const call = storage.recorder.begin(documentRename, rename);
         await storage.recorder.append(call);
         const failure = new AuditError("UNAVAILABLE", "acceptance lost");
         await expect(
@@ -51,7 +51,7 @@ test("deliver calls and their outcomes as they commit through control loops of c
     );
     try {
         // record a running call and its outcome while both senders run
-        const running = storage.recorder.begin(renameDocument, rename);
+        const running = storage.recorder.begin(documentRename, rename);
         await storage.recorder.append(running);
         const finished = storage.recorder.finish(running, { kind: "success" });
         await storage.recorder.append(finished);
@@ -94,7 +94,7 @@ test("refuse a second outcome of a call in the journal and in the history", asyn
     const storage = await AuditStorage.open();
     try {
         // deliver a call and its outcome, leaving nothing running
-        const running = storage.recorder.begin(renameDocument, rename);
+        const running = storage.recorder.begin(documentRename, rename);
         await storage.recorder.append(running);
         const finished = storage.recorder.finish(running, { kind: "success" });
         await storage.recorder.append(finished);
@@ -130,10 +130,10 @@ test("remove delivered calls once past their lifetime, keeping a call the histor
     const report = (_controller: unknown, _key: string, error: unknown) => failures.push(error);
     try {
         // deliver one call, and record another the history never receives
-        const delivered = storage.recorder.begin(renameDocument, rename);
+        const delivered = storage.recorder.begin(documentRename, rename);
         await storage.recorder.append(delivered);
         expect(await storage.journal.deliver(storage.history)).toBe(1);
-        const pending = storage.recorder.begin(renameDocument, rename);
+        const pending = storage.recorder.begin(documentRename, rename);
         await storage.recorder.append(pending);
 
         // let the journal's control loop remove the delivered call once its lifetime ends
@@ -165,16 +165,16 @@ test("relay an instance's journal with its installation and instance as provenan
         const recorder = new AuditRecorder(
             {
                 caller: { type: "system", name: "document" },
-                package: renameDocument.package,
+                package: documentRename.package,
                 service: "document",
                 scope: space,
             },
             storage.journal,
         );
-        const call = recorder.finish(recorder.begin(renameDocument, rename), { kind: "success" });
+        const call = recorder.finish(recorder.begin(documentRename, rename), { kind: "success" });
         const provenance = {
             scope: space,
-            packageId: renameDocument.package.id,
+            packageId: documentRename.package.id,
             installationId: schema
                 .identifier("installation")
                 .parse("installation-01996ab0-0000-7000-8000-000000000002"),
@@ -194,7 +194,7 @@ test("relay an instance's journal with its installation and instance as provenan
         expect([
             await refusal(storage.history.relay({ calls: [] }, provenance)),
             await relay(context({ scope: "space-01996ab0-0000-7000-8000-000000000008" })),
-            await relay(context({ package: { ...renameDocument.package, id: other } })),
+            await relay(context({ package: { ...documentRename.package, id: other } })),
             await relay(context({ installationId: provenance.installationId })),
             await relay(context({ instanceId: provenance.instanceId })),
             await relay(call),
@@ -203,7 +203,7 @@ test("relay an instance's journal with its installation and instance as provenan
             ["INVALID_EVENT", "invalid journal batch"],
             [
                 "FORBIDDEN",
-                `installation ${provenance.installationId} records no calls of ${renameDocument.package.id} in space-01996ab0-0000-7000-8000-000000000008`,
+                `installation ${provenance.installationId} records no calls of ${documentRename.package.id} in space-01996ab0-0000-7000-8000-000000000008`,
             ],
             [
                 "FORBIDDEN",

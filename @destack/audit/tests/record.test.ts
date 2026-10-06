@@ -1,6 +1,6 @@
 import { test, expect } from "@destack/test";
 import { AuditError } from "../src/error/index.ts";
-import { AuditStorage, renameDocument, rename } from "./storage.ts";
+import { AuditStorage, documentRename, rename } from "./storage.ts";
 import { AuditCall, defineAuditAction } from "../src/index.ts";
 import { document } from "./stack/index.ts";
 import { schema } from "@destack/schema";
@@ -16,13 +16,13 @@ test("keep each call in the history of its scope", async () => {
         const recorder = new AuditRecorder(
             {
                 caller: { type: "system" as const, name: "integration" },
-                package: renameDocument.package,
+                package: documentRename.package,
                 service: "document",
                 scope,
             },
             storage.journal,
         );
-        const recorded = recorder.begin(renameDocument, rename);
+        const recorded = recorder.begin(documentRename, rename);
         await recorder.append(recorded);
         expect(await storage.journal.deliver(storage.history)).toBe(1);
 
@@ -44,7 +44,7 @@ test("commit and roll back application changes with their recorded calls", async
         await expect(
             storage.database.transaction(async (transaction) => {
                 await transaction.insert(document).values({ name: "rolled back" });
-                await storage.recorder.record(transaction, renameDocument, {
+                await storage.recorder.record(transaction, documentRename, {
                     ...rename,
                     outcome: { kind: "success" },
                 });
@@ -58,7 +58,7 @@ test("commit and roll back application changes with their recorded calls", async
         const call = await storage.database.transaction(async (transaction) => {
             await transaction.insert(document).values({ name: "renamed" });
 
-            return storage.recorder.record(transaction, renameDocument, {
+            return storage.recorder.record(transaction, documentRename, {
                 ...rename,
                 outcome: { kind: "success" },
             });
@@ -75,7 +75,7 @@ test("record a running call, then its outcome once, accepting repeats and refusi
     let storage = await AuditStorage.open();
     try {
         // persist a prepared call only on append, with its outcome in the same record
-        const running = storage.recorder.begin(renameDocument, rename);
+        const running = storage.recorder.begin(documentRename, rename);
         expect(await storage.journal.read()).toEqual([]);
         await storage.recorder.append(running);
         const finished = storage.recorder.finish(running, { kind: "success" });
@@ -104,7 +104,7 @@ test("record a read as one access call naming what only its value tells", async 
     try {
         // read a document with its name from the value
         const value = await storage.recorder.read(
-            renameDocument,
+            documentRename,
             rename,
             async () => ({ name: "chosen" }),
             (renamed) => ({ name: renamed.name }),
@@ -127,10 +127,10 @@ test("leave sensitive values out of running and read details", async () => {
     const storage = await AuditStorage.open();
     try {
         // declare a sign-in with a sensitive code and an account result
-        const signIn = defineAuditAction(
+        const accountSignIn = defineAuditAction(
             {
                 name: "account.signIn",
-                targets: renameDocument.targets,
+                targets: documentRename.targets,
                 details: schema.object({
                     method: schema.string(),
                     code: schema.sensitive(schema.string()).exactOptional(),
@@ -139,12 +139,12 @@ test("leave sensitive values out of running and read details", async () => {
                         .exactOptional(),
                 }),
             },
-            { package: renameDocument.package },
+            { package: documentRename.package },
         );
 
         // keep the method in the running call's details
         const targets = rename.targets;
-        const running = storage.recorder.begin(signIn, {
+        const running = storage.recorder.begin(accountSignIn, {
             targets,
             details: { method: "code", code: "123456" },
         });
@@ -152,7 +152,7 @@ test("leave sensitive values out of running and read details", async () => {
 
         // keep the account's identifier in the read's details
         const read = await storage.recorder.read(
-            signIn,
+            accountSignIn,
             { targets, details: { method: "code" } },
             async () => ({ id: "account-2", secret: "hunter3" }),
             (account) => ({ method: "code", account }),

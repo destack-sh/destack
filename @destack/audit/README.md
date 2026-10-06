@@ -9,7 +9,7 @@ Declare audit actions, record every executed call once in a journal, and query a
 ```ts
 import { defineAuditAction } from "@destack/audit";
 
-export const renameNote = defineAuditAction({
+export const noteRename = defineAuditAction({
     name: "note.rename",
     targets: schema.object({
         note: schema.object({ type: schema.literal("note"), id: schema.string() }),
@@ -71,7 +71,7 @@ const recorder = audit(spaceId, context);
 ```ts
 await database.transaction(async (transaction) => {
     await transaction.update(note).set({ title }).where(eq(note.id, id));
-    await recorder.record(transaction, renameNote, {
+    await recorder.record(transaction, noteRename, {
         targets: { note: { type: "note", id } },
         details: { title },
         outcome: { kind: "success" },

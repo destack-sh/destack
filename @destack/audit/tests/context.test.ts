@@ -6,14 +6,14 @@ import { ServiceError } from "@destack/service";
 import { schema } from "@destack/schema";
 import { AuditCaller } from "../src/record/index.ts";
 import { AuditRecorder } from "../src/server/index.ts";
-import { AuditStorage, renameDocument, rename } from "./storage.ts";
+import { AuditStorage, documentRename, rename } from "./storage.ts";
 import { principal } from "@destack/access";
 
 test("persist verified caller identities and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();
     try {
         // use the same identifier in two scopes
-        const origin = { package: renameDocument.package, service: "document", scope: "universe" };
+        const origin = { package: documentRename.package, service: "document", scope: "universe" };
         const now = Date.now();
         const represented = principal.user.reference("universe", "person");
         const actor = principal.installation.reference("space-example", "agent");
@@ -61,7 +61,7 @@ test("persist verified caller identities and tell apart identities of different 
                 origin,
                 request.requestId,
             );
-            const event = recorder.begin(renameDocument, rename);
+            const event = recorder.begin(documentRename, rename);
             await recorder.append(event);
             calls.push(event);
         }
@@ -82,7 +82,7 @@ test("persist verified caller identities and tell apart identities of different 
             origin,
             rejected.requestId,
         );
-        const anonymous = recorder.begin(renameDocument, rename);
+        const anonymous = recorder.begin(documentRename, rename);
         await recorder.append(anonymous);
         calls.push(anonymous);
 

@@ -11,7 +11,7 @@ import { PackageId } from "@destack/package";
 import { accessTables } from "@destack/access";
 
 /** A document rename action. */
-export const renameDocument = defineAuditAction(
+export const documentRename = defineAuditAction(
     {
         name: "document.rename",
         targets: schema.object({
@@ -57,7 +57,7 @@ export class AuditStorage {
         this.recorder = new AuditRecorder(
             {
                 caller: { type: "system", name: "integration" },
-                package: renameDocument.package,
+                package: documentRename.package,
                 service: "document",
                 scope: "universe",
             },
