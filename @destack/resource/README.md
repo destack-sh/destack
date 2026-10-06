@@ -99,9 +99,9 @@ const connection = await connector.connect(binding, notes);
 ```ts
 await provider.fence?.fence(record);
 const handle = await provider.open.open(record, desired); // { database, migrate, close }
-const recipient = await Recipient.generate();
-const wrapped = await source.rewrap.wrap(row, Recipient.of(recipient.key));
-const unwrapped = await target.rewrap.unwrap(wrapped, recipient);
+const recipient = await Recipient.generate(); // from @destack/identity, on the target
+const sealed = await source.rewrap.seal(row, Recipient.of(recipient.key));
+const opened = await target.rewrap.open(sealed, recipient);
 ```
 
 ## Plans

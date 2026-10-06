@@ -2,7 +2,7 @@ import { defineSchema, type Digest, schema } from "@destack/schema";
 import { ResourceId, type ResourceDeclaration } from "../declare/declaration.ts";
 import type { KindState, ResourceKind } from "../declare/kind.ts";
 import type { Plan } from "../plan/plan.ts";
-import type { Recipient } from "./recipient.ts";
+import type { Recipient } from "@destack/identity";
 
 /** A resource as its space records it, its specification read by its kind. */
 export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
@@ -158,12 +158,12 @@ export interface Fence<Kind extends ResourceKind = ResourceKind> {
     lift(record: ResourceRecord<Kind>): Promise<void>;
 }
 
-/** Rewrap the rows a provider binds to its host, such as keys wrapped under the host's root key, for another host. */
+/** Rewrap the rows a provider binds to its host, such as keys encrypted under the host's keyring, for another host. */
 export interface Rewrapper<Table, Row extends object> {
     /** The table of the host-bound rows. */
     readonly table: Table;
-    /** Wrap a row's host-bound values for the target's recipient. */
-    wrap(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
-    /** Unwrap a row wrapped for this host's recipient, wrapping its values under this host's root key. */
-    unwrap(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
+    /** Seal a row's host-bound values to the target's recipient. */
+    seal(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
+    /** Open a row sealed to this host's recipient, encrypting its values under this host's keyring. */
+    open(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
 }
