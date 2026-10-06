@@ -24,7 +24,7 @@ import {
     type AuditPage,
     type AuditScope,
 } from "../service/query.ts";
-import { auditCall, auditTarget } from "../object/table.ts";
+import { auditCall, auditTarget } from "../record/table.ts";
 
 /** The audited calls of each scope. */
 export class AuditHistory {

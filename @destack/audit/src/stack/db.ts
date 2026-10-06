@@ -10,7 +10,7 @@ import {
     type Table,
 } from "@destack/db";
 import { AuditCall } from "../record/call.ts";
-import { auditCall, auditTarget } from "../object/table.ts";
+import { auditCall, auditTarget } from "../record/table.ts";
 
 /** The audit history tables. */
 export const auditTables: readonly Table[] = [auditCall, auditTarget];

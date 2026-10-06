@@ -7,7 +7,7 @@ import {
     type ServiceContext,
     type ServiceImplementation,
 } from "@destack/service/server";
-import { call } from "../object/access.ts";
+import { call } from "../record/access.ts";
 import { ServiceError } from "@destack/service";
 import { AuditHistory } from "../history/history.ts";
 import { AuditRecorder } from "./recorder.ts";
