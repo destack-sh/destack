@@ -112,7 +112,7 @@ function Framer() {
     return (
         <div data-component="FramerPage" {...stylex.attrs(styles.framer)}>
             <nav {...stylex.attrs(styles.framerNav)}>
-                <b {...stylex.attrs(styles.framerMark)}>you</b>
+                <b {...stylex.attrs(styles.framerMark)}>florian</b>
                 <span {...stylex.attrs(styles.framerLinks)}>
                     <span>Work</span>
                     <span>Writing</span>
@@ -165,8 +165,8 @@ function Calendly() {
         <div data-component="CalendlyPage" {...stylex.attrs(styles.calendly)}>
             <div {...stylex.attrs(styles.calCard)}>
                 <div {...stylex.attrs(styles.calHost)}>
-                    <span {...stylex.attrs(styles.calAvatar)}>Y</span>
-                    <b {...stylex.attrs(styles.calName)}>You</b>
+                    <span {...stylex.attrs(styles.calAvatar)}>F</span>
+                    <b {...stylex.attrs(styles.calName)}>Florian</b>
                     <b {...stylex.attrs(styles.calEvent)}>30 Minute Meeting</b>
                     <span {...stylex.attrs(styles.calDetail)}>
                         <Glyph name="clock" size={20} />
@@ -277,8 +277,8 @@ function Notion() {
                         Owner
                     </dt>
                     <dd {...stylex.attrs(styles.notionValue)}>
-                        <span {...stylex.attrs(styles.notionPerson)}>Y</span>
-                        You
+                        <span {...stylex.attrs(styles.notionPerson)}>F</span>
+                        Florian
                     </dd>
                 </dl>
                 <hr {...stylex.attrs(styles.notionRule)} />
@@ -352,7 +352,7 @@ function Slack() {
                                 {...stylex.attrs(styles.slackFace)}
                                 style={{ "background-color": "#2f7d8c" }}
                             >
-                                Y
+                                F
                             </span>
                             <span
                                 {...stylex.attrs(styles.slackFace)}
@@ -378,11 +378,11 @@ function Slack() {
                                     }}
                                     {...stylex.attrs(styles.slackAvatar)}
                                 >
-                                    {author === "Agent" ? "A" : "Y"}
+                                    {author === "Agent" ? "A" : "F"}
                                 </span>
                                 <span {...stylex.attrs(styles.slackBody)}>
                                     <span>
-                                        <b>{author === "Agent" ? "Agent" : "you"}</b>
+                                        <b>{author === "Agent" ? "Agent" : "Florian"}</b>
                                         {author === "Agent" ? (
                                             <span {...stylex.attrs(styles.slackApp)}>APP</span>
                                         ) : undefined}
@@ -429,7 +429,7 @@ function GitHub() {
             <nav {...stylex.attrs(styles.ghBar)}>
                 <Favicon icon="github" tint="#f0f6fc" size={30} />
                 <span {...stylex.attrs(styles.ghPath)}>
-                    you / <b>launchkit</b>
+                    florian / <b>launchkit</b>
                 </span>
                 <span {...stylex.attrs(styles.ghSearch)}>
                     <Glyph name="search" size={14} />
@@ -472,8 +472,8 @@ function GitHub() {
                         </span>
                         <div {...stylex.attrs(styles.ghTable)}>
                             <span {...stylex.attrs(styles.ghCommit)}>
-                                <span {...stylex.attrs(styles.ghFace)}>Y</span>
-                                <b>you</b>
+                                <span {...stylex.attrs(styles.ghFace)}>F</span>
+                                <b>florian</b>
                                 <span {...stylex.attrs(styles.ghMuted)}>
                                     Mail the first batch on Thursday
                                 </span>

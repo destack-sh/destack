@@ -308,7 +308,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                     {...stylex.attrs(styles.avatar, styles.railAvatar)}
                     style={{ "background-color": "#2f7d8c" }}
                 >
-                    Y
+                    F
                 </span>
                 <span
                     data-component="SearchButton"
@@ -581,7 +581,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                                     {...stylex.attrs(styles.avatar)}
                                                     style={{ "background-color": tint }}
                                                 >
-                                                    {assignee === "Me" ? "Y" : assignee.charAt(0)}
+                                                    {assignee === "Me" ? "F" : assignee.charAt(0)}
                                                 </span>
                                             </span>
                                         </td>
@@ -725,7 +725,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         {...stylex.attrs(styles.avatar, styles.small)}
                         style={{ "background-color": "#2f7d8c" }}
                     >
-                        Y
+                        F
                     </span>
                     <span
                         {...stylex.attrs(styles.avatar, styles.small)}

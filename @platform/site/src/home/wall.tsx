@@ -125,7 +125,7 @@ const foundations: readonly Tool[] = [
         name: "GitHub",
         tint: "#181717",
         kind: "connect",
-        status: "you/site mirrored",
+        status: "florian/site mirrored",
     },
     { icon: "aws", name: "AWS", tint: "#ff9900", kind: "connect", status: "eu-central-1" },
 ];

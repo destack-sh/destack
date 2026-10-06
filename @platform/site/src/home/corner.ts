@@ -70,26 +70,29 @@ export const tasks: readonly (readonly [
     tint: string,
     due: string,
 ])[] = [
-    ["LCH-12", "Pricing page", "done", "Y", "#2f7d8c", "Oct 20"],
-    ["LCH-14", "Record the demo", "started", "Y", "#2f7d8c", "Oct 23"],
+    ["LCH-12", "Pricing page", "done", "F", "#2f7d8c", "Oct 20"],
+    ["LCH-14", "Record the demo", "started", "F", "#2f7d8c", "Oct 23"],
     ["LCH-16", "Waitlist email", "review", "A", "#6b5ca5", "Oct 23"],
-    ["LCH-13", "Turn on the new prices", "todo", "Y", "#2f7d8c", "Oct 24"],
+    ["LCH-13", "Turn on the new prices", "todo", "F", "#2f7d8c", "Oct 24"],
     ["LCH-15", "Draft the launch post", "todo", "A", "#6b5ca5", "Oct 24"],
-    ["LCH-17", "Open signups", "todo", "Y", "#2f7d8c", "Oct 24"],
+    ["LCH-17", "Open signups", "todo", "F", "#2f7d8c", "Oct 24"],
 ];
 
 /** The launch channel's messages: who wrote it, when, and what they said. */
-export const messages: readonly (readonly [author: "You" | "Agent", time: string, text: string])[] =
+export const messages: readonly (readonly [
+    author: "Florian" | "Agent",
+    time: string,
+    text: string,
+])[] = [
+    ["Florian", "09:12", "Can we move the demo to Wednesday? Thursday is the waitlist send."],
+    ["Agent", "09:13", "Moved it to Wed 11:00 and updated LCH-14 and the launch plan."],
     [
-        ["You", "09:12", "Can we move the demo to Wednesday? Thursday is the waitlist send."],
-        ["Agent", "09:13", "Moved it to Wed 11:00 and updated LCH-14 and the launch plan."],
-        [
-            "Agent",
-            "09:40",
-            "First invite batch is drafted. 1,840 on the list, sending 400 on Thursday.",
-        ],
-        ["You", "10:02", "Ship it. Hold back anyone who signed up today."],
-    ];
+        "Agent",
+        "09:40",
+        "First invite batch is drafted. 1,840 on the list, sending 400 on Thursday.",
+    ],
+    ["Florian", "10:02", "Ship it. Hold back anyone who signed up today."],
+];
 
 /** The source of your apps: the path, its last change, and when. */
 export const sources: readonly (readonly [name: string, change: string, when: string])[] = [

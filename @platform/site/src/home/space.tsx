@@ -137,7 +137,7 @@ export type Page = { row: number; path: string; viewers: readonly Viewer[]; site
 
 /** The pages the browser turns through, one per ledger row. */
 export const pages: readonly Page[] = [
-    { row: 1, path: "/launch", viewers: ["Me", "Agent"], site: "you.notion.site/Launch-plan" },
+    { row: 1, path: "/launch", viewers: ["Me", "Agent"], site: "florian.notion.site/Launch-plan" },
     { row: 2, path: "/tasks", viewers: ["Me"], site: "linear.app/launch/team/LCH/all" },
     {
         row: 3,
@@ -145,14 +145,19 @@ export const pages: readonly Page[] = [
         viewers: ["Me", "Agent"],
         site: "launchkit.slack.com/archives/launch",
     },
-    { row: 4, path: "/code", viewers: ["Me", "Agent"], site: "github.com/you/launchkit" },
-    { row: 5, path: "/", viewers: ["Me", "Agent", "Public"], site: "you.framer.website" },
-    { row: 6, path: "/book", viewers: ["Me", "Agent", "Public"], site: "calendly.com/you/30min" },
+    { row: 4, path: "/code", viewers: ["Me", "Agent"], site: "github.com/florian/launchkit" },
+    { row: 5, path: "/", viewers: ["Me", "Agent", "Public"], site: "florian.framer.website" },
+    {
+        row: 6,
+        path: "/book",
+        viewers: ["Me", "Agent", "Public"],
+        site: "calendly.com/florian/30min",
+    },
     {
         row: 7,
         path: "/waitlist",
         viewers: ["Me", "Agent", "Public"],
-        site: "you-waitlist.replit.app",
+        site: "florian-waitlist.replit.app",
     },
 ];
 
@@ -161,9 +166,9 @@ const tabs: readonly (readonly [row: number, icon: string, tint: string, title: 
     [1, "notion", "#191919", "Launch plan"],
     [2, "linear", "#5e6ad2", "Launch › All issues"],
     [3, "slack", "#4a154b", "launch (Channel) - LaunchKit - Slack"],
-    [4, "github", "#181717", "you/launchkit"],
-    [5, "framer", "#0a0a0a", "you · Portfolio"],
-    [6, "calendly", "#006bff", "30 Minute Meeting | You | Calendly"],
+    [4, "github", "#181717", "florian/launchkit"],
+    [5, "framer", "#0a0a0a", "Florian · Portfolio"],
+    [6, "calendly", "#006bff", "30 Minute Meeting | Florian | Calendly"],
     [7, "replit", "#f26207", "Join the waitlist"],
 ];
 
@@ -213,7 +218,7 @@ export function SpaceBrowser(properties: {
                         {...stylex.attrs(styles.tab, styles.tabOn)}
                     >
                         <Favicon icon="user" tint="#2f7d8c" />
-                        <span {...stylex.attrs(styles.tabTitle)}>you.dev</span>
+                        <span {...stylex.attrs(styles.tabTitle)}>florian.dev</span>
                         <Glyph name="close" size={12} />
                     </span>
                 ) : (
@@ -254,10 +259,10 @@ export function SpaceBrowser(properties: {
                     <Glyph name="lock" size={12} />
                     {isOpen() ? (
                         <span {...stylex.attrs(styles.url)}>
-                            <span {...stylex.attrs(styles.host)}>you.dev</span>
+                            <span {...stylex.attrs(styles.host)}>florian.dev</span>
                             {properties.page.path === "/" ? "" : properties.page.path}
                             <span data-service="1" {...stylex.attrs(styles.points)}>
-                                → destack.app/@you
+                                → destack.app/@florian
                             </span>
                         </span>
                     ) : (
@@ -270,7 +275,7 @@ export function SpaceBrowser(properties: {
                 </span>
                 <span {...stylex.attrs(styles.tools)}>
                     <Glyph name="puzzle" />
-                    <span {...stylex.attrs(styles.profile)}>Y</span>
+                    <span {...stylex.attrs(styles.profile)}>F</span>
                     <Glyph name="menu" />
                 </span>
             </div>
@@ -318,7 +323,7 @@ export function SpaceBrowser(properties: {
 function AppRail(properties: { page: Page; viewer: Viewer }) {
     return (
         <nav data-component="AppRail" data-service="1" {...stylex.attrs(styles.rail)}>
-            <span {...stylex.attrs(styles.avatar)}>Y</span>
+            <span {...stylex.attrs(styles.avatar)}>F</span>
             {sections
                 .filter(([, , , , seen]) => seen.includes(properties.viewer))
                 .map(([row, name, icon, tint]) => (
@@ -352,7 +357,7 @@ function AppBar(properties: { page: Page; viewer: Viewer; onViewer: (viewer: Vie
             <span {...stylex.attrs(styles.crumbs)}>
                 <b>{section()?.[1] ?? ""}</b>
                 <span {...stylex.attrs(styles.quiet)}>
-                    you.dev{properties.page.path === "/" ? "" : properties.page.path}
+                    florian.dev{properties.page.path === "/" ? "" : properties.page.path}
                 </span>
             </span>
             <span {...stylex.attrs(styles.search)}>
@@ -541,7 +546,7 @@ function Launch() {
                 <dt {...stylex.attrs(styles.key)}>Launch</dt>
                 <dd {...stylex.attrs(styles.value)}>October 24, 2025</dd>
                 <dt {...stylex.attrs(styles.key)}>Owner</dt>
-                <dd {...stylex.attrs(styles.value)}>You</dd>
+                <dd {...stylex.attrs(styles.value)}>Florian</dd>
             </dl>
             <p {...stylex.attrs(styles.callout)}>
                 Ship to the waitlist on Thursday, then open signups on Friday.
@@ -577,11 +582,11 @@ function Chat() {
                             }}
                             {...stylex.attrs(styles.avatar)}
                         >
-                            {author === "Agent" ? "A" : "Y"}
+                            {author === "Agent" ? "A" : "F"}
                         </span>
                         <span {...stylex.attrs(styles.messageBody)}>
                             <span>
-                                <b>{author === "Agent" ? "Agent" : "You"}</b>
+                                <b>{author === "Agent" ? "Agent" : "Florian"}</b>
                                 <span {...stylex.attrs(styles.quiet)}> {time}</span>
                             </span>
                             {text}

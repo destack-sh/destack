@@ -150,7 +150,7 @@ export function Verb(properties: { isOpen: boolean }) {
                     entries={holdings}
                     total={
                         isOpenAt(holdings.length + 1)
-                            ? ["1 space, 1 stack", "1 account · you.dev"]
+                            ? ["1 space, 1 stack", "1 account · florian.dev"]
                             : ["7 sites, 7 stacks", "7 accounts · 7 invoices"]
                     }
                     lighting={lighting}
