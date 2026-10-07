@@ -6,7 +6,13 @@ import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { flush } from "../solid/reactive.ts";
 import { draw, wait } from "../test/index.ts";
-import { type Form, type FormMode, useForm } from "./form.ts";
+import { type Form, type FormMode, useForm, useSchemaForm } from "./form.ts";
+
+/** The first strong isolate MessageFormat 2 places around a placeholder's value. */
+const OPEN = String.fromCodePoint(0x2068);
+
+/** The pop directional isolate closing a placeholder's value. */
+const CLOSE = String.fromCodePoint(0x2069);
 
 /** A note whose title is between one and twenty characters. */
 const note = defineObject({
@@ -116,4 +122,67 @@ test("drop the edits and refusals on reset", () => {
         form.isEdited(),
         form.field("title").value(),
     ]).toEqual(["Enter a value", undefined, false, "Groceries"]);
+});
+
+/** The input of a command filing a task at a place. */
+const FILING = schema.object({
+    title: schema.string().min(1),
+    estimate: schema.int().min(1),
+    place: schema.object({ city: schema.string().min(1), floor: schema.int() }),
+    shape: schema.union([
+        schema.object({ kind: schema.literal("circle"), radius: schema.number() }),
+        schema.object({ kind: schema.literal("square"), side: schema.number() }),
+    ]),
+});
+
+/** Edit a filing in a drawn component that submits nothing. */
+function filingForm(): Form<Record<string, unknown>> {
+    let form: Form<Record<string, unknown>> | undefined;
+    draw(() => {
+        form = useSchemaForm<Record<string, unknown>>(FILING, {
+            values: () => ({ title: undefined, estimate: undefined, place: {}, shape: undefined }),
+            submit: (input) => ({
+                predicted: Promise.resolve(input),
+                confirmed: Promise.resolve(),
+            }),
+        });
+
+        return null;
+    });
+    if (form === undefined) {
+        throw new TypeError("the component did not render");
+    }
+
+    return form;
+}
+
+test("refuse only the edited values until the first submit, then every value by its pointer", () => {
+    const form = filingForm();
+    form.field("estimate").set(0);
+    form.field("place").set({ city: "" });
+    flush();
+    const edited = [...form.problems()];
+    form.submit();
+    flush();
+    expect([edited, [...form.problems()], form.field("place").problem()]).toEqual([
+        [
+            ["/estimate", `Enter ${OPEN}1${CLOSE} or more`],
+            ["/place/city", "Enter a value"],
+        ],
+        [
+            ["/title", "Enter a value"],
+            ["/estimate", `Enter ${OPEN}1${CLOSE} or more`],
+            ["/place/city", "Enter a value"],
+            ["/place/floor", "Enter a value"],
+            ["/shape", "Enter a value"],
+        ],
+        "Enter a value",
+    ]);
+});
+
+test("refuse a union's value by the issues of its closest member", () => {
+    const form = filingForm();
+    form.field("shape").set({ kind: "square", side: "two" });
+    flush();
+    expect([...form.problems()]).toEqual([["/shape/side", "Enter a number"]]);
 });

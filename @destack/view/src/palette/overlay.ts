@@ -1,13 +1,40 @@
 import { CommandReference } from "../declare/command.ts";
 import { Accelerator } from "./keybinding.ts";
 import { COMMAND_PATH } from "../declare/context.ts";
+import { type Localization, t } from "@destack/locale";
 import { schema } from "@destack/schema";
+import * as style from "@destack/style";
+import { color, radius, shadow } from "@destack/theme/tokens.stylex";
 
 /** The key combination opening the command palette over a view. */
 const PALETTE_ACCELERATOR = "mod+k";
 
 /** The palette's size over a view, in CSS pixels, as the desktop's floating palette takes it. */
 const PALETTE_SIZE = { width: 680, height: 420 } as const;
+
+/** The styles of the palette's dialog and frame over a view. */
+const styles = style.create({
+    dialog: {
+        width: `min(${PALETTE_SIZE.width}px, 90vw)`,
+        height: `${PALETTE_SIZE.height}px`,
+        maxWidth: "none",
+        marginBlockStart: "15vh",
+        padding: 0,
+        borderWidth: 0,
+        borderRadius: radius[5],
+        overflow: "hidden",
+        backgroundColor: "Canvas",
+        boxShadow: shadow.overlay,
+        "::backdrop": {
+            backgroundColor: color.scrim,
+        },
+    },
+    frame: {
+        width: "100%",
+        height: "100%",
+        borderWidth: 0,
+    },
+});
 
 /** The message the palette's page posts to close it. */
 const CLOSE_ACTION = "palette.close";
@@ -29,7 +56,10 @@ const Launched = schema.object({
 });
 
 /** Open the command palette over the page on its key combination, and on each command's own keybinding, until the signal aborts. */
-export async function listenForCommands(signal: AbortSignal): Promise<void> {
+export async function listenForCommands(
+    signal: AbortSignal,
+    localization: () => Localization,
+): Promise<void> {
     // read the keybindings of the installation's commands
     const response = await fetch(`${COMMAND_PATH}/keybindings`, { signal });
     const keybindings = response.ok ? Keybindings.parse(await response.json()) : [];
@@ -42,17 +72,17 @@ export async function listenForCommands(signal: AbortSignal): Promise<void> {
         );
         if (bound !== undefined) {
             event.preventDefault();
-            void openPalette(bound.command).catch(reportError);
+            void openPalette(bound.command, localization()).catch(reportError);
         } else if (Accelerator.matches(PALETTE_ACCELERATOR, event, isMac)) {
             event.preventDefault();
-            void openPalette(undefined).catch(reportError);
+            void openPalette(undefined, localization()).catch(reportError);
         }
     };
     window.addEventListener("keydown", listener, { signal });
 }
 
-/** Open the command palette over the page in a frame of its space's origin, closing it on its message or a click beside it. */
-async function openPalette(command: string | undefined): Promise<void> {
+/** Open the command palette over the page in a modal dialog framing its space's origin, closing it on its message, Escape or a click beside it. */
+async function openPalette(command: string | undefined, localization: Localization): Promise<void> {
     // launch the palette over this page, at a command when one is asked for
     const response = await fetch(`${COMMAND_PATH}/launch`, {
         method: "POST",
@@ -67,36 +97,39 @@ async function openPalette(command: string | undefined): Promise<void> {
     }
     const { url } = Launched.parse(await response.json());
 
-    // float it above the page
-    const backdrop = document.createElement("div");
-    backdrop.dataset["slot"] = "command-palette";
-    backdrop.style.cssText =
-        "position:fixed;inset:0;display:grid;place-items:start center;padding-top:15vh;background:rgb(0 0 0 / 0.3);z-index:2147483647";
+    // show it in a modal dialog above the page
+    const dialog = document.createElement("dialog");
+    dialog.dataset["slot"] = "command-palette";
+    const name = localization.render(t`Command palette`);
+    dialog.setAttribute("aria-label", name);
+    dialog.className = style.attrs(styles.dialog).class ?? "";
     const frame = document.createElement("iframe");
     frame.src = url;
-    frame.style.cssText = `width:min(${PALETTE_SIZE.width}px,90vw);height:${PALETTE_SIZE.height}px;border:0;border-radius:12px;background:Canvas`;
-    backdrop.append(frame);
-    document.body.append(backdrop);
+    frame.title = name;
+    frame.className = style.attrs(styles.frame).class ?? "";
+    dialog.append(frame);
+    document.body.append(dialog);
+    dialog.showModal();
 
-    // close it on its message or a click beside it
+    // remove it once closed by its message, Escape or a click on the backdrop
     const origin = new URL(url).origin;
     const closing = new AbortController();
-    const close = () => {
-        backdrop.remove();
+    dialog.addEventListener("close", () => {
+        dialog.remove();
         closing.abort();
-    };
+    });
     window.addEventListener(
         "message",
         (event) => {
             if (event.origin === origin && isClose(event.data)) {
-                close();
+                dialog.close();
             }
         },
         { signal: closing.signal },
     );
-    backdrop.addEventListener("click", (event) => {
-        if (event.target === backdrop) {
-            close();
+    dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) {
+            dialog.close();
         }
     });
     frame.focus();

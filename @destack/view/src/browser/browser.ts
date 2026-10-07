@@ -1,5 +1,5 @@
 import "@destack/theme/theme.css";
-import { Catalog } from "@destack/locale";
+import { Catalog, Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
 import { PermissionScope } from "@destack/access";
@@ -66,7 +66,7 @@ export async function mount(view: View): Promise<() => Promise<void>> {
     const stopping = new AbortController();
 
     // open the command palette, restyle on each display change and render again in a new language
-    void listenForCommands(stopping.signal).catch(reportError);
+    void listenForCommands(stopping.signal, () => rendering.localization).catch(reportError);
     void followDisplay(stopping.signal, (next) => {
         restyle(next);
         rendering.switch(next, stopping.signal);
@@ -97,6 +97,8 @@ class LocalizedRendering {
     #dispose: () => void;
     /** The language rendered or being fetched. */
     #locale: ViewContext["locale"];
+    /** The localization rendered, which the page's own overlays render their messages in. */
+    #localization: Localization;
     /** The count of language switches, which drops a switch a later one replaced. */
     #switches = 0;
 
@@ -106,9 +108,16 @@ class LocalizedRendering {
         locale: ViewContext["locale"],
         catalogs: Catalog[],
     ) {
+        // render in the language and keep its localization
         this.#render = render;
         this.#locale = locale;
+        this.#localization = Localization.of(locale ?? SOURCE_LOCALE, catalogs);
         this.#dispose = render(locale, catalogs);
+    }
+
+    /** The localization rendered. */
+    get localization(): Localization {
+        return this.#localization;
     }
 
     /** Render in a display's language once its catalogs arrive, keeping a language that stays and reporting a failed fetch. */
@@ -128,6 +137,7 @@ class LocalizedRendering {
                     return;
                 }
                 this.#dispose();
+                this.#localization = Localization.of(next.locale, fetched);
                 this.#dispose = this.#render(next.locale, fetched);
             },
             (error: unknown) => reportError(error),

@@ -1,39 +1,51 @@
 import { schema } from "@destack/schema";
 
+/** A locator matching by role, with the states it requires. */
+const RoleMatch = schema.object({
+    /** The ARIA role, explicit or implicit, such as `tab` or `button`. */
+    role: schema.string().min(1),
+    /** The accessible name, matched exactly. */
+    name: schema.string().exactOptional(),
+    /** Whether the element is checked. */
+    checked: schema.boolean().exactOptional(),
+    /** Whether the element is disabled. */
+    disabled: schema.boolean().exactOptional(),
+    /** Whether the element is expanded. */
+    expanded: schema.boolean().exactOptional(),
+    /** Whether the element is pressed. */
+    pressed: schema.boolean().exactOptional(),
+    /** Whether the element is selected. */
+    selected: schema.boolean().exactOptional(),
+});
+
+/** A locator matching a control by its label. */
+const LabelMatch = schema.object({
+    /** The text of the label, aria-label or aria-labelledby naming a control, matched exactly. */
+    label: schema.string().min(1),
+});
+
+/** A locator matching by text. */
+const TextMatch = schema.object({
+    /** The whole text of the innermost element holding it, matched exactly. */
+    text: schema.string().min(1),
+});
+
+/** A locator matching by test identifier. */
+const TestIdMatch = schema.object({
+    /** The element's `data-testid`. */
+    testId: schema.string().min(1),
+});
+
+/** A locator matching by CSS selector, the last resort. */
+const CssMatch = schema.object({
+    /** A CSS selector. */
+    css: schema.string().min(1),
+});
+
 /** What a locator matches by: a role first, CSS only as a last resort. */
-export type LocatorMatch =
-    | {
-          /** The ARIA role, explicit or implicit, such as `tab` or `button`. */
-          readonly role: string;
-          /** The accessible name, matched exactly. */
-          readonly name?: string;
-          /** Whether the element is checked. */
-          readonly checked?: boolean;
-          /** Whether the element is disabled. */
-          readonly disabled?: boolean;
-          /** Whether the element is expanded. */
-          readonly expanded?: boolean;
-          /** Whether the element is pressed. */
-          readonly pressed?: boolean;
-          /** Whether the element is selected. */
-          readonly selected?: boolean;
-      }
-    | {
-          /** The text of the label, aria-label or aria-labelledby naming a control, matched exactly. */
-          readonly label: string;
-      }
-    | {
-          /** The whole text of the innermost element holding it, matched exactly. */
-          readonly text: string;
-      }
-    | {
-          /** The element's `data-testid`. */
-          readonly testId: string;
-      }
-    | {
-          /** A CSS selector, the last resort. */
-          readonly css: string;
-      };
+export type LocatorMatch = schema.Infer<
+    typeof RoleMatch | typeof LabelMatch | typeof TextMatch | typeof TestIdMatch | typeof CssMatch
+>;
 
 /** Where a step acts or an observation reads: one element, or each element for a count or texts. */
 export type Locator = LocatorMatch & {
@@ -43,7 +55,7 @@ export type Locator = LocatorMatch & {
     readonly within?: Locator;
 };
 
-/** The schema of where a locator searches and which match it takes. */
+/** Where a locator searches and which match it takes. */
 const place = {
     /** The match to take by its index in document order, when several match. */
     nth: schema.number().int().nonnegative().exactOptional(),
@@ -53,41 +65,9 @@ const place = {
 
 /** Where a step acts or an observation reads: by role, label, text or test identifier. */
 export const Locator: schema.Schema<Locator> = schema.union([
-    schema.object({
-        /** The ARIA role. */
-        role: schema.string().min(1),
-        /** The accessible name, matched exactly. */
-        name: schema.string().exactOptional(),
-        /** Whether the element is checked. */
-        checked: schema.boolean().exactOptional(),
-        /** Whether the element is disabled. */
-        disabled: schema.boolean().exactOptional(),
-        /** Whether the element is expanded. */
-        expanded: schema.boolean().exactOptional(),
-        /** Whether the element is pressed. */
-        pressed: schema.boolean().exactOptional(),
-        /** Whether the element is selected. */
-        selected: schema.boolean().exactOptional(),
-        ...place,
-    }),
-    schema.object({
-        /** The label text. */
-        label: schema.string().min(1),
-        ...place,
-    }),
-    schema.object({
-        /** The whole text. */
-        text: schema.string().min(1),
-        ...place,
-    }),
-    schema.object({
-        /** The test id. */
-        testId: schema.string().min(1),
-        ...place,
-    }),
-    schema.object({
-        /** The CSS selector. */
-        css: schema.string().min(1),
-        ...place,
-    }),
+    RoleMatch.extend(place),
+    LabelMatch.extend(place),
+    TextMatch.extend(place),
+    TestIdMatch.extend(place),
+    CssMatch.extend(place),
 ]);

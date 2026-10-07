@@ -154,6 +154,17 @@ const form = useForm(note, "update", {
 // status: idle → pending → saved | failed; reset() drops the edits
 ```
 
+## Schema forms
+
+`useSchemaForm` edits an input any schema checks, such as one read from JSON Schema, showing refusals of edited values at once and of every value from the first submit, by JSON Pointer.
+
+```ts
+const form = useSchemaForm(fromJsonSchema(input), { values: () => ({ place: {} }), submit });
+form.field("place").set({ city: "" });
+form.problems(); // Map { "/place/city" => "Enter a value" }
+form.field("place").problem(); // "Enter a value", the first refusal inside the field
+```
+
 ## Home
 
 `useHome` reads objects from the person's home space.
@@ -196,13 +207,26 @@ export const Router = createRouter({ routes });
 
 ## Language
 
-`useLocale` renders text in the person's language from the package's catalogs.
+`useLocale` reads the person's `Localization`, which `renderView` provides in their locale with the catalogs of the view's package and its dependencies, and the source language without a provider.
 
 ```tsx
-import { useLocale } from "@destack/locale/solid";
+import { plural, t } from "@destack/locale";
+import { useLocale } from "@destack/view";
 
-const language = document.documentElement.lang; // "de-AT", set by the person or negotiated by their browser
-useLocale().render(t`Saved`); // "Gespeichert" with the package's German catalog
+export function Archived(properties: { count: number; notebook: string }) {
+    const locale = useLocale(); // provided by renderView for views, by LocaleContext for websites
+
+    return (
+        <p>
+            {locale.render(
+                t`Archived ${plural(properties.count, { one: "# note", other: "# notes" })} in ${properties.notebook}`,
+            )}
+        </p>
+    );
+}
+
+// a website provides it itself
+<LocaleContext value={Localization.of(Locale.parse("de-AT"), catalogs)}>{page}</LocaleContext>;
 ```
 
 ## Theme
@@ -212,7 +236,7 @@ The host writes the theme as custom properties on `<html>`.
 ```ts
 import { defineTheme } from "@destack/theme/declare";
 
-export const theme = defineTheme({ name: "notes", gray: "sand", accent: "orange" });
+export const theme = defineTheme({ name: "notes", base: "sand", accent: "orange" });
 ```
 
 ## Launch
