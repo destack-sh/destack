@@ -45,7 +45,7 @@ export interface TelemetryScope {
     readonly captureMessage: (message: string, context?: CaptureContext) => void;
 }
 
-/** How bad a captured failure is, after Sentry's levels. */
+/** How bad a captured failure is. */
 export type CaptureLevel = "fatal" | "error" | "warning" | "info";
 
 /** What a capture adds to the exception it records. */

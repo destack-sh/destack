@@ -111,8 +111,7 @@ const createdAt = Number.parseInt(id.slice(0, 12), 16);
 
 ## Export
 
-`OtlpExporter.http` exports every signal as OTLP/JSON to an endpoint, such as the instance's host at `/.destack/telemetry`.
-The exporter names only the service and its release: the receiver stamps the scope, installation, instance and build it verified, as an `OtlpEmitter`.
+`OtlpExporter.http` exports every signal as OTLP/JSON naming only the service and its release, and the receiver at the instance's host (`/.destack/telemetry`) stamps the scope, installation, instance and build it verified.
 
 ```ts
 import { startTelemetry } from "@destack/telemetry/bun";

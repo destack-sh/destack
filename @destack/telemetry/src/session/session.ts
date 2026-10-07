@@ -5,7 +5,7 @@ import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace";
 /** The attribute naming the session a signal belongs to, from the OpenTelemetry semantic conventions. */
 export const SESSION_ATTRIBUTE = "session.id";
 
-/** How a session ended, after Sentry's release health: without failures, with handled ones, or by an escaped one. */
+/** How a session ended: without failures, with handled ones, or by an escaped one. */
 export const SESSION_STATUSES = ["ok", "errored", "crashed"] as const;
 
 /** How a session ended. */
