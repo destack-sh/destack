@@ -64,6 +64,15 @@ export interface OtlpEmitter {
     readonly instance?: Identifier<"instance">;
     /** The digest of the emitting build's manifest, absent for a release no host resolved. */
     readonly build?: Digest;
+    /** The browser a page's export came from, as the server forwarding it saw it, absent for a workload. */
+    readonly visitor?: {
+        /** The browser's address. */
+        readonly address: string;
+        /** The browser's user agent. */
+        readonly userAgent: string;
+    };
+    /** The person signed in to the page whose export it is, as the server forwarding it verified them. */
+    readonly person?: Identifier<"user">;
 }
 
 /** A receiver of OTLP/JSON exports, recording each under the emitter its caller verified. */

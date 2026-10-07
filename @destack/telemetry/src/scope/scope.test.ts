@@ -103,7 +103,7 @@ const ExportedLogs = schema.looseObject({
                     logRecords: schema.array(
                         schema.looseObject({
                             eventName: schema.string(),
-                            severityText: schema.string(),
+                            severityText: schema.string().exactOptional(),
                             attributes: schema.array(
                                 schema.object({
                                     key: schema.string(),
@@ -210,4 +210,65 @@ test("capture handled failures and messages as exceptions with their error type,
             },
         ],
     ]);
+});
+
+test("record visits and actions as the platform's destack.visit and destack.action records, refusing a log record under its names", async () => {
+    // collect each export's records with their string attributes
+    const records: unknown[] = [];
+    const exporter = new OtlpExporter(
+        async (signal, body) => {
+            if (signal === "logs") {
+                const request = ExportedLogs.parse(JSON.parse(new TextDecoder().decode(body)));
+                for (const record of request.resourceLogs.flatMap((group) =>
+                    group.scopeLogs.flatMap((scope) => scope.logRecords),
+                )) {
+                    records.push([
+                        record.eventName,
+                        Object.fromEntries(
+                            record.attributes.map((attribute) => [
+                                attribute.key,
+                                attribute.value.stringValue,
+                            ]),
+                        ),
+                    ]);
+                }
+            }
+        },
+        (error) => {
+            throw error;
+        },
+    );
+    const telemetry = await startTelemetry(exporter.options(source));
+
+    // record a visit and an action, then try a log record under the platform's names
+    let refused: unknown;
+    try {
+        const scope = telemetry.scope(source);
+        scope.visit("/notes/:id", { path: "/notes/1", title: "Groceries" });
+        scope.track("note.shared", { audience: "space" });
+        try {
+            scope.log.info("destack.visit");
+        } catch (error) {
+            refused = error instanceof Error ? error.message : error;
+        }
+        await telemetry.flush();
+    } finally {
+        await telemetry.shutdown();
+    }
+
+    // keep the route, path and title of the visit, the action's name beside its properties, and refuse the log record
+    expect({ records, refused }).toEqual({
+        records: [
+            [
+                "destack.visit",
+                {
+                    "url.template": "/notes/:id",
+                    "url.path": "/notes/1",
+                    "destack.title": "Groceries",
+                },
+            ],
+            ["destack.action", { audience: "space", "destack.action.name": "note.shared" }],
+        ],
+        refused: "log record names under destack. are reserved: destack.visit",
+    });
 });

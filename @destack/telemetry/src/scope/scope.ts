@@ -13,6 +13,13 @@ import {
 import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { Package } from "@destack/package";
 import { DomainError } from "@destack/error";
+import {
+    ACTION_EVENT,
+    ANALYTICS_ATTRIBUTES,
+    RESERVED_EVENT_PREFIX,
+    VISIT_EVENT,
+    type VisitDetail,
+} from "../otlp/analytics.ts";
 
 /** The log severity of each capture level. */
 const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> = {
@@ -43,6 +50,10 @@ export interface TelemetryScope {
     readonly captureException: (error: unknown, context?: CaptureContext) => void;
     /** Record a message as an exception-level event in the active trace. */
     readonly captureMessage: (message: string, context?: CaptureContext) => void;
+    /** Record an action a person took under a literal name, with its properties. */
+    readonly track: (name: string, attributes?: Attributes) => void;
+    /** Record a view a person opened at a route. */
+    readonly visit: (route: string, detail?: VisitDetail) => void;
 }
 
 /** How bad a captured failure is. */
@@ -164,6 +175,12 @@ export class Log {
         eventName: string,
         attributes: Attributes,
     ): void {
+        // refuse a name the platform reserves for its own records
+        if (eventName.startsWith(RESERVED_EVENT_PREFIX)) {
+            throw new TypeError(
+                `log record names under ${RESERVED_EVENT_PREFIX} are reserved: ${eventName}`,
+            );
+        }
         this.#logger.emit({ eventName, severityNumber, severityText, attributes });
     }
 }
@@ -200,6 +217,27 @@ export function instrument(tracer: Tracer, meter: Meter, logger: Logger): Teleme
                 { "exception.message": message, "exception.escaped": false },
                 context,
             ),
+        track: (name, attributes = {}) =>
+            logger.emit({
+                eventName: ACTION_EVENT,
+                attributes: { ...attributes, [ANALYTICS_ATTRIBUTES.action]: name },
+            }),
+        visit: (route, detail = {}) =>
+            logger.emit({
+                eventName: VISIT_EVENT,
+                attributes: {
+                    [ANALYTICS_ATTRIBUTES.route]: route,
+                    ...Object.fromEntries(
+                        (["path", "title", "referrer", "locale"] as const).flatMap((field) => {
+                            const value = detail[field];
+
+                            return value === undefined
+                                ? []
+                                : [[ANALYTICS_ATTRIBUTES[field], value]];
+                        }),
+                    ),
+                },
+            }),
     };
 }
 

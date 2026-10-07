@@ -41,6 +41,18 @@ const saves = metric.counter("note.saves", {
 saves.add(1, { notebook: "shared" });
 ```
 
+## Analytics
+
+`visit` records a view a person opened, and `track` an action they took, as records named `destack.visit` and `destack.action`.
+
+```ts
+const { track, visit } = telemetry.scope(import.meta.destack.package);
+
+visit("/notes/:id", { path: `/notes/${note.id}`, title: note.title });
+track("note.shared", { audience: "space" });
+log.info("destack.visit"); // refused: names under destack. are the platform's
+```
+
 ## Handled failures
 
 `captureException` and `captureMessage` record a handled failure as an `exception`.
@@ -143,4 +155,5 @@ import { OtlpSignal } from "@destack/telemetry/otlp";
 
 const signal = OtlpSignal.at("/.destack/telemetry/v1/logs"); // "logs"
 await observability.receive({ scope, installation, instance, build }, signal, body); // an OtlpReceiver
+await observability.receive({ scope, installation, build, visitor, person }, signal, body); // a page's, as its view server saw it
 ```
