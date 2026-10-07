@@ -121,11 +121,15 @@ test("advance an autoplaying carousel until its play button stops it, pausing it
     const live = content?.getAttribute("aria-live");
     await wait(50);
     flush();
-    const advanced =
+    const hasAdvanced =
         container
             .querySelector("[data-slot=carousel-dot][aria-current]")
             ?.getAttribute("aria-label") !== "Go to slide 1";
     container.querySelector<HTMLElement>("[data-slot=carousel-play]")?.click();
     flush();
-    expect([live, advanced, content?.getAttribute("aria-live")]).toEqual(["off", true, "polite"]);
+    expect([live, hasAdvanced, content?.getAttribute("aria-live")]).toEqual([
+        "off",
+        true,
+        "polite",
+    ]);
 });
