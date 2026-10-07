@@ -4,6 +4,7 @@ import { text } from "@destack/theme/text";
 import { createEffect, createUniqueId, For, type JSX, omit, onSettled, Show } from "@destack/view";
 import type { ChartPoint, ChartTheme, ChartValue, DomChartDefinition } from "@tanstack/charts";
 import { createChartRendererAdapter } from "@tanstack/charts/adapter/renderer";
+import { createCanvasChartRenderer } from "@tanstack/charts/canvas";
 import { renderChartSvg } from "@tanstack/charts/svg";
 import { createSvgChartRenderer } from "@tanstack/charts/svg/renderer";
 
@@ -81,6 +82,8 @@ export interface ChartProperties<
     readonly label: string;
     /** The context a reader needs beyond the name, such as units or gaps. */
     readonly description?: string;
+    /** What draws the scene: SVG, readable before the script runs, or canvas for large datasets, SVG by default. */
+    readonly renderer?: "svg" | "canvas";
     /** The height in pixels, 320 unless an aspect ratio sets it. */
     readonly height?: number;
     /** The width over the height, which sets the height from the measured width. */
@@ -108,6 +111,7 @@ export function Chart<
         "definition",
         "label",
         "description",
+        "renderer",
         "height",
         "aspectRatio",
         "table",
@@ -117,7 +121,10 @@ export function Chart<
         "style",
     );
     const prefix = `chart-${createUniqueId().replaceAll(/[^\w-]/gu, "")}`;
-    const renderer = createSvgChartRenderer<Datum, XValue, YValue>(renderChartSvg);
+    const renderer =
+        properties.renderer === "canvas"
+            ? createCanvasChartRenderer<Datum, XValue, YValue>()
+            : createSvgChartRenderer<Datum, XValue, YValue>(renderChartSvg);
     const options = () => ({
         definition: themed(properties.definition),
         renderer,

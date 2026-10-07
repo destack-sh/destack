@@ -18,6 +18,7 @@
         "./card": "./src/card/index.ts",
         "./carousel": "./src/carousel/index.ts",
         "./chart": "./src/chart/index.ts",
+        "./chart/*": "./src/chart/module/*.ts",
         "./checkbox": "./src/checkbox/index.ts",
         "./collapsible": "./src/collapsible/index.ts",
         "./combobox": "./src/combobox/index.ts",
@@ -67,7 +68,8 @@
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "test": "bun --bun run vitest run --config vitest.config.ts",
+        "generate": "bun run src/chart/generate.ts"
     },
     "dependencies": {
         "@destack/icon": "workspace:*",

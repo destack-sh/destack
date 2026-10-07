@@ -1,20 +1,11 @@
 import { defineExample } from "@destack/package/declare";
 import { Chart } from "./chart.tsx";
-import {
-    areaY,
-    barY,
-    colorLegend,
-    defineChart,
-    dot,
-    lineY,
-    pie,
-    polar,
-    radialArc,
-    scaleBand,
-    scaleLinear,
-    scalePoint,
-    tooltip,
-} from "./mark.ts";
+import { areaY, barY, colorLegend, defineChart, dot, lineY } from "./index.ts";
+import { pie, polar, radialArc } from "./module/polar.ts";
+import { scaleBand } from "./module/scales/band.ts";
+import { scaleLinear } from "./module/scales/linear.ts";
+import { scalePoint } from "./module/scales/point.ts";
+import { tooltip } from "./module/tooltip.ts";
 
 /** The notes written each month in two notebooks. */
 const WRITTEN = [
@@ -48,6 +39,12 @@ const NOTES = [
 /** The months on the horizontal axis, spaced evenly. */
 const MONTHS = { scale: () => scalePoint().padding(0.4) };
 
+/** Ten thousand response times, one a second, a deterministic ripple over a slow rise. */
+const READINGS = Array.from({ length: 10_000 }, (_, at) => ({
+    at,
+    milliseconds: 120 + at / 100 + 40 * Math.sin(at / 37) * Math.cos(at / 11),
+}));
+
 /** A line per notebook of the notes written each month, with a tooltip and a legend. */
 export const chartLine = defineExample({
     of: Chart,
@@ -73,6 +70,26 @@ export const chartLine = defineExample({
                     { key: "notes", label: "Notes" },
                 ],
             }}
+        />
+    ),
+});
+
+/** Ten thousand readings drawn as dots on a canvas, as large datasets draw. */
+export const chartCanvas = defineExample({
+    of: Chart,
+    name: "canvas",
+    description: "ten thousand readings drawn as dots on a canvas, as large datasets draw",
+    render: () => (
+        <Chart
+            label="Ten thousand response times"
+            renderer="canvas"
+            definition={defineChart({
+                marks: [dot(READINGS, { x: "at", y: "milliseconds" })],
+                scales: {
+                    x: { scale: scaleLinear },
+                    y: { scale: scaleLinear, nice: true, grid: true },
+                },
+            })}
         />
     ),
 });

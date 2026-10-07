@@ -1,2 +1,2 @@
 export * from "./chart.tsx";
-export * from "./mark.ts";
+export * from "@tanstack/charts";

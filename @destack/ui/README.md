@@ -1125,17 +1125,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 `Chart` draws a TanStack Charts definition as an SVG in the theme's `chart1`–`chart5` series colors with the foreground for axes and grid, moves the focus between points with the arrow keys and announces each in a status, and reads its source rows out as a visually hidden `table`.
 
 ```tsx
-import {
-    barY,
-    Chart,
-    defineChart,
-    pie,
-    polar,
-    radialArc,
-    scaleBand,
-    scaleLinear,
-    tooltip,
-} from "@destack/ui/chart";
+import { barY, Chart, defineChart } from "@destack/ui/chart";
+import { pie, polar, radialArc } from "@destack/ui/chart/polar";
+import { scaleBand } from "@destack/ui/chart/scales/band";
+import { scaleLinear } from "@destack/ui/chart/scales/linear";
+import { tooltip } from "@destack/ui/chart/tooltip";
 
 <Chart
     label="Notes per notebook"
@@ -1162,6 +1156,26 @@ defineChart({
     ],
     scales: { x: null, y: null },
 });
+```
+
+### Renderers
+
+`renderer` draws the scene as SVG by default, readable before the script runs, or on a canvas for large datasets.
+
+```tsx
+<Chart label="Ten thousand response times" renderer="canvas" definition={definition} />
+```
+
+### Entry points
+
+`@destack/ui/chart` carries the whole TanStack Charts API beside `Chart`, and `@destack/ui/chart/<entry>` each of its entry points, which `bun run generate` writes from the pinned release.
+
+```ts
+import { binX } from "@destack/ui/chart/transform/bin";
+import { zoomX } from "@destack/ui/chart/interaction/zoom";
+import { treemap } from "@destack/ui/chart/hierarchy/treemap";
+import { sankeyDiagram } from "@destack/ui/chart/network/sankey";
+// every entry point but the bindings of other frameworks
 ```
 
 ## Data table

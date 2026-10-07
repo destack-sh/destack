@@ -11,11 +11,16 @@ const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
 /** The bodies of inline icons. */
 const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 
-/** The examples module of each component the package exports, loaded once before the tests run. */
+/** The components the package exports, its wrapped chart entry points left out. */
+const COMPONENTS = Object.keys(manifest.exports)
+    .filter((path) => !path.includes("*"))
+    .map((path) => path.slice(2));
+
+/** The examples module of each component, loaded once before the tests run. */
 const EXAMPLES: readonly (readonly [string, object])[] = await Promise.all(
-    Object.keys(manifest.exports)
-        .map((path) => path.slice(2))
-        .map(async (name) => [name, await import(`../src/${name}/${name}.example.tsx`)] as const),
+    COMPONENTS.map(
+        async (name) => [name, await import(`../src/${name}/${name}.example.tsx`)] as const,
+    ),
 );
 
 test("render a sidebar and a toaster to a string without a browser, open and with no toasts", () => {
@@ -60,7 +65,7 @@ test("render every exported component's examples to strings without a browser", 
     }
 
     // each component shows at least one example
-    expect(new Set(rendered).size).toBe(Object.keys(manifest.exports).length);
+    expect(new Set(rendered).size).toBe(COMPONENTS.length);
 });
 
 /** Report whether an export is an example, which renders an element. */

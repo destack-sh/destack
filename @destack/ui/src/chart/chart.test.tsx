@@ -1,7 +1,9 @@
 import { expect, test } from "@destack/test";
 import { draw, markup } from "@destack/view/test";
 import { Chart } from "./chart.tsx";
-import { defineChart, lineY, scaleLinear, scalePoint } from "./mark.ts";
+import { defineChart, lineY } from "./index.ts";
+import { scaleLinear } from "./module/scales/linear.ts";
+import { scalePoint } from "./module/scales/point.ts";
 
 /** The notes written each month in two notebooks. */
 const WRITTEN = [
