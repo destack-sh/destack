@@ -1,34 +1,20 @@
-import { aligned } from "@destack/schema";
-import { Digest } from "@destack/schema";
+import {
+    AWS_ALGORITHM,
+    AwsSigner,
+    EMPTY_HASH,
+    type SignableRequest,
+    UNSIGNED_PAYLOAD,
+} from "@destack/identity/aws";
+import { aligned, present } from "@destack/schema";
 import { copyRequest } from "@destack/service/request";
 import type { S3Credentials } from "./credentials.ts";
 import { S3Error } from "./error.ts";
 import { decodeUri, encodeUri, readQuery } from "./uri.ts";
 
-/** The SigV4 signing algorithm. */
-const ALGORITHM = "AWS4-HMAC-SHA256";
-/** The payload hash of requests whose body stays unsigned. */
-export const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
-/** The hexadecimal SHA-256 of no bytes. */
-export const EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-/** The last element of every SigV4 credential scope. */
-const TERMINATOR = "aws4_request";
-/** The widest clock difference header authentication accepts, fifteen minutes as S3 allows. */
-const MAX_CLOCK_SKEW = 15 * 60 * 1000;
-/** The longest presigned URL lifetime in seconds, seven days as S3 allows. */
-const MAX_EXPIRES = 7 * 24 * 60 * 60;
-/** The query parameters of presigned authentication, which never count as request headers. */
-export const PRESIGN_PARAMETERS = [
-    "X-Amz-Algorithm",
-    "X-Amz-Credential",
-    "X-Amz-Date",
-    "X-Amz-Expires",
-    "X-Amz-SignedHeaders",
-    "X-Amz-Signature",
-    "X-Amz-Security-Token",
-] as const;
-/** Headers left unsigned because proxies and clients change them, as the AWS SDK leaves them. */
-const UNSIGNABLE_HEADERS = new Set([
+/** The service S3 requests are signed for. */
+const SERVICE = "s3";
+/** The headers a signer leaves unsigned, which proxies and clients may change in flight. */
+const UNSIGNED_HEADERS: ReadonlySet<string> = new Set([
     "authorization",
     "cache-control",
     "connection",
@@ -45,13 +31,35 @@ const UNSIGNABLE_HEADERS = new Set([
     "user-agent",
     "x-amzn-trace-id",
 ]);
+/** The header declaring the payload hash a signature covers. */
+const PAYLOAD_HASH_HEADER = "x-amz-content-sha256";
+/** The query parameter carrying a presigned URL's signature. */
+const SIGNATURE_PARAMETER = "X-Amz-Signature";
+/** The query parameter listing the headers a presigned URL signs. */
+const SIGNED_HEADERS_PARAMETER = "X-Amz-SignedHeaders";
+/** The last element of every SigV4 credential scope. */
+const TERMINATOR = "aws4_request";
+/** The widest clock difference header authentication accepts, fifteen minutes as S3 allows. */
+const MAX_CLOCK_SKEW = 15 * 60 * 1000;
+/** The longest presigned URL lifetime in seconds, seven days as S3 allows. */
+const MAX_EXPIRES = 7 * 24 * 60 * 60;
+/** The query parameters of presigned authentication, which never count as request headers. */
+export const PRESIGN_PARAMETERS = [
+    "X-Amz-Algorithm",
+    "X-Amz-Credential",
+    "X-Amz-Date",
+    "X-Amz-Expires",
+    SIGNED_HEADERS_PARAMETER,
+    SIGNATURE_PARAMETER,
+    "X-Amz-Security-Token",
+] as const;
 
-/** A verified request signature and the key its streamed chunks are signed with. */
+/** A verified request signature, and how its streamed chunks chain their signatures to it. */
 export interface S3Authorization {
     /** The verified access key. */
     readonly accessKeyId: string;
-    /** The derived signing key of the request's date, region and service. */
-    readonly signingKey: CryptoKey;
+    /** Sign a string with the key of the request's day, region and service, as streamed chunks are signed. */
+    readonly sign: (value: string) => Promise<string>;
     /** The request time as SigV4 writes it. */
     readonly date: string;
     /** The credential scope. */
@@ -62,77 +70,69 @@ export interface S3Authorization {
     readonly payloadHash: string;
 }
 
-/** A derived signing key and the day and secret it signs for. */
-interface SigningKey {
-    /** The day as SigV4 writes it. */
-    day: string;
-    /** The secret the key derives from. */
-    secretAccessKey: string;
-    /** The derived HMAC key. */
-    key: CryptoKey;
-}
-
-/** The request parts a signature covers. */
-interface CanonicalRequest {
-    /** The HTTP method. */
-    method: string;
-    /** The percent-encoded URL path. */
-    path: string;
-    /** The decoded query parameters, without the signature itself. */
-    query: [string, string][];
-    /** The request headers, including those the query carries. */
-    headers: Headers;
+/** What a client's signature covers, beside the request's path and query. */
+interface SignedPart {
     /** The signed header names, lowercase and sorted. */
-    signedHeaders: string[];
-    /** The payload hash. */
-    payloadHash: string;
+    readonly names: string[];
+    /** The request time as SigV4 writes it. */
+    readonly date: string;
+    /** The payload hash the signature covers. */
+    readonly payloadHash: string;
 }
 
-/** The AWS Signature Version 4 signer and verifier for one region and service. */
-export class SignatureV4 {
+/** The authentication parameters of a presigned URL. */
+interface Presigned {
+    /** The credential scope with its access key. */
+    readonly credential: string;
+    /** The signing time as SigV4 writes it. */
+    readonly date: string;
+    /** The signing time. */
+    readonly time: number;
+    /** How long the URL lasts, in seconds. */
+    readonly lifetime: number;
+    /** The signed header names. */
+    readonly names: string[];
+    /** The signature. */
+    readonly signature: string;
+}
+
+/** AWS Signature Version 4 as S3 applies it in one region: signing, presigning and verifying requests, keeping a signer per access key. */
+export class S3Signature {
     /** The signed region. */
     readonly region: string;
-    /** The signed service. */
-    readonly service: string;
-    /** The signing key derived last for each access key, with the day and secret it signs for. */
-    readonly #signingKeys = new Map<string, SigningKey>();
+    /** The signer of each access key, which keeps its daily signing keys. */
+    readonly #signers = new Map<string, AwsSigner>();
 
-    /** Sign for a region and service, S3 by default. */
-    constructor(options: { region: string; service?: string }) {
+    /** Sign for a region. */
+    constructor(options: { region: string }) {
         this.region = options.region;
-        this.service = options.service ?? "s3";
     }
 
     /** Sign a request with an Authorization header, leaving a body without a declared hash unsigned. */
     async sign(request: Request, credentials: S3Credentials, now: number): Promise<Request> {
-        // stamp the time and payload hash the signature covers
-        const date = formatDate(now);
+        // stamp the payload hash the signature covers
         const headers = new Headers(request.headers);
-        headers.set("x-amz-date", date);
         const payloadHash =
-            headers.get("x-amz-content-sha256") ??
+            headers.get(PAYLOAD_HASH_HEADER) ??
             (request.body === null ? EMPTY_HASH : UNSIGNED_PAYLOAD);
-        headers.set("x-amz-content-sha256", payloadHash);
+        headers.set(PAYLOAD_HASH_HEADER, payloadHash);
 
-        // sign every header clients and proxies keep, with the host
+        // sign every header clients and proxies keep, with the host and the time
         const url = new URL(request.url);
-        const signed = {
-            method: request.method,
-            path: url.pathname,
-            query: readQuery(url),
-            headers: withHost(url, headers),
-            signedHeaders: signedHeaderNames(headers),
-            payloadHash,
-        };
-        const scope = this.#scope(date);
-        const signingKey = await this.#signingKey(credentials, date);
-        const signature = await signRequest(signed, date, scope, signingKey);
-
-        // attach the authorization to a copy of the request
-        headers.set(
-            "authorization",
-            `${ALGORITHM} Credential=${credentials.accessKeyId}/${scope}, SignedHeaders=${signed.signedHeaders.join(";")}, Signature=${signature}`,
+        const kept = new Headers();
+        for (const [name, value] of withHost(url, headers)) {
+            if (!UNSIGNED_HEADERS.has(name)) {
+                kept.set(name, value);
+            }
+        }
+        const signed = await this.#signer(credentials).authorize(
+            signableOf(request.method, url, readQuery(url), kept),
+            new Date(now),
         );
+
+        // attach the time and the authorization to a copy of the request
+        headers.set("x-amz-date", present(signed["x-amz-date"], "the signed time"));
+        headers.set("authorization", present(signed["authorization"], "the signature"));
 
         return copyRequest(request, { headers });
     }
@@ -149,42 +149,36 @@ export class SignatureV4 {
             throw new RangeError("presigned URLs expire after 1 second to 7 days");
         }
 
-        // move x-amz headers into the query, except those S3 reads only as headers
+        // hoist the x-amz headers S3 also reads from a query, and leave an undeclared payload unsigned
         const url = new URL(request.url);
+        const headers = withHost(url, new Headers(request.headers));
+        const payloadHash = headers.get(PAYLOAD_HASH_HEADER) ?? UNSIGNED_PAYLOAD;
         const query = readQuery(url);
-        const headers = new Headers();
-        for (const [name, value] of request.headers) {
+        const signed = new Headers();
+        for (const [name, value] of headers) {
             if (name.startsWith("x-amz-") && !isHeaderOnly(name)) {
                 query.push([name, value]);
-            } else {
-                headers.set(name, value);
+            } else if (!UNSIGNED_HEADERS.has(name)) {
+                signed.set(name, value);
+            }
+        }
+        const authentication = await this.#signer(credentials).presign(
+            signableOf(request.method, url, query, signed, payloadHash),
+            new Date(now),
+            expiresIn,
+        );
+
+        // write the signed query, the signature last, and send the headers left in place
+        const signature = present(authentication.pop(), "the presigned signature");
+        url.search = `${writeQuery([...query, ...authentication])}&${SIGNATURE_PARAMETER}=${signature[1]}`;
+        const sent = new Headers();
+        for (const [name, value] of request.headers) {
+            if (!name.startsWith("x-amz-") || isHeaderOnly(name)) {
+                sent.set(name, value);
             }
         }
 
-        // add the authentication parameters and sign the canonical query
-        const date = formatDate(now);
-        const scope = this.#scope(date);
-        const signedHeaders = signedHeaderNames(headers);
-        query.push(
-            ["X-Amz-Algorithm", ALGORITHM],
-            ["X-Amz-Credential", `${credentials.accessKeyId}/${scope}`],
-            ["X-Amz-Date", date],
-            ["X-Amz-Expires", String(expiresIn)],
-            ["X-Amz-SignedHeaders", signedHeaders.join(";")],
-        );
-        const signed = {
-            method: request.method,
-            path: url.pathname,
-            query,
-            headers: withHost(url, headers),
-            signedHeaders,
-            payloadHash: headers.get("x-amz-content-sha256") ?? UNSIGNED_PAYLOAD,
-        };
-        const signingKey = await this.#signingKey(credentials, date);
-        const signature = await signRequest(signed, date, scope, signingKey);
-        url.search = `${canonicalQuery(query)}&X-Amz-Signature=${signature}`;
-
-        return new Request(url.href, { method: request.method, headers });
+        return new Request(url.href, { method: request.method, headers: sent });
     }
 
     /** Verify a request's header or query signature and return what later chunk signatures need. */
@@ -216,7 +210,7 @@ export class SignatureV4 {
         }
     }
 
-    /** Verify an Authorization header signature. */
+    /** Verify an Authorization header signature by signing the same parts again. */
     async #verifyHeader(
         request: Request,
         url: URL,
@@ -230,14 +224,13 @@ export class SignatureV4 {
                 header.trim(),
             );
         if (match === null) {
-            const code = header.startsWith(ALGORITHM)
+            const code = header.startsWith(AWS_ALGORITHM)
                 ? "AuthorizationHeaderMalformed"
                 : "InvalidRequest";
             throw new S3Error(code, "the authorization header must use AWS4-HMAC-SHA256");
         }
         const credential = aligned(match, 1);
-        const signedHeaders = aligned(match, 2);
-        const signature = aligned(match, 3);
+        const names = aligned(match, 2).split(";");
 
         // require a request time within the clock skew and the credential's day
         const date = request.headers.get("x-amz-date");
@@ -254,94 +247,96 @@ export class SignatureV4 {
         const accessKeyId = this.#checkCredential(credential, date, "AuthorizationHeaderMalformed");
 
         // require the payload hash and a signature over every x-amz header
-        const payloadHash = request.headers.get("x-amz-content-sha256");
+        const payloadHash = request.headers.get(PAYLOAD_HASH_HEADER);
         if (payloadHash === null) {
             throw new S3Error(
                 "InvalidRequest",
-                "missing required header for this request: x-amz-content-sha256",
+                `missing required header for this request: ${PAYLOAD_HASH_HEADER}`,
             );
         }
-        const names = signedHeaders.split(";");
         checkSignedHeaders(request.headers, names);
 
-        // compare the signature of the canonical request
-        const signed = {
-            method: request.method,
-            path: url.pathname,
-            query: readQuery(url),
-            headers: withHost(url, request.headers),
-            signedHeaders: names,
-            payloadHash,
-        };
+        // sign the signed parts again
+        const headers = signedHeaders(url, request.headers, names);
+        const signingDate = new Date(time);
+        const parts = { names, date, payloadHash };
+        const credentials = await requireCredentials(lookup, accessKeyId);
+        const signed = await this.#signer(credentials).sign(
+            signableOf(request.method, url, readQuery(url), headers, payloadHash),
+            signingDate,
+        );
 
-        return await this.#check(signed, date, accessKeyId, signature, lookup);
+        return this.#match(
+            parts,
+            credentials,
+            aligned(match, 3),
+            signed.signedHeaders,
+            signed.signature,
+        );
     }
 
-    /** Verify a presigned URL's query signature. */
+    /** Verify a presigned URL's query signature by presigning the same parts again. */
     async #verifyQuery(
         request: Request,
         url: URL,
         lookup: (accessKeyId: string) => Promise<S3Credentials | undefined>,
         now: number,
     ): Promise<S3Authorization> {
-        // require every authentication parameter
-        const query = readQuery(url);
-        const parameters = new Map(query);
-        const [algorithm, credential, date, expires, signedHeaders, signature] =
-            PRESIGN_PARAMETERS.map((name) => parameters.get(name));
-        if (
-            algorithm !== ALGORITHM ||
-            credential === undefined ||
-            date === undefined ||
-            expires === undefined ||
-            signedHeaders === undefined ||
-            signature === undefined
-        ) {
-            throw new S3Error(
-                "AuthorizationQueryParametersError",
-                "query authentication requires the X-Amz-Algorithm, X-Amz-Credential, X-Amz-Signature, X-Amz-Date, X-Amz-SignedHeaders and X-Amz-Expires parameters",
-            );
-        }
-        if (parameters.has("X-Amz-Security-Token")) {
-            throw new S3Error("InvalidToken", "session tokens are not supported");
-        }
-
-        // require a valid lifetime of at most seven days
-        const lifetime = /^\d+$/u.test(expires) ? Number(expires) : Number.NaN;
-        const time = parseDate(date);
-        if (!(lifetime >= 1 && lifetime <= MAX_EXPIRES) || time === undefined) {
-            throw new S3Error(
-                "AuthorizationQueryParametersError",
-                "X-Amz-Expires must be from 1 through 604800 seconds and X-Amz-Date a valid time",
-            );
-        }
-
         // refuse expired URLs and URLs signed for a later time
+        const query = readQuery(url);
+        const presigned = readPresigned(query);
+        const { date, time, lifetime, names } = presigned;
         if (now > time + lifetime * 1000) {
             throw new S3Error("AccessDenied", "request has expired");
         }
         if (now < time - MAX_CLOCK_SKEW) {
             throw new S3Error("AccessDenied", "request is not valid yet");
         }
-        const accessKeyId = this.#checkCredential(
-            credential,
-            date,
-            "AuthorizationQueryParametersError",
+        const credential = presigned.credential;
+        const code = "AuthorizationQueryParametersError";
+        const accessKeyId = this.#checkCredential(credential, date, code);
+        checkSignedHeaders(request.headers, names);
+
+        // presign the signed parts again, an undeclared payload unsigned
+        const headers = signedHeaders(url, request.headers, names);
+        const payloadHash = headers.get(PAYLOAD_HASH_HEADER) ?? UNSIGNED_PAYLOAD;
+        const unsigned = query.filter(
+            ([name]) => !PRESIGN_PARAMETERS.some((each) => each === name),
+        );
+        const signingDate = new Date(time);
+        const parts = { names, date, payloadHash };
+        const credentials = await requireCredentials(lookup, accessKeyId);
+        const resigned = new Map(
+            await this.#signer(credentials).presign(
+                signableOf(request.method, url, unsigned, headers, payloadHash),
+                signingDate,
+                lifetime,
+            ),
         );
 
-        // compare the signature over the query without the signature itself
-        const names = signedHeaders.split(";");
-        checkSignedHeaders(request.headers, names);
-        const signed = {
-            method: request.method,
-            path: url.pathname,
-            query: query.filter(([name]) => name !== "X-Amz-Signature"),
-            headers: withHost(url, request.headers),
-            signedHeaders: names,
-            payloadHash: request.headers.get("x-amz-content-sha256") ?? UNSIGNED_PAYLOAD,
-        };
+        // compare the signature over the same headers
+        return this.#match(
+            parts,
+            credentials,
+            presigned.signature,
+            resigned.get(SIGNED_HEADERS_PARAMETER),
+            resigned.get(SIGNATURE_PARAMETER),
+        );
+    }
 
-        return await this.#check(signed, date, accessKeyId, signature, lookup);
+    /** Keep the signer of an access key, replaced once its secret changes. */
+    #signer(credentials: S3Credentials): AwsSigner {
+        // reuse the signer of an unchanged key
+        const kept = this.#signers.get(credentials.accessKeyId);
+        if (kept?.credentials.secretAccessKey === credentials.secretAccessKey) {
+            return kept;
+        }
+
+        // sign with the new secret from now on
+        const signer = new AwsSigner({ region: this.region, service: SERVICE, credentials });
+        this.#signers.set(credentials.accessKeyId, signer);
+
+        return signer;
     }
 
     /** Require a credential scope of this region and service on the request's day. */
@@ -357,7 +352,7 @@ export class SignatureV4 {
             accessKeyId === "" ||
             rest.length !== 0 ||
             terminator !== TERMINATOR ||
-            service !== this.service
+            service !== SERVICE
         ) {
             throw new S3Error(
                 code,
@@ -374,108 +369,119 @@ export class SignatureV4 {
         return accessKeyId;
     }
 
-    /** Compare a request's signature with the one its access key produces. */
-    async #check(
-        signed: CanonicalRequest,
-        date: string,
-        accessKeyId: string,
+    /** Accept a client's signature once it equals, in constant time, the one signed again over the same headers. */
+    #match(
+        parts: SignedPart,
+        credentials: S3Credentials,
         signature: string,
-        lookup: (accessKeyId: string) => Promise<S3Credentials | undefined>,
-    ): Promise<S3Authorization> {
-        // look up the access key
-        const credentials = await lookup(accessKeyId);
-        if (credentials === undefined) {
-            throw new S3Error("InvalidAccessKeyId", "the access key does not exist");
-        }
-
-        // compute and compare the signature in constant time
-        const scope = this.#scope(date);
-        const signingKey = await this.#signingKey(credentials, date);
-        const expected = await signRequest(signed, date, scope, signingKey);
-        if (!isEqual(expected, signature)) {
+        listed: unknown,
+        expected: unknown,
+    ): S3Authorization {
+        // refuse a signature over other headers, or another signature
+        if (
+            listed !== parts.names.join(";") ||
+            typeof expected !== "string" ||
+            !isEqual(expected, signature)
+        ) {
             throw new S3Error(
                 "SignatureDoesNotMatch",
                 "the request signature does not match the signature calculated with the secret key",
             );
         }
 
-        return { accessKeyId, signingKey, date, scope, signature, payloadHash: signed.payloadHash };
-    }
+        // sign chunks with the same key and time
+        const chunks = this.#signer(credentials);
+        const { date, payloadHash } = parts;
 
-    /** The credential scope of a request time. */
-    #scope(date: string): string {
-        return `${date.slice(0, 8)}/${this.region}/${this.service}/${TERMINATOR}`;
-    }
-
-    /** Derive the signing key of a secret for a day, reusing the last one of its access key. */
-    async #signingKey(credentials: S3Credentials, date: string): Promise<CryptoKey> {
-        // reuse the key of the same day and secret
-        const day = date.slice(0, 8);
-        const cached = this.#signingKeys.get(credentials.accessKeyId);
-        if (cached?.day === day && cached.secretAccessKey === credentials.secretAccessKey) {
-            return cached.key;
-        }
-
-        // chain HMACs from the secret through the day, region, service and terminator
-        const encoder = new TextEncoder();
-        let bytes: Uint8Array<ArrayBuffer> = encoder.encode(`AWS4${credentials.secretAccessKey}`);
-        for (const part of [day, this.region, this.service, TERMINATOR]) {
-            bytes = await hmac(await importKey(bytes), part);
-        }
-        const key = await importKey(bytes);
-        this.#signingKeys.set(credentials.accessKeyId, {
-            day,
-            secretAccessKey: credentials.secretAccessKey,
-            key,
-        });
-
-        return key;
+        return {
+            accessKeyId: credentials.accessKeyId,
+            sign: (value) => chunks.signString(value, date),
+            date,
+            scope: `${date.slice(0, 8)}/${this.region}/${SERVICE}/${TERMINATOR}`,
+            signature,
+            payloadHash,
+        };
     }
 }
 
-/** Sign a string with a derived key and return the hexadecimal signature. */
-export async function signString(signingKey: CryptoKey, value: string): Promise<string> {
-    const signature = await crypto.subtle.sign("HMAC", signingKey, new TextEncoder().encode(value));
-
-    return new Uint8Array(signature).toHex();
+/** Describe a request as S3 signs it: its path decoded and encoded once, its query, its headers and its payload hash. */
+function signableOf(
+    method: string,
+    url: URL,
+    query: readonly (readonly [string, string])[],
+    headers: Headers,
+    payloadHash = headers.get(PAYLOAD_HASH_HEADER) ?? EMPTY_HASH,
+): SignableRequest {
+    return {
+        method,
+        path: encodeUri(decodeUri(url.pathname), true),
+        query,
+        headers: Object.fromEntries(headers),
+        payloadHash,
+    };
 }
 
-/** Sign the canonical form of a request. */
-async function signRequest(
-    signed: CanonicalRequest,
-    date: string,
-    scope: string,
-    signingKey: CryptoKey,
-): Promise<string> {
-    // build the canonical request from the signed parts
-    const canonicalHeaders = signed.signedHeaders
-        .map((name) => `${name}:${(signed.headers.get(name) ?? "").trim().replace(/\s+/gu, " ")}\n`)
-        .join("");
-    const canonical = [
-        signed.method,
-        encodeUri(decodeUri(signed.path), true),
-        canonicalQuery(signed.query),
-        canonicalHeaders,
-        signed.signedHeaders.join(";"),
-        signed.payloadHash,
-    ].join("\n");
+/** Look up the credentials of an access key, refusing an unknown one. */
+async function requireCredentials(
+    lookup: (accessKeyId: string) => Promise<S3Credentials | undefined>,
+    accessKeyId: string,
+): Promise<S3Credentials> {
+    const credentials = await lookup(accessKeyId);
+    if (credentials === undefined) {
+        throw new S3Error("InvalidAccessKeyId", "the access key does not exist");
+    }
 
-    // sign the string naming the algorithm, time, scope and canonical request hash
-    const stringToSign = [ALGORITHM, date, scope, await Digest.of(canonical)].join("\n");
-
-    return await signString(signingKey, stringToSign);
+    return credentials;
 }
 
-/** List the host and every signable header, lowercase and sorted. */
-function signedHeaderNames(headers: Headers): string[] {
-    const names = new Set(["host"]);
-    for (const name of headers.keys()) {
-        if (!UNSIGNABLE_HEADERS.has(name)) {
-            names.add(name);
+/** Read and check the authentication parameters of a presigned URL's query. */
+function readPresigned(query: [string, string][]): Presigned {
+    // require every authentication parameter but the session token, which is unsupported
+    const parameters = new Map(query);
+    const [algorithm, credential, date, expires, listed, signature] = PRESIGN_PARAMETERS.map(
+        (name) => parameters.get(name),
+    );
+    if (
+        algorithm !== AWS_ALGORITHM ||
+        credential === undefined ||
+        date === undefined ||
+        expires === undefined ||
+        listed === undefined ||
+        signature === undefined
+    ) {
+        throw new S3Error(
+            "AuthorizationQueryParametersError",
+            "query authentication requires the X-Amz-Algorithm, X-Amz-Credential, X-Amz-Signature, X-Amz-Date, X-Amz-SignedHeaders and X-Amz-Expires parameters",
+        );
+    }
+    if (parameters.has("X-Amz-Security-Token")) {
+        throw new S3Error("InvalidToken", "session tokens are not supported");
+    }
+
+    // require a valid lifetime of at most seven days
+    const lifetime = /^\d+$/u.test(expires) ? Number(expires) : Number.NaN;
+    const time = parseDate(date);
+    if (!(lifetime >= 1 && lifetime <= MAX_EXPIRES) || time === undefined) {
+        throw new S3Error(
+            "AuthorizationQueryParametersError",
+            "X-Amz-Expires must be from 1 through 604800 seconds and X-Amz-Date a valid time",
+        );
+    }
+
+    return { credential, date, time, lifetime, names: listed.split(";"), signature };
+}
+
+/** Keep the headers a signature lists, with the host HTTP sends. */
+function signedHeaders(url: URL, headers: Headers, names: string[]): Headers {
+    const signed = new Headers();
+    for (const name of names) {
+        const value = headers.get(name);
+        if (value !== null) {
+            signed.set(name, value);
         }
     }
 
-    return [...names].toSorted();
+    return withHost(url, signed);
 }
 
 /** Add the URL's host to headers that lack one, as HTTP sends it. */
@@ -490,8 +496,8 @@ function withHost(url: URL, headers: Headers): Headers {
 }
 
 /** Refuse a signature that leaves the host or an x-amz header of the request unsigned. */
-function checkSignedHeaders(headers: Headers, signedHeaders: string[]): void {
-    const signed = new Set(signedHeaders);
+function checkSignedHeaders(headers: Headers, names: string[]): void {
+    const signed = new Set(names);
     if (!signed.has("host")) {
         throw new S3Error("AccessDenied", "the host header must be signed");
     }
@@ -502,8 +508,8 @@ function checkSignedHeaders(headers: Headers, signedHeaders: string[]): void {
     }
 }
 
-/** Encode, sort and join query parameters as SigV4 canonicalizes them. */
-function canonicalQuery(query: [string, string][]): string {
+/** Write query parameters encoded and sorted by name, then by value, as SigV4 orders them. */
+function writeQuery(query: readonly (readonly [string, string])[]): string {
     return query
         .map(([name, value]) => [encodeUri(name, false), encodeUri(value, false)] as const)
         .toSorted(([leftName, leftValue], [rightName, rightValue]) =>
@@ -515,15 +521,7 @@ function canonicalQuery(query: [string, string][]): string {
 
 /** Whether S3 reads a header only from headers, never from a presigned query. */
 function isHeaderOnly(name: string): boolean {
-    return name === "x-amz-content-sha256" || name.startsWith("x-amz-server-side-encryption");
-}
-
-/** Format a time as SigV4's basic ISO 8601 form. */
-function formatDate(now: number): string {
-    return new Date(now)
-        .toISOString()
-        .replace(/[-:]/gu, "")
-        .replace(/\.\d{3}/u, "");
+    return name === PAYLOAD_HASH_HEADER || name.startsWith("x-amz-server-side-encryption");
 }
 
 /** Parse SigV4's basic ISO 8601 form, or return undefined when malformed. */
@@ -538,18 +536,6 @@ function parseDate(value: string): number | undefined {
     );
 
     return Number.isNaN(time) ? undefined : time;
-}
-
-/** Import raw bytes as an HMAC SHA-256 signing key. */
-function importKey(bytes: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
-    return crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, [
-        "sign",
-    ]);
-}
-
-/** Sign text with a key and return the raw signature. */
-async function hmac(key: CryptoKey, value: string): Promise<Uint8Array<ArrayBuffer>> {
-    return new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
 }
 
 /** Compare two strings by UTF-16 code units, which match bytes for encoded ASCII. */

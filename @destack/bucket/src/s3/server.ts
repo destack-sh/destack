@@ -6,7 +6,7 @@ import { S3Error } from "./error.ts";
 import { S3Object } from "./object.ts";
 import { type CopySource } from "./operation.ts";
 import { S3Request } from "./request.ts";
-import { SignatureV4 } from "./signature.ts";
+import { S3Signature } from "./signature.ts";
 import { S3Upload } from "./upload.ts";
 import { decodeUri } from "./uri.ts";
 import { writeErrorXml } from "./xml.ts";
@@ -26,7 +26,7 @@ export interface S3ServerOptions {
 /** Serve the S3 API path-style over buckets, answering failures with S3 error documents. */
 export class S3Server {
     /** The request signature verifier. */
-    readonly signature: SignatureV4;
+    readonly signature: S3Signature;
     /** The CORS rules of every bucket. */
     readonly cors: CorsRule[];
     /** Look up the credentials of an access key. */
@@ -37,7 +37,7 @@ export class S3Server {
     /** Serve buckets in a region. */
     constructor(options: S3ServerOptions) {
         // retain the verifier, the CORS rules and the host's lookups
-        this.signature = new SignatureV4({ region: options.region });
+        this.signature = new S3Signature({ region: options.region });
         this.cors = options.cors ?? [];
         this.#credentials = options.credentials;
         this.#open = options.open;

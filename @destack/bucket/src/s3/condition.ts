@@ -1,8 +1,5 @@
-import { aligned } from "@destack/schema";
+import { aligned, Duration } from "@destack/schema";
 import type { BucketCondition, BucketFile } from "../bucket/index.ts";
-
-/** The milliseconds of one second, the resolution of HTTP dates. */
-const SECOND = 1000;
 
 /** An HTTP entity tag, compared strongly unless weak comparison applies. */
 export interface EntityTag {
@@ -142,5 +139,5 @@ function includes(tags: EntityTag[] | "*", etag: string, isWeakComparison: boole
 
 /** Truncate a time to whole seconds. */
 function seconds(time: Date): number {
-    return Math.floor(time.getTime() / SECOND);
+    return Math.floor(Duration.seconds({ milliseconds: time.getTime() }));
 }

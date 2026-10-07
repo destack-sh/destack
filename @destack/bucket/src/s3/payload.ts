@@ -2,7 +2,8 @@ import { aligned } from "@destack/schema";
 import { Digest } from "@destack/schema";
 import { Crc32, Crc32c, CryptoHasher, type Hasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
-import { EMPTY_HASH, type S3Authorization, signString, UNSIGNED_PAYLOAD } from "./signature.ts";
+import { EMPTY_HASH, UNSIGNED_PAYLOAD } from "@destack/identity/aws";
+import type { S3Authorization } from "./signature.ts";
 
 /** The payload hash of aws-chunked bodies with signed chunks. */
 const SIGNED_CHUNKS = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
@@ -313,7 +314,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         }
 
         // sign the chunk's data hash after the previous signature
-        const { signingKey, date, scope } = this.#authorization;
+        const { date, scope } = this.#authorization;
         const stringToSign = [
             CHUNK_ALGORITHM,
             date,
@@ -322,7 +323,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
             EMPTY_HASH,
             this.#chunkDigest.digest().toHex(),
         ].join("\n");
-        const expected = await signString(signingKey, stringToSign);
+        const expected = await this.#authorization.sign(stringToSign);
         if (expected !== this.#chunkSignature) {
             throw new S3Error(
                 "SignatureDoesNotMatch",

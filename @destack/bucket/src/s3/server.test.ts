@@ -4,7 +4,7 @@ import { Readable } from "node:stream";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { expect, test } from "@destack/test";
-import { SignatureV4 } from "./signature.ts";
+import { S3Signature } from "./signature.ts";
 import { CREDENTIALS, failure, REGION, S3Fixture } from "./test/fixture.ts";
 
 test("accept the AWS SDK's default checksums, trailers included", async () => {
@@ -193,7 +193,7 @@ test("answer CORS preflights and expose headers to allowed origins", async () =>
 
 test("refuse bodies whose signed hash or checksum differs, storing nothing", async () => {
     await using fixture = await S3Fixture.open();
-    const signer = new SignatureV4({ region: REGION });
+    const signer = new S3Signature({ region: REGION });
 
     // sign writes declaring the hash or CRC32 of other contents
     const put = (key: string, headers: Record<string, string>) =>

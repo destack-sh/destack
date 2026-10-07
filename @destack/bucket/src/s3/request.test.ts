@@ -9,13 +9,7 @@ test("write a customer key's SSE-C headers, which a request reads back as the ke
     const headers = customerKeyHeaders(key.toBase64());
     const authorization: S3Authorization = {
         accessKeyId: "tester",
-        signingKey: await crypto.subtle.importKey(
-            "raw",
-            new Uint8Array(32),
-            { name: "HMAC", hash: "SHA-256" },
-            false,
-            ["sign"],
-        ),
+        sign: async () => "0".repeat(64),
         date: "20260929T100000Z",
         scope: "20260929/auto/s3/aws4_request",
         signature: "0".repeat(64),
