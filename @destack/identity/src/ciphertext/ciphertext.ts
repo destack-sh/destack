@@ -8,8 +8,8 @@ const COMPACT_JWE = /^[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+$/u;
 /** The content encryption of every ciphertext. */
 const ENCRYPTION = "A256GCM";
 
-/** How a ciphertext's content key reaches its holder: wrapped under a symmetric key, or agreed with a recipient's public key (RFC 7518 4.6, 4.7). */
-export type KeyManagement = "A256GCMKW" | "ECDH-ES";
+/** How a ciphertext's content key reaches its holder: wrapped under a symmetric key, or wrapped under a key agreed with a recipient's public key (RFC 7518 4.6, 4.7). */
+export type KeyManagement = "A256GCMKW" | "ECDH-ES+A256KW";
 
 /** Bytes encrypted as a compact JWE (RFC 7516), naming the key that decrypts them and binding the context they were encrypted under, as a KMS ciphertext does. */
 export const Ciphertext = Object.assign(defineSchema(schema.string().regex(COMPACT_JWE)), {

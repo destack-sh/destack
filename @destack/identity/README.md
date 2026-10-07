@@ -84,12 +84,13 @@ const bytes = await Ciphertext.decrypt(ciphertext, key, context); // DECRYPTION_
 
 ## Recipients
 
-A `Recipient` receives keys a moving space's source cell seals to its fresh P-256 key with ECDH-ES, so their plaintext never leaves a cell.
+A `Recipient` receives bytes others seal to its P-256 key with ECDH-ES+A256KW: keys a moving space's source cell seals to a fresh key, or message content sealed to the key an identity derives.
 
 ```ts
 const recipient = await Recipient.generate(); // on the target cell
 const sealed = await Recipient.of(recipient.key).seal(bytes, context); // on the source cell
 const opened = await recipient.open(sealed, context);
+const messages = await Recipient.derive(root, "message"); // the same key for every derivation
 ```
 
 ## Errors
