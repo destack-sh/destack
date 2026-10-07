@@ -25,6 +25,7 @@ test("declare the token families with their text styles and motion tokens", () =
     expect(TOKENS.families.map((family) => family.name)).toEqual([
         "color",
         "surface",
+        "swatch",
         "text",
         "weight",
         "space",

@@ -111,6 +111,17 @@ defineTheme({ name: "signal", roles: { primary: { palette: "warning" } } }); // 
 // chart1 #3e63dd, chart2 #978365 gold, chart3 #29a383 jade, chart4 #d6409f pink, chart5 #00a2c7 cyan
 ```
 
+## Swatches
+
+Each colorful preset has a swatch, the roles it takes as an accent: a solid fill, the label reading on it, a subtle tint and the text reading on the tint, so an object marked teal reads at every appearance and contrast.
+
+```ts
+import { swatch } from "@destack/theme/tokens.stylex";
+
+const tag = style.create({ tag: { backgroundColor: swatch.tealTint, color: swatch.tealText } });
+// --destack-swatch-teal-tint: light-dark(#d7fbf3, #1b2826)
+```
+
 ## Nested surfaces
 
 `rebase` derives a theme over another background, such as a selected row's, so the surfaces above it keep its tint and every text, line and graphic reads against it.

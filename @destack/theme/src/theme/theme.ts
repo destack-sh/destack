@@ -1,7 +1,7 @@
 import { PackageError, type Package } from "@destack/package";
 import { defineSchema, present, schema } from "@destack/schema";
 import { apca, Palette, Seed, type Scheme } from "../palette/index.ts";
-import { GRAY_PRESETS, PRESET_NAMES, type AccentPreset } from "../preset/index.ts";
+import { ACCENT_PRESETS, type AccentPreset } from "../preset/index.ts";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
 import {
     DENSITY_SCALES,
@@ -21,6 +21,8 @@ import {
     RoleOverride,
     SURFACE_ROLES,
     SurfaceLevel,
+    SWATCH_PARTS,
+    SWATCH_ROLES,
     type Palettes,
     type Role,
     type Roles,
@@ -54,11 +56,6 @@ const DEFAULT_DENSITY = "regular";
 
 /** The chart series a theme holds after its accent. */
 const SERIES = ["chart2", "chart3", "chart4", "chart5"] as const;
-
-/** The colorful presets chart series pick from, in preset order. */
-const SERIES_CANDIDATES = PRESET_NAMES.filter(
-    (name): name is AccentPreset => !GRAY_PRESETS.some((gray) => gray === name),
-);
 
 /** The appearances and contrast levels each theme is checked under. */
 const CHECKS = [
@@ -215,6 +212,12 @@ export class Theme {
             style[entry.variable] = css(SURFACE_ROLES[SurfaceLevel.parse(entry.key)]);
         }
 
+        // resolve each preset's swatch as the roles it takes under the preset as accent
+        for (const entry of TOKENS.family("swatch").entries) {
+            const { preset, part } = swatchOf(entry.key);
+            style[entry.variable] = this.#css(SWATCH_ROLES[part], preferences.contrast, preset);
+        }
+
         // scale every other token by the theme and the person's preferences
         for (const family of TOKENS.families) {
             const factor = this.#factor(family.name, preferences);
@@ -327,6 +330,7 @@ export class Theme {
         switch (family) {
             case "color":
             case "surface":
+            case "swatch":
                 return undefined;
             case "space":
             case "size":
@@ -369,6 +373,23 @@ export class Theme {
     }
 }
 
+/** Read a swatch token's key, its preset then its part in camel case such as `tealSolid`, as the preset and the part. */
+function swatchOf(key: string): {
+    readonly preset: AccentPreset;
+    readonly part: (typeof SWATCH_PARTS)[number];
+} {
+    for (const preset of ACCENT_PRESETS) {
+        const part = SWATCH_PARTS.find(
+            (name) => key === `${preset}${name.charAt(0).toUpperCase()}${name.slice(1)}`,
+        );
+        if (part !== undefined) {
+            return { preset, part };
+        }
+    }
+
+    throw new TypeError(`no swatch token is named ${key}`);
+}
+
 /** Format a color in both appearances, one color when they agree. */
 function lightDark(light: string, dark: string): string {
     return light === dark ? light : `light-dark(${light}, ${dark})`;
@@ -379,7 +400,7 @@ function seriesOf(accent: Palette, declared: readonly Palette[], background: str
     // keep the candidates whose seeds read as graphics on the light background, where pale hues would darken into muddy tones
     const isVisible = (palette: Palette) =>
         Math.abs(apca(palette.seed, background)) >= GRAPHIC_CONTRAST.standard;
-    const candidates = SERIES_CANDIDATES.map((name) => Palette.of(name)).filter((palette) =>
+    const candidates = ACCENT_PRESETS.map((name) => Palette.of(name)).filter((palette) =>
         isVisible(palette),
     );
 

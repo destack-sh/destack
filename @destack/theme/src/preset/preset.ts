@@ -83,3 +83,8 @@ export type GrayPreset = (typeof GRAY_PRESETS)[number];
 
 /** A colorful preset. */
 export type AccentPreset = Exclude<Preset, GrayPreset>;
+
+/** The colorful presets, in preset order, which accents, chart series and swatches take. */
+export const ACCENT_PRESETS = PRESET_NAMES.filter(
+    (name): name is AccentPreset => !GRAY_PRESETS.some((gray) => gray === name),
+);

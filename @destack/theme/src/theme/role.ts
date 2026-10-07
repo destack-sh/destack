@@ -417,6 +417,29 @@ export const SURFACE_ROLES: Readonly<Record<SurfaceLevel, RoleName>> = {
     overlay: "popover",
 };
 
+/** The parts of a swatch, the colors one preset gives an object marked with it, each the role it resolves as under the preset as accent. */
+export const SWATCH_ROLES = {
+    /** The preset's solid fill, such as a tag's dot. */
+    solid: "primary",
+    /** The label reading on the solid fill. */
+    label: "primaryForeground",
+    /** The preset's subtle tint, such as a tag's background. */
+    tint: "accent",
+    /** The text reading on the tint. */
+    text: "accentForeground",
+} as const satisfies Readonly<Record<string, RoleName>>;
+
+/** A part of a swatch. */
+export type SwatchPart = keyof typeof SWATCH_ROLES;
+
+/** The parts of a swatch, in token order. */
+export const SWATCH_PARTS = [
+    "solid",
+    "label",
+    "tint",
+    "text",
+] as const satisfies readonly SwatchPart[];
+
 /** A role moving another role's color in lightness. */
 function shift(from: RoleName, lightness: Lightness): Role {
     return new Role({ kind: "shift", from, lightness });

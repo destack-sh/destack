@@ -26,11 +26,21 @@ const notes = Package.parse({
 const standard = defineTheme({ name: "standard" }, { package: notes });
 
 /** List the declarations that differ from a baseline style. */
-function changes(style: ThemeStyle, baseline: ThemeStyle): Record<string, string> {
+function changes(
+    style: Readonly<Record<string, string>>,
+    baseline: ThemeStyle,
+): Record<string, string> {
     return Object.fromEntries(
         Object.entries(style).filter(([name, value]) =>
             Object.entries(baseline).every(([other, before]) => other !== name || before !== value),
         ),
+    );
+}
+
+/** Keep a theme root's role and scale properties, leaving out the swatches the swatch test covers. */
+function withoutSwatches(style: ThemeStyle): Readonly<Record<string, string>> {
+    return Object.fromEntries(
+        Object.entries(style).filter(([name]) => !name.startsWith("--destack-swatch-")),
     );
 }
 
@@ -312,9 +322,41 @@ test("resolve the default theme to the color values tokens.json shows", () => {
     }
 });
 
+test("emit one swatch per colorful preset as the roles it takes as accent, at the values tokens.json shows", () => {
+    // read each swatch token's light and dark value and the theme's property at the standard contrast
+    const style = standard.variables("system", { ...DEFAULT_PREFERENCES, contrast: 0 });
+    const swatches = TOKENS.family("swatch").entries.map((entry) => {
+        const light = entry.token.$type === "color" ? hex(entry.token.$value) : "";
+        const dark =
+            entry.token.$type === "color" ? hex(entry.token.$extensions["app.destack"].dark) : "";
+
+        return [
+            entry.variable,
+            style[entry.variable] === (light === dark ? light : `light-dark(${light}, ${dark})`),
+        ];
+    });
+
+    expect({
+        presets: swatches.length / 4,
+        teal: swatches.filter(([name]) => String(name).includes("-teal-")).map(([name]) => name),
+        matching: swatches.every(([, isMatching]) => isMatching === true),
+        solid: standard.resolve("light", 0, "teal").color("primary"),
+    }).toEqual({
+        presets: 25,
+        teal: [
+            "--destack-swatch-teal-solid",
+            "--destack-swatch-teal-label",
+            "--destack-swatch-teal-tint",
+            "--destack-swatch-teal-text",
+        ],
+        matching: true,
+        solid: "#12a594",
+    });
+});
+
 test("emit the default theme's custom properties for the system appearance", () => {
     // follow the device's contrast through color-mix() and its motion through the duration scale
-    expect(standard.variables("system", DEFAULT_PREFERENCES)).toEqual({
+    expect(withoutSwatches(standard.variables("system", DEFAULT_PREFERENCES))).toEqual({
         "color-scheme": "light dark",
         "--destack-color-background": "light-dark(#fcfdfe, #131314)",
         "--destack-color-foreground": "light-dark(#1f2021, #ededf2)",
@@ -517,7 +559,10 @@ test("override the theme with the person's accent, density, text size, contrast 
     expect(
         ROLE_NAMES.filter((name) => style[TOKENS.entry(["color", name]).variable] !== color(name)),
     ).toEqual([]);
-    const changed = changes(style, standard.variables("system", DEFAULT_PREFERENCES));
+    const changed = changes(
+        withoutSwatches(style),
+        standard.variables("system", DEFAULT_PREFERENCES),
+    );
     expect(
         Object.fromEntries(
             Object.entries(changed).filter(([name]) => !name.startsWith("--destack-color-")),
