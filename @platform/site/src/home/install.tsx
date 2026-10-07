@@ -7,7 +7,6 @@ import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { systemOf, systems } from "./download/catalog";
 import { createDownloads } from "./download/download";
-import { Mark } from "../site/mark";
 import { Glyph } from "./glyph";
 
 /** The media query for screens narrower than the desktop frame, where the ways stack. */
@@ -16,11 +15,23 @@ const narrow = "@media (max-width: 1099px)";
 /** How long a copy key says it copied, in milliseconds. */
 const copiedTime = 1600;
 
-/** A way to install: its name, what its field shows, and its key. */
-type Way = { name: string; field: () => JSX.Element; key: () => JSX.Element; isDark?: boolean };
+/** A way to install: its name, and its field drawn as the one control that installs. */
+type Way = { name: string; field: () => JSX.Element };
 
-/** Download the published build for this machine, or open the setup guide when none fits, as an icon key. */
-function DownloadKey() {
+/** Draw a field's key: the icon at its end that says what pressing the field does. */
+function Key(properties: { isPrimary?: boolean; children: JSX.Element }) {
+    return (
+        <span
+            aria-hidden="true"
+            {...stylex.attrs(styles.key, properties.isPrimary === true && styles.keyPrimary)}
+        >
+            {properties.children}
+        </span>
+    );
+}
+
+/** Download the published build for this machine, or open the setup guide when none fits, from the whole field. */
+function DownloadField() {
     // hold the build chosen for this machine
     const { selected } = createDownloads();
     const system = () => {
@@ -34,16 +45,27 @@ function DownloadKey() {
         <a
             href={selected()?.url ?? "/docs/setup/"}
             aria-label={label()}
-            title={label()}
-            {...stylex.attrs(styles.key, styles.keyPrimary)}
+            title={`Destack for ${systems}`}
+            {...stylex.attrs(styles.field, styles.tiled)}
         >
-            <Glyph name="download" size={16} />
+            <span {...stylex.attrs(styles.product)}>
+                <img alt="" src="/brand/icon/icon-rounded.svg" {...stylex.attrs(styles.icon)} />
+                Destack Desktop
+            </span>
+            <Key isPrimary>
+                <Glyph name="download" size={16} />
+            </Key>
         </a>
     );
 }
 
-/** Copy a text, and show a check on the key for a moment. */
-function CopyKey(properties: { name: string; text: string }) {
+/** Copy a text from the whole field, and show a check on its key for a moment. */
+function CopyField(properties: {
+    name: string;
+    text: string;
+    isDark?: boolean;
+    children: JSX.Element;
+}) {
     // hold whether the text was just copied
     const [isCopied, setIsCopied] = createSignal(false);
 
@@ -51,16 +73,19 @@ function CopyKey(properties: { name: string; text: string }) {
         <button
             type="button"
             aria-label={`Copy ${properties.name}`}
-            title={isCopied() ? "Copied" : `Copy ${properties.name}`}
+            title={isCopied() ? "Copied" : properties.text}
             onClick={() =>
                 void navigator.clipboard.writeText(properties.text).then(() => {
                     setIsCopied(true);
                     setTimeout(() => setIsCopied(false), copiedTime);
                 })
             }
-            {...stylex.attrs(styles.key)}
+            {...stylex.attrs(styles.field, properties.isDark === true && styles.dark)}
         >
-            <Glyph name={isCopied() ? "check" : "copy"} size={16} />
+            {properties.children}
+            <Key>
+                <Glyph name={isCopied() ? "check" : "copy"} size={16} />
+            </Key>
         </button>
     );
 }
@@ -68,42 +93,34 @@ function CopyKey(properties: { name: string; text: string }) {
 /** Build the three ways to install, the agent prompt naming the tools you picked. */
 function waysOf(prompt: string): readonly Way[] {
     return [
-        {
-            name: "Download Desktop",
-            field: () => (
-                <span title={`Destack for ${systems}`} {...stylex.attrs(styles.product)}>
-                    <Mark style={styles.icon} />
-                    Destack Desktop
-                </span>
-            ),
-            key: () => <DownloadKey />,
-        },
+        { name: "Download Desktop", field: () => <DownloadField /> },
         {
             name: "Install via Terminal",
             field: () => (
-                <code title={installCommand} {...stylex.attrs(styles.text)}>
-                    <span {...stylex.attrs(styles.prompt)}>$ </span>
-                    curl destack.sh/install | sh
-                    <span {...stylex.attrs(styles.more)}>…</span>
-                </code>
+                <CopyField name="command" text={installCommand} isDark>
+                    <code {...stylex.attrs(styles.text)}>
+                        <span {...stylex.attrs(styles.prompt)}>$ </span>
+                        curl destack.sh/install | sh
+                        <span {...stylex.attrs(styles.more)}>…</span>
+                    </code>
+                </CopyField>
             ),
-            key: () => <CopyKey name="command" text={installCommand} />,
-            isDark: true,
         },
         {
             name: "Ask your Agent",
             field: () => (
-                <span title={prompt} {...stylex.attrs(styles.text)}>
-                    Set up my Destack.
-                    <span {...stylex.attrs(styles.more)}>…</span>
-                </span>
+                <CopyField name="prompt" text={prompt}>
+                    <span {...stylex.attrs(styles.text)}>
+                        Set up my Destack.
+                        <span {...stylex.attrs(styles.more)}>…</span>
+                    </span>
+                </CopyField>
             ),
-            key: () => <CopyKey name="prompt" text={prompt} />,
         },
     ];
 }
 
-/** Show the three ways to install side by side, each a name over one field with its key. */
+/** Show the three ways to install side by side, each a name over the field that installs. */
 export function InstallWays(properties: { prompt: string }) {
     return (
         <ol {...stylex.attrs(lattice.cell, styles.column)}>
@@ -112,10 +129,7 @@ export function InstallWays(properties: { prompt: string }) {
                     <span {...stylex.attrs(styles.title)}>
                         {String(index + 1).padStart(2, "0")} {way.name}
                     </span>
-                    <span {...stylex.attrs(styles.field, way.isDark === true && styles.dark)}>
-                        {way.field()}
-                        {way.key()}
-                    </span>
+                    {way.field()}
                 </li>
             ))}
         </ol>
@@ -151,20 +165,34 @@ const styles = stylex.create({
     },
     field: {
         alignItems: "center",
-        backgroundColor: color.card,
+        backgroundColor: {
+            default: color.card,
+            ":hover": `color-mix(in srgb, ${color.card} 92%, ${tokens.signalInk})`,
+        },
         borderColor: tokens.rule,
         borderRadius: "8px",
         borderStyle: "solid",
         borderWidth: tokens.hairline,
+        boxSizing: "border-box",
+        color: "inherit",
+        cursor: "pointer",
         display: "flex",
+        font: "inherit",
         gap: "0.75rem",
         height: "3rem",
         minWidth: 0,
         paddingInline: "1rem 0.375rem",
-        transition: "background-color 160ms ease, color 160ms ease",
+        textAlign: "start",
+        textDecorationLine: "none",
+        transition: "background-color 160ms ease, color 160ms ease, transform 120ms ease",
+        width: "100%",
+        ":active": { transform: "scale(0.99)" },
     },
     dark: {
-        backgroundColor: tokens.signalInk,
+        backgroundColor: {
+            default: tokens.signalInk,
+            ":hover": `color-mix(in srgb, ${tokens.signalInk} 88%, ${tokens.cream})`,
+        },
         borderColor: tokens.signalInk,
         color: tokens.cream,
     },
@@ -180,8 +208,11 @@ const styles = stylex.create({
     },
     icon: {
         flexShrink: 0,
-        height: "1.5rem",
-        width: "1.5rem",
+        height: "2.25rem",
+        width: "2.25rem",
+    },
+    tiled: {
+        paddingInlineStart: "0.375rem",
     },
     text: {
         flexGrow: 1,
@@ -205,21 +236,15 @@ const styles = stylex.create({
     },
     key: {
         alignItems: "center",
-        backgroundColor: { default: "transparent", ":hover": "rgb(127 127 127 / 14%)" },
         borderRadius: "6px",
-        borderWidth: 0,
-        color: "inherit",
-        cursor: "pointer",
         display: "inline-flex",
         flexShrink: 0,
         height: "2.25rem",
         justifyContent: "center",
-        transition: "background-color 120ms ease, transform 120ms ease",
         width: "2.25rem",
-        ":active": { transform: "scale(0.94)" },
     },
     keyPrimary: {
-        backgroundColor: { default: tokens.signal, ":hover": tokens.signal },
+        backgroundColor: tokens.signal,
         color: tokens.signalInk,
     },
 });
