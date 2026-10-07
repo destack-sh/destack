@@ -53,22 +53,13 @@ indigo.tone(0.3); // "#212c4b"
 
 ## Roles
 
-Each color role is a tone of a palette, a palette's seed or another role's color moved in lightness, and a role that reads on another starts from its lightness and moves away from that background until it reaches its APCA contrast.
+Each of `ROLE_NAMES` is a tone of a palette, a palette's seed or another role moved in lightness, and a role reading on another moves away from it until it reaches its floor's APCA contrast.
 
-```text
-background                 base at lightness 0.993, dark 0.187
-card, popover              the background moved by -0.011 and 0, dark +0.026 and +0.073
-secondary, muted           the background moved by -0.034, dark +0.077
-foreground, *Foreground    base from 0.242, dark 0.948      on its surface, Lc 75 to 90
-mutedForeground            base from 0.502, dark 0.768      on background, Lc 60 to 90
-accent, accentForeground   accent at the subtle offset, its text from 0.335, dark 0.915
-primary                    the accent's seed                its label at Lc 60 to 75
-destructive, success,      the status seeds                 each with a label read the same way
-warning, info
-border, input              base from 0.886 and 0.852, dark 0.348 and 0.4    on background, Lc 0 to 30
-ring                       accent from 0.736, dark 0.532    on background, Lc 45 to 60
-scrim                      base at 0.242, dark black, at 50% opacity
-chart1 to chart5           the accent's and four series seeds               on background, Lc 45 to 60
+```ts
+import { BACKGROUND_LIGHTNESS, CONTENT_CONTRAST } from "@destack/theme";
+
+BACKGROUND_LIGHTNESS; // { light: 0.993, dark: 0.187 }
+CONTENT_CONTRAST; // { standard: 60, more: 90 }
 ```
 
 ## Contrast
@@ -209,31 +200,4 @@ import { transition } from "@destack/theme/motion";
 import { destackTheme } from "@destack/theme/declare";
 
 destackTheme.variables("system", DEFAULT_PREFERENCES);
-```
-
-## License
-
-The preset seeds derive from Radix Colors 3.0.0 and some token values from Radix Themes, under the MIT License.
-
-```text
-Copyright (c) 2021 Radix
-Copyright (c) 2023 WorkOS
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 ```

@@ -70,14 +70,12 @@ const controllers = [new DistributionController(server, machineId, { distributio
 
 ## Targets
 
-`Release.target(platform, architecture)` returns the target of a platform and architecture as Node names them, one of these five.
+`Release.target(platform, architecture)` returns the one of `TARGETS` a platform and architecture name as Node names them.
 
-```text
-aarch64-apple-darwin
-x86_64-apple-darwin
-x86_64-pc-windows-msvc
-aarch64-unknown-linux-gnu
-x86_64-unknown-linux-gnu
+```ts
+import { Release } from "@destack/update";
+
+Release.target("darwin", "arm64"); // "aarch64-apple-darwin"
 ```
 
 ## Restart
@@ -121,12 +119,10 @@ await SignedRepository.renew(directory, revision, root, keys, targetBytes); // f
 
 ## Lifetimes
 
-`LIFETIME_DAYS` keeps targets valid for a year, and snapshot and timestamp for two weeks.
+`LIFETIME_DAYS` keeps targets valid for a year, and snapshot and timestamp, which every publication and renewal signs again, for two weeks.
 
-```text
-targets     365 days   signed with each release
-snapshot     14 days   re-signed by every publication and renewal
-timestamp    14 days   re-signed by every publication and renewal
+```ts
+LIFETIME_DAYS; // { targets: 365, snapshot: 14, timestamp: 14 }
 ```
 
 ## Errors

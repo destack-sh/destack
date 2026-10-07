@@ -4,12 +4,11 @@ Relay HTTP requests for Destack names to the machines and regions serving them.
 
 ## Names
 
-The relay forwards a request for a name to the cell serving it, through the machine's tunnel or to the region.
+The relay forwards a request for a space's or a machine's name to the cell serving it, through the machine's tunnel or to the region.
 
-```text
-notes.personal.flotothemoon.destack.space             the cell serving the space personal of flotothemoon
-notes.feature-x--personal.flotothemoon.destack.space  the same cell, for the branch feature-x
-macbook.flotothemoon.destack.computer                 the machine macbook of flotothemoon
+```ts
+await fetch("https://notes.feature-x--personal.flotothemoon.destack.space/");
+await fetch("https://macbook.flotothemoon.destack.computer/");
 ```
 
 ## Service
@@ -113,17 +112,11 @@ The relay records a machine opening its tunnel, as the machine, and closing it o
 
 ## Protocol
 
-A tunnel sends one yamux frame per binary WebSocket message, the relay opens the even streams, and text messages carry only the liveness probe.
+A tunnel sends one yamux frame per binary WebSocket message, the relay opens the even streams, and a text `ping` is answered `pong` without waking the object.
 
-```text
-byte 0      type: data, window, ping, go-away
-byte 1      flags: SYN, ACK, FIN, RST
-bytes 2-5   stream
-bytes 6-9   window delta, ping value or go-away code
-bytes 10-   payload: body bytes, or the request or response head of a SYN or ACK
-
-text "ping" -> text "pong"                                  liveness, answered without waking the object
-PUT /tunnel, Authorization: Bearer <token> -> {"name":"laptop.florian.destack.computer","expiresIn":59.8}
+```ts
+const socket = new WebSocket("wss://relay.destack.space/tunnel", ["destack.tunnel", token]);
+socket.send("ping");
 ```
 
 ## Handshake

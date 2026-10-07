@@ -367,12 +367,10 @@ await database.apply(plan);
 
 ## Releases
 
-`plan` compares the release that applied the tables with the releases that declare them.
+`plan` compares the release that applied the tables with the releases that declare them, keeping every column either declares while two roll out together.
 
-```text
-upgrade   applied 2026.9.0, declared 2026.10.0       -> the changes, then each conversion since 2026.9.0
-rollout   declared 2026.9.0 and 2026.10.0 together   -> every column either declares, renamed columns kept in sync
-rollback  applied 2026.10.0, declared 2026.9.0       -> nothing when 2026.9.0 still reads the tables, otherwise refused
+```ts
+const rollout = await database.plan(mergeStates([previous.tables.sqlite, next.tables.sqlite]));
 ```
 
 ## Log
