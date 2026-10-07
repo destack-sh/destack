@@ -19,24 +19,31 @@ just @platform/release/rehearse VERSION ARCHIVE
 
 ## Publication
 
-`release` builds, publishes and deploys one channel per run: nightly from main every night, stable on a pushed `v<version>` tag after approval, either on a manual dispatch.
+`release.yml` builds, publishes and deploys one channel per run: nightly from main every night, stable on a pushed `v<version>` tag after approval, either on a manual dispatch.
 
-```text
-release         a nightly at the published nightly's commit skips build and only renews
-├── prepare     select version and work                    github/prepare.ts
-├── check       check, on SQLite and PostgreSQL
-├── drift       refuse production drift on a nightly       @platform/stack drift
-├── build       build, verify, pack, rehearse per target   build.ts, verify.ts, pack.ts, rehearse.ts
-├── sign        sign and notarize per signed target        sign.ts, apple/credential.ts
-├── installer   build per installer                        installer/build.ts
-├── publish     attest archives and installers, sign       github/credential.ts, sign.ts, upload.ts, verify.ts
-│               targets, snapshot and timestamp
-├── deploy      apply and release development after a      @platform/stack deploy, release
-│               nightly, production after a tag
-├── renew       re-sign every other channel's snapshot     github/credential.ts, renew.ts, submit.ts, verify.ts
-│               and timestamp
-├── expiry      fail inside a signed role's renewal window expiry.ts
-└── verify      install and update per target              install.ts
+```yaml
+jobs:
+    prepare:
+    check:
+        needs: [prepare]
+    build:
+        needs: [prepare, check]
+    sign:
+        needs: [prepare, build]
+    build-installers:
+        needs: [prepare, build, sign]
+    publish:
+        needs: [prepare, sign, build-installers]
+    deploy:
+        needs: [prepare, publish]
+    drift:
+        needs: [prepare]
+    renew:
+        needs: [prepare]
+    check-expiry:
+        needs: [prepare, publish, renew]
+    verify:
+        needs: [prepare, publish]
 ```
 
 ## Platforms
@@ -50,70 +57,80 @@ Each released target is one `Platform` row in `distribution/platform.ts`, which 
     runtime: "bun-darwin-arm64",
     system: "darwin",
     architecture: "arm64",
-    bundle: APPLE_BUNDLE,      // Destack.app, Contents/MacOS/Destack, Contents/Helpers
-    signer: "apple",           // MacSigning: sign, notarize, verify; Linux rows name none
+    bundle: APPLE_BUNDLE,
+    signer: "apple",
     installers: [UNIVERSAL_DMG],
 }
 ```
 
 ## Download layout
 
-Each channel publishes its TUF metadata, targets and installer below `download.destack.sh`, and stores them in a separate R2 bucket.
+`PUBLIC_PATH` admits the TUF metadata, content-addressed targets, `downloads.json` and `install` each channel publishes below `download.destack.sh` from its own R2 bucket.
 
-```text
-download.destack.sh/{stable,nightly}/
-├── metadata/{version}.{root,targets,snapshot}.json
-├── metadata/timestamp.json
-├── targets/{sha256}.{target}.{tar.gz,dmg}
-├── downloads.json
-└── install
-
-destack-release-publication → destack-releases-{stable,nightly} (R2)
+```sh
+curl https://download.destack.sh/stable/metadata/timestamp.json
+curl https://download.destack.sh/nightly/downloads.json
 ```
 
 ## Channels
 
-A stable release waits for approval and a nightly release publishes unattended, and the channels number their versions differently.
+`Release.channel` reads a version's channel, each channel with its own application title, identifier, command, icons and repository.
 
-```text
-stable        tag v<version> on main          2026.10.1                         approval required
-nightly       daily or dispatched from main   2026.10.{run}-nightly.{attempt}   unattended
-development   local build                     the Desktop package version       unpublished
+```ts
+import { Release } from "@destack/update/release";
 
-each channel  its own application title, identifier, command and icons, updating only from its own repository
+new Release("2026.10.1", "aarch64-apple-darwin").channel; // "stable"
+new Release("2026.10.412-nightly.1", "aarch64-apple-darwin").channel; // "nightly"
 ```
 
 ## Downloads
 
-The `install` shell script installs the Linux archive, and the first launch of the macOS application registers the CLI and the daemon.
+The `install` script installs the Linux archive, and the first launch of the macOS DMG's application registers the CLI and the daemon.
 
-```text
-macOS DMG        the universal application
-Linux archive    the distribution for the install script
-update archive   the complete distribution for one OS and CPU
+```sh
+curl -fsSL https://download.destack.sh/stable/install | sh
 ```
 
 ## Keys
 
-The root role signs with two of three YubiKeys and a physical touch, and the targets, snapshot and timestamp roles each sign with an Ed25519 key per environment.
+The root role signs with two of three YubiKeys and a physical touch, and `readReleaseKeys` reads one environment's Ed25519 targets, snapshot and timestamp keys from `DESTACK_RELEASE_KEYS`.
 
-```text
-root        A/B/C YubiKeys, RSA-2048 PIV slot 9c              one year, renewed 90 days early
-targets     Ed25519 key per release environment               one year, renewed 30 days early
-snapshot    Ed25519 key per release and renewal environment   fourteen days, re-signed by every run, 3 days early
-timestamp   Ed25519 key per release and renewal environment   fourteen days, re-signed by every run, 3 days early
+```ts
+const { targets, snapshot, timestamp } = await readReleaseKeys();
+```
+
+### Expiry
+
+`expiry.ts` fails once root is within 90 days of expiring, targets within 30, and snapshot and timestamp within 3.
+
+```sh
+DESTACK_RELEASE_CHANNEL=stable bun run @platform/release/src/repository/expiry.ts
 ```
 
 ## Environments
 
-Each GitHub environment holds only the keys and credentials its jobs sign and upload with.
+Each GitHub environment holds only the secrets and variables its jobs sign, upload and deploy with.
 
-```text
-release-{stable,nightly}   DESTACK_TARGETS_KEY, DESTACK_SNAPSHOT_KEY, DESTACK_TIMESTAMP_KEY,
-                           CLOUDFLARE_RELEASE_ACCESS_KEY_ID, CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY,
-                           APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_NOTARY_KEY
-renewal-{stable,nightly}   DESTACK_SNAPSHOT_KEY, DESTACK_TIMESTAMP_KEY
-build                      no secrets
+```yaml
+release-{channel}:
+    secrets:
+        [
+            DESTACK_TARGETS_KEY,
+            DESTACK_SNAPSHOT_KEY,
+            DESTACK_TIMESTAMP_KEY,
+            CLOUDFLARE_RELEASE_ACCESS_KEY_ID,
+            CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY,
+            APPLE_CERTIFICATE,
+            APPLE_CERTIFICATE_PASSWORD,
+            APPLE_NOTARY_KEY,
+        ]
+    variables: [APPLE_SIGNING_IDENTITY, APPLE_NOTARY_KEY_ID, APPLE_NOTARY_ISSUER]
+renewal-{channel}:
+    secrets: [DESTACK_SNAPSHOT_KEY, DESTACK_TIMESTAMP_KEY]
+production, development, drift:
+    secrets: [CLOUDFLARE_COMPANY_API_TOKEN, PLANETSCALE_SERVICE_TOKEN_ID, PLANETSCALE_SERVICE_TOKEN]
+build:
+    secrets: []
 ```
 
 ## Ceremony
@@ -148,15 +165,13 @@ age -d -i /absolute/recovery-identity.txt /absolute/destack-signing.age | tar -x
 
 Each key operation and each lost or compromised key has one requirement.
 
-```text
-sign                   verify fingerprints, roles, threshold and expiry before touching each key
-enroll                 verify the physical serial, and keep the Bitwarden credentials after an interruption
-rotate or renew root   pass the previous verified root to prepare, sign and verify, and meet both thresholds
-back up                two encrypted USB copies, an independent offline recovery identity, every numbered root
-lose one root key      the two remaining keys authorize its replacement
-lose two root keys     a separately authenticated reinstall
-compromised CI         stop publication, revoke credentials, rotate online keys in a root ceremony, review releases
-```
+- Sign: verify fingerprints, roles, threshold and expiry before touching each key.
+- Enroll: verify the physical serial, and keep the Bitwarden credentials after an interruption.
+- Rotate or renew root: pass the previous verified root to prepare, sign and verify, and meet both thresholds.
+- Back up: two encrypted USB copies, an independent offline recovery identity, and every numbered root.
+- Lose one root key: the two remaining keys authorize its replacement.
+- Lose two root keys: a separately authenticated reinstall.
+- Compromised CI: stop publication, revoke credentials, rotate online keys in a root ceremony, and review releases.
 
 ## Provenance
 
@@ -169,22 +184,12 @@ gh attestation verify {sha256}.universal-apple-darwin.dmg --repo destack-sh/dest
     --signer-workflow destack-sh/destack/.github/workflows/release.yml
 ```
 
-## Platform signing
-
-`release.yml` passes these Apple secrets and variables to signing and notarization.
-
-```text
-secrets     APPLE_CERTIFICATE (base64 P12), APPLE_CERTIFICATE_PASSWORD, APPLE_NOTARY_KEY (P8)
-variables   APPLE_SIGNING_IDENTITY, APPLE_NOTARY_KEY_ID, APPLE_NOTARY_ISSUER
-```
-
 ## Apple setup
 
-A Developer ID Application certificate signs the application, and an App Store Connect key notarizes it.
+A [Developer ID Application certificate](https://developer.apple.com/help/account/certificates/create-developer-id-certificates) signs the application, and an App Store Connect key [notarizes](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) it.
 
-```text
-certificate    https://developer.apple.com/help/account/certificates/create-developer-id-certificates
-notarization   https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution
+```sh
+xcrun notarytool submit Destack.dmg --key "$APPLE_NOTARY_KEY" --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER" --wait
 ```
 
 ## Tests
