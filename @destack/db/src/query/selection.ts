@@ -73,9 +73,16 @@ export class Projection<Selected extends Selection = Selection> {
         this.fields = fields;
     }
 
-    /** Render the selected fields, separated by commas. */
+    /** Render the selected fields, separated by commas, a named fragment under its name so grouping and ordering can name it. */
     sql(): SQL {
-        return sql.join(this.fields, sql.raw(", "));
+        return sql.join(
+            this.fields.map((field) =>
+                field instanceof Alias
+                    ? sql`${field.sql} AS ${sql.identifier(field.alias)}`
+                    : field,
+            ),
+            sql.raw(", "),
+        );
     }
 
     /** Decode driver rows into records of the selection, a nullable group of only missing values as null. */

@@ -13,7 +13,7 @@ import {
     text,
 } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
-import { asc, eq } from "../index.ts";
+import { asc, count, eq, sql } from "../index.ts";
 
 /** One column of every kind. */
 const sample = defineTable("sample", {
@@ -103,3 +103,28 @@ test.for(TEST_DIALECTS)("key joined rows by their table names on %s", async (dia
         { id: second, tag: null },
     ]);
 });
+
+test.for(TEST_DIALECTS)(
+    "group rows by a selected expression's name, its bound values bound once per use, on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const second = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000002");
+        const third = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000003");
+        await database
+            .insert(sample)
+            .values([row, { ...row, id: second }, { ...row, id: third, kind: "plain" }]);
+
+        // group by a parameterized expression named in the selection
+        const prefixed = sql`${"kind:"} || ${sample.kind}`.as("prefixed");
+        const rows = await database
+            .select({ prefixed, samples: count() })
+            .from(sample)
+            .groupBy(sql.identifier("prefixed"))
+            .orderBy(asc(sql.identifier("prefixed")));
+
+        expect(rows).toEqual([
+            { prefixed: "kind:plain", samples: 1 },
+            { prefixed: "kind:rich", samples: 2 },
+        ]);
+    },
+);

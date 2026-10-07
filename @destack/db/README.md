@@ -278,7 +278,7 @@ await database.transaction(async (transaction) => {
         .update(tally)
         .set({ value: row.value + 1 })
         .where(eq(tally.name, "a"));
-}); 
+});
 ```
 
 ## Statements
