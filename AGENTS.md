@@ -472,8 +472,8 @@ Check every change with tests, formatting, lints, and any relevant static and dy
 ### Testing (CT)
 
 - **CT01** Tests MUST live in the package / crate / scope that implements the behavior they check; they MUST NOT test "upstream" mechanics that they only use. (e.g., no point testing the underlying database when the scope is about schema generation; test the *actual* thing)
-- **CT02** Tests MUST NOT rely on factory or dependency injection layers.
-- **CT03** Code that is awkward to test SHOULD be refactored, since it is almost always poorly factored.
+- **CT02** Tests SHOULD NOT rely on factory or dependency injection layers.
+- **CT03** Code that is awkward to test SHOULD be refactored, since it is almost always poorly factored (also see above).
 - **CT04** Hard-to-test code SHOULD get crisper models and more realistic tests instead.
 
 - **CT05** Tests MUST be named with a verb that states their content, such as `test_roundtrip_duration` or `test_send_receive_message`.
