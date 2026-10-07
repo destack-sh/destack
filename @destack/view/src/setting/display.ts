@@ -1,6 +1,6 @@
 import type { SettingReference, SettingSelection } from "@destack/setting";
 import type { SettingValue } from "@destack/setting/object";
-import type { Appearance, Preferences } from "../theme/index.ts";
+import type { Appearance, Preferences } from "@destack/theme";
 import { accent } from "./accent.ts";
 import { appearance } from "./appearance.ts";
 import { contrast } from "./contrast.ts";

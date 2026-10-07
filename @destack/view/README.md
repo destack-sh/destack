@@ -239,6 +239,22 @@ import { defineTheme } from "@destack/theme/declare";
 export const theme = defineTheme({ name: "notes", base: "sand", accent: "orange" });
 ```
 
+## Display preferences
+
+The `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings hold a person's display preferences, and `resolveDisplay` resolves them all for a selection.
+
+```ts
+import { DISPLAY_SETTINGS, resolveDisplay } from "@destack/view/setting";
+
+// the values placed for DISPLAY_SETTINGS along the person's scope chain, nearest first
+const { appearance, preferences } = resolveDisplay(
+    { scope: person, package: packageId, space, installation },
+    values,
+    chain,
+);
+const style = theme.variables(appearance, preferences); // a person's accent replaces the app's own and its chart series
+```
+
 ## Launch
 
 `ViewLaunch` parses the launch JSON of the page's `destack-view` script element.

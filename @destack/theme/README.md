@@ -190,22 +190,6 @@ import { transition } from "@destack/theme/motion";
 <dialog {...style.attrs(isOpen() ? transition.enter : transition.exit)} />;
 ```
 
-## Preferences
-
-The `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings hold a person's display preferences, and `resolveDisplay` resolves them all for a selection.
-
-```ts
-import { DISPLAY_SETTINGS, resolveDisplay } from "@destack/theme/setting";
-
-// the values placed for DISPLAY_SETTINGS along the person's scope chain, nearest first
-const { appearance, preferences } = resolveDisplay(
-    { scope: person, package: packageId, space, installation },
-    values,
-    chain,
-);
-const style = theme.variables(appearance, preferences); // a person's accent replaces the app's own and its chart series
-```
-
 ## Default theme
 
 `destackTheme` is Destack's own theme, which views of packages declaring no theme take.

@@ -1,5 +1,5 @@
 import { defineSetting } from "@destack/setting/declare";
-import { Contrast, DEFAULT_PREFERENCES } from "../theme/index.ts";
+import { Contrast, DEFAULT_PREFERENCES } from "@destack/theme";
 
 /** The contrast a person reads at, overridden per package, space, installation or client. */
 export const contrast = defineSetting({

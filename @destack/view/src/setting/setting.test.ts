@@ -1,17 +1,7 @@
-import { Package } from "@destack/package";
 import { describeSetting } from "@destack/setting/inspect";
 import { expect, test } from "@destack/test";
-import { defineTheme } from "../declare/index.ts";
-import { describeTheme } from "../inspect/index.ts";
-import { PRESET_NAMES } from "../preset/index.ts";
-import { accent, appearance, contrast, density, motion, textSize } from "../setting/index.ts";
-
-/** The package release declaring the fixture's theme. */
-const notes = Package.parse({
-    id: "package-019f5530-8000-7000-8000-000000000002",
-    name: "@alice/notes",
-    version: "2026.9.0",
-});
+import { PRESET_NAMES } from "@destack/theme";
+import { accent, appearance, contrast, density, motion, textSize } from "./index.ts";
 
 /** The fields every display preference shares. */
 const preference = {
@@ -40,7 +30,7 @@ function nullable(values: readonly string[]): Record<string, unknown> {
 /** The descriptions of the display preference settings in declaration order. */
 const DESCRIPTIONS = [
     {
-        owner: "@destack/theme",
+        owner: "@destack/view",
         name: "appearance",
         title: "Appearance",
         description: "Use the system appearance or select a light or dark interface.",
@@ -49,7 +39,7 @@ const DESCRIPTIONS = [
         ...preference,
     },
     {
-        owner: "@destack/theme",
+        owner: "@destack/view",
         name: "textSize",
         title: "Text size",
         description: "Read text smaller or larger.",
@@ -66,7 +56,7 @@ const DESCRIPTIONS = [
         ...preference,
     },
     {
-        owner: "@destack/theme",
+        owner: "@destack/view",
         name: "density",
         title: "Density",
         description:
@@ -76,7 +66,7 @@ const DESCRIPTIONS = [
         ...preference,
     },
     {
-        owner: "@destack/theme",
+        owner: "@destack/view",
         name: "contrast",
         title: "Contrast",
         description:
@@ -92,7 +82,7 @@ const DESCRIPTIONS = [
         ...preference,
     },
     {
-        owner: "@destack/theme",
+        owner: "@destack/view",
         name: "motion",
         title: "Motion",
         description: "Use the system motion preference, or show or remove transitions.",
@@ -101,7 +91,7 @@ const DESCRIPTIONS = [
         ...preference,
     },
     {
-        owner: "@destack/theme",
+        owner: "@destack/view",
         name: "accent",
         title: "Accent color",
         description: "Use each app's own accent, or one accent color in every app.",
@@ -129,19 +119,4 @@ test("declare the display preferences as user settings with every override", () 
         return { owner: owner.name, ...description };
     });
     expect(described).toEqual(DESCRIPTIONS);
-});
-
-test("describe a declared theme with its package", () => {
-    const theme = defineTheme(
-        { name: "notes", base: "sand", accent: "orange", radius: "large" },
-        { package: notes },
-    );
-
-    expect(describeTheme(theme)).toEqual({
-        package: notes,
-        name: "notes",
-        base: "sand",
-        accent: "orange",
-        radius: "large",
-    });
 });

@@ -1,5 +1,5 @@
 import { defineSetting } from "@destack/setting/declare";
-import { DEFAULT_PREFERENCES, Motion } from "../theme/index.ts";
+import { DEFAULT_PREFERENCES, Motion } from "@destack/theme";
 
 /** The motion a person sees, overridden per package, space, installation or client. */
 export const motion = defineSetting({

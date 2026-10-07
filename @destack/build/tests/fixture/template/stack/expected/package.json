@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@destack/setting": "2026.9.0",
-        "@destack/theme": "2026.9.0",
+        "@destack/view": "2026.9.0",
         "@destack/access": "2026.9.0",
         "@destack/space": "2026.9.0",
         "@destack/db": "2026.9.0",

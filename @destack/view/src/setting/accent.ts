@@ -1,6 +1,6 @@
 import { defineSetting } from "@destack/setting/declare";
-import { Seed } from "../palette/index.ts";
-import { DEFAULT_PREFERENCES } from "../theme/index.ts";
+import { Seed } from "@destack/theme";
+import { DEFAULT_PREFERENCES } from "@destack/theme";
 
 /** The accent a person selects over every app's own, overridden per package, space, installation or client. */
 export const accent = defineSetting({

@@ -1,5 +1,5 @@
 import { defineSetting } from "@destack/setting/declare";
-import { DEFAULT_PREFERENCES, Density } from "../theme/index.ts";
+import { DEFAULT_PREFERENCES, Density } from "@destack/theme";
 
 /** How tightly a person packs controls and content, overridden per package, space, installation or client. */
 export const density = defineSetting({

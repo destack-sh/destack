@@ -11,7 +11,6 @@
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./motion": "./src/motion/index.ts",
-        "./setting": "./src/setting/index.ts",
         "./text": "./src/text/index.ts",
         "./theme.css": "./src/theme/theme.css",
         "./tokens.json": "./src/token/tokens.json",
@@ -25,7 +24,6 @@
     "dependencies": {
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/setting": "workspace:*",
         "@destack/style": "workspace:*"
     },
     "devDependencies": {

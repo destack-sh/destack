@@ -1,5 +1,5 @@
 import { defineSetting } from "@destack/setting/declare";
-import { Appearance } from "../theme/index.ts";
+import { Appearance } from "@destack/theme";
 
 /** The appearance a person selects, overridden per package, space, installation or client. */
 export const appearance = defineSetting({

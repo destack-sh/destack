@@ -1,5 +1,5 @@
 import { defineSetting } from "@destack/setting/declare";
-import { DEFAULT_PREFERENCES, TextSize } from "../theme/index.ts";
+import { DEFAULT_PREFERENCES, TextSize } from "@destack/theme";
 
 /** The text size a person reads at, overridden per package, space, installation or client. */
 export const textSize = defineSetting({

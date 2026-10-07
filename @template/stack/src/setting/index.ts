@@ -1,1 +1,1 @@
-export { appearance } from "@destack/theme/setting";
+export { appearance } from "@destack/view/setting";

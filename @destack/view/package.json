@@ -19,7 +19,8 @@
         "./jsx-dev-runtime": "./src/jsx-dev-runtime/index.ts",
         "./build": "./src/build/index.ts",
         "./test": "./src/test/index.ts",
-        "./palette": "./src/palette/index.ts"
+        "./palette": "./src/palette/index.ts",
+        "./setting": "./src/setting/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
