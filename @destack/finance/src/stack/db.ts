@@ -1,21 +1,25 @@
+import { account, allowance, key, machine, organisation } from "@destack/account/object";
 import { journal } from "@destack/audit/stack";
-import { account, organisation } from "@destack/account/object";
 import { defineDatabase, type Table } from "@destack/db";
+import { eventTables } from "@destack/event/stack";
+import { defineBucket } from "@destack/bucket";
+import { usage } from "../meter/usage.ts";
+import { announcement } from "@destack/notification";
 import {
+    charge,
     customer,
     entitlement,
     invoice,
-    meterEvent,
     price,
     product,
     productFeature,
-    purchase,
+    checkoutSession,
     seller,
     subscription,
     subscriptionItem,
 } from "../object/index.ts";
 
-/** The finance service's tables: its objects and its journal. */
+/** The finance service's tables. */
 export const financeTables: readonly Table[] = [
     ...customer.tables,
     ...seller.tables,
@@ -24,16 +28,22 @@ export const financeTables: readonly Table[] = [
     ...price.tables,
     ...subscription.tables,
     ...subscriptionItem.tables,
-    ...purchase.tables,
+    ...checkoutSession.tables,
     ...entitlement.tables,
-    ...meterEvent.tables,
+    ...allowance.tables,
+    ...eventTables([usage]),
     ...invoice.tables,
+    ...charge.tables,
+    ...announcement.tables,
     journal,
 ];
 
-/** The finance database, with copies of its residency's accounts and organisations, whose payers customers record. */
+/** The finance database, with copies of accounts, organisations, machines and keys. */
 export const financeDatabase = defineDatabase({
     name: "main",
     tables: financeTables,
-    copies: [account.table, organisation.table],
+    copies: [account.table, organisation.table, machine.table, key.table],
 });
+
+/** The bucket keeping usage segments. */
+export const usageBucket = defineBucket({ name: "usage", spec: { write: "system" } });

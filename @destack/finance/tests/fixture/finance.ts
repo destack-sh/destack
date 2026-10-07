@@ -2,19 +2,12 @@ import { accessRelationship, principal, Relationship } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, organisation, user } from "@destack/account/object";
 import { asc, eq, type DatabaseConnection, type Dialect } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
+import type { TestDatabase } from "@destack/db/test";
 import type { CallableName, CallOutput, ObjectType } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
-import {
-    aligned,
-    found,
-    schema,
-    type Identifier,
-    type JsonObject,
-    type JsonValue,
-} from "@destack/schema";
+import { aligned, schema, type Identifier, type JsonObject, type JsonValue } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { reconciliation, subjectContext, testCallKey } from "@destack/service/test";
+import { subjectContext } from "@destack/service/test";
 import { Scope, Subject, type ObjectReference } from "@destack/sync";
 import { v7 } from "uuid";
 import {
@@ -32,17 +25,21 @@ import {
     subscriptionItem,
     type SubscriptionItem,
 } from "../../src/object/index.ts";
-import { serveFinance } from "../../src/server/index.ts";
-import { financeService } from "../../src/service/index.ts";
-import { financeDatabase } from "../../src/stack/index.ts";
+import type { serveFinance } from "../../src/server/index.ts";
+import { FinanceFixture, type FinanceFixtureOptions } from "../../src/test/index.ts";
 import type { Feature } from "../../src/feature/index.ts";
+import type { Meter } from "../../src/meter/index.ts";
 import type { Package } from "@destack/package";
-import { release } from "./release.ts";
 import {
+    archived,
     calls,
+    capacity,
+    disk,
+    diskLimit,
+    diskSku,
     domains,
     hosting,
-    quota,
+    storageLimit,
     requests,
     seats,
     storage,
@@ -75,14 +72,11 @@ export const ids = {
 /** The seats the Pro plan grants. */
 export const SEATS = 5;
 
-/** The seats the lifetime pack grants. */
-export const PACK_SEATS = 10;
-
 /** The API calls the Pro plan grants each period. */
 export const CALL_LIMIT = 1000;
 
 /** The bytes the Pro plan lets an account keep. */
-export const QUOTA_LIMIT = 1_000_000_000;
+export const STORAGE_LIMIT = 1_000_000_000;
 
 /** The shop's seller and its prices of the Pro plan, as qualified references. */
 export interface Offer {
@@ -92,9 +86,29 @@ export interface Offer {
     readonly seller: { readonly scope: string; readonly id: string };
     /** The plan's monthly price. */
     readonly monthly: { readonly scope: string; readonly id: string };
-    /** The lifetime pack's one-time price. */
-    readonly once: { readonly scope: string; readonly id: string };
 }
+
+/** The storage and hosting packages' releases, with the features, meters and SKUs each declares. */
+const RELEASES = [
+    [
+        storage,
+        [
+            requests,
+            stored,
+            archived,
+            disk,
+            sync,
+            support,
+            seats,
+            calls,
+            storageLimit,
+            capacity,
+            diskLimit,
+            diskSku,
+        ],
+    ],
+    [hosting, [domains]],
+] as const;
 
 /** The finance service over a migrated test database: Acme's buyer and payer accounts, and Carol's shop. */
 export class Finance {
@@ -102,28 +116,23 @@ export class Finance {
     readonly test: TestDatabase;
     /** The served finance objects. */
     readonly server: ObjectServer<ReturnType<typeof serveFinance>>;
-    /** The latest release of each package, by identifier. */
-    readonly #releases = new Map([
-        [storage.id, release(storage, [requests, stored, sync, support, seats, calls, quota])],
-        [hosting.id, release(hosting, [domains])],
-    ]);
+    /** The served fixture. */
+    readonly fixture: FinanceFixture;
 
-    /** Serve the finance objects over a database, opening the storage and hosting packages' releases. */
-    private constructor(test: TestDatabase) {
-        this.test = test;
-        this.server = new ObjectServer({
-            objects: serveFinance({ open: (packageId) => found(this.#releases, packageId) }),
-            policies: [account, organisation],
-            database: test.database,
-            callKey: testCallKey,
-            origin: { package: financeService.package, service: financeService.name },
-        });
+    /** Keep the served fixture. */
+    private constructor(fixture: FinanceFixture) {
+        this.fixture = fixture;
+        this.test = fixture.test;
+        this.server = fixture.server;
     }
 
-    /** Open the service with Alice owning Acme's buyer account, Bob viewing it, Carol owning her shop, and Dave the destack account. */
-    static async open(dialect: Dialect): Promise<Finance> {
-        // copy Acme with its payer, and Carol's and Dave's users
-        const test = await TestDatabase.create(dialect, financeDatabase, { isMigrated: true });
+    /** Open the service with Alice owning Acme's buyer account, Bob viewing it, Carol owning her shop, and Dave the destack account, billing through a provider when given. */
+    static async open(dialect: Dialect, options: FinanceFixtureOptions = {}): Promise<Finance> {
+        // serve finance with the storage and hosting packages' releases
+        const fixture = await FinanceFixture.open(dialect, RELEASES, options);
+
+        // copy Acme with its payer
+        const { test } = fixture;
         const database = test.database;
         const copies = new AccessFixture(database);
         await copies.copyScope(organisation.reference(Scope.universe.id, ids.acme));
@@ -136,17 +145,13 @@ export class Finance {
             createdAt: 0,
             updatedAt: 0,
         });
-        await copies.copyScope(user.reference(Scope.universe.id, people.carol));
-        await copies.copyScope(user.reference(Scope.universe.id, people.dave));
 
-        // copy the accounts, and let Alice, Carol and Dave own theirs
+        // copy Acme's accounts, Alice owning its buyer, and Carol's and Dave's own accounts
         const buyer = await copyAccount(database, ids.acme, ids.buyer, "acme");
         await copyAccount(database, ids.acme, ids.payer, "acme-billing");
-        const shop = await copyAccount(database, people.carol, ids.shop, "shop");
         await copies.copyOwner(buyer, subject("alice"));
-        const platform = await copyAccount(database, people.dave, ids.destack, "destack");
-        await copies.copyOwner(shop, subject("carol"));
-        await copies.copyOwner(platform, subject("dave"));
+        await fixture.account(ids.shop, "shop", people.carol);
+        await fixture.account(ids.destack, "destack", people.dave);
 
         // let Bob view the buyer's account
         await database.insert(accessRelationship).values(
@@ -163,46 +168,34 @@ export class Finance {
             ),
         );
 
-        return new Finance(test);
+        return new Finance(fixture);
     }
 
-    /** Offer Carol's Pro plan monthly, granting every feature, and her lifetime pack once, granting the unmetered ones. */
+    /** Offer Carol's Pro plan monthly, granting every feature. */
     async offer(): Promise<Offer> {
         // onboard the shop and offer the plan monthly
-        const shop = await this.call("carol", seller, "create", ids.shop, { country: "AT" });
+        const shop = await this.call("carol", seller, "create", ids.shop, {
+            country: "AT",
+            creditPrices: { EUR: "1", USD: "1", CHF: "1" },
+        });
         const plan = await this.#product("Pro", [
             [sync, null],
             [support, "priority"],
             [seats, SEATS],
             [calls, CALL_LIMIT],
-            [quota, QUOTA_LIMIT],
+            [storageLimit, STORAGE_LIMIT],
         ]);
         const monthly = await this.call("carol", price, "create", ids.shop, {
             parentId: plan,
             currency: "EUR",
             unitAmount: 900,
-            type: "recurring",
             recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-        });
-
-        // offer a lifetime pack once, without metered features
-        const pack = await this.#product("Lifetime", [
-            [sync, null],
-            [support, "community"],
-            [seats, PACK_SEATS],
-        ]);
-        const once = await this.call("carol", price, "create", ids.shop, {
-            parentId: pack,
-            currency: "EUR",
-            unitAmount: 9900,
-            type: "one_time",
         });
 
         return {
             product: plan,
             seller: { scope: ids.shop, id: shop.id },
             monthly: { scope: ids.shop, id: monthly.id },
-            once: { scope: ids.shop, id: once.id },
         };
     }
 
@@ -249,6 +242,7 @@ export class Finance {
             seller: offer.seller,
             currentPeriodStart: period.start,
             currentPeriodEnd: period.end,
+            providerId: `sub_${crypto.randomUUID()}`,
         };
         const created = aligned(
             await this.server.executeAsSystem(
@@ -272,12 +266,12 @@ export class Finance {
         reference: Offer["monthly"],
         grants?: readonly FeatureGrant[],
     ): Promise<SubscriptionItem> {
-        const snapshot = await Price.snapshot(this.test.database, reference);
+        const offered = await Price.offer(this.test.database, reference);
         const input = {
             parentId: parent.id,
             price: reference,
-            ...snapshot,
-            grants: grants === undefined ? snapshot.grants : [...grants],
+            ...offered,
+            grants: grants === undefined ? offered.grants : [...grants],
         };
 
         return aligned(
@@ -292,13 +286,13 @@ export class Finance {
     }
 
     /** Publish a later release of a package declaring some features and meters, which becomes its latest. */
-    publish(owner: Package, version: string, declared: Parameters<typeof release>[1]): void {
-        this.#releases.set(owner.id, release({ ...owner, version }, declared));
+    publish(owner: Package, version: string, declared: readonly (Feature | Meter)[]): void {
+        this.fixture.publish({ ...owner, version }, declared);
     }
 
     /** Close the database. */
     close(): Promise<void> {
-        return this.test.close();
+        return this.fixture.close();
     }
 
     /** Call a method as a person in an account. */
@@ -323,15 +317,14 @@ export class Finance {
         );
     }
 
-    /** Derive every customer's entitlements, as the controller does after each change. */
-    async entitle(): Promise<void> {
-        const controller = this.server.controllers().find((each) => each.name === "customer");
-        if (controller === undefined) {
-            throw new TypeError("the customer controller is missing");
-        }
-        for (const key of await controller.list()) {
-            await controller.reconcile(key, reconciliation());
-        }
+    /** Derive every account's entitlements, as the controller does after each change. */
+    entitle(): Promise<void> {
+        return this.fixture.entitle();
+    }
+
+    /** Run an object type's controller over every pending key once. */
+    control(name: string): Promise<void> {
+        return this.fixture.control(name);
     }
 
     /** Read an account's entitlements in a stable order. */

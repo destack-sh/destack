@@ -15,6 +15,15 @@
         },
         "./inspect": {
             "runtimes": ["bun"]
+        },
+        "./stripe": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        },
+        "./cell": {
+            "runtimes": ["bun", "workerd"]
         }
     },
     "declarations": {
@@ -38,10 +47,27 @@
                     "vocabulary": "./inspect#meterVocabulary"
                 }
             ]
+        },
+        "defineSku": {
+            "describes": [
+                {
+                    "kind": "sku",
+                    "function": "./inspect#describeSku",
+                    "compare": "./inspect#compareSku",
+                    "vocabulary": "./inspect#skuVocabulary"
+                }
+            ]
         }
     },
     "stamps": {
-        "defineFeature": { "module": 1 },
-        "defineMeter": { "module": 1 }
+        "defineFeature": {
+            "module": 1
+        },
+        "defineMeter": {
+            "module": 1
+        },
+        "defineSku": {
+            "module": 1
+        }
     }
 }

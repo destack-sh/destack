@@ -15,7 +15,11 @@
         "./client": "./src/client/index.ts",
         "./server": "./src/server/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./workload": "./src/workload/index.ts"
+        "./workload": "./src/workload/index.ts",
+        "./provider": "./src/provider/index.ts",
+        "./stripe": "./src/stripe/index.ts",
+        "./test": "./src/test/index.ts",
+        "./package": "./src/package.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -26,13 +30,19 @@
         "@destack/account": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/event": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/sync": "workspace:*"
+        "@destack/space": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/secret": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

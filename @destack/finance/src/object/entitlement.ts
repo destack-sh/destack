@@ -1,12 +1,17 @@
-import { through } from "@destack/access";
-import { account } from "@destack/account/object";
+import { through, union } from "@destack/access";
+import { account, USAGE_STATES, type UsageState } from "@destack/account/object";
 import { check, sql, uniqueIndex, type Select } from "@destack/db";
+import { t } from "@destack/locale";
+import { announcement } from "@destack/notification";
+import { defineNotification } from "@destack/notification/declare";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { aligned, Identifier, present, schema, type JsonValue } from "@destack/schema";
-import { FEATURE_KINDS, FeatureName, type FeatureReference } from "../feature/feature.ts";
+import { aligned, Identifier, type JsonValue, present, schema, Text } from "@destack/schema";
+import { ObjectReference } from "@destack/sync";
+import { FEATURE_KINDS } from "../feature/feature.ts";
+import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 
-/** What an account may use of a feature through one subscription or purchase, derived by the system. */
+/** What an account may use of a feature through a subscription item or a default product, derived by the system. */
 export const entitlement = defineObject({
     name: "entitlement",
     plural: "entitlements",
@@ -15,7 +20,7 @@ export const entitlement = defineObject({
         /** The package declaring the feature. */
         packageId: field.string(PackageId),
         /** The feature's name in its package. */
-        feature: field.string(FeatureName),
+        feature: field.string(CatalogName),
         /** What the feature grants. */
         kind: field.enum(FEATURE_KINDS),
         /** The value of a static feature. */
@@ -26,22 +31,23 @@ export const entitlement = defineObject({
         usage: field.number().optional(),
         /** When the usage of a metered feature starts again, absent for usage that never resets. */
         resetAt: field.time().optional(),
-        /** Whether a subscription or a purchase grants the feature. */
-        source: field.enum(["subscription", "purchase"]),
-        /** The granting subscription item or purchase. */
-        sourceId: field.string(),
+        /** Where the usage of a metered feature stands against its limit and budget. */
+        state: field.enum(USAGE_STATES).optional(),
+        /** The subscription item or default product granting the feature. */
+        source: field.json(ObjectReference),
     },
-    // TODO #Incomplete: copy entitlements to the cells serving the account as signed snapshots
     permissions: {
-        read: through("account", "read"),
+        // the account's readers, and the workloads serving its residency, such as the cells of its spaces
+        read: union(through("account", "read"), through("account", "serve")),
     },
+    attachments: [announcement.attach({ by: "read" })],
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create(null, { isSystem: true }),
         update: method.update(null, {
             isSystem: true,
-            fields: ["value", "limit", "usage", "resetAt"],
+            fields: ["value", "limit", "usage", "resetAt", "state"],
         }),
         delete: method.delete(null, { isSystem: true }),
     }),
@@ -49,13 +55,13 @@ export const entitlement = defineObject({
         uniqueIndex("entitlement_unique").on(
             entry.scope,
             entry.source,
-            entry.sourceId,
             entry.packageId,
             entry.feature,
         ),
         check(
             "entitlement_kind",
             sql`(${entry.kind} = 'metered') = (${entry.usage} IS NOT NULL)
+            AND (${entry.kind} = 'metered') = (${entry.state} IS NOT NULL)
             AND (${entry.kind} = 'metered' OR ${entry.limit} IS NULL AND ${entry.resetAt} IS NULL)
             AND (${entry.kind} = 'static' OR ${entry.value} IS NULL)`,
         ),
@@ -63,6 +69,29 @@ export const entitlement = defineObject({
 });
 /** A persisted entitlement. */
 export type Entitlement = Select<typeof entitlement.table>;
+
+/** An account's usage of a feature nears or reaches its limit or its subscription's budget. */
+export const usageLimit = defineNotification({
+    name: "usageLimit",
+    title: "Usage limits",
+    description: "Your account's usage nears or reaches its plan's allowance or spending limit.",
+    payload: entitlement.rowSchema().pick({ feature: true, state: true, usage: true, limit: true }),
+    interruption: "timeSensitive",
+    preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
+    content: (payload) => ({
+        title:
+            payload.state === "near"
+                ? t`${payload.feature} at 80 percent`
+                : payload.state === "over"
+                  ? t`${payload.feature} past the plan's included usage`
+                  : t`${payload.feature} stopped at its limit`,
+        body:
+            payload.state === "blocked"
+                ? t`Writes are refused and background work pauses until the plan changes or the next period starts. Reads and exports keep working.`
+                : t`Usage past the included usage bills at the listed unit prices.`,
+    }),
+    summary: (count) => t`${count} usage limits`,
+});
 
 /** What an account may use of a feature across every source granting it. */
 export type Resolution =
@@ -77,7 +106,7 @@ export type Resolution =
           readonly value: JsonValue;
       }
     | {
-          /** Usage of a meter up to a limit. */
+          /** Usage of meters up to a limit. */
           readonly kind: "metered";
           /** The sum of the sources' limits, unlimited when any source is. */
           readonly limit: number | null;
@@ -85,12 +114,14 @@ export type Resolution =
           readonly usage: number;
           /** The reset of the source resetting first, none when no source resets. */
           readonly resetAt: number | null;
+          /** The least advanced state among the sources, since any source with room lets usage go on. */
+          readonly state: UsageState;
       };
 
 /** The entitlements of accounts. */
 export const Entitlement = {
     /** Resolve a feature's effective grant across an account's entitlements, none when no source grants it. */
-    resolve(rows: readonly Entitlement[], feature: FeatureReference): Resolution | null {
+    resolve(rows: readonly Entitlement[], feature: CatalogReference): Resolution | null {
         // select the feature's rows and require one kind among them
         const granted = rows.filter(
             (row) => row.packageId === feature.packageId && row.feature === feature.name,
@@ -124,11 +155,16 @@ export const Entitlement = {
             0,
         );
 
+        // take the least advanced state among the sources
+        const states = granted.map((row) => USAGE_STATES.indexOf(present(row.state, "a state")));
+        const state = present(USAGE_STATES[Math.min(...states)], "a usage state");
+
         return {
             kind: "metered",
             limit,
             usage: present(resetting.usage, "a metered usage"),
             resetAt: resetting.resetAt,
+            state,
         };
     },
 };
@@ -146,15 +182,10 @@ function resolveValue(granted: readonly Entitlement[]): JsonValue {
     const latest = granted.toSorted(
         (left, right) =>
             right.createdAt - left.createdAt ||
-            compareText(sourceOrder(right.sourceId), sourceOrder(left.sourceId)),
+            Text.compare(sourceOrder(right.source.id), sourceOrder(left.source.id)),
     );
 
     return present(aligned(latest, 0).value, "a static value");
-}
-
-/** Compare two texts by code unit, independent of locale. */
-function compareText(left: string, right: string): number {
-    return left < right ? -1 : left > right ? 1 : 0;
 }
 
 /** Read the time-ordered part of a source's identifier, its UUIDv7 after its type's prefix. */

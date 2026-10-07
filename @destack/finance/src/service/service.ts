@@ -1,19 +1,20 @@
+import { allowance } from "@destack/account/object";
 import { defineService } from "@destack/service";
 import {
+    charge,
     customer,
     entitlement,
     invoice,
-    meterEvent,
     price,
     product,
     productFeature,
-    purchase,
+    checkoutSession,
     seller,
     subscription,
     subscriptionItem,
 } from "../object/index.ts";
 
-/** Customers, sellers, their products and prices, subscriptions, purchases, entitlements, meter events and invoices, served as objects. */
+/** The finance objects. */
 export const financeService = defineService("finance", {
     objects: {
         customer,
@@ -23,9 +24,10 @@ export const financeService = defineService("finance", {
         price,
         subscription,
         subscriptionItem,
-        purchase,
+        checkoutSession,
         entitlement,
-        meterEvent,
+        allowance,
+        charge,
         invoice,
     },
 });
