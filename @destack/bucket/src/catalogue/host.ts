@@ -1,7 +1,22 @@
+import type { DatabaseConnection, Table } from "@destack/db";
 import type { LeaseMode } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
+import { BucketError } from "../error/index.ts";
 import type { BucketEndpoint, BucketHost, BucketReference, S3Credentials } from "../s3/index.ts";
 import type { CatalogueBucket } from "./bucket.ts";
+
+/** The databases a host keeps its buckets' catalogues in, one each, such as one schema each in a cell's database. */
+export interface CatalogueStore {
+    /** Report whether a bucket has a catalogue. */
+    has(bucketId: Identifier<"bucket">): Promise<boolean>;
+    /** Connect to a bucket's catalogue declaring some tables, creating an empty database for it when missing. */
+    connect(
+        bucketId: Identifier<"bucket">,
+        tables: readonly Table[],
+    ): Promise<DatabaseConnection & { close(): Promise<void> }>;
+    /** Remove a bucket's catalogue. */
+    destroy(bucketId: Identifier<"bucket">): Promise<void>;
+}
 
 /** A host keeping buckets over catalogues, each opened once at a time, and serving them over S3 at one endpoint. */
 export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = CatalogueBucket>
@@ -13,8 +28,8 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** The host's S3 credentials. */
-    readonly credentials: S3Credentials;
+    /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
+    readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
     /** The opening and opened buckets, by resource. */
     readonly #buckets = new Map<Identifier<"bucket">, Promise<Opened>>();
 
@@ -24,8 +39,8 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         readonly endpoint: URL;
         /** The region requests are signed for. */
         readonly region: string;
-        /** The host's S3 credentials, which never leave it. */
-        readonly credentials: S3Credentials;
+        /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
+        readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
     }) {
         // keep the endpoint, the region and the credentials
         this.endpoint = options.endpoint;
@@ -35,6 +50,9 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
 
     /** Name where a bucket lives. */
     abstract reference(bucket: Pick<BucketReference, "bucketId">): string;
+
+    /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */
+    abstract named(name: string): Promise<Opened | undefined>;
 
     /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished, and report whether this call set the fence. */
     abstract fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean>;
@@ -73,16 +91,31 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         return opening;
     }
 
-    /** Locate a bucket at the host's S3 endpoint, with the credentials presigning a transfer, refusing a write into a fenced bucket. */
+    /** Locate a bucket at the host's S3 endpoint, with its space's credentials presigning a transfer, refusing a write into a fenced bucket. */
     async locate(bucket: BucketReference, mode: LeaseMode): Promise<BucketEndpoint> {
+        // refuse a write into a fenced bucket
         if (mode === "write") {
             (await this.open(bucket)).checkWritable();
         }
 
+        // presign with the credentials of the bucket's space
+        const credentials = await this.credentials(bucket.scope);
+        if (credentials === undefined) {
+            throw new BucketError(
+                "NO_SUCH_BUCKET",
+                `this host keeps no credentials of ${bucket.scope}`,
+            );
+        }
+
         return {
             location: { endpoint: this.endpoint, bucket: bucket.bucketId, region: this.region },
-            credentials: this.credentials,
+            credentials,
         };
+    }
+
+    /** Count the bytes a bucket's published files keep, opening it when closed. */
+    async bytes(bucket: Pick<BucketReference, "bucketId">): Promise<number> {
+        return (await this.open(bucket)).bytes();
     }
 
     /** Close a bucket opened before. */

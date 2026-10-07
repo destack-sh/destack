@@ -1,8 +1,8 @@
 import { aligned } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
-import type { ContentCipher, CustomerKey } from "./encryption.ts";
-import type { ContentStore } from "./store.ts";
+import type { CustomerKey } from "./encryption.ts";
+import type { BlobStore } from "./store.ts";
 
 /** One blob of a stored file, its nonce and its length. */
 export type Segment = Pick<typeof segment.$inferSelect, "blob" | "nonce" | "size">;
@@ -12,7 +12,7 @@ export class ContentReader {
     /** The selected content stream. */
     readonly stream: ReadableStream<Uint8Array>;
     /** The blobs of the segments. */
-    readonly #blobs: ContentStore;
+    readonly #blobs: BlobStore;
     /** The file's content segments in order. */
     readonly #segments: Segment[];
     /** Release the bucket's references to the segments. */
@@ -28,7 +28,7 @@ export class ContentReader {
     /** The chunks of the current segment's selected range. */
     #chunks: AsyncIterator<Uint8Array> | undefined;
     /** The cipher of the current segment, absent for plain content. */
-    #cipher: ContentCipher | undefined;
+    #cipher: ReturnType<CustomerKey["cipher"]> | undefined;
     /** The pending or completed closure. */
     #closing: Promise<void> | undefined;
     /** Whether the consumer cancelled this stream. */
@@ -36,7 +36,7 @@ export class ContentReader {
 
     /** Read one range of retained segments, releasing them once. */
     constructor(
-        blobs: ContentStore,
+        blobs: BlobStore,
         segments: Segment[],
         offset: number,
         length: number,

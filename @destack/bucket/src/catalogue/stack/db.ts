@@ -1,14 +1,4 @@
-import {
-    blob,
-    check,
-    index,
-    integer,
-    json,
-    sql,
-    defineTable,
-    text,
-    defineDatabase,
-} from "@destack/db";
+import { check, index, integer, json, sql, defineTable, text, defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";
 import { CHECKSUM_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
 
@@ -64,8 +54,8 @@ export const segment = defineTable(
         version: text("version").primaryKey(),
         /** The position within the file, from 0. */
         position: integer("position").primaryKey(),
-        /** The stored content. */
-        blob: blob("blob").notNull(),
+        /** The digest of the stored content in the bucket's content store. */
+        blob: text("blob").notNull(),
         /** The customer key's counter nonce as hexadecimal, absent for plain content. */
         nonce: text("nonce"),
         /** The content length. */
@@ -119,8 +109,8 @@ export const part = defineTable(
         uploadId: text("upload_id").primaryKey(),
         /** The part number. */
         partNumber: integer("part_number").primaryKey(),
-        /** The stored content. */
-        blob: blob("blob").notNull(),
+        /** The digest of the stored content in the bucket's content store. */
+        blob: text("blob").notNull(),
         /** The customer key's counter nonce as hexadecimal, absent for plain content. */
         nonce: text("nonce"),
         /** The content length. */

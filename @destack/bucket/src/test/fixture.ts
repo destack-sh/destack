@@ -11,13 +11,14 @@ import {
     Relationship,
 } from "@destack/access";
 import * as accountObject from "@destack/account/object";
-import { AuditCall, Journal } from "@destack/audit";
+import { AuditCall } from "@destack/audit";
+import { Journal } from "@destack/audit/server";
 import { LocalBucket } from "../local/index.ts";
 import * as bucketObject from "../object/index.ts";
-import { spaceService } from "@destack/space/service";
+import { bucketService } from "../service/index.ts";
 import type { Client } from "@destack/service";
 import type { ObjectProcedures } from "@destack/object";
-import { type BucketReference, S3Server, SignatureV4 } from "../s3/index.ts";
+import { type BucketReference, S3Server, S3Signature } from "../s3/index.ts";
 import { and, eq, type DatabaseConnection, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
@@ -27,11 +28,11 @@ import { ServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
 import * as spaceObject from "@destack/space/object";
-import { installation, space } from "@destack/space/object";
+import { space } from "@destack/space/object";
 import { v7 } from "uuid";
 import { ObjectServer } from "@destack/object/server";
 import { serveBuckets, LEASE_LIFETIME } from "../server/index.ts";
-import { spaceDatabase } from "@destack/space/stack";
+import { bucketDatabase } from "../stack/index.ts";
 import { DirectoryStore, directoryTables } from "@destack/directory";
 import type { Lease } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
@@ -114,8 +115,8 @@ export class BucketFixture implements AsyncDisposable {
         // serve the bucket's files under the member's bearer identity
         const objects = this.#serveObjects(database, directory);
         this.server = Server.start({
-            ...objects.implement(spaceService),
-            audience: spaceService.package.id,
+            ...objects.implement(bucketService),
+            audience: bucketService.package.id,
             resources: new ResourceContext(),
             health: new Health("files"),
             authenticate: async (request) => {
@@ -127,10 +128,10 @@ export class BucketFixture implements AsyncDisposable {
 
                 return this.caller;
             },
-            authorizeHost: async () => {},
+            authorizeMachine: async () => {},
             drainTimeout: 1000,
         });
-        this.client = bucketObject.bucket.connect(spaceService, {
+        this.client = bucketObject.bucket.connect(bucketService, {
             url: "https://files.test",
             headers: { authorization: `Bearer ${this.userId}` },
             fetch: (request) => this.server.fetch(request),
@@ -166,8 +167,8 @@ export class BucketFixture implements AsyncDisposable {
             database,
             callKey: testCallKey,
             origin: {
-                package: spaceService.package,
-                service: spaceService.name,
+                package: bucketService.package,
+                service: bucketService.name,
             },
             history: { ingest: async (batch) => this.#history.push(...batch.calls) },
         });
@@ -194,7 +195,7 @@ export class BucketFixture implements AsyncDisposable {
     ): Authentication {
         return new Authentication({
             credential: { kind: "fixture", id: "fixture-1" },
-            audience: spaceService.package.id,
+            audience: bucketService.package.id,
             verifiedAt: Date.now(),
             expiresAt: Date.now() + 60_000,
             subject,
@@ -242,7 +243,7 @@ export class BucketFixture implements AsyncDisposable {
     ): Promise<string> {
         // presign the request with the fixture's credentials
         const request = new Request(url, { method, headers });
-        const signature = new SignatureV4({ region: REGION });
+        const signature = new S3Signature({ region: REGION });
         const presigned = await signature.presign(
             request,
             this.credentials,
@@ -311,23 +312,11 @@ export class BucketFixture implements AsyncDisposable {
         );
     }
 
-    /** Install the package and relate it to the bucket as a consumer, as the binder does. */
-    async install(name: string) {
-        // install the package
+    /** Relate an installation of the package to the bucket as a consumer, as its consumption does. */
+    async install() {
+        // relate a new installation to the bucket as a consumer
         const now = Date.now();
         const installationId = schema.identifier("installation").parse(`installation-${v7()}`);
-        await this.database.insert(installation.table).values({
-            id: installationId,
-            scope: this.spaceId,
-            packageId: PACKAGE.id,
-            role: "application",
-            selection: { kind: "release", version: PACKAGE.version },
-            alias: name,
-            createdAt: now,
-            updatedAt: now,
-        });
-
-        // relate it to the bucket as a consumer
         await this.database.insert(accessRelationship).values(
             Relationship.encode(
                 {
@@ -345,13 +334,13 @@ export class BucketFixture implements AsyncDisposable {
         return installationId;
     }
 
-    /** Open the migrated spaces database of each dialect for a file's scenarios. */
+    /** Open the migrated bucket service database of each dialect for a file's scenarios. */
     static async databases(): Promise<Map<Dialect, TestDatabase>> {
         const opened = new Map<Dialect, TestDatabase>();
         for (const dialect of TEST_DIALECTS) {
             opened.set(
                 dialect,
-                await TestDatabase.create(dialect, spaceDatabase, {
+                await TestDatabase.create(dialect, bucketDatabase, {
                     isMigrated: true,
                 }),
             );

@@ -1,8 +1,10 @@
-import type { BlobStore } from "@destack/db/blob";
+import type { ContentStore } from "@destack/resource";
 import type { Digest } from "@destack/schema";
 
-/** The store of a bucket's blobs, which the catalogue's segments and parts reference by digest. */
-export interface ContentStore extends Omit<BlobStore, "hold" | "retire"> {
+/** The content-addressed store of a bucket's blobs, which the catalogue's segments and parts reference by digest. */
+export interface BlobStore extends ContentStore {
+    /** List the digests the store lacks, in the given order. */
+    missing(digests: readonly Digest[]): Promise<readonly Digest[]>;
     /** Read a range of a blob's bytes. */
     slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array>;
     /** Delete a blob. */

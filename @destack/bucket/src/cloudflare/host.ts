@@ -1,26 +1,23 @@
-import type { DatabaseConnection, Table } from "@destack/db";
+import type { Table } from "@destack/db";
+import {
+    connectDurableObject,
+    DurableObjectDatabaseHost,
+    type DurableObjectStorage,
+} from "@destack/db/cloudflare";
 import { schema, type Identifier } from "@destack/schema";
 import type { Bucket } from "../bucket/index.ts";
-import { CatalogueBucket, CatalogueBucketHost, catalogueDatabase } from "../catalogue/index.ts";
+import {
+    CatalogueBucket,
+    CatalogueBucketHost,
+    type CatalogueStore,
+    catalogueDatabase,
+} from "../catalogue/index.ts";
 import { BucketError } from "../error/index.ts";
 import type { BucketReference, S3Credentials } from "../s3/index.ts";
-import { R2ContentStore } from "./store.ts";
+import { R2BlobStore } from "./store.ts";
 
 /** The file below a bucket's prefix marking it fenced while a transfer copies it. */
 const FENCE_FILE = "fence";
-
-/** The databases a host keeps its buckets' catalogues in, one each, such as one schema each in a cell's database. */
-export interface CatalogueStore {
-    /** Report whether a bucket has a catalogue. */
-    has(bucketId: Identifier<"bucket">): Promise<boolean>;
-    /** Connect to a bucket's catalogue declaring some tables, creating an empty database for it when missing. */
-    connect(
-        bucketId: Identifier<"bucket">,
-        tables: readonly Table[],
-    ): Promise<DatabaseConnection & { close(): Promise<void> }>;
-    /** Remove a bucket's catalogue. */
-    destroy(bucketId: Identifier<"bucket">): Promise<void>;
-}
 
 /** Where a cell keeps its buckets: their blobs in the residency's R2 bucket, their catalogues in its own database, served over S3 at one endpoint. */
 export interface R2BucketHostOptions {
@@ -34,8 +31,8 @@ export interface R2BucketHostOptions {
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** The host's S3 credentials, which never leave it. */
-    readonly credentials: S3Credentials;
+    /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
+    readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
 }
 
 /** A cell keeping buckets: each one a prefix of the residency's R2 bucket with its catalogue in the cell's database, opened once, and served over S3 at one endpoint. */
@@ -65,7 +62,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     }
 
     /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */
-    async named(name: string): Promise<CatalogueBucket | undefined> {
+    override async named(name: string): Promise<CatalogueBucket | undefined> {
         const bucketId = schema.identifier("bucket").safeParse(name);
         if (!bucketId.success || !(await this.#catalogues.has(bucketId.data))) {
             return undefined;
@@ -94,7 +91,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     /** Close a bucket, then delete its blobs and its catalogue. */
     override async destroy(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
         await this.close(bucket);
-        await new R2ContentStore(this.#files, `${bucket.bucketId}/`).clear();
+        await new R2BlobStore(this.#files, `${bucket.bucketId}/`).clear();
         await this.#catalogues.destroy(bucket.bucketId);
     }
 
@@ -130,7 +127,7 @@ export class R2BucketHost extends CatalogueBucketHost {
             get database() {
                 return database;
             },
-            blobs: new R2ContentStore(this.#files, `${bucketId}/`),
+            blobs: new R2BlobStore(this.#files, `${bucketId}/`),
             migrate: async (beside) => {
                 // migrate, then reconnect declaring every table
                 const migrated = [...tables, ...beside];
@@ -147,5 +144,31 @@ export class R2BucketHost extends CatalogueBucketHost {
         }
 
         return opened;
+    }
+}
+
+/** The catalogues of a cell's buckets in its Durable Object's storage, each in a namespace named by its bucket. */
+export class DurableObjectCatalogueStore implements CatalogueStore {
+    /** The object's databases. */
+    readonly #databases: DurableObjectDatabaseHost;
+
+    /** Keep catalogues in an object's storage. */
+    constructor(storage: DurableObjectStorage) {
+        this.#databases = new DurableObjectDatabaseHost(storage);
+    }
+
+    /** Report whether a bucket has a catalogue. */
+    async has(bucketId: Identifier<"bucket">): Promise<boolean> {
+        return (await this.#databases.relations(bucketId)).length > 0;
+    }
+
+    /** Connect to a bucket's catalogue declaring some tables in its namespace. */
+    async connect(bucketId: Identifier<"bucket">, tables: readonly Table[]) {
+        return connectDurableObject(this.#databases.storage, tables, { namespace: bucketId });
+    }
+
+    /** Remove a bucket's catalogue. */
+    async destroy(bucketId: Identifier<"bucket">): Promise<void> {
+        await this.#databases.drop(bucketId);
     }
 }

@@ -1,6 +1,6 @@
 import { mkdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { connect } from "@destack/db/bun";
+import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import { FileLock } from "@destack/fs";
 import { BucketError } from "../error/index.ts";
@@ -8,7 +8,7 @@ import { CatalogueBucket } from "../catalogue/bucket.ts";
 import { CatalogueStorage } from "../catalogue/storage.ts";
 import { catalogueDatabase } from "../catalogue/stack/index.ts";
 import { syncDirectory } from "./directory.ts";
-import { LocalContentStore } from "./store.ts";
+import { LocalBlobStore } from "./store.ts";
 
 /** A bucket kept in a local directory: a SQLite catalogue of files beside the files of their blobs. */
 export class LocalBucket extends CatalogueBucket {
@@ -25,7 +25,7 @@ export class LocalBucket extends CatalogueBucket {
         // create the blob directory before publishing any catalogue entries
         const contents = join(directory, "files");
         await createDurably(contents);
-        const blobs = await LocalContentStore.open(contents);
+        const blobs = await LocalBlobStore.open(contents);
         const lock = await FileLock.acquire(join(directory, "bucket.lock"));
 
         // prepare the private catalogue, then serve it through storage
@@ -79,7 +79,7 @@ async function prepare(
     let database: SqliteDatabase | undefined;
     try {
         // migrate the catalogue, creating the log of a new bucket
-        database = await connect(catalogue, catalogueDatabase);
+        database = await connectBunSqlite(catalogue, catalogueDatabase);
         if (created !== undefined) {
             await database.log.create(created);
         }
@@ -126,7 +126,7 @@ async function closeFailed(
 function openedStorage(
     catalogue: string,
     database: SqliteDatabase,
-    blobs: LocalContentStore,
+    blobs: LocalBlobStore,
     lock: FileLock,
 ): CatalogueStorage {
     let opened = database;
@@ -141,7 +141,7 @@ function openedStorage(
             const tables = [...catalogueDatabase.tables, ...beside];
             await opened.migrate(tables);
             await opened.close();
-            opened = await connect(catalogue, tables);
+            opened = await connectBunSqlite(catalogue, tables);
         },
         close: async () => {
             await opened.close();

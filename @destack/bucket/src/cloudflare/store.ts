@@ -1,9 +1,8 @@
 import { createHash, type Hash } from "node:crypto";
-import { DatabaseError } from "@destack/db";
-import type { BlobStore } from "@destack/db/blob";
+import type { ContentStore } from "@destack/resource";
 import { Digest, present } from "@destack/schema";
 import type { Bucket, UploadedPart } from "../bucket/index.ts";
-import type { ContentStore } from "../catalogue/index.ts";
+import type { BlobStore } from "../catalogue/index.ts";
 import { MAX_BATCH_FILES } from "../bucket/list.ts";
 import { BucketError } from "../error/index.ts";
 
@@ -18,7 +17,7 @@ const STAGING = "staging/";
  *
  * A body longer than one part is staged under a random name, since R2 renames no file, and written under its digest once hashed.
  */
-export class R2ContentStore implements ContentStore {
+export class R2BlobStore implements BlobStore {
     /** The residency's bucket. */
     readonly #files: Bucket;
     /** The prefix of the bucket's blobs, such as `bucket-…/`. */
@@ -65,6 +64,8 @@ export class R2ContentStore implements ContentStore {
             const digest = verified(hash, expected);
             if ((await this.missing([digest])).length > 0) {
                 await this.#files.put(this.#key(digest), bytes, { sha256: digest });
+            } else {
+                await this.#touch(digest);
             }
 
             return digest;
@@ -78,6 +79,8 @@ export class R2ContentStore implements ContentStore {
             if ((await this.missing([digest])).length > 0) {
                 const file = present(await this.#files.get(staged), staged);
                 await this.#files.put(this.#key(digest), file.body, { sha256: digest });
+            } else {
+                await this.#touch(digest);
             }
 
             return digest;
@@ -86,10 +89,19 @@ export class R2ContentStore implements ContentStore {
         }
     }
 
-    /** Keep the blobs the store lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<BlobStore, "read">): Promise<void> {
-        for (const digest of await this.missing([...new Set(digests)])) {
-            await this.write(source.read(digest), digest);
+    /** Keep the blobs the store lacks among some digests, read from another store, and mark the kept ones used now. */
+    async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
+        const unique = [...new Set(digests)];
+        const missing = new Set(await this.missing(unique));
+        for (const digest of unique) {
+            // copy a missing blob
+            if (missing.has(digest)) {
+                await this.write(source.read(digest), digest);
+            }
+            // mark a kept blob used
+            else {
+                await this.#touch(digest);
+            }
         }
     }
 
@@ -110,6 +122,20 @@ export class R2ContentStore implements ContentStore {
         }
     }
 
+    /** Delete the blobs outside a retained set last used before a moment. */
+    async sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void> {
+        for await (const digest of this.digests()) {
+            // leave retained blobs and blobs used since the moment
+            if (retained.has(digest)) {
+                continue;
+            }
+            const file = await this.#files.head(this.#key(digest));
+            if (file !== null && file.uploaded < before) {
+                await this.delete(digest);
+            }
+        }
+    }
+
     /** Delete the staged bodies a stopped host left behind, a page at a time. */
     async clean(): Promise<void> {
         for await (const keys of this.#pages(`${this.#prefix}${STAGING}`)) {
@@ -122,6 +148,13 @@ export class R2ContentStore implements ContentStore {
         for await (const keys of this.#pages(this.#prefix)) {
             await this.#files.delete(keys);
         }
+    }
+
+    /** Mark a kept blob used now by writing it onto itself, since R2 keeps a file's upload time as its only time. */
+    async #touch(digest: Digest): Promise<void> {
+        const key = this.#key(digest);
+        const file = present(await this.#files.get(key), digest);
+        await this.#files.put(key, file.body, { sha256: digest });
     }
 
     /** Upload a body in parts of one size under a staging name, skipping an empty last part. */
@@ -231,7 +264,7 @@ function joined(chunks: readonly Uint8Array[], size: number): Uint8Array<ArrayBu
 function verified(hash: Hash, expected: Digest | undefined): Digest {
     const digest = hash.digest("hex");
     if (expected !== undefined && digest !== expected) {
-        throw new DatabaseError("INVALID_BLOB", `blob ${expected} read as ${digest}`);
+        throw new BucketError("INVALID_CHECKSUM", `blob ${expected} read as ${digest}`);
     }
 
     return digest;

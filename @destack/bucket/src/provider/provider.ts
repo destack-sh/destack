@@ -1,31 +1,36 @@
-import type { DatabaseHandle } from "@destack/db/blob";
 import {
     type Fence,
     type Opener,
     type Provider,
     type Provisioner,
     type ResourceRecord,
+    type Snapshotter,
 } from "@destack/resource";
 import type { Controller } from "@destack/service/control";
 import { schema } from "@destack/schema";
-import type { CatalogueBucketHost } from "../catalogue/index.ts";
+import {
+    BucketSnapshot,
+    type CatalogueBucketHost,
+    type CatalogueHandle,
+} from "../catalogue/index.ts";
 import type { BucketReference } from "../s3/index.ts";
 import { serveBuckets } from "../server/index.ts";
 import { BucketKind } from "../declare/bucket.ts";
 import { SweepController } from "./sweep.ts";
 
-/** A bucket provider: provisioning, opening and fencing one host's buckets, serving their files and sweeping them. */
+/** A bucket provider: provisioning, opening, fencing and snapshotting one host's buckets, serving their files and sweeping them. */
 export type BucketProvider = Provider<
     typeof BucketKind,
     ReturnType<typeof serveBuckets>,
-    DatabaseHandle,
+    CatalogueHandle,
     never,
     never,
     Controller
 > & {
     readonly provision: Provisioner<typeof BucketKind>;
-    readonly open: Opener<typeof BucketKind, DatabaseHandle>;
+    readonly open: Opener<typeof BucketKind, CatalogueHandle>;
     readonly fence: Fence<typeof BucketKind>;
+    readonly snapshot: Snapshotter<typeof BucketKind>;
     readonly controllers: readonly Controller[];
 };
 
@@ -51,6 +56,15 @@ export function bucketProvider(buckets: CatalogueBucketHost): BucketProvider {
         fence: {
             fence: (resource) => buckets.fence(bucketOf(resource)),
             lift: (resource) => buckets.lift(bucketOf(resource)),
+        },
+        snapshot: {
+            // copy the bucket's catalogue and the blobs of the files it lists
+            snapshot: async (resource, _desired, store) =>
+                BucketSnapshot.take((await buckets.open(bucketOf(resource))).database(), store),
+            restore: async (resource, _desired, digest, store, _recipient, base) => {
+                const bucket = (await buckets.open(bucketOf(resource))).database();
+                await BucketSnapshot.restore(bucket, digest, store, base);
+            },
         },
         controllers: [new SweepController(buckets)],
     };

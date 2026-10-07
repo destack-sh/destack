@@ -5,7 +5,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "@destack/db";
-import { connect } from "@destack/db/bun";
+import { connectBunSqlite } from "@destack/db/bun";
 import { catalogueDatabase, upload } from "../catalogue/stack/db.ts";
 import type { UploadedPart } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
@@ -129,7 +129,7 @@ test("reclaim expired multipart contents once a reopened bucket sweeps", async (
         }
 
         // advance the stored expiration while the bucket is closed
-        const database = await connect(join(directory, "bucket.db"), catalogueDatabase);
+        const database = await connectBunSqlite(join(directory, "bucket.db"), catalogueDatabase);
         try {
             await database.run(sql`UPDATE ${upload} SET expires = 0`);
         } finally {

@@ -353,3 +353,26 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
 function digestOf(text: string): string {
     return createHash("sha256").update(text).digest("hex");
 }
+
+test("count the bytes a bucket's published files keep, a replaced file once and a deleted one not at all", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-bucket-bytes-"));
+    try {
+        // publish two files, replace one and delete the other
+        await using bucket = await LocalBucket.open(directory, "space-test");
+        const empty = await bucket.bytes();
+        await bucket.put("plans", "twelve bytes");
+        await bucket.put("notes", "five!");
+        const both = await bucket.bytes();
+        await bucket.put("plans", "four");
+        await bucket.delete("notes");
+
+        // count each published file's current size
+        expect({ empty, both, left: await bucket.bytes() }).toEqual({
+            empty: 0,
+            both: 17,
+            left: 4,
+        });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});

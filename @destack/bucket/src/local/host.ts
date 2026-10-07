@@ -1,19 +1,11 @@
 import { rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { Keychain } from "@destack/host/keychain";
-import { schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { CatalogueBucketHost } from "../catalogue/host.ts";
-import type { BucketReference } from "../s3/index.ts";
-import { S3Credentials } from "../s3/index.ts";
+import type { BucketReference, S3Credentials } from "../s3/index.ts";
 import { LocalBucket } from "./bucket.ts";
 import { syncDirectory } from "./directory.ts";
-
-/** The random bytes of an access key identifier, twenty hexadecimal digits as AWS's are twenty characters. */
-const ACCESS_KEY_BYTES = 10;
-
-/** The random bytes of a secret access key, forty base64 characters as AWS's are. */
-const SECRET_KEY_BYTES = 30;
 
 /** The file in a bucket's directory marking it fenced while a transfer copies it. */
 const FENCE_FILE = "fence";
@@ -26,8 +18,8 @@ export interface LocalBucketHostOptions {
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** The host's S3 credentials, which never leave it. */
-    readonly credentials: S3Credentials;
+    /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
+    readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
 }
 
 /** A device host keeping buckets: one directory each, opened once, and served over S3 at one endpoint. */
@@ -44,29 +36,6 @@ export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
         this.directory = options.directory;
     }
 
-    /** Read the S3 credentials a keychain keeps under a name, generating them once and adopting those a racing writer kept first. */
-    static async credentials(keychain: Keychain, name: string): Promise<S3Credentials> {
-        // keep generated credentials when the keychain keeps none
-        const kept = await Keychain.update(
-            keychain,
-            name,
-            (credentials) => credentials ?? JSON.stringify(LocalBucketHost.#generate()),
-        );
-
-        return S3Credentials.parse(JSON.parse(kept));
-    }
-
-    /** Generate S3 credentials shaped as AWS's are. */
-    static #generate(): S3Credentials {
-        return {
-            accessKeyId: crypto
-                .getRandomValues(new Uint8Array(ACCESS_KEY_BYTES))
-                .toHex()
-                .toUpperCase(),
-            secretAccessKey: crypto.getRandomValues(new Uint8Array(SECRET_KEY_BYTES)).toBase64(),
-        };
-    }
-
     /** Build the directory of a bucket. */
     path(bucket: Pick<BucketReference, "bucketId">): string {
         return join(this.directory, bucket.bucketId);
@@ -78,7 +47,7 @@ export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
     }
 
     /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */
-    async named(name: string): Promise<LocalBucket | undefined> {
+    override async named(name: string): Promise<LocalBucket | undefined> {
         // refuse a name no bucket takes, and a bucket without a directory
         const bucketId = schema.identifier("bucket").safeParse(name);
         if (!bucketId.success) {

@@ -3,36 +3,30 @@ import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate } from "node:timers/promises";
-import { MemoryKeychain } from "@destack/host/keychain";
-import { found, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { SweepController } from "../provider/index.ts";
 import { BucketError } from "../error/index.ts";
-import { S3Credentials, S3Location, S3Server, SignatureV4 } from "../s3/index.ts";
+import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import { LocalBucketHost } from "./host.ts";
 
 /** The bucket the scenarios keep. */
 const BUCKET_ID = "bucket-01996ab0-0000-7000-8000-000000000002";
 
-test("serve a host's buckets over S3 by name, presigned with credentials its keychain keeps", async () => {
+/** The space the scenarios' buckets belong to. */
+const SPACE_ID = "space-01996ab0-0000-7000-8000-000000000001";
+
+test("serve a host's buckets over S3 by name, presigned with the credentials of each bucket's space", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-buckets-"));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
 
-    // generate the host's credentials once
-    const keychain = new MemoryKeychain();
-    const credentials = await LocalBucketHost.credentials(keychain, "s3/host-1");
-    expect([
-        await LocalBucketHost.credentials(keychain, "s3/host-1"),
-        credentials.accessKeyId.length,
-        credentials.secretAccessKey.length,
-    ]).toEqual([credentials, 20, 40]);
-
-    // serve the buckets the host keeps, and no other name
+    // serve the buckets the host keeps, and no other name, with one space's credentials
+    const credentials = { accessKeyId: SPACE_ID, secretAccessKey: "space-secret" };
     await using buckets = new LocalBucketHost({
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
-        credentials,
+        credentials: async (space) => (space === SPACE_ID ? credentials : undefined),
     });
     const server = new S3Server({
         region: "local",
@@ -40,7 +34,7 @@ test("serve a host's buckets over S3 by name, presigned with credentials its key
         open: (name) => buckets.named(name),
     });
     const reference = {
-        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001"),
+        scope: schema.identifier("space").parse(SPACE_ID),
         bucketId: schema.identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000002"),
     };
     const other = schema.identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000003");
@@ -50,33 +44,34 @@ test("serve a host's buckets over S3 by name, presigned with credentials its key
     ]);
     await (await buckets.open(reference, "space-test")).put("notes/a.txt", "first");
 
-    // read the file through a URL presigned at the located endpoint
-    const { location } = await buckets.locate(reference, "read");
-    const presigned = await new SignatureV4({ region: location.region }).presign(
-        new Request(S3Location.url(location, "notes/a.txt").href),
-        credentials,
+    // read the file through a URL presigned at the located endpoint with the space's credentials
+    const located = await buckets.locate(reference, "read");
+    const presigned = await new S3Signature({ region: located.location.region }).presign(
+        new Request(S3Location.url(located.location, "notes/a.txt").href),
+        located.credentials,
         60,
         Date.now(),
     );
     const response = await server.fetch(presigned);
-    expect([new URL(presigned.url).origin, response.status, await response.text()]).toEqual([
+
+    // refuse locating a bucket of a space the host keeps no credentials of
+    const foreign = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
+    const refused = await buckets
+        .locate({ ...reference, scope: foreign }, "read")
+        .catch((error: unknown) => error);
+    expect([
+        located.credentials,
+        new URL(presigned.url).origin,
+        response.status,
+        await response.text(),
+        refused,
+    ]).toEqual([
+        credentials,
         "http://s3.localhost:4200",
         200,
         "first",
+        new BucketError("NO_SUCH_BUCKET", `this host keeps no credentials of ${foreign}`),
     ]);
-});
-
-test("keep one set of credentials when two processes open a host's keychain for the first time at once", async () => {
-    // generate the first credentials from two openings sharing one keychain
-    const keychain = new MemoryKeychain();
-    const opened = await Promise.all([
-        LocalBucketHost.credentials(keychain, "s3/host-1"),
-        LocalBucketHost.credentials(keychain, "s3/host-1"),
-    ]);
-
-    // answer the kept credentials to both
-    const kept = S3Credentials.parse(JSON.parse(found(keychain.secrets, "s3/host-1")));
-    expect(opened).toEqual([kept, kept]);
 });
 
 test("sweep a host's open buckets daily, again a minute later while a copy holds the blobs it fetched", async () => {
@@ -88,7 +83,7 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
-        credentials: { accessKeyId: "HOST", secretAccessKey: "host-secret" },
+        credentials: async () => ({ accessKeyId: "HOST", secretAccessKey: "host-secret" }),
     });
     const bucketId = schema
         .identifier("bucket")
@@ -100,7 +95,7 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
     const sweep = new SweepController(buckets);
 
     // keep every blob while a copy holds the blobs it fetched, and sweep the abandoned one once released
-    const held = await present(bucket.database().blobs, "blobs").hold();
+    const held = await bucket.database().hold();
     const busy = [await sweep.reconcile(), (await readdir(files)).toSorted()];
     await held[Symbol.asyncDispose]();
     const swept = [await sweep.reconcile(), await readdir(files)];
@@ -117,7 +112,7 @@ test("open a bucket again after a failed open", async () => {
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
-        credentials: { accessKeyId: "HOST", secretAccessKey: "host-secret" },
+        credentials: async () => ({ accessKeyId: "HOST", secretAccessKey: "host-secret" }),
     });
     const bucket = { bucketId: schema.identifier("bucket").parse(BUCKET_ID) };
 
@@ -138,7 +133,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
-        credentials,
+        credentials: async () => credentials,
     };
     const reference = {
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001"),
@@ -177,7 +172,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
         open: (name) => buckets.named(name),
     });
     const { location } = await buckets.locate(reference, "read");
-    const signer = new SignatureV4({ region: location.region });
+    const signer = new S3Signature({ region: location.region });
     const url = S3Location.url(location, "notes/d.txt").href;
     const presigned = await signer.presign(
         new Request(url, { method: "PUT" }),

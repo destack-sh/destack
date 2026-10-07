@@ -8,16 +8,14 @@ import {
     exerciseMarkers,
 } from "../scenario/bucket.ts";
 import { exerciseMultipart } from "../scenario/multipart.ts";
-import { exerciseContentStore } from "../scenario/store.ts";
-
-/** The storage class R2 reports for files stored without one. */
-const DEFAULT_STORAGE_CLASS = "Standard";
+import { exerciseBlobStore } from "../scenario/store.ts";
+import { exerciseOperations } from "./operations.ts";
 
 /** The Worker running the bucket scenarios against the local R2 simulator. */
 export default {
     /** Run each scenario against a simulated R2 binding. */
     async fetch(request: Request, environment: { BUCKET: Cloudflare.R2Bucket }): Promise<Response> {
-        const bucket = new R2Bucket(fillStorageClass(environment.BUCKET));
+        const bucket = new R2Bucket(environment.BUCKET);
         try {
             switch (new URL(request.url).pathname) {
                 case "/exerciseContents":
@@ -38,8 +36,11 @@ export default {
                 case "/exerciseMultipart":
                     await exerciseMultipart(bucket);
                     break;
-                case "/exerciseContentStore":
-                    await exerciseContentStore(bucket);
+                case "/exerciseBlobStore":
+                    await exerciseBlobStore(bucket);
+                    break;
+                case "/exerciseOperations":
+                    await exerciseOperations(bucket);
                     break;
                 default:
                     throw new Error("unknown bucket scenario");
@@ -52,49 +53,3 @@ export default {
         }
     },
 };
-
-/** Fill in the storage class the simulator leaves empty on what R2 calls return; the hosted test:cloudflare run reads R2's own. */
-function fillStorageClass<Value>(value: Value): Value;
-/**
- * Fill in the storage class on one value.
- *
- * @construct the proxy answers every property as the value does, with the default class in place of an empty one, so the value keeps its type.
- */
-function fillStorageClass(value: unknown): unknown {
-    // pass values through, and fill results once they resolve
-    if (typeof value !== "object" || value === null) {
-        return value;
-    } else if (value instanceof Promise) {
-        return value.then((resolved: unknown) => fillStorageClass(resolved));
-    }
-
-    return new Proxy(value, {
-        get(target, property) {
-            const field: unknown = Reflect.get(target, property, target);
-            // report the default class in place of the empty one
-            if (property === "storageClass") {
-                return field === "" ? DEFAULT_STORAGE_CLASS : field;
-            }
-            // fill each listed file
-            else if (property === "objects") {
-                if (!Array.isArray(field)) {
-                    throw new TypeError("listed objects are no array");
-                }
-
-                return field.map((item: unknown) => fillStorageClass(item));
-            }
-            // fill what each call returns
-            else if (typeof field === "function") {
-                return (...parameters: unknown[]) => {
-                    const result: unknown = field.apply(target, parameters);
-
-                    return fillStorageClass(result);
-                };
-            }
-            // pass other fields through
-            else {
-                return field;
-            }
-        },
-    });
-}

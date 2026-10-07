@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { aligned, schema, present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { LocalBucketHost } from "../local/index.ts";
+import { LocalBucketHost, LocalBlobStore } from "../local/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
 import { BucketError } from "../error/index.ts";
 import { bucketProvider } from "./provider.ts";
@@ -36,7 +36,7 @@ test("provision a bucket once and destroy it with its files", async () => {
         directory,
         endpoint: new URL("http://s3.localhost"),
         region: "local",
-        credentials: CREDENTIALS,
+        credentials: async () => CREDENTIALS,
     });
     const provider = bucketProvider(buckets);
 
@@ -58,7 +58,7 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
         directory,
         endpoint: new URL("http://s3.localhost"),
         region: "local",
-        credentials: CREDENTIALS,
+        credentials: async () => CREDENTIALS,
     });
     const provider = bucketProvider(buckets);
     const provisioned = { ...record, ...(await provider.provision.provision(record)) };
@@ -91,7 +91,7 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
         directory,
         endpoint: new URL("http://s3.localhost"),
         region: "local",
-        credentials: CREDENTIALS,
+        credentials: async () => CREDENTIALS,
     });
     const provider = bucketProvider(buckets);
     const provision = await provider.provision.provision(record);
@@ -112,4 +112,31 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
         changes.changes.map((change) => change.scope),
         new TextDecoder().decode(Buffer.concat(read)),
     ]).toEqual([createHash("sha256").update("first").digest("hex"), [record.scope], "first"]);
+});
+
+test("snapshot a bucket's catalogue and files into a content-addressed store and restore them into a bucket on another host", async () => {
+    // keep a file in a bucket on the source host
+    const options = {
+        endpoint: new URL("http://s3.localhost"),
+        region: "local",
+        credentials: async () => CREDENTIALS,
+    };
+    await using source = new LocalBucketHost({ directory: await temporary(), ...options });
+    await using target = new LocalBucketHost({ directory: await temporary(), ...options });
+    const store = await LocalBlobStore.open(await temporary());
+    const sending = bucketProvider(source);
+    const receiving = bucketProvider(target);
+    const bucketId = schema.identifier("bucket").parse(record.id);
+    const sent = { ...record, ...(await sending.provision.provision(record)) };
+    await (await source.open({ bucketId })).put("notes/a.txt", "first");
+
+    // snapshot it, provision the bucket on the target and restore the snapshot there
+    const digest = await sending.snapshot.snapshot(sent, [], store);
+    const received = { ...record, ...(await receiving.provision.provision(record)) };
+    await receiving.snapshot.restore(received, [], digest, store);
+
+    // read the file on the target
+    expect(await (await (await target.open({ bucketId })).get("notes/a.txt"))?.text()).toBe(
+        "first",
+    );
 });

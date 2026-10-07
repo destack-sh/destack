@@ -4,16 +4,13 @@ export const CHECKSUM_ALGORITHMS = ["md5", "sha1", "sha256", "sha384", "sha512"]
 /** A supported checksum algorithm. */
 export type ChecksumAlgorithm = (typeof CHECKSUM_ALGORITHMS)[number];
 
-/** Checksums encoded as lowercase hexadecimal strings. */
-export type StringChecksums = Partial<Record<ChecksumAlgorithm, string>>;
-
 /** Stored content checksums. */
 export class BucketChecksums {
     /** The stored hexadecimal digests. */
-    readonly #digests: StringChecksums;
+    readonly #digests: Partial<Record<ChecksumAlgorithm, string>>;
 
     /** Retain the stored checksums. */
-    constructor(digests: StringChecksums = {}) {
+    constructor(digests: Partial<Record<ChecksumAlgorithm, string>> = {}) {
         this.#digests = { ...digests };
     }
 
@@ -39,7 +36,7 @@ export class BucketChecksums {
     }
 
     /** Encode stored checksums as hexadecimal strings. */
-    toJSON(): StringChecksums {
+    toJSON(): Partial<Record<ChecksumAlgorithm, string>> {
         return { ...this.#digests };
     }
 

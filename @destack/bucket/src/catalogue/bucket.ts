@@ -1,5 +1,4 @@
-import type { DatabaseHandle } from "@destack/db/blob";
-import { inArray, Order } from "@destack/db";
+import { inArray, Order, sum } from "@destack/db";
 import type {
     BucketBody,
     BucketGetOptions,
@@ -28,6 +27,7 @@ import { CatalogueMultipartUpload } from "./multipart.ts";
 import { type Catalogue, CatalogueStorage } from "./storage.ts";
 import { CatalogueFile } from "./file.ts";
 import { CustomerKey } from "./encryption.ts";
+import type { CatalogueHandle } from "./snapshot.ts";
 
 /** Persistent file storage: a catalogue of files in its host's database over a store of their blobs. */
 export class CatalogueBucket implements S3Bucket, AsyncDisposable {
@@ -45,25 +45,26 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     }
 
     /** Share the catalogue and the bucket's blobs for copying the bucket between hosts, collecting the blobs its copies retire. */
-    database(): DatabaseHandle {
+    database(): CatalogueHandle {
         const storage = this.#storage;
-        const blobs = storage.blobs;
 
         return {
             get database() {
                 return storage.database;
             },
-            blobs: {
-                missing: (digests) => blobs.missing(digests),
-                read: (digest) => blobs.read(digest),
-                write: (body, expected) => blobs.write(body, expected),
-                fetch: (digests, source) => blobs.fetch(digests, source),
-                hold: () => storage.hold(),
-                retire: (digests) => storage.retire(digests),
-            },
+            blobs: storage.blobs,
+            hold: () => storage.hold(),
+            retire: (digests) => storage.retire(digests),
             migrate: (beside) => storage.migrate(beside),
             close: async () => {},
         };
+    }
+
+    /** Count the bytes the published files keep. */
+    async bytes(): Promise<number> {
+        const [row] = await this.#storage.database.select({ bytes: sum(file.size) }).from(file);
+
+        return Number(row?.bytes ?? 0);
     }
 
     /** Read the current metadata. */
@@ -108,26 +109,11 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 return current;
             }
 
-            // retain the segments while another caller replaces or deletes the key
+            // read the selected bytes, cancelling the read when the body cannot take it
             const range = options.range
                 ? BucketRange.resolve(entry.size, options.range)
                 : undefined;
-            const segments = await this.#storage.segments(entry.version);
-            for (const selected of segments) {
-                this.#storage.retain(selected.blob);
-            }
-            const reader = new ContentReader(
-                this.#storage.blobs,
-                segments,
-                range?.offset ?? 0,
-                range?.length ?? entry.size,
-                () => {
-                    for (const selected of segments) {
-                        this.#storage.release(selected.blob);
-                    }
-                },
-                customerKey,
-            );
+            const reader = await this.#reader(entry, range, customerKey);
             try {
                 return new BucketFileBody(current, reader.stream, range);
             } catch (error) {
@@ -145,6 +131,31 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 throw error;
             }
         });
+    }
+
+    /** Read a range of an entry's bytes, retaining its segments while another caller replaces or deletes the key. */
+    async #reader(
+        entry: CatalogueFile,
+        range: { readonly offset: number; readonly length: number } | undefined,
+        customerKey: CustomerKey | undefined,
+    ): Promise<ContentReader> {
+        const segments = await this.#storage.segments(entry.version);
+        for (const selected of segments) {
+            this.#storage.retain(selected.blob);
+        }
+
+        return new ContentReader(
+            this.#storage.blobs,
+            segments,
+            range?.offset ?? 0,
+            range?.length ?? entry.size,
+            () => {
+                for (const selected of segments) {
+                    this.#storage.release(selected.blob);
+                }
+            },
+            customerKey,
+        );
     }
 
     /** Write immutable contents, then atomically publish their catalogue entry. */
@@ -263,14 +274,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             // describe the file its blob becomes
             const segments = [{ blob: content.blob, nonce: content.nonce, size: content.size }];
             const entry = {
-                key,
-                version: identity?.version ?? content.version,
-                etag: identity?.etag ?? content.etag,
-                checksums: content.checksums,
-                size: content.size,
-                uploaded: identity?.uploaded.getTime() ?? Date.now(),
-                httpMetadata: CatalogueFile.encodeHttpMetadata(options.httpMetadata ?? {}),
-                customMetadata: options.customMetadata ?? {},
+                ...CatalogueBucket.#entryOf(key, content, options, identity),
                 storageClass,
                 ssecKeyMd5: customerKey?.md5 ?? null,
             };
@@ -309,6 +313,25 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 this.#storage.retired.add(content.blob);
             }
         }
+    }
+
+    /** Describe the catalogue entry of written content, under its own or a restored identity. */
+    static #entryOf(
+        key: string,
+        content: Content,
+        options: BucketPutOptions,
+        identity: Pick<BucketFile, "etag" | "version" | "uploaded"> | undefined,
+    ) {
+        return {
+            key,
+            version: identity?.version ?? content.version,
+            etag: identity?.etag ?? content.etag,
+            checksums: content.checksums,
+            size: content.size,
+            uploaded: identity?.uploaded.getTime() ?? Date.now(),
+            httpMetadata: CatalogueFile.encodeHttpMetadata(options.httpMetadata ?? {}),
+            customMetadata: options.customMetadata ?? {},
+        };
     }
 
     /** Publish a new version of the destination that shares the source's immutable content. */

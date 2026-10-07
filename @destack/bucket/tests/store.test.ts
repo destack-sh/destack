@@ -1,4 +1,4 @@
-import { exerciseContentStore } from "./scenario/store.ts";
+import { exerciseBlobStore } from "./scenario/store.ts";
 import { runR2 } from "./cloudflare/local.ts";
 import { test } from "@destack/test";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -10,8 +10,8 @@ test("keep, read, copy and delete blobs below a prefix of a local and an R2 buck
     const directory = await mkdtemp(join(tmpdir(), "destack-store-"));
     try {
         await using local = await LocalBucket.open(join(directory, "local"), "space-test");
-        await exerciseContentStore(local);
-        await runR2("exerciseContentStore");
+        await exerciseBlobStore(local);
+        await runR2("exerciseBlobStore");
     } finally {
         await rm(directory, { recursive: true });
     }

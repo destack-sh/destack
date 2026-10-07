@@ -1,12 +1,12 @@
 import { createHash, type Hash } from "node:crypto";
-import type { BlobStore } from "@destack/db/blob";
-import type { BucketBody, BucketPutOptions, StringChecksums } from "../bucket/index.ts";
+import type { ContentStore } from "@destack/resource";
+import type { BucketBody, BucketPutOptions, ChecksumAlgorithm } from "../bucket/index.ts";
 import { CHECKSUM_ALGORITHMS } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
-import { type ContentCipher, CustomerKey } from "./encryption.ts";
+import { CustomerKey } from "./encryption.ts";
 
 /** The hashes of a body on its way into the blob store. */
-interface ContentHashes {
+interface ContentHash {
     /** The MD5 hash of the stored bytes. */
     readonly md5: Hash;
     /** The hash of the given bytes under the supplied checksum's algorithm, absent when the MD5 hash serves. */
@@ -34,7 +34,7 @@ export class Content {
     /** The MD5 entity tag. */
     readonly etag: string;
     /** The stored content checksums. */
-    readonly checksums: StringChecksums;
+    readonly checksums: Partial<Record<ChecksumAlgorithm, string>>;
 
     /** Retain the written content's identifier, blob, length, and digest. */
     constructor(
@@ -43,7 +43,7 @@ export class Content {
         nonce: string | null,
         size: number,
         etag: string,
-        checksums: StringChecksums,
+        checksums: Partial<Record<ChecksumAlgorithm, string>>,
     ) {
         // retain the content description
         this.version = version;
@@ -56,7 +56,7 @@ export class Content {
 
     /** Write contents into the blob store before the catalogue refers to them. */
     static async write(
-        blobs: Pick<BlobStore, "write">,
+        blobs: Pick<ContentStore, "write">,
         body: BucketBody | null,
         options: BucketPutOptions = {},
         key?: CustomerKey,
@@ -76,7 +76,7 @@ export class Content {
 
         // stream the stored bytes into the store, which keeps none of a mismatched body
         const nonce = key === undefined ? null : CustomerKey.nonce();
-        const hashes: ContentHashes = {
+        const hashes: ContentHash = {
             md5: createHash("md5"),
             checksum:
                 algorithm === undefined || (algorithm === "md5" && key === undefined)
@@ -93,7 +93,7 @@ export class Content {
         if (etag === undefined || actual === undefined) {
             throw new TypeError("content hashes are unfinished after the write");
         }
-        const checksums: StringChecksums = { md5: etag };
+        const checksums: Partial<Record<ChecksumAlgorithm, string>> = { md5: etag };
         if (algorithm !== undefined && key === undefined) {
             checksums[algorithm] = actual;
         }
@@ -105,8 +105,8 @@ export class Content {
 /** Encrypt a body's chunks for storage while hashing them, refusing a mismatched checksum at its end. */
 async function* encode(
     body: BucketBody | null,
-    cipher: ContentCipher | undefined,
-    hashes: ContentHashes,
+    cipher: ReturnType<CustomerKey["cipher"]> | undefined,
+    hashes: ContentHash,
 ): AsyncIterable<Uint8Array> {
     // read buffers and strings through a stream
     const content = ArrayBuffer.isView(body)

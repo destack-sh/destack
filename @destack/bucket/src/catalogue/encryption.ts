@@ -10,9 +10,6 @@ const BLOCK_BYTES = 16;
 /** The bytes of a write's counter nonce, the counter block's first half. */
 const NONCE_BYTES = 8;
 
-/** Encrypt or decrypt bytes at an offset of one write's content. */
-export type ContentCipher = (bytes: Uint8Array, offset: number) => Promise<Uint8Array<ArrayBuffer>>;
-
 /** A customer key encrypting file content with AES-256 in counter mode, so reads start at any byte. */
 export class CustomerKey {
     /** The base64 MD5 digest of the key, which files record. */
@@ -73,7 +70,7 @@ export class CustomerKey {
     }
 
     /** Bind the key to one write's content under its counter nonce. */
-    cipher(nonce: string): ContentCipher {
+    cipher(nonce: string): (bytes: Uint8Array, offset: number) => Promise<Uint8Array<ArrayBuffer>> {
         const bytes = Uint8Array.fromHex(nonce);
 
         return (content, offset) => this.#apply(bytes, content, offset);

@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { Bucket } from "../../src/index.ts";
+import type { Bucket, BucketFile } from "../../src/index.ts";
 import { CHECKSUM_ALGORITHMS } from "../../src/index.ts";
 
 /** Retain exact body bytes, HTTP metadata, and content checksums. */
@@ -57,6 +57,20 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
  * The local R2 simulator reports unsatisfiable ranges without R2's error code 10039, so the hosted test:cloudflare run checks that failure there.
  */
 export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false): Promise<void> {
+    // publish content, then read it under preconditions and ranges while another reader holds it open
+    const first = await publishFirst(bucket);
+    await readUnderDates(bucket, first);
+    const retained = present(await bucket.get("📁/one"), "retained");
+    await readRanges(bucket, isSimulatedR2);
+
+    // keep the file and absent keys under failed preconditions, and accept one of two competing replacements
+    await keepUnderFailedPreconditions(bucket, first);
+    await replaceOnce(bucket, first);
+    assert.strictEqual(await new Response(retained.body).text(), "abcdef");
+}
+
+/** Publish immutable content, retaining its metadata through reads. */
+async function publishFirst(bucket: Bucket): Promise<BucketFile> {
     // publish immutable content and retain metadata through listing and reads
     const first = present(
         await bucket.put("📁/one", "abcdef", {
@@ -87,7 +101,12 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
     assert.strictEqual(first.httpEtag, `"${first.etag}"`);
     assert.strictEqual(first.uploaded instanceof Date, true);
 
-    // apply the same date and entity tag precedence in both implementations
+    return first;
+}
+
+/** Apply the same date and entity tag precedence in both implementations. */
+async function readUnderDates(bucket: Bucket, first: BucketFile): Promise<void> {
+    // compare the upload time with an earlier and a later moment
     const earlier = new Date(first.uploaded.getTime() - 1000);
     const later = new Date(first.uploaded.getTime() + 1000);
     assert.deepStrictEqual(await bucket.get("📁/one", { onlyIf: { uploadedAfter: later } }), first);
@@ -103,7 +122,11 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
         await bucket.put("📁/one", "wrong", { onlyIf: { uploadedAfter: later } }),
         null,
     );
-    const retained = present(await bucket.get("📁/one"), "retained");
+}
+
+/** Read ranges of the file: a slice, a suffix, a prefix, a clamped range, and refuse unsatisfiable ones. */
+async function readRanges(bucket: Bucket, isSimulatedR2: boolean): Promise<void> {
+    // read a slice, a suffix and a prefix
     const sliced = present(
         await bucket.get("📁/one", { range: { offset: 1, length: 3 } }),
         "sliced",
@@ -133,7 +156,10 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
         code: "INVALID_RANGE",
         message: "the requested file range is not satisfiable",
     });
+}
 
+/** Keep the complete previous file and absent keys when a precondition fails. */
+async function keepUnderFailedPreconditions(bucket: Bucket, first: BucketFile): Promise<void> {
     // preserve the complete previous file when a precondition fails
     assert.strictEqual(
         await bucket.put("📁/one", "wrong", { onlyIf: { etagDoesNotMatch: "*" } }),
@@ -149,8 +175,11 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
         null,
     );
     assert.strictEqual(await bucket.head("missing"), null);
+}
 
-    // accept one of two competing replacements of the previous entity tag
+/** Accept one of two competing replacements of the previous entity tag. */
+async function replaceOnce(bucket: Bucket, first: BucketFile): Promise<void> {
+    // race two replacements naming the same entity tag
     const replacements = await Promise.all([
         bucket.put("📁/one", "second", { onlyIf: { etagMatches: first.etag } }),
         bucket.put("📁/one", "third", { onlyIf: { etagMatches: first.etag } }),
@@ -163,7 +192,6 @@ export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false):
         replacements.filter((entry) => entry !== null),
         [await bucket.head("📁/one")],
     );
-    assert.strictEqual(await new Response(retained.body).text(), "abcdef");
 }
 
 /** Page literal file keys and delete exact selections. */

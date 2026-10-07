@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import type { Bucket } from "../../src/index.ts";
-import { R2ContentStore } from "../../src/cloudflare/store.ts";
+import { R2BlobStore } from "../../src/cloudflare/store.ts";
 
 /** The bytes of one stored part, as the store splits long bodies. */
 const PART_BYTES = 8 * 1024 * 1024;
@@ -26,10 +26,10 @@ async function joined(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
     return bytes;
 }
 
-/** Keep blobs by digest below a prefix, staging bodies longer than one part, and read, copy and delete them. */
-export async function exerciseContentStore(bucket: Bucket): Promise<void> {
+/** Keep blobs by digest below a prefix, staging bodies longer than one part, and read, sweep, copy and delete them. */
+export async function exerciseBlobStore(bucket: Bucket): Promise<void> {
     // keep a short body under its digest, and a long one staged in two parts
-    const store = new R2ContentStore(bucket, "bucket-source/");
+    const store = new R2BlobStore(bucket, "bucket-source/");
     const short = new TextEncoder().encode("short body");
     const long = new Uint8Array(PART_BYTES + 1024).map((_, index) => index % 251);
     const [shortDigest, longDigest] = [
@@ -68,8 +68,24 @@ export async function exerciseContentStore(bucket: Bucket): Promise<void> {
         [[shortDigest, longDigest].toSorted(), null],
     );
 
+    // sweep the blobs last used before a moment, sparing one a later write used again
+    await store.write(chunked(new TextEncoder().encode("dropped")));
+    await new Promise((resolve) => {
+        setTimeout(resolve, 2);
+    });
+    const moment = new Date();
+    await new Promise((resolve) => {
+        setTimeout(resolve, 2);
+    });
+    await store.write(chunked(short));
+    await store.sweep(new Set([longDigest]), moment);
+    assert.deepStrictEqual(
+        (await Array.fromAsync(store.digests())).toSorted(),
+        [shortDigest, longDigest].toSorted(),
+    );
+
     // copy the blobs another prefix lacks, then delete one blob and clear both prefixes
-    const target = new R2ContentStore(bucket, "bucket-target/");
+    const target = new R2BlobStore(bucket, "bucket-target/");
     await target.fetch([shortDigest, longDigest, shortDigest], store);
     const copied = await target.missing([shortDigest, longDigest]);
     await store.delete(shortDigest);

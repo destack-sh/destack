@@ -6,14 +6,13 @@ import type { Dialect, Table } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceId } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
-import { ZoneTransfer } from "@destack/space/server";
-import { Feed, Replica, replicaTables } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { BucketError } from "../error/index.ts";
-import { LocalBucket, LocalBucketHost } from "../local/index.ts";
+import { LocalBucket, LocalBucketHost, LocalBlobStore } from "../local/index.ts";
 import { bucketProvider } from "../provider/index.ts";
-import { S3Location, S3Server, SignatureV4 } from "../s3/index.ts";
-import { type CatalogueStore, R2BucketHost } from "./host.ts";
+import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
+import type { CatalogueStore } from "../catalogue/index.ts";
+import { R2BucketHost } from "./host.ts";
 
 /** The bucket resource the hosts keep. */
 const record = {
@@ -99,7 +98,7 @@ test.for(TEST_DIALECTS)(
             catalogues,
             endpoint: ENDPOINT,
             region: "auto",
-            credentials: CREDENTIALS,
+            credentials: async () => CREDENTIALS,
         });
         const provider = bucketProvider(buckets);
 
@@ -118,7 +117,7 @@ test.for(TEST_DIALECTS)(
             open: (name) => buckets.named(name),
         });
         const { location } = await buckets.locate({ scope: record.scope, bucketId }, "write");
-        const signer = new SignatureV4({ region: location.region });
+        const signer = new S3Signature({ region: location.region });
         const url = S3Location.url(location, "notes/a.txt").href;
         const write = await signer.presign(
             new Request(url, { method: "PUT" }),
@@ -166,14 +165,14 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "copy a bucket from a device host to a cell: follow its catalogue and blobs, then capture the rest once it stops writing, retiring the deleted file's blob on %s",
+    "move a bucket from a device host to a cell: snapshot its catalogue and files into a content store once fenced, and restore them into the cell's bucket on %s",
     async (dialect) => {
-        // keep a bucket with one file on the device host, and provision it on the cell
+        // keep a bucket with two files on the device host, and provision it on the cell
         await using device = new LocalBucketHost({
             directory: await temporary(),
             endpoint: new URL("http://s3.localhost"),
             region: "local",
-            credentials: CREDENTIALS,
+            credentials: async () => CREDENTIALS,
         });
         await using files = await LocalBucket.open(join(await temporary(), "files"), "residency");
         await using catalogues = new TestCatalogueStore(dialect);
@@ -183,46 +182,21 @@ test.for(TEST_DIALECTS)(
             catalogues,
             endpoint: ENDPOINT,
             region: "auto",
-            credentials: CREDENTIALS,
+            credentials: async () => CREDENTIALS,
         });
         const [source, target] = [bucketProvider(device), bucketProvider(cell)];
         const written = await device.open({ bucketId }, record.scope);
         await written.put("notes/a.txt", "first");
-        const from = await source.open.open(
-            { ...record, ...(await source.provision.provision(record)) },
-            [],
-        );
-        onTestFinished(() => from.close());
-        const to = await target.open.open(
-            { ...record, ...(await target.provision.provision(record)) },
-            [],
-        );
-        await to.migrate(replicaTables);
-
-        // follow the catalogue, fetching each referenced blob, while the device writes another file
-        const copy = ZoneTransfer.copy(record.id, to.database);
-        const feed = new Feed(from.database, copy.tables);
-        const blobs = { store: present(to.blobs, "blobs"), source: present(from.blobs, "blobs") };
-        const controller = new AbortController();
-        const following = copy.follow(
-            to.database,
-            ({ after }, signal) => feed.subscribe(copy.queries, after, signal),
-            controller.signal,
-            { blobs },
-        );
         await written.put("notes/b.txt", "second");
-        const signal = AbortSignal.timeout(5000);
-        await Replica.reach(to.database, record.id, await from.database.log.position(), signal);
-        controller.abort();
-        await following;
-
-        // capture the rest once the device stops, then own the copy and drop its bookkeeping
         await written.delete("notes/a.txt");
-        await Array.fromAsync(
-            copy.apply(to.database, feed.capture(copy.captured, signal), { blobs }),
-        );
-        await copy.promote(to.database);
-        await to.migrate([]);
+        const from = { ...record, ...(await source.provision.provision(record)) };
+        const to = { ...record, ...(await target.provision.provision(record)) };
+
+        // fence the device's bucket, snapshot it into a content store, and restore it on the cell
+        const store = await LocalBlobStore.open(await temporary());
+        await source.fence.fence(from);
+        const snapshot = await source.snapshot.snapshot(from, [], store);
+        await target.snapshot.restore(to, [], snapshot, store);
 
         // read the device's files on the cell, only their blobs left in the residency's bucket
         const received = await cell.open({ bucketId });
@@ -247,7 +221,7 @@ test.for(TEST_DIALECTS)(
             catalogues,
             endpoint: ENDPOINT,
             region: "auto",
-            credentials: CREDENTIALS,
+            credentials: async () => CREDENTIALS,
         };
         const buckets = new R2BucketHost(options);
         const provider = bucketProvider(buckets);
@@ -260,7 +234,7 @@ test.for(TEST_DIALECTS)(
             credentials: async (id) => (id === CREDENTIALS.accessKeyId ? CREDENTIALS : undefined),
             open: (name) => buckets.named(name),
         });
-        const signer = new SignatureV4({ region: location.region });
+        const signer = new S3Signature({ region: location.region });
         const url = S3Location.url(location, "notes/b.txt").href;
         const presigned = await signer.presign(
             new Request(url, { method: "PUT" }),
@@ -318,7 +292,7 @@ test.for(TEST_DIALECTS)(
             catalogues,
             endpoint: ENDPOINT,
             region: "auto",
-            credentials: CREDENTIALS,
+            credentials: async () => CREDENTIALS,
         });
         const bucket = await buckets.open({ bucketId }, record.scope);
         const keys = ["ab", "a_c", "aB", "a-b", "a/z", "Z", "é"];

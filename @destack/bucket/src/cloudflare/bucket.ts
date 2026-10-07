@@ -20,19 +20,41 @@ import { R2File } from "./file.ts";
 /** The code R2 gives an unsatisfiable range. */
 const INVALID_RANGE_CODE = 10039;
 
-/** File storage backed by a Cloudflare R2 binding. */
+/** The R2 operations a binding sent since they were last taken, by the class R2 bills them in. */
+export interface R2OperationCount {
+    /** The Class A operations: writes, lists and multipart steps. */
+    classA: number;
+    /** The Class B operations: reads of files and their metadata. */
+    classB: number;
+}
+
+/** File storage backed by a Cloudflare R2 binding, counting the operations it sends for the meters. */
 export class R2Bucket implements Bucket {
     /** The host-authorised bucket binding. */
     readonly #bucket: Cloudflare.R2Bucket;
+    /** The operations sent since the last take, added to in place. */
+    readonly #operations: R2OperationCount = { classA: 0, classB: 0 };
 
     /** Use an R2 binding supplied by the host. */
     constructor(bucket: Cloudflare.R2Bucket) {
         this.#bucket = bucket;
     }
 
+    /** Take the operations sent since the last take, starting the counts again from zero. */
+    takeOperations(): Readonly<R2OperationCount> {
+        // copy the counts, then start them again
+        const taken = { ...this.#operations };
+        this.#operations.classA = 0;
+        this.#operations.classB = 0;
+
+        return taken;
+    }
+
     /** Read the current file metadata. */
     async head(key: string): Promise<BucketFile | null> {
+        // validate the key and read the metadata as one Class B operation
         BucketKey.check(key);
+        this.#operations.classB += 1;
         const entry = await this.#bucket.head(key);
 
         return entry ? R2File.describe(entry) : null;
@@ -60,6 +82,7 @@ export class R2Bucket implements Bucket {
         }
 
         // pass the structured options to R2
+        this.#operations.classB += 1;
         const entry = await this.#bucket.get(key, options).catch((error: unknown) => {
             throw readError(error);
         });
@@ -114,6 +137,7 @@ export class R2Bucket implements Bucket {
         // validate the key and pass the body as R2 takes it
         BucketKey.check(key);
         const value = body === null ? null : R2Body.write(body);
+        this.#operations.classA += 1;
         const entry = await this.#bucket.put(key, value, options);
 
         return entry === null ? null : R2File.describe(entry);
@@ -137,14 +161,19 @@ export class R2Bucket implements Bucket {
         key: string,
         options: MultipartOptions = {},
     ): Promise<MultipartUpload> {
+        // validate the key and create the upload as one Class A operation
         BucketKey.check(key);
+        this.#operations.classA += 1;
+        const upload = await this.#bucket.createMultipartUpload(key, options);
 
-        return new R2MultipartUpload(await this.#bucket.createMultipartUpload(key, options));
+        return new R2MultipartUpload(upload, this.#operations);
     }
 
     /** Reference an existing R2 upload. */
     resumeMultipartUpload(key: string, uploadId: string): MultipartUpload {
-        return new R2MultipartUpload(this.#bucket.resumeMultipartUpload(key, uploadId));
+        const upload = this.#bucket.resumeMultipartUpload(key, uploadId);
+
+        return new R2MultipartUpload(upload, this.#operations);
     }
 
     /** List files with the selected metadata and delimiter. */
@@ -160,6 +189,7 @@ export class R2Bucket implements Bucket {
             options.cursor === undefined
                 ? undefined
                 : BucketListing.decodeCursor(options.cursor, "r2", selection);
+        this.#operations.classA += 1;
         const page = await this.#bucket.list({
             ...options,
             ...(cursor === undefined ? {} : { cursor }),

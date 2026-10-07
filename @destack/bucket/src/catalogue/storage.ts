@@ -9,10 +9,10 @@ import {
     inArray,
     lt,
     lte,
+    type DatabaseHandle,
     type SQL,
     type Table,
 } from "@destack/db";
-import type { DatabaseHandle } from "@destack/db/blob";
 import type { BucketFile, BucketListOptions } from "../bucket/index.ts";
 import { BucketKey } from "../bucket/key.ts";
 import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
@@ -20,7 +20,7 @@ import { BucketError } from "../error/index.ts";
 import { file, part, segment, upload } from "./stack/index.ts";
 import { CatalogueFile } from "./file.ts";
 import type { Segment } from "./reader.ts";
-import type { ContentStore } from "./store.ts";
+import type { BlobStore } from "./store.ts";
 
 /** Bound blob reference queries and their SQL parameter counts. */
 const REFERENCE_BATCH_SIZE = 500;
@@ -29,9 +29,9 @@ const REFERENCE_BATCH_SIZE = 500;
 export type CatalogueTransaction = Parameters<Parameters<DatabaseConnection["transaction"]>[0]>[0];
 
 /** A bucket's catalogue database, which its host opened for it alone, and the store of its blobs. */
-export interface Catalogue extends Omit<DatabaseHandle, "blobs"> {
+export interface Catalogue extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
-    readonly blobs: ContentStore;
+    readonly blobs: BlobStore;
 }
 
 /**
@@ -84,7 +84,7 @@ export class CatalogueStorage implements AsyncDisposable {
     }
 
     /** The store of the bucket's blobs. */
-    get blobs(): ContentStore {
+    get blobs(): BlobStore {
         return this.#catalogue.blobs;
     }
 
