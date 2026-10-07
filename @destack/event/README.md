@@ -35,6 +35,20 @@ export const call = defineEventKind({
 });
 ```
 
+### Map keys
+
+A key declared as a record of text, numbers and booleans, such as OpenTelemetry's attributes, is kept as one JSON column whose entries conditions and series name as `<key>.<entry>`.
+
+```ts
+keys: schema.object({
+    attributes: schema.record(
+        schema.string(),
+        schema.union([schema.string(), schema.number(), schema.boolean()]),
+    ),
+});
+const where = Filter.parse('attributes.http.route = "/notes"', { isRelational: false });
+```
+
 ## Delivery
 
 An exactly-once kind's events append in the caller's transaction and are never dropped, and an at-most-once kind's events write on their own and are dropped when the write fails.
@@ -74,6 +88,7 @@ const store = new EventStore({
     deliver: (kind, events, signal) => peers.receive(kind, events, signal),
 });
 loop.add(...store.controllers);
+store.kind("log"); // a kept kind by its name, which no two kept kinds share
 ```
 
 ## Queries
@@ -91,6 +106,7 @@ const page = await store.query(log, {
     before,
 });
 const next = await store.query(log, { scope }, { after: page.cursor, limit: 100 });
+const latest = await store.query(log, { scope }, { order: "descending", limit: 50 }); // newest first
 ```
 
 ## Export
@@ -108,7 +124,7 @@ for await (const event of store.export(call, {
 
 ## Series
 
-`series` folds a numeric key per step and group by sum, count, min, max, average or last, hot events in SQL.
+`series` folds a key per step and group by sum, count, min, max, average, last or the count of distinct values, hot events in SQL.
 
 ```ts
 await store.series(
@@ -117,6 +133,12 @@ await store.series(
     { measure: "quantity", fold: "sum", group: ["meter"], step: HOUR },
 );
 // [{ group: { meter: "db.bytes" }, steps: [{ start, value: 830000000, events: 60 }, …] }, …]
+await store.series(
+    visit,
+    { scope, from, before },
+    { measure: "visitor", fold: "unique", step: DAY },
+);
+// distinct visitors per day
 ```
 
 ## Following
@@ -127,6 +149,22 @@ await store.series(
 for await (const { event, sequence } of store.tail(log, { scope, where }, signal)) {
     render(event);
 }
+```
+
+### Commit order
+
+`changes` reads a page of a scope's events in commit order after a log sequence and answers the sequence the next page starts after, so a reader holding a log slot misses no event appended late.
+
+```ts
+const reader = new EventReader(`endpoint:${id}`, 7 * DAY); // a log slot holding unread events
+await reader.start(database, now); // on creation: read only what commits from here on
+const { events, sequence } = await store.changes(
+    call,
+    { scope },
+    await reader.after(database),
+    100,
+);
+await reader.advance(database, sequence, now); // in the transaction handling the page
 ```
 
 ## Flushing
@@ -162,11 +200,26 @@ A kind's route copies each event to the scopes the host's `targets` names for it
 
 ```ts
 await store.receive(kind, events); // in the host keeping the target scope, once per event
+// a host's event service `receive` takes copies another host delivers, once its `admit` takes the sender
+```
+
+## Service
+
+`eventService` reads a scope's events of any kind whose `access` names its readers: query, tail, series and export, personal values masked unless the caller may unmask them.
+
+```ts
+export const log = defineEventKind({
+    ...,
+    access: { read: telemetry.permission("read"), unmask: telemetry.permission("unmask"), object: emitter },
+});
+serveEvents({ store, admit, unmasked: (context, read) => server.unmasked(context, read) }); // a zone's procedures
+const page = await client.query({ kind: "log", scope, object: installationId, where: "severity >= 17" });
+// data.personal: { email: "****" } without unmask; an unmasked read is recorded as event.unmask
 ```
 
 ## Tests
 
-`EventFixture` keeps events over a test database, a temporary bucket and a generated keyring, on a clock the test sets.
+`EventFixture` keeps events over a test database, a memory bucket and a generated keyring, on a clock the test sets.
 
 ```ts
 import { EventFixture } from "@destack/event/test";

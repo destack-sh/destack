@@ -10,19 +10,23 @@
         "./destack.json": "./destack.json",
         "./declare": "./src/kind/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./test": "./src/test/index.ts"
+        "./test": "./src/test/index.ts",
+        "./service": "./src/service/index.ts",
+        "./server": "./src/server/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
+        "@destack/sync": "workspace:*",
         "hyparquet": "1.31.2",
         "hyparquet-writer": "0.16.10",
         "uuid": "14.0.2"

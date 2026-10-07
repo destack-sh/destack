@@ -9,7 +9,7 @@ export function routeAddress(kind: EventKind): Address<Event> {
     return { name: `event ${kind.key}`, message: Event };
 }
 
-/** The outbox destination delivering a kind's routed events through a host's delivery, at least once and in order. */
+/** The outbox destination delivering a kind's routed events in order. */
 export function routeDestination(
     kind: EventKind,
     deliver: (kind: string, events: readonly Event[], signal: AbortSignal) => Promise<void>,

@@ -9,14 +9,25 @@ import {
     type ColumnBuilder,
     type InsertValue,
 } from "@destack/db";
+import type { Permission } from "@destack/access";
 import { ModuleMetadata, Package } from "@destack/package";
 import { defineSchema, type JsonValue, schema, toJsonSchema } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
 
 /** The query keys of an event kind: a schema per key. */
 export type EventKeyShape = Readonly<Record<string, schema.Schema>>;
 
 /** The values of an event's query keys. */
 export type EventKeyValues<Shape extends EventKeyShape> = schema.Infer<schema.Object<Shape>>;
+
+/** The entries of a map key, such as an OpenTelemetry record's attributes, by name. */
+export type EventKeyMap = Readonly<Record<string, string | number | boolean>>;
+
+/** The value a query key holds: text, a number, a map of entries, or nothing. */
+export type EventKeyValue = string | number | EventKeyMap | null;
+
+/** The value of a map key's entry. */
+const EntryValue = schema.union([schema.string(), schema.number(), schema.boolean()]);
 
 /** One append-only event of a scope: its identity, the scope it came from, its time, query keys and data. */
 export interface Event<
@@ -37,7 +48,7 @@ export interface Event<
     readonly data: Data;
 }
 
-/** An event of any kind as it is kept and routed: its keys as their columns hold them, its data's personal values sealed. */
+/** An event of any kind as it is kept and routed, its personal values sealed. */
 export const Event = defineSchema(
     schema.object({
         /** The scope keeping the event. */
@@ -48,22 +59,28 @@ export const Event = defineSchema(
         source: schema.string().min(1),
         /** When the event happened, in Unix microseconds. */
         time: schema.number().int().nonnegative(),
-        /** The values of the kind's query keys. */
+        /** The values of the kind's query keys, a map key's as its entries. */
         keys: schema.record(
             schema.string(),
-            schema.union([schema.string(), schema.number()]).nullable(),
+            schema
+                .union([
+                    schema.string(),
+                    schema.number(),
+                    schema.record(schema.string(), EntryValue),
+                ])
+                .nullable(),
         ),
         /** The data. */
         data: schema.json(),
     }),
 );
 
-/** The scopes a kind's events are copied to beside their own: every scope enclosing theirs, or the account paying for theirs. */
+/** The scopes a kind's events are copied to beside their own. */
 export const Route = defineSchema(schema.enum(["enclosing", "payer"]));
 /** The scopes a kind's events are copied to beside their own. */
 export type Route = schema.Infer<typeof Route>;
 
-/** Whether an event is kept exactly once, appended in the caller's transaction and never dropped, or at most once, written on its own and dropped when the write fails. */
+/** Whether an event is kept exactly once, in the caller's transaction, or at most once. */
 export const Delivery = defineSchema(schema.enum(["exactly-once", "at-most-once"]));
 /** Whether an event is kept exactly once or at most once. */
 export type Delivery = schema.Infer<typeof Delivery>;
@@ -88,8 +105,23 @@ export interface EventPolicy {
     readonly retention: number;
 }
 
-/** The column type a query key stores its values in. */
-export type EventKeyType = "text" | "integer" | "real";
+/** Who reads a kind's events, and who sees their personal values. */
+export interface EventAccess {
+    /** The permission a reader needs on the scope's object, or on the object a read narrows to. */
+    readonly read: Permission;
+    /** The permission showing the data's personal values, masked without it. */
+    readonly unmask?: Permission;
+    /** The key narrowing a read to one object, whose grants then decide. */
+    readonly object?: {
+        /** The key holding the object's identifier. */
+        readonly key: string;
+        /** Reference the object of an identifier in a scope. */
+        readonly reference: (scope: string, id: string) => ObjectReference;
+    };
+}
+
+/** The column type a query key stores its values in: text, a whole number, a number, or a JSON map of entries. */
+export type EventKeyType = "text" | "integer" | "real" | "json";
 
 /** The pattern of an event kind's name, which names its table. */
 const KIND_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u;
@@ -111,15 +143,17 @@ export interface EventKindDefinition<Shape extends EventKeyShape, Data extends J
     readonly delivery: Delivery;
     /** When hot events flush and how long segments stay, unless a store's policy names others for a scope. */
     readonly policy: EventPolicy;
-    /** The scopes keeping a copy of each event beside its own: those enclosing it, or the account paying for it. */
+    /** The scopes keeping a copy of each event beside its own. */
     readonly route?: Route;
-    /** Whether segments are locked for the retention, chained by digest and never compacted, as audit trails are. */
+    /** Whether segments are locked and chained for the retention, as audit trails are. */
     readonly isLocked?: boolean;
     /** The text key naming the person whose key seals the data's personal values, such as an actor. */
     readonly subject?: string;
+    /** Who reads the events through the event service, nobody when absent. */
+    readonly access?: EventAccess;
 }
 
-/** A kind of append-only event of scopes: its keys, its data, its guarantees and the table keeping its hot events. */
+/** A kind of append-only event of scopes. */
 export class EventKind<
     Shape extends EventKeyShape = EventKeyShape,
     Data extends JsonValue = JsonValue,
@@ -162,7 +196,7 @@ export class EventKind<
         return this.#definition.subject;
     }
 
-    /** Replace each value the data schema marks sensitive by what `map` makes of it, leaving out a value it maps to nothing. */
+    /** Replace each sensitive value by what `map` makes of it. */
     mapSensitive(
         data: JsonValue,
         map: (value: JsonValue, sensitivity: schema.Sensitivity) => JsonValue | undefined,
@@ -173,6 +207,11 @@ export class EventKind<
     /** The scopes each event is copied to beside its own, absent for a kind kept only where it happens. */
     get route(): Route | undefined {
         return this.#definition.route;
+    }
+
+    /** Who reads the events through the event service, absent for a kind nobody reads there. */
+    get access(): EventAccess | undefined {
+        return this.#definition.access;
     }
 
     /** Whether every event is kept exactly once or at most once. */
@@ -246,26 +285,39 @@ export class EventKind<
         };
     }
 
-    /** Read the query keys' values from a record holding them, null where absent. */
-    keyValues(
-        values: Readonly<Record<string, unknown>>,
-    ): Readonly<Record<string, string | number | null>> {
+    /** The names of the keys holding maps of entries. */
+    get mapKeys(): readonly string[] {
+        const types = this.keyTypes;
+
+        return this.keys.filter((name) => types[name] === "json");
+    }
+
+    /** Read the query keys' values from a record holding them, null where absent, a map key's entries parsed. */
+    keyValues(values: Readonly<Record<string, unknown>>): Readonly<Record<string, EventKeyValue>> {
+        const types = this.keyTypes;
+
         return Object.fromEntries(
             this.keys.map((name) => {
                 const value = values[name];
 
                 return [
                     name,
-                    typeof value === "string" || typeof value === "number" ? value : null,
+                    types[name] === "json"
+                        ? value === null || value === undefined
+                            ? null
+                            : schema.record(schema.string(), EntryValue).parse(value)
+                        : typeof value === "string" || typeof value === "number"
+                          ? value
+                          : null,
                 ];
             }),
         );
     }
 }
 
-/** Declare an event kind and the append-only table its hot events live in, refusing an invalid name, key, policy or subject. */
+/** Declare an event kind and the table of its hot events. */
 export function defineEventKind<
-    Shape extends Readonly<Record<string, schema.Schema<string | number | null>>>,
+    Shape extends Readonly<Record<string, schema.Schema<EventKeyValue>>>,
     Data extends JsonValue,
 >(
     definition: EventKindDefinition<Shape, Data> & {
@@ -302,21 +354,30 @@ export function defineEventKind<
         throw new TypeError(`event kind ${definition.name} names its subject by a text key`);
     }
 
+    // require a read's object to be named by a text key
+    const object = definition.access?.object;
+    const named = object === undefined ? undefined : definition.keys.shape[object.key];
+    if (object !== undefined && (named === undefined || keyTypeOf(named) !== "text")) {
+        throw new TypeError(`event kind ${definition.name} names a read's object by a text key`);
+    }
+
     return new EventKind(owner, definition, tableOf(definition, metadata));
 }
 
 /** Read the column type of a query key from the JSON type its schema describes. */
 function keyTypeOf(key: schema.Schema): EventKeyType {
-    // read the described type, ignoring null
+    // read the described types of the key and each of its alternatives, ignoring null
     const described = toJsonSchema(key);
-    const types = (Array.isArray(described.type) ? described.type : [described.type]).filter(
-        (type) => type !== "null",
-    );
+    const types = [described, ...(described.anyOf ?? [])]
+        .flatMap((each) => (typeof each === "object" ? [each.type].flat() : []))
+        .filter((type) => type !== undefined && type !== "null");
 
-    // map text, whole numbers and numbers to their columns
+    // map text, whole numbers, numbers and maps of entries to their columns
     const [type] = types;
     if (types.length !== 1) {
         throw new TypeError(`an event key holds one type of value: ${JSON.stringify(described)}`);
+    } else if (type === "object") {
+        return "json";
     } else if (type === "string") {
         return "text";
     } else if (type === "integer") {
@@ -324,11 +385,13 @@ function keyTypeOf(key: schema.Schema): EventKeyType {
     } else if (type === "number") {
         return "real";
     } else {
-        throw new TypeError(`an event key holds text or a number: ${JSON.stringify(described)}`);
+        throw new TypeError(
+            `an event key holds text, a number or a map: ${JSON.stringify(described)}`,
+        );
     }
 }
 
-/** Define the append-only table of a kind's hot events: their scope, identity, source, time, query keys and data. */
+/** Define the append-only table of a kind's hot events. */
 function tableOf<Shape extends EventKeyShape, Data extends JsonValue>(
     definition: EventKindDefinition<Shape, Data>,
     module: ModuleMetadata,
@@ -360,13 +423,15 @@ function tableOf<Shape extends EventKeyShape, Data extends JsonValue>(
             log: { appendOnly: true },
             constraints: (columns): readonly ReturnType<typeof index>[] => [
                 index(`${name}_time`).on(columns.scope, columns.time, columns.id),
-                ...Object.keys(definition.keys.shape).map((key): ReturnType<typeof index> =>
-                    index(`${name}_${snakeOf(key)}`).on(
-                        columns.scope,
-                        table[TABLE].column(key),
-                        columns.time,
+                ...Object.entries(definition.keys.shape)
+                    .filter(([, key]) => keyTypeOf(key) !== "json")
+                    .map(([key]): ReturnType<typeof index> =>
+                        index(`${name}_${snakeOf(key)}`).on(
+                            columns.scope,
+                            table[TABLE].column(key),
+                            columns.time,
+                        ),
                     ),
-                ),
             ],
         },
         module,
@@ -379,7 +444,13 @@ function tableOf<Shape extends EventKeyShape, Data extends JsonValue>(
 function columnOf(name: string, type: EventKeyType): ColumnBuilder {
     const column = snakeOf(name);
 
-    return type === "text" ? text(column) : type === "integer" ? integer(column) : real(column);
+    return type === "text"
+        ? text(column)
+        : type === "integer"
+          ? integer(column)
+          : type === "real"
+            ? real(column)
+            : json(column, schema.record(schema.string(), EntryValue));
 }
 
 /** Write a camel-case key name in snake case, as its column is named. */

@@ -4,9 +4,9 @@ import { JsonValue, present, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import type { EventKind } from "../kind/kind.ts";
 
-/** The keys sealing people's personal fields in events, one current key per person, every one gone once the person is forgotten. */
+/** The keys sealing people's personal values, gone once a person is forgotten. */
 export interface PersonalKeyring {
-    /** Read a person's current key, creating one for a person without, in the transaction appending the events when given. */
+    /** Read a person's current key, creating one when missing. */
     currentKey(
         subject: string,
         transaction?: DatabaseConnection,
@@ -42,7 +42,7 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
         this.#keyring = keyring;
     }
 
-    /** Read a person's newest key, creating one for a person without, in a transaction on the keyring's database when given. */
+    /** Read a person's newest key, creating one when missing. */
     async currentKey(
         subject: string,
         transaction?: DatabaseConnection,
@@ -92,9 +92,9 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
     }
 }
 
-/** The sealing of an event's personal values under the key of the person its subject key names, and the dropping of its secrets. */
+/** The sealing of an event's personal values and the dropping of its secrets. */
 export const PersonalSeal = {
-    /** Seal the data's personal values under its person's current key and drop its secrets, dropping personal values without a person. */
+    /** Seal the data's personal values and drop its secrets. */
     async seal(
         kind: EventKind,
         keys: Readonly<Record<string, unknown>>,
@@ -135,7 +135,7 @@ export const PersonalSeal = {
         return replaced(marked, sealed);
     },
 
-    /** Open the data's sealed personal values under the keys they name, leaving out those whose person is forgotten. */
+    /** Open the data's sealed personal values, leaving out forgotten people's. */
     async open(
         kind: EventKind,
         keys: Readonly<Record<string, unknown>>,

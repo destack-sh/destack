@@ -1,6 +1,8 @@
 import {
+    Order,
     and,
     asc,
+    desc,
     Change,
     Condition,
     count,
@@ -13,7 +15,6 @@ import {
     or,
     sql,
     sum,
-    TABLE,
     type DatabaseConnection,
     type SQL,
     type SQLWrapper,
@@ -26,7 +27,7 @@ import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
 import type { Event, EventKeyShape, EventKind, EventPolicy, Route } from "../kind/kind.ts";
 import { type PersonalKeyring, PersonalSeal } from "../personal/personal.ts";
-import { EventCursor, EventFilter } from "../query/query.ts";
+import { EventCursor, EventFilter, type EventOrder } from "../query/query.ts";
 import { routeAddress, routeDestination } from "../route/route.ts";
 import { type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
 
@@ -83,11 +84,11 @@ export interface EventStoreOptions {
     readonly report?: (error: unknown) => void;
 }
 
-/** The append-only events of the scopes a host keeps: hot rows in its database, segments in their scopes' buckets. */
+/** The append-only events of the scopes a host keeps. */
 export class EventStore {
     /** The database of the hot events. */
     readonly database: DatabaseConnection;
-    /** The controllers the host runs: flushing, compacting and expiring segments, and delivering routed copies once a kind routes. */
+    /** The controllers keeping segments and delivering routed copies. */
     readonly controllers: readonly Controller[];
     /** The kinds by their key. */
     readonly #kinds: ReadonlyMap<string, EventKind>;
@@ -102,21 +103,19 @@ export class EventStore {
     /** Report a dropped write of events kept at most once. */
     readonly #report: (error: unknown) => void;
 
-    /** Keep events of some kinds over a host's database and buckets, refusing a kind whose subject or route lacks what they need. */
+    /** Keep events of some kinds over a host's database and buckets. */
     constructor(options: EventStoreOptions) {
-        // require a keyring for subjects, and an outbox, targets and a delivery for routes
+        // require a keyring for subjects
         const { kinds, outbox, deliver, policy } = options;
         if (options.personal === undefined && kinds.some((kind) => kind.subject !== undefined)) {
             throw new TypeError("event kinds with a subject need a personal keyring");
         }
-        const routes = kinds.some((kind) => kind.route !== undefined);
-        if (
-            routes &&
-            (outbox === undefined || options.targets === undefined || deliver === undefined)
-        ) {
-            throw new TypeError(
-                "event kinds that route copies need an outbox, targets and a delivery",
-            );
+
+        // refuse two kinds of one name, whose hot events would share a table
+        const names = kinds.map((kind) => kind.name);
+        const repeated = names.find((name, index) => names.indexOf(name) !== index);
+        if (repeated !== undefined) {
+            throw new TypeError(`two event kinds named ${repeated} share one database`);
         }
 
         // keep segments under each scope's policy, flushed and delivered by the controllers
@@ -142,7 +141,7 @@ export class EventStore {
         ];
     }
 
-    /** Append events of a kind, an exactly-once kind's in a caller's transaction, sealing personal values, dropping secrets and routing copies, an event appended again changing nothing. */
+    /** Append events of a kind once each, sealing personal values and routing copies. */
     async append<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         events: readonly EventInput<Shape, Data>[],
@@ -156,14 +155,14 @@ export class EventStore {
             );
         }
 
-        // check and seal the events and name their copies first, reading keys in the caller's transaction or before the store's
+        // check and seal the events and name their copies
         const stored = await this.#prepare(kind, events, transaction);
         if (stored.length === 0) {
             return;
         }
         const copies = await this.#copies(kind, stored);
 
-        // append in the caller's transaction or one of the store's, dropping an event kept at most once when its write fails
+        // append in the caller's transaction or the store's
         const write = (connection: DatabaseConnection) =>
             this.#write(kind, stored, copies, connection);
         if (transaction !== undefined) {
@@ -177,7 +176,7 @@ export class EventStore {
         }
     }
 
-    /** Append the events of a kind another scope's store routed here, as they were, an event received again changing nothing. */
+    /** Append routed copies of a kind's events once each. */
     async receive(key: string, events: readonly Event[]): Promise<void> {
         const kind = this.#kind(key);
         if (events.length > 0) {
@@ -188,19 +187,33 @@ export class EventStore {
         }
     }
 
-    /** Read a page of a scope's events a filter selects in time order, hot and flushed alike, after a cursor. */
+    /** Read a page of a scope's events in time order, hot and flushed alike. */
     async query<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         filter: EventFilter,
-        page: { readonly after?: EventCursor; readonly limit?: number } = {},
+        page: {
+            readonly after?: EventCursor;
+            readonly limit?: number;
+            readonly order?: EventOrder;
+            readonly connection?: DatabaseConnection;
+        } = {},
     ): Promise<EventPage<Shape, Data>> {
         // read candidates a page at a time until the page fills with events holding the filter's text
         EventFilter.check(kind, filter);
         const limit = page.limit ?? PAGE_EVENTS;
+        const order = page.order ?? "ascending";
+        const connection = page.connection ?? this.database;
         const kept: Event<Shape, Data>[] = [];
         let after = page.after;
         for (;;) {
-            const candidates = await this.#candidates(kind, filter, after, limit + 1);
+            const candidates = await this.#candidates(
+                kind,
+                filter,
+                after,
+                limit + 1,
+                order,
+                connection,
+            );
             for (const candidate of candidates) {
                 const event = await this.#open(kind, candidate);
                 if (EventFilter.contains(filter, event.data)) {
@@ -231,46 +244,57 @@ export class EventStore {
     async *export<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         filter: EventFilter,
+        connection: DatabaseConnection = this.database,
     ): AsyncGenerator<Event<Shape, Data>> {
         let after: EventCursor | undefined;
         do {
-            const page = await this.query(kind, filter, after === undefined ? {} : { after });
+            const page = await this.query(
+                kind,
+                filter,
+                after === undefined ? { connection } : { after, connection },
+            );
             yield* page.events;
             after = page.cursor;
         } while (after !== undefined);
     }
 
-    /** Fold a scope's events a filter selects into a series per group of key values, a step at a time, hot events in SQL. */
+    /** Fold a scope's events into a series per group of key values. */
     async series<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         filter: EventFilter,
         request: SeriesRequest<Shape>,
+        connection: DatabaseConnection = this.database,
     ): Promise<Series[]> {
-        // fold the hot events in SQL and the flushed ones in turn, unless the fold or the text needs each opened event
+        // fold the hot events in SQL and the flushed ones in turn
         EventFilter.check(kind, filter);
         const series = new SeriesFold(request, filter.from);
-        if (filter.text === undefined && request.fold !== "last") {
-            const { hot, flushed } = await this.#snapshot(kind, filter, undefined, () =>
-                this.#hotSeries(kind, filter, series),
+        if (filter.text === undefined && request.fold !== "last" && request.fold !== "unique") {
+            const { hot, flushed } = await this.#snapshot(
+                kind,
+                filter,
+                undefined,
+                "ascending",
+                connection,
+                () => this.#hotSeries(kind, filter, series, connection),
             );
             for (const row of hot) {
                 series.add(row.keys, row.start ?? series.startOf(0), row.fold);
             }
             flushed.forEach((event) => {
-                series.addEvent(event);
+                series.addEvent({ time: event.time, keys: EventFilter.flatten(kind, event) });
             });
         }
         // fold each opened event the filter selects
         else {
-            for await (const event of this.export(kind, filter)) {
-                series.addEvent(event);
+            for await (const event of this.export(kind, filter, connection)) {
+                series.addEvent({ time: event.time, keys: EventFilter.flatten(kind, event) });
             }
         }
 
         return series.close();
     }
 
-    /** Follow a scope's events of a kind a filter selects as they commit, in commit order, from a log sequence or from now. */
+    /** Follow a scope's events of a kind as they commit. */
     async *tail<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         filter: EventFilter,
@@ -300,6 +324,42 @@ export class EventStore {
         }
     }
 
+    /** Read a page of a scope's events in commit order after a log sequence. */
+    async changes<Shape extends EventKeyShape, Data extends JsonValue>(
+        kind: EventKind<Shape, Data>,
+        filter: EventFilter,
+        after: number,
+        limit?: number,
+    ): Promise<{ readonly events: readonly Event<Shape, Data>[]; readonly sequence: number }> {
+        // read the page of the kind's committed appends after the sequence
+        EventFilter.check(kind, filter);
+        const match = EventFilter.match(kind, filter);
+        const page = await this.database.log.read({
+            tables: [kind.table],
+            scopes: [filter.scope],
+            after,
+            ...(limit === undefined ? {} : { limit }),
+        });
+
+        // open each appended event the filter selects
+        const events: Event<Shape, Data>[] = [];
+        for (const change of page.changes) {
+            if (change.operation !== "insert" || !Change.of(change, kind.table)) {
+                continue;
+            }
+            const stored = kind.event(Change.image(change));
+            if (!match(stored)) {
+                continue;
+            }
+            const event = await this.#open(kind, stored);
+            if (EventFilter.contains(filter, event.data)) {
+                events.push(event);
+            }
+        }
+
+        return { events, sequence: page.sequence };
+    }
+
     /** Forget a person, erasing their personal values in every event sealed under their keys. */
     async forget(subject: string): Promise<void> {
         if (this.#personal === undefined) {
@@ -308,7 +368,7 @@ export class EventStore {
         await this.#personal.forget(subject);
     }
 
-    /** Check events against their kind, seal their personal values and drop their secrets, reading keys in a transaction when given. */
+    /** Check events against their kind, seal their personal values and drop their secrets. */
     async #prepare<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         events: readonly EventInput<Shape, Data>[],
@@ -362,11 +422,15 @@ export class EventStore {
 
     /** Copy events to the scopes their kind's route names for each of theirs, leaving out their own. */
     async #copies(kind: EventKind, stored: readonly Event[]): Promise<Event[]> {
-        // read each scope's targets once
+        // read each scope's targets once, refusing to append a routed kind on a store that only receives it
         const route = kind.route;
         const targets = this.#targets;
-        if (route === undefined || targets === undefined) {
+        if (route === undefined) {
             return [];
+        } else if (targets === undefined || this.#outbox === undefined) {
+            throw new TypeError(
+                `appending ${kind.key} routes copies, which needs an outbox, targets and a delivery`,
+            );
         }
         const scopes = [...new Set(stored.map((event) => event.scope))];
         const named = new Map(
@@ -383,23 +447,26 @@ export class EventStore {
         );
     }
 
-    /** Read the hot and flushed events a filter selects after a cursor in time order, once each, at most a number. */
+    /** Read the hot and flushed events after a cursor in time order, once each. */
     async #candidates(
         kind: EventKind,
         filter: EventFilter,
         after: EventCursor | undefined,
         limit: number,
+        order: EventOrder,
+        connection: DatabaseConnection,
     ): Promise<Event[]> {
         // read both sides of one catalog state
-        const { hot, flushed } = await this.#snapshot(kind, filter, after, () =>
-            this.#hot(kind, filter, after, limit),
+        const { hot, flushed } = await this.#snapshot(kind, filter, after, order, connection, () =>
+            this.#hot(kind, filter, after, limit, order, connection),
         );
 
-        // merge them in time order, once each
+        // merge them in the page's order, once each
         const seen = new Set<string>();
+        const direction = order === "ascending" ? 1 : -1;
 
         return [...hot, ...flushed]
-            .toSorted((left, right) => EventCursor.compare(left, right))
+            .toSorted((left, right) => direction * EventCursor.compare(left, right))
             .filter((event) => {
                 // keep the first of each source and identity
                 const key = `${event.source} ${event.id}`;
@@ -411,20 +478,22 @@ export class EventStore {
             .slice(0, limit);
     }
 
-    /** Read hot events and the flushed ones of one catalog state, reading again while a flush or compaction changes the catalog or deletes a file between. */
+    /** Read hot and flushed events of one consistent catalog state. */
     async #snapshot<Hot>(
         kind: EventKind,
         filter: EventFilter,
         after: EventCursor | undefined,
+        order: EventOrder,
+        connection: DatabaseConnection,
         read: () => Promise<Hot>,
     ): Promise<{ readonly hot: Hot; readonly flushed: Event[] }> {
         // read the catalog, the hot events, then the catalog again, until both catalog reads agree
         for (let attempt = 1; attempt <= SNAPSHOT_ATTEMPTS; attempt += 1) {
-            const before = await this.#archive.choose(kind, filter, after);
+            const before = await this.#archive.choose(kind, filter, after, order, connection);
             const hot = await read();
-            const current = await this.#archive.choose(kind, filter, after);
+            const current = await this.#archive.choose(kind, filter, after, order, connection);
             const flushed = sameSegments(before, current)
-                ? await this.#archive.decode(kind, current, filter, after)
+                ? await this.#archive.decode(kind, current, filter, after, order)
                 : undefined;
             if (flushed !== undefined) {
                 return { hot, flushed };
@@ -442,9 +511,14 @@ export class EventStore {
         filter: EventFilter,
         after: EventCursor | undefined,
         limit: number,
+        order: EventOrder,
+        connection: DatabaseConnection,
     ): Promise<Event[]> {
+        // select the events past the cursor in the page's order
         const table = kind.table;
-        const rows = await this.database
+        const past = order === "ascending" ? gt : lt;
+        const direction = order === "ascending" ? asc : desc;
+        const rows = await connection
             .select()
             .from(table)
             .where(
@@ -453,22 +527,23 @@ export class EventStore {
                     after === undefined
                         ? undefined
                         : or(
-                              gt(table.time, after.time),
-                              and(eq(table.time, after.time), gt(table.id, after.id)),
+                              past(table.time, after.time),
+                              and(eq(table.time, after.time), past(table.id, after.id)),
                           ),
                 ),
             )
-            .orderBy(asc(table.time), asc(table.id))
+            .orderBy(direction(table.time), direction(table.id))
             .limit(limit);
 
         return rows.map((row) => kind.event(row));
     }
 
-    /** Fold the hot events a filter selects in SQL per step and group: their count, sum, smallest and largest value. */
+    /** Fold the hot events in SQL per step and group. */
     async #hotSeries(
         kind: EventKind,
         filter: EventFilter,
         series: SeriesFold<EventKeyShape>,
+        connection: DatabaseConnection,
     ): Promise<
         {
             readonly start: number | undefined;
@@ -476,14 +551,19 @@ export class EventStore {
             readonly fold: StepFold;
         }[]
     > {
-        // group by the step's start and each grouping key's column
+        // group by the step's start and each grouping key's column or map entry, named in the selection
         const table = kind.table;
         const { measure, group, width } = series;
-        const columns: SQLWrapper[] = group.map((name) => table[TABLE].column(name));
+        const namespace = EventFilter.namespace(kind, filter, {
+            text: group,
+            numeric: measure === undefined ? [] : [measure],
+        });
+        const columns: SQLWrapper[] = group.map((name) => Order.expression(table, name, namespace));
         const step = sql.raw(String(width ?? 1));
         const start: SQL = sql`(${table.time} / ${step}) * ${step}`;
-        const value: SQLWrapper = measure === undefined ? sql`0` : table[TABLE].column(measure);
-        const rows = await this.database
+        const value: SQLWrapper =
+            measure === undefined ? sql`0` : Order.expression(table, measure, namespace);
+        const rows = await connection
             .select({
                 ...(width === undefined ? {} : { start }),
                 events: count(),
@@ -491,7 +571,10 @@ export class EventStore {
                 min: min(value),
                 max: max(value),
                 ...Object.fromEntries(
-                    columns.map((column, index) => [`key${String(index)}`, column]),
+                    columns.map((column, index) => [
+                        `key${String(index)}`,
+                        sql`${column}`.as(`key${String(index)}`),
+                    ]),
                 ),
             })
             .from(table)
@@ -501,7 +584,10 @@ export class EventStore {
                     measure === undefined ? undefined : sql`${value} IS NOT NULL`,
                 ),
             )
-            .groupBy(...(width === undefined ? [] : [start]), ...columns);
+            .groupBy(
+                ...(width === undefined ? [] : [start]),
+                ...columns.map((_, index) => sql.identifier(`key${String(index)}`)),
+            );
 
         // read each row's group and partial fold
         return rows.map((row) => {
@@ -518,6 +604,7 @@ export class EventStore {
                     min: Number(held["min"] ?? 0),
                     max: Number(held["max"] ?? 0),
                     last: undefined,
+                    distinct: undefined,
                 },
             };
         });
@@ -531,11 +618,13 @@ export class EventStore {
             eq(table.scope, filter.scope),
             filter.from === undefined ? undefined : gte(table.time, filter.from),
             filter.before === undefined ? undefined : lt(table.time, filter.before),
-            filter.where === undefined ? undefined : Condition.render(filter.where, table),
+            filter.where === undefined
+                ? undefined
+                : Condition.render(filter.where, table, EventFilter.namespace(kind, filter)),
         );
     }
 
-    /** Open a stored event as its kind types it: its keys checked, its personal values opened or left out once forgotten. */
+    /** Open a stored event as its kind types it. */
     async #open<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         stored: Event,
@@ -554,6 +643,17 @@ export class EventStore {
     }
 
     /** Find a kind the store keeps by its key. */
+    /** Find a kept kind by its name, refusing a name no kept kind has. */
+    kind(name: string): EventKind {
+        const found = [...this.#kinds.values()].find((kind) => kind.name === name);
+        if (found === undefined) {
+            throw new TypeError(`this store keeps no event kind named ${name}`);
+        }
+
+        return found;
+    }
+
+    /** Find a kept kind by its key, refusing a key no kept kind has. */
     #kind(key: string): EventKind {
         const kind = this.#kinds.get(key);
         if (kind === undefined) {

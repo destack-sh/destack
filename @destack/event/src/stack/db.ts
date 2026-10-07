@@ -3,7 +3,7 @@ import { eventSegment } from "../archive/catalog.ts";
 import type { EventKind } from "../kind/kind.ts";
 import { personalKey } from "../personal/personal.ts";
 
-/** The tables a host keeps events of some kinds in: each kind's hot events, the segment catalog and, for kinds with a subject, their people's keys. */
+/** The tables a host keeps events of some kinds in. */
 export function eventTables(kinds: readonly EventKind[]): readonly Table[] {
     return [
         ...kinds.map((kind) => kind.table),
