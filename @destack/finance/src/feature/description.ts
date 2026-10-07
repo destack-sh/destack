@@ -1,7 +1,7 @@
 import { Package } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { FeatureMetadata, FeatureReset } from "./feature.ts";
-import { MeterReference } from "../meter/meter.ts";
+import { CatalogReference } from "../catalog/reference.ts";
 
 /** The fields of every feature description beside its kind. */
 const description = FeatureMetadata.extend({
@@ -23,10 +23,10 @@ export const FeatureDescription = defineSchema(
             value: schema.record(schema.string(), schema.json()),
         }),
         description.extend({
-            /** Usage of a meter up to the limit a grant sets. */
+            /** Usage of meters up to the limit a grant sets. */
             kind: schema.literal("metered"),
-            /** The meter whose events count as usage. */
-            meter: MeterReference,
+            /** The meters of one unit whose events count together as usage. */
+            meters: schema.array(CatalogReference).min(1),
             /** When the usage starts again. */
             reset: FeatureReset,
         }),

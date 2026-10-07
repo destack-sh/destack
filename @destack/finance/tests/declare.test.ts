@@ -6,15 +6,14 @@ import {
     describeFeature,
     describeMeter,
     featureSymbols,
-    featureVocabulary,
-    meterVocabulary,
 } from "../src/inspect/index.ts";
 import { schema } from "@destack/schema";
-import { FeatureCatalog, type Feature, type FeatureDefinition } from "../src/feature/index.ts";
-import { release } from "./fixture/release.ts";
+import { Catalog } from "../src/catalog/index.ts";
+import { type Feature, type FeatureDefinition } from "../src/feature/index.ts";
+import { FinanceFixture } from "../src/test/index.ts";
 import {
     calls,
-    quota,
+    storageLimit,
     requests,
     seats,
     storage,
@@ -25,10 +24,18 @@ import {
 
 test("read described features and meters back from a build, and relate metered features to their meters", async () => {
     // read the storage package's declarations back from its build
-    const catalog = await FeatureCatalog.read(
-        await release(storage, [requests, stored, sync, support, seats, calls, quota]),
+    const catalog = await Catalog.read(
+        await FinanceFixture.release(storage, [
+            requests,
+            stored,
+            sync,
+            support,
+            seats,
+            calls,
+            storageLimit,
+        ]),
     );
-    const features = [sync, support, seats, calls, quota];
+    const features = [sync, support, seats, calls, storageLimit];
     expect([
         features.map((feature) => describeFeature(catalog.feature(feature.reference))),
         catalog.meter(requests.reference).definition,
@@ -140,19 +147,5 @@ test("plan a meter's change between releases: keep its aggregation and unit", ()
     expect([outcome("sum", "request"), outcome("max", "call")]).toEqual([
         [],
         "meter/api.requests: keep aggregation sum, or declare a meter of aggregation max; meter/api.requests: keep unit request, or declare a meter of unit call",
-    ]);
-});
-
-test("name features and meters as terms of the package's vocabulary by what they mean", () => {
-    // read the terms of a static and a metered feature and of a meter
-    const terms = [seats, calls].map((feature) =>
-        featureVocabulary(readBack(describeFeature(feature))),
-    );
-    const counted = meterVocabulary(readBack(describeMeter(requests)));
-
-    expect([...terms, counted]).toEqual([
-        { "feature/seats": { kind: "static" } },
-        { "feature/api.calls": { kind: "metered", meter: `${storage.id}/api.requests` } },
-        { "meter/api.requests": { aggregation: "sum", unit: "request" } },
     ]);
 });

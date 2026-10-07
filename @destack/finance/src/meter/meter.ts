@@ -1,41 +1,19 @@
-import { PackageId, type Package } from "@destack/package";
+import type { Package } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
+import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 
-/** A package-local meter name, kept across releases. */
-export const MeterName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/u),
+/** How a meter folds a period's events into one usage. */
+export const MeterAggregation = defineSchema(
+    schema.enum(["sum", "count", "max", "last", "average"]),
 );
-
-/** How a meter folds the events of a period into one usage. */
-export const MeterAggregation = defineSchema(schema.enum(["sum", "count", "max", "last"]));
 /** How a meter folds the events of a period into one usage. */
 export type MeterAggregation = schema.Infer<typeof MeterAggregation>;
-
-/** The identity of a meter across package renames and releases. */
-export const MeterReference = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The package declaring the meter. */
-            packageId: PackageId,
-            /** The package-local name. */
-            name: MeterName,
-        }),
-    ),
-    {
-        /** Key a meter by its package and name. */
-        key(reference: MeterReference): string {
-            return `${reference.packageId}/${reference.name}`;
-        },
-    },
-);
-/** The identity of a meter. */
-export type MeterReference = schema.Infer<typeof MeterReference>;
 
 /** The fields of a meter declaration. */
 export const MeterMetadata = defineSchema(
     schema.object({
         /** The package-local name. */
-        name: MeterName,
+        name: CatalogName,
         /** What the meter counts. */
         description: schema.string().min(1),
         /** How the meter folds a period's events. */
@@ -61,7 +39,7 @@ export class Meter {
     }
 
     /** The identity its events and features refer to. */
-    get reference(): MeterReference {
+    get reference(): CatalogReference {
         return { packageId: this.package.id, name: this.definition.name };
     }
 
@@ -71,7 +49,7 @@ export class Meter {
     }
 
     /** Serialise the meter as its reference. */
-    toJSON(): MeterReference {
+    toJSON(): CatalogReference {
         return this.reference;
     }
 }

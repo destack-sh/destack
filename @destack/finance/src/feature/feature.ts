@@ -1,20 +1,25 @@
+import { ALLOWANCE_RESOURCES, type AllowanceResource } from "@destack/account/object";
 import { PackageId, type Package } from "@destack/package";
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import { MeterReference } from "../meter/meter.ts";
+import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 
-/** A package-local feature name, kept across releases. */
-export const FeatureName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/u),
-);
-
-/** What a feature grants: access alone, a fixed value, or usage of a meter up to a limit. */
+/** What a feature grants: access alone, a fixed value, or usage of meters up to a limit. */
 export const FEATURE_KINDS = ["boolean", "static", "metered"] as const;
 
 /** What a feature grants. */
 export const FeatureKind = defineSchema(schema.enum(FEATURE_KINDS));
 /** What a feature grants. */
 export type FeatureKind = schema.Infer<typeof FeatureKind>;
+
+/** The kind of feature allowing each resource. */
+export const ALLOWANCE_KINDS: Readonly<Record<AllowanceResource, FeatureKind>> = {
+    storage: "metered",
+    compute: "metered",
+    capacity: "static",
+    membership: "static",
+    domain: "boolean",
+};
 
 /** When a metered feature's usage starts again: at each billing period of its source, or never. */
 export const FeatureReset = defineSchema(schema.enum(["period", "never"]));
@@ -24,33 +29,15 @@ export type FeatureReset = schema.Infer<typeof FeatureReset>;
 /** The limit a metered feature's grant sets on its usage per period, unlimited without one. */
 export const FeatureLimit = defineSchema(schema.number().int().min(0));
 
-/** The identity of a feature across package renames and releases. */
-export const FeatureReference = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The package declaring the feature. */
-            packageId: PackageId,
-            /** The package-local name. */
-            name: FeatureName,
-        }),
-    ),
-    {
-        /** Key a feature by its package and name. */
-        key(reference: FeatureReference): string {
-            return `${reference.packageId}/${reference.name}`;
-        },
-    },
-);
-/** The identity of a feature. */
-export type FeatureReference = schema.Infer<typeof FeatureReference>;
-
 /** The fields of a feature declaration beside its kind. */
 export const FeatureMetadata = defineSchema(
     schema.object({
         /** The package-local name. */
-        name: FeatureName,
+        name: CatalogName,
         /** What the feature grants. */
         description: schema.string().min(1),
+        /** The resource the feature's grant allows an account, absent for a feature no allowance derives from. */
+        allowance: schema.enum(ALLOWANCE_RESOURCES).exactOptional(),
     }),
 );
 
@@ -70,10 +57,10 @@ export type FeatureDefinition<Value extends schema.Schema = schema.Schema> = sch
               readonly value: Value;
           }
         | {
-              /** Usage of a meter up to the limit a grant sets. */
+              /** Usage of meters up to the limit a grant sets. */
               readonly kind: "metered";
-              /** The meter whose events count as usage. */
-              readonly meter: MeterReference;
+              /** The meters of one unit whose events count together as usage. */
+              readonly meters: readonly CatalogReference[];
               /** When the usage starts again. */
               readonly reset: FeatureReset;
           }
@@ -93,7 +80,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
     }
 
     /** The identity products and entitlements refer to. */
-    get reference(): FeatureReference {
+    get reference(): CatalogReference {
         return { packageId: this.package.id, name: this.definition.name };
     }
 
@@ -103,8 +90,19 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
     }
 
     /** Serialise the feature as its reference. */
-    toJSON(): FeatureReference {
+    toJSON(): CatalogReference {
         return this.reference;
+    }
+
+    /** Grant the feature at a value or limit, as a product declares it, refusing a value the feature rejects. */
+    grant(value: JsonValue | null): {
+        readonly packageId: PackageId;
+        readonly feature: string;
+        readonly value: JsonValue | null;
+    } {
+        this.requireGrant(value);
+
+        return { packageId: this.package.id, feature: this.name, value };
     }
 
     /** Require the value a product's grant sets: none for access alone, a valid value, or a limit if any. */
@@ -128,7 +126,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
         // refuse any other value
         if (!isAccepted) {
             throw new ServiceError("BAD_REQUEST", {
-                message: `feature ${FeatureReference.key(this.reference)} does not accept the granted value`,
+                message: `feature ${CatalogReference.key(this.reference)} does not accept the granted value`,
             });
         }
     }

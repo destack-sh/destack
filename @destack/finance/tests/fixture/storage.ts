@@ -1,6 +1,7 @@
+import { CREDITS } from "../../src/rate/index.ts";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
-import { defineFeature, defineMeter } from "../../src/declare/index.ts";
+import { defineFeature, defineMeter, defineSku } from "../../src/declare/index.ts";
 
 /** The release of Carol's shop package declaring the fixture's features and meters. */
 export const storage = Package.parse({
@@ -26,6 +27,28 @@ export const stored = defineMeter(
         name: "storage.bytes",
         description: "Bytes kept in storage.",
         aggregation: "last",
+        unit: "byte",
+    },
+    { package: storage },
+);
+
+/** The bytes a storage account archives, as last measured. */
+export const archived = defineMeter(
+    {
+        name: "archive.bytes",
+        description: "Bytes kept in the archive.",
+        aggregation: "last",
+        unit: "byte",
+    },
+    { package: storage },
+);
+
+/** The bytes a storage account keeps on disk, averaged over the month. */
+export const disk = defineMeter(
+    {
+        name: "disk.bytes",
+        description: "Bytes kept on disk, averaged over the month.",
+        aggregation: "average",
         unit: "byte",
     },
     { package: storage },
@@ -65,20 +88,64 @@ export const calls = defineFeature(
         name: "api.calls",
         description: "API requests per billing period.",
         kind: "metered",
-        meter: requests.reference,
+        meters: [requests.reference],
         reset: "period",
     },
     { package: storage },
 );
 
 /** Bytes kept, never reset. */
-export const quota = defineFeature(
+export const storageLimit = defineFeature(
     {
-        name: "storage.quota",
+        name: "storage.limit",
         description: "Bytes kept in storage.",
         kind: "metered",
-        meter: stored.reference,
+        meters: [stored.reference],
         reset: "never",
+    },
+    { package: storage },
+);
+
+/** Bytes kept in storage and the archive together, never reset. */
+export const capacity = defineFeature(
+    {
+        name: "capacity",
+        description: "Bytes kept in storage and the archive together.",
+        kind: "metered",
+        allowance: "storage",
+        meters: [stored.reference, archived.reference],
+        reset: "never",
+    },
+    { package: storage },
+);
+
+/** Bytes kept on disk, never reset: capped at the level kept now. */
+export const diskLimit = defineFeature(
+    {
+        name: "disk.limit",
+        description: "Bytes kept on disk.",
+        kind: "metered",
+        meters: [disk.reference],
+        reset: "never",
+    },
+    { package: storage },
+);
+
+/** The disk Carol's shop resells, listed at 2 cents per GB-month kept on average. */
+export const diskSku = defineSku(
+    {
+        name: "cloudflare.r2.storage",
+        description: "Disk storage, kept on average over the month.",
+        provider: "cloudflare",
+        service: "R2",
+        category: "Storage",
+        meter: disk.reference,
+        pricingUnit: "GB-month",
+        unitSize: 1_000_000_000,
+        currency: CREDITS,
+        unitAmount: "2",
+        source: "https://developers.cloudflare.com/r2/pricing/",
+        observedAt: "2026-10-06",
     },
     { package: storage },
 );
