@@ -70,7 +70,7 @@ export function Noun(properties: { isOpen: boolean }) {
         >
             <Entry form={noun} />
             <FigureLabel
-                number={4}
+                number={3}
                 title={
                     properties.isOpen
                         ? "one app, built on one engine"

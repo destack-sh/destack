@@ -20,8 +20,8 @@ export function HomePage() {
             <Seo />
             <Verb isOpen={isOpen()} />
             <PastParticiple isOpen={isOpen()} onChange={setIsOpen} />
-            <Adjective isOpen={isOpen()} />
             <Noun isOpen={isOpen()} />
+            <Adjective isOpen={isOpen()} />
             <Participle isOpen={isOpen()} />
             <Interval />
         </Shell>

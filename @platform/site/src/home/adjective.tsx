@@ -44,7 +44,7 @@ export function Adjective(properties: { isOpen: boolean }) {
         >
             <Entry form={destackable} />
             <FigureLabel
-                number={3}
+                number={4}
                 title={
                     properties.isOpen
                         ? "an app you can always remix"
