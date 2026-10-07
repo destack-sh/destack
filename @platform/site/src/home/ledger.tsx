@@ -60,6 +60,7 @@ export type Entry = { stacked: Item; destacked: Item };
  *
  * Each row keeps its number and label in place, and flips its claim from the stacked item to the destacked one on its own step.
  * When the ledger takes presses, pressing a row destacks its item alone.
+ * When the ledger takes a badge, each destacked row shows it in place of the rented plates.
  */
 export function Ledger(properties: {
     entries: readonly Entry[];
@@ -68,6 +69,7 @@ export function Ledger(properties: {
     onToggle?: (row: number) => void;
     columns?: 1 | 2;
     lighting?: Lighting;
+    badgeOf?: (row: number) => JSX.Element;
 }) {
     // draw one face of a row shown in its state and hidden in the other
     const face = (item: Item, isRented: boolean, step: number) => (
@@ -87,7 +89,9 @@ export function Ledger(properties: {
                             <span {...stylex.attrs(plate.plate, plate.closed)}>{chip}</span>
                         ))}
                     </span>
-                ) : undefined}
+                ) : (
+                    <span {...stylex.attrs(styles.plates)}>{properties.badgeOf?.(step)}</span>
+                )}
             </span>
             <span {...stylex.attrs(styles.note)}>{item.note}</span>
         </span>
@@ -271,7 +275,7 @@ const styles = stylex.create({
         gridArea: "1 / 1",
         minWidth: 0,
         rowGap: "0.3125rem",
-        transitionDuration: "320ms",
+        transitionDuration: "240ms",
         transitionProperty: "opacity, transform",
         transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
     },

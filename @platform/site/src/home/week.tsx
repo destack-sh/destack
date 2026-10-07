@@ -284,13 +284,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                 data-service="4"
                                 {...stylex.attrs(styles.pair)}
                             >
-                                <span
-                                    data-component="EditAppButton"
-                                    {...stylex.attrs(styles.tab, styles.wide)}
-                                >
-                                    Edit app
-                                </span>
-                                <span {...stylex.attrs(styles.tab, styles.wide)}>Preview</span>
+                                <span {...stylex.attrs(styles.button, styles.wide)}>Discard</span>
                                 <span {...stylex.attrs(styles.button, styles.dark)}>Merge</span>
                             </span>
                         ) : (

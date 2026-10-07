@@ -15,7 +15,7 @@ const destacked: Form = {
     sense: {
         definition: "unified into one stack you control",
         highlight: ["unified", "control"],
-        sentence: "Your people, apps, data and context as one, without the hassle.",
+        sentence: "You, your people, apps, agents, data, and context in one unified place.",
     },
 };
 

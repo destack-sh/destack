@@ -14,9 +14,9 @@ const participle: Form = {
     pronunciation: "/diːˈstakɪŋ/",
     partOfSpeech: "present participle",
     sense: {
-        definition: "taking back control over your software stack",
-        highlight: ["control"],
-        sentence: "Start with one app, then a second, and keep going as long as you like.",
+        definition: "taking back your stack, one app at a time",
+        highlight: ["one app at a time"],
+        sentence: "Start with one app, bring your own agent, and keep going as far as you want.",
     },
 };
 
@@ -46,7 +46,7 @@ export function Participle(properties: { isOpen: boolean }) {
                 number={5}
                 title={
                     properties.isOpen
-                        ? "the same stack, owned and integrated"
+                        ? "the whole stack is here, owned and integrated"
                         : "the fragmented stack you use today"
                 }
             >

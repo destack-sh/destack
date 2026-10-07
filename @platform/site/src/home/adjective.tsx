@@ -10,7 +10,7 @@ import { StackSwitch } from "./switch";
 import { Window } from "./window";
 
 /** The milliseconds between the steps of the figure's switch, one per service. */
-const stepTime = 150;
+const stepTime = 80;
 
 /** The media query for screens narrower than the desktop frame, where the cells stack. */
 const narrow = "@media (max-width: 1099px)";
@@ -23,7 +23,7 @@ const destackable: Form = {
     sense: {
         definition: "malleable, standardised, and built to trust",
         highlight: ["malleable", "standardised"],
-        sentence: "Every app made from the same standard parts, so you can remix by just… asking.",
+        sentence: "Every app is made from the same modern, integrated, standardised stack.",
     },
 };
 

@@ -1,4 +1,5 @@
 import { color } from "@destack/theme/tokens.stylex";
+import { present } from "@destack/schema";
 import * as stylex from "@destack/style";
 import type { JSX } from "@destack/view";
 
@@ -95,7 +96,7 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "pages", tint: "#3d6fb0" },
             name: "Pages",
             chips: ["public"],
-            note: "a page on your own domain",
+            note: "your public page, from your space",
         },
     },
     {
@@ -132,29 +133,56 @@ export const holdings: readonly Entry[] = [
     },
 ];
 
-/** One page the browser shows: its ledger row, its path in your space, who sees it once owned, and the rented site's address. */
-export type Page = { row: number; path: string; viewers: readonly Viewer[]; site: string };
+/** One page the browser shows: its ledger row, the rail row of the app that opens it, its path in your space, who sees it once owned, and the rented site's address. */
+export type Page = {
+    row: number;
+    app: number;
+    path: string;
+    viewers: readonly Viewer[];
+    site: string;
+};
 
 /** The pages the browser turns through, one per ledger row. */
 export const pages: readonly Page[] = [
-    { row: 1, path: "/launch", viewers: ["Me", "Agent"], site: "florian.notion.site/Launch-plan" },
-    { row: 2, path: "/tasks", viewers: ["Me"], site: "linear.app/launch/team/LCH/all" },
+    {
+        row: 1,
+        app: 1,
+        path: "/launch",
+        viewers: ["Me", "Agent"],
+        site: "florian.notion.site/Launch-plan",
+    },
+    { row: 2, app: 2, path: "/tasks", viewers: ["Me"], site: "linear.app/launch/team/LCH/all" },
     {
         row: 3,
+        app: 3,
         path: "/chat",
         viewers: ["Me", "Agent"],
         site: "launchkit.slack.com/archives/launch",
     },
-    { row: 4, path: "/code", viewers: ["Me", "Agent"], site: "github.com/florian/launchkit" },
-    { row: 5, path: "/", viewers: ["Me", "Agent", "Public"], site: "florian.framer.website" },
+    {
+        row: 4,
+        app: 4,
+        path: "/code",
+        viewers: ["Me", "Agent"],
+        site: "github.com/florian/launchkit",
+    },
+    {
+        row: 5,
+        app: 1,
+        path: "/",
+        viewers: ["Me", "Agent", "Public"],
+        site: "florian.framer.website",
+    },
     {
         row: 6,
+        app: 6,
         path: "/book",
         viewers: ["Me", "Agent", "Public"],
         site: "calendly.com/florian/30min",
     },
     {
         row: 7,
+        app: 7,
         path: "/waitlist",
         viewers: ["Me", "Agent", "Public"],
         site: "florian-waitlist.replit.app",
@@ -172,7 +200,7 @@ const tabs: readonly (readonly [row: number, icon: string, tint: string, title: 
     [7, "replit", "#f26207", "Join the waitlist"],
 ];
 
-/** The sections of your own site: the ledger row, the name, and who sees it. */
+/** The apps of your own space on its rail: the ledger row, the name, the icon and its tint, and who sees it. */
 const sections: readonly (readonly [
     row: number,
     name: string,
@@ -180,11 +208,10 @@ const sections: readonly (readonly [
     tint: string,
     seen: readonly Viewer[],
 ])[] = [
-    [1, "Pages", "pages", "#3d6fb0", ["Me", "Agent"]],
+    [1, "Pages", "pages", "#3d6fb0", ["Me", "Agent", "Public"]],
     [2, "Tasks", "tasks", "#c64a17", ["Me"]],
     [3, "Chat", "chat", "#4f8a5b", ["Me", "Agent"]],
     [4, "Forge", "source", "#c64a17", ["Me", "Agent"]],
-    [5, "Site", "user", "#2f7d8c", ["Me", "Agent", "Public"]],
     [6, "Calendar", "calendar", "#c64a17", ["Me", "Agent", "Public"]],
     [7, "Tables", "table", "#4f8a5b", ["Me", "Agent", "Public"]],
 ];
@@ -193,7 +220,7 @@ const sections: readonly (readonly [
  * Draw your corner of the cloud in a browser, one page at a time.
  *
  * While rented, every page is a different site in its own tab, with its own look, login and sharing.
- * Once owned, every page is a section of one site at your own address, shown to whoever looks as far as access allows.
+ * Once owned, every page is an app of one space at your own handle, shown to whoever looks as far as access allows.
  * Every page lays out at the width of a real window and shows at four fifths of its size.
  */
 export function SpaceBrowser(properties: {
@@ -218,7 +245,7 @@ export function SpaceBrowser(properties: {
                         {...stylex.attrs(styles.tab, styles.tabOn)}
                     >
                         <Favicon icon="user" tint="#2f7d8c" />
-                        <span {...stylex.attrs(styles.tabTitle)}>florian.dev</span>
+                        <span {...stylex.attrs(styles.tabTitle)}>Florian</span>
                         <Glyph name="close" size={12} />
                     </span>
                 ) : (
@@ -259,11 +286,8 @@ export function SpaceBrowser(properties: {
                     <Glyph name="lock" size={12} />
                     {isOpen() ? (
                         <span {...stylex.attrs(styles.url)}>
-                            <span {...stylex.attrs(styles.host)}>florian.dev</span>
-                            {properties.page.path === "/" ? "" : properties.page.path}
-                            <span data-service="1" {...stylex.attrs(styles.points)}>
-                                → destack.app/@florian
-                            </span>
+                            <span {...stylex.attrs(styles.host)}>destack.app</span>
+                            /@florian{properties.page.path === "/" ? "" : properties.page.path}
                         </span>
                     ) : (
                         <span {...stylex.attrs(styles.url)}>
@@ -334,12 +358,12 @@ function AppRail(properties: { page: Page; viewer: Viewer }) {
                         style={{ "--tint": tint }}
                         {...stylex.attrs(
                             styles.railApp,
-                            row === properties.page.row && styles.railAppOn,
+                            row === properties.page.app && styles.railAppOn,
                         )}
                     >
                         <Favicon
                             icon={icon}
-                            tint={row === properties.page.row ? "#ffffff" : tint}
+                            tint={row === properties.page.app ? "#ffffff" : tint}
                             size={18}
                         />
                     </span>
@@ -350,14 +374,14 @@ function AppRail(properties: { page: Page; viewer: Viewer }) {
 
 /** Draw the bar every app in your space shares: its name and place, the search, and the preview of who is looking. */
 function AppBar(properties: { page: Page; viewer: Viewer; onViewer: (viewer: Viewer) => void }) {
-    const section = () => sections.find(([row]) => row === properties.page.row);
+    const section = () => sections.find(([row]) => row === properties.page.app);
 
     return (
         <div data-component="AppBar" {...stylex.attrs(styles.bar)}>
             <span {...stylex.attrs(styles.crumbs)}>
                 <b>{section()?.[1] ?? ""}</b>
                 <span {...stylex.attrs(styles.quiet)}>
-                    florian.dev{properties.page.path === "/" ? "" : properties.page.path}
+                    @florian{properties.page.path === "/" ? "" : properties.page.path}
                 </span>
             </span>
             <span {...stylex.attrs(styles.search)}>
@@ -385,7 +409,79 @@ function AppBar(properties: { page: Page; viewer: Viewer; onViewer: (viewer: Vie
     );
 }
 
-/** Draw a section of your own site by its ledger row. */
+/** Draw who can see a row's page as a stack of faces: you, your agent, and a globe for the public. */
+export function ViewerStack(properties: { row: number }) {
+    const page = () => present(pages[properties.row - 1], "row page");
+
+    return (
+        <span data-component="ViewerStack" {...stylex.attrs(styles.stack)}>
+            {page().viewers.map((viewer) =>
+                viewer === "Public" ? (
+                    <span title="Public" {...stylex.attrs(styles.face, styles.facePublic)}>
+                        <Glyph name="globe" size={11} />
+                    </span>
+                ) : (
+                    <span
+                        title={viewer === "Me" ? "Florian" : "Agent"}
+                        style={{ "background-color": viewer === "Me" ? "#2f7d8c" : "#6b5ca5" }}
+                        {...stylex.attrs(styles.face)}
+                    >
+                        {viewer === "Me" ? "F" : "A"}
+                    </span>
+                ),
+            )}
+        </span>
+    );
+}
+
+/** Lay out an app of your space the same way in every app: its list on the left and the open item beside it. */
+function Paned(properties: { pane: JSX.Element; children: JSX.Element }) {
+    return (
+        <div {...stylex.attrs(styles.paned)}>
+            <nav data-component="AppList" {...stylex.attrs(styles.pane)}>
+                {properties.pane}
+            </nav>
+            {properties.children}
+        </div>
+    );
+}
+
+/** Draw one group of an app's list the same way in every app: its title, and each item with its count, the open one lit. */
+function PaneGroup(properties: {
+    title: string;
+    items: readonly (readonly [name: string, meta: string])[];
+    open?: string;
+}) {
+    return (
+        <span {...stylex.attrs(styles.group)}>
+            <span {...stylex.attrs(styles.groupTitle)}>{properties.title}</span>
+            {properties.items.map(([name, meta]) => (
+                <span {...stylex.attrs(styles.item, name === properties.open && styles.itemOn)}>
+                    <span {...stylex.attrs(styles.itemName)}>{name}</span>
+                    <span {...stylex.attrs(styles.itemMeta)}>{meta}</span>
+                </span>
+            ))}
+        </span>
+    );
+}
+
+/** Draw the list of your Pages, with the open page lit. */
+function PagesList(properties: { open: string }) {
+    return (
+        <PaneGroup
+            title="Pages"
+            open={properties.open}
+            items={[
+                ["Launch plan", ""],
+                ["Website", "public"],
+                ["Pricing v4", ""],
+                ["Notes", ""],
+            ]}
+        />
+    );
+}
+
+/** Draw a section of your own space by its ledger row. */
 function sectionOf(row: number): JSX.Element {
     if (row === 1) {
         return <Launch />;
@@ -414,18 +510,16 @@ function Audience(properties: { children: string }) {
     );
 }
 
-/** Draw a section's title row the same way in every app: the title, who can see it, and the app's main action. */
+/** Draw a section's heading the same way in every app: the title and the app's main action, with who can see it under them. */
 function Heading(properties: { title: string; audience: string; action: string }) {
     return (
         <span {...stylex.attrs(styles.heading)}>
             <b {...stylex.attrs(styles.title)}>{properties.title}</b>
-            <span {...stylex.attrs(styles.headingEnd)}>
-                <Audience>{properties.audience}</Audience>
-                <span {...stylex.attrs(styles.action)}>
-                    <Glyph name="plus" size={14} />
-                    {properties.action}
-                </span>
+            <span {...stylex.attrs(styles.action)}>
+                <Glyph name="plus" size={14} />
+                {properties.action}
             </span>
+            <Audience>{properties.audience}</Audience>
         </span>
     );
 }
@@ -433,241 +527,348 @@ function Heading(properties: { title: string; audience: string; action: string }
 /** Draw your waitlist: the same page at your own address, its signups in the Tables you already use. */
 function Waitlist() {
     return (
-        <div data-component="Waitlist" {...stylex.attrs(styles.body)}>
-            <Heading
-                title="The launch tool you'll actually use"
-                audience="Public"
-                action="New field"
-            />
-            <span {...stylex.attrs(styles.lead)}>
-                Pricing v4 opens on Friday. Leave your email and we'll send you an invite.
-            </span>
-            <span {...stylex.attrs(styles.signup)}>
-                <span {...stylex.attrs(styles.input)}>you@company.com</span>
-                <span {...stylex.attrs(styles.join)}>Join waitlist</span>
-            </span>
-            <ul {...stylex.attrs(styles.perks)}>
-                {perks.map(([title, line]) => (
-                    <li {...stylex.attrs(styles.perk)}>
-                        <b>{title}</b>
-                        <span {...stylex.attrs(styles.quiet)}>{line}</span>
-                    </li>
-                ))}
-            </ul>
-            <span {...stylex.attrs(styles.built)}>
-                <Glyph name="grid" size={14} />
-                1,840 signups in your Tables · 24 today · your agent sees them in Launch
-            </span>
-        </div>
+        <Paned
+            pane={
+                <PaneGroup
+                    title="Tables"
+                    open="Waitlist"
+                    items={[
+                        ["Waitlist", "form"],
+                        ["Signups", "1,840"],
+                        ["Invites", "400"],
+                        ["Feedback", "12"],
+                    ]}
+                />
+            }
+        >
+            <div data-component="Waitlist" {...stylex.attrs(styles.body)}>
+                <Heading title="Waitlist" audience="Public" action="New field" />
+                <span {...stylex.attrs(styles.lead)}>
+                    The launch tool you'll actually use. Leave your email and we'll send you an
+                    invite.
+                </span>
+                <span {...stylex.attrs(styles.signup)}>
+                    <span {...stylex.attrs(styles.input)}>you@company.com</span>
+                    <span {...stylex.attrs(styles.join)}>Join waitlist</span>
+                </span>
+                <ul {...stylex.attrs(styles.perks)}>
+                    {perks.map(([title, line]) => (
+                        <li {...stylex.attrs(styles.perk)}>
+                            <b>{title}</b>
+                            <span {...stylex.attrs(styles.quiet)}>{line}</span>
+                        </li>
+                    ))}
+                </ul>
+                <span {...stylex.attrs(styles.built)}>
+                    <Glyph name="grid" size={14} />
+                    1,840 signups in your Tables · 24 today
+                </span>
+            </div>
+        </Paned>
     );
 }
 
 /** Draw your writing: the same posts on your own domain. */
 function Writing() {
     return (
-        <div data-component="Writing" {...stylex.attrs(styles.body)}>
-            <Heading title="Notes on building small software" audience="Public" action="New post" />
-            <span {...stylex.attrs(styles.lead)}>
-                Product, pricing and the tools I run my work on.
-            </span>
-            <ol {...stylex.attrs(styles.postGrid)}>
-                {posts.map(([title, topic, date, from, to], index) => (
-                    <li {...stylex.attrs(styles.post)}>
-                        <span
-                            style={{
-                                background: coverOf(index, from, to),
-                            }}
-                            {...stylex.attrs(styles.cover)}
-                        />
-                        <span {...stylex.attrs(styles.meta)}>
-                            {topic} · {date}
-                        </span>
-                        <b {...stylex.attrs(styles.postTitle)}>{title}</b>
-                    </li>
-                ))}
-            </ol>
-        </div>
+        <Paned pane={<PagesList open="Website" />}>
+            <div data-component="Writing" {...stylex.attrs(styles.body)}>
+                <Heading title="Notes" audience="Public" action="New post" />
+                <span {...stylex.attrs(styles.lead)}>
+                    On building small software: product, pricing and the tools I run it on.
+                </span>
+                <ol {...stylex.attrs(styles.postGrid)}>
+                    {posts.map(([title, topic, date, from, to], index) => (
+                        <li {...stylex.attrs(styles.post)}>
+                            <span
+                                style={{
+                                    background: coverOf(index, from, to),
+                                }}
+                                {...stylex.attrs(styles.cover)}
+                            />
+                            <span {...stylex.attrs(styles.meta)}>
+                                {topic} · {date}
+                            </span>
+                            <b {...stylex.attrs(styles.postTitle)}>{title}</b>
+                        </li>
+                    ))}
+                </ol>
+            </div>
+        </Paned>
     );
 }
 
 /** Draw your booking page: free times taken from your own week. */
 function Book() {
     return (
-        <div data-component="Book" {...stylex.attrs(styles.body)}>
-            <Heading title="Book a 30 minute call" audience="Public" action="New slot" />
-            <div {...stylex.attrs(styles.booking)}>
-                <div {...stylex.attrs(styles.monthPanel)}>
-                    <b {...stylex.attrs(styles.panelTitle)}>October 2025</b>
-                    <div {...stylex.attrs(styles.days)}>
-                        {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
-                            <span {...stylex.attrs(styles.weekday)}>{day}</span>
-                        ))}
-                        {Array.from({ length: month.first }, () => (
-                            <span />
-                        ))}
-                        {Array.from({ length: month.days }, (_, index) => index + 1).map((date) => (
-                            <span
-                                {...stylex.attrs(
-                                    styles.day,
-                                    month.open.includes(date) && styles.dayOpen,
-                                    date === month.chosen && styles.dayChosen,
-                                )}
-                            >
-                                {date}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-                <div {...stylex.attrs(styles.slots)}>
-                    <b {...stylex.attrs(styles.panelTitle)}>Tuesday, October 28</b>
+        <Paned
+            pane={
+                <>
+                    <span {...stylex.attrs(styles.group)}>
+                        <span {...stylex.attrs(styles.groupTitle)}>October 2025</span>
+                        <span {...stylex.attrs(styles.days)}>
+                            {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
+                                <span {...stylex.attrs(styles.weekday)}>{day}</span>
+                            ))}
+                            {Array.from({ length: month.first }, () => (
+                                <span />
+                            ))}
+                            {Array.from({ length: month.days }, (_, index) => index + 1).map(
+                                (date) => (
+                                    <span
+                                        {...stylex.attrs(
+                                            styles.day,
+                                            month.open.includes(date) && styles.dayOpen,
+                                            date === month.chosen && styles.dayChosen,
+                                        )}
+                                    >
+                                        {date}
+                                    </span>
+                                ),
+                            )}
+                        </span>
+                    </span>
+                    <PaneGroup
+                        title="Event types"
+                        open="30 minute call"
+                        items={[
+                            ["30 minute call", "30m"],
+                            ["Demo", "45m"],
+                            ["Office hours", "Fri"],
+                        ]}
+                    />
+                </>
+            }
+        >
+            <div data-component="Book" {...stylex.attrs(styles.body)}>
+                <Heading title="30 minute call" audience="Public" action="New slot" />
+                <b {...stylex.attrs(styles.panelTitle)}>Tuesday, October 28</b>
+                <span {...stylex.attrs(styles.slots)}>
                     {times.map((time) => (
                         <span {...stylex.attrs(styles.slot)}>{time}</span>
                     ))}
-                    <span {...stylex.attrs(styles.note)}>
-                        Free times come from your Calendar, and a booking lands there with a prep
-                        task.
-                    </span>
-                </div>
+                </span>
+                <span {...stylex.attrs(styles.note)}>
+                    Free times come from your Calendar, and a booking lands there with a prep task.
+                </span>
             </div>
-        </div>
+        </Paned>
     );
 }
 
 /** Draw the launch plan: the same page, shared with your agent and edited together. */
 function Launch() {
     return (
-        <div data-component="Launch" {...stylex.attrs(styles.body)}>
-            <Heading title="Launch plan" audience="You and your agent" action="New page" />
-            <dl {...stylex.attrs(styles.properties)}>
-                <dt {...stylex.attrs(styles.key)}>Status</dt>
-                <dd {...stylex.attrs(styles.value)}>
-                    <span {...stylex.attrs(styles.pill)}>In progress</span>
-                </dd>
-                <dt {...stylex.attrs(styles.key)}>Launch</dt>
-                <dd {...stylex.attrs(styles.value)}>October 24, 2025</dd>
-                <dt {...stylex.attrs(styles.key)}>Owner</dt>
-                <dd {...stylex.attrs(styles.value)}>Florian</dd>
-            </dl>
-            <p {...stylex.attrs(styles.callout)}>
-                Ship to the waitlist on Thursday, then open signups on Friday.
-            </p>
-            <ul {...stylex.attrs(styles.checklist)}>
-                {launch.map(([item, isDone]) => (
-                    <li {...stylex.attrs(styles.check)}>
-                        <span {...stylex.attrs(styles.box, isDone && styles.boxDone)}>
-                            {isDone ? <Glyph name="check" size={12} weight={3} /> : undefined}
-                        </span>
-                        <span {...stylex.attrs(isDone && styles.struck)}>{item}</span>
-                        {item.startsWith("Record") ? (
-                            <span {...stylex.attrs(styles.cursor)}>Agent</span>
-                        ) : undefined}
-                    </li>
-                ))}
-            </ul>
-        </div>
+        <Paned pane={<PagesList open="Launch plan" />}>
+            <div data-component="Launch" {...stylex.attrs(styles.body)}>
+                <Heading title="Launch plan" audience="You and your agent" action="New page" />
+                <dl {...stylex.attrs(styles.properties)}>
+                    <dt {...stylex.attrs(styles.key)}>Status</dt>
+                    <dd {...stylex.attrs(styles.value)}>
+                        <span {...stylex.attrs(styles.pill)}>In progress</span>
+                    </dd>
+                    <dt {...stylex.attrs(styles.key)}>Launch</dt>
+                    <dd {...stylex.attrs(styles.value)}>October 24, 2025</dd>
+                    <dt {...stylex.attrs(styles.key)}>Owner</dt>
+                    <dd {...stylex.attrs(styles.value)}>Florian</dd>
+                </dl>
+                <p {...stylex.attrs(styles.callout)}>
+                    Ship to the waitlist on Thursday, then open signups on Friday.
+                </p>
+                <ul {...stylex.attrs(styles.checklist)}>
+                    {launch.map(([item, isDone]) => (
+                        <li {...stylex.attrs(styles.check)}>
+                            <span {...stylex.attrs(styles.box, isDone && styles.boxDone)}>
+                                {isDone ? <Glyph name="check" size={12} weight={3} /> : undefined}
+                            </span>
+                            <span {...stylex.attrs(isDone && styles.struck)}>{item}</span>
+                            {item.startsWith("Record") ? (
+                                <span {...stylex.attrs(styles.cursor)}>Agent</span>
+                            ) : undefined}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </Paned>
     );
 }
 
 /** Draw the launch channel: one thread in your own Chat, with your agent in it by name. */
 function Chat() {
     return (
-        <div data-component="Chat" {...stylex.attrs(styles.body)}>
-            <Heading title="# launch" audience="You and your agent" action="New thread" />
-            <ul {...stylex.attrs(styles.messages)}>
-                {messages.map(([author, time, text]) => (
-                    <li {...stylex.attrs(styles.message)}>
-                        <span
-                            style={{
-                                "background-color": author === "Agent" ? "#6b5ca5" : "#2f7d8c",
-                            }}
-                            {...stylex.attrs(styles.avatar)}
-                        >
-                            {author === "Agent" ? "A" : "F"}
-                        </span>
-                        <span {...stylex.attrs(styles.messageBody)}>
-                            <span>
-                                <b>{author === "Agent" ? "Agent" : "Florian"}</b>
-                                <span {...stylex.attrs(styles.quiet)}> {time}</span>
+        <Paned
+            pane={
+                <>
+                    <PaneGroup
+                        title="Channels"
+                        open="# launch"
+                        items={[
+                            ["# launch", ""],
+                            ["# general", ""],
+                            ["# design", ""],
+                        ]}
+                    />
+                    <PaneGroup
+                        title="Direct"
+                        items={[
+                            ["Agent", ""],
+                            ["Friend", "1"],
+                        ]}
+                    />
+                </>
+            }
+        >
+            <div data-component="Chat" {...stylex.attrs(styles.body)}>
+                <Heading title="# launch" audience="You and your agent" action="New thread" />
+                <ul {...stylex.attrs(styles.messages)}>
+                    {messages.map(([author, time, text], index) => (
+                        <li {...stylex.attrs(styles.message)}>
+                            <span
+                                style={{
+                                    "background-color": author === "Agent" ? "#6b5ca5" : "#2f7d8c",
+                                }}
+                                {...stylex.attrs(styles.avatar)}
+                            >
+                                {author === "Agent" ? "A" : "F"}
                             </span>
-                            {text}
-                        </span>
-                    </li>
-                ))}
-            </ul>
-            <span {...stylex.attrs(styles.composer)}>Message #launch, or ask your agent</span>
-        </div>
+                            <span {...stylex.attrs(styles.messageBody)}>
+                                <span>
+                                    <b>{author === "Agent" ? "Agent" : "Florian"}</b>
+                                    <span {...stylex.attrs(styles.quiet)}> {time}</span>
+                                </span>
+                                {text}
+                                {index === 1 ? (
+                                    <span {...stylex.attrs(styles.reactions)}>
+                                        <span {...stylex.attrs(styles.reaction)}>👍 2</span>
+                                        <span {...stylex.attrs(styles.reaction)}>🚀 1</span>
+                                    </span>
+                                ) : undefined}
+                                {index === 2 ? (
+                                    <span {...stylex.attrs(styles.replies)}>
+                                        3 replies · today at 09:52
+                                    </span>
+                                ) : undefined}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+                <span {...stylex.attrs(styles.composer)}>Message #launch, or ask your agent</span>
+            </div>
+        </Paned>
     );
 }
 
 /** Draw the code behind your apps: every app's source in your own Forge. */
 function Code() {
     return (
-        <div data-component="Code" {...stylex.attrs(styles.body)}>
-            <Heading title="launchkit" audience="You and your agent" action="New branch" />
-            <span {...stylex.attrs(styles.lead)}>
-                The waitlist, the site and My week, with their history.
-            </span>
-            <table {...stylex.attrs(styles.table)}>
-                <tbody>
-                    {sources.map(([name, change, when]) => (
-                        <tr>
-                            <td {...stylex.attrs(styles.td)}>
-                                <span {...stylex.attrs(styles.fileName)}>
-                                    <Glyph
-                                        name={name.includes(".") ? "file" : "folder"}
-                                        size={18}
-                                    />
-                                    {name}
-                                </span>
-                            </td>
-                            <td {...stylex.attrs(styles.td, styles.quiet)}>{change}</td>
-                            <td {...stylex.attrs(styles.td, styles.quiet, styles.figure)}>
-                                {when}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        <Paned
+            pane={
+                <>
+                    <PaneGroup
+                        title="Repositories"
+                        open="launchkit"
+                        items={[["launchkit", "3 apps"]]}
+                    />
+                    <PaneGroup
+                        title="Branches"
+                        items={[
+                            ["main", ""],
+                            ["friend-free-slots", "+1"],
+                        ]}
+                    />
+                </>
+            }
+        >
+            <div data-component="Code" {...stylex.attrs(styles.body)}>
+                <Heading title="launchkit" audience="You and your agent" action="New branch" />
+                <span {...stylex.attrs(styles.commit)}>
+                    <span {...stylex.attrs(styles.avatar, styles.avatarSmall)}>F</span>
+                    <b>Florian</b>
+                    <span {...stylex.attrs(styles.commitText)}>
+                        Mail the first batch on Thursday
+                    </span>
+                    <span {...stylex.attrs(styles.quiet, styles.figure)}>a41f2c9 · 2h ago</span>
+                </span>
+                <table {...stylex.attrs(styles.table)}>
+                    <tbody>
+                        {sources.map(([name, change, when]) => (
+                            <tr>
+                                <td {...stylex.attrs(styles.td)}>
+                                    <span {...stylex.attrs(styles.fileName)}>
+                                        <Glyph
+                                            name={name.includes(".") ? "file" : "folder"}
+                                            size={18}
+                                        />
+                                        {name}
+                                    </span>
+                                </td>
+                                <td {...stylex.attrs(styles.td, styles.quiet)}>{change}</td>
+                                <td {...stylex.attrs(styles.td, styles.quiet, styles.figure)}>
+                                    {when}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </Paned>
     );
 }
 
 /** Draw the launch tasks: your own list, seen by you alone. */
 function Tasks() {
     return (
-        <div data-component="Tasks" {...stylex.attrs(styles.body)}>
-            <Heading title="Launch tasks" audience="Only you" action="New task" />
-            <ul {...stylex.attrs(styles.taskList)}>
-                {tasks.map(([id, title, state, owner, tint, due]) => (
-                    <li {...stylex.attrs(styles.task)}>
-                        <span
-                            {...stylex.attrs(
-                                styles.box,
-                                state === "done" && styles.boxDone,
-                                state === "started" && styles.boxStarted,
-                            )}
-                        >
-                            {state === "done" ? (
-                                <Glyph name="check" size={12} weight={3} />
-                            ) : undefined}
-                        </span>
-                        <span {...stylex.attrs(styles.taskId)}>{id}</span>
-                        <span
-                            {...stylex.attrs(styles.taskTitle, state === "done" && styles.struck)}
-                        >
-                            {title}
-                        </span>
-                        <span {...stylex.attrs(styles.quiet)}>{due}</span>
-                        <span
-                            style={{ "background-color": tint }}
-                            {...stylex.attrs(styles.avatar, styles.avatarSmall)}
-                        >
-                            {owner}
-                        </span>
-                    </li>
-                ))}
-            </ul>
-        </div>
+        <Paned
+            pane={
+                <PaneGroup
+                    title="Views"
+                    open="Launch"
+                    items={[
+                        ["Launch", "6"],
+                        ["My tasks", "4"],
+                        ["Agent", "2"],
+                        ["Done", "12"],
+                    ]}
+                />
+            }
+        >
+            <div data-component="Tasks" {...stylex.attrs(styles.body)}>
+                <Heading title="Launch tasks" audience="Only you" action="New task" />
+                <ul {...stylex.attrs(styles.taskList)}>
+                    {tasks.map(([id, title, state, owner, tint, due]) => (
+                        <li {...stylex.attrs(styles.task)}>
+                            <span
+                                {...stylex.attrs(
+                                    styles.box,
+                                    state === "done" && styles.boxDone,
+                                    state === "started" && styles.boxStarted,
+                                )}
+                            >
+                                {state === "done" ? (
+                                    <Glyph name="check" size={12} weight={3} />
+                                ) : undefined}
+                            </span>
+                            <span {...stylex.attrs(styles.taskId)}>{id}</span>
+                            <span
+                                {...stylex.attrs(
+                                    styles.taskTitle,
+                                    state === "done" && styles.struck,
+                                )}
+                            >
+                                {title}
+                            </span>
+                            <span {...stylex.attrs(styles.quiet)}>{due}</span>
+                            <span
+                                style={{ "background-color": tint }}
+                                {...stylex.attrs(styles.avatar, styles.avatarSmall)}
+                            >
+                                {owner}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </Paned>
     );
 }
 
@@ -825,12 +1026,6 @@ const styles = stylex.create({
     host: {
         color: color.foreground,
     },
-    points: {
-        color: tokens.signal,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.68rem",
-        marginLeft: "0.75rem",
-    },
     viewport: {
         maskImage: "linear-gradient(to bottom, #000 calc(100% - 1rem), transparent)",
         minHeight: 0,
@@ -915,11 +1110,6 @@ const styles = stylex.create({
         fontSize: "11px",
         marginLeft: "auto",
     },
-    headingEnd: {
-        alignItems: "center",
-        display: "flex",
-        gap: "10px",
-    },
     action: {
         alignItems: "center",
         backgroundColor: color.foreground,
@@ -930,6 +1120,7 @@ const styles = stylex.create({
         fontWeight: 600,
         gap: "6px",
         padding: "7px 12px",
+        whiteSpace: "nowrap",
     },
     composer: {
         borderColor: tokens.rule,
@@ -1009,13 +1200,130 @@ const styles = stylex.create({
         alignContent: "start",
         display: "grid",
         gap: "20px",
-        padding: "40px",
+        minWidth: 0,
+        padding: "36px",
+    },
+    paned: {
+        display: "grid",
+        gridTemplateColumns: "200px minmax(0, 1fr)",
+        minHeight: 0,
+    },
+    pane: {
+        alignContent: "start",
+        backgroundColor: `color-mix(in srgb, ${color.muted} 40%, ${color.card})`,
+        borderRightColor: tokens.rule,
+        borderRightStyle: "solid",
+        borderRightWidth: tokens.hairline,
+        display: "grid",
+        gap: "24px",
+        paddingBlock: "24px",
+        paddingInline: "12px",
+    },
+    group: {
+        display: "grid",
+        gap: "2px",
+    },
+    groupTitle: {
+        color: color.mutedForeground,
+        fontFamily: tokens.monoFont,
+        fontSize: "11px",
+        letterSpacing: "0.1em",
+        paddingBottom: "6px",
+        paddingInline: "10px",
+        textTransform: "uppercase",
+    },
+    item: {
+        alignItems: "baseline",
+        borderRadius: "6px",
+        color: color.mutedForeground,
+        display: "flex",
+        fontSize: "14px",
+        gap: "8px",
+        paddingBlock: "6px",
+        paddingInline: "10px",
+    },
+    itemOn: {
+        backgroundColor: color.muted,
+        color: color.foreground,
+        fontWeight: 600,
+    },
+    itemName: {
+        flexGrow: 1,
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    itemMeta: {
+        fontFamily: tokens.monoFont,
+        fontSize: "12px",
+        fontWeight: 400,
+    },
+    stack: {
+        display: "flex",
+        paddingLeft: "4px",
+    },
+    face: {
+        alignItems: "center",
+        borderColor: color.background,
+        borderRadius: "50%",
+        borderStyle: "solid",
+        borderWidth: "2px",
+        color: "#ffffff",
+        display: "inline-flex",
+        fontSize: "0.625rem",
+        fontWeight: 700,
+        height: "1.375rem",
+        justifyContent: "center",
+        marginLeft: "-4px",
+        width: "1.375rem",
+    },
+    facePublic: {
+        backgroundColor: color.muted,
+        color: color.mutedForeground,
+    },
+    reactions: {
+        display: "flex",
+        gap: "6px",
+        paddingTop: "6px",
+    },
+    reaction: {
+        borderColor: tokens.rule,
+        borderRadius: "999px",
+        borderStyle: "solid",
+        borderWidth: tokens.hairline,
+        fontSize: "13px",
+        paddingBlock: "1px",
+        paddingInline: "8px",
+    },
+    replies: {
+        color: "#3d6fb0",
+        fontSize: "14px",
+        fontWeight: 600,
+        paddingTop: "4px",
+    },
+    commit: {
+        alignItems: "center",
+        backgroundColor: color.muted,
+        borderRadius: "8px",
+        display: "flex",
+        fontSize: "14px",
+        gap: "10px",
+        padding: "10px 14px",
+        whiteSpace: "nowrap",
+    },
+    commitText: {
+        color: color.mutedForeground,
+        flexGrow: 1,
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
     },
     heading: {
         alignItems: "center",
-        display: "flex",
-        gap: "16px",
-        justifyContent: "space-between",
+        display: "grid",
+        gap: "12px 16px",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
     },
     title: {
         fontSize: "36px",
@@ -1103,26 +1411,9 @@ const styles = stylex.create({
         fontSize: "13px",
     },
     postTitle: {
-        fontSize: "19px",
+        fontSize: "16px",
         fontWeight: 600,
         lineHeight: 1.3,
-    },
-    booking: {
-        borderColor: tokens.rule,
-        borderRadius: "12px",
-        borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) 240px",
-    },
-    monthPanel: {
-        borderRightColor: tokens.rule,
-        borderRightStyle: "solid",
-        borderRightWidth: tokens.hairline,
-        alignContent: "start",
-        display: "grid",
-        gap: "12px",
-        padding: "20px 28px",
     },
     panelTitle: {
         fontSize: "17px",
@@ -1132,11 +1423,12 @@ const styles = stylex.create({
         display: "grid",
         gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
         justifyItems: "center",
+        paddingInline: "4px",
         rowGap: "2px",
     },
     weekday: {
         color: color.mutedForeground,
-        fontSize: "12px",
+        fontSize: "11px",
         textAlign: "center",
     },
     day: {
@@ -1144,10 +1436,10 @@ const styles = stylex.create({
         borderRadius: "50%",
         color: color.mutedForeground,
         display: "flex",
-        fontSize: "15px",
-        height: "38px",
+        fontSize: "12px",
+        height: "24px",
         justifyContent: "center",
-        width: "38px",
+        width: "24px",
     },
     dayOpen: {
         backgroundColor: "rgb(60 143 88 / 12%)",
@@ -1159,10 +1451,9 @@ const styles = stylex.create({
         color: "#ffffff",
     },
     slots: {
-        alignContent: "start",
         display: "grid",
         gap: "10px",
-        padding: "24px",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     },
     slot: {
         borderColor: "#3c8f58",

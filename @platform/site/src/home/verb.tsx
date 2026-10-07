@@ -8,7 +8,7 @@ import { Fade } from "./fade";
 import { Inspector } from "./inspector";
 import { Label } from "./label";
 import { Ledger } from "./ledger";
-import { holdings, pages, SpaceBrowser, type Viewer } from "./space";
+import { holdings, pages, SpaceBrowser, ViewerStack, type Viewer } from "./space";
 import { createSteps } from "./stagger";
 import { StackSwitch } from "./switch";
 
@@ -16,7 +16,7 @@ import { StackSwitch } from "./switch";
 const narrow = "@media (max-width: 1099px)";
 
 /** The milliseconds between the steps of the figure's switch, one per holding. */
-const stepTime = 110;
+const stepTime = 60;
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
 const settleIn = 80;
@@ -150,12 +150,13 @@ export function Verb(properties: { isOpen: boolean }) {
                     entries={holdings}
                     total={
                         isOpenAt(holdings.length + 1)
-                            ? ["1 space, 1 stack", "1 account · florian.dev"]
+                            ? ["1 space, 1 stack", "1 account · @florian"]
                             : ["7 sites, 7 stacks", "7 accounts · 7 invoices"]
                     }
                     lighting={lighting}
                     isOpenAt={isOpenAt}
                     columns={1}
+                    badgeOf={(row) => <ViewerStack row={row} />}
                 />
             </div>
         </section>

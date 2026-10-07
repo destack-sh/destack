@@ -19,7 +19,7 @@ import { Window } from "./window";
 const narrow = "@media (max-width: 1099px)";
 
 /** The milliseconds between the steps of the figure's switch, one per service. */
-const stepTime = 70;
+const stepTime = 40;
 
 /** The noun. */
 const noun: Form = {
