@@ -1,15 +1,16 @@
 import { createHash } from "node:crypto";
 import { principal } from "@destack/access";
-import { invokeService } from "@destack/audit";
+import { serviceInvoke } from "@destack/audit";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { ServiceError } from "@destack/service/error";
 import { aligned, schema, present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "@destack/test";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, refusal, test } from "@destack/test";
+import { space } from "@destack/space/object";
 import { vi } from "vitest";
 import { v7 } from "uuid";
-import { spaceService } from "@destack/space/service";
+import { bucketService } from "../service/index.ts";
 import * as bucketObject from "../object/index.ts";
 import { LEASE_LIFETIME } from "./bucket.ts";
 import { BucketFixture, NOW, PRESIGNED } from "../test/index.ts";
@@ -333,7 +334,7 @@ test.for(TEST_DIALECTS)(
             present(databases.get(dialect), "dialect").database,
         );
         const { client, bucket } = fixture;
-        const refusal = new ServiceError("BAD_REQUEST", {
+        const dotted = new ServiceError("BAD_REQUEST", {
             message: "invalid input: key: file keys refuse . and .. segments",
         });
 
@@ -348,8 +349,8 @@ test.for(TEST_DIALECTS)(
                     httpMetadata: {},
                     customMetadata: {},
                 }),
-            ).rejects.toEqual(refusal);
-            await expect(client.open({ mode: "read", ...bucket, key })).rejects.toEqual(refusal);
+            ).rejects.toEqual(dotted);
+            await expect(client.open({ mode: "read", ...bucket, key })).rejects.toEqual(dotted);
         }
 
         // store hidden and dotted names at their exact keys
@@ -466,18 +467,18 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
     const denial = aligned(audits, 0);
     expect(audits).toEqual([
         {
-            method: invokeService.name,
+            method: serviceInvoke.name,
             input: {},
-            release: invokeService.package.version,
+            release: serviceInvoke.package.version,
             execution: {
                 id: denial.execution.id,
                 requestId: denial.execution.requestId,
                 category: "denial",
                 context: {
                     caller: { type: "subject", subject: member },
-                    package: spaceService.package,
+                    package: bucketService.package,
                     scope: fixture.spaceId,
-                    service: spaceService.name,
+                    service: bucketService.name,
                 },
                 details: { authentication: "public" },
                 outcome: {
@@ -556,7 +557,7 @@ test.for(TEST_DIALECTS)(
             present(databases.get(dialect), "dialect").database,
         );
         const { client, bucket, spaceId } = fixture;
-        const using = principal.installation.reference(spaceId, await fixture.install("files"));
+        const using = principal.installation.reference(spaceId, await fixture.install());
         const other = principal.installation.reference(
             spaceId,
             schema.identifier("installation").parse(`installation-${v7()}`),
@@ -598,7 +599,7 @@ test.for(TEST_DIALECTS)(
         const { client, bucket, spaceId } = fixture;
         await fixture.files.put("builds/manifest.json", "{}");
         const { uploadId } = await fixture.files.createMultipartUpload("builds/archive.tar");
-        const consumer = principal.installation.reference(spaceId, await fixture.install("files"));
+        const consumer = principal.installation.reference(spaceId, await fixture.install());
 
         // declare the bucket written by the system alone
         await fixture.database
@@ -715,7 +716,7 @@ test.for(TEST_DIALECTS)(
         // transfer the lease once the fence lifts
         await fixture.files.lift();
         const lifted = await fixture.transfer(lease, "first");
-        const fenced = new ServiceError("UNAVAILABLE", {
+        const fenced = new ServiceError("SERVICE_UNAVAILABLE", {
             message: "bucket is fenced while a transfer copies it",
             status: 503,
             defined: true,
@@ -755,3 +756,60 @@ function errorDocument(
 
     return `<?xml version="1.0" encoding="UTF-8"?><Error><Code>${code}</Code><Message>${message}</Message><Resource>${resource}</Resource><RequestId>${requestId}</RequestId></Error>`;
 }
+
+test.for(TEST_DIALECTS)(
+    "refuse writes into a space whose storage exceeds its quota, keeping reads and removals on %s",
+    async (dialect) => {
+        await using fixture = await BucketFixture.open(
+            present(databases.get(dialect), "dialect").database,
+        );
+        const { client, bucket } = fixture;
+
+        // cap the space's storage, as its cell records the account's blocked allowance
+        const capped = {
+            status: "false",
+            observedGeneration: 1,
+            reason: "Blocked",
+            message: "storage used 1100 of 1000",
+            lastTransitionAt: NOW,
+        } as const;
+        await fixture.database
+            .update(space.table)
+            .set({ conditions: { storage: capped } })
+            .where(eq(space.table.id, fixture.spaceId));
+
+        // refuse an upload and a multipart upload, and read and remove as before
+        const write = {
+            mode: "write",
+            ...bucket,
+            key: "a.txt",
+            size: 1,
+            httpMetadata: {},
+            customMetadata: {},
+        } as const;
+        const refused = await refusal(client.open(write));
+        const multipart = await refusal(
+            client.createUpload({
+                ...bucket,
+                requestId: RequestId.create(),
+                key: "b.bin",
+                httpMetadata: {},
+                customMetadata: {},
+            }),
+        );
+        const listed = await client.files({ ...bucket, limit: 10 });
+        const removed = await client.remove({
+            ...bucket,
+            requestId: RequestId.create(),
+            keys: ["a.txt"],
+        });
+
+        const message = `space ${fixture.spaceId} exceeds its quota: storage used 1100 of 1000`;
+        expect({ refused, multipart, listed: listed.files, removed }).toEqual({
+            refused: ["QUOTA_EXCEEDED", message],
+            multipart: ["QUOTA_EXCEEDED", message],
+            listed: [],
+            removed,
+        });
+    },
+);

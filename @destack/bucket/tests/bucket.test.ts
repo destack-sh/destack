@@ -34,3 +34,7 @@ test.each(cases)("$name through local and R2 buckets", async ({ run }) => {
         await rm(directory, { recursive: true });
     }
 });
+
+test("count each R2 operation a bucket sends in the class R2 bills it in, each in exactly one take", async () => {
+    await runR2("exerciseOperations");
+});

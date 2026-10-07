@@ -4,7 +4,7 @@ Declare file storage, read and write its files, and serve it over S3.
 
 ## Declarations
 
-`defineBucket` declares a bucket by name, and `write: "system"` lets the system alone write its files.
+`defineBucket` declares a bucket by name.
 
 ```ts
 import { defineBucket } from "@destack/bucket";
@@ -15,7 +15,7 @@ export const build = defineBucket({ name: "build", spec: { write: "system" } });
 
 ### Files
 
-`files.get(context)` returns the bound bucket, whose `put` and `get` write and read files by key.
+`files.get(context)` returns the bound bucket for reading and writing files.
 
 ```ts
 const bucket = files.get(context);
@@ -26,7 +26,7 @@ const text = document ? await document.text() : undefined;
 
 ### Multipart uploads
 
-`createMultipartUpload` starts an upload in parts, and `complete` joins the uploaded parts into one file.
+`createMultipartUpload` starts an upload in parts.
 
 ```ts
 const upload = await bucket.createMultipartUpload("media/video.mp4", {
@@ -39,7 +39,7 @@ await upload.complete([first, last]);
 
 ### Encryption
 
-`ssecKey` encrypts a file's content with a customer key, and every read of the file passes the same key.
+`ssecKey` encrypts a file with a customer key that every read must pass.
 
 ```ts
 await bucket.put("private/report.pdf", report, { ssecKey });
@@ -48,7 +48,7 @@ const sealed = await bucket.get("private/report.pdf", { ssecKey });
 
 ## Objects
 
-`serveBuckets` serves the `bucket` object of a host's buckets, whose methods require `read` or `write`.
+`serveBuckets` serves the `bucket` objects of a host's buckets.
 
 ```ts
 import { serveBuckets } from "@destack/bucket/server";
@@ -57,13 +57,25 @@ const handled = serveBuckets(host);
 await client.open({ mode: "write", ...file }); // ServiceError FORBIDDEN: the system alone writes bucket-…
 ```
 
+## Service
+
+`implementBucket` serves the bucket objects and runs the providers' controllers.
+
+```ts
+import { implementBucket } from "@destack/bucket/server";
+import { bucketDatabase } from "@destack/bucket/stack";
+
+const buckets = implementBucket({ database, callKey, directory, providers, machine, cell, spaces });
+const source = buckets.objects; // a space creates a bucket by a call this service runs
+```
+
 ## Hosts
 
-A bucket host keeps buckets over catalogues and serves them over S3, and `bucketProvider` provides a host's buckets to its spaces under the host's provider code.
+A bucket host stores buckets and serves them over S3.
 
 ### Local buckets
 
-`LocalBucket.open` opens a bucket in a local directory, and `context.bind` binds a declared bucket to it.
+`LocalBucket.open` opens a bucket in a local directory.
 
 ```ts
 import { LocalBucket } from "@destack/bucket/local";
@@ -76,20 +88,45 @@ context.bind(files, bucket);
 
 ### Device hosts
 
-`LocalBucketHost` keeps a device host's buckets in local directories, and `bucketProvider` provides them to the host's spaces.
+`LocalBucketHost` stores a device host's buckets in local directories.
 
 ```ts
 import { LocalBucketHost } from "@destack/bucket/local";
 import { bucketProvider } from "@destack/bucket/provider";
+import { S3Credentials } from "@destack/bucket/s3";
 
-const credentials = await LocalBucketHost.credentials(keychain, `s3/${hostId}`);
-const buckets = new LocalBucketHost({ directory, endpoint, region: "local", credentials });
+const buckets = new LocalBucketHost({
+    directory,
+    endpoint,
+    region: "local",
+    credentials: async (space) => S3Credentials.derive(await root(space), space),
+});
 const provider = bucketProvider(buckets);
+```
+
+### Operations
+
+`R2Bucket.takeOperations` takes the operations a binding sent since the last take, in the classes R2 bills: Class A for writes, lists and multipart steps, Class B for reads, deletes free.
+
+```ts
+const files = new R2Bucket(environment.FILES);
+await files.put("note", "first");
+await files.get("note");
+files.takeOperations(); // { classA: 1, classB: 1 }
+```
+
+### Snapshots
+
+`snapshot` copies a bucket's catalogue and files into a content-addressed store.
+
+```ts
+const digest = await provider.snapshot.snapshot(record, [], store);
+await target.snapshot.restore(provisioned, [], digest, store);
 ```
 
 ### Sweeps
 
-A provider's `controllers` hold the `SweepController`, which sweeps the host's open buckets daily and deletes what interrupted writes left.
+`SweepController` deletes the files that interrupted writes left, once a day.
 
 ```ts
 provider.controllers; // [SweepController]
@@ -97,7 +134,7 @@ provider.controllers; // [SweepController]
 
 ### Fences
 
-A provider's `fence` refuses every write into a bucket while a transfer copies it, across restarts until `lift`, answering `UNAVAILABLE` and S3 `503 ServiceUnavailable`.
+`fence` refuses every write to a bucket while a transfer copies it.
 
 ```ts
 await provider.fence.fence(record);
@@ -120,21 +157,34 @@ const server = new S3Server({
 const response = await server.fetch(request);
 ```
 
-### Presigned URLs
+### Spaces
 
-`SignatureV4.presign` signs a URL for one request on one key until it expires, and any S3 client or plain `fetch` can use it.
+`serveS3` serves a cell's buckets: each space signs with credentials its root secret derives and reaches only its own buckets.
 
 ```ts
-import { S3Location, SignatureV4 } from "@destack/bucket/s3";
+import { serveS3 } from "@destack/bucket/server";
+
+const server = serveS3(buckets, database); // database: the bucket service's, keeping each bucket's space
+await S3Credentials.derive(root, spaceId); // { accessKeyId: spaceId, secretAccessKey: HKDF-SHA256 output }
+```
+
+### Presigned URLs
+
+`S3Signature.presign` signs a URL for one request on one key until it expires, with the upstream Signature Version 4 signer over WebCrypto on Bun, workerd and browsers.
+
+```ts
+import { S3Location, S3Signature } from "@destack/bucket/s3";
 
 const location = { endpoint: new URL("https://files.example"), bucket: "files", region: "auto" };
 const request = new Request(S3Location.url(location, "documents/readme.txt"));
-const presigned = await new SignatureV4({ region: location.region }).presign(
+const presigned = await new S3Signature({ region: location.region }).presign(
     request,
     credentials,
     900,
     Date.now(),
 );
+// signed by AwsSigner from @destack/identity/aws, keeping each access key's daily signing key
+// verification signs the request's signed parts again and compares the signatures in constant time
 ```
 
 ### Coverage
@@ -155,7 +205,7 @@ encryption      customer keys (SSE-C) on reads, writes and multipart uploads
 
 ## Cloudflare
 
-`@destack/bucket/cloudflare` keeps files in R2, for a worker's own bucket or for a cell's buckets.
+`@destack/bucket/cloudflare` stores files in R2.
 
 ### Workers
 
@@ -169,7 +219,7 @@ context.bind(files, new R2Bucket(environment.FILES));
 
 ### Cells
 
-`R2BucketHost` keeps a cell's buckets as prefixes of its residency's R2 bucket with their catalogues in the cell's database, and `bucketProvider` provides them.
+`R2BucketHost` stores a cell's buckets as prefixes of one R2 bucket.
 
 ```ts
 import { R2Bucket, R2BucketHost } from "@destack/bucket/cloudflare";
@@ -188,19 +238,17 @@ const provider = bucketProvider(buckets);
 
 ## Errors
 
-A storage failure throws a `BucketError` with a stable code, and `toServiceError` converts it for a caller, such as `FENCED` to `UNAVAILABLE`.
+A storage failure throws a `BucketError` with a stable code.
 
 ```ts
 import { BucketError } from "@destack/bucket/error";
 
-if (error instanceof BucketError && error.code === "FENCED") {
-    throw error.toServiceError(); // ServiceError UNAVAILABLE: bucket is fenced while a transfer copies it
-}
+new BucketError("FENCED", "bucket is fenced while a transfer copies it").toServiceError(); // { code: "SERVICE_UNAVAILABLE", message: "bucket is fenced while a transfer copies it" }
 ```
 
 ## Tests
 
-`BucketFixture` provisions a space with a local bucket served over S3 and a member role on it.
+`BucketFixture` provisions a space with a local bucket served over S3.
 
 ```ts
 import { BucketFixture } from "@destack/bucket/test";

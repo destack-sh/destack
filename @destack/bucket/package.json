@@ -15,11 +15,14 @@
         "./error": "./src/error/index.ts",
         "./object": "./src/object/index.ts",
         "./server": "./src/server/index.ts",
+        "./service": "./src/service/index.ts",
+        "./stack": "./src/stack/index.ts",
         "./s3": "./src/s3/index.ts",
         "./provider": "./src/provider/index.ts",
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
+        "@destack/identity": "workspace:*",
         "@destack/fs": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/resource": "workspace:*",
@@ -34,7 +37,8 @@
         "@destack/sync": "workspace:*",
         "@destack/directory": "workspace:*",
         "@destack/account": "workspace:*",
-        "uuid": "14.0.2"
+        "uuid": "14.0.2",
+        "@destack/error": "workspace:*"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

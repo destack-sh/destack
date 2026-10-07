@@ -1,8 +1,9 @@
 import type { Call, CallOf, PreparedCallOf, ResultOf } from "@destack/object";
-import { schema } from "@destack/schema";
+import { eq } from "@destack/db";
+import { present, schema } from "@destack/schema";
+import { Quota, space } from "@destack/space/object";
 import { ServiceError } from "@destack/service/error";
 import { BucketHttpMetadata, type BucketFile } from "../bucket/index.ts";
-import { BucketError } from "../error/index.ts";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { BucketSpec } from "../declare/bucket.ts";
 import { bucket, type FileMetadata } from "../object/index.ts";
@@ -11,7 +12,7 @@ import {
     type BucketReference,
     customerKeyHeaders,
     S3Location,
-    SignatureV4,
+    S3Signature,
 } from "../s3/index.ts";
 
 /** How long a presigned lease stays valid in seconds: fifteen minutes, the AWS SDK's default. */
@@ -46,15 +47,24 @@ export function serveBuckets(host: BucketHost) {
             handler: (call) => removeFiles(host, call),
         },
         createUpload: {
-            authorize: async (call) => requireWriter(call),
+            authorize: async (call) => {
+                requireWriter(call);
+                await requireStorage(call);
+            },
             handler: (call) => createUpload(host, call),
         },
         uploadPart: {
-            authorize: async (call) => requireWriter(call),
+            authorize: async (call) => {
+                requireWriter(call);
+                await requireStorage(call);
+            },
             handler: (call) => uploadPart(host, call),
         },
         completeUpload: {
-            authorize: async (call) => requireWriter(call),
+            authorize: async (call) => {
+                requireWriter(call);
+                await requireStorage(call);
+            },
             handler: (call) => completeUpload(host, call),
         },
         abortUpload: {
@@ -105,6 +115,7 @@ async function authorizeOpen(call: CallOf<typeof bucket, "open">): Promise<void>
     if (call.input.mode === "write") {
         await call.requireAuthorization().require(bucket.permission("write"), call.reference());
         requireWriter(call);
+        await requireStorage(call);
     }
 }
 
@@ -250,30 +261,28 @@ function requireWriter(call: BucketCall): void {
     }
 }
 
-/** Work on the bucket a call targets, reporting its storage failures as service failures. */
-function files<Value>(
+/** Refuse a write into a space whose storage quota is exceeded, as its cell records the condition on the space. */
+async function requireStorage(call: BucketCall): Promise<void> {
+    const [owner] = await call.database
+        .select({ id: space.table.id, conditions: space.table.conditions })
+        .from(space.table)
+        .where(eq(space.table.id, schema.identifier("space").parse(call.scope)));
+    Quota.require(present(owner, `the copy of space ${call.scope}`), "storage");
+}
+
+/** Work on the bucket a call targets. */
+async function files<Value>(
     host: BucketHost,
     call: BucketCall,
     work: (opened: Awaited<ReturnType<BucketHost["open"]>>) => Promise<Value>,
 ): Promise<Value> {
-    return reported(async () => work(await host.open(reference(call))));
-}
-
-/** Run storage work, reporting its storage failures as service failures. */
-async function reported<Value>(work: () => Promise<Value>): Promise<Value> {
-    try {
-        return await work();
-    } catch (error) {
-        throw error instanceof BucketError ? error.toServiceError() : error;
-    }
+    return work(await host.open(reference(call)));
 }
 
 /** Presign one S3 request on the bucket a call targets. */
 async function presign(host: BucketHost, call: BucketCall, lease: LeaseRequest): Promise<Lease> {
     // address the key, and the part the query selects, at the bucket's S3 location
-    const { location, credentials } = await reported(() =>
-        host.locate(reference(call), lease.mode),
-    );
+    const { location, credentials } = await host.locate(reference(call), lease.mode);
     const url = S3Location.url(location, lease.key);
     for (const [name, value] of Object.entries(lease.query ?? {})) {
         url.searchParams.set(name, value);
@@ -289,7 +298,7 @@ async function presign(host: BucketHost, call: BucketCall, lease: LeaseRequest):
     const now = Date.now();
     const method = LEASE_METHODS[lease.mode];
     const request = new Request(url.href, { method, headers: lease.headers });
-    const signature = new SignatureV4({ region: location.region });
+    const signature = new S3Signature({ region: location.region });
     const presigned = await signature.presign(request, credentials, LEASE_LIFETIME, now);
 
     return {

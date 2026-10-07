@@ -1,6 +1,5 @@
 import { schema } from "@destack/schema";
 import { defineObject } from "@destack/object";
-import { SpaceResource } from "@destack/space/declare";
 import { space } from "@destack/space/object";
 import { BucketKind } from "../declare/bucket.ts";
 import { Lease } from "@destack/resource";
@@ -11,7 +10,6 @@ export const bucket = defineObject({
     name: "bucket",
     plural: "buckets",
     scope: space,
-    declarable: { schema: SpaceResource },
     provisioned: { kind: BucketKind },
     fields: {},
     administration: ["read"],
