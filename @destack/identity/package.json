@@ -6,7 +6,9 @@
     "sideEffects": false,
     "description": "Prove who a principal is and keep the keys proving it.",
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./aws": "./src/aws/index.ts",
+        "./bun": "./src/bun/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -14,10 +16,12 @@
     },
     "dependencies": {
         "@destack/error": "workspace:*",
+        "@destack/fs": "workspace:*",
         "@destack/schema": "workspace:*",
         "jose": "6.2.12"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
     }
 }

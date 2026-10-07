@@ -45,7 +45,9 @@ await Proof.read(proof).verify(publicKey, machineId, Date.now(), { method: "POST
 A `Keychain` keeps a host's secrets by name, such as the operating system's keychain on a machine.
 
 ```ts
-const keychain = new MemoryKeychain();
+import { BunKeychain } from "@destack/identity/bun";
+
+const keychain = new MemoryKeychain(); // or new BunKeychain("app.destack.host") in the operating system's keychain
 const kept = await Keychain.update(keychain, "root", (current) => current ?? generated); // retries a racing writer
 ```
 
@@ -91,6 +93,27 @@ const recipient = await Recipient.generate(); // on the target cell
 const sealed = await Recipient.of(recipient.key).seal(bytes, context); // on the source cell
 const opened = await recipient.open(sealed, context);
 const messages = await Recipient.derive(root, "message"); // the same key for every derivation
+```
+
+## AWS signatures
+
+`AwsSigner` signs requests to an AWS service with Signature Version 4 over WebCrypto, keeping each recent day's signing key.
+
+```ts
+import { AwsSigner } from "@destack/identity/aws";
+
+const signer = new AwsSigner({ region: "eu-central-1", service: "ses", credentials });
+const headers = await signer.authorize(
+    {
+        method: "POST",
+        path: AwsSigner.path(url.pathname, "double"), // "single" for S3
+        query: [],
+        headers: { "content-type": "application/json", host: url.host },
+        payloadHash: await AwsSigner.payloadHash(body),
+    },
+    new Date(),
+); // { …, "x-amz-date": "20261006T120000Z", authorization: "AWS4-HMAC-SHA256 Credential=…" }
+const query = await signer.presign(request, new Date(), 3600); // X-Amz-Algorithm … X-Amz-Signature
 ```
 
 ## Errors
