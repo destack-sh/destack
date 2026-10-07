@@ -4,8 +4,8 @@ import { DeclarationReference } from "../declare/declaration.ts";
 import { ComputeDefinition } from "../definition/compute.ts";
 import { Capabilities, CapabilityName } from "../definition/capability.ts";
 
-/** A tier a universe places workloads in, one instance per unit: the universe, each residency, each space or each host. */
-export const Tier = defineSchema(schema.enum(["universe", "residency", "space", "host"]));
+/** A tier a universe places workloads in: the universe once, each residency, or each cell, however a host splits a cell into processes. */
+export const Tier = defineSchema(schema.enum(["universe", "residency", "cell"]));
 /** A tier a universe places workloads in. */
 export type Tier = schema.Infer<typeof Tier>;
 
