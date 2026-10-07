@@ -11,6 +11,15 @@ export const AuditContext = defineSchema(
         scope: schema.string().min(1),
         /** The scopes enclosing the call's scope, outermost first, as its journal's scope copies knew them on delivery. */
         chain: schema.array(schema.string().min(1)).exactOptional(),
+        /** The Loan the caller's authority came with: its identifier and the home space that signed it. */
+        loan: schema
+            .object({
+                /** The Loan's identifier. */
+                id: schema.string().min(1),
+                /** The home space that signed it. */
+                issuer: schema.string().min(1),
+            })
+            .exactOptional(),
         /** The package serving the call. */
         package: Package,
         /** The service serving the call. */

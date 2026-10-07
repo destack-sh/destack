@@ -109,6 +109,7 @@ export class AuditRecorder<Transaction = never> {
         const clientId = caller?.credential.client ?? origin.clientId;
         const tokenId = token.success ? token.data : origin.tokenId;
         const traceId = span && isSpanContextValid(span) ? span.traceId : undefined;
+        const loan = claims?.loan;
 
         return new AuditRecorder(
             {
@@ -119,6 +120,7 @@ export class AuditRecorder<Transaction = never> {
                 ...(sessionId === undefined ? {} : { sessionId }),
                 ...(tokenId === undefined ? {} : { tokenId }),
                 ...(traceId === undefined ? {} : { traceId }),
+                ...(loan === undefined ? {} : { loan: { id: loan.id, issuer: loan.issuer } }),
             },
             writer,
             requestId,
