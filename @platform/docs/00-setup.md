@@ -13,7 +13,13 @@ curl -fsSL https://destack.sh/install | sh
 
 ## Ask your agent
 
-TODO: Add instructions for asking your agent to install and configure Destack.
+Paste this into your coding agent:
+
+```text
+Install Destack by following https://destack.sh/docs/setup.md
+```
+
+Every documentation page is also published as Markdown for agents: add `.md` to its address, as in `https://destack.sh/docs/setup.md`.
 
 ## Version
 
@@ -24,5 +30,5 @@ destack version
 ## Updates
 
 ```sh
-destack update
+destack self update
 ```
