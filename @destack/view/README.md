@@ -89,6 +89,21 @@ import { useView } from "@destack/view";
 const { space, user, home, locale, target } = useView();
 ```
 
+## Controllable signals
+
+`createControllableSignal` follows the value an owner passes while it controls it, else the holder's own, and tells the owner of each change.
+
+```ts
+import { createControllableSignal } from "@destack/view";
+
+const [open, setOpen] = createControllableSignal({
+    isControlled: () => properties.open !== undefined,
+    value: () => properties.open ?? false,
+    defaultValue: false,
+    onChange: properties.onOpenChange,
+});
+```
+
 ## Data
 
 `useSpace` opens the objects of the view's space, and `useQuery` follows a query.

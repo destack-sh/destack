@@ -43,8 +43,8 @@ export {
     until,
     untrack,
 } from "solid-js";
-export { ContextNotFoundError, createControllableSignal, NoOwnerError } from "@destack/signals";
-export type { ControllableValue } from "@destack/signals";
+export { ContextNotFoundError, NoOwnerError } from "@solidjs/signals";
+export { createControllableSignal, type ControllableValue } from "./controllable.ts";
 export type {
     Accessor,
     ArrayFilterFn,
@@ -79,4 +79,4 @@ export type {
     StoreSetter,
     Truthy,
     UntilOptions,
-} from "@destack/signals";
+} from "@solidjs/signals";
