@@ -1,17 +1,28 @@
 import { z } from "zod";
 import { JsonValue, type JsonObject } from "../json/json.ts";
 
-/** The schemas whose values are sensitive, which nothing derived from a request or record keeps, as zod metadata. */
-const SENSITIVE = z.registry<{ readonly sensitive: true }>();
+/** How a value is sensitive: a secret nothing derived keeps, or personal data kept only sealed under its person's key and erasable. */
+export type Sensitivity = "secret" | "personal";
 
-/** Mark a schema's values sensitive, so that nothing derived from a request or record keeps them. */
-export function sensitive<Value extends z.ZodType>(value: Value): Value {
-    SENSITIVE.add(value, { sensitive: true });
+/** The schemas whose values are sensitive and how, as zod metadata. */
+const SENSITIVE = z.registry<{ readonly sensitivity: Sensitivity }>();
+
+/** Mark a schema's values sensitive: a secret by default, or personal data. */
+export function sensitive<Value extends z.ZodType>(
+    value: Value,
+    sensitivity: Sensitivity = "secret",
+): Value {
+    SENSITIVE.add(value, { sensitivity });
 
     return value;
 }
 
-/** Report whether a schema marks its values sensitive. */
+/** Read how a schema marks its values sensitive, absent for values that are not. */
+export function sensitivityOf(value: z.core.$ZodType): Sensitivity | undefined {
+    return SENSITIVE.get(value)?.sensitivity;
+}
+
+/** Report whether a schema marks its values sensitive, secret or personal. */
 export function isSensitive(value: z.core.$ZodType): boolean {
     return SENSITIVE.has(value);
 }
@@ -22,24 +33,36 @@ export function redact(
     value: JsonValue | undefined,
     found?: (sensitive: unknown) => void,
 ): JsonValue | undefined {
-    // drop a sensitive value, and keep an absent one
-    if (isSensitive(definition)) {
-        if (value !== undefined) {
-            found?.(value);
-        }
+    return mapSensitive(definition, value, (held) => {
+        found?.(held);
 
         return undefined;
-    } else if (value === undefined || value === null) {
+    });
+}
+
+/** Replace each value a schema marks sensitive by what `map` makes of it, leaving out a value it maps to nothing. */
+export function mapSensitive(
+    definition: z.core.$ZodType,
+    value: JsonValue | undefined,
+    map: (value: JsonValue, sensitivity: Sensitivity) => JsonValue | undefined,
+): JsonValue | undefined {
+    // map a sensitive value, and keep an absent one
+    const sensitivity = sensitivityOf(definition);
+    if (value === undefined) {
+        return value;
+    } else if (sensitivity !== undefined) {
+        return map(value, sensitivity);
+    } else if (value === null) {
         return value;
     }
 
-    // redact each field of an object
+    // map each field of an object
     if (definition instanceof z.ZodObject && JsonValue.isObject(value)) {
-        return redactFields(definition, value, found);
+        return mapFields(definition, value, map);
     }
-    // redact each element of an array
-    else if (definition instanceof z.ZodArray && value !== undefined && JsonValue.isArray(value)) {
-        return value.map((entry) => redact(definition.element, entry, found) ?? null);
+    // map each element of an array
+    else if (definition instanceof z.ZodArray && JsonValue.isArray(value)) {
+        return value.map((entry) => mapSensitive(definition.element, entry, map) ?? null);
     }
     // look through optional, nullable, defaulted and read-only wrappers to the schema they wrap
     else if (
@@ -50,11 +73,11 @@ export function redact(
         definition instanceof z.core.$ZodNonOptional ||
         definition instanceof z.core.$ZodReadonly
     ) {
-        return redact(definition._zod.def.innerType, value, found);
+        return mapSensitive(definition._zod.def.innerType, value, map);
     }
     // look through a lazy schema to the one it returns
     else if (definition instanceof z.core.$ZodLazy) {
-        return redact(definition._zod.def.getter(), value, found);
+        return mapSensitive(definition._zod.def.getter(), value, map);
     }
 
     return value;
@@ -66,12 +89,25 @@ export function redactFields(
     value: JsonObject,
     found?: (sensitive: unknown) => void,
 ): JsonObject {
+    return mapFields(definition, value, (held) => {
+        found?.(held);
+
+        return undefined;
+    });
+}
+
+/** Replace the sensitive values in the fields of an object by what `map` makes of them. */
+function mapFields(
+    definition: z.ZodObject,
+    value: JsonObject,
+    map: (value: JsonValue, sensitivity: Sensitivity) => JsonValue | undefined,
+): JsonObject {
     const shape: Readonly<Record<string, z.core.$ZodType | undefined>> = definition.shape;
 
     return Object.fromEntries(
         Object.entries(value).flatMap(([name, field]) => {
             const property = shape[name];
-            const kept = property === undefined ? field : redact(property, field, found);
+            const kept = property === undefined ? field : mapSensitive(property, field, map);
 
             return kept === undefined ? [] : [[name, kept]];
         }),

@@ -21,3 +21,27 @@ test("leave out sensitive values through objects, arrays and wrappers, handing e
     ).toEqual({ name: "ada", tokens: [null, null], recovery: null });
     expect(found).toEqual(["secret", "a", "b"]);
 });
+
+test("map personal values apart from secrets, through the same walk that leaves secrets out", () => {
+    // mark an address personal and a token secret
+    const call = schema.object({
+        address: schema.sensitive(schema.string(), "personal"),
+        token: schema.sensitive(schema.string()),
+        method: schema.string(),
+    });
+
+    // seal the personal value and drop the secret
+    expect([
+        schema.sensitivityOf(call.shape.address),
+        schema.mapSensitive(
+            call,
+            { address: "ada@example.com", token: "t", method: "update" },
+            (value, sensitivity) => (sensitivity === "personal" ? { sealed: value } : undefined),
+        ),
+        schema.redact(call, { address: "ada@example.com", token: "t", method: "update" }),
+    ]).toEqual([
+        "personal",
+        { address: { sealed: "ada@example.com" }, method: "update" },
+        { method: "update" },
+    ]);
+});
