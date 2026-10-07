@@ -8,7 +8,8 @@
         ".": "./src/index.ts",
         "./lazy": "./src/lazy/index.ts",
         "./phosphor/*": "./src/phosphor/icon/*.ts",
-        "./build": "./src/build/index.ts"
+        "./build": "./src/build/index.ts",
+        "./icons": "./src/phosphor/icons.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

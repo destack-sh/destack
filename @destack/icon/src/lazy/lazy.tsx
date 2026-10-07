@@ -1,6 +1,6 @@
 import { createSignal, type Accessor } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import type { IconName } from "../phosphor/name.ts";
+import type { IconName } from "../phosphor/icons.ts";
 import { Icon, type IconBodies, type IconProperties } from "../icon/icon.tsx";
 
 /** The bodies of an icon whose module has not arrived yet. */

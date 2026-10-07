@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import type { IconName } from "../phosphor/name.ts";
+import type { IconName } from "../phosphor/icons.ts";
 
 /** The stroke weight or style an icon is drawn in. */
 export type IconWeight = "thin" | "light" | "regular" | "bold" | "fill" | "duotone";

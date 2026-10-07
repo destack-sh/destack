@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
+import { icons } from "@phosphor-icons/core";
 
 /** The Phosphor weights, each a directory of SVG files whose names carry the weight as a suffix. */
 const WEIGHTS = ["thin", "light", "regular", "bold", "fill", "duotone"] as const;
@@ -15,8 +16,8 @@ const OUTPUT = dirname(fileURLToPath(import.meta.url));
 /** The directory holding one generated module per icon. */
 const ICONS = join(OUTPUT, "icon");
 
-/** The module with the icon names. */
-const NAMES = join(OUTPUT, "name.ts");
+/** The module with every icon, its categories and its search words. */
+const ICONS_LIST = join(OUTPUT, "icons.ts");
 
 /** The directory holding Phosphor's SVG sources. */
 const ASSETS = join(
@@ -24,17 +25,34 @@ const ASSETS = join(
     "assets",
 );
 
-/** Write one module per icon with its SVG body in each weight, and the module with the icon names. */
+/** A Phosphor icon as its metadata describes it. */
+interface PhosphorIcon {
+    /** The icon's name. */
+    readonly name: string;
+    /** The categories it belongs to. */
+    readonly categories: readonly string[];
+    /** The words that find it. */
+    readonly tags: readonly string[];
+}
+
+/** Write one module per icon with its SVG body in each weight, and the list of every icon. */
 async function generate(): Promise<void> {
     // read every weight's icon bodies
     const bodies = await Promise.all(WEIGHTS.map((weight) => readWeight(weight)));
     const names = [...(bodies[0]?.keys() ?? [])].toSorted();
 
-    // write the icon names as a union type
-    const union = names.map((name) => `\n    | ${JSON.stringify(name)}`).join("");
+    // write every icon with its categories and search words, without Phosphor's release markers, the name type derived from the list
+    const metadata: readonly PhosphorIcon[] = icons;
+    const described = new Map(metadata.map((icon) => [icon.name, icon]));
+    const listed = names.map((name) => {
+        const icon = described.get(name);
+        const tags = (icon?.tags ?? []).filter((tag) => !tag.startsWith("*"));
+
+        return `    { name: ${JSON.stringify(name)}, categories: ${JSON.stringify(icon?.categories ?? [])}, tags: ${JSON.stringify(tags)} },\n`;
+    });
     await writeModule(
-        NAMES,
-        `/** The name of a Phosphor icon. */\nexport type IconName =${union};\n`,
+        ICONS_LIST,
+        `/** Every Phosphor icon in name order: its name, the categories it belongs to and the words that find it. */\nexport const ICONS = [\n${listed.join("")}] as const;\n\n/** The name of a Phosphor icon. */\nexport type IconName = (typeof ICONS)[number]["name"];\n`,
     );
 
     // replace the icon modules, dropping icons Phosphor removed
