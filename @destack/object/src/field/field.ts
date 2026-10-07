@@ -331,17 +331,10 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         // build the nullable column
         let column: ColumnBuilder = this.#build(name, owner, storage);
 
-        // mark sensitive values in their schemas
+        // mark sensitive and personal values
         if (this.isSensitive) {
-            const { definition } = column.sensitive();
-            column = new ColumnBuilder({
-                ...definition,
-                schema: schema.sensitive(definition.schema.clone()),
-                json: schema.sensitive(definition.json.clone()),
-            });
-        }
-        // classify personal values
-        else if (this.isPersonal) {
+            column = column.sensitive();
+        } else if (this.isPersonal) {
             column = column.personal();
         }
 
