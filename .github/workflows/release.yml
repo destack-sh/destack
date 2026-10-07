@@ -145,7 +145,7 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Download unsigned distribution
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
               with:
                   name: unsigned-${{ matrix.target }}
                   path: dist/${{ needs.prepare.outputs.version }}
@@ -207,7 +207,7 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Download the installer's distributions
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
               with:
                   pattern: ${{ needs.prepare.outputs.publish == 'true' && 'signed' || 'unsigned' }}-${{ matrix.targets }}
                   merge-multiple: true
@@ -262,19 +262,19 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Download signed distributions
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
               with:
                   pattern: signed-*
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Download distributions without a platform signer
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
               with:
                   pattern: unsigned-${{ needs.prepare.outputs.unsigned }}
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Download installers
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
               with:
                   pattern: installer-*
                   merge-multiple: true
