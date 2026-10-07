@@ -8,7 +8,6 @@
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./object": "./src/object/index.ts",
         "./history": "./src/history/index.ts",
         "./stack": "./src/stack/index.ts",
         "./service": "./src/service/index.ts",
@@ -23,7 +22,6 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
