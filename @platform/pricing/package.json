@@ -1,0 +1,29 @@
+{
+    "name": "@platform/pricing",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Destack's plans, the SKUs of the providers it runs on, and the features its plans grant.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./cloudflare": "./src/vendor/cloudflare.ts",
+        "./destack.json": "./destack.json"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/account": "workspace:*",
+        "@destack/finance": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/schema": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/db": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
+    }
+}
