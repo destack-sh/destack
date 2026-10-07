@@ -36,6 +36,14 @@ export class Stream {
     #receiveWindow = WINDOW_BYTES;
     /** The bytes received that this side has not credited yet. */
     #owed = 0;
+    /** The bytes received that readers have not returned to the session's window yet. */
+    #unreleased = 0;
+    /** The received chunks no reader took yet, oldest first. */
+    readonly #pending: Uint8Array[] = [];
+    /** The bytes of the received chunks no reader took yet. */
+    #pendingBytes = 0;
+    /** Wakes the read waiting for bytes, if any. */
+    #arrived: PromiseWithResolvers<void> | undefined;
     /** The bytes received since the running window probe began. */
     #sample = 0;
     /** Whether a window probe waits for its ping's answer. */
@@ -67,7 +75,7 @@ export class Stream {
                 start: (controller) => {
                     this.#controller = controller;
                 },
-                pull: () => this.#credit(),
+                pull: () => this.#deliver(),
                 cancel: () => this.reset(new Error(`stream ${this.id} was cancelled`)),
             },
             new ByteLengthQueuingStrategy({ highWaterMark: 0 }),
@@ -106,11 +114,15 @@ export class Stream {
             if (frame.payload.length > this.#receiveWindow) {
                 throw new TypeError(`stream ${this.id} received beyond its window`);
             }
+            this.#session.take(frame.payload.length);
             this.#receiveWindow -= frame.payload.length;
             this.#owed += frame.payload.length;
+            this.#unreleased += frame.payload.length;
             this.#sample += frame.payload.length;
-            this.#controller.enqueue(frame.payload);
-            this.#credit();
+            this.#pending.push(frame.payload);
+            this.#pendingBytes += frame.payload.length;
+            this.#arrived?.resolve();
+            this.#arrived = undefined;
             this.#probe();
         }
         // take more window and wake the write waiting for it
@@ -120,10 +132,11 @@ export class Stream {
             this.#credited = undefined;
         }
 
-        // end the readable on the peer's FIN
+        // end the readable on the peer's FIN once readers took every byte
         if (frame.has(FrameFlag.fin)) {
             this.#isFinishReceived = true;
-            this.#controller.close();
+            this.#arrived?.resolve();
+            this.#arrived = undefined;
             this.#settle();
         }
     }
@@ -181,15 +194,19 @@ export class Stream {
             // the readable already closed or errored
         }
 
-        // fail the waiting write
+        // fail the waiting write and read
         this.#credited?.reject(error);
         this.#credited = undefined;
+        this.#arrived?.reject(error);
+        this.#arrived = undefined;
 
         // fail the answer and the request
         this.#answered.reject(error);
         this.#ended.abort(error);
 
-        // let the session forget the stream
+        // return the bytes no reader will take to the session's window, and let the session forget the stream
+        this.#session.release(this.#unreleased);
+        this.#unreleased = 0;
         this.#session.forget(this.id);
     }
 
@@ -200,7 +217,28 @@ export class Stream {
 
     /** The bytes received that readers have not taken yet. */
     get #queued(): number {
-        return -(this.#controller.desiredSize ?? 0);
+        return this.#pendingBytes;
+    }
+
+    /** Hand a reader the oldest received chunk once one arrives, crediting what it took, and close once the peer finished and every byte was taken. */
+    async #deliver(): Promise<void> {
+        // wait for a chunk or the peer's FIN
+        while (this.#pending.length === 0 && !this.#isFinishReceived) {
+            this.#arrived = Promise.withResolvers<void>();
+            await this.#arrived.promise;
+        }
+
+        // hand over the oldest chunk and credit the bytes taken
+        const chunk = this.#pending.shift();
+        if (chunk !== undefined) {
+            this.#pendingBytes -= chunk.length;
+            this.#controller.enqueue(chunk);
+            this.#credit();
+        }
+        // close once every byte was taken
+        else {
+            this.#controller.close();
+        }
     }
 
     /** Send bytes as the window allows, waiting for credit as it runs out. */
@@ -212,18 +250,28 @@ export class Stream {
                 throw this.#failure;
             }
 
-            // wait for credit once the window ran out
+            // wait for credit once the stream's window ran out
             if (this.#sendWindow === 0) {
                 this.#credited = Promise.withResolvers<void>();
                 await this.#credited.promise;
             }
-            // send a frame within the window
+            // wait for credit once the session's window ran out
+            else if (this.#session.sendWindow <= 0) {
+                await this.#session.credited();
+            }
+            // send a frame within both windows
             else {
-                const length = Math.min(bytes.length, this.#sendWindow, MAX_PAYLOAD_BYTES);
+                const length = Math.min(
+                    bytes.length,
+                    this.#sendWindow,
+                    this.#session.sendWindow,
+                    MAX_PAYLOAD_BYTES,
+                );
                 this.#session.send(
                     new Frame(FrameType.data, 0, this.id, 0, bytes.subarray(0, length)),
                 );
                 this.#sendWindow -= length;
+                this.#session.spend(length);
                 bytes = bytes.subarray(length);
             }
         }
@@ -243,21 +291,28 @@ export class Stream {
         }
     }
 
-    /** Credit the peer for the bytes readers took once they reach half the window. */
+    /** Return the bytes readers took to the session's window, and credit the peer's stream once they reach half its window. */
     #credit(): void {
+        // return what readers took to the session's window
+        const read = this.#unreleased - this.#queued;
+        if (read > 0) {
+            this.#session.release(read);
+            this.#unreleased -= read;
+        }
+
         // wait for half the window taken by readers
         const taken = this.#owed - this.#queued;
         if (taken < this.#window / 2 || this.#failure !== undefined) {
             return;
         }
 
-        // credit the bytes taken
+        // credit the bytes taken to the stream and the session
         this.#session.send(new Frame(FrameType.window, 0, this.id, taken));
         this.#receiveWindow += taken;
         this.#owed -= taken;
     }
 
-    /** Count the bytes arriving within one ping's round trip, as gRPC estimates the bandwidth-delay product. */
+    /** Count the bytes arriving within one ping's round trip, estimating the bandwidth-delay product. */
     #probe(): void {
         // run one probe at a time, below the widest window
         if (this.#isProbing || this.#window >= MAX_WINDOW_BYTES) {

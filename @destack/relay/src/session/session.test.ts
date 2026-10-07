@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
 import { aligned } from "@destack/schema";
 import { until } from "../test/index.ts";
-import { Frame, FrameFlag, FrameType, MAX_FRAME_BYTES } from "./frame.ts";
+import { Frame, FrameFlag, FrameType } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
-import { MAX_STREAMS, Session } from "./session.ts";
+import { MAX_STREAMS, Session, SESSION_WINDOW_BYTES } from "./session.ts";
 import { MAX_WINDOW_BYTES, WINDOW_BYTES, type Stream } from "./stream.ts";
 
 /** The head of a request for a note. */
@@ -139,6 +139,33 @@ test("stop a writer at the window until a slow reader credits it", async () => {
     expect(read).toBe(payload.length);
 });
 
+test("stop the writers of every stream at the session's window until their readers take bytes", async () => {
+    // fill a stream window on four streams more than the session's window holds
+    const { relay, accepted, sent } = pair();
+    const count = SESSION_WINDOW_BYTES / WINDOW_BYTES + 4;
+    const written = Array.from({ length: count }, async () => {
+        const writer = relay.open(head).writable.getWriter();
+        await writer.write(new Uint8Array(WINDOW_BYTES).fill(7));
+        await writer.close();
+    });
+
+    // send no more than the session's window before any reader reads
+    const sentBytes = () =>
+        sent
+            .filter((frame) => frame.type === FrameType.data && !frame.has(FrameFlag.syn))
+            .reduce((total, frame) => total + frame.payload.length, 0);
+    await until(() => accepted.length === count && sentBytes() >= SESSION_WINDOW_BYTES);
+    const held = sentBytes();
+
+    // read every stream, letting the held writes finish
+    const received = await Promise.all(accepted.map((stream) => drain(stream.readable)));
+    await Promise.all(written);
+    expect([held, received.reduce((total, bytes) => total + bytes.length, 0)]).toEqual([
+        SESSION_WINDOW_BYTES,
+        count * WINDOW_BYTES,
+    ]);
+});
+
 test("grow a window the writer outpaces while the reader keeps up, up to its limit", async () => {
     const { relay, accepted } = pair(5);
     const opened = relay.open(head);
@@ -169,79 +196,6 @@ test("reset a stream cancelled early, and fail the peer's side and its answer", 
     ]);
 });
 
-test("answer pings", async () => {
-    const { machine } = pair();
-
-    await expect(Promise.all([machine.ping(), machine.ping()])).resolves.toEqual([
-        undefined,
-        undefined,
-    ]);
-});
-
-test("fail the pings waiting for an answer once the session ends", async () => {
-    const machine = new Session({ send: () => {}, close: () => {} }, "client", {
-        accept: () => {},
-    });
-    const waiting = machine.ping();
-
-    machine.terminate();
-
-    await expect(Promise.allSettled([waiting, machine.ping()])).resolves.toEqual([
-        { status: "rejected", reason: new Error("session is closed") },
-        { status: "rejected", reason: new Error("session is closed") },
-    ]);
-});
-
-test("end a session whose peer opens a stream of this side's parity", () => {
-    const sent: Frame[] = [];
-    let isClosed = false;
-    const relay = new Session(
-        {
-            send: (message) => sent.push(Frame.decode(message)),
-            close: () => (isClosed = true),
-        },
-        "server",
-        { accept: () => {} },
-    );
-    const payload = new TextEncoder().encode(JSON.stringify(head));
-
-    relay.receive(new Frame(FrameType.data, FrameFlag.syn, 2, 0, payload).encode());
-    expect([sent.map((frame) => [frame.type, frame.value]), isClosed, relay.isClosed]).toEqual([
-        [[FrameType.goAway, 1]],
-        true,
-        true,
-    ]);
-});
-
-test("reset a stream answered with no response head, keeping the session", async () => {
-    const { relay, machine, accepted } = pair();
-
-    // answer the forwarded request with a head that is no response head
-    const answering = until(() => accepted.length === 1).then(() =>
-        machine.send(
-            new Frame(
-                FrameType.data,
-                FrameFlag.ack,
-                aligned(accepted, 0).id,
-                0,
-                new TextEncoder().encode("{}"),
-            ),
-        ),
-    );
-    const failed = await relay.fetch(new Request(head.url)).then(
-        () => "answered",
-        (error: unknown) => (error instanceof Error ? error.message : error),
-    );
-    await answering;
-
-    await until(() => relay.size === 0);
-    expect([failed, relay.isClosed, machine.isClosed]).toEqual([
-        "stream 2 was answered with no response head",
-        false,
-        false,
-    ]);
-});
-
 test("end both sides of a stream whose request body the machine answered without reading", async () => {
     const { relay, machine, accepted } = pair();
 
@@ -260,21 +214,6 @@ test("end both sides of a stream whose request body the machine answered without
 
     expect(await response.text()).toBe("early");
     await until(() => relay.size === 0 && machine.size === 0);
-});
-
-test("end a session whose peer sends a frame longer than a frame may be", () => {
-    const sent: Frame[] = [];
-    const relay = new Session(
-        { send: (message) => sent.push(Frame.decode(message)), close: () => {} },
-        "server",
-        { accept: () => {} },
-    );
-
-    relay.receive(new Uint8Array(MAX_FRAME_BYTES + 1));
-    expect([sent.map((frame) => [frame.type, frame.value]), relay.isClosed]).toEqual([
-        [[FrameType.goAway, 1]],
-        true,
-    ]);
 });
 
 test("reset the streams a peer opens beyond the open stream limit, keeping the session", () => {

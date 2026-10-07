@@ -2,8 +2,11 @@ import { Frame, FrameFlag, FrameType, GoAwayCode } from "./frame.ts";
 import { Head, RequestHead } from "./head.ts";
 import { Stream } from "./stream.ts";
 
-/** The most streams a session keeps open each way: 100, the usual HTTP/2 concurrent stream limit. */
-export const MAX_STREAMS = 100;
+/** The most streams a session keeps open each way: 1,000, a live subscription for each tab of every visitor to a machine. */
+export const MAX_STREAMS = 1000;
+
+/** The bytes a session lets its peer send across all its streams before crediting more (RFC 9113 6.9): 16 MiB, which bounds what it buffers however many streams are open. */
+export const SESSION_WINDOW_BYTES = 16 * 1024 * 1024;
 
 /** The WebSocket, or any other message channel, a session sends its frames over. */
 export interface Transport {
@@ -38,6 +41,14 @@ export class Session {
     #ping = 0;
     /** Whether the session ended. */
     #isClosed = false;
+    /** The bytes the peer lets this side send across all streams before crediting more. */
+    #sendWindow = SESSION_WINDOW_BYTES;
+    /** The bytes this side may still receive across all streams before crediting more. */
+    #receiveWindow = SESSION_WINDOW_BYTES;
+    /** The bytes readers took or streams dropped that this side has not credited the peer yet. */
+    #owed = 0;
+    /** The writes waiting for the session's window. */
+    readonly #waiting = new Set<PromiseWithResolvers<void>>();
 
     /** Keep a session over a channel, as the side that dialed or accepted it. */
     constructor(transport: Transport, role: SessionRole, options: SessionOptions) {
@@ -141,6 +152,47 @@ export class Session {
         this.#streams.delete(id);
     }
 
+    /** The bytes this side may still send across all streams. */
+    get sendWindow(): number {
+        return this.#sendWindow;
+    }
+
+    /** Wait until the peer credits the session's window. */
+    async credited(): Promise<void> {
+        // fail at once on an ended session
+        if (this.#isClosed) {
+            throw new Error("session is closed");
+        }
+
+        // wait for the peer's next credit
+        const waiting = Promise.withResolvers<void>();
+        this.#waiting.add(waiting);
+        await waiting.promise;
+    }
+
+    /** Count bytes a stream sends against the session's window. */
+    spend(bytes: number): void {
+        this.#sendWindow -= bytes;
+    }
+
+    /** Count bytes a stream received against the session's window, refusing a peer sending beyond it. */
+    take(bytes: number): void {
+        if (bytes > this.#receiveWindow) {
+            throw new TypeError("session received beyond its window");
+        }
+        this.#receiveWindow -= bytes;
+    }
+
+    /** Return bytes readers took or a stream dropped, crediting the peer once half the window is owed. */
+    release(bytes: number): void {
+        this.#owed += bytes;
+        if (this.#owed >= SESSION_WINDOW_BYTES / 2) {
+            this.send(new Frame(FrameType.window, 0, 0, this.#owed));
+            this.#receiveWindow += this.#owed;
+            this.#owed = 0;
+        }
+    }
+
     /** End the session: tell the peer, destroy every stream and close the channel. */
     close(code: number = GoAwayCode.normal): void {
         this.send(new Frame(FrameType.goAway, 0, 0, code));
@@ -156,6 +208,10 @@ export class Session {
             answer.reject(new Error("session is closed"));
         }
         this.#pings.clear();
+        for (const waiting of this.#waiting) {
+            waiting.reject(new Error("session is closed"));
+        }
+        this.#waiting.clear();
         for (const stream of this.#streams.values()) {
             stream.destroy(new Error("session closed"));
         }
@@ -172,6 +228,14 @@ export class Session {
         else if (frame.type === FrameType.ping) {
             this.#pings.get(frame.value)?.resolve();
             this.#pings.delete(frame.value);
+        }
+        // take more of the session's window and wake the writes waiting for it
+        else if (frame.type === FrameType.window && frame.stream === 0) {
+            this.#sendWindow += frame.value;
+            for (const waiting of this.#waiting) {
+                waiting.resolve();
+            }
+            this.#waiting.clear();
         }
         // end on the peer's go-away
         else if (frame.type === FrameType.goAway) {
