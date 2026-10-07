@@ -119,8 +119,8 @@ export function Verb(properties: { isOpen: boolean }) {
                 number={1}
                 title={
                     properties.isOpen
-                        ? "the same seven, in one space you own"
-                        : "seven siloed apps, seven separate stacks"
+                        ? "seven integrated apps, one owned space"
+                        : "seven siloed apps, seven separate rented stacks"
                 }
             >
                 <StackSwitch isOpen={properties.isOpen} isHinted />
@@ -143,14 +143,14 @@ export function Verb(properties: { isOpen: boolean }) {
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <Fade isOpen={isOpenAt(0)}>
                     <Label>
-                        {isOpenAt(0) ? "One space, owned by you" : "Seven sites, seven logins"}
+                        {isOpenAt(0) ? "One space, one login" : "Seven sites, seven logins"}
                     </Label>
                 </Fade>
                 <Ledger
                     entries={holdings}
                     total={
                         isOpenAt(holdings.length + 1)
-                            ? ["1 space, 1 stack", "1 account · @florian"]
+                            ? ["1 space, 1 stack", "1 account · 1 invoice"]
                             : ["7 sites, 7 stacks", "7 accounts · 7 invoices"]
                     }
                     lighting={lighting}

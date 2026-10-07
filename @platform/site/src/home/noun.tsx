@@ -73,7 +73,7 @@ export function Noun(properties: { isOpen: boolean }) {
                 number={4}
                 title={
                     properties.isOpen
-                        ? "one app, on one engine"
+                        ? "one app, built on one engine"
                         : "one app, wired to twelve vendors"
                 }
             >
@@ -123,7 +123,7 @@ function keyOf(rented: number) {
     if (rented === services.length) {
         return "Twelve vendors, wired together";
     } else if (rented === 0) {
-        return "One software engine";
+        return "One engine, built in";
     }
 
     return "Some vendors, some engine";

@@ -46,15 +46,15 @@ export function Participle(properties: { isOpen: boolean }) {
                 number={5}
                 title={
                     properties.isOpen
-                        ? "the whole stack is here, owned and integrated"
-                        : "the fragmented stack you use today"
+                        ? "the integrated stack you own instead"
+                        : "the fragmented stack you rent today"
                 }
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...stylex.attrs(lattice.cell, lattice.figureCell, styles.wall)}>
                 <Label>
-                    {properties.isOpen ? "Your space" : "Pick your current stack"} ·{" "}
+                    {properties.isOpen ? "Your space" : "Pick your stack"} ·{" "}
                     {countOf(picks(), properties.isOpen)}
                 </Label>
                 <ToolWall picks={picks()} isOpen={properties.isOpen} onPick={pick} />

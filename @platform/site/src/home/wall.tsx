@@ -5,7 +5,7 @@ import { createEffect } from "@destack/view";
 
 import { agentPrompt } from "../content/site";
 import { tokens } from "../style/tokens.stylex";
-import { Favicon, Glyph } from "./glyph";
+import { Favicon } from "./glyph";
 
 /** An app every space comes with: its name, its icon, and its tint. */
 type App = { name: string; icon: string; tint: string };
@@ -252,8 +252,7 @@ function statusOf(tool: Tool): string | undefined {
 type Cell =
     | { kind: "tool"; key: string; tool: Tool; isPicked: boolean }
     | { kind: "app"; key: string; job: Job; sources: readonly Tool[] }
-    | { kind: "link"; key: string; tool: Tool }
-    | { kind: "add"; key: string };
+    | { kind: "link"; key: string; tool: Tool };
 
 /** The media query for phone screens, where the wall sets fewer cells to a row. */
 const mobile = "@media (max-width: 767px)";
@@ -286,7 +285,7 @@ function cellsOf(picks: readonly string[], isOpen: boolean): readonly Cell[] {
     ];
 
     // set the apps your tools merged into, then the services your space connects to
-    const space: readonly Cell[] = [
+    return [
         ...jobs.map((job): Cell => ({
             kind: "app",
             key: `app:${job}`,
@@ -297,15 +296,6 @@ function cellsOf(picks: readonly string[], isOpen: boolean): readonly Cell[] {
             .filter((tool) => tool.kind === "connect")
             .map((tool): Cell => ({ kind: "link", key: tool.name, tool })),
     ];
-
-    // close the last row with cells to add another tool
-    const open = perRow - (space.length % perRow);
-    const adds = Array.from({ length: open }, (_, index): Cell => ({
-        kind: "add",
-        key: `add:${index}`,
-    }));
-
-    return [...space, ...adds];
 }
 
 /** Return the key of the cell a cell grows out of: an app out of its first tool, and every other cell out of itself. */
@@ -412,7 +402,7 @@ function Included() {
     );
 }
 
-/** Draw the tools outside your space as two strips of small logos: the ones you destacked struck through, and the rest still there to add. */
+/** Draw the tools outside your space as two strips of small logos: the ones you destacked struck through, and the rest still there to destack. */
 function Outside(properties: { picks: readonly string[]; onPick: (name: string) => void }) {
     // split the tools into the ones you destacked and the ones you could add
     const isDestacked = (tool: Tool) =>
@@ -427,7 +417,7 @@ function Outside(properties: { picks: readonly string[]; onPick: (name: string) 
                 <Chips tools={destacked()} isStruck={true} onPick={properties.onPick} />
             </span>
             <span {...stylex.attrs(styles.line)}>
-                <span {...stylex.attrs(styles.behindName)}>Add more</span>
+                <span {...stylex.attrs(styles.behindName)}>Destack more</span>
                 <span {...stylex.attrs(styles.more)}>
                     <Chips tools={rest()} isStruck={false} onPick={properties.onPick} />
                 </span>
@@ -544,14 +534,7 @@ function CellView(properties: { cell: Cell; isOpen: boolean; onPick: (name: stri
 
 /** Draw what a cell holds: a tool to pick, an app with the tools it took over, or a connection with its status. */
 function contentOf(cell: Cell, onPick: (name: string) => void) {
-    if (cell.kind === "add") {
-        return (
-            <span data-component="AddTool" {...stylex.attrs(styles.face, styles.tool, styles.add)}>
-                <Glyph name="plus" size={28} weight={1.5} />
-                <span {...stylex.attrs(styles.toolName)}>Add a tool</span>
-            </span>
-        );
-    } else if (cell.kind === "app") {
+    if (cell.kind === "app") {
         const app = apps[cell.job];
 
         return (
@@ -598,15 +581,14 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
     );
 }
 
-/** Count what the picks add up to: tools while stacked, or apps and connections once destacked. */
+/** Count what the picks add up to: tools and their logins while stacked, or apps and the one login once destacked. */
 export function countOf(picks: readonly string[], isOpen: boolean) {
     // gather the picked tools and the apps they merge into
     const picked = tools.filter((tool) => picks.includes(tool.name));
     const jobs = new Set(picked.flatMap((tool) => (tool.kind === "connect" ? [] : [tool.job])));
-    const links = picked.filter((tool) => tool.kind === "connect").length;
 
     return isOpen
-        ? `${jobs.size} apps in one space, ${links} connected`
+        ? `${jobs.size} ${jobs.size === 1 ? "app" : "apps"}, 1 login`
         : `${picked.length} tools, ${loginsOf(picked)} logins`;
 }
 
@@ -685,10 +667,6 @@ const styles = stylex.create({
         minWidth: 0,
         overflow: "hidden",
     },
-    add: {
-        color: color.mutedForeground,
-        cursor: "default",
-    },
     strip: {
         display: "flex",
         flexWrap: "nowrap",
@@ -752,6 +730,7 @@ const styles = stylex.create({
         boxShadow: `0 0 0 ${tokens.hairline} ${tokens.rule}`,
     },
     space: {
+        borderWidth: 0,
         gridAutoFlow: "row",
         gridAutoRows: "6.9375rem",
     },

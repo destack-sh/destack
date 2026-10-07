@@ -22,7 +22,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "user", tint: "#5b7f2e" },
             name: "Accounts",
             chips: ["passkeys"],
-            note: "people and agents, one sign-in",
+            note: "users kept with your own data",
         },
     },
     {
@@ -38,7 +38,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "auth", tint: "#a0485f" },
             name: "Access",
             chips: ["roles"],
-            note: "one rule set for every app",
+            note: "one permission model for everything",
         },
     },
     {
@@ -54,7 +54,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "vault", tint: "#12313c" },
             name: "Vault",
             chips: ["encrypted"],
-            note: "keys that never leave the server",
+            note: "keys kept in one vault",
         },
     },
     {
@@ -70,7 +70,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "storage", tint: "#2f7d8c" },
             name: "Database",
             chips: ["SQL", "live"],
-            note: "live queries, offline too",
+            note: "one backend, always in step",
         },
     },
     {
@@ -79,14 +79,14 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { logo: "dropbox.svg" },
             name: "Dropbox",
             chips: ["embed"],
-            note: "files kept outside the page",
+            note: "files kept in their storage",
         },
         destacked: {
             label: "Files",
             mark: { icon: "bucket", tint: "#2f7d8c" },
             name: "Files",
             chips: ["blobs"],
-            note: "files attached where they're used",
+            note: "files kept in your own storage",
         },
     },
     {
@@ -102,7 +102,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "search", tint: "#3d6fb0" },
             name: "Search",
             chips: ["full text"],
-            note: "one index over every app",
+            note: "one index, always in sync",
         },
     },
     {
@@ -118,7 +118,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "notify", tint: "#b8862b" },
             name: "Notifications",
             chips: ["push"],
-            note: "one inbox for every app",
+            note: "one notification system for all apps",
         },
     },
     {
@@ -134,7 +134,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "sync", tint: "#4f8a5b" },
             name: "Workflows",
             chips: ["durable"],
-            note: "runs that survive restarts",
+            note: "workflows running inside the app",
         },
     },
     {
@@ -150,7 +150,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "telemetry", tint: "#6d7f86" },
             name: "Telemetry",
             chips: ["events"],
-            note: "events kept with your data",
+            note: "events kept in your own space",
         },
     },
     {
@@ -166,7 +166,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "telemetry", tint: "#6d7f86" },
             name: "Telemetry",
             chips: ["traces"],
-            note: "every call traced end to end",
+            note: "errors traced across all apps",
         },
     },
     {
@@ -182,7 +182,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "hosts", tint: "#4f8a5b" },
             name: "Hosting",
             chips: ["Node"],
-            note: "your laptop, server or cloud",
+            note: "runs on your laptop, server or cloud",
         },
     },
     {
@@ -198,7 +198,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "source", tint: "#c64a17" },
             name: "Forge",
             chips: ["git"],
-            note: "every app's source, forkable",
+            note: "one pipeline for all apps",
         },
     },
 ];

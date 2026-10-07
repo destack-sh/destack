@@ -47,8 +47,8 @@ export function Adjective(properties: { isOpen: boolean }) {
                 number={3}
                 title={
                     properties.isOpen
-                        ? "an app you asked for, and can keep remixing"
-                        : "an app you can only regenerate, not (really) change"
+                        ? "an app you can always remix"
+                        : "an app you can only regenerate"
                 }
             >
                 <StackSwitch isOpen={properties.isOpen} />

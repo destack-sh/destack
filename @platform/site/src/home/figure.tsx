@@ -66,7 +66,7 @@ type Count = {
 const layers: readonly Layer[] = [
     {
         name: "Users",
-        claim: { today: "Juggle logins", destack: "Bring everyone in" },
+        claim: { today: "Juggle logins", destack: "Sign in once" },
         detail: { today: "Their accounts", destack: "One account, Every agent" },
         item: {
             today: ({ people, vendors }) => `${people * vendors} logins`,
@@ -75,7 +75,7 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Apps",
-        claim: { today: "Duct-tape silos", destack: "Remix software" },
+        claim: { today: "Duct-tape your apps", destack: "Remix your apps" },
         detail: { today: "Closed apps", destack: "TS, HTML, CSS" },
         item: {
             today: ({ people, vendors }) => `${people * vendors} licences`,
@@ -84,7 +84,7 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Services",
-        claim: { today: "Wait on roadmaps", destack: "Share one API" },
+        claim: { today: "Wait on their roadmap", destack: "Build on one API" },
         detail: { today: "Private APIs", destack: "HTTP, OpenAPI" },
         item: {
             today: ({ vendors }) => `${vendors} APIs`,
@@ -102,13 +102,13 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Source",
-        claim: { today: "Take it on trust", destack: "Fork the code" },
+        claim: { today: "Take it on trust", destack: "Check it yourself" },
         detail: { today: "Closed source", destack: "Git, npm" },
         item: { today: ({ vendors }) => `${vendors} black boxes`, destack: () => "0 black boxes" },
     },
     {
         name: "Hosts",
-        claim: { today: "Pay their markup", destack: "Run anywhere" },
+        claim: { today: "Run where they say", destack: "Run where you like" },
         detail: { today: "Their cloud", destack: "Node, Docker, Workers" },
         item: {
             today: ({ vendors }) => `${vendors} compute bills`,

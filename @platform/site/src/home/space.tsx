@@ -25,14 +25,14 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "notion", tint: "#191919" },
             name: "Notion",
             chips: ["public link"],
-            note: "open to whoever finds the URL",
+            note: "anyone with the link can read it",
         },
         destacked: {
             label: "Launch plan",
             mark: { icon: "pages", tint: "#3d6fb0" },
             name: "Pages",
             chips: ["agent"],
-            note: "shared with your agent by name",
+            note: "only the people you pick can read it",
         },
     },
     {
@@ -48,7 +48,7 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "tasks", tint: "#c64a17" },
             name: "Tasks",
             chips: ["Me"],
-            note: "yours until you share it",
+            note: "a free seat for every viewer",
         },
     },
     {
@@ -64,7 +64,7 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "chat", tint: "#4f8a5b" },
             name: "Chat",
             chips: ["agent"],
-            note: "the same thread, in your space",
+            note: "one sign-in for every channel",
         },
     },
     {
@@ -80,7 +80,7 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "source", tint: "#c64a17" },
             name: "Forge",
             chips: ["fork"],
-            note: "source beside every app",
+            note: "code kept beside the apps",
         },
     },
     {
@@ -96,7 +96,7 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "pages", tint: "#3d6fb0" },
             name: "Pages",
             chips: ["public"],
-            note: "your public page, from your space",
+            note: "edited like any other page",
         },
     },
     {
@@ -112,7 +112,7 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "calendar", tint: "#c64a17" },
             name: "Calendar",
             chips: ["public"],
-            note: "times straight from your calendar",
+            note: "free times read live, never copied",
         },
     },
     {
@@ -128,7 +128,7 @@ export const holdings: readonly Entry[] = [
             mark: { icon: "table", tint: "#4f8a5b" },
             name: "Waitlist",
             chips: ["built"],
-            note: "signups in your existing tables",
+            note: "signups in the tables you already have",
         },
     },
 ];

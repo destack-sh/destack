@@ -32,7 +32,7 @@ export function PastParticiple(properties: {
                     number={2}
                     title={
                         properties.isOpen
-                            ? "every app on one stack, all the way down"
+                            ? "every app on one shared stack"
                             : "each app on its own separate stack"
                     }
                 >
