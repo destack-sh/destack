@@ -227,7 +227,7 @@ export function create<
         target: false,
         result: "object",
         procedure: (_name, shapes) => createProcedure(shapes, options),
-        handler: createObject,
+        handler: (call: Call<ObjectTable>) => createObject(call, creation),
         authorize: (call: Call<ObjectTable>) => authorizeCreate(call, creation),
         inverse: (step) => {
             // delete the created object
@@ -248,7 +248,7 @@ export function create<
             }
 
             // insert under an unused identifier and record its access
-            return insertAuthorized(call, creation, (inserted) => this.handler(inserted));
+            return insertAuthorized(call, (inserted) => this.handler(inserted));
         },
     });
 }
@@ -620,24 +620,13 @@ async function authorizeCreate(
     await requireCreatable(call, reader, creationOf(call, creation));
 }
 
-/** Insert a created object under an unused identifier, record its access and require guarded writes. */
+/** Insert a created object under an unused identifier and require guarded writes. */
 async function insertAuthorized(
     call: Call<ObjectTable>,
-    creation: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
     insert: (created: Call<ObjectTable>) => Promise<unknown>,
 ): Promise<unknown> {
-    // insert under an unused identifier
-    const authorization = call.requireAuthorization();
     const { id, created, row } = await insertCreated(call, insert);
-
-    // record access and require guarded writes
-    const object = call.object.reference(call.scope, id);
-    const isScope = call.object.policy.definition.scope === true;
-    const creating = creationOf(call, creation);
-    if (isScope || creating !== undefined) {
-        await authorization.create(object, (await creating?.(created, object)) ?? {});
-    }
-    await authorization.requireWritable(created, id);
+    await call.requireAuthorization().requireWritable(created, id);
 
     return row;
 }
@@ -763,7 +752,10 @@ async function permittedMatches(
 }
 
 /** Insert a created object. */
-async function createObject(call: Call<ObjectTable>): Promise<Select<Table>> {
+async function createObject(
+    call: Call<ObjectTable>,
+    creation: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
+): Promise<Select<Table>> {
     // insert the created columns
     const columns: Table = call.object.table;
     const [row] = await call.database
@@ -772,6 +764,14 @@ async function createObject(call: Call<ObjectTable>): Promise<Select<Table>> {
         .returning();
     if (row === undefined) {
         throw new TypeError(`the insert of ${call.object.name} returned no row`);
+    }
+
+    // record a new scope's chain and the first relationships with the row
+    const creating = creationOf(call, creation);
+    const isScope = call.object.policy.definition.scope === true;
+    if (!call.isPredicted && (isScope || creating !== undefined)) {
+        const object = call.object.reference(call.scope, call.requireId());
+        await call.requireAuthorization().create(object, (await creating?.(call, object)) ?? {});
     }
 
     return row;
