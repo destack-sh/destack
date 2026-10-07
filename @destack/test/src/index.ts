@@ -13,4 +13,4 @@ export {
 export type { TestAnnotation, TestArtifact, TestContext } from "vitest";
 export { refusal } from "./refusal/index.ts";
 export { single } from "./single/index.ts";
-export { type Driver, type DriverType, type Observed, Runner } from "./scenario/index.ts";
+export { type Driver, type DriverType, type Observations, Runner } from "./scenario/index.ts";

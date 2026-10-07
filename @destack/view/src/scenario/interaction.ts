@@ -19,7 +19,7 @@ export const Environment = defineSchema(
 /** The theme settings, locale, direction and width a host renders UI examples in. */
 export type Environment = schema.Infer<typeof Environment>;
 
-/** The UI interaction: Playwright's actions, locators and assertions, played in process by `ViewDriver`. */
+/** The UI interaction: actions, locators and assertions, played in process by `ViewDriver`. */
 export const viewInteraction: Interaction<Step, Observation, Environment> = Object.freeze({
     name: "ui",
     step: Step,

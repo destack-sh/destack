@@ -35,7 +35,7 @@ interface Rendered {
     readonly set: (properties: Readonly<Record<string, JsonValue>>) => void;
 }
 
-/** A driver playing UI scenarios in the test DOM in process, after Testing Library; a browser driver plays the same steps through Playwright. */
+/** A driver playing UI scenarios in the test DOM in process, as a browser driver plays them through Playwright. */
 export class ViewDriver implements Driver<typeof viewInteraction> {
     /** The interaction the driver speaks. */
     static readonly interaction = viewInteraction;
@@ -138,7 +138,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         }
     }
 
-    /** Find the one element a locator matches, refusing none or several, after Playwright's strict locators. */
+    /** Find the one element a locator matches, refusing none or several. */
     locate(locator: Locator): HTMLElement {
         const [element, ...others] = this.locateAll(locator);
         if (element === undefined || others.length > 0) {

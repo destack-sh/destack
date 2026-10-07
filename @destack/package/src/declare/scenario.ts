@@ -6,7 +6,7 @@ import { Moniker } from "../graph/moniker.ts";
 import type { Declaration } from "./declaration.ts";
 import { type Example, requireDescription } from "./example.ts";
 
-/** What a scenario's steps and observations speak and its examples play in, after the user interactions of Testing Library and Playwright. */
+/** What a scenario's steps and observations speak and its examples play in. */
 export interface Interaction<Step = unknown, Observation = unknown, Environment = unknown> {
     /** The name a runner picks the driver by, such as `ui`. */
     readonly name: string;

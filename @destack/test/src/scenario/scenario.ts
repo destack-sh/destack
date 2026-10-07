@@ -1,9 +1,4 @@
-import type {
-    Given,
-    Scenario,
-    SetStep,
-    Interaction,
-} from "@destack/package/declare";
+import type { Given, Scenario, SetStep, Interaction } from "@destack/package/declare";
 import type { JsonValue, schema } from "@destack/schema";
 import { expect, test } from "vitest";
 
@@ -15,7 +10,7 @@ export interface Driver<Speaks extends Interaction = Interaction> {
     observe(observation: schema.Infer<Speaks["observation"]>): JsonValue | Promise<JsonValue>;
 }
 
-/** The drivers of one interaction, each started on the examples a scenario is given, after Playwright's `BrowserType`. */
+/** The drivers of one interaction, each started on the examples a scenario is given. */
 export interface DriverType<Speaks extends Interaction = Interaction, Instance = unknown> {
     /** The interaction the drivers speak. */
     readonly interaction: Speaks;
@@ -24,7 +19,7 @@ export interface DriverType<Speaks extends Interaction = Interaction, Instance =
 }
 
 /** The values of a scenario's named observations at one point. */
-export type Observed = Record<string, JsonValue>;
+export type Observations = Record<string, JsonValue>;
 
 /** The runner playing scenarios through the driver of each one's interaction. */
 export const Runner = {
@@ -32,11 +27,11 @@ export const Runner = {
     async observe<Speaks extends Interaction, Instance>(
         scenario: Scenario<Speaks, Instance>,
         type: DriverType<Speaks, Instance>,
-    ): Promise<Observed[]> {
+    ): Promise<Observations[]> {
         // start the driver, then take each step and read what it leaves
         const driver = await type.start(scenario.given);
         const isEach = "each" in scenario.then;
-        const observed: Observed[] = [];
+        const observed: Observations[] = [];
         for (const [index, step] of scenario.when.entries()) {
             await driver.act(step);
             if (isEach || index === scenario.when.length - 1) {
@@ -79,8 +74,8 @@ export const Runner = {
 async function read<Speaks extends Interaction>(
     driver: Driver<Speaks>,
     observations: Readonly<Record<string, schema.Infer<Speaks["observation"]>>>,
-): Promise<Observed> {
-    const observed: Observed = {};
+): Promise<Observations> {
+    const observed: Observations = {};
     for (const [name, observation] of Object.entries(observations)) {
         observed[name] = await driver.observe(observation);
     }

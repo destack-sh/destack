@@ -1,10 +1,10 @@
 import { defineSchema, schema } from "@destack/schema";
 import { Locator } from "./locator.ts";
 
-/** The ARIA states an observation reads, after Playwright's role options. */
+/** The ARIA states an observation reads. */
 export const OBSERVED_STATES = ["checked", "disabled", "expanded", "pressed", "selected"] as const;
 
-/** What a UI driver reads after a step, after Playwright's assertions, as a JSON value. */
+/** What a UI driver reads after a step, as a JSON value. */
 export const Observation = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({

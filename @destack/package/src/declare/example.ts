@@ -13,7 +13,7 @@ export type PropertiesOf<Of> = Of extends (properties: infer Properties) => unkn
     ? Partial<Properties>
     : Readonly<Record<string, JsonValue>>;
 
-/** An example of a declaration as its module defines it, after Storybook's stories and SwiftUI's previews. */
+/** An example of a declaration as its module defines it. */
 export interface ExampleDefinition<Of, Instance> {
     /** The declaration the example shows, such as a component, a view or an object type. */
     readonly of: Of;

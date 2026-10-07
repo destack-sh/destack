@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import { Locator } from "./locator.ts";
 
-/** One step a UI scenario takes, as data a driver interprets, after Playwright's actions and Gherkin's When. */
+/** One step a UI scenario takes, as data a driver interprets. */
 export const Step = defineSchema(
     schema.discriminatedUnion("action", [
         schema.object({

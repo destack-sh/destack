@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 
-/** What a locator matches by, after Playwright's locators: a role first, CSS only as a last resort. */
+/** What a locator matches by: a role first, CSS only as a last resort. */
 export type LocatorMatch =
     | {
           /** The ARIA role, explicit or implicit, such as `tab` or `button`. */
@@ -51,7 +51,7 @@ const place = {
     within: schema.lazy((): schema.Schema<Locator> => Locator).exactOptional(),
 };
 
-/** Where a step acts or an observation reads, after Playwright's `getByRole`, `getByLabel`, `getByText` and `getByTestId`. */
+/** Where a step acts or an observation reads: by role, label, text or test identifier. */
 export const Locator: schema.Schema<Locator> = schema.union([
     schema.object({
         /** The ARIA role. */
