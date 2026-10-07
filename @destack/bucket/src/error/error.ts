@@ -1,4 +1,4 @@
-import { ServiceError } from "@destack/service/error";
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
 /** The service error code of each storage failure: the request's own, a missing file, a fence a caller may retry after, or the host's. */
 const SERVICE_CODES = {
@@ -15,17 +15,17 @@ const SERVICE_CODES = {
     NO_SUCH_UPLOAD: "NOT_FOUND",
     NO_SUCH_BUCKET: "NOT_FOUND",
     UNSUPPORTED: "NOT_IMPLEMENTED",
-    FENCED: "UNAVAILABLE",
-    CLOSED: "UNAVAILABLE",
-    BUSY: "UNAVAILABLE",
+    FENCED: "SERVICE_UNAVAILABLE",
+    CLOSED: "SERVICE_UNAVAILABLE",
+    BUSY: "SERVICE_UNAVAILABLE",
     WRITE_FAILED: "INTERNAL_SERVER_ERROR",
-} as const;
+} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
 
 /** A failure code of file storage. */
 export type BucketErrorCode = keyof typeof SERVICE_CODES;
 
 /** A storage failure with a stable code. */
-export class BucketError extends Error {
+export class BucketError extends Error implements DomainError {
     /** The failure code. */
     readonly code: BucketErrorCode;
 
@@ -37,7 +37,7 @@ export class BucketError extends Error {
     }
 
     /** Convert the failure to the service error a caller receives. */
-    toServiceError() {
-        return new ServiceError(SERVICE_CODES[this.code], { message: this.message, cause: this });
+    toServiceError(): ServiceErrorReport {
+        return { code: SERVICE_CODES[this.code], message: this.message };
     }
 }

@@ -1,3 +1,4 @@
+import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 import { BucketError, type BucketErrorCode } from "../error/index.ts";
 
 /** The HTTP status of each S3 error code, as the S3 API reference lists them. */
@@ -36,6 +37,21 @@ const S3_ERROR_STATUS = {
     XAmzContentSHA256Mismatch: 400,
 } as const;
 
+/** The service error code of each S3 error status. */
+const SERVICE_CODES = {
+    400: "BAD_REQUEST",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    405: "METHOD_NOT_SUPPORTED",
+    411: "BAD_REQUEST",
+    412: "PRECONDITION_FAILED",
+    416: "BAD_REQUEST",
+    501: "NOT_IMPLEMENTED",
+    503: "SERVICE_UNAVAILABLE",
+} as const satisfies Readonly<
+    Record<(typeof S3_ERROR_STATUS)[keyof typeof S3_ERROR_STATUS], ServiceErrorCode>
+>;
+
 /** The S3 error code of each storage failure a request causes; the host reports the rest. */
 const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
     INVALID_KEY: "InvalidArgument",
@@ -57,7 +73,7 @@ const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
 export type S3ErrorCode = keyof typeof S3_ERROR_STATUS;
 
 /** A failed S3 request, answered with its code and HTTP status. */
-export class S3Error extends Error {
+export class S3Error extends Error implements DomainError {
     /** The S3 error code. */
     readonly code: S3ErrorCode;
 
@@ -71,6 +87,11 @@ export class S3Error extends Error {
     /** The HTTP status of the code. */
     get status(): number {
         return S3_ERROR_STATUS[this.code];
+    }
+
+    /** Convert the failure to the service error a caller receives, by the status of its code. */
+    toServiceError(): ServiceErrorReport {
+        return { code: SERVICE_CODES[S3_ERROR_STATUS[this.code]], message: this.message };
     }
 
     /** Read a failure the request caused as an S3 error, and return undefined for host failures. */
