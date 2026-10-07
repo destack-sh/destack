@@ -9,7 +9,7 @@ Localise messages and format numbers, money and dates for a person's language an
 ```ts
 import { Localization } from "@destack/locale";
 
-const german = Localization.of("de-AT", catalogs); // messages written in "en", the default source
+const german = Localization.of("de-AT", catalogs); // messages written in SOURCE_LOCALE, "en", by default
 german.tag; // "de-AT"
 german.direction; // "ltr", the locale's own unless the options set another
 german.render(archived); // "3 Notizen in ⁨Trips⁩ archiviert", values isolated by direction
@@ -81,28 +81,4 @@ A package translates its messages in `locale/<tag>.json` files beside its `desta
     "messages": { "1x3k9q2…": "Schließen" },
     "drafts": ["1x3k9q2…"]
 }
-```
-
-## Interfaces
-
-A view or a website renders its messages through `useLocale()` from `@destack/locale/solid`, whose `Localization` the host provides in the person's locale with the catalogs of the view's package and its dependencies, and the source language without a provider.
-
-```tsx
-import { plural, t } from "@destack/locale";
-import { useLocale } from "@destack/locale/solid";
-
-export function Archived(properties: { count: number; notebook: string }) {
-    const locale = useLocale(); // provided by renderView for views, by LocaleContext for websites
-
-    return (
-        <p>
-            {locale.render(
-                t`Archived ${plural(properties.count, { one: "# note", other: "# notes" })} in ${properties.notebook}`,
-            )}
-        </p>
-    );
-}
-
-// a website provides it itself
-<LocaleContext value={Localization.of(Locale.parse("de-AT"), catalogs)}>{page}</LocaleContext>;
 ```

@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import type { JSX } from "@solidjs/web";
-import { useLocale } from "@destack/locale/solid";
+import { useLocale } from "../page/locale.ts";
 import { defineExample } from "@destack/package/declare";
 import { type ExampleFrame, renderExample } from "./frame.ts";
 

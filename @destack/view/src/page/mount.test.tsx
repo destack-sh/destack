@@ -9,7 +9,7 @@ import { defineProcedure, defineService } from "@destack/service";
 import { schema } from "@destack/schema";
 import { createSignal } from "solid-js";
 import { Errored } from "../solid/flow.ts";
-import { useLocale } from "@destack/locale/solid";
+import { useLocale } from "./locale.ts";
 import type { Catalog } from "@destack/locale";
 
 /** The first strong isolate MessageFormat 2 places around a string value. */

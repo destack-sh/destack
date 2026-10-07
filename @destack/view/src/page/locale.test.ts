@@ -1,8 +1,7 @@
 import { expect, test } from "@destack/test";
 import { children, createComponent, createRoot } from "solid-js";
-import { Localization } from "../localization/localization.ts";
-import { t } from "../message/message.ts";
-import { LocaleContext, useLocale } from "./solid.ts";
+import { Localization, t } from "@destack/locale";
+import { LocaleContext, useLocale } from "./locale.ts";
 
 /** The first strong isolate MessageFormat 2 places around a string value. */
 const OPEN = String.fromCodePoint(0x2068);

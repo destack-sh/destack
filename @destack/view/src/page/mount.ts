@@ -1,7 +1,7 @@
 import { type Component, createComponent } from "solid-js";
 import { render } from "@solidjs/web";
-import { type Catalog, Localization } from "@destack/locale";
-import { LocaleContext } from "@destack/locale/solid";
+import { type Catalog, Localization, SOURCE_LOCALE } from "@destack/locale";
+import { LocaleContext } from "./locale.ts";
 import type { ObjectClient } from "@destack/object/client";
 import type { ViewContext } from "../declare/context.ts";
 import { type ViewMount, ViewMountContext } from "./view.ts";
@@ -22,7 +22,7 @@ export function renderView(
                 value: { context, clients: new Map(Object.entries(clients)), services },
                 get children() {
                     return createComponent(LocaleContext, {
-                        value: Localization.of(context.locale ?? "en", catalogs),
+                        value: Localization.of(context.locale ?? SOURCE_LOCALE, catalogs),
                         get children() {
                             return createComponent(component, {});
                         },

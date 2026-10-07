@@ -52,13 +52,16 @@ export interface LocalizationOptions {
     readonly direction?: Direction;
 }
 
+/** The language messages are written in when a localization names none. */
+export const SOURCE_LOCALE: LocaleTag = "en";
+
 /** The localizations people read in. */
 export const Localization = {
     /** Bind a locale to the catalogs of the packages whose messages it renders, messages written in the source language. */
     of(
         tag: LocaleTag,
         catalogs: readonly Catalog[],
-        { source = "en", direction }: LocalizationOptions = {},
+        { source = SOURCE_LOCALE, direction }: LocalizationOptions = {},
     ): Localization {
         // index the translations by package and locale, and walk the fallback chain once
         const translations = new Map(

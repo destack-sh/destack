@@ -1,8 +1,8 @@
 import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
-import { type Catalog, Localization, LocaleTag } from "@destack/locale";
-import { LocaleContext } from "@destack/locale/solid";
+import { type Catalog, Localization, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
+import { LocaleContext } from "../page/locale.ts";
 import type { Example } from "@destack/package/declare";
 import type { Environment } from "../scenario/interaction.ts";
 import { View } from "../declare/view.ts";
@@ -14,14 +14,11 @@ import {
     DEFAULT_PREFERENCES,
     Density,
     Motion,
-    Preset,
+    Seed,
     TextSize,
     type Theme,
 } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
-
-/** The language an example renders in when its environment names none, the source language. */
-const SOURCE_LOCALE = "en";
 
 /** The theme settings an environment sets, each the person's default when absent. */
 const ThemeSettings = schema.object({
@@ -36,7 +33,7 @@ const ThemeSettings = schema.object({
     /** The motion. */
     motion: Motion.exactOptional(),
     /** The accent, or null for the theme's own. */
-    accent: Preset.nullable().exactOptional(),
+    accent: Seed.nullable().exactOptional(),
 });
 
 /** What an example frame shows: the example, the environment it renders in and the properties a control changed. */

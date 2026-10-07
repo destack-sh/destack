@@ -6,8 +6,7 @@
     "sideEffects": false,
     "description": "Localise messages and format numbers, money and dates for a person's language and region.",
     "exports": {
-        ".": "./src/index.ts",
-        "./solid": "./src/solid/index.ts"
+        ".": "./src/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -21,10 +20,6 @@
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
-        "solid-js": "2.0.0-rc.8"
-    },
-    "peerDependencies": {
-        "solid-js": "2.0.0-rc.8"
+        "@types/bun": "1.4.2"
     }
 }
