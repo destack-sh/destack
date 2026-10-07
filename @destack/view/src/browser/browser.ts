@@ -72,6 +72,20 @@ export async function mount(view: View): Promise<() => Promise<void>> {
         rendering.switch(next, stopping.signal);
     });
 
+    // record a visit of the view as it loads and after each navigation within it
+    const { visit } = telemetry.scope({ ...view.package, version: release });
+    const visited = (referrer?: string) =>
+        visit(view.name, {
+            path: location.pathname,
+            title: document.title,
+            locale: navigator.language,
+            ...(referrer === undefined ? {} : { referrer }),
+        });
+    visited(document.referrer === "" ? undefined : new URL(document.referrer).host);
+    window.navigation?.addEventListener("navigatesuccess", () => visited(), {
+        signal: stopping.signal,
+    });
+
     // release the page's display, render, tabs and telemetry on unmount
     const unmount = async () => {
         stopping.abort();
