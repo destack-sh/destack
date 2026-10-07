@@ -24,6 +24,7 @@ function describe(entry: CatalogueFile): BucketFile {
         new BucketChecksums(entry.checksums),
         entry.storageClass,
         entry.ssecKeyMd5 ?? undefined,
+        entry.retainUntil === null ? undefined : new Date(entry.retainUntil),
     );
 }
 

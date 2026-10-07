@@ -1,4 +1,4 @@
-import { inArray, Order, sum } from "@destack/db";
+import { and, gt, inArray, Order, sum } from "@destack/db";
 import type {
     BucketBody,
     BucketGetOptions,
@@ -331,6 +331,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             uploaded: identity?.uploaded.getTime() ?? Date.now(),
             httpMetadata: CatalogueFile.encodeHttpMetadata(options.httpMetadata ?? {}),
             customMetadata: options.customMetadata ?? {},
+            retainUntil: options.retainUntil?.getTime() ?? null,
         };
     }
 
@@ -399,6 +400,18 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             // refuse a fenced bucket, and reclaim earlier writes before changing any requested keys
             this.#storage.checkWritable();
             await this.#storage.collect();
+
+            // refuse the whole batch while one of its files is locked
+            const locked = await this.#storage.database
+                .select({ key: file.key })
+                .from(file)
+                .where(and(inArray(file.key, keys), gt(file.retainUntil, Date.now())));
+            if (locked.length > 0) {
+                throw new BucketError(
+                    "LOCKED",
+                    `file ${locked.map((entry) => entry.key).join(", ")} is retained until its lock expires`,
+                );
+            }
 
             // delete the files and detach their segments in one transaction
             const detached = await this.#storage.database.transaction(async (transaction) => {

@@ -81,6 +81,9 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 options: {
                     httpMetadata: CatalogueFile.encodeHttpMetadata(options.httpMetadata ?? {}),
                     customMetadata: options.customMetadata ?? {},
+                    ...(options.retainUntil === undefined
+                        ? {}
+                        : { retainUntil: options.retainUntil.getTime() }),
                 },
             });
         });
@@ -321,6 +324,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             customMetadata: metadata.options.customMetadata ?? {},
             storageClass: metadata.storageClass,
             ssecKeyMd5: metadata.ssecKeyMd5,
+            retainUntil: metadata.options.retainUntil ?? null,
         };
     }
 

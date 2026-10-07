@@ -50,6 +50,8 @@ export interface BucketGetOptions {
 
 /** Write options. */
 export interface BucketPutOptions {
+    /** The time before which the file can be neither replaced nor deleted, as S3 Object Lock's retain-until date. */
+    retainUntil?: Date;
     /** The preconditions the current file, or its absence, must meet to be replaced. */
     onlyIf?: BucketCondition;
     /** Stored HTTP headers. */

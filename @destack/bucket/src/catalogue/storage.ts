@@ -345,12 +345,15 @@ export class CatalogueStorage implements AsyncDisposable {
         segments: Segment[],
         transaction: CatalogueTransaction,
     ): Promise<string[]> {
-        // replace the key's file and detach the segments of its previous version
+        // refuse replacing a locked file, then replace the key's file and detach the segments of its previous version
         const previous = await transaction
-            .select({ version: file.version })
+            .select({ version: file.version, retainUntil: file.retainUntil })
             .from(file)
             .where(eq(file.key, entry.key))
             .get();
+        if (previous?.retainUntil != null && previous.retainUntil > Date.now()) {
+            throw new BucketError("LOCKED", `file ${entry.key} is retained until its lock expires`);
+        }
         await transaction.insert(file).values(entry).onConflictDoUpdate({
             target: file.key,
             set: entry,
@@ -502,6 +505,7 @@ function listingColumns(options: BucketListOptions) {
         checksums: file.checksums,
         storageClass: file.storageClass,
         ssecKeyMd5: file.ssecKeyMd5,
+        retainUntil: file.retainUntil,
         ...(options.include?.includes("httpMetadata") === true
             ? { httpMetadata: file.httpMetadata }
             : {}),

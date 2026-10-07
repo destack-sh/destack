@@ -121,11 +121,13 @@ async function putObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
     // store the verified body with the request's metadata
     const storageClass = call.storageClass();
     const ssecKey = call.ssecKey();
+    const retainUntil = call.retainUntil();
     const file = await bucket.put(call.key, call.body(), {
         httpMetadata: call.httpMetadata(),
         customMetadata: call.customMetadata(),
         ...(storageClass === undefined ? {} : { storageClass }),
         ...(ssecKey === undefined ? {} : { ssecKey }),
+        ...(retainUntil === undefined ? {} : { retainUntil }),
         ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
     });
     if (file === null) {
@@ -381,12 +383,16 @@ function fileHeaders(file: BucketFile): Headers {
     });
     file.writeHttpMetadata(headers);
 
-    // add user metadata, a non-standard storage class and the customer key digest
+    // add user metadata, a non-standard storage class, the object lock and the customer key digest
     for (const [name, value] of Object.entries(file.customMetadata)) {
         headers.set(`x-amz-meta-${name}`, value);
     }
     if (file.storageClass !== "Standard") {
         headers.set("x-amz-storage-class", S3_STORAGE_CLASSES[file.storageClass]);
+    }
+    if (file.retainUntil !== undefined) {
+        headers.set("x-amz-object-lock-mode", "COMPLIANCE");
+        headers.set("x-amz-object-lock-retain-until-date", file.retainUntil.toISOString());
     }
     if (file.ssecKeyMd5 !== undefined) {
         headers.set("x-amz-server-side-encryption-customer-algorithm", "AES256");

@@ -65,6 +65,7 @@ const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
     INCOMPLETE_BODY: "IncompleteBody",
     NO_SUCH_KEY: "NoSuchKey",
     NO_SUCH_UPLOAD: "NoSuchUpload",
+    LOCKED: "AccessDenied",
     UNSUPPORTED: "NotImplemented",
     FENCED: "ServiceUnavailable",
 };

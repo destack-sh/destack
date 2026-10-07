@@ -141,6 +141,18 @@ await provider.fence.fence(record);
 await provider.fence.lift(record);
 ```
 
+## Object lock
+
+`retainUntil` locks a file in compliance mode, as S3 Object Lock does: nobody replaces or deletes it before the date, and R2's own buckets lock files by bucket lock rules instead.
+
+```ts
+await bucket.put("audit/2026-10/segment.parquet", body, {
+    retainUntil: new Date(sealedAt + SEVEN_YEARS),
+});
+await bucket.delete("audit/2026-10/segment.parquet"); // BucketError LOCKED until the date, S3 AccessDenied
+(await bucket.head("audit/2026-10/segment.parquet"))?.retainUntil; // the date
+```
+
 ## S3
 
 `S3Server` serves the path-style S3 API over any `S3Bucket`, such as a `LocalBucket`.

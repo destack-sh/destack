@@ -376,3 +376,36 @@ test("count the bytes a bucket's published files keep, a replaced file once and 
         await rm(directory, { recursive: true });
     }
 });
+
+test("refuse replacing or deleting a locked file until its retain-until date, then allow both", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-bucket-lock-"));
+    try {
+        // lock a file for a moment beside an unlocked one
+        await using bucket = await LocalBucket.open(directory, "space-test");
+        const retainUntil = new Date(Date.now() + 200);
+        await bucket.put("audit/segment", "sealed", { retainUntil });
+        await bucket.put("notes", "free");
+
+        // refuse replacing it, and refuse a batch deleting it, keeping the batch's other file
+        const replaced = await refusal(bucket.put("audit/segment", "changed"));
+        const deleted = await refusal(bucket.delete(["notes", "audit/segment"]));
+        const held = [
+            (await bucket.head("audit/segment"))?.retainUntil?.getTime(),
+            (await bucket.head("notes")) === null,
+        ];
+
+        // once the date passes, delete it
+        await new Promise((resolve) => {
+            setTimeout(resolve, 250);
+        });
+        await bucket.delete("audit/segment");
+        expect([replaced, deleted, held, await bucket.head("audit/segment")]).toEqual([
+            ["LOCKED", "file audit/segment is retained until its lock expires"],
+            ["LOCKED", "file audit/segment is retained until its lock expires"],
+            [retainUntil.getTime(), false],
+            null,
+        ]);
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});

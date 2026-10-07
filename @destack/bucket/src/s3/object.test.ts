@@ -516,3 +516,33 @@ test("store and read objects under customer keys through the AWS SDK", async () 
         await failure(client.send(new GetObjectCommand({ Bucket: "files", Key: "sealed.txt" }))),
     ).toEqual({ name: "InvalidRequest", status: 400 });
 });
+
+test("lock an object in compliance mode through the AWS SDK, refusing its deletion until the date", async () => {
+    await using fixture = await S3Fixture.open();
+    const client = fixture.client();
+
+    // store an object locked for an hour
+    const retainUntil = new Date(Math.ceil((Date.now() + 3_600_000) / 1000) * 1000);
+    await client.send(
+        new PutObjectCommand({
+            Bucket: "files",
+            Key: "audit/segment.parquet",
+            Body: "sealed",
+            ObjectLockMode: "COMPLIANCE",
+            ObjectLockRetainUntilDate: retainUntil,
+        }),
+    );
+
+    // read its lock, and fail to delete it
+    const head = await client.send(
+        new HeadObjectCommand({ Bucket: "files", Key: "audit/segment.parquet" }),
+    );
+    const deleted = await failure(
+        client.send(new DeleteObjectCommand({ Bucket: "files", Key: "audit/segment.parquet" })),
+    );
+    expect([head.ObjectLockMode, head.ObjectLockRetainUntilDate?.getTime(), deleted]).toEqual([
+        "COMPLIANCE",
+        retainUntil.getTime(),
+        { name: "AccessDenied", status: 403 },
+    ]);
+});

@@ -134,11 +134,18 @@ export class R2Bucket implements Bucket {
         body: BucketBody | null,
         options: BucketPutOptions = {},
     ): Promise<BucketFile | null> {
-        // validate the key and pass the body as R2 takes it
+        // refuse a lock per file, which R2 keeps only as bucket lock rules, and pass the body as R2 takes it
         BucketKey.check(key);
+        const { retainUntil, ...written } = options;
+        if (retainUntil !== undefined) {
+            throw new BucketError(
+                "UNSUPPORTED",
+                "R2 locks files by bucket lock rules, not per file",
+            );
+        }
         const value = body === null ? null : R2Body.write(body);
         this.#operations.classA += 1;
-        const entry = await this.#bucket.put(key, value, options);
+        const entry = await this.#bucket.put(key, value, written);
 
         return entry === null ? null : R2File.describe(entry);
     }
@@ -161,10 +168,17 @@ export class R2Bucket implements Bucket {
         key: string,
         options: MultipartOptions = {},
     ): Promise<MultipartUpload> {
-        // validate the key and create the upload as one Class A operation
+        // refuse a lock per file, then create the upload as one Class A operation
         BucketKey.check(key);
+        const { retainUntil, ...created } = options;
+        if (retainUntil !== undefined) {
+            throw new BucketError(
+                "UNSUPPORTED",
+                "R2 locks files by bucket lock rules, not per file",
+            );
+        }
         this.#operations.classA += 1;
-        const upload = await this.#bucket.createMultipartUpload(key, options);
+        const upload = await this.#bucket.createMultipartUpload(key, created);
 
         return new R2MultipartUpload(upload, this.#operations);
     }

@@ -16,6 +16,8 @@ export interface MultipartOptions {
     storageClass?: StorageClass;
     /** The customer key encrypting every part, as 32 raw bytes or 64 hexadecimal digits. */
     ssecKey?: ArrayBuffer | string;
+    /** The time before which the completed file can be neither replaced nor deleted. */
+    retainUntil?: Date;
 }
 
 /** Options of one part upload. */

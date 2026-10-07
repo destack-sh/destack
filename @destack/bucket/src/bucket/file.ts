@@ -34,6 +34,8 @@ export class BucketFile {
     readonly storageClass: StorageClass;
     /** The MD5 digest of the customer key encrypting the file, as base64. */
     readonly ssecKeyMd5: string | undefined;
+    /** The time before which the file can be neither replaced nor deleted, absent for an unlocked file. */
+    readonly retainUntil: Date | undefined;
 
     /** Retain the uploaded file's metadata. */
     constructor(
@@ -47,6 +49,7 @@ export class BucketFile {
         checksums: BucketChecksums = new BucketChecksums(),
         storageClass: StorageClass = "Standard",
         ssecKeyMd5?: string,
+        retainUntil?: Date,
     ) {
         // retain the file description
         this.key = key;
@@ -59,6 +62,12 @@ export class BucketFile {
         this.checksums = checksums;
         this.storageClass = storageClass;
         this.ssecKeyMd5 = ssecKeyMd5;
+        this.retainUntil = retainUntil;
+    }
+
+    /** Report whether the file is locked at a time, before its retain-until date. */
+    isLocked(now: number): boolean {
+        return this.retainUntil !== undefined && this.retainUntil.getTime() > now;
     }
 
     /** The quoted entity tag for HTTP responses. */

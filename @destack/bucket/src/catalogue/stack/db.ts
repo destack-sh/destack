@@ -42,6 +42,8 @@ export const file = defineTable(
         storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
         /** The base64 MD5 digest of the customer key encrypting the content, absent for plain content. */
         ssecKeyMd5: text("ssec_key_md5"),
+        /** The time before which the file can be neither replaced nor deleted, in Unix milliseconds, absent for an unlocked file. */
+        retainUntil: integer("retain_until"),
     },
     { log: {} },
 );
@@ -89,6 +91,8 @@ export const upload = defineTable(
             schema.object({
                 httpMetadata: HttpMetadata.exactOptional(),
                 customMetadata: schema.record(schema.string(), schema.string()).exactOptional(),
+                /** The completed file's retain-until time, in Unix milliseconds. */
+                retainUntil: schema.number().int().exactOptional(),
             }),
         ).notNull(),
     },

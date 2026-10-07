@@ -32,11 +32,13 @@ async function createUpload(call: S3Request, bucket: S3Bucket): Promise<Response
     call.checkParameters(["uploads"]);
     const storageClass = call.storageClass();
     const ssecKey = call.ssecKey();
+    const retainUntil = call.retainUntil();
     const upload = await bucket.createMultipartUpload(call.key, {
         httpMetadata: call.httpMetadata(),
         customMetadata: call.customMetadata(),
         ...(storageClass === undefined ? {} : { storageClass }),
         ...(ssecKey === undefined ? {} : { ssecKey }),
+        ...(retainUntil === undefined ? {} : { retainUntil }),
     });
 
     return xmlResponse("InitiateMultipartUploadResult", {

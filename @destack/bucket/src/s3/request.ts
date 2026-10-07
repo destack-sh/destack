@@ -290,6 +290,26 @@ export class S3Request {
         return metadata;
     }
 
+    /** Read the retain-until date of a write's compliance-mode object lock, or undefined for an unlocked file. */
+    retainUntil(): Date | undefined {
+        // read the optional headers, accepting the compliance mode alone
+        const value = this.headers.get("x-amz-object-lock-retain-until-date");
+        const mode = this.headers.get("x-amz-object-lock-mode");
+        if (value === null) {
+            return undefined;
+        } else if (mode !== null && mode !== "COMPLIANCE") {
+            throw new S3Error("InvalidArgument", "object lock supports the COMPLIANCE mode alone");
+        }
+
+        // read the ISO 8601 date
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            throw new S3Error("InvalidArgument", `invalid object lock retain-until date: ${value}`);
+        }
+
+        return date;
+    }
+
     /** Read the storage class of a write, or undefined for the default. */
     storageClass(): StorageClass | undefined {
         // read the optional header
