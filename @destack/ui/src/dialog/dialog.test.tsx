@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import {
     Dialog,
@@ -51,7 +51,7 @@ test("open a modal dialog from its trigger, named by its title and described by 
     // the trigger reports the open dialog it controls, and the dialog is open
     expect(markup(container)).toBe(
         '<button data-slot="dialog-trigger" data-variant="default" data-size="default" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1">Rename</button>' +
-            '<dialog id="id-1" data-slot="dialog-content" closedby="any" aria-labelledby="id-2" aria-describedby="id-3" open="">' +
+            '<dialog id="id-1" data-slot="dialog-content" data-state="open" closedby="any" aria-labelledby="id-2" aria-describedby="id-3" open="">' +
             '<h2 id="id-2" data-slot="dialog-title">Rename note</h2>' +
             '<p id="id-3" data-slot="dialog-description">Pick a new title.</p>' +
             `${CLOSE_BUTTON}</dialog>`,
@@ -135,4 +135,40 @@ test("open a dialog from a trigger rendered as another element, which keeps the 
         find(container, "[data-slot=dialog-trigger]").getAttribute("aria-expanded"),
         dialogOf(container).open,
     ]).toEqual(["SPAN", "Rename", "true", true]);
+});
+
+test("open a non-modal dialog beside the page, and a modal one over it", () => {
+    // record how each dialog element opens, as the test DOM keeps no top layer
+    const opened: string[] = [];
+    const prototype = HTMLDialogElement.prototype;
+    const original = Object.getOwnPropertyDescriptors(prototype);
+    const record = (how: string) =>
+        function (this: HTMLDialogElement) {
+            opened.push(`${this.textContent ?? ""} ${how}`);
+            this.toggleAttribute("open", true);
+        };
+    Object.assign(prototype, {
+        show: record("beside the page"),
+        showModal: record("over the page"),
+    });
+    onTestFinished(() => {
+        Object.defineProperties(prototype, { show: original.show, showModal: original.showModal });
+    });
+
+    draw(() => (
+        <>
+            <Dialog defaultOpen modal={false}>
+                <DialogContent showCloseButton={false}>
+                    <DialogTitle>Find</DialogTitle>
+                </DialogContent>
+            </Dialog>
+            <Dialog defaultOpen>
+                <DialogContent showCloseButton={false}>
+                    <DialogTitle>Rename note</DialogTitle>
+                </DialogContent>
+            </Dialog>
+        </>
+    ));
+    flush();
+    expect(opened).toEqual(["Find beside the page", "Rename note over the page"]);
 });

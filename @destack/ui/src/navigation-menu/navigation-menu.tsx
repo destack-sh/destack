@@ -12,7 +12,6 @@ import {
     weight,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { useLocale } from "@destack/locale/solid";
 import {
     type Accessor,
     createContext,
@@ -26,6 +25,7 @@ import {
     type Setter,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { itemsOf, moveFocus } from "../focus/index.ts";

@@ -282,6 +282,67 @@ import {
 </FieldSet>;
 ```
 
+## Schema form
+
+`SchemaForm` renders a field per property of a JSON Schema, such as a method's input, starting from each property's `default`, and refuses values the schema refuses in the person's language through `useSchemaForm`.
+
+```tsx
+import { SchemaForm, schemaFields } from "@destack/ui/schema-form";
+
+<SchemaForm
+    schema={{
+        type: "object",
+        properties: {
+            title: { type: "string", minLength: 1 },
+            day: { type: "string", format: "date" }, // a DatePicker writing "2026-10-07"
+            starts: { type: "string", format: "time" }, // a TimeField writing the UTC time "07:30:00Z"
+            due: { type: "string", format: "date-time" }, // a DatePicker and a TimeField writing "2026-10-07T07:30:00.000Z"
+            estimate: { type: "integer", minimum: 1, default: 1 }, // a number input with min and step
+            tags: { type: "array", items: { enum: ["home", "work"] } }, // a checkbox per value
+            steps: { type: "array", items: { type: "string" } }, // rows to add and remove
+            place: { type: "object", properties: { city: { type: "string" } } }, // a fieldset, added and removed while optional
+            repeat: { oneOf: [daily, weekly] }, // a choice of kind, then its fields
+        },
+        required: ["title"],
+    }}
+    submit="File task"
+    onSubmit={(value) => file(value)} // { title: "Milk", estimate: 1 } once every field is kept
+/>;
+schemaFields(input).length; // 0 for a command that takes nothing
+
+// local references resolve against the root schema, recursive ones expanding only where a value exists
+<SchemaForm
+    schema={{
+        $defs: {
+            node: {
+                type: "object",
+                properties: {
+                    name: { type: "string" },
+                    children: { type: "array", items: { $ref: "#/$defs/node" } }, // rows added one by one
+                },
+                required: ["name"],
+            },
+        },
+        type: "object",
+        properties: { tree: { $ref: "#/$defs/node" } },
+        required: ["tree"],
+    }}
+    onSubmit={save}
+/>;
+schemaFields({ properties: { owner: { $ref: "#/$defs/person" } } }); // TypeError: schema reference #/$defs/person does not resolve
+
+// render a property's control itself, such as a picker for a reference, undefined keeping the form's
+<SchemaForm
+    schema={input}
+    renderField={(field, held) =>
+        field.name === "ownerId" ? (
+            <OwnerPicker value={held.value()} onChange={held.set} />
+        ) : undefined
+    }
+    onSubmit={file}
+/>;
+```
+
 ## Label
 
 `Label` renders a native label.
@@ -580,6 +641,7 @@ import {
     </DialogContent>
 </Dialog>;
 // <dialog aria-labelledby aria-describedby closedby="any">, open={open()} controls it
+<Dialog modal={false}>…</Dialog>; // opens with show() beside the page, which stays usable
 ```
 
 ## Alert dialog
@@ -625,7 +687,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@destack/ui/sheet
 
 ## Drawer
 
-`Drawer` slides a dialog in from its direction, with a handle from the bottom.
+`Drawer` slides a dialog in from its direction, with a handle from the bottom, resting at its snap points.
 
 ```tsx
 import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@destack/ui/drawer";
@@ -637,11 +699,18 @@ import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@destack/ui/d
     </DrawerContent>
 </Drawer>;
 // a swipe toward the drawer's edge past a quarter of it, or a flick, closes it
+
+<Drawer snapPoints={[0.5, "320px", 1]} activeSnapPoint={point()} onSnapPointChange={setPoint}>
+    …
+</Drawer>;
+// fractions of the viewport or pixel lengths, smallest first, resting at the largest by default
+// a released drag settles at the snap point nearest where its speed carries it, and closes past the smallest
+// data-snap-point="2" on the content, its height following the point with the theme's motion
 ```
 
 ## Popover
 
-`Popover` opens its content in the top layer through the Popover API, anchored to its trigger.
+`Popover` opens its content in the top layer through the Popover API, anchored to its trigger, or as a modal dialog.
 
 ```tsx
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
@@ -652,7 +721,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
         …
     </PopoverContent>
 </Popover>;
-// without anchor positioning the popover opens in the middle of the viewport
+// without CSS anchor positioning, placeBeside sets its place on open, scroll and resize, flipping as the browser would
+
+<Popover modal>
+    <PopoverTrigger variant="outline">Rename</PopoverTrigger>
+    <PopoverContent>…</PopoverContent>
+</Popover>;
+// a <dialog> shown with showModal: the focus stays inside, the page behind is inert and does not scroll,
+// and the trigger takes the focus back on close
 ```
 
 ## Hover card
@@ -1044,9 +1120,53 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 </Table>;
 ```
 
+## Chart
+
+`Chart` draws a TanStack Charts definition as an SVG in the theme's `chart1`–`chart5` series colors with the foreground for axes and grid, moves the focus between points with the arrow keys and announces each in a status, and reads its source rows out as a visually hidden `table`.
+
+```tsx
+import {
+    barY,
+    Chart,
+    defineChart,
+    pie,
+    polar,
+    radialArc,
+    scaleBand,
+    scaleLinear,
+    tooltip,
+} from "@destack/ui/chart";
+
+<Chart
+    label="Notes per notebook"
+    aspectRatio={16 / 9}
+    definition={defineChart({
+        marks: [barY(notebooks, { x: "notebook", y: "notes" })], // lineY, areaY, barX, dot alike
+        scales: { x: { scale: () => scaleBand() }, y: { scale: scaleLinear, grid: true } },
+        tooltip,
+    })}
+    table={{
+        rows: notebooks,
+        columns: [
+            { key: "notebook", label: "Notebook" },
+            { key: "notes", label: "Notes" },
+        ],
+    }}
+    onSelect={(point) => open(point?.datum)}
+/>;
+
+// a donut: pie slices drawn as arcs in polar coordinates
+defineChart({
+    marks: [
+        polar({ marks: [radialArc(pie(notebooks, { value: "notes" }), { color: "notebook" })] }),
+    ],
+    scales: { x: null, y: null },
+});
+```
+
 ## Data table
 
-`createTable` runs a headless table over reactive options, and `DataTable` renders it as a grid that arrow keys move through, beside `DataTableFilter`, `DataTableViewOptions` and `DataTablePagination`; a manual table leaves sorting, filtering and paging to the query its rows come from.
+`createTable` runs a headless table over reactive options, and `DataTable` renders it as a grid that arrow keys move through, beside `DataTableFilter`, `DataTableViewOptions` and `DataTablePagination`; a manual table leaves sorting, filtering and paging to the query its rows come from, and grouped or nested rows expand in place.
 
 ```tsx
 import { createColumnHelper, rowSortingFeature, createSortedRowModel, tableFeatures } from "@tanstack/table-core";
@@ -1066,6 +1186,11 @@ const table = createTable({ features, columns, get data() { return notes(); }, g
 <DataTablePagination table={table} />;
 
 createTable({ ..., manualSorting: true, manualPagination: true, rowCount: count(), state: { sorting: sorting() }, onSortingChange: setSorting });
+
+// group by a column into rows that expand, a treegrid whose group cells count their members
+createTable({ features: tableFeatures({ columnGroupingFeature, groupedRowModel: createGroupedRowModel(), rowExpandingFeature, expandedRowModel: createExpandedRowModel(), ... }), initialState: { grouping: ["notebook"] }, ... });
+// expand rows into their sub rows from a button column
+createTable({ ..., columns: [expansionColumn(), ...], getSubRows: (task) => task.subtasks });
 ```
 
 ## Tree
@@ -1078,6 +1203,9 @@ import { Tree, TreeItem } from "@destack/ui/tree";
 <Tree aria-label="Notebooks" onValueChange={open}>
     <TreeItem value="trips" label="Trips" defaultExpanded>
         <TreeItem value="lisbon" label="Lisbon" />
+    </TreeItem>
+    <TreeItem value="work" label="Work" expanded={isOpen()} onExpandedChange={setOpen}>
+        <TreeItem value="plans" label="Plans" />
     </TreeItem>
 </Tree>;
 ```
@@ -1103,120 +1231,53 @@ import { Calendar, Day } from "@destack/ui/calendar";
 
 ## Date picker
 
-`DatePicker` opens a `Calendar` in a popover from a button that shows the choice.
+`DatePicker` types a day into a `DateField`, or a range into two, beside a button that opens a `Calendar` in a popover, typing and picking keeping one value.
 
 ```tsx
 import { DatePicker } from "@destack/ui/date-picker";
 
-<DatePicker aria-label="Due date" onValueChange={setDue} />; // named "Due date Pick a date", then "Due date Oct 5, 2026"
-<DatePicker mode="range" aria-label="Trip" onValueChange={setTrip} />; // "Oct 4 – 9, 2026"
+<DatePicker aria-label="Due date" value={due()} onValueChange={setDue} />;
+// a group of [10]/[07]/[2026] and a calendar button: typing or picking Oct 7 reports { year: 2026, month: 10, day: 7 },
+// a cleared day undefined
+<DatePicker mode="range" aria-label="Trip" onValueChange={setTrip} />; // fields named Start date and End date
 <DatePicker
     mode="range"
     aria-label="Edited"
     presets={[{ label: "Last 7 days", value: lastWeek }]}
 />;
-<Input type="date" />; // typed entry, and type="time" or "datetime-local" for times
+<DatePicker mode="multiple" aria-label="Days off" />; // a button named "Days off 2 dates"
+
+// a date and a time of day side by side, without a combined value
+<DatePicker aria-label="Remind on" value={day()} onValueChange={setDay} />;
+<TimeField aria-label="Remind at" value={time()} onValueChange={setTime} />;
 ```
 
-## Message
+## Date field
 
-`Message` lays out one entry of a conversation with its author's avatar, on the start side or the reader's own end side.
+`DateField` types a `PlainDate` as one spinbutton per year, month and day, in the locale's order and with the locale's literals between them.
 
 ```tsx
-import {
-    Message,
-    MessageAvatar,
-    MessageContent,
-    MessageFooter,
-    MessageHeader,
-} from "@destack/ui/message";
+import { DateField } from "@destack/ui/date-field";
 
-<Message align="end">
-    <MessageContent>
-        <MessageHeader>You</MessageHeader>
-        <Bubble>
-            <BubbleContent>June, the second week.</BubbleContent>
-        </Bubble>
-        <MessageFooter>Read</MessageFooter>
-    </MessageContent>
-</Message>;
+<Field>
+    <FieldLabel>Birthday</FieldLabel>
+    <DateField value={birthday()} onValueChange={setBirthday} />
+</Field>;
+// en-US: [mm]/[dd]/[yyyy], de-AT: [dd].[mm].[yyyy], each role="spinbutton" with aria-valuenow, min, max and text
+// 1 0 → month 10 and on to the day, ArrowUp and ArrowDown step and wrap, Backspace clears,
+// ArrowLeft and ArrowRight move along the writing direction
+// reports once every segment is filled: 2026-02-30 and a cleared segment report undefined
 ```
 
-## Bubble
+## Time field
 
-`Bubble` shows a message's text in one of seven variants, with its reactions on its edge.
-
-```tsx
-import { Bubble, BubbleContent, BubbleReactions } from "@destack/ui/bubble";
-
-<Bubble variant="secondary">
-    <BubbleContent>Window seats both ways.</BubbleContent>
-    <BubbleReactions aria-label="Reactions">🎉 2</BubbleReactions>
-</Bubble>;
-```
-
-## Marker
-
-`Marker` writes a quiet line into a conversation, such as a date or a person joining.
+`TimeField` types a `PlainTime` as one spinbutton per hour and minute, with a day period on a 12-hour clock, after the locale's hour cycle.
 
 ```tsx
-import { Marker, MarkerContent } from "@destack/ui/marker";
+import { TimeField } from "@destack/ui/time-field";
 
-<Marker variant="separator">
-    <MarkerContent>Yesterday</MarkerContent>
-</Marker>;
-```
-
-## Attachment
-
-`Attachment` shows a file with its state while it uploads, a trigger that opens it and its actions.
-
-```tsx
-import {
-    Attachment,
-    AttachmentAction,
-    AttachmentContent,
-    AttachmentDescription,
-    AttachmentMedia,
-    AttachmentTitle,
-    AttachmentTrigger,
-} from "@destack/ui/attachment";
-
-<Attachment state="uploading">
-    <AttachmentTrigger aria-label="Open itinerary.pdf" />
-    <AttachmentMedia>
-        <Icon name="file-pdf" />
-    </AttachmentMedia>
-    <AttachmentContent>
-        <AttachmentTitle>itinerary.pdf</AttachmentTitle>
-        <AttachmentDescription>PDF · 240 KB</AttachmentDescription>
-    </AttachmentContent>
-    <AttachmentAction aria-label="Remove itinerary.pdf">
-        <Icon name="x" />
-    </AttachmentAction>
-</Attachment>;
-```
-
-## Message scroller
-
-`MessageScroller` keeps a conversation at its newest message as new ones arrive, unless the reader scrolled away, and offers a button back.
-
-```tsx
-import {
-    MessageScroller,
-    MessageScrollerButton,
-    MessageScrollerItem,
-    MessageScrollerViewport,
-} from "@destack/ui/message-scroller";
-
-<MessageScroller>
-    <MessageScrollerViewport aria-label="Conversation">
-        <For each={messages()}>
-            {(message) => <MessageScrollerItem>{message.text}</MessageScrollerItem>}
-        </For>
-    </MessageScrollerViewport>
-    <MessageScrollerButton />
-</MessageScroller>;
+<TimeField aria-label="Reminder" value={time()} onValueChange={setTime} />;
+// en-US: [09]:[30] [PM], typing p chooses PM, reports "21:30"; de-AT: [21]:[30]
 ```
 
 ## Styles

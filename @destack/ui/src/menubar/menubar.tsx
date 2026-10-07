@@ -10,7 +10,6 @@ import {
     stroke,
     weight,
 } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -21,6 +20,7 @@ import {
     onCleanup,
     type Setter,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { itemsOf, moveFocus } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";

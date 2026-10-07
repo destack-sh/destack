@@ -64,6 +64,7 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
         <CollapsibleContext value={() => properties.disabled === true}>
             <details
                 data-slot="collapsible"
+                data-state={isOpen() ? "open" : "closed"}
                 data-disabled={properties.disabled === true ? "" : undefined}
                 open={isOpen()}
                 {...rest}

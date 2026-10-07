@@ -2,8 +2,7 @@ import { Icon } from "@destack/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { motion } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
-import { type JSX, omit } from "@destack/view";
+import { type JSX, omit, useLocale } from "@destack/view";
 
 /** The full turn a spinner repeats. */
 const spin = style.keyframes({

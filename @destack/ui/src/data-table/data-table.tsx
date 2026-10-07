@@ -8,7 +8,6 @@ import caretUp from "@destack/icon/phosphor/caret-up";
 import caretUpDown from "@destack/icon/phosphor/caret-up-down";
 import slidersHorizontal from "@destack/icon/phosphor/sliders-horizontal";
 import { plural, t } from "@destack/locale";
-import { useLocale } from "@destack/locale/solid";
 import * as style from "@destack/style";
 import { color, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -23,6 +22,7 @@ import {
     omit,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 import type {
     Cell,
@@ -79,6 +79,15 @@ const styles = style.create({
     },
     selection: {
         width: space[6],
+    },
+    toggle: (depth: string) => ({
+        display: "inline-flex",
+        alignItems: "center",
+        gap: space[1],
+        paddingInlineStart: `calc(${depth} * ${space[4]})`,
+    }),
+    members: {
+        color: color.mutedForeground,
     },
     filter: {
         maxWidth: `calc(24 * ${space[4]})`,
@@ -198,6 +207,30 @@ export interface SelectableRow {
     toggleSelected(isSelected?: boolean): void;
 }
 
+/** A row a person expands to show its sub rows, as the expanding feature gives it. */
+export interface ExpandableRow {
+    /** The nesting depth, 0 for a top-level row. */
+    readonly depth: number;
+    /** The rows inside it, such as a group's members. */
+    readonly subRows: readonly unknown[];
+    /** Report whether the row expands. */
+    getCanExpand(): boolean;
+    /** Report whether the row shows its sub rows. */
+    getIsExpanded(): boolean;
+    /** Show or hide the sub rows. */
+    toggleExpanded(isExpanded?: boolean): void;
+}
+
+/** A cell of a grouped table, as the grouping and aggregation features give it. */
+export interface GroupedCell {
+    /** Report whether the cell heads its row's group. */
+    getIsGrouped(): boolean;
+    /** Report whether the cell repeats its group's value and shows nothing. */
+    getIsPlaceholder(): boolean;
+    /** Report whether the cell aggregates its group's members, present with the aggregation feature. */
+    getIsAggregated?(): boolean;
+}
+
 /** The properties of a data table: the table it renders, its empty state and its scrolling, the native element's attributes included. */
 export interface DataTableProperties<
     Features extends TableFeatures,
@@ -289,7 +322,10 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
             )}
         >
             <DataTableContext value={properties.table.tracked}>
-                <Table role="grid" aria-rowcount={rows().length + headerGroups().length}>
+                <Table
+                    role={read(() => (rows().some(isExpandableRow) ? "treegrid" : "grid"))}
+                    aria-rowcount={rows().length + headerGroups().length}
+                >
                     <TableHeader>
                         <For each={headerGroups()}>
                             {(group) => (
@@ -339,6 +375,8 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
                                         isSelectedRow(entry.row) ? "selected" : undefined,
                                     )}
                                     aria-selected={read(() => selectionOf(entry.row))}
+                                    aria-level={levelOf(entry.row)}
+                                    aria-expanded={read(() => expansionOf(entry.row))}
                                 >
                                     <For each={entry.row.getAllCells()}>
                                         {(cell) => (
@@ -624,6 +662,67 @@ export function selectionColumn<Features extends TableFeatures, Row extends RowD
     };
 }
 
+/** The column that expands rows: a button per row with sub rows, indented by the row's depth. */
+export function expansionColumn<Features extends TableFeatures, Row extends RowData>(): {
+    /** The column's id. */
+    readonly id: "expand";
+    /** The column's header, empty. */
+    readonly header: () => JSX.Element;
+    /** The button that expands a row. */
+    readonly cell: (context: CellContext<Features, Row>) => JSX.Element;
+    /** The column neither sorts nor hides. */
+    readonly enableSorting: false;
+    /** The column neither sorts nor hides. */
+    readonly enableHiding: false;
+} {
+    return {
+        id: "expand",
+        header: () => null,
+        cell: (context) => <RowToggle row={context.row} />,
+        enableSorting: false,
+        enableHiding: false,
+    };
+}
+
+/** Render the button that shows and hides a row's sub rows, with what follows it in the cell. */
+function RowToggle(properties: {
+    /** The row the button expands. */
+    readonly row: object;
+    /** What follows the button, such as a group's value and member count. */
+    readonly children?: JSX.Element;
+}): JSX.Element {
+    // read the row's expansion where rows expand
+    const locale = useLocale();
+    const tracked = useContext(DataTableContext);
+    const row = properties.row;
+    if (!isExpandableRow(row)) {
+        return properties.children;
+    }
+    const isExpanded = (): boolean => {
+        tracked();
+
+        return row.getIsExpanded();
+    };
+    const collapsedIcon = locale.direction === "rtl" ? caretLeft : caretRight;
+
+    return (
+        <span data-slot="data-table-toggle" {...style.attrs(styles.toggle(String(row.depth)))}>
+            <Show when={row.getCanExpand()} fallback={<span {...style.attrs(styles.selection)} />}>
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-expanded={isExpanded() ? "true" : "false"}
+                    aria-label={locale.render(isExpanded() ? t`Collapse row` : t`Expand row`)}
+                    onClick={() => row.toggleExpanded()}
+                >
+                    <Icon icon={isExpanded() ? caretDown : collapsedIcon} />
+                </Button>
+            </Show>
+            {properties.children}
+        </span>
+    );
+}
+
 /** Render the box that selects every row of the page, showing a partial selection as indeterminate. */
 function PageSelection(properties: {
     /** The table whose page the box selects. */
@@ -699,11 +798,50 @@ function renderTemplate<Context extends object>(
     return isElement(rendered) ? rendered : null;
 }
 
-/** Render a cell through its column's template, its value as text without one. */
+/** Render a cell: a group's toggle, value and count, a group's aggregate, nothing for a repeated value, or its column's template. */
 function renderCell<Features extends TableFeatures, Row extends RowData>(
     cell: Cell<Features, Row>,
 ): JSX.Element {
-    const template = cell.column.columnDef.cell;
+    // head a group with its toggle, its value and the number of its members
+    const grouped: object = cell;
+    const row: object = cell.row;
+    if (isGroupedCell(grouped) && grouped.getIsGrouped()) {
+        const members = isExpandableRow(row) ? row.subRows.length : 0;
+
+        return (
+            <RowToggle row={cell.row}>
+                {renderValue(cell, cell.column.columnDef.cell)}
+                <span {...style.attrs(styles.members)}>({members})</span>
+            </RowToggle>
+        );
+    }
+    // show a group's aggregate of its members' values
+    else if (isGroupedCell(grouped) && grouped.getIsAggregated?.() === true) {
+        const aggregated: unknown =
+            "aggregatedCell" in cell.column.columnDef
+                ? cell.column.columnDef.aggregatedCell
+                : undefined;
+
+        return renderValue(
+            cell,
+            isTemplate<CellContext<Features, Row>>(aggregated) ? aggregated : undefined,
+        );
+    }
+    // leave a repeated group value empty
+    else if (isGroupedCell(grouped) && grouped.getIsPlaceholder()) {
+        return null;
+    }
+    // render every other cell through its column's template
+    else {
+        return renderValue(cell, cell.column.columnDef.cell);
+    }
+}
+
+/** Render a cell through a template, its value as text without one. */
+function renderValue<Features extends TableFeatures, Row extends RowData>(
+    cell: Cell<Features, Row>,
+    template: ColumnDefTemplate<CellContext<Features, Row>> | undefined,
+): JSX.Element {
     if (template === undefined) {
         const value: unknown = cell.getValue();
 
@@ -711,6 +849,11 @@ function renderCell<Features extends TableFeatures, Row extends RowData>(
     }
 
     return renderTemplate(template, cell.getContext());
+}
+
+/** Report whether a value is a header or cell template: text or a function. */
+function isTemplate<Context extends object>(value: unknown): value is ColumnDefTemplate<Context> {
+    return typeof value === "string" || typeof value === "function";
 }
 
 /** Report whether a value renders as an element. */
@@ -747,6 +890,30 @@ function isSelectableTable(table: object): table is SelectableTable {
 /** Report whether a row selects through the selection feature. */
 function isSelectableRow(row: object): row is SelectableRow {
     return "getIsSelected" in row && typeof row.getIsSelected === "function";
+}
+
+/** Report whether a row expands through the expanding feature. */
+function isExpandableRow(row: object): row is ExpandableRow {
+    return "getCanExpand" in row && typeof row.getCanExpand === "function";
+}
+
+/** Report whether a cell belongs to a table that groups rows. */
+function isGroupedCell(cell: object): cell is GroupedCell {
+    return "getIsPlaceholder" in cell && typeof cell.getIsPlaceholder === "function";
+}
+
+/** Report a row's nesting level for `aria-level`, absent where rows do not expand. */
+function levelOf(row: object): number | undefined {
+    return isExpandableRow(row) ? row.depth + 1 : undefined;
+}
+
+/** Report a row's expansion for `aria-expanded`, absent on a row without sub rows. */
+function expansionOf(row: object): "true" | "false" | undefined {
+    if (!isExpandableRow(row) || !row.getCanExpand()) {
+        return undefined;
+    }
+
+    return row.getIsExpanded() ? "true" : "false";
 }
 
 /** Report whether a row is selected. */

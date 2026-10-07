@@ -7,7 +7,7 @@ import {
     HoverPopover,
     placementStyle,
     type PopoverAlign,
-    type PopoverProperties,
+    type HoverPopoverProperties,
     type PopoverSide,
 } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -98,8 +98,8 @@ export function TooltipProvider(properties: TooltipProviderProperties): JSX.Elem
 const styles = style.create({
     content: {
         width: "fit-content",
-        inset: { default: 0, "@supports (position-area: block-end)": "auto" },
-        margin: { default: "auto", "@supports (position-area: block-end)": space[1] },
+        inset: "auto",
+        margin: space[1],
         paddingBlock: space[1],
         paddingInline: space[3],
         borderWidth: 0,
@@ -111,7 +111,7 @@ const styles = style.create({
 });
 
 /** The properties of a tooltip root, its open state included. */
-export interface TooltipProperties extends PopoverProperties {
+export interface TooltipProperties extends HoverPopoverProperties {
     /** The wait before a resting pointer shows the tooltip in milliseconds, its group's by default. */
     readonly delayDuration?: number;
 }
@@ -200,7 +200,9 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
                 popover="hint"
                 role="tooltip"
                 data-slot="tooltip-content"
+                data-state={tooltip.isOpen() ? "open" : "closed"}
                 data-side={content.side}
+                data-align={content.align}
                 {...rest}
                 ref={(element) => tooltip.setContent(element)}
                 onToggle={(event) => tooltip.follow(event)}

@@ -8,7 +8,6 @@ import play from "@destack/icon/phosphor/play";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, space } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import {
     type Accessor,
     createContext,
@@ -23,6 +22,7 @@ import {
     type Setter,
     untrack,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 

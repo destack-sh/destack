@@ -1,6 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { useLocale } from "@destack/locale/solid";
-import { For } from "@destack/view";
+import { For, useLocale } from "@destack/view";
 import {
     Table,
     TableBody,

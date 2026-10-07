@@ -176,6 +176,7 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
             disabled={properties.disabled === true || group.properties.disabled === true}
             required={group.properties.required === true}
             data-slot="radio-group-item"
+            data-state={group.value() === properties.value ? "checked" : "unchecked"}
             {...rest}
             onChange={(event) => group.choose(properties.value, event.currentTarget)}
             {...style.attributes([styles.item, properties.xstyle], properties.style)}

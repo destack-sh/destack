@@ -5,7 +5,7 @@ import {
     HoverPopover,
     placementStyle,
     type PopoverAlign,
-    type PopoverProperties,
+    type HoverPopoverProperties,
     type PopoverSide,
 } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -30,8 +30,8 @@ const styles = style.create({
     content: {
         boxSizing: "border-box",
         width: width.hoverCard,
-        inset: { default: 0, "@supports (position-area: block-end)": "auto" },
-        margin: { default: "auto", "@supports (position-area: block-end)": space[1] },
+        inset: "auto",
+        margin: space[1],
         padding: space[4],
         borderStyle: "solid",
         borderWidth: stroke.border,
@@ -44,7 +44,7 @@ const styles = style.create({
 });
 
 /** The properties of a hover card root, its open state included. */
-export interface HoverCardProperties extends PopoverProperties {
+export interface HoverCardProperties extends HoverPopoverProperties {
     /** The wait before a resting pointer opens the card in milliseconds, 700 by default. */
     readonly openDelay?: number;
     /** The wait before the card closes once the pointer leaves in milliseconds, 300 by default. */
@@ -124,7 +124,9 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                 id={card.id}
                 popover="hint"
                 data-slot="hover-card-content"
+                data-state={card.isOpen() ? "open" : "closed"}
                 data-side={content.side}
+                data-align={content.align}
                 {...rest}
                 ref={(element) => card.setContent(element)}
                 onToggle={(event) => card.follow(event)}

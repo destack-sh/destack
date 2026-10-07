@@ -38,3 +38,21 @@ export const popoverImageSizeOpen = defineExample({
         </Popover>
     ),
 });
+
+/** A modal popover that renames a note, the page behind it inert while it is open. */
+export const popoverRenameModal = defineExample({
+    of: Popover,
+    name: "rename-modal",
+    description: "a modal popover that renames a note, the page behind it inert while it is open",
+    render: () => (
+        <Popover modal defaultOpen>
+            <PopoverTrigger variant="outline">Rename</PopoverTrigger>
+            <PopoverContent align="start">
+                <Field>
+                    <FieldLabel>Title</FieldLabel>
+                    <Input name="title" value="Groceries" />
+                </Field>
+            </PopoverContent>
+        </Popover>
+    ),
+});

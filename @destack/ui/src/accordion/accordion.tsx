@@ -3,7 +3,6 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { useLocale } from "@destack/locale/solid";
 import {
     type Accessor,
     createContext,
@@ -11,6 +10,7 @@ import {
     type JSX,
     omit,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { type Choice, createChoice, toggled } from "../choice/index.ts";
 import { followToggle, refuseDisabled } from "../disclosure/index.ts";
@@ -215,6 +215,7 @@ export function AccordionItem(properties: AccordionItemProperties): JSX.Element 
             <details
                 name={accordion.name}
                 data-slot="accordion-item"
+                data-state={accordion.isOpen(properties.value) ? "open" : "closed"}
                 data-disabled={isDisabled() ? "" : undefined}
                 open={accordion.isOpen(properties.value)}
                 {...rest}

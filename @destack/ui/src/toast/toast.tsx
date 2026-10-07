@@ -6,7 +6,6 @@ import xCircle from "@destack/icon/phosphor/x-circle";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, weight, width } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -19,10 +18,11 @@ import {
     onSettled,
     type Setter,
     Show,
+    useLocale,
 } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Spinner } from "../spinner/index.ts";
-import { createSwipe, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
+import { createSwipe, isDismissal, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
 
 /** The time a toast shows before it leaves on its own, in milliseconds. */
 const DURATION = 4000;
@@ -415,7 +415,12 @@ function ToastItem(properties: {
     onCleanup(() => clearTimeout(timer));
     const swipe = createSwipe(
         () => properties.swipe,
-        () => store.dismiss(entry.id),
+        (release) => {
+            // dismiss on a far swipe or a flick
+            if (isDismissal(release)) {
+                store.dismiss(entry.id);
+            }
+        },
     );
 
     return (

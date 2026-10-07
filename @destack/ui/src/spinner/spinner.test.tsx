@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Catalog, Localization, t } from "@destack/locale";
-import { LocaleContext } from "@destack/locale/solid";
+import { LocaleContext } from "@destack/view";
 import { expect, test } from "@destack/test";
 import { Spinner } from "./index.ts";
 import { draw, markup } from "@destack/view/test";

@@ -13,7 +13,6 @@ import {
     weight,
     width,
 } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -27,6 +26,7 @@ import {
     onSettled,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";

@@ -1,6 +1,5 @@
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import {
     type Accessor,
     createContext,
@@ -11,6 +10,7 @@ import {
     onCleanup,
     type Setter,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { type Choice, createChoice, toggled } from "../choice/index.ts";

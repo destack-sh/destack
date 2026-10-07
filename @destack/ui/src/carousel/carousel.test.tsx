@@ -119,12 +119,17 @@ test("advance an autoplaying carousel until its play button stops it, pausing it
     ));
     const content = container.querySelector("[data-slot=carousel-content]");
     const live = content?.getAttribute("aria-live");
-    await wait(50);
-    flush();
-    const hasAdvanced =
+
+    // poll until a tick leaves the first slide, however late the timers run
+    const current = () =>
         container
             .querySelector("[data-slot=carousel-dot][aria-current]")
-            ?.getAttribute("aria-label") !== "Go to slide 1";
+            ?.getAttribute("aria-label");
+    for (let waited = 0; current() === "Go to slide 1" && waited < 1000; waited += 10) {
+        await wait(10);
+        flush();
+    }
+    const hasAdvanced = current() !== "Go to slide 1";
     container.querySelector<HTMLElement>("[data-slot=carousel-play]")?.click();
     flush();
     expect([live, hasAdvanced, content?.getAttribute("aria-live")]).toEqual([

@@ -94,6 +94,13 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
         <input
             type="checkbox"
             data-slot="checkbox"
+            data-state={
+                properties.indeterminate === true
+                    ? "indeterminate"
+                    : checked.isChecked()
+                      ? "checked"
+                      : "unchecked"
+            }
             prop:indeterminate={properties.indeterminate === true}
             checked={checked.isChecked()}
             {...field?.attributes()}

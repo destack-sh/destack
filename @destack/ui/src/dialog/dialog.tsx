@@ -11,7 +11,6 @@ import {
     surface,
     weight,
 } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -26,6 +25,7 @@ import {
     type Setter,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -95,6 +95,8 @@ export class DialogControl {
     readonly isOpen: Accessor<boolean>;
     /** Whether a description is on screen. */
     readonly isDescribed: Accessor<boolean>;
+    /** Whether the page behind the open dialog is inert. */
+    readonly isModal: Accessor<boolean>;
     /** Replace the open state and tell the change handler. */
     readonly #setOpen: (isOpen: boolean) => void;
     /** Replace whether a description is on screen. */
@@ -115,6 +117,7 @@ export class DialogControl {
         this.descriptionId = createUniqueId();
         this.isOpen = isOpen;
         this.isDescribed = isDescribed;
+        this.isModal = () => properties.modal !== false;
         this.#setOpen = setOpen;
         this.#setDescribed = setDescribed;
     }
@@ -144,6 +147,8 @@ export interface DialogProperties {
     readonly defaultOpen?: boolean;
     /** Handle the dialog opening or closing. */
     readonly onOpenChange?: (open: boolean) => void;
+    /** Whether the page behind the open dialog is inert, true by default. */
+    readonly modal?: boolean;
     /** The trigger and content. */
     readonly children?: JSX.Element;
 }
@@ -243,9 +248,11 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
             return;
         }
 
-        // open it modally or close it
-        if (isOpen && !element.open) {
+        // open it modally, beside the page, or close it
+        if (isOpen && !element.open && control.isModal()) {
             element.showModal();
+        } else if (isOpen && !element.open) {
+            element.show();
         } else if (!isOpen && element.open) {
             element.close();
         }
@@ -256,6 +263,7 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
             <dialog
                 id={control.id}
                 data-slot="dialog-content"
+                data-state={control.isOpen() ? "open" : "closed"}
                 closedby="any"
                 aria-labelledby={control.titleId}
                 aria-describedby={control.isDescribed() ? control.descriptionId : undefined}

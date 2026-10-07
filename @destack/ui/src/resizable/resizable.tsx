@@ -1,6 +1,5 @@
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import {
     type Accessor,
     createContext,
@@ -13,6 +12,7 @@ import {
     type Setter,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 
 /** The share a keyboard step moves a handle by, in percent of the group. */

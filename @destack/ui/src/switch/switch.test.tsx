@@ -16,7 +16,7 @@ test("expose a native checkbox as a switch that toggles on click", () => {
     container.querySelector("input")?.click();
     flush();
     expect(markup(container)).toBe(
-        '<input type="checkbox" role="switch" data-slot="switch" name="notifications">',
+        '<input type="checkbox" role="switch" data-slot="switch" data-state="unchecked" name="notifications">',
     );
     expect([checked(container), changes]).toEqual([[false], [false]]);
 });

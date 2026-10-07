@@ -1,6 +1,5 @@
 import { Icon } from "@destack/icon";
 import { t } from "@destack/locale";
-import { useLocale } from "@destack/locale/solid";
 import * as style from "@destack/style";
 import { color, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -17,6 +16,7 @@ import {
     Show,
     untrack,
     useContext,
+    useLocale,
 } from "@destack/view";
 import {
     CommandControl,
@@ -33,11 +33,8 @@ import { badgeStyle } from "../badge/index.ts";
 import { type Choice, createChoice } from "../choice/index.ts";
 import { useFieldControl } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
-import { placementStyle } from "../popover/index.ts";
+import { placeBeside, placementStyle } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
-
-/** The condition under which a list sits below its input instead of the viewport's center. */
-const ANCHORED = "@supports (position-area: block-end)";
 
 /** The combobox of the nearest combobox root, null outside one. */
 const ComboboxContext = createContext<ComboboxControl | null>(null);
@@ -67,8 +64,8 @@ const styles = style.create({
         width: "anchor-size(width)",
         maxHeight: `calc(8 * ${size[3]})`,
         overflowY: "auto",
-        inset: { default: 0, [ANCHORED]: "auto" },
-        margin: { default: "auto", [ANCHORED]: space[1] },
+        inset: "auto",
+        margin: space[1],
         padding: space[1],
         borderStyle: "solid",
         borderWidth: stroke.border,
@@ -104,6 +101,8 @@ export class ComboboxControl {
     #input: HTMLInputElement | undefined;
     /** The list element. */
     #content: HTMLElement | undefined;
+    /** Stop placing the shown list below the input. */
+    #unplace: () => void;
 
     /** Create a combobox whose list chooses its values, open when its properties ask for it. */
     constructor(properties: ComboboxProperties) {
@@ -133,6 +132,7 @@ export class ComboboxControl {
         this.#setOpen = setOpen;
         this.#input = undefined;
         this.#content = undefined;
+        this.#unplace = () => undefined;
         this.list.onChoose = (value, label) => this.choose(value, label);
     }
 
@@ -178,7 +178,9 @@ export class ComboboxControl {
         }
         if (isOpen) {
             this.#content.showPopover({ source: this.#input });
+            this.#unplace = placeBeside(this.#content, this.#input);
         } else {
+            this.#unplace();
             this.#content.hidePopover();
         }
     }
@@ -320,6 +322,8 @@ export function ComboboxContent(
                 role="listbox"
                 popover="manual"
                 data-slot="combobox-content"
+                data-side="bottom"
+                data-align="start"
                 {...rest}
                 ref={(element) => control.setContent(element)}
                 {...style.attributes(

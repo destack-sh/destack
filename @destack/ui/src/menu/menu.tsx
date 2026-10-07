@@ -3,7 +3,6 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -18,15 +17,18 @@ import {
     type Setter,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
 import { isTypeaheadKey, itemsOf, moveFocus } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
-import { placementStyle, type PopoverAlign, type PopoverSide } from "../popover/index.ts";
+import {
+    placeBeside,
+    placementStyle,
+    type PopoverAlign,
+    type PopoverSide,
+} from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
-
-/** The condition under which a menu sits beside its trigger instead of the viewport's center. */
-const ANCHORED = "@supports (position-area: block-end)";
 
 /** The selector of the items the focus moves between in a menu. */
 const ITEM = "[data-menu-item]";
@@ -50,8 +52,8 @@ const styles = style.create({
         minWidth: `calc(8 * ${space[4]})`,
         maxHeight: "100vh",
         overflowY: "auto",
-        inset: { default: 0, [ANCHORED]: "auto" },
-        margin: { default: "auto", [ANCHORED]: space[1] },
+        inset: "auto",
+        margin: space[1],
         padding: space[1],
         borderStyle: "solid",
         borderWidth: stroke.border,
@@ -156,6 +158,8 @@ export class MenuControl {
     #focus: MenuFocus;
     /** Whether the trigger takes the focus back once the menu hides. */
     #isReturningFocus: boolean;
+    /** Stop placing the shown menu beside its trigger. */
+    #unplace: () => void;
     /** The open submenus. */
     readonly #children: Set<MenuControl>;
     /** Replace whether the menu is open and tell the change handler. */
@@ -183,6 +187,7 @@ export class MenuControl {
         this.#content = undefined;
         this.#focus = "first";
         this.#isReturningFocus = false;
+        this.#unplace = () => undefined;
         this.#children = new Set();
         this.#setOpen = setOpen;
         this.#setPoint = setPoint;
@@ -209,13 +214,12 @@ export class MenuControl {
         // show it beside its trigger, or at its point, and focus the item asked for
         if (isOpen) {
             const trigger = this.#trigger;
-            content.showPopover(
-                trigger === undefined || this.point() !== undefined
-                    ? undefined
-                    : { source: trigger },
-            );
+            const isBeside = trigger !== undefined && this.point() === undefined;
+            content.showPopover(isBeside ? { source: trigger } : undefined);
+            this.#unplace = isBeside ? placeBeside(content, trigger) : () => undefined;
             this.#focusItem(content);
         } else {
+            this.#unplace();
             content.hidePopover();
             if (this.#isReturningFocus) {
                 this.#trigger?.focus();
@@ -414,6 +418,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                 aria-labelledby={control.point() === undefined ? control.triggerId : undefined}
                 data-slot="menu-content"
                 data-side={content.side}
+                data-align={content.align}
                 {...rest}
                 ref={(element) => control.setContent(element)}
                 onToggle={(event) => control.follow(event)}

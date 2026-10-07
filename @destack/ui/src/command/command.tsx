@@ -2,7 +2,6 @@ import { Icon } from "@destack/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -15,6 +14,7 @@ import {
     type Setter,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 import {
     Dialog,

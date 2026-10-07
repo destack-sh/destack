@@ -25,8 +25,8 @@ test("share one name across a radio group's radios, checking one at a time", () 
     flush();
     expect(markup(container)).toBe(
         '<div role="radiogroup" data-slot="radio-group" aria-label="Density">' +
-            '<input type="radio" name="density" value="compact" data-slot="radio-group-item" aria-label="Compact">' +
-            '<input type="radio" name="density" value="regular" data-slot="radio-group-item" aria-label="Regular"></div>',
+            '<input type="radio" name="density" value="compact" data-slot="radio-group-item" data-state="unchecked" aria-label="Compact">' +
+            '<input type="radio" name="density" value="regular" data-slot="radio-group-item" data-state="checked" aria-label="Regular"></div>',
     );
     expect([checked(container), changes]).toEqual([[false, true], ["regular"]]);
 });

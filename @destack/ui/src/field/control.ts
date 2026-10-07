@@ -3,6 +3,7 @@ import {
     createEffect,
     createSignal,
     createUniqueId,
+    onCleanup,
     useContext,
     type Accessor,
     type Setter,
@@ -15,6 +16,10 @@ export const FieldContext = createContext<FieldControl | null>(null);
 export class FieldControl {
     /** The id of the control element. */
     readonly id: string;
+    /** The id of the field's label, which names a group of controls. */
+    readonly labelId: string;
+    /** Whether a group of controls, such as the segments of a date, is named by the field's label. */
+    readonly isGrouped: Accessor<boolean>;
     /** Whether the field's value is invalid. */
     readonly isInvalid: Accessor<boolean>;
     /** Whether the field is disabled. */
@@ -23,16 +28,24 @@ export class FieldControl {
     readonly descriptions: Accessor<readonly string[]>;
     /** Replace the ids of the descriptions and errors on screen. */
     readonly #setDescriptions: Setter<readonly string[]>;
+    /** Replace whether a group of controls is named by the field's label. */
+    readonly #setGrouped: Setter<boolean>;
 
     /** Create the control of a field with a fresh id. */
     constructor(isInvalid: Accessor<boolean>, isDisabled: Accessor<boolean>) {
-        // start without descriptions under a fresh id
-        const [descriptions, setDescriptions] = createSignal<readonly string[]>([]);
+        // start without descriptions under a fresh id, which descriptions leave as they unmount
+        const [descriptions, setDescriptions] = createSignal<readonly string[]>([], {
+            ownedWrite: true,
+        });
+        const [isGrouped, setGrouped] = createSignal(false, { ownedWrite: true });
         this.id = createUniqueId();
+        this.labelId = createUniqueId();
+        this.isGrouped = isGrouped;
         this.isInvalid = isInvalid;
         this.isDisabled = isDisabled;
         this.descriptions = descriptions;
         this.#setDescriptions = setDescriptions;
+        this.#setGrouped = setGrouped;
     }
 
     /** Describe the control by an element's id while the element is on screen. */
@@ -48,6 +61,25 @@ export class FieldControl {
 
             return () => this.#setDescriptions((ids) => ids.filter((entry) => entry !== id));
         });
+    }
+
+    /** Name a group of controls by the field's label until the group unmounts. */
+    group(): void {
+        this.#setGrouped(true);
+        onCleanup(() => this.#setGrouped(false));
+    }
+
+    /** Return the attributes that connect a group of controls, such as the segments of a date, to its field. */
+    groupAttributes(): FieldGroupAttributes {
+        const descriptions = this.descriptions();
+
+        return {
+            id: this.id,
+            "aria-labelledby": this.labelId,
+            "aria-describedby": descriptions.length > 0 ? descriptions.join(" ") : undefined,
+            "aria-invalid": this.isInvalid() ? "true" : undefined,
+            "aria-disabled": this.isDisabled() ? "true" : undefined,
+        };
     }
 
     /** Return the attributes that connect a control element to its field. */
@@ -73,6 +105,20 @@ export interface FieldControlAttributes {
     readonly "aria-invalid": "true" | undefined;
     /** Whether the field is disabled. */
     readonly disabled: true | undefined;
+}
+
+/** The attributes that connect a group of controls to its field. */
+export interface FieldGroupAttributes {
+    /** The id the field's label points at. */
+    readonly id: string;
+    /** The id of the field's label, which names the group. */
+    readonly "aria-labelledby": string;
+    /** The ids of the field's descriptions and errors on screen. */
+    readonly "aria-describedby": string | undefined;
+    /** Whether the field's value is invalid. */
+    readonly "aria-invalid": "true" | undefined;
+    /** Whether the field is disabled. */
+    readonly "aria-disabled": "true" | undefined;
 }
 
 /** Read the control of the nearest field, null outside a field. */

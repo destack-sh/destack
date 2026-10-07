@@ -4,7 +4,6 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     createControllableSignal,
@@ -16,6 +15,7 @@ import {
     omit,
     Show,
     untrack,
+    useLocale,
 } from "@destack/view";
 import { buttonStyle } from "../button/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
@@ -253,11 +253,25 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
     });
 
     // select a day in the calendar's mode and tell the change handler
+    let selected: CalendarValue;
     const select = (day: PlainDate) => {
         // focus the day and keep and report the selection after the click
         focus(day);
-        setValue(nextValue(properties, value(), day));
+        selected = nextValue(properties, value(), day);
+        setValue(selected);
     };
+
+    // bring a selection set from outside into view, such as a day typed into a date picker
+    createEffect(
+        value,
+        (next) => {
+            const day = firstOf(next);
+            if (next !== selected && day !== undefined) {
+                focus(day);
+            }
+        },
+        { defer: true },
+    );
 
     return (
         <div

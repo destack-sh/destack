@@ -53,3 +53,21 @@ export const drawerShareNoteOpen = defineExample({
         </Drawer>
     ),
 });
+
+/** The comments of a note in a drawer that rests at half the screen or all of it. */
+export const drawerNoteComments = defineExample({
+    of: Drawer,
+    name: "note-comments",
+    description: "the comments of a note in a drawer that rests at half the screen or all of it",
+    render: () => (
+        <Drawer defaultOpen snapPoints={[0.5, 1]} defaultSnapPoint={0.5}>
+            <DrawerTrigger variant="outline">Comments</DrawerTrigger>
+            <DrawerContent>
+                <DrawerHeader>
+                    <DrawerTitle>Comments</DrawerTitle>
+                    <DrawerDescription>Drag up to read every comment.</DrawerDescription>
+                </DrawerHeader>
+            </DrawerContent>
+        </Drawer>
+    ),
+});

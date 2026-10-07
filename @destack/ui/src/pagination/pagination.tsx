@@ -4,8 +4,7 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { space, stroke } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
-import { createControllableSignal, For, type JSX, merge, omit } from "@destack/view";
+import { createControllableSignal, For, type JSX, merge, omit, useLocale } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { buttonStyle, type ButtonSize } from "../button/index.ts";
 

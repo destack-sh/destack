@@ -24,6 +24,7 @@ import {
     DataTablePagination,
     selectionColumn,
 } from "./index.ts";
+import { dataTableNotesGrouped, dataTableTasksNested } from "./data-table.example.tsx";
 
 /** An invoice the table lists. */
 interface Invoice {
@@ -192,4 +193,55 @@ test("move the focus between cells with the arrow keys, keeping one tab stop", (
     const focused = document.activeElement?.textContent;
     const stops = container.querySelectorAll("table [tabindex='0']").length;
     expect([focused, stops]).toEqual(["Grace 1", 1]);
+});
+
+/** Read each body row of a container as its level, expansion and cell texts. */
+function treeRows(container: Element): (string | null)[][] {
+    return [...container.querySelectorAll("tbody tr")].map((row) => [
+        row.getAttribute("aria-level"),
+        row.getAttribute("aria-expanded"),
+        ...[...row.querySelectorAll("td")].map((cell) => cell.textContent),
+    ]);
+}
+
+test("group rows by a column with each group's count and sum, expanding a group to its rows", () => {
+    const container = draw(() => dataTableNotesGrouped.render?.());
+    const collapsed = treeRows(container);
+    const role = container.querySelector("table")?.getAttribute("role");
+    container.querySelector<HTMLElement>("[aria-label='Expand row']")?.click();
+    flush();
+    expect([role, collapsed, treeRows(container)]).toEqual([
+        "treegrid",
+        [
+            ["1", "false", "Home(2)", "", "473"],
+            ["1", "false", "Work(2)", "", "1516"],
+            ["1", "false", "Trips(1)", "", "940"],
+        ],
+        [
+            ["1", "true", "Home(2)", "", "473"],
+            ["2", null, "", "Groceries", "18"],
+            ["2", null, "", "Rye bread recipe", "455"],
+            ["1", "false", "Work(2)", "", "1516"],
+            ["1", "false", "Trips(1)", "", "940"],
+        ],
+    ]);
+});
+
+test("expand a row to its sub rows and collapse it again from its button", () => {
+    const container = draw(() => dataTableTasksNested.render?.());
+    const expanded = treeRows(container);
+    container.querySelector<HTMLElement>("[aria-label='Collapse row']")?.click();
+    flush();
+    expect([expanded, treeRows(container)]).toEqual([
+        [
+            ["1", "true", "", "Launch the site"],
+            ["2", null, "", "Write the copy"],
+            ["2", null, "", "Deploy"],
+            ["1", null, "", "Send invoices"],
+        ],
+        [
+            ["1", "false", "", "Launch the site"],
+            ["1", null, "", "Send invoices"],
+        ],
+    ]);
 });

@@ -79,6 +79,7 @@ export function Switch(properties: SwitchProperties): JSX.Element {
             type="checkbox"
             role="switch"
             data-slot="switch"
+            data-state={checked.isChecked() ? "checked" : "unchecked"}
             checked={checked.isChecked()}
             {...field?.attributes()}
             {...rest}

@@ -1,8 +1,7 @@
 import { t } from "@destack/locale";
-import { useLocale } from "@destack/locale/solid";
 import * as style from "@destack/style";
 import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
-import { createControllableSignal, For, type JSX, omit, Show } from "@destack/view";
+import { createControllableSignal, For, type JSX, omit, Show, useLocale } from "@destack/view";
 import { useFieldControl } from "../field/control.ts";
 
 /** The range a slider covers without its own minimum and maximum, the native default. */

@@ -5,9 +5,8 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, space, stroke } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
-import { type JSX, merge, omit, Show } from "@destack/view";
+import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 
 /** The styles of a breadcrumb and its elements. */

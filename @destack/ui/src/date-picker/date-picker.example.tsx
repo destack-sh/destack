@@ -39,3 +39,31 @@ export const datePickerEditedSpan = defineExample({
         />
     ),
 });
+
+/** A date picker that types or picks the day a trip starts and ends. */
+export const datePickerTrip = defineExample({
+    of: DatePicker,
+    name: "trip",
+    description: "a date picker that types or picks the day a trip starts and ends",
+    render: () => (
+        <DatePicker
+            mode="range"
+            aria-label="Trip"
+            defaultValue={{ from: Day.parse("2026-10-12"), to: Day.parse("2026-10-16") }}
+        />
+    ),
+});
+
+/** A date picker that marks the days off in a month, counted on its trigger. */
+export const datePickerDaysOff = defineExample({
+    of: DatePicker,
+    name: "days-off",
+    description: "a date picker that marks the days off in a month, counted on its trigger",
+    render: () => (
+        <DatePicker
+            mode="multiple"
+            aria-label="Days off"
+            defaultValue={[Day.parse("2026-10-05"), Day.parse("2026-10-06")]}
+        />
+    ),
+});

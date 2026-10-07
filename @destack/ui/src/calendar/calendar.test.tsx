@@ -1,8 +1,7 @@
 import { Locale, Localization } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { LocaleContext } from "@destack/locale/solid";
-import { flush, type JSX } from "@destack/view";
+import { flush, type JSX, LocaleContext } from "@destack/view";
 import { Calendar, type DateRange, Day } from "./index.ts";
 import { draw } from "@destack/view/test";
 

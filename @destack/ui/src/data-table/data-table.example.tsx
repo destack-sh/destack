@@ -1,13 +1,20 @@
 import { defineExample } from "@destack/package/declare";
 import {
+    aggregationFn_sum,
     columnFilteringFeature,
+    columnGroupingFeature,
     columnVisibilityFeature,
     createColumnHelper,
+    createExpandedRowModel,
     createFilteredRowModel,
+    createGroupedRowModel,
     createPaginatedRowModel,
     createSortedRowModel,
     filterFn_includesString,
     globalFilteringFeature,
+    type ExpandedState,
+    rowAggregationFeature,
+    rowExpandingFeature,
     rowPaginationFeature,
     rowSelectionFeature,
     rowSortingFeature,
@@ -22,6 +29,7 @@ import {
     DataTableFilter,
     DataTablePagination,
     DataTableViewOptions,
+    expansionColumn,
     selectionColumn,
 } from "./data-table.tsx";
 import { createTable } from "./table.ts";
@@ -135,4 +143,127 @@ export const dataTableNotesVirtual = defineExample({
             rowHeight={40}
         />
     ),
+});
+
+/** A note in a notebook the grouped table lists. */
+interface FiledNote {
+    /** The note's id. */
+    readonly id: string;
+    /** The notebook holding it. */
+    readonly notebook: string;
+    /** The note's title. */
+    readonly title: string;
+    /** The number of words. */
+    readonly words: number;
+}
+
+/** The features of the grouped notes table: grouping by a column, summing and expanding. */
+const GROUPED_FEATURES = tableFeatures({
+    columnGroupingFeature,
+    groupedRowModel: createGroupedRowModel(),
+    rowAggregationFeature,
+    aggregationFns: { sum: aggregationFn_sum },
+    rowExpandingFeature,
+    expandedRowModel: createExpandedRowModel(),
+});
+
+/** The column helper of the grouped notes table. */
+const GROUPED_COLUMN = createColumnHelper<typeof GROUPED_FEATURES, FiledNote>();
+
+/** The columns of the grouped notes table: the notebook groups, the words sum. */
+const GROUPED_COLUMNS = GROUPED_COLUMN.columns([
+    GROUPED_COLUMN.accessor("notebook", { header: "Notebook" }),
+    GROUPED_COLUMN.accessor("title", { header: "Title" }),
+    GROUPED_COLUMN.accessor("words", { header: "Words", aggregationFn: "sum" }),
+]);
+
+/** Notes filed in notebooks. */
+const FILED: FiledNote[] = [
+    { id: "groceries", notebook: "Home", title: "Groceries", words: 18 },
+    { id: "bread", notebook: "Home", title: "Rye bread recipe", words: 455 },
+    { id: "standup", notebook: "Work", title: "Standup notes", words: 312 },
+    { id: "plan", notebook: "Work", title: "Quarter plan", words: 1204 },
+    { id: "lisbon", notebook: "Trips", title: "Trip to Lisbon", words: 940 },
+];
+
+/** Render the notes grouped by notebook, some groups expanded. */
+function GroupedNotes(properties: {
+    /** The groups shown expanded, by row id, or every group. */
+    readonly expanded: ExpandedState;
+}): JSX.Element {
+    const table = createTable({
+        features: GROUPED_FEATURES,
+        columns: GROUPED_COLUMNS,
+        data: FILED,
+        initialState: { grouping: ["notebook"], expanded: properties.expanded },
+    });
+
+    return <DataTable table={table} />;
+}
+
+/** Notes grouped by notebook, each group collapsed to its words sum. */
+export const dataTableNotesGrouped = defineExample({
+    of: DataTable,
+    name: "notes-grouped",
+    description: "notes grouped by notebook, each group collapsed to its words sum",
+    render: () => <GroupedNotes expanded={{}} />,
+});
+
+/** Notes grouped by notebook with every group expanded to its notes. */
+export const dataTableNotesGroupedExpanded = defineExample({
+    of: DataTable,
+    name: "notes-grouped-expanded",
+    description: "notes grouped by notebook with every group expanded to its notes",
+    render: () => <GroupedNotes expanded />,
+});
+
+/** A task with the subtasks it breaks into. */
+interface TaskRow {
+    /** The task's id. */
+    readonly id: string;
+    /** The task's title. */
+    readonly title: string;
+    /** The subtasks. */
+    readonly subtasks?: readonly TaskRow[];
+}
+
+/** The features of the tasks table: expanding rows into their subtasks. */
+const TASK_FEATURES = tableFeatures({
+    rowExpandingFeature,
+    expandedRowModel: createExpandedRowModel(),
+});
+
+/** The column helper of the tasks table. */
+const TASK_COLUMN = createColumnHelper<typeof TASK_FEATURES, TaskRow>();
+
+/** Tasks with subtasks in a table that expands each task to its subtasks. */
+export const dataTableTasksNested = defineExample({
+    of: DataTable,
+    name: "tasks-nested",
+    description: "tasks with subtasks in a table that expands each task to its subtasks",
+    render: () => {
+        const table = createTable({
+            features: TASK_FEATURES,
+            columns: TASK_COLUMN.columns([
+                expansionColumn<typeof TASK_FEATURES, TaskRow>(),
+                TASK_COLUMN.accessor("title", { header: "Task" }),
+            ]),
+            data: [
+                {
+                    id: "launch",
+                    title: "Launch the site",
+                    subtasks: [
+                        { id: "copy", title: "Write the copy" },
+                        { id: "deploy", title: "Deploy" },
+                    ],
+                },
+                { id: "invoice", title: "Send invoices" },
+            ],
+            getRowId: (row) => row.id,
+            getSubRows: (row) => (row.subtasks === undefined ? undefined : [...row.subtasks]),
+            initialState: { expanded: { launch: true } },
+        });
+
+        return <DataTable table={table} />;
+    },
 });

@@ -1,24 +1,46 @@
 import { Icon } from "@destack/icon";
 import { type Localization, plural, t } from "@destack/locale";
-import type { PlainDate } from "@destack/schema";
+import { PlainDate } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
-import { createControllableSignal, createUniqueId, For, type JSX, Show } from "@destack/view";
+import {
+    createControllableSignal,
+    createUniqueId,
+    For,
+    type JSX,
+    Show,
+    useLocale,
+} from "@destack/view";
 import { Button, type ButtonVariant } from "../button/index.ts";
 import {
     Calendar,
     Day,
     isDays,
     isRange,
-    report,
+    type CalendarMultiple,
+    type CalendarRange,
     type CalendarSelection,
+    type CalendarSingle,
     type CalendarValue,
+    type DateRange,
 } from "../calendar/index.ts";
+import { DateField } from "../date-field/index.ts";
+import { FieldContext, useFieldControl } from "../field/control.ts";
 import { Popover, PopoverContent, PopoverTrigger, usePopover } from "../popover/index.ts";
+import { bareSegmentStyle, segmentBoxStyle } from "../segment/index.ts";
 
-/** The styles of a date picker's trigger and panel. */
+/** The styles of a date picker's fields, trigger and panel. */
 const styles = style.create({
+    group: {
+        gap: space[1],
+        paddingInlineEnd: space[1],
+    },
+    separator: {
+        color: color.mutedForeground,
+    },
+    button: {
+        marginInlineStart: "auto",
+    },
     trigger: {
         justifyContent: "flex-start",
         minWidth: `calc(6 * ${size[3]})`,
@@ -48,13 +70,13 @@ const styles = style.create({
 
 /** The prompt, limits and look of a date picker in any mode. */
 export interface DatePickerLook {
-    /** The text the trigger shows before a day is chosen, a generic prompt by default. */
+    /** The text a multiple date picker's trigger shows before a day is chosen, a generic prompt by default. */
     readonly placeholder?: string;
     /** Report whether a day cannot be chosen. */
     readonly isDisabled?: (day: PlainDate) => boolean;
-    /** The look of the trigger, outline by default. */
+    /** The look of a multiple date picker's trigger, outline by default. */
     readonly variant?: ButtonVariant;
-    /** The name of the trigger, such as the field it fills, which the chosen days follow in its accessible name. */
+    /** The name of the picker, such as the field it fills, which a multiple picker's chosen days follow. */
     readonly "aria-label"?: string;
     /** The choices offered beside the calendar, such as today or the next seven days. */
     readonly presets?: readonly DatePickerPreset[];
@@ -68,10 +90,29 @@ export interface DatePickerPreset {
     readonly value: CalendarValue;
 }
 
-/** The properties of a date picker: its look and the selection of its calendar's mode. */
-export type DatePickerProperties = DatePickerLook & CalendarSelection;
+/** A date picker typing or picking one day. */
+export interface DatePickerSingle extends Omit<CalendarSingle, "onValueChange"> {
+    /** Handle the day changing, undefined once the typed day is missing or impossible. */
+    readonly onValueChange?: (value: PlainDate | undefined) => void;
+}
 
-/** Render a button that opens a calendar in a popover, showing the chosen days in the locale's format. */
+/** A date picker typing or picking a range, its start first. */
+export interface DatePickerRange extends Omit<CalendarRange, "onValueChange"> {
+    /** Handle the range changing, undefined once the typed start is missing or impossible. */
+    readonly onValueChange?: (value: DateRange | undefined) => void;
+}
+
+/** The selection of a date picker in any mode. */
+export type DatePickerSelection = DatePickerSingle | DatePickerRange | CalendarMultiple;
+
+/** The properties of a date picker: its look and the selection of its mode. */
+export type DatePickerProperties = DatePickerLook & DatePickerSelection;
+
+/**
+ * Render a date picker: fields that type a day or a range beside a button opening a calendar.
+ *
+ * A multiple date picker opens its calendar from a button that shows the count of chosen days.
+ */
 export function DatePicker(properties: DatePickerProperties): JSX.Element {
     return (
         <Popover>
@@ -80,7 +121,7 @@ export function DatePicker(properties: DatePickerProperties): JSX.Element {
     );
 }
 
-/** Render the trigger and the calendar of a date picker inside its popover. */
+/** Render the fields or the trigger and the calendar of a date picker inside its popover. */
 function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
     // read the popover and the chosen days
     const popover = usePopover();
@@ -101,7 +142,18 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
 
     return (
         <>
-            <DatePickerTrigger properties={properties} value={value()} />
+            <Show
+                when={properties.mode === "multiple"}
+                fallback={
+                    <DatePickerFields
+                        properties={properties}
+                        value={value()}
+                        onValueChange={(next) => change(next, false)}
+                    />
+                }
+            >
+                <DatePickerTrigger properties={properties} value={value()} />
+            </Show>
             <PopoverContent
                 align="start"
                 data-slot="date-picker-content"
@@ -146,7 +198,94 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
     );
 }
 
-/** Render the button showing the chosen days, named by the date picker's name followed by them. */
+/** Render a group of the fields typing a day, or a range's start and end, and the button opening the calendar. */
+function DatePickerFields(properties: {
+    /** The date picker's properties. */
+    readonly properties: DatePickerProperties;
+    /** The chosen day or range. */
+    readonly value: CalendarValue;
+    /** Handle a typed day or range. */
+    readonly onValueChange: (value: CalendarValue) => void;
+}): JSX.Element {
+    // name the group by its field's label, else by the picker's name
+    const locale = useLocale();
+    const field = useFieldControl();
+    const picker = properties.properties;
+    const range = (): DateRange | undefined =>
+        isRange(properties.value) ? properties.value : undefined;
+    field?.group();
+
+    // keep the end typed last, which the range takes once a start before it is typed
+    let end: PlainDate | undefined;
+
+    return (
+        <div
+            role="group"
+            data-slot="date-picker"
+            aria-label={picker["aria-label"]}
+            {...field?.groupAttributes()}
+            {...style.attrs(
+                segmentBoxStyle({
+                    invalid: field?.isInvalid() === true,
+                    disabled: field?.isDisabled() === true,
+                }),
+                styles.group,
+            )}
+        >
+            {/* Typed day, or typed start and end */}
+            <FieldContext value={null}>
+                <Show
+                    when={picker.mode === "range"}
+                    fallback={
+                        <DateField
+                            value={singleOf(properties.value)}
+                            onValueChange={(day) => properties.onValueChange(day)}
+                            xstyle={bareSegmentStyle()}
+                        />
+                    }
+                >
+                    <DateField
+                        aria-label={locale.render(t`Start date`)}
+                        value={range()?.from}
+                        onValueChange={(from) =>
+                            properties.onValueChange(rangeOf(from, range()?.to ?? end))
+                        }
+                        xstyle={bareSegmentStyle()}
+                    />
+                    <span aria-hidden="true" {...style.attrs(styles.separator)}>
+                        –
+                    </span>
+                    <DateField
+                        aria-label={locale.render(t`End date`)}
+                        value={range()?.to}
+                        onValueChange={(to) => {
+                            // keep the typed end, reporting it once the range has a start
+                            const from = range()?.from;
+                            end = to;
+                            if (from !== undefined) {
+                                properties.onValueChange(rangeOf(from, to));
+                            }
+                        }}
+                        xstyle={bareSegmentStyle()}
+                    />
+                </Show>
+            </FieldContext>
+
+            {/* Calendar button */}
+            <PopoverTrigger
+                variant="ghost"
+                size="icon-sm"
+                aria-label={locale.render(t`Pick a date`)}
+                data-slot="date-picker-trigger"
+                xstyle={styles.button}
+            >
+                <Icon name="calendar-blank" />
+            </PopoverTrigger>
+        </div>
+    );
+}
+
+/** Render the button of a multiple date picker showing the chosen days, named by the picker's name followed by them. */
 function DatePickerTrigger(properties: {
     readonly properties: DatePickerProperties;
     readonly value: CalendarValue;
@@ -178,7 +317,7 @@ function DatePickerTrigger(properties: {
             </Show>
             <span id={valueId}>
                 {labelOf(
-                    properties.value,
+                    isDays(properties.value) ? properties.value : [],
                     locale,
                     picker.placeholder ?? locale.render(t`Pick a date`),
                     (count) =>
@@ -191,7 +330,7 @@ function DatePickerTrigger(properties: {
 
 /** Build the calendar selection of a mode, closing on a single day or a complete range. */
 function selectionOf(
-    mode: CalendarSelection["mode"],
+    mode: DatePickerSelection["mode"],
     value: CalendarValue,
     change: (next: CalendarValue, isComplete: boolean) => void,
 ): CalendarSelection {
@@ -210,35 +349,57 @@ function selectionOf(
     } else {
         return {
             mode: "single",
-            value: value === undefined || isDays(value) || isRange(value) ? undefined : value,
+            value: singleOf(value),
             onValueChange: (day) => change(day, true),
         };
     }
 }
 
-/** Write the chosen days like the locale's medium dates, a range as one span and several as a count. */
+/** Write the chosen days like the locale's medium dates, one as its date and several as a count. */
 function labelOf(
-    value: CalendarValue,
+    days: readonly PlainDate[],
     locale: Localization,
     placeholder: string,
     count: (days: number) => string,
 ): string {
-    const medium = (day: PlainDate): string =>
-        locale.date(Day.time(day), { dateStyle: "medium", timeZone: "UTC" });
-    if (value === undefined || (isDays(value) && value.length === 0)) {
+    // prompt before a day is chosen
+    const [first] = days;
+    if (first === undefined) {
         return placeholder;
-    } else if (isDays(value)) {
-        return value.length === 1 && value[0] !== undefined
-            ? medium(value[0])
-            : count(value.length);
-    } else if (isRange(value)) {
-        return value.to === undefined
-            ? medium(value.from)
-            : locale.dateRange(Day.time(value.from), Day.time(value.to), {
-                  dateStyle: "medium",
-                  timeZone: "UTC",
-              });
-    } else {
-        return medium(value);
+    }
+
+    return days.length === 1
+        ? locale.date(Day.time(first), { dateStyle: "medium", timeZone: "UTC" })
+        : count(days.length);
+}
+
+/** Build the range from a start to an end, the end left out before the start, none without a start. */
+function rangeOf(from: PlainDate | undefined, to: PlainDate | undefined): DateRange | undefined {
+    // leave the range out without a start
+    if (from === undefined) {
+        return undefined;
+    }
+
+    return to !== undefined && PlainDate.compare(to, from) >= 0 ? { from, to } : { from };
+}
+
+/** Read the one day of a single date picker's value, undefined for none. */
+function singleOf(value: CalendarValue): PlainDate | undefined {
+    return value === undefined || isDays(value) || isRange(value) ? undefined : value;
+}
+
+/** Tell a date picker's change handler its new value, typed for its mode. */
+function report(selection: DatePickerSelection, value: CalendarValue): void {
+    // the chosen days
+    if (selection.mode === "multiple") {
+        selection.onValueChange?.(isDays(value) ? value : []);
+    }
+    // the range, none without a start
+    else if (selection.mode === "range") {
+        selection.onValueChange?.(isRange(value) ? value : undefined);
+    }
+    // the day, none once cleared
+    else {
+        selection.onValueChange?.(singleOf(value));
     }
 }

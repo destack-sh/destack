@@ -11,7 +11,7 @@ test("place a sheet against its side", () => {
         </Sheet>
     ));
     expect(markup(container)).toBe(
-        '<dialog id="id-1" data-slot="sheet-content" closedby="any" aria-labelledby="id-2" data-side="left">' +
+        '<dialog id="id-1" data-slot="sheet-content" data-state="closed" closedby="any" aria-labelledby="id-2" data-side="left">' +
             '<h2 id="id-2" data-slot="sheet-title">Filters</h2></dialog>',
     );
 });

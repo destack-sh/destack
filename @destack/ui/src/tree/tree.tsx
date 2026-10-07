@@ -4,7 +4,6 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, space, stroke } from "@destack/theme/tokens.stylex";
-import { useLocale } from "@destack/locale/solid";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -18,6 +17,7 @@ import {
     type Setter,
     Show,
     useContext,
+    useLocale,
 } from "@destack/view";
 import { isTypeaheadKey } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
@@ -229,8 +229,12 @@ export interface TreeItemProperties extends Omit<
     readonly value: string;
     /** The text or content of the item's row. */
     readonly label: JSX.Element;
-    /** Whether the item's children show at first. */
+    /** Whether the item's children show, which makes the expansion controlled. */
+    readonly expanded?: boolean;
+    /** Whether the item's children show at first while uncontrolled. */
     readonly defaultExpanded?: boolean;
+    /** Handle the person expanding or collapsing the item. */
+    readonly onExpandedChange?: (expanded: boolean) => void;
     /** The StyleX styles applied after the row's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -279,12 +283,19 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
         properties,
         "value",
         "label",
+        "expanded",
         "defaultExpanded",
+        "onExpandedChange",
         "xstyle",
         "style",
         "children",
     );
-    const [isExpanded, setExpanded] = createSignal(properties.defaultExpanded === true);
+    const [isExpanded, setExpanded] = createControllableSignal({
+        isControlled: () => properties.expanded !== undefined,
+        value: () => properties.expanded === true,
+        defaultValue: properties.defaultExpanded === true,
+        onChange: (expanded) => properties.onExpandedChange?.(expanded),
+    });
     const isParent = (): boolean => "children" in properties;
     const isSelected = (): boolean => control.value() === properties.value;
     control.register(properties.value, { parent, isExpanded });

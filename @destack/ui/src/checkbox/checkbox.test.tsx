@@ -1,4 +1,5 @@
 import { expect, test } from "@destack/test";
+import { flush } from "@destack/view";
 import { Checkbox } from "./index.ts";
 import { draw, markup } from "@destack/view/test";
 
@@ -16,12 +17,13 @@ test("toggle a native checkbox on click, and show an indeterminate state", () =>
         </>
     ));
     container.querySelector("input")?.click();
+    flush();
 
     // the first box toggles, and the second reports indeterminate through its property
     expect(markup(container)).toBe(
-        '<input type="checkbox" data-slot="checkbox" name="terms">' +
-            '<input type="checkbox" data-slot="checkbox" aria-label="Select all">' +
-            '<input type="checkbox" data-slot="checkbox" disabled="">',
+        '<input type="checkbox" data-slot="checkbox" data-state="checked" name="terms">' +
+            '<input type="checkbox" data-slot="checkbox" data-state="indeterminate" aria-label="Select all">' +
+            '<input type="checkbox" data-slot="checkbox" data-state="unchecked" disabled="">',
     );
     expect(checked(container)).toEqual([true, false, false]);
     expect([...container.querySelectorAll("input")].map((input) => input.indeterminate)).toEqual([

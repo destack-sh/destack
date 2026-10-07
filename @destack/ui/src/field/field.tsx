@@ -193,8 +193,9 @@ export function FieldLabel(properties: LabelProperties): JSX.Element {
 
     return (
         <Label
+            id={control?.isGrouped() === true ? control.labelId : undefined}
             data-slot="field-label"
-            for={control?.id}
+            for={control?.isGrouped() === true ? undefined : control?.id}
             {...rest}
             xstyle={[control?.isDisabled() === true && styles.disabled, properties.xstyle]}
         />
