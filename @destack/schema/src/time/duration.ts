@@ -44,6 +44,11 @@ export const Duration = {
         );
     },
 
+    /** Measure a duration in seconds. */
+    seconds(duration: Duration): number {
+        return Duration.milliseconds(duration) / UNIT_MILLISECONDS.seconds;
+    },
+
     /** Require a duration of known, finite, non-negative units, at least one of them. */
     require(duration: unknown, name: string): Duration {
         const parsed = Duration.schema.safeParse(duration);

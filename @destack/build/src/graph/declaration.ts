@@ -1,5 +1,5 @@
+import { Text } from "@destack/schema";
 import { graph, type Package, type DeclarationDescription } from "@destack/package";
-import { compareText } from "../build/serialization.ts";
 
 /** A declaration or member of the build a relationship may name, with the declaration it belongs to. */
 interface Referent {
@@ -66,7 +66,7 @@ export class DeclarationGraph {
     /** List a module's declarations by moniker. */
     describe(path: string): graph.Declaration[] {
         return (this.#declarations.get(path) ?? []).toSorted((left, right) =>
-            compareText(left.moniker, right.moniker),
+            Text.compare(left.moniker, right.moniker),
         );
     }
 

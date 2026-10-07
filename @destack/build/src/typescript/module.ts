@@ -1,5 +1,5 @@
 import { BuildError } from "../error/index.ts";
-import { found, present } from "@destack/schema";
+import { found, present, Text } from "@destack/schema";
 import { readFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { version } from "typescript";
@@ -37,7 +37,6 @@ import { collectScenarios, type ScenarioDeclaration } from "./scenario.ts";
 import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
 import { collectDirectories, type DirectoryReference } from "./directory.ts";
-import { compareText } from "../build/serialization.ts";
 import { isAuthored, relativePath } from "../source/dependency.ts";
 
 /** The identifier `meta`, which every `import.meta` expression spells without escapes. */
@@ -276,7 +275,7 @@ class ProjectInspection {
 
         // order symbols once every referenced symbol is described
         for (const module of this.modules.values()) {
-            module.symbols.sort((left, right) => compareText(left.name, right.name));
+            module.symbols.sort((left, right) => Text.compare(left.name, right.name));
         }
     }
 
@@ -350,7 +349,7 @@ async function describeExports(
         }),
     );
 
-    return exports.toSorted((left, right) => compareText(left.name, right.name));
+    return exports.toSorted((left, right) => Text.compare(left.name, right.name));
 }
 
 /** Collect the package's modules the entries import through imports and reexports kept at runtime. */

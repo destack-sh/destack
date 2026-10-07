@@ -1,4 +1,4 @@
-import { aligned, present } from "@destack/schema";
+import { aligned, present, Text } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 import {
     NodeBuilderFlags,
@@ -29,7 +29,6 @@ import type {
     TypeDescription,
 } from "@destack/package/code";
 import type { SourceRange } from "@destack/package/source";
-import { compareText } from "../build/serialization.ts";
 import { isAuthored, relativePath } from "../source/dependency.ts";
 
 /** Named declarations retained as references instead of expanded structural types. */
@@ -377,7 +376,7 @@ export class SymbolInspector {
         }
 
         return [...references.entries()]
-            .toSorted(([left], [right]) => compareText(left, right))
+            .toSorted(([left], [right]) => Text.compare(left, right))
             .map(([, reference]) => reference);
     }
 

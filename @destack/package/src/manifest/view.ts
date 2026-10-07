@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, schema, Text } from "@destack/schema";
 import { PackageId } from "../definition/package.ts";
 import { PackagePath } from "../file/file.ts";
 import { Capabilities } from "../definition/capability.ts";
@@ -58,8 +58,7 @@ export const ViewDescription = Object.assign(
                 .map(([name, view]) => ({ name, strength: strength(view) }))
                 .toSorted(
                     (left, right) =>
-                        left.strength - right.strength ||
-                        Number(left.name > right.name) - Number(left.name < right.name),
+                        left.strength - right.strength || Text.compare(left.name, right.name),
                 )
                 .map((entry) => entry.name);
         },

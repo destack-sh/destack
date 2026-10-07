@@ -1,3 +1,4 @@
+import { Text } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { readdir, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
@@ -10,7 +11,6 @@ import { modulePackage, relativePath } from "../source/dependency.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { type ModuleSource } from "./dependency.ts";
 import { mapSource } from "./source.ts";
-import { compareText } from "../build/serialization.ts";
 
 /** Retain literal module-relative directories, including committed database migrations. */
 export function directoryPlugin(
@@ -159,7 +159,7 @@ export async function readDirectory(
         }
     }
 
-    return new Map([...files].toSorted(([left], [right]) => compareText(left, right)));
+    return new Map([...files].toSorted(([left], [right]) => Text.compare(left, right)));
 }
 
 /** Describe Vite assets without checkout-relative module identifiers. */

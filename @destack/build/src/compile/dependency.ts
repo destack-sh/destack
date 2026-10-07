@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";
 import { type DependencyResolution } from "@destack/package";
-import { comparePath, compareText } from "../build/serialization.ts";
+import { comparePath } from "../build/serialization.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { PackageFile } from "@destack/package/file";
@@ -13,7 +13,7 @@ import { modulePackage, relativePath } from "../source/dependency.ts";
 import { isBuiltin } from "node:module";
 import { type OutputBundle, type OutputChunk, RUNTIME_MODULE_ID } from "rolldown";
 import { type ESTree, Visitor } from "rolldown/utils";
-import { found } from "@destack/schema";
+import { found, Text } from "@destack/schema";
 import { Catalog } from "@destack/locale";
 import { readCatalogs } from "../build/catalog.ts";
 
@@ -539,7 +539,7 @@ export function describeCompilation(
     // stabilize package order after parallel module parsing
     description.packages = Object.fromEntries(
         Object.entries(description.packages).toSorted(([left], [right]) =>
-            compareText(left, right),
+            Text.compare(left, right),
         ),
     );
 
@@ -562,7 +562,7 @@ function describeInputs(
         names.set(id, JSON.stringify([location.kind, location.package ?? "", location.path]));
     }
     const modules = [...parsed.keys()].toSorted((left, right) =>
-        compareText(found(names, left), found(names, right)),
+        Text.compare(found(names, left), found(names, right)),
     );
     const identifiers = new Map(modules.map((id, index) => [id, `module:${index}`]));
 
@@ -598,7 +598,7 @@ function chunkInputs(
 ): string[] {
     // materialize the native module map once per chunk
     const rendered = Object.entries(chunk.modules).toSorted(([left], [right]) =>
-        compareText(left, right),
+        Text.compare(left, right),
     );
     const inputs: string[] = [];
     for (const [id, module] of rendered) {

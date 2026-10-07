@@ -6,8 +6,7 @@ import { PackagePath } from "@destack/package/file";
 import { TemplateInput } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
 import { type ESTree, parseSync, Visitor } from "rolldown/utils";
-import { schema } from "@destack/schema";
-import { compareText } from "../build/serialization.ts";
+import { schema, Text } from "@destack/schema";
 
 /** The fields of a template's package.json that an instance reads and rewrites. */
 const TemplateManifest = schema.looseObject({
@@ -249,7 +248,7 @@ function copyFiles(
     const encoder = new TextEncoder();
     const files = new Map<string, Uint8Array>();
     for (const [path, bytes] of [...source].toSorted(([left], [right]) =>
-        compareText(left, right),
+        Text.compare(left, right),
     )) {
         PackagePath.parse(path);
         if (!declared.some((entry) => isWithin(path, entry))) {

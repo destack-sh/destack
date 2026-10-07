@@ -1,3 +1,4 @@
+import { Text } from "@destack/schema";
 import { graph, type Package, type DeclarationDescription } from "@destack/package";
 import type {
     ModuleDescription,
@@ -14,7 +15,6 @@ import { ExampleGraph } from "./example.ts";
 import { ScenarioGraph } from "./scenario.ts";
 import type { ExampleDeclaration } from "../typescript/example.ts";
 import type { ScenarioDeclaration } from "../typescript/scenario.ts";
-import { compareText } from "../build/serialization.ts";
 
 /** The symbol kind of each language declaration kind. */
 const SYMBOL_KINDS: Readonly<Record<string, graph.Symbol["kind"]>> = {
@@ -94,7 +94,7 @@ class Edges {
     /** List the edges by source, kind and target. */
     list(): graph.Edge[] {
         return [...this.#edges]
-            .toSorted(([left], [right]) => compareText(left, right))
+            .toSorted(([left], [right]) => Text.compare(left, right))
             .map(([, edge]) => edge);
     }
 }
@@ -185,7 +185,7 @@ function describeModule(
     const declarations = [
         ...declared.describe(module.path),
         ...[...tests, ...moduleExamples, ...moduleScenarios].map((entry) => entry.declaration),
-    ].toSorted((left, right) => compareText(left.moniker, right.moniker));
+    ].toSorted((left, right) => Text.compare(left.moniker, right.moniker));
     for (const edge of [
         ...declared.edges(module.path),
         ...[...moduleExamples, ...moduleScenarios].flatMap((entry) => entry.edges),
@@ -276,7 +276,7 @@ class ModuleSymbols {
     /** List the described symbols by moniker. */
     list(): graph.Symbol[] {
         return [...this.#symbols.values()].toSorted((left, right) =>
-            compareText(left.moniker, right.moniker),
+            Text.compare(left.moniker, right.moniker),
         );
     }
 

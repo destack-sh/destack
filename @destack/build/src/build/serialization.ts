@@ -1,3 +1,4 @@
+import { Text } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 
 /** Serialize an inspection value without implicit conversions or discarded values. */
@@ -85,26 +86,10 @@ function checkProperty(
     }
 }
 
-/** Order two strings by UTF-16 code units, independent of the host locale. */
-export function compareText(left: string, right: string): number {
-    // order the lesser string first
-    if (left < right) {
-        return -1;
-    }
-    // order the greater string last
-    else if (left > right) {
-        return 1;
-    }
-    // keep equal strings in place
-    else {
-        return 0;
-    }
-}
-
 /** Order two files by package path, equal paths as equal. */
 export function comparePath(
     left: { readonly path: string },
     right: { readonly path: string },
 ): number {
-    return compareText(left.path, right.path);
+    return Text.compare(left.path, right.path);
 }

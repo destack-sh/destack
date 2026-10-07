@@ -52,6 +52,16 @@ type SchemaComparison =
     | "incompatible"; // neither is true, or the comparison cannot prove it
 ```
 
+## Text order
+
+`Text.compare` orders strings by UTF-16 code units, the same on every host whatever its locale.
+
+```ts
+import { Text } from "@destack/schema";
+
+names.toSorted((left, right) => Text.compare(left, right)); // "B" before "a" before "ä"
+```
+
 ## Identifiers
 
 `schema.identifier` validates a lowercase prefix and a UUIDv7 and brands the type by the prefix, and `Identifier.uuid` returns the UUID.
@@ -92,12 +102,13 @@ const zone: TimeZone = "Europe/Vienna"; // an IANA name
 
 ## Time arithmetic
 
-`Duration.milliseconds` converts a duration to milliseconds, and `TimeZone.next` returns the next of some local times in a time zone.
+`Duration.milliseconds` and `Duration.seconds` measure a duration, and `TimeZone.next` returns the next of some local times in a time zone.
 
 ```ts
 import { Duration, TimeZone } from "@destack/schema";
 
 Duration.milliseconds({ minutes: 1, seconds: 30 }); // 90000
+Duration.seconds({ milliseconds: 1500 }); // 1.5
 TimeZone.next("Europe/Vienna", ["09:00", "17:00"], Date.now()); // the next 09:00 or 17:00 in Vienna
 ```
 
