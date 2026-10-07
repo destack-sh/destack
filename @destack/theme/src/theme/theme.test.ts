@@ -1,10 +1,11 @@
 import { Package } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
-import { apca, Color, Scale } from "../palette/index.ts";
-import { GRAY_PRESETS, PRESET_NAMES } from "../preset/index.ts";
+import { apca, Color, Palette } from "../palette/index.ts";
+import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "../preset/index.ts";
 import {
     DEFAULT_PREFERENCES,
+    GRAPHIC_CONTRAST,
     ROLE_NAMES,
     RoleName,
     SURFACE_ROLES,
@@ -93,16 +94,56 @@ function scaled(family: string, lengths: readonly number[], factor: number): [st
     ]);
 }
 
-test("pass every text role's contrast for every preset accent on every gray", () => {
-    const refused = GRAY_PRESETS.flatMap((gray) =>
+test("give every preset accent on every base five chart series of hues apart, standing out in both appearances", () => {
+    const failures = GRAY_PRESETS.flatMap((base) =>
         PRESET_NAMES.flatMap((accent) => {
-            const theme = new Theme(notes, { name: "preset", gray, accent });
+            // resolve the series and the background in both appearances
+            const theme = new Theme(notes, { name: "preset", base, accent });
+            const series = (["chart1", "chart2", "chart3", "chart4", "chart5"] as const).map(
+                (name) => ({
+                    light: theme.resolve("light", 0).color(name),
+                    dark: theme.resolve("dark", 0).color(name),
+                }),
+            );
+            const background = {
+                light: theme.resolve("light", 0).color("background"),
+                dark: theme.resolve("dark", 0).color("background"),
+            };
+
+            // require every series to stand out and every pair of hues to lie apart
+            const faint = series.filter((entry) =>
+                (["light", "dark"] as const).some(
+                    (scheme) =>
+                        Math.abs(apca(entry[scheme], background[scheme])) <
+                        GRAPHIC_CONTRAST.standard,
+                ),
+            );
+            const hues = series.map((entry) => Color.parse(entry.light).hue);
+            const close = hues.flatMap((hue, index) =>
+                hues.slice(index + 1).filter((other) => {
+                    const difference = Math.abs(hue - other) % 360;
+
+                    return Math.min(difference, 360 - difference) < 20;
+                }),
+            );
+
+            return faint.length === 0 && close.length === 0 ? [] : [`${base}/${accent}`];
+        }),
+    );
+
+    expect(failures).toEqual([]);
+});
+
+test("pass every role's contrast for every preset accent on every base", () => {
+    const refused = GRAY_PRESETS.flatMap((base) =>
+        PRESET_NAMES.flatMap((accent) => {
+            const theme = new Theme(notes, { name: "preset", base, accent });
             try {
                 theme.requireContrast();
 
                 return [];
             } catch (error) {
-                return [`${gray}/${accent}: ${String(error)}`];
+                return [`${base}/${accent}: ${String(error)}`];
             }
         }),
     );
@@ -110,11 +151,11 @@ test("pass every text role's contrast for every preset accent on every gray", ()
     expect(refused).toEqual([]);
 });
 
-test("shift a seed's step 9 by a small lightness until its best label reads at Lc 60", () => {
+test("shift a seed by a small lightness until its best label reads at Lc 60", () => {
     for (const seed of ["#ff8800", "#22c55e", "#0ea5e9"]) {
         const theme = defineTheme({ name: "seeded", accent: seed }, { package: notes });
-        const solid = theme.scales.accent.color(9, "light");
-        const label = theme.scales.accent.label(solid, theme.scales.gray.color(12, "light"));
+        const resolution = theme.resolve("light", 0);
+        const solid = resolution.color("primary");
         const before = Color.parse(seed);
         const after = Color.parse(solid);
 
@@ -122,21 +163,80 @@ test("shift a seed's step 9 by a small lightness until its best label reads at L
         const shift = Math.abs(after.lightness - before.lightness);
         expect([shift > 0, shift < 0.04]).toEqual([true, true]);
         expect(Math.abs(after.hue - before.hue)).toBeLessThan(1);
-        expect(Math.abs(apca(label, solid))).toBeGreaterThanOrEqual(60);
+        expect(resolution.reads("primaryForeground")).toBeGreaterThanOrEqual(60);
     }
 });
 
-test("keep a legible preset's solid step and label it with the darkest candidate", () => {
+test("keep a legible preset's seed and label it with its own palette's darkest text", () => {
     const amber = defineTheme({ name: "amber", accent: "amber" }, { package: notes });
-    const preset = Scale.preset("amber");
-    const label = amber.variables("light", DEFAULT_PREFERENCES)[
-        "--destack-color-primary-foreground"
-    ];
+    const resolution = amber.resolve("light", 0);
 
-    expect([amber.scales.accent.light, amber.scales.accent.dark, label]).toEqual([
-        preset.light,
-        preset.dark,
-        Scale.preset("slate").color(12, "light"),
+    expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
+        PRESETS.amber,
+        Palette.of("amber").tone(0.242),
+    ]);
+});
+
+test("read every text, line and graphic role against a nested surface's background", () => {
+    // a selected row's accent fill becomes the background every role reads on
+    const row = standard.rebase({ light: "#c9d8ff", dark: "#1d2f66" });
+    for (const scheme of ["light", "dark"] as const) {
+        const resolution = row.resolve(scheme, 0);
+        const unread = ROLE_NAMES.filter((name) => {
+            const reading = row.roles[name].reading;
+
+            return (
+                reading !== undefined && resolution.reads(name) < resolution.floor(reading.contrast)
+            );
+        });
+        expect([resolution.color("background"), unread]).toEqual([
+            scheme === "light" ? "#c9d8ff" : "#1d2f66",
+            [],
+        ]);
+    }
+
+    // the surfaces above the background follow it
+    const card = Color.parse(row.resolve("light", 0).color("card")).lightness;
+    expect(card - Color.parse("#c9d8ff").lightness).toBeCloseTo(-0.011, 2);
+});
+
+test("raise every reading role's contrast continuously with the person's level", () => {
+    // each level reads at least at its floor, and the floors rise from the standard to the most
+    const levels = [0, 0.25, 0.5, 0.75, 1];
+    const reads = levels.map((level) => {
+        const resolution = standard.resolve("light", level);
+
+        return ROLE_NAMES.filter((name) => {
+            const reading = standard.roles[name].reading;
+
+            return (
+                reading !== undefined && resolution.reads(name) < resolution.floor(reading.contrast)
+            );
+        });
+    });
+    const muted = levels.map((level) => standard.resolve("light", level).reads("mutedForeground"));
+
+    expect(reads).toEqual([[], [], [], [], []]);
+    expect(muted).toEqual(muted.toSorted((left, right) => left - right));
+    expect(
+        standard.variables("light", { ...DEFAULT_PREFERENCES, contrast: 0.5 })[
+            "--destack-color-muted-foreground"
+        ],
+    ).toBe(
+        `light-dark(${standard.resolve("light", 0.5).color("mutedForeground")}, ${standard.resolve("dark", 0.5).color("mutedForeground")})`,
+    );
+});
+
+test("grow the status roles and the first chart series from the theme's declared seeds", () => {
+    const declared = defineTheme(
+        { name: "declared", status: { destructive: "tomato" }, chart: ["#d946ef"] },
+        { package: notes },
+    );
+    const resolution = declared.resolve("light", 0);
+
+    expect([resolution.color("destructive"), resolution.color("chart2")]).toEqual([
+        PRESETS.tomato,
+        "#d946ef",
     ]);
 });
 
@@ -146,7 +246,7 @@ test("check the roles a theme replaces like every other role", async () => {
             name: "paper",
             roles: {
                 background: { light: "#f8f5ee", dark: "#0b2029" },
-                mutedForeground: { scale: "gray", step: 12 },
+                mutedForeground: { palette: "base", lightness: { light: 0.242, dark: 0.948 } },
             },
         },
         { package: notes },
@@ -159,7 +259,7 @@ test("check the roles a theme replaces like every other role", async () => {
     ]).toEqual([
         "light-dark(#f8f5ee, #0b2029)",
         "light-dark(#f8f5ee, #0b2029)",
-        "light-dark(#1e1f26, #edeef0)",
+        "light-dark(#1f2021, #ededf2)",
     ]);
 
     // a background too close to its text is refused
@@ -171,21 +271,22 @@ test("check the roles a theme replaces like every other role", async () => {
     );
     expect(await refusal(illegible)).toEqual([
         "INVALID_DEFINITION",
-        "theme fog: foreground on background reads at Lc 41.0 in light with standard contrast, below 75",
+        "theme fog: foreground on background reads at Lc 43.7 in light with standard contrast, below 75",
     ]);
 });
 
 test("label an overridden primary with the candidate that reads best on it", () => {
     const theme = defineTheme(
-        { name: "signal", roles: { primary: { scale: "amber", step: 9 } } },
+        { name: "signal", roles: { primary: { palette: "warning" } } },
         { package: notes },
     );
-    const style = theme.variables("system", DEFAULT_PREFERENCES);
+    const resolution = theme.resolve("light", 0);
 
-    // the gray's darkest step reads on amber, where the indigo accent's white label would not
-    expect([style["--destack-color-primary"], style["--destack-color-primary-foreground"]]).toEqual(
-        ["#ffc53d", "#1e1f26"],
-    );
+    // the warning palette's darkest text reads on amber, where the indigo accent's white label would not
+    expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
+        PRESETS.amber,
+        Palette.of("amber").tone(0.242),
+    ]);
 });
 
 test("resolve the default theme to the color values tokens.json shows", () => {
@@ -199,12 +300,11 @@ test("resolve the default theme to the color values tokens.json shows", () => {
         const resolved = shown.map(([key = ""]) => {
             const name =
                 family === "color" ? RoleName.parse(key) : SURFACE_ROLES[SurfaceLevel.parse(key)];
-            const role = standard.roles[name];
 
             return [
                 key,
-                role.color(standard.roles, standard.scales, "light", "standard"),
-                role.color(standard.roles, standard.scales, "dark", "standard"),
+                standard.resolve("light", 0).color(name),
+                standard.resolve("dark", 0).color(name),
             ];
         });
 
@@ -216,38 +316,54 @@ test("emit the default theme's custom properties for the system appearance", () 
     // follow the device's contrast through color-mix() and its motion through the duration scale
     expect(standard.variables("system", DEFAULT_PREFERENCES)).toEqual({
         "color-scheme": "light dark",
-        "--destack-color-background": "light-dark(#fcfcfe, #101113)",
-        "--destack-color-foreground": "light-dark(#1e1f26, #edeef0)",
-        "--destack-color-card": "light-dark(#f8f9fb, #18191b)",
-        "--destack-color-card-foreground": "light-dark(#1e1f26, #edeef0)",
-        "--destack-color-popover": "light-dark(#fcfcfe, #212224)",
-        "--destack-color-popover-foreground": "light-dark(#1e1f26, #edeef0)",
+        "--destack-color-background": "light-dark(#fcfdfe, #131314)",
+        "--destack-color-foreground": "light-dark(#1f2021, #ededf2)",
+        "--destack-color-card": "light-dark(#f8f9fa, #19191a)",
+        "--destack-color-card-foreground": "light-dark(#1f2021, #ededf2)",
+        "--destack-color-popover": "light-dark(#fcfdfe, #242425)",
+        "--destack-color-popover-foreground": "light-dark(#1f2021, #ededf2)",
         "--destack-color-primary": "#3e63dd",
         "--destack-color-primary-foreground": "#ffffff",
-        "--destack-color-secondary": "light-dark(#f0f0f3, #212224)",
-        "--destack-color-secondary-foreground": "light-dark(#1e1f26, #edeef0)",
-        "--destack-color-muted": "light-dark(#f0f0f3, #212224)",
+        "--destack-color-secondary": "light-dark(#f1f2f3, #252526)",
+        "--destack-color-secondary-foreground": "light-dark(#1f2021, #ededf2)",
+        "--destack-color-muted": "light-dark(#f1f2f3, #252526)",
         "--destack-color-muted-foreground":
-            "light-dark(color-mix(in oklab, #62636c, #1e1f26 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b0b4bb, #edeef0 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-accent": "light-dark(#ecf1ff, #182341)",
-        "--destack-color-accent-foreground": "light-dark(#223364, #d7e3ff)",
-        "--destack-color-destructive": "#e5484d",
+            "light-dark(color-mix(in oklab, #62636a, #47474b calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b1b3bc, #e4e5ea calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-accent": "light-dark(#ecf2ff, #1b243b)",
+        "--destack-color-accent-foreground":
+            "light-dark(color-mix(in oklab, #26345c, #253359 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #d7e3ff, #dfe9ff calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-destructive":
+            "color-mix(in oklab, #e5484d, #d2484b calc(var(--destack-contrast, 0) * 100%))",
         "--destack-color-destructive-foreground": "#ffffff",
-        "--destack-color-success": "#30a46c",
+        "--destack-color-success":
+            "color-mix(in oklab, #30a46c, #37885e calc(var(--destack-contrast, 0) * 100%))",
         "--destack-color-success-foreground": "#ffffff",
-        "--destack-color-warning": "#ffc53d",
-        "--destack-color-warning-foreground": "#1e1f26",
-        "--destack-color-info": "#0090ff",
+        "--destack-color-warning":
+            "color-mix(in oklab, #ffc53d, #ffc642 calc(var(--destack-contrast, 0) * 100%))",
+        "--destack-color-warning-foreground": "#231f19",
+        "--destack-color-info":
+            "color-mix(in oklab, #0090ff, #237bd0 calc(var(--destack-contrast, 0) * 100%))",
         "--destack-color-info-foreground": "#ffffff",
         "--destack-color-border":
-            "light-dark(color-mix(in oklab, #d8d9df, #b9bbc3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #383a3e, #5d6168 calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #d8d9e0, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #393a3c, #76777f calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-input":
-            "light-dark(color-mix(in oklab, #cdced5, #b9bbc3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #45484d, #5d6168 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-ring": "light-dark(#83a6ff, #4967b9)",
-        "--destack-color-scrim": "light-dark(#1e1f2680, #10111380)",
-        "--destack-surface-base": "light-dark(#fcfcfe, #101113)",
-        "--destack-surface-raised": "light-dark(#f8f9fb, #18191b)",
-        "--destack-surface-overlay": "light-dark(#fcfcfe, #212224)",
+            "light-dark(color-mix(in oklab, #ccced5, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #47474b, #76777f calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-ring":
+            "light-dark(color-mix(in oklab, #83a6ff, #5f85f3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-scrim": "light-dark(#1f202180, #00000080)",
+        "--destack-color-chart1":
+            "light-dark(#3e63dd, color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-chart2":
+            "light-dark(#978365, color-mix(in oklab, #a69477, #c1b098 calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-chart3":
+            "light-dark(color-mix(in oklab, #29a383, #2e9b7d calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #35a888, #69c2a6 calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-chart4":
+            "light-dark(#d6409f, color-mix(in oklab, #ea65b4, #fe8ccd calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-chart5":
+            "light-dark(color-mix(in oklab, #00a2c7, #1c96b7 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #00a2c7, #5abede calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-surface-base": "light-dark(#fcfdfe, #131314)",
+        "--destack-surface-raised": "light-dark(#f8f9fa, #19191a)",
+        "--destack-surface-overlay": "light-dark(#fcfdfe, #242425)",
         "--destack-text-family":
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
         "--destack-text-code-family":
@@ -349,24 +465,32 @@ test("emit the default theme's custom properties for the system appearance", () 
     });
 });
 
-test("resolve a seed accent to the scale generated from it", () => {
+test("resolve a seed accent's roles from the palette grown from it", () => {
     const seeded = defineTheme({ name: "violet", accent: "#7c3aed" }, { package: notes });
-    const scale = Scale.generate("#7c3aed");
-    const step = (number: 3 | 8 | 12) =>
-        `light-dark(${scale.color(number, "light")}, ${scale.color(number, "dark")})`;
 
-    // only the accent roles change against the default theme
-    expect(
-        changes(
-            seeded.variables("system", DEFAULT_PREFERENCES),
-            standard.variables("system", DEFAULT_PREFERENCES),
-        ),
-    ).toEqual({
-        "--destack-color-primary": "#7c3aed",
-        "--destack-color-accent": step(3),
-        "--destack-color-accent-foreground": step(12),
-        "--destack-color-ring": step(8),
-    });
+    // only the accent roles and the chart series picked around the accent change against the default theme
+    const changed = changes(
+        seeded.variables("system", DEFAULT_PREFERENCES),
+        standard.variables("system", DEFAULT_PREFERENCES),
+    );
+    expect(Object.keys(changed)).toEqual(
+        [
+            "primary",
+            "accent",
+            "accentForeground",
+            "ring",
+            "chart1",
+            "chart2",
+            "chart3",
+            "chart4",
+            "chart5",
+        ].flatMap((name) => {
+            const variable = TOKENS.entry(["color", name]).variable;
+
+            return variable in changed ? [variable] : [];
+        }),
+    );
+    expect(changed["--destack-color-primary"]).toBe("#7c3aed");
 });
 
 test("override the theme with the person's accent, density, text size, contrast and motion", () => {
@@ -377,34 +501,36 @@ test("override the theme with the person's accent, density, text size, contrast 
     const preferences = {
         textSize: "xxxLarge",
         density: "spacious",
-        contrast: "more",
+        contrast: 1,
         motion: "reduced",
         accent: "grass",
     } as const;
 
-    // the person's grass accent replaces orange, spacious replaces compact, and more contrast picks fixed steps
-    const grass = Scale.preset("grass");
-    const step = (number: 3 | 8 | 9 | 12) =>
-        `light-dark(${grass.color(number, "light")}, ${grass.color(number, "dark")})`;
-    const changed = changes(
-        theme.variables("dark", preferences),
-        standard.variables("system", DEFAULT_PREFERENCES),
-    );
-    expect(changed).toEqual({
+    // the person's grass accent replaces orange at the most contrast, and spacious replaces compact
+    const style = theme.variables("dark", preferences);
+    const color = (name: RoleName) => {
+        const light = theme.resolve("light", 1, "grass").color(name);
+        const dark = theme.resolve("dark", 1, "grass").color(name);
+
+        return light === dark ? light : `light-dark(${light}, ${dark})`;
+    };
+    expect(
+        ROLE_NAMES.filter((name) => style[TOKENS.entry(["color", name]).variable] !== color(name)),
+    ).toEqual([]);
+    const changed = changes(style, standard.variables("system", DEFAULT_PREFERENCES));
+    expect(
+        Object.fromEntries(
+            Object.entries(changed).filter(([name]) => !name.startsWith("--destack-color-")),
+        ),
+    ).toEqual({
         "color-scheme": "dark",
-        "--destack-color-primary": grass.color(9, "light"),
-        "--destack-color-accent": step(3),
-        "--destack-color-accent-foreground": step(12),
-        "--destack-color-ring": step(8),
-        "--destack-color-muted-foreground": "light-dark(#1e1f26, #edeef0)",
-        "--destack-color-border": "light-dark(#b9bbc3, #5d6168)",
-        "--destack-color-input": "light-dark(#b9bbc3, #5d6168)",
         ...LARGEST_TEXT,
         ...Object.fromEntries(scaled("space", SPACE, 1.125)),
         ...Object.fromEntries(scaled("size", SIZE, 1.125)),
         ...Object.fromEntries(widths(1.125)),
         "--destack-motion-scale": "0",
     });
+    expect(style["--destack-color-primary"]).toBe(color("primary"));
 });
 
 test("apply the theme's radius, scaling and fonts", () => {

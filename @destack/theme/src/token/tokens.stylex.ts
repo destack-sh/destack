@@ -56,6 +56,16 @@ export const color = defineConsts({
     ring: "var(--destack-color-ring)",
     /** The veil behind dialogs, sheets and drawers. */
     scrim: "var(--destack-color-scrim)",
+    /** The first chart series. */
+    chart1: "var(--destack-color-chart1)",
+    /** The second chart series. */
+    chart2: "var(--destack-color-chart2)",
+    /** The third chart series. */
+    chart3: "var(--destack-color-chart3)",
+    /** The fourth chart series. */
+    chart4: "var(--destack-color-chart4)",
+    /** The fifth chart series. */
+    chart5: "var(--destack-color-chart5)",
 });
 
 /** Surface levels from the page up, with the default theme's values. */

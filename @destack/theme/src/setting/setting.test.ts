@@ -79,8 +79,15 @@ const DESCRIPTIONS = [
         owner: "@destack/theme",
         name: "contrast",
         title: "Contrast",
-        description: "Use the system contrast or darken borders and secondary text.",
-        schema: enumeration(["system", "standard", "more"]),
+        description:
+            "Follow the device's contrast or set how far text, lines and graphics stand out.",
+        schema: {
+            $schema: "https://json-schema.org/draft/2020-12/schema",
+            anyOf: [
+                { type: "string", const: "system" },
+                { type: "number", minimum: 0, maximum: 1 },
+            ],
+        },
         default: "system",
         ...preference,
     },
@@ -98,7 +105,18 @@ const DESCRIPTIONS = [
         name: "accent",
         title: "Accent color",
         description: "Use each app's own accent, or one accent color in every app.",
-        schema: nullable([...PRESET_NAMES]),
+        schema: {
+            $schema: "https://json-schema.org/draft/2020-12/schema",
+            anyOf: [
+                {
+                    anyOf: [
+                        { type: "string", enum: [...PRESET_NAMES] },
+                        { type: "string", pattern: "^#[0-9a-f]{6}$" },
+                    ],
+                },
+                { type: "null" },
+            ],
+        },
         default: null,
         ...preference,
     },
@@ -115,14 +133,14 @@ test("declare the display preferences as user settings with every override", () 
 
 test("describe a declared theme with its package", () => {
     const theme = defineTheme(
-        { name: "notes", gray: "sand", accent: "orange", radius: "large" },
+        { name: "notes", base: "sand", accent: "orange", radius: "large" },
         { package: notes },
     );
 
     expect(describeTheme(theme)).toEqual({
         package: notes,
         name: "notes",
-        gray: "sand",
+        base: "sand",
         accent: "orange",
         radius: "large",
     });

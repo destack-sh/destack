@@ -5,7 +5,7 @@ import { Contrast, DEFAULT_PREFERENCES } from "../theme/index.ts";
 export const contrast = defineSetting({
     name: "contrast",
     title: "Contrast",
-    description: "Use the system contrast or darken borders and secondary text.",
+    description: "Follow the device's contrast or set how far text, lines and graphics stand out.",
     schema: Contrast,
     default: DEFAULT_PREFERENCES.contrast,
     scope: "user",

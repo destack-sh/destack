@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** The preset scale names, neutral grays first. */
+/** The preset palette names, neutral grays first. */
 export const PRESET_NAMES = [
     "gray",
     "mauve",
@@ -35,21 +35,17 @@ export const PRESET_NAMES = [
     "orange",
 ] as const;
 
-/** The neutral presets for backgrounds, borders and text. */
+/** The neutral presets, for a theme's base. */
 export const GRAY_PRESETS = ["gray", "mauve", "slate", "sage", "olive", "sand"] as const;
 
-/** The solid step 9 of each neutral preset in the light and dark appearance, which its scale grows from. */
-export const GRAY_SOLIDS: Readonly<Record<GrayPreset, Solids>> = {
-    gray: { light: "#8d8d8d", dark: "#6e6e6e" },
-    mauve: { light: "#8e8c99", dark: "#6f6d78" },
-    slate: { light: "#8b8d98", dark: "#696e77" },
-    sage: { light: "#868e8b", dark: "#63706b" },
-    olive: { light: "#898e87", dark: "#687066" },
-    sand: { light: "#8d8d86", dark: "#6f6d66" },
-};
-
-/** The solid step 9 of each accent preset, alike in both appearances, which its scale grows from. */
-export const ACCENT_SOLIDS: Readonly<Record<AccentPreset, string>> = {
+/** The seed each preset palette grows from. */
+export const PRESETS: Readonly<Record<Preset, string>> = {
+    gray: "#8d8d8d",
+    mauve: "#8e8c99",
+    slate: "#8b8d98",
+    sage: "#868e8b",
+    olive: "#898e87",
+    sand: "#8d8d86",
     tomato: "#e54d2e",
     red: "#e5484d",
     ruby: "#e54666",
@@ -77,21 +73,13 @@ export const ACCENT_SOLIDS: Readonly<Record<AccentPreset, string>> = {
     orange: "#f76b15",
 };
 
-/** A preset scale name. */
+/** A preset palette name. */
 export const Preset = defineSchema(schema.enum(PRESET_NAMES));
-/** A preset scale name. */
+/** A preset palette name. */
 export type Preset = schema.Infer<typeof Preset>;
 
-/** A neutral preset scale. */
+/** A neutral preset. */
 export type GrayPreset = (typeof GRAY_PRESETS)[number];
 
-/** An accent preset scale. */
+/** A colorful preset. */
 export type AccentPreset = Exclude<Preset, GrayPreset>;
-
-/** The solid step 9 of a scale in the light and dark appearance. */
-export interface Solids {
-    /** The light solid. */
-    readonly light: string;
-    /** The dark solid. */
-    readonly dark: string;
-}

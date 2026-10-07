@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { Preset } from "../preset/index.ts";
+import { Seed } from "../palette/index.ts";
 
 /** The body size of each text size relative to the default medium, from 14 to 23 points over 16. */
 export const TEXT_SCALES = {
@@ -36,9 +36,11 @@ export const Density = defineSchema(schema.enum(["compact", "regular", "spacious
 /** How tightly controls and content pack. */
 export type Density = schema.Infer<typeof Density>;
 
-/** The contrast of borders and secondary text: the device preference, standard or more. */
-export const Contrast = defineSchema(schema.enum(["system", "standard", "more"]));
-/** The contrast of borders and secondary text. */
+/** How far text, lines and graphics stand out: the device preference, or a level from 0, the standard, to 1, the most. */
+export const Contrast = defineSchema(
+    schema.union([schema.literal("system"), schema.number().min(0).max(1)]),
+);
+/** How far text, lines and graphics stand out. */
 export type Contrast = schema.Infer<typeof Contrast>;
 
 /** The motion of transitions: the device preference, full or reduced to none. */
@@ -58,7 +60,7 @@ export const Preferences = defineSchema(
         /** The motion. */
         motion: Motion,
         /** The accent, or null for the theme's own. */
-        accent: Preset.nullable(),
+        accent: Seed.nullable(),
     }),
 );
 /** The display preferences of a person. */

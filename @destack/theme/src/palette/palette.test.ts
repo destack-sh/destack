@@ -1,15 +1,12 @@
 import { expect, test } from "@destack/test";
-import { apca, Color, Scale, STEPS, type Scheme, type Step } from "./index.ts";
-import { ACCENT_SOLIDS, GRAY_SOLIDS, PRESET_NAMES } from "../preset/index.ts";
+import { apca, Color, Palette } from "./index.ts";
+import { PRESETS } from "../preset/index.ts";
 
 /** Seeds across hues, lightness and chroma. */
 const SEEDS = ["#3e63dd", "#f76b15", "#ffc53d", "#46a758", "#ff0000", "#7c3aed", "#888888"];
 
-/** The steps whose lightness orders from background to border. */
-const BACKGROUNDS = STEPS.slice(0, 8);
-
-/** The text steps, ordered from lower to higher contrast. */
-const TEXT = STEPS.slice(10);
+/** Lightness from dark to near white in tenths, above the black 8-bit channels round coarsely. */
+const LIGHTNESS = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95];
 
 test("measure the APCA-W3 reference contrasts", () => {
     // the pairs and values the apca-w3 0.0.98G package documents
@@ -22,72 +19,71 @@ test("measure the APCA-W3 reference contrasts", () => {
     expect(apca("#777777", "#777777")).toBe(0);
 });
 
-test("roundtrip every preset solid through OKLCH", () => {
-    const solids = [
-        ...Object.values(ACCENT_SOLIDS),
-        ...Object.values(GRAY_SOLIDS).flatMap((gray) => [gray.light, gray.dark]),
-    ];
-
-    expect(solids.filter((hex) => Color.parse(hex).hex() !== hex)).toEqual([]);
+test("roundtrip every preset seed through OKLCH", () => {
+    expect(Object.values(PRESETS).filter((hex) => Color.parse(hex).hex() !== hex)).toEqual([]);
 });
 
-test("order generated steps from background to text in both appearances", () => {
+test("keep the seed at its own lightness and its lightness and hue at every other", () => {
     for (const seed of SEEDS) {
-        const scale = Scale.generate(seed);
-        const lightness = (steps: readonly Step[], scheme: Scheme) =>
-            steps.map((step) => Color.parse(scale.color(step, scheme)).lightness);
-
-        // light steps darken from background to border and from step 11 to 12, dark steps lighten
-        for (const steps of [BACKGROUNDS, TEXT]) {
-            const light = lightness(steps, "light");
-            const dark = lightness(steps, "dark");
-            expect(light).toEqual(light.toSorted((left, right) => right - left));
-            expect(dark).toEqual(dark.toSorted((left, right) => left - right));
-            expect(new Set([...light, ...dark]).size).toBe(steps.length * 2);
-        }
-    }
-});
-
-test("keep the seed as both appearances' step 9 and its hue on every colored step", () => {
-    for (const seed of SEEDS.filter((candidate) => Color.parse(candidate).chroma > 0.05)) {
-        const scale = Scale.generate(seed);
+        const palette = new Palette(seed);
         const solid = Color.parse(seed);
-        const hue = solid.hue;
 
-        // measure each step's hue difference in OKLab units, within the rounding to 8-bit channels
-        expect([scale.color(9, "light"), scale.color(9, "dark")]).toEqual([seed, seed]);
-        const drift = [...scale.light, ...scale.dark].map((hex) => {
-            const color = Color.parse(hex);
-            const angle = ((color.hue - hue) * Math.PI) / 180;
+        // each tone sits at its lightness, within the rounding to 8-bit channels
+        expect(palette.tone(palette.lightness)).toBe(seed);
+        const tones = LIGHTNESS.map((lightness) => Color.parse(palette.tone(lightness)));
+        expect(
+            tones.filter(
+                (tone, index) => Math.abs(tone.lightness - (LIGHTNESS[index] ?? 0)) > 0.004,
+            ),
+        ).toEqual([]);
 
-            return Math.abs(2 * Math.sqrt(color.chroma * solid.chroma) * Math.sin(angle / 2));
+        // a colorful seed's tones keep its hue, measured in OKLab units
+        const drift = tones.map((tone) => {
+            const angle = ((tone.hue - solid.hue) * Math.PI) / 180;
+
+            return Math.abs(2 * Math.sqrt(tone.chroma * solid.chroma) * Math.sin(angle / 2));
         });
-        expect(Math.max(...drift)).toBeLessThan(0.006);
+        expect(solid.chroma < 0.05 || Math.max(...drift) < 0.006).toBe(true);
     }
 });
 
-test("grow every preset around its solids, ordering its steps from background to text", () => {
-    const misordered = PRESET_NAMES.filter((name) => {
-        // read the preset's lightness along its background and text steps
-        const scale = Scale.preset(name);
-        const lightness = (steps: readonly Step[], scheme: Scheme) =>
-            steps.map((step) => Color.parse(scale.color(step, scheme)).lightness);
+/** Check that a color reads on white at a contrast. */
+function reads(contrast: number): (color: string) => boolean {
+    return (color) => Math.abs(apca(color, "#ffffff")) >= contrast;
+}
 
-        // light steps darken and dark steps lighten
-        return [BACKGROUNDS, TEXT].some((steps) => {
-            const light = lightness(steps, "light");
-            const dark = lightness(steps, "dark");
+test("fall the seed's chroma toward white and black", () => {
+    const palette = new Palette("#3e63dd");
+    const chroma = [0.1, 0.3, palette.lightness, 0.8, 0.98].map(
+        (lightness) => Color.parse(palette.tone(lightness)).chroma,
+    );
 
-            return (
-                light.join() !== light.toSorted((left, right) => right - left).join() ||
-                dark.join() !== dark.toSorted((left, right) => left - right).join()
-            );
-        });
-    });
-    const solids = [
-        Scale.preset("slate").color(9, "dark"),
-        Scale.preset("indigo").color(9, "light"),
-    ];
+    const [black = 0, dark = 0, , light = 0, white = 0] = chroma;
 
-    expect([misordered, solids]).toEqual([[], [GRAY_SOLIDS.slate.dark, ACCENT_SOLIDS.indigo]]);
+    expect([chroma.indexOf(Math.max(...chroma)), black < dark, light > white]).toEqual([
+        2,
+        true,
+        true,
+    ]);
+});
+
+test("find the nearest lightness whose tone passes, darker first and only the way asked", () => {
+    const palette = new Palette("#3e63dd");
+    const start = palette.lightness;
+
+    // the seed already reads at Lc 60 on white, and Lc 90 needs a darker tone
+    expect(palette.nearest(start, reads(60), "either")).toBe(start);
+    const darker = palette.nearest(start, reads(90), "either") ?? 1;
+    expect([darker < start, Math.abs(apca(palette.tone(darker), "#ffffff")) >= 90]).toEqual([
+        true,
+        true,
+    ]);
+    expect(palette.nearest(start, reads(90), "lighter")).toBeUndefined();
+});
+
+test("grow a preset's palette from its seed", () => {
+    expect([Palette.of("indigo").seed, Palette.of("#7C3AED").seed]).toEqual([
+        PRESETS.indigo,
+        "#7c3aed",
+    ]);
 });
