@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
-import { Tooltip, TooltipArrow, TooltipContent, TooltipProvider, TooltipTrigger } from "./index.ts";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./index.ts";
 import { draw, markup, stubPopovers, wait } from "@destack/view/test";
 
 /** Find the element of a container's first match, refusing none. */
@@ -95,24 +95,4 @@ test("show the next tooltip of a group at once while the last one just hid", asy
     await wait(0);
     flush();
     expect(pinTooltip.hasAttribute("data-popover-open")).toBe(true);
-});
-
-test("point a tooltip's arrow from the side it shows on, hidden from assistive technology", () => {
-    stubPopovers();
-    const container = draw(() => (
-        <Tooltip>
-            <TooltipTrigger>Archive</TooltipTrigger>
-            <TooltipContent side="right">
-                <TooltipArrow />
-                Archive note
-            </TooltipContent>
-        </Tooltip>
-    ));
-    const arrow = find(container, "[data-slot=popover-arrow]");
-    const content = find(container, "[role=tooltip]");
-    expect([
-        arrow.getAttribute("aria-hidden"),
-        content.textContent,
-        arrow.className === "",
-    ]).toEqual(["true", "Archive note", false]);
 });

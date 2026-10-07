@@ -684,11 +684,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@desta
 <TooltipProvider delayDuration={700} skipDelayDuration={300}>
     …
 </TooltipProvider>; // the next tooltip shows at once while the last just hid
-<TooltipContent side="top">
-    <TooltipArrow />{" "}
-    {/* PopoverArrow and HoverCardArrow alike; shown where the browser reports flips */}
-    Archive note
-</TooltipContent>;
 ```
 
 ## Toast

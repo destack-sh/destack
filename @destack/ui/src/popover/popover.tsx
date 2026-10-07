@@ -19,27 +19,6 @@ import { TopLayer } from "../layer/index.ts";
 /** The condition under which a popover sits beside its anchor instead of the viewport's center. */
 const ANCHORED = "@supports (position-area: block-end)";
 
-/** A triangle pointing down, up, right and left, as an arrow's clip path. */
-const DOWN = "polygon(0 0, 100% 0, 50% 100%)";
-
-/** A triangle pointing up. */
-const UP = "polygon(50% 0, 100% 100%, 0 100%)";
-
-/** A triangle pointing right. */
-const RIGHTWARD = "polygon(0 0, 100% 50%, 0 100%)";
-
-/** A triangle pointing left. */
-const LEFTWARD = "polygon(100% 0, 100% 100%, 0 50%)";
-
-/** The condition under which a popover tells its arrow which way it flipped. */
-const ARROWED = "@supports (container-type: anchored)";
-
-/** The condition under which a popover flipped to the other side of its anchor along the block axis. */
-const FLIPPED_BLOCK = "@container anchored(fallback: flip-block)";
-
-/** The condition under which a popover flipped to the other side of its anchor along the inline axis. */
-const FLIPPED_INLINE = "@container anchored(fallback: flip-inline)";
-
 /** The side and alignment of a popover that sets neither. */
 const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align">> = {
     side: "bottom",
@@ -65,9 +44,6 @@ const styles = style.create({
         color: color.popoverForeground,
         boxShadow: shadow.overlay,
     },
-    anchored: {
-        containerType: { default: null, [ARROWED]: "anchored" },
-    },
     motion: {
         opacity: { default: 0, ":popover-open": { default: 1, "@starting-style": 0 } },
         transform: {
@@ -78,89 +54,6 @@ const styles = style.create({
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
         transitionBehavior: "allow-discrete",
-    },
-});
-
-/** The extent of an arrow across its edge, twice its depth. */
-const ARROW_WIDTH = `calc(2 * ${space[2]})`;
-
-/** The arrow of a popover, pointing at its anchor from the side its content opens on and turning when the content flips. */
-const arrows = style.create({
-    arrow: {
-        position: "absolute",
-        display: { default: "none", [ARROWED]: "block" },
-        width: {
-            default: ARROW_WIDTH,
-            [style.when.ancestor('[data-side="left"]')]: space[2],
-            [style.when.ancestor('[data-side="right"]')]: space[2],
-        },
-        height: {
-            default: space[2],
-            [style.when.ancestor('[data-side="left"]')]: ARROW_WIDTH,
-            [style.when.ancestor('[data-side="right"]')]: ARROW_WIDTH,
-        },
-        insetInlineStart: {
-            default: `calc(50% - ${space[2]})`,
-            [style.when.ancestor('[data-side="left"]')]: null,
-            [style.when.ancestor('[data-side="right"]')]: null,
-        },
-        top: {
-            default: null,
-            [style.when.ancestor('[data-side="top"]')]: {
-                default: "100%",
-                [FLIPPED_BLOCK]: "auto",
-            },
-            [style.when.ancestor('[data-side="left"]')]: `calc(50% - ${space[2]})`,
-            [style.when.ancestor('[data-side="right"]')]: `calc(50% - ${space[2]})`,
-        },
-        bottom: {
-            default: null,
-            [style.when.ancestor('[data-side="top"]')]: {
-                default: "auto",
-                [FLIPPED_BLOCK]: "100%",
-            },
-            [style.when.ancestor('[data-side="bottom"]')]: {
-                default: "100%",
-                [FLIPPED_BLOCK]: "auto",
-            },
-        },
-        left: {
-            default: null,
-            [style.when.ancestor('[data-side="left"]')]: {
-                default: "100%",
-                [FLIPPED_INLINE]: "auto",
-            },
-            [style.when.ancestor('[data-side="right"]')]: {
-                default: "auto",
-                [FLIPPED_INLINE]: "100%",
-            },
-        },
-        right: {
-            default: null,
-            [style.when.ancestor('[data-side="left"]')]: {
-                default: "auto",
-                [FLIPPED_INLINE]: "100%",
-            },
-            [style.when.ancestor('[data-side="right"]')]: {
-                default: "100%",
-                [FLIPPED_INLINE]: "auto",
-            },
-        },
-        clipPath: {
-            default: null,
-            [style.when.ancestor('[data-side="top"]')]: { default: DOWN, [FLIPPED_BLOCK]: UP },
-            [style.when.ancestor('[data-side="bottom"]')]: { default: UP, [FLIPPED_BLOCK]: DOWN },
-            [style.when.ancestor('[data-side="left"]')]: {
-                default: RIGHTWARD,
-                [FLIPPED_INLINE]: LEFTWARD,
-            },
-            [style.when.ancestor('[data-side="right"]')]: {
-                default: LEFTWARD,
-                [FLIPPED_INLINE]: RIGHTWARD,
-            },
-        },
-        backgroundColor: "inherit",
-        pointerEvents: "none",
     },
 });
 
@@ -372,26 +265,7 @@ export function placementStyle(
     side: PopoverSide,
     align: PopoverAlign,
 ): readonly style.CompiledStyles[] {
-    return [style.defaultMarker(), styles.anchored, styles.motion, placements[`${side}-${align}`]];
-}
-
-/** Render the arrow of the nearest popover, tooltip or hover card, pointing at its anchor where the browser reports flips. */
-export function PopoverArrow(
-    properties: Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class" | "children"> & {
-        /** The StyleX styles applied after the arrow's styles. */
-        readonly xstyle?: style.Styles;
-    },
-): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <span
-            aria-hidden="true"
-            data-slot="popover-arrow"
-            {...rest}
-            {...style.attributes([arrows.arrow, properties.xstyle], properties.style)}
-        />
-    );
+    return [styles.motion, placements[`${side}-${align}`]];
 }
 
 /** Read the popover of the nearest popover root, refusing elements outside one. */

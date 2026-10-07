@@ -9,7 +9,6 @@ import {
     type PopoverAlign,
     type PopoverProperties,
     type PopoverSide,
-    PopoverArrow,
 } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
@@ -220,6 +219,3 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
         </TopLayer>
     );
 }
-
-/** Render the arrow of the nearest tooltip, pointing at its trigger. */
-export const TooltipArrow = PopoverArrow;

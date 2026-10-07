@@ -7,7 +7,6 @@ import {
     type PopoverAlign,
     type PopoverProperties,
     type PopoverSide,
-    PopoverArrow,
 } from "../popover/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
@@ -139,6 +138,3 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
         </TopLayer>
     );
 }
-
-/** Render the arrow of the nearest hover card, pointing at its trigger. */
-export const HoverCardArrow = PopoverArrow;
