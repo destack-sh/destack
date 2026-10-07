@@ -37,6 +37,7 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2"
+        "@types/bun": "1.4.2",
+        "miniflare": "4.20260730.0"
     }
 }

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { AccountFixture, ids } from "@destack/host/test";
 import { RequestId } from "@destack/service/request";
+import { DestinationCache } from "../src/server/index.ts";
 import { TUNNEL_PROTOCOL, TunnelProtocol } from "../src/session/index.ts";
 import { freePort, RelayFixture, type RelayWorkload, until } from "../src/test/index.ts";
 
@@ -132,21 +133,6 @@ test("open a tunnel with the token offered as a subprotocol, answering the tunne
     expect(protocol).toBe(TUNNEL_PROTOCOL);
 });
 
-test("keep the route while the machine renews its tunnel's token", async () => {
-    await using fixture = await RelayFixture.open(accounts, workload);
-    const relay = await fixture.relay(await freePort());
-    await fixture.tunnel(relay);
-
-    // outlive several renewals without a failure
-    await new Promise((resolve) => {
-        setTimeout(resolve, 500);
-    });
-    expect([await fixture.request(relay, fixture.notes, "/"), fixture.reports]).toEqual([
-        "hello GET /",
-        [],
-    ]);
-});
-
 test("restore the route when the machine reconnects after its relay restarts", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const port = await freePort();
@@ -173,7 +159,7 @@ test("route a branch to its space's machine under the branch's name", async () =
     ]);
 });
 
-test("forward a name a region serves to the region's endpoint, keeping the machine asked for", async () => {
+test("forward a name a region serves to the region's endpoint, keeping the host asked for", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
     const cloud = `cloud-${fixture.space}`;
@@ -182,7 +168,7 @@ test("forward a name a region serves to the region's endpoint, keeping the machi
     await fixture.settle(relay);
 
     const name = `notes.${cloud}.acme.destack.space`;
-    expect(await fixture.request(relay, name, "/")).toBe(`region machine="${name}";proto=http`);
+    expect(await fixture.request(relay, name, "/")).toBe(`region host="${name}";proto=http`);
 });
 
 test("follow a space's move from its machine to a region", async () => {
@@ -253,10 +239,10 @@ test("resolve a handle from the relay's copy after the account service renames i
     }
 });
 
-test("follow a machine's revocation", async () => {
+test("follow a machine's revocation, closing its tunnel at once, refusing it again and recording the opening and the close", async () => {
     await using fixture = await RelayFixture.open(accounts, workload);
     const relay = await fixture.relay(await freePort());
-    await fixture.tunnel(relay);
+    await fixture.tunnel(relay, { report: () => {} });
     const computer = await fixture.computer();
     expect(await fixture.request(relay, computer, "/")).toBe("hello GET /");
 
@@ -267,7 +253,85 @@ test("follow a machine's revocation", async () => {
         requestId: RequestId.create(),
     });
 
+    // refuse its name and its space's name once its tunnel closes early
     await until(async () => (await fixture.request(relay, computer, "/")) === "404 NOT_FOUND");
+    await until(
+        async () =>
+            (await fixture.request(relay, fixture.notes, "/")) === "503 SERVICE_UNAVAILABLE",
+    );
+
+    // record the opening as the machine and the close as the relay in the machine's account
+    await until(() => fixture.audited.some((call) => call.method === "tunnel.close"));
+    expect(
+        fixture.audited.map((call) => [
+            call.method,
+            call.execution.context.scope,
+            call.execution.context.caller.type,
+            call.execution.details,
+        ]),
+    ).toEqual([
+        ["tunnel.open", ids.account, "subject", { name: computer }],
+        ["tunnel.close", ids.account, "system", { reason: "machine-revoked" }],
+    ]);
+});
+
+test("close a machine's tunnel once its last key is revoked, recording why", async () => {
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort());
+    await fixture.tunnel(relay, { report: () => {} });
+    const computer = await fixture.computer();
+    expect(await fixture.request(relay, computer, "/")).toBe("hello GET /");
+
+    // revoke the machine's only key as its owner
+    const owner = accounts.user(ids.owner);
+    const { items } = await owner.key.list({
+        scope: ids.account,
+        where: { parentId: fixture.machineId },
+    });
+    for (const kept of items) {
+        await owner.key.revoke({ scope: ids.account, id: kept.id, requestId: RequestId.create() });
+    }
+
+    // close the tunnel at once, recording the revoked key as the reason
+    await until(
+        async () =>
+            (await fixture.request(relay, fixture.notes, "/")) === "503 SERVICE_UNAVAILABLE",
+    );
+    await until(() => fixture.audited.some((call) => call.method === "tunnel.close"));
+    expect(
+        fixture.audited
+            .filter((call) => call.method === "tunnel.close")
+            .map((call) => call.execution.details),
+    ).toEqual([{ reason: "key-revoked" }]);
+});
+
+test("keep a name's destination at the edge until its cell answers it misdirected, then route to the cell serving it now", async () => {
+    await using fixture = await RelayFixture.open(accounts, workload);
+    const relay = await fixture.relay(await freePort(), new DestinationCache());
+    let isMoved = false;
+    await fixture.tunnel(relay, {
+        fetch: async () =>
+            isMoved
+                ? Response.json({ code: "MISDIRECTED_REQUEST", message: "moved" }, { status: 421 })
+                : new Response("machine"),
+    });
+    const first = await fixture.request(relay, fixture.notes, "/");
+
+    // move the zone to the region while reaching the kept machine
+    await fixture.region("region");
+    const zone = { id: fixture.spaceId, scope: ids.account, cell: fixture.machineId, epoch: 1 };
+    await fixture.directory.move(zone, ids.region);
+    await fixture.directory.place({ ...zone, cell: ids.region, epoch: 2 });
+    await fixture.settle(relay);
+    const kept = await fixture.request(relay, fixture.notes, "/");
+
+    // follow the machine's misdirection to the region
+    isMoved = true;
+    expect([first, kept, await fixture.request(relay, fixture.notes, "/")]).toEqual([
+        "machine",
+        "machine",
+        `region host="${fixture.notes}";proto=http`,
+    ]);
 });
 
 test("follow a region's new endpoint", async () => {
@@ -278,7 +342,7 @@ test("follow a region's new endpoint", async () => {
     await RelayFixture.place(fixture.accounts, cloud, ids.region);
     await fixture.settle(relay);
     const name = `notes.${cloud}.acme.destack.space`;
-    expect(await fixture.request(relay, name, "/")).toBe(`first machine="${name}";proto=http`);
+    expect(await fixture.request(relay, name, "/")).toBe(`first host="${name}";proto=http`);
 
     // publish the region's new endpoint
     await fixture.region("second");

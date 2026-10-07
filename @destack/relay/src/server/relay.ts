@@ -1,98 +1,107 @@
-import type { WorkloadIdentity } from "@destack/account/client";
+import type { Fetch } from "@destack/service";
+import type { DirectoryClient } from "@destack/account/client";
 import { Resolver } from "@destack/account/directory";
-import { principal } from "@destack/access";
-import { and, Change, eq, isNull, type DatabaseConnection, type Table } from "@destack/db";
+import { AuditRecorder, Journal } from "@destack/audit/server";
+import { and, Change, eq, gt, isNull, type DatabaseConnection, type Table } from "@destack/db";
 import { zoneTable } from "@destack/directory";
 import { DOMAINS, type Domains, MachineAddress, InstallationOrigin } from "@destack/host";
-import { account, key, Machine, machine, zone } from "@destack/account/object";
-import { ObjectServer, Subscriber } from "@destack/object/server";
+import { account, key, Machine, machine } from "@destack/account/object";
 import { schema, type Identifier } from "@destack/schema";
-import { Bearer, type TokenVerifier } from "@destack/service/authentication";
+import type { TokenVerifier } from "@destack/service/authentication";
+import type { AuditCaller } from "@destack/audit";
+import type { CallKey } from "@destack/service/request";
 import type {} from "@destack/package/import-meta";
-import { type Controller, TimerAlarm } from "@destack/service/control";
+import type { Controller } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
 import { refusal, reportError } from "@destack/service/server";
 import { space, SpaceCell } from "@destack/space/object";
-import { type Session, type Transport, TunnelProtocol } from "../session/index.ts";
-import { type Renewal, TUNNEL_PATH, Tunnel } from "./tunnel.ts";
+import { tunnelClose, tunnelOpen } from "../audit/index.ts";
 import { relayService } from "../service/index.ts";
+import { TunnelProtocol } from "../session/index.ts";
+import type { DestinationCache } from "./destination.ts";
+import { type Admission, Tunnel, TUNNEL_PATH, type TunnelHost } from "./tunnel.ts";
 
 /** The relay's package, the audience of the tokens machines open their tunnels with. */
 export const RELAY_PACKAGE = import.meta.destack.package;
+
+/** The lifetime of the tokens machines renew their tunnels with: ten minutes, so a tunnel renews rarely. */
+export const RELAY_TOKEN_LIFETIME_MILLISECONDS = 10 * 60_000;
 
 /** What a relay routes by, and where. */
 export interface RelayOptions {
     /** The relay's own origin, where machines open their tunnels. */
     readonly origin: string;
-    /** The relay's database, keeping copies of the accounts, machines, machine keys and zones names resolve with. */
-    readonly database: DatabaseConnection;
-    /** The relay's placement, which follows the account service's copies and reads names' claims and cells' endpoints through its directory. */
-    readonly identity: WorkloadIdentity;
+    /** The relay's database keeping copies of the accounts, machines, machine keys and zones names resolve with, or its opening on first use, as an edge Worker opens it only on a missed name. */
+    readonly database: DatabaseConnection | (() => Promise<DatabaseConnection>);
+    /** The universe's directory, which names' claims and cells' endpoints resolve through. */
+    readonly directory: DirectoryClient;
     /** Verify the universe's tokens machines open tunnels with, for the relay's package. */
     readonly tokens: TokenVerifier;
+    /** The key the relay's journal fingerprints sensitive values under, which records tunnels opening and closing. */
+    readonly callKey: CallKey;
+    /** Where the machines keep their tunnels. */
+    readonly tunnels: TunnelHost;
     /** Report a failure the relay answers to no one. */
     readonly report: (error: unknown) => void;
     /** The domains names resolve under. */
     readonly domains?: Domains;
     /** Reach regions at their published endpoints. */
-    readonly fetch?: (request: Request) => Promise<Response>;
+    readonly fetch?: Fetch;
+    /** The destinations an edge Worker's isolate keeps across requests, absent where the copies are local. */
+    readonly destinations?: DestinationCache;
 }
 
-/** A machine admitted to open or renew a tunnel. */
-export interface Admission {
-    /** The machine. */
-    readonly machineId: Identifier<"machine">;
-    /** When its token lapses, in UTC epoch milliseconds. */
-    readonly lapsesAt: number;
-}
+/** Where the relay forwards a name's requests: a machine's tunnel, or a region's published endpoint. */
+export type Destination =
+    | { readonly machineId: Identifier<"machine"> }
+    | { readonly endpoint: string };
 
-/** The edge of Destack's names: requests for a space's or a machine's name go to the machine through its tunnel, or to the region serving it, with the tunnels kept in memory. */
+/** The edge of Destack's names: requests for a space's or a machine's name go to the machine through its tunnel, or to the region serving it. */
 export class Relay {
-    /** The copies of the rows names resolve with, followed from the account service as the relay's placement. */
-    readonly objects: ObjectServer;
-    /** The relay's database with the copies. */
-    readonly #database: DatabaseConnection;
+    /** Verify the universe's tokens machines open and renew their tunnels with. */
+    readonly tokens: TokenVerifier;
+    /** The domains names resolve under. */
+    readonly domains: Domains;
+    /** Report a failure the relay answers to no one. */
+    readonly report: (error: unknown) => void;
+    /** The relay's database with the copies, opened on first use. */
+    readonly #database: () => Promise<DatabaseConnection>;
+    /** The key the journal fingerprints under. */
+    readonly #callKey: CallKey;
     /** The resolver of handles from the copies and of names through the directory. */
     readonly #resolver: Resolver;
-    /** The verifier of machines' tokens. */
-    readonly #tokens: TokenVerifier;
+    /** Where the machines keep their tunnels. */
+    readonly #tunnels: TunnelHost;
     /** The relay's own origin. */
     readonly #origin: URL;
-    /** Report a failure the relay answers to no one. */
-    readonly #report: (error: unknown) => void;
-    /** The tunnel of each connected machine. */
-    readonly #tunnels = new Map<string, Tunnel>();
-    /** The domains names resolve under. */
-    readonly #domains: Domains;
     /** Call regions. */
-    readonly #fetch: (request: Request) => Promise<Response>;
+    readonly #fetch: Fetch;
+    /** The destinations kept across requests, absent where the copies are local. */
+    readonly #destinations: DestinationCache | undefined;
 
     /** Route as the options describe. */
     constructor(options: RelayOptions) {
-        // follow the relay's placement in the account service
-        const { database, identity } = options;
-        this.objects = new ObjectServer({
-            objects: {},
-            policies: [account, machine, key, zone],
-            database,
-            origin: { package: RELAY_PACKAGE, service: relayService.name },
-            subscriber: Subscriber.of(identity.publisher(), () =>
-                this.objects.source.workloadSubscriptions(identity.placementId),
-            ),
-        });
+        // open the database once on first use, and resolve handles from its copies and names through the directory
+        const { database } = options;
+        let opened: Promise<DatabaseConnection> | undefined;
+        this.#database = () => {
+            opened ??= typeof database === "function" ? database() : Promise.resolve(database);
 
-        // resolve handles from the copies and names through the directory
-        this.#database = database;
-        this.#resolver = new Resolver(identity.directory(), (handle) =>
-            Resolver.account(database, handle),
+            return opened;
+        };
+        this.#resolver = new Resolver(options.directory, async (handle) =>
+            Resolver.account(await this.#database(), handle),
         );
 
-        // keep the token verifier and the calls to tunnels and regions
-        this.#tokens = options.tokens;
+        // keep the token verifier, the journal's key and the calls to tunnels and regions
+        this.tokens = options.tokens;
+        this.#callKey = options.callKey;
+        this.domains = options.domains ?? DOMAINS;
+        this.report = options.report;
+        this.#tunnels = options.tunnels;
         this.#origin = new URL(options.origin);
-        this.#report = options.report;
-        this.#domains = options.domains ?? DOMAINS;
         this.#fetch = options.fetch ?? globalThis.fetch;
+        this.#destinations = options.destinations;
     }
 
     /** The URL machines open their tunnels at. */
@@ -119,81 +128,48 @@ export class Relay {
         }
     }
 
-    /** Run a session over a machine's opened WebSocket as the newest of its tunnel. */
-    attach(admission: Admission, transport: Transport): Session {
-        // find or keep the machine's tunnel, renewing only the machine's own tokens
-        const { machineId, lapsesAt } = admission;
-        const tunnel =
-            this.#tunnels.get(machineId) ??
-            new Tunnel(machineId, {
-                verify: (request) => this.#renew(machineId, request),
-                alarm: new TimerAlarm(() => void tunnel.lapse().catch(this.#report)),
-                report: this.#report,
-            });
-        this.#tunnels.set(machineId, tunnel);
+    /** Bring a machine's tunnel in line with its copy: tell it its name, or close it once the machine or its last standing key is revoked, recording the close. */
+    async reconcile(machineId: Identifier<"machine">): Promise<void> {
+        // tell a standing machine with a standing key its name
+        const name = await this.name(machineId);
+        if (name !== undefined && (await this.#isKeyed(machineId))) {
+            await this.#tunnels.rename(machineId, name);
 
-        return tunnel.attach(transport, lapsesAt);
-    }
-
-    /** Forget a machine's closed WebSocket, and the machine's tunnel once none of its WebSockets remain, reporting its failure. */
-    detach(machineId: Identifier<"machine">, session: Session): void {
-        this.#detach(machineId, session).catch(this.#report);
-    }
-
-    /** Tell a connected machine the name the relay routes to it now, as its tunnel's renewals answer it. */
-    async rename(machineId: Identifier<"machine">): Promise<void> {
-        // leave a machine without a tunnel here or a name
-        const tunnel = this.#tunnels.get(machineId);
-        const name = tunnel === undefined ? undefined : await this.name(machineId);
-        if (tunnel === undefined || name === undefined) {
             return;
         }
 
-        // send the name to the relay's tunnel path at the machine
-        const response = await tunnel.fetch(
-            new Request(this.url, { method: "PUT", body: JSON.stringify({ name }) }),
-        );
-        if (!response.ok) {
-            throw new ServiceError("BAD_GATEWAY", {
-                message: `machine ${machineId} refused its name: ${response.status}`,
-            });
+        // close the tunnel of a revoked or keyless machine, recording the close in its account's history
+        const reason = name === undefined ? "machine-revoked" : "key-revoked";
+        if (await this.#tunnels.close(machineId)) {
+            await this.#record(
+                machineId,
+                { type: "system", name: "relay" },
+                (recorder, transaction) =>
+                    recorder.record(transaction, tunnelClose, {
+                        targets: { machine: { type: "machine", id: machineId } },
+                        details: { reason },
+                        outcome: { kind: "success" },
+                    }),
+            );
         }
-    }
-
-    /** Verify the token of a machine opening or renewing its tunnel, with a standing key. */
-    async admit(token: string, now = Date.now()): Promise<Admission> {
-        // require a machine's token
-        const caller = await this.#tokens.verify(token, undefined, now);
-        const subject = caller.claims.subject;
-        if (!principal.machine.is(subject)) {
-            throw new ServiceError("FORBIDDEN", { message: "only machines open tunnels" });
-        }
-
-        // require its key to stand
-        await Machine.requireAuthenticating(this.#database, caller, now);
-
-        return {
-            machineId: schema.identifier("machine").parse(subject.id),
-            lapsesAt: caller.lapsesAt,
-        };
     }
 
     /** Read the name the relay routes to a standing machine below the machine domain, as its account's copies name it now, absent for no standing machine. */
     async name(machineId: Identifier<"machine">): Promise<string | undefined> {
-        const [named] = await this.#database
+        const database = await this.#database();
+        const [named] = await database
             .select({ machine: machine.table.name, handle: account.table.handle })
             .from(machine.table)
             .innerJoin(account.table, eq(account.table.id, machine.table.scope))
             .where(and(eq(machine.table.id, machineId), isNull(machine.table.revokedAt)));
 
-        return named === undefined
-            ? undefined
-            : MachineAddress.format(named, this.#domains.machine);
+        return named === undefined ? undefined : MachineAddress.format(named, this.domains.machine);
     }
 
     /** List the standing machines of an account. */
     async machines(accountId: Identifier<"account">): Promise<readonly Identifier<"machine">[]> {
-        const rows = await this.#database
+        const database = await this.#database();
+        const rows = await database
             .select({ id: machine.table.id })
             .from(machine.table)
             .where(and(eq(machine.table.scope, accountId), isNull(machine.table.revokedAt)));
@@ -201,14 +177,97 @@ export class Relay {
         return rows.map((row) => row.id);
     }
 
-    /** Verify the token a machine opening its tunnel offers as a WebSocket subprotocol. */
+    /** Admit a machine opening its tunnel with the token it offers as a WebSocket subprotocol, while its key and the machine stand. */
     async open(request: Request, now = Date.now()): Promise<Admission> {
+        // require a machine's token
         const token = TunnelProtocol.token(request.headers.get("sec-websocket-protocol"));
         if (token === undefined) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer subprotocol" });
         }
+        const { machineId, caller } = await Tunnel.admit(this.tokens, token, now);
 
-        return this.admit(token, now);
+        // require its key and the machine to stand
+        await Machine.requireAuthenticating(await this.#database(), caller, now);
+        const name = await this.name(machineId);
+        if (name === undefined) {
+            throw new ServiceError("UNAUTHORIZED", { message: `machine ${machineId} is revoked` });
+        }
+
+        // record the opening as the machine in its account's history
+        const journal = await this.#journal();
+        const recorder = AuditRecorder.from(caller, journal, {
+            package: RELAY_PACKAGE,
+            service: relayService.name,
+            scope: caller.claims.subject.scope,
+            machineId,
+        });
+        await journal.database.transaction((transaction) =>
+            recorder.record(transaction, tunnelOpen, {
+                targets: { machine: { type: "machine", id: machineId } },
+                details: { name },
+                outcome: { kind: "success" },
+            }),
+        );
+
+        return { machineId, lapsesAt: caller.lapsesAt, name };
+    }
+
+    /** Report whether a machine keeps a standing key, unrevoked, unsuspended and unexpired. */
+    async #isKeyed(machineId: Identifier<"machine">, now = Date.now()): Promise<boolean> {
+        const database = await this.#database();
+        const [kept] = await database
+            .select({ id: key.table.id })
+            .from(key.table)
+            .where(
+                and(
+                    eq(key.table.parentType, machine.name),
+                    eq(key.table.parentId, machineId),
+                    isNull(key.table.revokedAt),
+                    isNull(key.table.suspendedAt),
+                    gt(key.table.expiresAt, now),
+                ),
+            )
+            .limit(1);
+
+        return kept !== undefined;
+    }
+
+    /** Record a tunnel's event as a caller in its machine's account history, nothing for a machine its copies no longer keep. */
+    async #record(
+        machineId: Identifier<"machine">,
+        caller: AuditCaller,
+        record: (
+            recorder: AuditRecorder<DatabaseConnection>,
+            transaction: DatabaseConnection,
+        ) => Promise<unknown>,
+    ): Promise<void> {
+        // find the machine's account
+        const journal = await this.#journal();
+        const [kept] = await journal.database
+            .select({ scope: machine.table.scope })
+            .from(machine.table)
+            .where(eq(machine.table.id, machineId));
+        if (kept === undefined) {
+            return;
+        }
+
+        // record under the caller in one transaction
+        const recorder = new AuditRecorder(
+            {
+                caller,
+                package: RELAY_PACKAGE,
+                service: relayService.name,
+                scope: kept.scope,
+                machineId,
+            },
+            journal,
+        );
+        await journal.database.transaction((transaction) => record(recorder, transaction));
+    }
+
+    /** Open the relay's journal over its database on first use. */
+    async #journal(): Promise<Journal> {
+        return new Journal(await this.#database(), this.#callKey);
     }
 
     /** Forward a request for a name to its cell, answering a failure with its status and message. */
@@ -220,73 +279,68 @@ export class Relay {
         }
     }
 
-    /** Forget a closed WebSocket's session, and its machine's tunnel without connections. */
-    async #detach(machineId: Identifier<"machine">, session: Session): Promise<void> {
-        // find the machine's tunnel
-        const tunnel = this.#tunnels.get(machineId);
-        if (tunnel === undefined) {
-            return;
-        }
-
-        // forget the session, and the tunnel without connections
-        await tunnel.detach(session);
-        if (tunnel.isEmpty) {
-            this.#tunnels.delete(machineId);
-        }
-    }
-
-    /** Admit a renewal of a connection of a machine's own tunnel, answering when its new token lapses and the name the relay routes to it. */
-    async #renew(machineId: Identifier<"machine">, request: Request): Promise<Renewal> {
-        // admit only the machine's own token, renewed in the bearer header
-        const admission = await this.admit(Bearer.require(request.headers));
-        if (admission.machineId !== machineId) {
-            throw new ServiceError("FORBIDDEN", {
-                message: "machines only renew their own tunnels",
-            });
-        }
-
-        // answer the name the relay routes to the machine
-        const name = await this.name(machineId);
-        if (name === undefined) {
-            throw new ServiceError("SERVICE_UNAVAILABLE", {
-                message: `the relay names no machine ${machineId} yet`,
-            });
-        }
-
-        return { lapsesAt: admission.lapsesAt, name };
-    }
-
-    /** Forward a request for a name: to a machine through its tunnel, or to a region at its endpoint. */
+    /** Forward a request for a name to its destination, kept or resolved, and resolve a kept one again once its cell answers it misdirected. */
     async #forward(request: Request): Promise<Response> {
-        // find the name's cell
+        // find the name's kept or resolved destination
         const name = new URL(request.url).hostname;
-        const cell = await this.#cell(name);
+        const kept = this.#destinations?.get(name);
+        const destination = kept ?? (await this.#resolve(name));
+        if (kept === undefined) {
+            this.#destinations?.set(name, destination);
+        }
 
-        // refuse a name that resolves to nothing
+        // forward and drop a kept destination the cell answers misdirected
+        const response = await this.#send(destination, request);
+        if (kept === undefined || response.status !== ServiceError.status("MISDIRECTED_REQUEST")) {
+            return response;
+        }
+        this.#destinations?.delete(name);
+
+        // resolve once more for a bodiless request and ask one with a body to retry (RFC 9110)
+        return request.body === null ? this.#forward(request) : response;
+    }
+
+    /** Forward a request to a machine through its tunnel, or to a region at its endpoint naming the host asked for (RFC 7239). */
+    async #send(destination: Destination, request: Request): Promise<Response> {
+        // reach a machine through its tunnel
+        if ("machineId" in destination) {
+            return this.#tunnels.fetch(destination.machineId, request);
+        }
+
+        // keep the path and query and streamed body under the endpoint's origin
+        const url = new URL(request.url);
+        const target = new URL(`${url.pathname}${url.search}`, destination.endpoint);
+        const forwarded = new Request(target.href, request);
+        forwarded.headers.set("forwarded", `host="${url.host}";proto=${url.protocol.slice(0, -1)}`);
+
+        return this.#fetch(forwarded);
+    }
+
+    /** Find where a name's requests go, refusing a name that resolves to nothing. */
+    async #resolve(name: string): Promise<Destination> {
+        // find the name's cell
+        const cell = await this.#cell(name);
         if (cell === undefined) {
             throw new ServiceError("NOT_FOUND", { message: `${name} resolves to nothing` });
+        } else if ("machineId" in cell) {
+            return cell;
         }
-        // reach a machine through its tunnel
-        else if ("machineId" in cell) {
-            const tunnel = this.#tunnels.get(cell.machineId);
-            if (tunnel === undefined) {
-                throw new ServiceError("SERVICE_UNAVAILABLE", {
-                    message: `machine ${cell.machineId} is not connected`,
-                });
-            }
 
-            return tunnel.fetch(request);
+        // read a region's published endpoint
+        const published = await this.#resolver.directory.cell(cell.regionId);
+        if (published === undefined) {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
+                message: `region ${cell.regionId} published no endpoint`,
+            });
         }
-        // reach a region at its published endpoint, naming the machine asked for
-        else {
-            return this.#fetch(await this.#regional(request, cell.regionId));
-        }
+
+        return { endpoint: published.endpoint };
     }
 
     /** Find the machine or region serving a name. */
     async #cell(name: string): Promise<SpaceCell | undefined> {
-        const origin = InstallationOrigin.parse(name, this.#domains.space);
-        const computer = MachineAddress.parse(name, this.#domains.machine);
+        const origin = InstallationOrigin.parse(name, this.domains.space);
+        const computer = MachineAddress.parse(name, this.domains.machine);
 
         // find the cell of a space's copied zone, which also serves its branches
         if (origin !== undefined) {
@@ -294,7 +348,9 @@ export class Relay {
             const [placed] =
                 named === undefined
                     ? []
-                    : await this.#database
+                    : await (
+                          await this.#database()
+                      )
                           .select({ cell: zoneTable.cell })
                           .from(zoneTable)
                           .where(eq(zoneTable.id, named.id));
@@ -307,7 +363,7 @@ export class Relay {
             const machineId =
                 accountId === undefined
                     ? undefined
-                    : await Machine.find(this.#database, accountId, computer.machine);
+                    : await Machine.find(await this.#database(), accountId, computer.machine);
 
             return machineId === undefined ? undefined : { machineId };
         }
@@ -316,36 +372,14 @@ export class Relay {
             return undefined;
         }
     }
-
-    /** Address a request to a region's published endpoint, keeping the name asked for (RFC 7239). */
-    async #regional(request: Request, regionId: string): Promise<Request> {
-        // read the endpoint
-        const published = await this.#resolver.directory.cell(regionId);
-        if (published === undefined) {
-            throw new ServiceError("SERVICE_UNAVAILABLE", {
-                message: `region ${regionId} published no endpoint`,
-            });
-        }
-
-        // keep the path, query and streamed body under the endpoint's origin
-        const url = new URL(request.url);
-        const target = new URL(`${url.pathname}${url.search}`, published.endpoint);
-        const forwarded = new Request(target.href, request);
-        forwarded.headers.set(
-            "forwarded",
-            `machine="${url.host}";proto=${url.protocol.slice(0, -1)}`,
-        );
-
-        return forwarded;
-    }
 }
 
-/** Tell each connected machine its name once its own or its account's copy changes, as a rename or a new handle does. */
+/** Tell each connected machine its name once its own or its account's copy changes, as a rename or a new handle does, and close the tunnel of a revoked machine or one whose last key was revoked. */
 export class NameController implements Controller {
     /** The controller's name in reports. */
     readonly name = "name";
-    /** The copied machines and accounts names derive from. */
-    readonly watches: readonly Table[] = [machine.table, account.table];
+    /** The copied machines, their keys and the accounts names derive from. */
+    readonly watches: readonly Table[] = [machine.table, key.table, account.table];
     /** The relay keeping the tunnels. */
     readonly #relay: Relay;
 
@@ -354,15 +388,34 @@ export class NameController implements Controller {
         this.#relay = relay;
     }
 
-    /** List the machine whose copy changed, or the machines of an account whose copy changed. */
+    /** List the machine whose name or revocation changed, or the machines of an account whose handle changed, leaving other changes such as a machine's reports. */
     async keys(change: Change): Promise<readonly string[]> {
-        // select a changed machine
+        // select a machine that was renamed or revoked or created or deleted
         if (Change.of(change, machine.table)) {
-            return [Change.image(change).id];
+            const before = Change.before(change);
+            const after = Change.after(change);
+            const isNamed = before?.name !== after?.name || before?.revokedAt !== after?.revokedAt;
+
+            return isNamed ? [Change.image(change).id] : [];
         }
-        // select the machines of a changed account
+        // select the machine of a key that was revoked, suspended, restored or removed
+        else if (Change.of(change, key.table)) {
+            const before = Change.before(change);
+            const after = Change.after(change);
+            const image = Change.image(change);
+            const isStanding =
+                before?.revokedAt !== after?.revokedAt ||
+                before?.suspendedAt !== after?.suspendedAt;
+
+            return image.parentType === machine.name && image.parentId !== null && isStanding
+                ? [image.parentId]
+                : [];
+        }
+        // select the machines of an account whose handle changed
         else if (Change.of(change, account.table)) {
-            return this.#relay.machines(Change.image(change).id);
+            const isRenamed = Change.before(change)?.handle !== Change.after(change)?.handle;
+
+            return isRenamed ? this.#relay.machines(Change.image(change).id) : [];
         }
         // select nothing for other tables
         else {
@@ -370,14 +423,14 @@ export class NameController implements Controller {
         }
     }
 
-    /** List no machine at start, since each tunnel learns its name as it opens. */
+    /** List no machine at start, since each tunnel takes its name as it opens. */
     async list(): Promise<readonly string[]> {
         return [];
     }
 
-    /** Tell a connected machine its name. */
+    /** Tell a connected machine its name, or close its revoked machine's tunnel. */
     async reconcile(machineId: string): Promise<undefined> {
-        await this.#relay.rename(schema.identifier("machine").parse(machineId));
+        await this.#relay.reconcile(schema.identifier("machine").parse(machineId));
 
         return undefined;
     }

@@ -1,6 +1,12 @@
 import { serve, type Server, type ServerWebSocket, type TLSOptions } from "bun";
-import { MAX_FRAME_BYTES, type Session, TUNNEL_PROTOCOL } from "../session/index.ts";
-import type { Admission, Relay } from "../server/index.ts";
+import {
+    MAX_FRAME_BYTES,
+    PING_MESSAGE,
+    PONG_MESSAGE,
+    type Session,
+    TUNNEL_PROTOCOL,
+} from "../session/index.ts";
+import type { Admission, MemoryTunnelHost, Relay } from "../server/index.ts";
 
 /** A tunnel connection's WebSocket: its machine's admission, and its session once open. */
 interface Socket {
@@ -20,7 +26,7 @@ export interface BunRelayListener {
     readonly tls?: TLSOptions;
 }
 
-/** A relay's listener in a Bun process: its names and its machines' tunnels on one port. */
+/** A relay's listener in a Bun process: its names, and its machines' tunnels kept in the process's memory, on one port. */
 export class BunRelay {
     /** The relay the listener serves. */
     readonly relay: Relay;
@@ -28,7 +34,7 @@ export class BunRelay {
     readonly #listener: Server<Socket>;
 
     /** Listen for a relay's names and tunnels. */
-    private constructor(relay: Relay, listener: BunRelayListener) {
+    private constructor(relay: Relay, tunnels: MemoryTunnelHost, listener: BunRelayListener) {
         this.relay = relay;
         this.#listener = serve<Socket>({
             hostname: listener.hostname,
@@ -38,7 +44,7 @@ export class BunRelay {
             websocket: {
                 maxPayloadLength: MAX_FRAME_BYTES,
                 open: (socket) => {
-                    socket.data.session = relay.attach(socket.data.admission, {
+                    socket.data.session = tunnels.attach(relay, socket.data.admission, {
                         send: (message) => void socket.send(message),
                         close: () => socket.close(),
                     });
@@ -47,16 +53,18 @@ export class BunRelay {
                 close: (socket) => {
                     const { session } = socket.data;
                     if (session !== undefined) {
-                        relay.detach(socket.data.admission.machineId, session);
+                        tunnels
+                            .detach(socket.data.admission.machineId, session)
+                            .catch(relay.report);
                     }
                 },
             },
         });
     }
 
-    /** Listen for a relay on a Bun process's port. */
-    static listen(relay: Relay, listener: BunRelayListener): BunRelay {
-        return new BunRelay(relay, listener);
+    /** Listen for a relay on a Bun process's port, keeping its machines' tunnels in memory. */
+    static listen(relay: Relay, tunnels: MemoryTunnelHost, listener: BunRelayListener): BunRelay {
+        return new BunRelay(relay, tunnels, listener);
     }
 
     /** The URL machines open their tunnels at. */
@@ -95,13 +103,19 @@ export class BunRelay {
             : new Response(null, { status: 426 });
     }
 
-    /** Feed a connection's message to its session, closing connections that send text. */
+    /** Feed a connection's binary message to its session, answer a liveness probe, and close a connection sending other text. */
     static #receive(socket: ServerWebSocket<Socket>, message: string | Uint8Array): void {
-        if (typeof message === "string") {
-            socket.close();
-
-            return;
+        // read a binary frame
+        if (typeof message !== "string") {
+            socket.data.session?.receive(message);
         }
-        socket.data.session?.receive(message);
+        // answer a liveness probe
+        else if (message === PING_MESSAGE) {
+            socket.send(PONG_MESSAGE);
+        }
+        // refuse other text
+        else {
+            socket.close();
+        }
     }
 }

@@ -1,3 +1,4 @@
+import { AuditCall } from "@destack/audit";
 import { Snapshot } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { createServer } from "node:net";
@@ -17,7 +18,13 @@ import { workloadIdentity } from "@destack/account/client";
 import { ResourceContext } from "@destack/resource/context";
 import { testCallKey } from "@destack/service/test";
 import { WorkloadInstance } from "@destack/service/workload";
-import { RELAY_PACKAGE } from "../server/index.ts";
+import {
+    MemoryTunnelHost,
+    type DestinationCache,
+    RELAY_PACKAGE,
+    RELAY_TOKEN_LIFETIME_MILLISECONDS,
+    type RelayImplementation,
+} from "../server/index.ts";
 import { RELAY_ROLE, relayConfiguration, relayWorkload } from "../workload/index.ts";
 
 /** Timings short enough for scenarios to watch renewals and reconnects. */
@@ -57,10 +64,15 @@ export class RelayFixture implements AsyncDisposable {
     readonly received: string[] = [];
     /** The names the relays told the machine they route to it, in order. */
     readonly names: string[] = [];
+    /** The audited calls the relays' journals delivered, in order. */
+    readonly audited: AuditCall[] = [];
     /** The failures the relays and tunnels reported. */
     readonly reports: unknown[] = [];
-    /** The relays started with their workloads, closed on disposal. */
-    readonly #relays = new Map<BunRelay, WorkloadInstance>();
+    /** The relays started with their services and workloads, closed on disposal. */
+    readonly #relays = new Map<
+        BunRelay,
+        { readonly service: RelayImplementation; readonly instance: WorkloadInstance }
+    >();
     /** The relays' databases, closed on disposal. */
     readonly #databases: TestDatabase[] = [];
     /** The clients and region servers started, closed on disposal. */
@@ -146,8 +158,8 @@ export class RelayFixture implements AsyncDisposable {
         return id;
     }
 
-    /** Start a relay's workload listening on a port over a database of its own, once its copies reflect the account service. */
-    async relay(port: number): Promise<BunRelay> {
+    /** Start a relay's workload listening on a port over a database of its own, keeping names at its edge when given a cache, once its copies reflect the account service. */
+    async relay(port: number, destinations?: DestinationCache): Promise<BunRelay> {
         // keep the relay's copies in a database of its own
         const [dialect] = TEST_DIALECTS;
         const storage = await TestDatabase.create(
@@ -161,7 +173,11 @@ export class RelayFixture implements AsyncDisposable {
 
         // follow and call the account service as the relay's workload in its region, listening on the port
         const { placement, region } = this.workload;
-        const listening = Promise.withResolvers<BunRelay>();
+        const listening = Promise.withResolvers<{
+            readonly bun: BunRelay;
+            readonly service: RelayImplementation;
+        }>();
+        const tunnels = new MemoryTunnelHost();
         const resources = new ResourceContext()
             .bind(relayDatabase, storage.database)
             .bind(workloadIdentity, this.accounts.identity(region, placement))
@@ -171,11 +187,17 @@ export class RelayFixture implements AsyncDisposable {
                     authority: { kind: "universe" },
                     issuer: ISSUER,
                     audience: RELAY_PACKAGE.id,
+                    lifetime: RELAY_TOKEN_LIFETIME_MILLISECONDS,
                     keys: this.accounts.keys,
                 }),
-                serve: (relay) => {
-                    const bun = BunRelay.listen(relay, { hostname: "127.0.0.1", port });
-                    listening.resolve(bun);
+                tunnels,
+                ...(destinations === undefined ? {} : { destinations }),
+                serve: (service) => {
+                    const bun = BunRelay.listen(service.relay, tunnels, {
+                        hostname: "127.0.0.1",
+                        port,
+                    });
+                    listening.resolve({ bun, service });
 
                     return bun;
                 },
@@ -183,6 +205,11 @@ export class RelayFixture implements AsyncDisposable {
         const instance = await WorkloadInstance.start(relayWorkload, {
             resources,
             callKey: testCallKey,
+            history: {
+                ingest: async (batch) => {
+                    this.audited.push(...batch.calls.map((call) => AuditCall.parse(call)));
+                },
+            },
             report: (error) => this.reports.push(error),
             service: (service) => ({
                 audience: service.package.id,
@@ -191,21 +218,22 @@ export class RelayFixture implements AsyncDisposable {
                 drainTimeout: 1000,
             }),
         });
-        const relay = await listening.promise;
-        this.#relays.set(relay, instance);
-        await this.settle(relay);
+        const { bun, service } = await listening.promise;
+        this.#relays.set(bun, { service, instance });
+        await this.settle(bun);
 
-        return relay;
+        return bun;
     }
 
     /** Wait until a relay's copies reflect the account service as of now. */
     async settle(relay: BunRelay): Promise<void> {
-        await this.accounts.settle(relay.relay.objects, this.workload.placement);
+        const { service } = present(this.#relays.get(relay), "the relay's service");
+        await this.accounts.settle(service.objects, this.workload.placement);
     }
 
     /** Close a relay before the scenario ends. */
     async stop(relay: BunRelay): Promise<void> {
-        const instance = present(this.#relays.get(relay), "the relay's workload");
+        const { instance } = present(this.#relays.get(relay), "the relay's workload");
         this.#relays.delete(relay);
         await instance.close();
     }
@@ -292,7 +320,7 @@ export class RelayFixture implements AsyncDisposable {
         for (const started of this.#machines) {
             await started.close();
         }
-        for (const instance of this.#relays.values()) {
+        for (const { instance } of this.#relays.values()) {
             await instance.close();
         }
         for (const storage of this.#databases) {

@@ -3,16 +3,21 @@ import { workloadIdentity } from "@destack/account/client";
 import { account, key, machine, zone } from "@destack/account/object";
 import { ResourceHandle } from "@destack/resource";
 import { defineWorkload } from "@destack/service/workload";
-import { implementRelay, RELAY_PACKAGE, type Relay, type RelayOptions } from "../server/index.ts";
+import {
+    implementRelay,
+    RELAY_PACKAGE,
+    type RelayImplementation,
+    type RelayOptions,
+} from "../server/index.ts";
 import { relayDatabase } from "../stack/index.ts";
 
-/** What the process running a relay binds: its origin, the verifier of machines' tokens, its domains and reach to regions, and the runtime serving it. */
+/** What the process running a relay binds: its origin, the verifier of machines' tokens, where the tunnels live, its domains, reach to regions and kept names, and the runtime serving it. */
 export interface RelayConfiguration extends Pick<
     RelayOptions,
-    "origin" | "tokens" | "domains" | "fetch"
+    "origin" | "tokens" | "tunnels" | "domains" | "fetch" | "destinations"
 > {
-    /** Serve the started relay on the runtime's WebSockets, such as a Bun listener or a Durable Object, until closed. */
-    serve(relay: Relay): { close(): Promise<void> };
+    /** Serve the started relay on the runtime's WebSockets until closed, such as a Bun listener, absent where a Worker serves it. */
+    readonly serve?: (relay: RelayImplementation) => { close(): Promise<void> };
 }
 
 /** The universe role operators bind the relay's workload: reading the accounts, machines, machine keys and zones names resolve with. */
@@ -38,19 +43,22 @@ export const relayWorkload = defineWorkload({
     name: "relay",
     placement: ["universe"],
     start: (context) => {
-        // follow the account service as its placement, serving names and tunnels on the runtime's WebSockets
-        const configuration = relayConfiguration.get(context.resources);
+        // follow the account service as its placement
+        const { serve, ...configuration } = relayConfiguration.get(context.resources);
         const relay = implementRelay({
-            origin: configuration.origin,
-            tokens: configuration.tokens,
-            ...(configuration.domains === undefined ? {} : { domains: configuration.domains }),
-            ...(configuration.fetch === undefined ? {} : { fetch: configuration.fetch }),
+            ...configuration,
             database: relayDatabase.get(context.resources),
             identity: workloadIdentity.get(context.resources),
+            callKey: context.callKey,
+            ...(context.history === undefined ? {} : { history: context.history }),
             report: (error) => context.report(error),
         });
-        const serving = configuration.serve(relay.relay);
-        context.defer(() => serving.close());
+
+        // serve names and tunnels on the runtime's WebSockets when the process serves them
+        if (serve !== undefined) {
+            const serving = serve(relay);
+            context.defer(() => serving.close());
+        }
 
         return { services: [relay] };
     },
