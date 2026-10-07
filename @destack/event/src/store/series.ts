@@ -3,17 +3,26 @@ import type { EventKeyShape } from "../kind/kind.ts";
 /** The microseconds in a millisecond, between event times and steps. */
 const MICROSECONDS = 1000;
 
+/** How a series folds the measured key in each step. */
+export const SERIES_FOLDS = ["sum", "count", "min", "max", "average", "last", "unique"] as const;
+
 /** How a series folds the measured key of the events in each step. */
-export type Fold = "sum" | "count" | "min" | "max" | "average" | "last";
+export type Fold = (typeof SERIES_FOLDS)[number];
+
+/** A field a series measures or groups by. */
+export type SeriesField<Shape extends EventKeyShape> =
+    | (keyof Shape & string)
+    | `${keyof Shape & string}.${string}`
+    | "source";
 
 /** How a series folds a kind's events: the measured key, the fold, the grouping keys and the step. */
 export interface SeriesRequest<Shape extends EventKeyShape> {
-    /** The numeric query key folded, needed by every fold but count. */
-    readonly measure?: keyof Shape & string;
+    /** The key folded, numeric for arithmetic folds, needed by every fold but count. */
+    readonly measure?: SeriesField<Shape>;
     /** The fold. */
     readonly fold: Fold;
-    /** The query keys whose values each get a series of their own. */
-    readonly group?: readonly (keyof Shape & string)[];
+    /** The keys whose values each get a series of their own. */
+    readonly group?: readonly SeriesField<Shape>[];
     /** The width of each step, in milliseconds, one step over the whole range when absent. */
     readonly step?: number;
 }
@@ -48,6 +57,8 @@ export interface StepFold {
     readonly max: number;
     /** The latest event's time and measured value, absent when folded in SQL. */
     readonly last: { readonly time: number; readonly value: number } | undefined;
+    /** The distinct measured values, absent when folded in SQL. */
+    readonly distinct: ReadonlySet<string | number> | undefined;
 }
 
 /** The series of a request while its events and partial folds come in, by group and step. */
@@ -99,19 +110,30 @@ export class SeriesFold<Shape extends EventKeyShape> {
         this.#groups.set(key, held);
     }
 
-    /** Fold one event's measured value into its step, leaving out an event without one. */
+    /** Fold one event's measured value into its step. */
     addEvent(event: {
         readonly time: number;
         readonly keys: Readonly<Record<string, unknown>>;
     }): void {
+        // count a distinct value of any scalar, else fold a number
         const value = this.measure === undefined ? 0 : event.keys[this.measure];
-        if (typeof value === "number") {
+        if (this.#fold === "unique" && (typeof value === "string" || typeof value === "number")) {
+            this.add(event.keys, this.startOf(event.time), {
+                events: 1,
+                sum: 0,
+                min: 0,
+                max: 0,
+                last: undefined,
+                distinct: new Set([value]),
+            });
+        } else if (typeof value === "number") {
             this.add(event.keys, this.startOf(event.time), {
                 events: 1,
                 sum: value,
                 min: value,
                 max: value,
                 last: { time: event.time, value },
+                distinct: undefined,
             });
         }
     }
@@ -151,6 +173,10 @@ function merged(left: StepFold | undefined, right: StepFold): StepFold {
             (left.last?.time ?? -Infinity) > (right.last?.time ?? -Infinity)
                 ? left.last
                 : right.last,
+        distinct:
+            left.distinct === undefined || right.distinct === undefined
+                ? (left.distinct ?? right.distinct)
+                : left.distinct.union(right.distinct),
     };
 }
 
@@ -169,5 +195,7 @@ function folded(fold: Fold, step: StepFold): number {
             return step.sum / step.events;
         case "last":
             return step.last?.value ?? 0;
+        case "unique":
+            return step.distinct?.size ?? 0;
     }
 }

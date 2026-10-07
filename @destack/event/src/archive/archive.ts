@@ -8,6 +8,7 @@ import {
     gte,
     inArray,
     lt,
+    lte,
     min,
     type DatabaseConnection,
     type Select,
@@ -16,7 +17,7 @@ import { present } from "@destack/schema";
 import type { AsyncBuffer } from "hyparquet";
 import { eventSegment } from "./catalog.ts";
 import type { Event, EventPolicy, EventKind } from "../kind/kind.ts";
-import { EventCursor, EventFilter } from "../query/query.ts";
+import { EventCursor, EventFilter, type EventOrder } from "../query/query.ts";
 import { SegmentFile } from "./segment.ts";
 
 /** The microseconds in a millisecond, between event times and policy durations. */
@@ -48,7 +49,7 @@ export interface EventArchiveOptions {
     readonly policy: (kind: EventKind, scope: string) => Promise<EventPolicy>;
 }
 
-/** The segments of a store's scopes: flushing hot events into them, compacting small ones, expiring old ones and reading them back. */
+/** The segments of a store's scopes, written, compacted, expired and read back. */
 export class EventArchive {
     /** The database of the hot events and the catalog. */
     readonly #database: DatabaseConnection;
@@ -81,7 +82,7 @@ export class EventArchive {
         return [...new Set([...hot, ...flushed].map((row) => row.scope))];
     }
 
-    /** Read whether a scope's hot events of a kind are due to flush under its policy, and when they will be, in Unix milliseconds. */
+    /** Read whether and when a scope's hot events of a kind are due to flush. */
     async flushDue(
         kind: EventKind,
         scope: string,
@@ -104,7 +105,7 @@ export class EventArchive {
         return { isDue: held.events >= flush.maxRows || at <= now, at };
     }
 
-    /** Flush a scope's oldest hot events into a segment: write and verify the file, then catalog it and prune exactly those events together. */
+    /** Flush a scope's oldest hot events into a verified, catalogued segment. */
     async flush(kind: EventKind, scope: string, now: number): Promise<boolean> {
         // read the oldest hot events, at most a segment's worth
         const policy = await this.#policy(kind, scope);
@@ -142,7 +143,7 @@ export class EventArchive {
         return true;
     }
 
-    /** Compact a scope's small segments of an unlocked kind in time order into fuller ones, deleting the compacted files after. */
+    /** Compact a scope's small segments of an unlocked kind into fuller ones. */
     async compact(kind: EventKind, scope: string, now: number): Promise<number> {
         // leave locked kinds, whose chained segments stay as written
         if (kind.isLocked) {
@@ -221,13 +222,15 @@ export class EventArchive {
         return expired.length;
     }
 
-    /** Choose the catalogued segments that may hold the events a filter selects after a cursor, by time range and key sets. */
+    /** Choose the catalogued segments that may hold the events a read selects. */
     async choose(
         kind: EventKind,
         filter: EventFilter,
         after: EventCursor | undefined,
+        order: EventOrder = "ascending",
+        connection: DatabaseConnection = this.#database,
     ): Promise<Select<typeof eventSegment>[]> {
-        const segments = await this.#database
+        const segments = await connection
             .select()
             .from(eventSegment)
             .where(
@@ -235,7 +238,13 @@ export class EventArchive {
                     eq(eventSegment.kind, kind.key),
                     eq(eventSegment.scope, filter.scope),
                     filter.before === undefined ? undefined : lt(eventSegment.from, filter.before),
-                    gte(eventSegment.to, Math.max(filter.from ?? 0, after?.time ?? 0)),
+                    gte(
+                        eventSegment.to,
+                        Math.max(filter.from ?? 0, order === "ascending" ? (after?.time ?? 0) : 0),
+                    ),
+                    order === "descending" && after !== undefined
+                        ? lte(eventSegment.from, after.time)
+                        : undefined,
                 ),
             )
             .orderBy(asc(eventSegment.from), asc(eventSegment.id));
@@ -243,12 +252,13 @@ export class EventArchive {
         return segments.filter((segment) => SegmentFile.mayHold(kind, segment.keys, filter));
     }
 
-    /** Decode the events a filter selects after a cursor from chosen segments, absent once a compaction deleted one of their files. */
+    /** Decode the events a read selects from chosen segments, absent once one was compacted away. */
     async decode(
         kind: EventKind,
         segments: readonly Select<typeof eventSegment>[],
         filter: EventFilter,
         after: EventCursor | undefined,
+        order: EventOrder = "ascending",
     ): Promise<Event[] | undefined> {
         // decode each segment, noticing a file deleted since it was chosen
         const decoded = await Promise.all(
@@ -269,15 +279,15 @@ export class EventArchive {
             return undefined;
         }
 
-        // keep the events after the cursor the filter selects
+        // keep the events past the cursor the filter selects
         const match = EventFilter.match(kind, filter);
 
         return decoded
             .flatMap((events) => events ?? [])
-            .filter((event) => EventCursor.isAfter(event, after) && match(event));
+            .filter((event) => EventCursor.isPast(event, after, order) && match(event));
     }
 
-    /** Write events as a segment under a name its contents decide, then catalog it in one transaction with a change of the caller's. */
+    /** Write events as a content-named segment and catalog it with the caller's change. */
     async #write(
         kind: EventKind,
         scope: string,

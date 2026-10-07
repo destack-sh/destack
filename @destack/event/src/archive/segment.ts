@@ -13,6 +13,7 @@ const KEY_COLUMNS = {
     text: "STRING",
     integer: "INT64",
     real: "DOUBLE",
+    json: "STRING",
 } as const satisfies Readonly<Record<EventKeyType, string>>;
 
 /** The columns every segment row has, as the reader decodes them. */
@@ -53,7 +54,9 @@ export const SegmentFile = {
                                 ? BigInt(value)
                                 : typeof value === "string" || typeof value === "number"
                                   ? value
-                                  : null;
+                                  : value === null || value === undefined
+                                    ? null
+                                    : JSON.stringify(value);
                         }),
                         type: KEY_COLUMNS[type],
                         nullable: true,
@@ -92,22 +95,24 @@ export const SegmentFile = {
             utf8: true,
         });
 
-        // rebuild each stored event, its keys as numbers and text
+        // rebuild each stored event, its keys as numbers, text and maps of entries
         return rows.map((row) => {
             const read = SegmentRow.parse(row);
-            const keys = Object.fromEntries(
-                kind.keys.map((name) => {
-                    const value: unknown = row[name];
+            const keys = kind.keyValues(
+                Object.fromEntries(
+                    kind.keys.map((name) => {
+                        const value: unknown = row[name];
 
-                    return [
-                        name,
-                        typeof value === "bigint"
-                            ? Number(value)
-                            : typeof value === "string" || typeof value === "number"
-                              ? value
-                              : null,
-                    ];
-                }),
+                        return [
+                            name,
+                            typeof value === "bigint"
+                                ? Number(value)
+                                : types[name] === "json" && typeof value === "string"
+                                  ? JSON.parse(value)
+                                  : value,
+                        ];
+                    }),
+                ),
             );
 
             return {
@@ -123,8 +128,14 @@ export const SegmentFile = {
 
     /** Collect the distinct values of each query key, none for a key holding more than the catalog lists. */
     keyIndex(kind: EventKind, events: readonly Event[]): KeyIndex {
+        const types = kind.keyTypes;
+
         return Object.fromEntries(
             kind.keys.map((name) => {
+                // index no map of entries, whose values vary by entry
+                if (types[name] === "json") {
+                    return [name, null];
+                }
                 const values = new Set<string | number>();
                 for (const event of events) {
                     const value = event.keys[name];

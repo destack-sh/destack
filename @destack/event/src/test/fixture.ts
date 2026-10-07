@@ -1,10 +1,7 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { LocalBucket } from "@destack/bucket/local";
 import type { Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
+import { MemoryBucket } from "@destack/bucket/test";
 import { Outbox, outbox } from "@destack/service/outbox";
 import { DatabasePersonalKeyring } from "../personal/personal.ts";
 import type { Event, EventKind, EventPolicy, Route } from "../kind/kind.ts";
@@ -25,45 +22,34 @@ export interface EventFixtureOptions {
     ) => Promise<void>;
 }
 
-/** A host's events over a test database, a local bucket and a keyring, on a clock the test sets, for tests. */
+/** A host's events over a test database, a memory bucket and a keyring, on a clock the test sets, for tests. */
 export class EventFixture implements AsyncDisposable {
     /** The store. */
     readonly store: EventStore;
     /** The test database keeping the hot events, the catalog, people's keys and the outbox. */
     readonly database: TestDatabase;
-    /** The local bucket keeping the segments. */
-    readonly bucket: LocalBucket;
+    /** The memory bucket keeping the segments, its locks on the fixture's clock. */
+    readonly bucket = new MemoryBucket(() => this.now);
     /** The current time the controllers read, in Unix milliseconds. */
     now = Date.UTC(2026, 9, 1);
-    /** The bucket's directory. */
-    readonly #directory: string;
 
     /** Hold opened events. */
-    private constructor(
-        open: (fixture: EventFixture) => EventStore,
-        database: TestDatabase,
-        bucket: LocalBucket,
-        directory: string,
-    ) {
-        // hold what the store keeps its events in, then open it on the fixture's clock
+    private constructor(open: (fixture: EventFixture) => EventStore, database: TestDatabase) {
+        // hold the database, then open the store on the fixture's bucket and clock
         this.database = database;
-        this.bucket = bucket;
-        this.#directory = directory;
         this.store = open(this);
     }
 
-    /** Open events of some kinds over a fresh database of a dialect, a temporary bucket and a generated keyring. */
+    /** Open events of some kinds over a fresh database of a dialect, a memory bucket and a generated keyring. */
     static async open(
         dialect: Dialect,
         kinds: readonly EventKind[],
         options: EventFixtureOptions = {},
     ): Promise<EventFixture> {
-        // migrate the kinds' tables with the outbox, and open a bucket in a temporary directory
+        // migrate the kinds' tables with the outbox
         const tables = [...eventTables(kinds), outbox];
         const database = await TestDatabase.create(dialect, tables);
         await database.database.migrate(tables);
-        const directory = await mkdtemp(join(tmpdir(), "event-"));
-        const bucket = await LocalBucket.open(directory, "events");
         const keyring = await LocalKeyring.read(LocalKeyring.generate());
 
         // keep every scope's segments in the one bucket, on the fixture's clock
@@ -72,7 +58,7 @@ export class EventFixture implements AsyncDisposable {
                 new EventStore({
                     database: database.database,
                     kinds,
-                    files: () => bucket,
+                    files: () => fixture.bucket,
                     personal: new DatabasePersonalKeyring(database.database, keyring),
                     outbox: new Outbox(database.database),
                     targets: options.targets ?? (() => Promise.resolve([])),
@@ -81,8 +67,6 @@ export class EventFixture implements AsyncDisposable {
                     now: () => fixture.now,
                 }),
             database,
-            bucket,
-            directory,
         );
     }
 
@@ -104,10 +88,8 @@ export class EventFixture implements AsyncDisposable {
         }
     }
 
-    /** Close the database and remove the bucket. */
+    /** Close the database. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.bucket[Symbol.asyncDispose]();
         await this.database.close();
-        await rm(this.#directory, { recursive: true, force: true });
     }
 }

@@ -6,7 +6,7 @@ import type { EventArchive } from "./archive.ts";
 /** How often a scope's segments are compacted and checked against their retention without new events: daily. */
 const UPKEEP_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-/** Flushes each scope's hot events of a store's kinds as their policy comes due, compacts small segments and expires old ones. */
+/** Flushes, compacts and expires each scope's segments as their policies come due. */
 export class ArchiveController implements Controller {
     /** The controller's name in reports. */
     readonly name = "event-segments";
@@ -47,7 +47,7 @@ export class ArchiveController implements Controller {
         return listed.flat();
     }
 
-    /** Flush a scope's due events, compact its small segments and expire its old ones, returning the wait until its next flush or upkeep. */
+    /** Keep a scope's segments up, returning the wait until the next due work. */
     async reconcile(key: string): Promise<number | undefined> {
         // find the kind and scope the key names
         const [name = "", scope = ""] = key.split(" ");

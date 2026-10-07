@@ -4,7 +4,7 @@ import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { eventSegment } from "../src/archive/catalog.ts";
-import { defineEventKind, type EventKind } from "../src/index.ts";
+import { defineEventKind, type EventKind, type Series } from "../src/index.ts";
 import { EventFixture, type EventFixtureOptions } from "../src/test/index.ts";
 
 /** The package declaring the test kinds. */
@@ -23,7 +23,7 @@ const DAY = 24 * 60 * MINUTE;
 /** The start of the tests' time, in Unix milliseconds. */
 const START = Date.UTC(2026, 9, 1);
 
-/** Readings of a space's meters: kept exactly once, keyed by meter and resource, measured by their value, flushed every three. */
+/** Readings of a space's meters, kept exactly once and flushed every three. */
 const reading = defineEventKind(
     {
         name: "reading",
@@ -40,7 +40,7 @@ const reading = defineEventKind(
     { package: meters },
 );
 
-/** Calls of a space: locked, copied to the scopes enclosing it, the caller's address sealed under the caller's key. */
+/** Calls of a space, locked, copied upwards, the caller's address sealed. */
 const call = defineEventKind(
     {
         name: "call",
@@ -59,12 +59,12 @@ const call = defineEventKind(
     { package: meters },
 );
 
-/** Log lines of a space: kept at most once. */
+/** Log lines of a space: kept at most once, their severity unknown for some. */
 const line = defineEventKind(
     {
         name: "line",
         description: "A log line of a space.",
-        keys: schema.object({ severity: schema.number().int() }),
+        keys: schema.object({ severity: schema.number().int().nullable() }),
         data: schema.object({ message: schema.string() }),
         delivery: "at-most-once",
         policy: { flush: { maxAge: 60 * MINUTE, maxRows: 100 }, retention: DAY },
@@ -378,6 +378,40 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "keep a %s nullable whole-number key as an integer, compared and read back null",
+    async (dialect) => {
+        const { store } = await open(dialect, [line]);
+
+        // append a line of known severity and one of unknown
+        const written = (id: string, severity: number | null) => ({
+            scope: "space-1",
+            id,
+            time: at(1),
+            keys: { severity },
+            data: { message: id },
+        });
+        await store.append(line, [written("known", 9), written("unknown", null)]);
+
+        // read the severe lines, then every line's severity
+        const severe = await store.query(line, {
+            scope: "space-1",
+            where: Filter.parse("severity >= 9"),
+        });
+        const every = await store.query(line, { scope: "space-1" });
+        expect([
+            severe.events.map((event) => event.id),
+            every.events.map((event) => [event.id, event.keys.severity]),
+        ]).toEqual([
+            ["known"],
+            [
+                ["known", 9],
+                ["unknown", null],
+            ],
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "keep a %s exactly-once event only when its transaction commits, and an at-most-once one outside any",
     async (dialect) => {
         const { store, database } = await open(dialect, [reading, line]);
@@ -632,3 +666,120 @@ test("refuse an event kind with an invalid name, a reserved key or a subject tha
         "event kind reading names its subject by a text key",
     );
 });
+
+/** Requests of a space: their status and their open-ended attributes, flushed every two. */
+const request = defineEventKind(
+    {
+        name: "request",
+        description: "A request served in a space.",
+        keys: schema.object({
+            status: schema.number().int(),
+            attributes: schema.record(
+                schema.string(),
+                schema.union([schema.string(), schema.number(), schema.boolean()]),
+            ),
+        }),
+        data: schema.object({}),
+        delivery: "exactly-once",
+        policy: { flush: { maxAge: 60 * MINUTE, maxRows: 2 }, retention: DAY },
+    },
+    { package: meters },
+);
+
+/** Read each route's single step of a series grouped by route. */
+function byRoute(series: readonly Series[]): Record<string, number | undefined> {
+    return Object.fromEntries(
+        series.map((entry) => [
+            String(entry.group["attributes.http.route"]),
+            entry.steps[0]?.value,
+        ]),
+    );
+}
+
+/** A request some minutes after the start, on a route by a user. */
+function served(id: string, minute: number, route: string, user: string, status = 200) {
+    return {
+        scope: "space-1",
+        id,
+        time: at(minute),
+        keys: { status, attributes: { "http.route": route, user } },
+        data: {},
+    };
+}
+
+test.for(TEST_DIALECTS)(
+    "select, group and count the %s events of a map key's entries newest first, hot and flushed alike",
+    async (dialect) => {
+        // flush four requests into segments and keep one hot
+        const fixture = await open(dialect, [request]);
+        const { store } = fixture;
+        await store.append(request, [
+            served("a", 1, "/notes", "ada"),
+            served("b", 2, "/tasks", "ada"),
+            served("c", 3, "/notes", "bob", 500),
+            served("d", 4, "/notes", "ada"),
+        ]);
+        await fixture.settle();
+        await store.append(request, [served("e", 5, "/notes", "cy")]);
+
+        // page the notes requests newest first, two at a time
+        const notes = {
+            scope: "space-1",
+            where: Filter.parse('attributes.http.route = "/notes"', { isRelational: false }),
+        };
+        const first = await store.query(request, notes, { limit: 2, order: "descending" });
+        const second = await store.query(request, notes, {
+            limit: 2,
+            order: "descending",
+            ...(first.cursor === undefined ? {} : { after: first.cursor }),
+        });
+
+        // count requests per route and the distinct users per route, and refuse a name kept twice
+        const routes = await store.series(
+            request,
+            { scope: "space-1" },
+            {
+                fold: "count",
+                group: ["attributes.http.route"],
+            },
+        );
+        const users = await store.series(
+            request,
+            { scope: "space-1" },
+            {
+                measure: "attributes.user",
+                fold: "unique",
+                group: ["attributes.http.route"],
+            },
+        );
+        const failed = await store.query(request, {
+            scope: "space-1",
+            where: Filter.parse('attributes.http.route = "/notes" AND status >= 500', {
+                isRelational: false,
+            }),
+        });
+        const twice = await EventFixture.open(dialect, [request, request]).then(
+            () => "opened",
+            (error: unknown) => String(error),
+        );
+
+        expect({
+            pages: [first.events.map((event) => event.id), second.events.map((event) => event.id)],
+            routes: byRoute(routes),
+            users: byRoute(users),
+            failed: failed.events.map((event) => event.id),
+            found: store.kind("request") === request,
+            twice,
+        }).toEqual({
+            pages: [
+                ["e", "d"],
+                ["c", "a"],
+            ],
+            routes: { "/notes": 4, "/tasks": 1 },
+            users: { "/notes": 3, "/tasks": 1 },
+            failed: ["c"],
+            found: true,
+            twice: "TypeError: two event kinds named request share one database",
+        });
+    },
+);
