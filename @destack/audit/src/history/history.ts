@@ -25,7 +25,7 @@ import {
     type AuditPage,
     type AuditScope,
 } from "../service/query.ts";
-import { auditCall, auditTarget } from "../record/table.ts";
+import { auditCall, auditEnclosure, auditTarget } from "../record/table.ts";
 
 /** The audited calls of each scope. */
 export class AuditHistory {
@@ -122,7 +122,7 @@ export class AuditHistory {
             .onConflictDoNothing()
             .returning({ id: auditCall.id });
 
-        // index the named targets of a new call
+        // index the named targets and the enclosing scopes of a new call
         if (inserted.length > 0) {
             const targets = Object.entries(execution.targets).map(([role, target]) => ({
                 id: schema.identifier("audit-target").parse(`audit-target-${v7()}`),
@@ -134,6 +134,14 @@ export class AuditHistory {
             }));
             if (targets.length) {
                 await transaction.insert(auditTarget).values(targets);
+            }
+            const enclosures = (execution.context.chain ?? []).map((enclosing) => ({
+                id: schema.identifier("audit-enclosure").parse(`audit-enclosure-${v7()}`),
+                callId: execution.id,
+                scope: enclosing,
+            }));
+            if (enclosures.length > 0) {
+                await transaction.insert(auditEnclosure).values(enclosures);
             }
 
             return;
@@ -246,12 +254,23 @@ export class AuditHistory {
         };
     }
 
-    /** Match the calls a query selects: its scope, method, package, actor, category, outcome, time range, cursor and target. */
+    /** Match the calls a query selects: its scope or the scopes inside it, method, package, actor, category, outcome, time range, cursor and target. */
     #filters(query: AuditQuery): (SQL | undefined)[] {
         // match the call's columns the query names
         const { cursor, target } = query;
         const columns = [
-            eq(auditCall.scope, query.scope),
+            query.within === true
+                ? or(
+                      eq(auditCall.scope, query.scope),
+                      inArray(
+                          auditCall.id,
+                          this.database
+                              .select({ id: auditEnclosure.callId })
+                              .from(auditEnclosure)
+                              .where(eq(auditEnclosure.scope, query.scope)),
+                      ),
+                  )
+                : eq(auditCall.scope, query.scope),
             query.method === undefined ? undefined : eq(auditCall.method, query.method),
             query.packageId === undefined ? undefined : eq(auditCall.packageId, query.packageId),
             query.actor === undefined ? undefined : eq(auditCall.actor, actorKey(query.actor)),

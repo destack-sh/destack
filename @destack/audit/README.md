@@ -109,6 +109,14 @@ import { ControlLoop } from "@destack/service/control";
 await new ControlLoop(database, [calls.controller(history)], { report }).run(signal);
 ```
 
+### Chains
+
+Each delivered call's context carries its `chain`, the scopes enclosing its scope outermost first, as the journal's scope copies keep them.
+
+```ts
+call.execution.context; // { scope: "space-…", chain: ["universe", "organisation-…", "account-…"], … }
+```
+
 ## History
 
 `AuditHistory` stores each call once and lists, exports and prunes a scope's calls.
@@ -124,28 +132,27 @@ const page = await history.list({ scope: spaceId, limit: 100 });
 await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
 ```
 
+### Scopes within
+
+`within` reads the calls of a scope and of every scope inside it, by each call's chain.
+
+```ts
+const page = await client.list({
+    scope: organisationId,
+    within: true,
+    outcome: "success",
+    limit: 100,
+});
+page.cursor; // the position the next page continues after, null at the end
+```
+
 ## Relays
 
-`AuditHistory.relay` stores a batch of an instance's journal that its host relays, with the installation and the instance the host verified as each call's provenance, after Kubernetes audit backends that record the authenticated user.
+`AuditHistory.relay` stores a batch of an instance's journal that its host relays, with the installation and the instance the host verified as each call's provenance.
 
 ```ts
 await history.relay(batch, { scope: spaceId, packageId, installationId, instanceId }); // 2
 // FORBIDDEN: a call of another space or package, or one naming an installation, instance or machine
-```
-
-## Audit streams
-
-A `auditStream` sends the finished calls of its scope and the scopes inside it in batches to an HTTPS intake as webhook messages, after GitHub's audit log streaming.
-
-```ts
-await client.auditStream.create({
-    scope: organisationId,
-    requestId,
-    url: "https://http-intake.logs.datadoghq.eu/api/v2/logs",
-    format: "ndjson",
-    headers: { "DD-API-KEY": key },
-    status: "active",
-});
 ```
 
 ## History tables

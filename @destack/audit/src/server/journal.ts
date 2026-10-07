@@ -12,8 +12,9 @@ import {
     type DatabaseConnection,
     type TransactionOptions,
     CHAIN_TERMS,
+    Snapshot,
 } from "@destack/db";
-import { Digest, Duration, canonicalize } from "@destack/schema";
+import { Digest, Duration, canonicalize, found } from "@destack/schema";
 import { errorOf, ServiceError } from "@destack/service/error";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
@@ -22,7 +23,7 @@ import {
     type RequestIdentity,
 } from "@destack/service/request";
 import type { Controller } from "@destack/service/control";
-import type { Outcome } from "@destack/sync";
+import { type Outcome, Scope } from "@destack/sync";
 import { AuditError } from "../error/index.ts";
 import { AuditHistory } from "../history/history.ts";
 import { AuditCall } from "../record/call.ts";
@@ -310,10 +311,11 @@ export class Journal {
             return 0;
         }
 
-        // deliver what the history keeps within a timeout and mark the delivered versions
+        // deliver the kept calls with their chains within a timeout and mark the delivered versions
         const timeout = AbortSignal.timeout(DELIVERY_TIMEOUT_MILLISECONDS);
+        const calls = await this.#chained(rows.map((row) => AuditHistory.kept(row.call)));
         await history.ingest(
-            { calls: rows.map((row) => AuditHistory.kept(row.call)) },
+            { calls },
             { signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]) },
         );
         const now = this.clock();
@@ -388,6 +390,31 @@ export class Journal {
                 return Math.max(0, next - now);
             },
         };
+    }
+
+    /** Stamp each call's context with the scopes enclosing its scope, outermost first, as the database's scope copies keep them. */
+    async #chained(calls: readonly AuditCall[]): Promise<AuditCall[]> {
+        // read the chain of each call's scope once per scope
+        const scopes = calls.map((call) => call.execution.context.scope);
+        const chains = await Scope.chains(Snapshot.live(this.database), scopes);
+
+        return calls.map((call) => {
+            // leave a call unstamped when its scope has no known enclosing scope
+            const { context } = call.execution;
+            const links = found(chains, context.scope);
+            const chain = links.slice(1).map((link) => link.object.id);
+            if (chain.length === 0) {
+                return call;
+            }
+
+            return {
+                ...call,
+                execution: {
+                    ...call.execution,
+                    context: { ...context, chain: chain.toReversed() },
+                },
+            };
+        });
     }
 
     /** Read the earliest expiry of the calls a prune may remove. */

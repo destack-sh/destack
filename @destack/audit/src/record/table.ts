@@ -65,3 +65,22 @@ export const auditTarget = defineTable(
         ],
     },
 );
+
+/** The scopes enclosing each audited call's scope as it was delivered, one row each, which a scope's reads of the calls within it select by. */
+export const auditEnclosure = defineTable(
+    "enclosure",
+    {
+        /** The entry's identity. */
+        id: identifier("id", "audit-enclosure").primaryKey(),
+        /** The call inside the scope. */
+        callId: identifier("call_id", "call")
+            .notNull()
+            .references(() => auditCall.id, { onDelete: "cascade" }),
+        /** A scope enclosing the call's scope. */
+        scope: text("scope").notNull(),
+    },
+    {
+        log: { retention: "window" },
+        constraints: (entry) => [uniqueIndex("enclosure_scope_call").on(entry.scope, entry.callId)],
+    },
+);

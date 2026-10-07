@@ -26,6 +26,8 @@ export const AuditQuery = defineSchema(
     schema.object({
         /** The scope whose history the query reads. */
         scope: AuditScope,
+        /** Whether to read the calls of every scope inside the scope as well. */
+        within: schema.boolean().exactOptional(),
         /** The method the calls ran. */
         method: AuditActionName.exactOptional(),
         /** The package serving the calls. */

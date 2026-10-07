@@ -20,7 +20,7 @@ import {
 } from "@destack/access";
 import { accountRecord } from "./stack/index.ts";
 import { AccessFixture } from "@destack/access/test";
-import { call } from "../src/record/index.ts";
+import { type AuditCall, call } from "../src/record/index.ts";
 
 /** The accounts whose histories the test reads. */
 const account = new Policy(
@@ -56,7 +56,14 @@ const documentPublish = defineAuditAction(
     },
 );
 
-test("authorize readers, stream history, record denied access, and take no calls to record", async () => {
+/** Read a call as the history keeps it once delivered from the account inside the owner's scope. */
+function delivered(recorded: AuditCall): AuditCall {
+    const context = { ...recorded.execution.context, chain: ["universe", "owner"] };
+
+    return { ...recorded, execution: { ...recorded.execution, context } };
+}
+
+test("authorize readers, list and stream history, record denied access, and take no calls to record", async () => {
     const storage = await AuditStorage.open();
     const { journal, history } = storage;
 
@@ -159,13 +166,14 @@ test("authorize readers, stream history, record denied access, and take no calls
         const scope = context.scope;
         const query = { scope, method: documentPublish.name, limit: 1 };
         const first = await history.list(query);
-        expect(first.items.map((record) => record.call)).toEqual([earlier]);
+        expect(first.items.map((record) => record.call)).toEqual([delivered(earlier)]);
         if (first.cursor === null) {
             throw new TypeError("the first page has no cursor");
         }
         const second = await history.list({ ...query, cursor: first.cursor });
-        expect(second.items.map((record) => record.call)).toEqual([later]);
+        expect(second.items.map((record) => record.call)).toEqual([delivered(later)]);
         expect(second.cursor).toBeNull();
+        expect(await client.list(query)).toEqual(first);
         const exported = [];
         for await (const record of await client.export(query)) {
             exported.push(record);
@@ -204,7 +212,10 @@ test("authorize readers, stream history, record denied access, and take no calls
                 entry.execution.category,
                 entry.execution.outcome,
             ]),
-        ).toEqual([["audit.export", "access", { kind: "success" }]]);
+        ).toEqual([
+            ["audit.list", "access", { kind: "success" }],
+            ["audit.export", "access", { kind: "success" }],
+        ]);
 
         // record each refused call once, as its procedure's denial
         const denials = calls.filter((entry) => entry.execution.category === "denial");

@@ -5,6 +5,9 @@ import { AuditCall, defineAuditAction } from "../src/index.ts";
 import { document } from "./stack/index.ts";
 import { schema } from "@destack/schema";
 import { AuditRecorder } from "../src/server/index.ts";
+import { AccessFixture } from "@destack/access/test";
+import { eq } from "@destack/db";
+import { Scope } from "@destack/sync";
 
 test("keep each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();
@@ -31,6 +34,63 @@ test("keep each call in the history of its scope", async () => {
             (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.call),
             await storage.history.list({ scope: "universe", limit: 100 }),
         ]).toEqual([[recorded], { items: [], cursor: null }]);
+    } finally {
+        await storage.close();
+    }
+});
+
+test("read the calls of a scope and of the scopes inside it by the chains their journal delivers", async () => {
+    const storage = await AuditStorage.open();
+    try {
+        // copy an organisation with a space inside it, and another organisation
+        const access = new AccessFixture(storage.database);
+        const organisation = { packageId: documentRename.package.id, type: "organisation" };
+        const outer = { ...organisation, scope: "universe", id: "organisation-outer" };
+        const other = { ...organisation, scope: "universe", id: "organisation-other" };
+        const inner = {
+            packageId: documentRename.package.id,
+            type: "space",
+            scope: outer.id,
+            id: "space-inner",
+        };
+        for (const scope of [outer, other, inner]) {
+            await access.copyScope(scope);
+        }
+
+        // record a rename in each scope and deliver them
+        const recorded = [];
+        for (const scope of [outer, other, inner]) {
+            const recorder = new AuditRecorder(
+                {
+                    caller: { type: "system" as const, name: "integration" },
+                    package: documentRename.package,
+                    service: "document",
+                    scope: scope.id,
+                },
+                storage.journal,
+            );
+            recorded.push(
+                await recorder.record(undefined, documentRename, {
+                    ...rename,
+                    outcome: { kind: "success" },
+                }),
+            );
+        }
+        expect(await storage.journal.deliver(storage.history)).toBe(3);
+
+        // read the outer organisation's own calls, and its calls within with each call's enclosing scopes
+        const read = async (within: boolean) =>
+            (await storage.history.list({ scope: outer.id, within, limit: 10 })).items.map(
+                (record) => [record.call.execution.id, record.call.execution.context.chain],
+            );
+        const [outerCall, , innerCall] = recorded.map((call) => call.execution.id);
+        expect([await read(false), await read(true)]).toEqual([
+            [[outerCall, ["universe"]]],
+            [
+                [outerCall, ["universe"]],
+                [innerCall, ["universe", outer.id]],
+            ],
+        ]);
     } finally {
         await storage.close();
     }
@@ -162,6 +222,63 @@ test("leave sensitive values out of running and read details", async () => {
             { id: "account-2", secret: "hunter3" },
             [{ method: "code", account: { id: "account-2" } }],
         ]);
+    } finally {
+        await storage.close();
+    }
+});
+
+test("keep a moved scope's earlier calls within it, and within the scope that enclosed it then", async () => {
+    const storage = await AuditStorage.open();
+    try {
+        // copy two organisations and an account inside the first
+        const access = new AccessFixture(storage.database);
+        const organisation = { packageId: documentRename.package.id, type: "organisation" };
+        const first = { ...organisation, scope: "universe", id: "organisation-first" };
+        const second = { ...organisation, scope: "universe", id: "organisation-second" };
+        const account = {
+            packageId: documentRename.package.id,
+            type: "account",
+            scope: first.id,
+            id: "account-moved",
+        };
+        for (const scope of [first, second, account]) {
+            await access.copyScope(scope);
+        }
+
+        // record a rename in the account, move it into the second organisation, and record another
+        const recorder = new AuditRecorder(
+            {
+                caller: { type: "system" as const, name: "integration" },
+                package: documentRename.package,
+                service: "document",
+                scope: account.id,
+            },
+            storage.journal,
+        );
+        const record = async () => {
+            const call = await recorder.record(undefined, documentRename, {
+                ...rename,
+                outcome: { kind: "success" },
+            });
+            await storage.journal.deliver(storage.history);
+
+            return call.execution.id;
+        };
+        const before = await record();
+        await storage.database
+            .update(Scope.table)
+            .set({ parent: second.id, ancestors: [second.id] })
+            .where(eq(Scope.table.scope, account.id));
+        const after = await record();
+
+        // read the account within, and each organisation within
+        const within = async (scope: string) =>
+            (await storage.history.list({ scope, within: true, limit: 10 })).items.map(
+                (item) => item.call.execution.id,
+            );
+        expect([await within(account.id), await within(first.id), await within(second.id)]).toEqual(
+            [[before, after], [before], [after]],
+        );
     } finally {
         await storage.close();
     }

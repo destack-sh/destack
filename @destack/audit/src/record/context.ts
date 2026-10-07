@@ -9,6 +9,8 @@ export const AuditContext = defineSchema(
         caller: AuditCaller,
         /** The scope whose history receives the call. */
         scope: schema.string().min(1),
+        /** The scopes enclosing the call's scope, outermost first, as its journal's scope copies knew them on delivery. */
+        chain: schema.array(schema.string().min(1)).exactOptional(),
         /** The package serving the call. */
         package: Package,
         /** The service serving the call. */

@@ -1,4 +1,4 @@
-import { auditExport, auditPrune } from "../history/action.ts";
+import { auditExport, auditList, auditPrune } from "../history/action.ts";
 import { Scope } from "@destack/sync";
 import { Snapshot } from "@destack/db";
 import {
@@ -18,7 +18,7 @@ export interface AuditRequestContext {
     /** Require a history permission on a scope. */
     authorizeAudit(permission: AuditPermission, scope: AuditScope): Promise<void>;
     /** The recorder of history access. */
-    audit: Pick<AuditRecorder, "attempt" | "record" | "stream">;
+    audit: Pick<AuditRecorder, "attempt" | "read" | "record" | "stream">;
 }
 
 /** Implement the audit service on a history. */
@@ -45,6 +45,13 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
         access: options.access,
         audit: AuditRecorder.procedure(({ context }) => options.record(context)),
         router: implementation.router({
+            list: implementation.list.handler(({ input, context }) =>
+                context.audit.read(auditList, history(input.scope), async () => {
+                    await context.authorizeAudit("read", input.scope);
+
+                    return auditHistory.list(input);
+                }),
+            ),
             export: implementation.export.handler(({ input, context, signal }) =>
                 // recheck read access before each page
                 context.audit.stream(auditExport, history(input.scope), async function* () {

@@ -10,10 +10,10 @@ import {
     type Table,
 } from "@destack/db";
 import { AuditCall } from "../record/call.ts";
-import { auditCall, auditTarget } from "../record/table.ts";
+import { auditCall, auditTarget, auditEnclosure } from "../record/table.ts";
 
 /** The audit history tables. */
-export const auditTables: readonly Table[] = [auditCall, auditTarget];
+export const auditTables: readonly Table[] = [auditCall, auditTarget, auditEnclosure];
 
 /** The calls a service database executed, kept for retries and delivered to the audit history. */
 export const journal = defineTable(
