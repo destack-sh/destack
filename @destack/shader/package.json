@@ -1,0 +1,29 @@
+{
+    "name": "@destack/shader",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Draw GPU shader effects in views, composed as layers and colored by the theme.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./destack.json": "./destack.json"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts",
+        "generate": "bun run src/effect/generate.ts"
+    },
+    "dependencies": {
+        "@destack/style": "workspace:*",
+        "@destack/view": "workspace:*",
+        "shaders": "4.0.0"
+    },
+    "devDependencies": {
+        "@destack/check": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2",
+        "@destack/package": "workspace:*",
+        "@destack/theme": "workspace:*"
+    }
+}
