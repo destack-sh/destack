@@ -1,12 +1,15 @@
 import { expect, test } from "@destack/test";
 import { createHash } from "node:crypto";
 import { createServer, type Socket } from "node:net";
-import { Frame, FrameFlag, FrameType, TUNNEL_PROTOCOL } from "../session/index.ts";
+import { Frame, FrameFlag, FrameType, PING_MESSAGE, TUNNEL_PROTOCOL } from "../session/index.ts";
 import { freePort, until } from "../test/index.ts";
 import { TunnelClient } from "./client.ts";
 
 /** The GUID a WebSocket server appends to the client's key to accept it, from RFC 6455 section 1.3. */
 const WEBSOCKET_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+/** The opcode of a text WebSocket message, from RFC 6455 section 5.2. */
+const TEXT_OPCODE = 1;
 
 /** The opcode of a binary WebSocket message, from RFC 6455 section 5.2. */
 const BINARY_OPCODE = 2;
@@ -173,13 +176,12 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
         report: (error) => reports.push(error),
     });
 
-    // dial again after the unanswered heartbeat drops the socket and close while connected to a peer that never answers the close
+    // dial again after the unanswered liveness probe drops the socket and close while connected to a peer that never answers the close
     await until(() => relay.connections.length >= 2);
     await client.close();
     const [first] = relay.connections;
-    const head = { method: "PUT", url: relay.url, headers: [["authorization", "Bearer token"]] };
 
-    // offer the token, ping and send the unanswered renewal before closing normally, reporting the tunnel that never opened
+    // offer the token and ping and probe before closing normally
     expect({
         protocols: first?.protocols,
         frames: clientFrames(first?.chunks ?? []),
@@ -191,20 +193,7 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
                 opcode: BINARY_OPCODE,
                 payload: new Frame(FrameType.ping, FrameFlag.syn, 0).encode(),
             },
-            {
-                opcode: BINARY_OPCODE,
-                payload: new Frame(
-                    FrameType.data,
-                    FrameFlag.syn,
-                    1,
-                    0,
-                    new TextEncoder().encode(JSON.stringify(head)),
-                ).encode(),
-            },
-            {
-                opcode: BINARY_OPCODE,
-                payload: new Frame(FrameType.data, FrameFlag.fin, 1).encode(),
-            },
+            { opcode: TEXT_OPCODE, payload: new TextEncoder().encode(PING_MESSAGE) },
             { opcode: CLOSE_OPCODE, payload: Uint8Array.of(0x03, 0xe8) },
         ],
         report: new Error(`tunnel to ${relay.url} did not open`),

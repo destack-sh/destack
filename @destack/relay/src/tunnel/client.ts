@@ -1,9 +1,19 @@
 import { schema } from "@destack/schema";
 import { RetryPolicy } from "@destack/service/timer";
-import { Session, type Stream, TunnelProtocol } from "../session/index.ts";
+import {
+    PING_MESSAGE,
+    PONG_MESSAGE,
+    Renewal,
+    Session,
+    type Stream,
+    TunnelProtocol,
+} from "../session/index.ts";
 
-/** How often a machine renews its tunnel's token: four times a 60 s token, so a missed renewal still leaves time. */
+/** How often a machine probes its tunnel's liveness: every 15 s, so a dead connection drops within 30 s, below common 60 s proxy idle timeouts. */
 const HEARTBEAT_MILLISECONDS = 15_000;
+
+/** The share of a token's lifetime a machine waits before renewing it: 80%. */
+const RENEWAL_SHARE = 0.8;
 
 /** The status a machine answers a forwarded request with when its handler fails without an answer. */
 const BAD_GATEWAY = 502;
@@ -13,7 +23,7 @@ const UNSUPPORTED_DATA = 1003;
 /** How a machine waits before dialing again: half a second, doubling up to 30 seconds, jittered. */
 const RETRY = RetryPolicy.of({ initialInterval: 500, maximumInterval: 30_000, jitter: "full" });
 
-/** The name the relay routes to the machine, as a renewal answers it or the relay sends it once it changes. */
+/** The name the relay sends the machine once it changes. */
 const MachineName = schema.object({
     /** The name, such as `laptop.florian.destack.computer`. */
     name: schema.string().min(1),
@@ -29,7 +39,7 @@ export interface TunnelClientOptions {
     readonly fetch: (request: Request) => Promise<Response>;
     /** Learn the name the relay routes to the machine, once the tunnel opens, at each renewal and once it changes. */
     readonly name: (name: string) => void;
-    /** How often to renew the tunnel's token, in milliseconds. */
+    /** How often to probe the tunnel's liveness, in milliseconds. */
     readonly heartbeat?: number;
     /** How to wait between attempts, below the policy's interval. */
     readonly retry?: Partial<RetryPolicy>;
@@ -132,6 +142,8 @@ export class TunnelClient {
             ended: Promise.withResolvers<boolean>(),
             session: undefined,
             heartbeat: undefined,
+            renewal: undefined,
+            isAlive: true,
         };
         this.#follow(connection);
 
@@ -182,38 +194,38 @@ export class TunnelClient {
         );
         connection.session = session;
 
-        // renew the token each heartbeat
-        connection.heartbeat = this.#beat(session, () => this.#drop(connection));
+        // probe liveness each heartbeat
+        connection.heartbeat = this.#beat(connection);
 
         // open the tunnel once the relay answers its first ping
         session.ping().then(
-            () => this.#release(session),
+            () => this.#release(connection, session),
             () => {},
         );
     }
 
-    /** Open the tunnel over a session the relay answered and learn the machine's name. */
-    #release(session: Session): void {
+    /** Open the tunnel over a session the relay answered, and renew its token near each lapse. */
+    #release(connection: Connection, session: Session): void {
         // release the callers
         this.#session = session;
         this.#waiting?.resolve();
         this.#waiting = undefined;
 
-        // learn the machine's name, reporting a refusal while the session lasts
-        this.#renew(session).catch((error: unknown) => {
-            if (!session.isClosed) {
-                this.#options.report(error);
-            }
-        });
+        // learn the machine's name and its token's lifetime
+        this.#schedule(connection, session, 0);
     }
 
-    /** Pass a binary frame to the session and close the socket on a text frame. */
+    /** Pass a binary frame to the session, take a liveness answer, and close the socket on other text. */
     #receive(connection: Connection, event: MessageEvent): void {
         // read a binary frame
         if (event.data instanceof ArrayBuffer) {
             connection.session?.receive(new Uint8Array(event.data));
         }
-        // refuse a text frame
+        // take the answer to a liveness probe
+        else if (event.data === PONG_MESSAGE) {
+            connection.isAlive = true;
+        }
+        // refuse other text
         else {
             connection.socket.close(UNSUPPORTED_DATA, "the relay sends binary frames only");
         }
@@ -236,45 +248,57 @@ export class TunnelClient {
         const isOpened = this.#session === session && session !== undefined;
         this.#session = undefined;
 
-        // stop following the client's close
+        // stop following the client's close and stop probing and renewing
         connection.following.abort();
-
-        // stop renewing the token
         clearInterval(connection.heartbeat);
+        clearTimeout(connection.renewal);
 
         // end the session's streams
         session?.terminate();
         connection.ended.resolve(isOpened);
     }
 
-    /** Renew the tunnel's token each heartbeat, and drop the socket when the relay stops answering. */
-    #beat(session: Session, drop: () => void): ReturnType<typeof setInterval> {
+    /** Probe the tunnel's liveness each heartbeat, and drop the socket once a probe goes unanswered. */
+    #beat(connection: Connection): ReturnType<typeof setInterval> {
         const interval = this.#options.heartbeat ?? HEARTBEAT_MILLISECONDS;
-        let isAnswered = true;
 
         return setInterval(() => {
-            // drop a socket with an unanswered last renewal
-            if (!isAnswered) {
-                drop();
+            // drop a socket whose last probe the relay did not answer
+            if (!connection.isAlive) {
+                this.#drop(connection);
 
                 return;
             }
 
-            // renew, dropping the socket at the next beat when the relay refuses or does not answer
-            isAnswered = false;
-            this.#renew(session).then(
-                () => (isAnswered = true),
-                (error: unknown) => {
-                    if (!session.isClosed) {
-                        this.#options.report(error);
-                    }
-                },
-            );
+            // probe again for the relay to answer without waking
+            connection.isAlive = false;
+            connection.socket.send(PING_MESSAGE);
         }, interval);
     }
 
+    /** Renew the tunnel's token after a delay, then near the renewed token's lapse, or one heartbeat later after a failure. */
+    #schedule(connection: Connection, session: Session, delay: number): void {
+        connection.renewal = setTimeout(() => {
+            this.#renew(session).then(
+                // renew again near the renewed token's lapse
+                (renewal) => {
+                    const lifetime = renewal.expiresIn * 1000;
+                    this.#schedule(connection, session, lifetime * RENEWAL_SHARE);
+                },
+                // report a failure while the session lasts and try again
+                (error: unknown) => {
+                    if (!session.isClosed) {
+                        this.#options.report(error);
+                        const interval = this.#options.heartbeat ?? HEARTBEAT_MILLISECONDS;
+                        this.#schedule(connection, session, interval);
+                    }
+                },
+            );
+        }, delay);
+    }
+
     /** Renew the tunnel's token through a stream to the relay, learning the machine's name, and refuse a failed renewal. */
-    async #renew(session: Session): Promise<void> {
+    async #renew(session: Session): Promise<Renewal> {
         // renew with the current token
         const token = await this.#options.token();
         const response = await session.fetch(
@@ -290,7 +314,10 @@ export class TunnelClient {
         }
 
         // learn the name the relay routes to the machine
-        this.#options.name(MachineName.parse(await response.json()).name);
+        const renewal = Renewal.parse(await response.json());
+        this.#options.name(renewal.name);
+
+        return renewal;
     }
 
     /** Answer a request the relay forwards, or take the name the relay sends to its own tunnel path, reporting a handler that failed without an answer. */
@@ -331,6 +358,10 @@ interface Connection {
     readonly ended: PromiseWithResolvers<boolean>;
     /** The session over the socket, absent until the socket opens. */
     session: Session | undefined;
-    /** The token renewal timer, absent until the socket opens. */
+    /** The liveness probe timer, absent until the socket opens. */
     heartbeat: ReturnType<typeof setInterval> | undefined;
+    /** The next token renewal, absent until the tunnel opens. */
+    renewal: ReturnType<typeof setTimeout> | undefined;
+    /** Whether the relay answered the last liveness probe. */
+    isAlive: boolean;
 }
