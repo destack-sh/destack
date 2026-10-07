@@ -7,7 +7,13 @@ import {
     ResourceRetention,
 } from "./declaration.ts";
 
-/** A resource of any kind a stack declares: its package's declaration, retention and placement, or an existing resource. */
+/** The provider code of resources lent from connections, whose calls their host's egress authenticates. */
+export const CONNECTION_PROVIDER = "connection";
+
+/** The header an outbound call to a lent resource names its connection in, which the host's egress removes. */
+export const CONNECTION_HEADER = "Destack-Connection";
+
+/** A resource of any kind a stack declares: its package's declaration, retention and placement, an existing resource, or one lent from a connection. */
 export const ResourceDefinition = defineSchema(
     schema.object({
         /** The resource declaration imported from its declaring package. */
@@ -19,6 +25,8 @@ export const ResourceDefinition = defineSchema(
         adopt: ResourceReference.exactOptional(),
         /** The reference of a resource no host provisions, such as a service's address, connected by the placement's provider. */
         reference: schema.string().min(1).exactOptional(),
+        /** The connection in the resource's space whose credential the host lends to every call, else each call names one lent to its installation under the connection provider. */
+        connection: schema.identifier("connection").exactOptional(),
         /** What authorised removal does to the resource's contents. */
         retention: ResourceRetention,
         /** Provider placement, absent when selected by the host. */

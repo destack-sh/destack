@@ -16,7 +16,7 @@ const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec
 
 ## Definitions
 
-`ResourceDefinition` is the declarable schema of a resource of any kind: its package's declaration, retention, placement and tags, or an existing resource to adopt or a reference to connect.
+`ResourceDefinition` is the declarable schema of a resource of any kind: its package's declaration, retention, placement and tags, an existing resource to adopt, a reference to connect, or a connection of its space lending its credential.
 
 ```ts
 import { ResourceDefinition } from "@destack/resource";
@@ -27,6 +27,11 @@ const declared = ResourceDefinition.parse({
     placement: { provider: "r2" },
     tags: {},
 });
+const lent = ResourceDefinition.parse({ ...declared, connection: connectionId }); // provider CONNECTION_PROVIDER
+const named = ResourceDefinition.parse({
+    ...declared,
+    placement: { provider: CONNECTION_PROVIDER },
+}); // each call names its connection
 ```
 
 ## Kind descriptions

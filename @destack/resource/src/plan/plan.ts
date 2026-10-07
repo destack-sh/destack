@@ -18,7 +18,7 @@ export const Risk = defineSchema(schema.enum(RISKS));
 /** How consequential a step is, from least to most. */
 export type Risk = schema.Infer<typeof Risk>;
 
-/** What a step does to its target, after Terraform's plan actions. */
+/** What a step does to its target. */
 export const Action = defineSchema(
     schema.enum(["create", "update", "delete", "replace", "rename", "convert", "restore"]),
 );
