@@ -53,7 +53,7 @@ export const customer = defineObject({
     scope: account,
     fields: {
         /** The address invoices go to. */
-        email: field.string(schema.email()),
+        email: field.string(schema.email()).optional(),
         /** The name invoices show. */
         name: field.string(schema.string().min(1).max(LINE_LENGTH)),
         /** The billing address. */
@@ -72,8 +72,6 @@ export const customer = defineObject({
         update: method.update("bill", { fields: ["email", "name", "address", "taxIds"] }),
         /** Record the provider's identifier of the customer. */
         record: method.update(null, { isSystem: true, fields: ["providerId"] }),
-        /** Derive the account's entitlements from its subscriptions, purchases and meter events. */
-        entitle: method.mutation({ permission: null, isSystem: true }),
     }),
     constraints: (entry) => [uniqueIndex("customer_account").on(entry.scope)],
 });

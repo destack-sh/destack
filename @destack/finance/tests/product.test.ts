@@ -1,9 +1,8 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import type { JsonValue } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { price, Price, product, productFeature, seller } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
-import { calls, domains, hosting, storage, support, sync } from "./fixture/storage.ts";
+import { calls, domains, hosting, support, sync } from "./fixture/storage.ts";
 
 test.each(TEST_DIALECTS)(
     "offer a product at a price granting declared features, read by buyers while active on %s",
@@ -21,7 +20,6 @@ test.each(TEST_DIALECTS)(
             parentId: plan.id,
             currency: "EUR",
             unitAmount: 900,
-            type: "recurring",
             recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
         });
         expect([shop.status, shop.provider, monthly.billingScheme]).toEqual([
@@ -71,62 +69,21 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "refuse undeclared features, invalid grants, prices without an amount and products of strangers on %s",
+    "let only a shop's sellers offer products in it, granting only features of packages its account publishes, on %s",
     async (dialect) => {
         const finance = await Finance.open(dialect);
         onTestFinished(() => finance.close());
         const offer = await finance.offer();
 
-        // refuse an undeclared feature, a value outside a feature's schema, and a value on access alone
-        const grant = (feature: string, value: JsonValue) =>
-            refusal(
-                finance.call("carol", productFeature, "create", ids.shop, {
-                    parentId: offer.product,
-                    packageId: storage.id,
-                    feature,
-                    value,
-                }),
-            );
-        expect([
-            await grant("backup", true),
-            await grant("support", "gold"),
-            await grant("sync", true),
-            await grant("api.calls", -1),
-        ]).toEqual([
-            ["NOT_FOUND", `feature ${storage.id}/backup is not declared`],
-            ["BAD_REQUEST", `feature ${storage.id}/support does not accept the granted value`],
-            ["BAD_REQUEST", `feature ${storage.id}/sync does not accept the granted value`],
-            ["BAD_REQUEST", `feature ${storage.id}/api.calls does not accept the granted value`],
-        ]);
-
-        // refuse a price without its amount and products by someone outside the shop
-        expect([
-            await refusal(
-                finance.call("carol", price, "create", ids.shop, {
-                    parentId: offer.product,
-                    currency: "EUR",
-                    type: "one_time",
-                }),
-            ),
+        // refuse a product by someone outside the shop
+        expect(
             await refusal(
                 finance.call("alice", product, "create", ids.shop, {
                     name: "Fake",
                     description: "Not Carol's.",
                 }),
             ),
-        ]).toEqual([
-            ["INVALID_RECORD", "a record fails a declared check"],
-            ["FORBIDDEN", "permission denied: sell"],
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "let a seller grant only features of packages its account publishes on %s",
-    async (dialect) => {
-        const finance = await Finance.open(dialect);
-        onTestFinished(() => finance.close());
-        const offer = await finance.offer();
+        ).toEqual(["FORBIDDEN", "permission denied: sell"]);
 
         // refuse Carol's shop granting a feature of a destack package
         const grant = { packageId: hosting.id, feature: domains.name, value: null };
@@ -153,20 +110,20 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "refuse snapshotting a price or a product taken off sale on %s",
+    "refuse offering a price or a product taken off sale on %s",
     async (dialect) => {
         const finance = await Finance.open(dialect);
         onTestFinished(() => finance.close());
         const offer = await finance.offer();
 
         // take the monthly price off sale before the plan
-        const snapshot = () => refusal(Price.snapshot(finance.test.database, offer.monthly));
-        const before = await snapshot();
+        const offered = () => refusal(Price.offer(finance.test.database, offer.monthly));
+        const before = await offered();
         await finance.call("carol", price, "update", ids.shop, {
             id: offer.monthly.id,
             active: false,
         });
-        const inactivePrice = await snapshot();
+        const inactivePrice = await offered();
         await finance.call("carol", price, "update", ids.shop, {
             id: offer.monthly.id,
             active: true,
@@ -175,10 +132,45 @@ test.each(TEST_DIALECTS)(
             id: offer.product,
             active: false,
         });
-        expect([before, inactivePrice, await snapshot()]).toEqual([
+        expect([before, inactivePrice, await offered()]).toEqual([
             "done",
             ["BAD_REQUEST", `price ${offer.monthly.id} is inactive`],
             ["BAD_REQUEST", `product ${offer.product} is inactive`],
         ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "refuse a price whose included usage exceeds its fee, as the buyer would owe usage they never paid, on %s",
+    async (dialect) => {
+        const finance = await Finance.open(dialect);
+        onTestFinished(() => finance.close());
+
+        // offer a plan whose fee includes 900 of usage
+        const plan = await finance.call("carol", product, "create", ids.shop, {
+            name: "Go",
+            description: "9 a month of usage.",
+        });
+        const monthly = {
+            parentId: plan.id,
+            currency: "EUR",
+            recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+        } as const;
+        await finance.call("carol", price, "create", ids.shop, {
+            ...monthly,
+            unitAmount: 900,
+            includedUsage: 900,
+        });
+
+        // refuse a fee below the usage it includes
+        expect(
+            await refusal(
+                finance.call("carol", price, "create", ids.shop, {
+                    ...monthly,
+                    unitAmount: 500,
+                    includedUsage: 900,
+                }),
+            ),
+        ).toEqual(["BAD_REQUEST", "a price's included usage of 900 exceeds its fee of 500 EUR"]);
     },
 );

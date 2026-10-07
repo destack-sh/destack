@@ -3,7 +3,7 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { BILLING_PERMISSIONS } from "./customer.ts";
-import { Currency } from "./price.ts";
+import { Currency } from "../rate/amount.ts";
 
 /** The fields the provider writes on an invoice. */
 const INVOICE_FIELDS = [
@@ -28,8 +28,8 @@ export const invoice = defineObject({
     plural: "invoices",
     scope: account,
     fields: {
-        /** The number the invoice carries. */
-        number: field.string(schema.string().min(1)),
+        /** The number the invoice carries once finalized, absent on a draft. */
+        number: field.string(schema.string().min(1)).optional(),
         /** Where the invoice stands at the provider. */
         status: field.enum(["draft", "open", "paid", "void", "uncollectible"]),
         /** The currency of the amounts. */
@@ -60,7 +60,6 @@ export const invoice = defineObject({
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
-        // TODO #Incomplete: mirror invoices from the provider's webhook deliveries
         create: method.create(null, { isSystem: true, fields: INVOICE_FIELDS }),
         update: method.update(null, { isSystem: true, fields: INVOICE_FIELDS }),
     }),
