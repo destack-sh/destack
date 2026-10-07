@@ -838,6 +838,49 @@ test("authorize a creation before its external work, and settle committed work t
     ]);
 });
 
+test("name a system creation's prepared work by the fresh identifier it creates the record under", async () => {
+    const storage = await TestDatabase.create(
+        present(TEST_DIALECTS.at(-1), "the last test dialect"),
+        objectDatabase,
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+
+    // name the external copy by the identifier the system creation takes
+    const external: string[] = [];
+    const copies = taskCopy.handle({
+        create: {
+            prepare: async (call) => {
+                const copy = `copy-${present(call.id, "the version's identifier")}`;
+                external.push(copy);
+
+                return copy;
+            },
+        },
+    });
+    const server = new ObjectServer({
+        objects: { task, comment, taskVersion, taskCopy: copies, folder },
+        database: storage.database,
+        callKey: testCallKey,
+        origin: { package: task.package, service: "test" },
+    });
+    const created = await server.call(
+        task,
+        "create",
+        { spaceId, requestId: RequestId.create(), title: "Plan" },
+        userContext("user-1", spaceId),
+    );
+    const [drafted] = await server.executeAsSystem(
+        copies,
+        "create",
+        [{ scope: spaceId, input: { parentId: created.id, title: "Draft" } }],
+        Date.now(),
+    );
+
+    expect(external).toEqual([`copy-${present(drafted, "the copy").id}`]);
+});
+
 test("cancel a call that outlasts its settlement grace by its key, and refuse to commit it", async () => {
     const storage = await TestDatabase.create(
         present(TEST_DIALECTS.at(-1), "the last test dialect"),

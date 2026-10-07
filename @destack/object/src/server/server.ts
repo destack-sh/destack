@@ -1419,12 +1419,13 @@ export class ObjectServer<
     async executeAsSystem(
         object: ObjectType,
         name: string,
-        calls: readonly SystemCall[],
+        requested: readonly SystemCall[],
         now: number,
     ): Promise<unknown[]> {
         // build each call as the system, on the served type
         const served = this.served(object);
         const method = ObjectServer.#preparing(served, name);
+        const calls = requested.map((entry) => systemIdentified(served, name, entry));
         const system = this.#systemAuthorizations(now);
         const calling = async (database: DatabaseConnection, entry: SystemCall) =>
             this.#systemCall(served, name, database, entry, {
@@ -2780,6 +2781,18 @@ function identified(call: Expansion): Expansion {
     return isUnnamed
         ? { ...call, input: { ...call.input, id: `${call.object.identity}-${v7()}` } }
         : call;
+}
+
+/** Give a prepared system creation without an identifier a fresh one, as its prepared work names it. */
+function systemIdentified(object: ObjectType, name: string, call: SystemCall): SystemCall {
+    const method = object.method(name);
+    const isUnnamed =
+        method.kind === "create" &&
+        method.prepare !== undefined &&
+        call.target === undefined &&
+        call.id === undefined;
+
+    return isUnnamed ? { ...call, id: `${object.identity}-${v7()}` } : call;
 }
 
 /** Project a read's result onto the audit details its method declares. */
