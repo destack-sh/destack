@@ -32,11 +32,17 @@ export const paperWater: WaterPalette = {
     ink: [0.07, 0.19, 0.235],
 };
 
+/** The icebergs under the water: the centre of each across the canvas, the half width of the card it carries, and the depths its top and bottom sit at, in CSS pixels. */
+export type Bergs = { centres: readonly number[]; half: number; top: number; bottom: number };
+
+/** The most icebergs the water holds. */
+const bergCapacity = 3;
+
 /** How far the water canvas reaches past the figure on the sides and bottom, in CSS pixels, where the figure clips its rim. */
 export const waterSpill = 8;
 
 /** The milliseconds a full drain or fill takes. */
-export const travel = 2400;
+export const travel = 700;
 
 /** The most ripples the waterline carries at once. */
 const rippleCapacity = 8;
@@ -63,31 +69,18 @@ uniform vec2 resolution;
 uniform float scale;
 uniform float time;
 uniform float level;
-uniform float agitation;
 uniform vec3 deep;
 uniform vec3 shallow;
 uniform vec3 caustic;
 uniform vec3 foam;
 uniform vec3 ink;
-uniform vec4 ripples[${rippleCapacity}];
 uniform float rest;
-
-const vec3 signal = vec3(1.0, 0.475, 0.18);
+uniform vec3 bergs[${bergCapacity}];
+uniform vec2 span;
 
 vec2 hash2(vec2 p) {
     p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
     return fract(sin(p) * 43758.5453);
-}
-
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
 
 // return the signed distance to the basin: straight walls and a floor with rounded corners, open far above
@@ -121,19 +114,12 @@ float cells(vec2 p, float t) {
     return second - nearest;
 }
 
-// return how far the ripples running along the surface lift it at a position
-float rippleAt(float x) {
-    float lift = 0.0;
-    for (int i = 0; i < ${rippleCapacity}; i++) {
-        vec4 ripple = ripples[i];
-        float age = time - ripple.y;
-        if (age < 0.0 || age > ${rippleLife.toFixed(1)}) {
-            continue;
-        }
-        float gap = abs(x - ripple.x) - age * ${rippleSpeed.toFixed(1)};
-        lift += ripple.z * exp(-age * 1.4) * exp(-gap * gap / 484.0) * sin(gap * 0.25);
-    }
-    return lift;
+// return a berg side's half width at a share of its depth, through five facet corners from the waterline down
+float side(float t, vec4 upper, float lowest) {
+    float step = clamp(t, 0.0, 1.0) * 4.0;
+    float a = step < 1.0 ? upper.x : step < 2.0 ? upper.y : step < 3.0 ? upper.z : upper.w;
+    float b = step < 1.0 ? upper.y : step < 2.0 ? upper.z : step < 3.0 ? upper.w : lowest;
+    return mix(a, b, fract(min(step, 3.999)));
 }
 
 void main() {
@@ -142,19 +128,9 @@ void main() {
     float x = gl_FragCoord.x / scale;
     float y = size.y - gl_FragCoord.y / scale;
 
-    // ripple the surface gently, rougher while it moves
-    float swell = 1.0 + agitation * 3.0;
-    float surface = level
-        + sin(x * 0.017 + time * 0.7) * 1.8 * swell
-        + sin(x * 0.043 - time * 1.0) * 0.8 * swell
-        + sin(x * 0.11 + time * 1.4) * 0.3
-        + rippleAt(x);
-    float below = y - surface;
-
-    // hold the water in a basin whose walls sag and swell slowly
-    float wall = basin(vec2(x, y), size)
-        - ((noise(vec2(x, y) * 0.007 + vec2(time * 0.025, time * 0.018)) - 0.5) * 2.0
-        + noise(vec2(x, y) * 0.013 - vec2(time * 0.03, time * 0.012)) - 0.5) * 2.2;
+    // hold the water flat in a basin with rounded corners
+    float below = y - level;
+    float wall = basin(vec2(x, y), size);
     float edge = 1.0 / scale;
     float held = 1.0 - smoothstep(-edge, edge, wall);
     float rim = 1.0 - smoothstep(0.4, 1.1, abs(wall + 0.6));
@@ -168,36 +144,46 @@ void main() {
     float depth = clamp(below / max(size.y - level, 60.0), 0.0, 0.999);
     vec3 color = mix(shallow, deep, smoothstep(0.0, 1.0, depth) * 0.94);
 
-    // brighten softly just under the surface
-    color = mix(color, caustic, (1.0 - smoothstep(4.0, 26.0, below)) * 0.14);
+    // lighten each iceberg under the water, lit from the left and edged with a thin line
+    float t = (y - span.x) / max(span.y - span.x, 1.0);
+    for (int i = 0; i < ${bergCapacity}; i++) {
+        vec3 berg = bergs[i];
+        if (berg.y <= 0.0 || t < 0.0 || t > 1.0) {
+            continue;
+        }
+        float seed = float(i) * 1.7;
+        float across = x - berg.x;
+        vec4 corners = across < 0.0
+            ? vec4(0.92, 1.08 + 0.04 * sin(seed), 0.98, 0.82 + 0.05 * cos(seed))
+            : vec4(0.9, 1.04 + 0.04 * cos(seed), 1.02 + 0.04 * sin(seed), 0.76);
+        float reach = berg.y * side(t, corners, 0.5 + 0.08 * sin(seed * 2.0));
+        float inside = reach - abs(across);
+        if (inside > 0.0) {
+            float lit = across < 0.0 ? 0.16 : 0.09;
+            color = mix(color, caustic, lit * (1.0 - t * 0.6));
+            color = mix(color, caustic, (1.0 - smoothstep(0.6, 1.6, inside)) * 0.35);
+        }
+    }
 
-    // slant faint shafts of light down from the surface, fading with depth
-    float slant = x + below * 0.35;
-    float shafts = smoothstep(0.55, 1.0, sin(slant * 0.018 + time * 0.15))
-        + smoothstep(0.6, 1.0, sin(slant * 0.031 - time * 0.11 + 1.7)) * 0.7;
-    color = mix(color, caustic, shafts * 0.07 * (1.0 - smoothstep(0.0, 0.8, depth)));
+    // net the light into faint caustic lines that drift slowly and thin out with depth
+    float border = cells(vec2(x, y) / 80.0, time * 0.25);
+    float threshold = 0.03 - depth * 0.015;
+    color = mix(color, caustic, (1.0 - smoothstep(threshold - 0.01, threshold, border)) * 0.05 * (1.0 - depth));
 
-    // net the light into faint caustic lines that thin out with depth
-    vec2 drift = vec2(x, y + sin(x * 0.02 + time * 0.5) * 6.0) / 70.0;
-    float border = cells(drift, time * 0.6);
-    float threshold = 0.035 - depth * 0.02;
-    color = mix(color, caustic, (1.0 - smoothstep(threshold - 0.01, threshold, border)) * 0.06 * (1.0 - depth));
-
-    // edge the surface with one foam line that thickens while the water moves, and rim the basin in foam
-    float crest = 2.0 + agitation * 1.5;
-    float froth = 1.0 - smoothstep(crest, crest + 0.8, below);
-    color = mix(color, mix(foam, signal, agitation * 0.45), froth);
+    // edge the surface with one thin foam line, and rim the basin in foam
+    float froth = 1.0 - smoothstep(1.2, 2.0, below);
+    color = mix(color, foam, froth * 0.9);
     color = mix(color, foam, rim);
     color = mix(color, ink, line * (1.0 - max(held, rim)));
 
     // keep the water nearly opaque so the submerged stack reads only as shapes
-    float alpha = mix(0.74, 0.88, smoothstep(0.0, 0.8, depth));
+    float alpha = mix(0.78, 0.9, smoothstep(0.0, 0.8, depth));
     alpha = max(max(alpha * held, froth), max(rim, line)) * cover;
     gl_FragColor = vec4(color * alpha, alpha);
 }
 `;
 
-/** Render stylised water below a waterline that drains and fills over time. */
+/** Render calm water with icebergs under a flat waterline that drains and fills over time. */
 export class Water {
     /** The shader that draws the water. */
     shader: Shader;
@@ -215,6 +201,8 @@ export class Water {
     isMoving: boolean;
     /** Receive the water level after every frame. */
     onLevel: (level: number) => void;
+    /** The icebergs under the water, if any. */
+    bergs: Bergs | undefined;
 
     /** Create water on a canvas, or throw when WebGL is unavailable. */
     constructor(
@@ -233,6 +221,13 @@ export class Water {
         this.start = performance.now();
         this.isMoving = isMoving;
         this.onLevel = onLevel;
+        this.bergs = undefined;
+    }
+
+    /** Set the icebergs under the water and redraw. */
+    shape(bergs: Bergs) {
+        this.bergs = bergs;
+        this.shader.request();
     }
 
     /** Drain or fill toward a new water level. */
@@ -276,31 +271,29 @@ export class Water {
         const shader = this.shader;
         const context = shader.context;
 
-        // shape the move: rough while travelling
+        // read the move
         const progress = this.progressAt(now);
         const level = this.levelAt(now);
-        const motion = Math.sin(progress * Math.PI);
 
         // upload the frame parameters
         context.uniform1f(shader.uniform("time"), this.isMoving ? now / 1000 : 0);
         context.uniform1f(shader.uniform("level"), level);
         context.uniform1f(shader.uniform("rest"), waterSpill - 3);
-        context.uniform1f(shader.uniform("agitation"), motion);
         context.uniform3fv(shader.uniform("deep"), this.palette.deep);
         context.uniform3fv(shader.uniform("shallow"), this.palette.shallow);
         context.uniform3fv(shader.uniform("caustic"), this.palette.caustic);
         context.uniform3fv(shader.uniform("foam"), this.palette.foam);
         context.uniform3fv(shader.uniform("ink"), this.palette.ink);
-        const packed = new Float32Array(rippleCapacity * 4).fill(-1000);
-        ripples.forEach((ripple, index) =>
-            packed.set([ripple.x, ripple.at, ripple.strength, 0], index * 4),
-        );
-        context.uniform4fv(shader.uniform("ripples"), packed);
+        const bergs = new Float32Array(bergCapacity * 3);
+        this.bergs?.centres
+            .slice(0, bergCapacity)
+            .forEach((centre, index) => bergs.set([centre, this.bergs?.half ?? 0, 0], index * 3));
+        context.uniform3fv(shader.uniform("bergs"), bergs);
+        context.uniform2f(shader.uniform("span"), this.bergs?.top ?? 0, this.bergs?.bottom ?? 0);
         this.onLevel(level);
 
-        // draw every frame while the waterline moves or ripples run, else at the ambient pace
-        const isStirred = ripples.some((ripple) => now / 1000 - ripple.at < rippleLife);
-        shader.pace = progress < 1 || isStirred ? 0 : ambientPace;
+        // draw every frame while the waterline moves, else at the ambient pace
+        shader.pace = progress < 1 ? 0 : ambientPace;
 
         // keep animating while water shows or the waterline still moves
         const isDrained = level >= shader.height && progress >= 1;
@@ -309,11 +302,7 @@ export class Water {
     }
 }
 
-/**
- * Return how far the resting waterline rises or falls at a position across the canvas, in CSS pixels.
- *
- * The waves match the shader's waves.
- */
+/** Return how far a wavy waterline rises or falls at a position across the canvas, in CSS pixels. */
 export function waveAt(x: number, seconds: number) {
     // sum three rolling waves
     const long = Math.sin(x * 0.017 + seconds * 0.7) * 1.8;
@@ -338,7 +327,7 @@ export function waveAt(x: number, seconds: number) {
     return long + middle + short + lift;
 }
 
-/** Ease in and out, slow at both ends. */
+/** Ease out, fast at the start and settling at the end. */
 function ease(progress: number) {
-    return progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+    return 1 - (1 - progress) ** 3;
 }

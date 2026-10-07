@@ -16,20 +16,12 @@ const fadeTime = 500;
 const rimOffset = 3;
 /** The most goo islands the field draws. */
 const islandCapacity = 4;
-/** The seconds the goo's bulge takes to catch up with the pointer, so it drags behind like something thick. */
+/** The seconds the goo's bulge takes to catch up with the pointer, so it follows like something thick. */
 const gooLag = 0.6;
-/** The seconds the tail of the bulge takes to catch up with its head, drawing the goo out into a strand while the pointer moves. */
-const gooTail = 1.6;
 /** The seconds the goo takes to swell toward a pointer that comes near. */
 const swellTime = 1;
 /** The seconds the goo takes to sag back once the pointer leaves. */
 const sagTime = 2.4;
-/** The seconds the slow swells from moving the pointer take to build and settle. */
-const stirTime = 1.2;
-/** The pointer speed that stirs the goo fully, in CSS pixels per second. */
-const fullStir = 3000;
-/** The seconds a shooting star fired by a click takes to streak across and fade. */
-const starLife = 1.2;
 /** The milliseconds between measurements of the goo cells, in case the page shifts under them without resizing. */
 const remeasureTime = 1000;
 /** The share of far star cells that hold a star. */
@@ -67,21 +59,17 @@ uniform float scale;
 uniform float time;
 uniform float wobble;
 uniform vec2 pointer;
-uniform vec2 trail;
 uniform vec2 origin;
 uniform float pull;
-uniform float stir;
-uniform float shower;
 uniform vec2 far;
 uniform vec2 near;
 uniform float charge;
-uniform vec3 star;
 uniform vec4 islands[${islandCapacity}];
 uniform float islandCount;
 uniform float outline;
 
 const vec3 space = vec3(0.031, 0.09, 0.137);
-const vec3 rimColor = vec3(0.945, 0.918, 0.859);
+const vec3 starColor = vec3(0.945, 0.918, 0.859);
 const vec3 inkColor = vec3(0.071, 0.192, 0.235);
 
 float hash(vec2 p) {
@@ -112,29 +100,8 @@ vec3 starLayer(vec2 p, float cellSize, float density, float t) {
     float size = hash(cell + 5.1);
     float radius = size < 0.7 ? 0.7 : (size < 0.93 ? 1.1 : 1.6);
     float disc = 1.0 - smoothstep(radius - 0.5, radius + 0.5, length(local - centre));
-    float alpha = mix(0.35, 0.9, hash(cell + 7.7)) * (0.7 + 0.3 * sin(t * (0.5 + hash(cell + 9.0) * 0.9) + seed * 40.0));
-
-    // tint some stars in soft pastels
-    float hue = hash(cell + 3.3);
-    vec3 tint = hue < 0.18 ? vec3(0.98, 0.72, 0.84) : (hue < 0.36 ? vec3(0.66, 0.85, 1.0) : (hue < 0.5 ? vec3(1.0, 0.9, 0.62) : (hue < 0.6 ? vec3(0.7, 0.95, 0.84) : rimColor)));
-    return mix(rimColor, tint, 0.8) * disc * alpha;
-}
-
-// return one shooting star's light at a point, one streak per period on its own track
-vec3 streak(vec2 frag, vec2 size, float time, float period, float track) {
-    float round = floor(time / period);
-    float phase = fract(time / period) / 0.14;
-    if (phase >= 1.0) {
-        return vec3(0.0);
-    }
-    vec2 start = vec2(hash(vec2(round, 1.0 + track)), hash(vec2(round, 2.0 + track)) * 0.6) * size;
-    vec2 direction = normalize(vec2(1.0, 0.3 + hash(vec2(round, 3.0 + track)) * 0.4));
-    vec2 head = start + direction * phase * size.x * 0.7;
-    vec2 relative = frag - head;
-    float behind = dot(relative, -direction);
-    float across = length(relative + direction * behind);
-    float tail = step(0.0, behind) * exp(-behind / 45.0) * exp(-across * across / 0.8);
-    return vec3(1.0, 0.97, 0.92) * tail * (1.0 - phase) * 0.9;
+    float alpha = mix(0.35, 0.9, hash(cell + 7.7)) * (0.8 + 0.2 * sin(t * (0.3 + hash(cell + 9.0) * 0.5) + seed * 40.0));
+    return starColor * disc * alpha;
 }
 
 void main() {
@@ -163,26 +130,18 @@ void main() {
     float swell = noise(page * 0.013 - vec2(time * 0.03, time * 0.012)) - 0.5;
     d -= (slow * 2.0 + swell) * wobble;
 
-    // swell toward the pointer along the strand it drags behind it, thinning toward the tail, and heave in slow broad swells while it moves
-    vec2 along = trail - pointer;
-    float reach = clamp(dot(frag - pointer, along) / max(dot(along, along), 1.0), 0.0, 1.0);
-    float away = length(frag - pointer - along * reach);
-    float thickness = 1.0 - reach * 0.55;
-    d -= pull * thickness * (2.5 * exp(-away * away / 9000.0) + 5.0 * exp(-away * away / 1400.0));
-    d -= stir * 2.5 * sin(away * 0.06 - time * 2.0) * exp(-away / 140.0);
+    // swell gently toward a pointer that comes near
+    float away = length(frag - pointer);
+    d -= pull * 4.0 * exp(-away * away / 2400.0);
 
-    // clip to the goo with a fine cream rim, outlined in ink on a light page
+    // clip to the goo and trace its edge with one faint line: ink on a light page, light on a dark one
     float edge = 1.0 / scale;
     float inside = 1.0 - smoothstep(-edge, edge, d);
-    float rim = 1.0 - smoothstep(0.4, 1.1, abs(d + 0.6));
-    float ink = (1.0 - smoothstep(0.35, 0.9, abs(d - 1.1))) * outline;
-    if (inside + rim + ink < 0.001) {
+    float line = 1.0 - smoothstep(0.3, 0.9, abs(d - 0.5));
+    if (inside + line < 0.001) {
         discard;
     }
-
-    // bend the stars away from the pointer like a lens while it is near
-    vec2 toward = frag - pointer;
-    vec2 sky = frag + toward / max(length(toward), 1.0) * 22.0 * pull * exp(-dot(toward, toward) / 4200.0);
+    vec2 sky = frag;
 
     // glow in slow page-wide clouds under two depths of sparse flat stars placed across the page
     float falloff = smoothstep(0.25, 0.85, noise(page * 0.0012 + vec2(time * 0.004, 0.0)));
@@ -190,37 +149,15 @@ void main() {
     vec3 distant = starLayer(sky + far + vec2(time * 1.2, time * 0.3), 26.0, ${distantStars}, time);
     vec3 close = starLayer(sky + near + 71.0 + vec2(time * 2.4, time * 0.6), 58.0, ${closeStars}, time * 1.3) * 1.25;
 
-    // shower shooting stars while the pointer is over the goo
-    vec3 meteor = vec3(0.0);
-    if (shower > 0.01) {
-        for (int i = 1; i < 4; i++) {
-            float track = float(i);
-            meteor += streak(frag, size, time + track * 0.73, 0.9 + track * 0.35, track) * shower;
-        }
-    }
-
     // glow faintly inside the rim so the edge reads as a surface
     float sheen = (1.0 - smoothstep(0.0, 14.0, -d)) * 0.05;
-    vec3 color = space + nebula * (1.0 + charge) + sheen + (distant * 0.6 + close * 0.8) * (1.0 + charge * 0.6) + meteor;
+    vec3 color = space + nebula * (1.0 + charge) + sheen + (distant * 0.6 + close * 0.8) * (1.0 + charge * 0.6);
 
-    // streak a shooting star down and away from where the reader clicked, flashing where it starts
-    if (star.z >= 0.0 && star.z < ${starLife.toFixed(1)}) {
-        float life = star.z / ${starLife.toFixed(1)};
-        vec2 heading = normalize(vec2(-0.82, 0.57));
-        vec2 head = star.xy + heading * star.z * 520.0;
-        float tail = 120.0 * (1.0 - life);
-        vec2 back = frag - head;
-        float along = clamp(dot(back, -heading) / max(tail, 1.0), 0.0, 1.0);
-        float across = length(back + heading * along * tail);
-        float streak = exp(-across * across / 2.2) * (1.0 - along) * (1.0 - life);
-        float flash = exp(-dot(frag - star.xy, frag - star.xy) / 40.0) * max(0.0, 1.0 - star.z * 5.0);
-        color += vec3(1.0, 0.95, 0.85) * (streak * 1.4 + flash);
-    }
+    vec3 tone = mix(starColor, inkColor, outline);
+    float stroke = line * (1.0 - inside) * mix(0.28, 0.4, outline);
+    color = mix(color, tone, stroke / max(inside + stroke, 0.001));
 
-    color = mix(color, rimColor, rim);
-    color = mix(color, inkColor, ink * (1.0 - max(inside, rim)));
-
-    float alpha = max(max(inside, rim), ink);
+    float alpha = max(inside, stroke);
     gl_FragColor = vec4(color * alpha, alpha);
 }
 `;
@@ -242,26 +179,16 @@ class Field {
     shader: Shader;
     /** The smoothed pointer position in canvas CSS pixels, lagging behind the real one. */
     pointer: { x: number; y: number };
-    /** The tail of the strand the goo draws out behind the pointer, lagging further still. */
-    trail: { x: number; y: number };
     /** The time of the previous frame in milliseconds, to ease by time rather than by frames. */
     lastAt: number;
     /** The smoothed swell strength from 0 to 1, fading with the pointer's distance outside the goo. */
     pull: number;
-    /** The smoothed ripple strength from 0 to 1, rising with the pointer's speed. */
-    stir: number;
-    /** The pointer's target on the previous frame, to feel how fast it moves. */
-    lastTarget: { x: number; y: number };
-    /** The smoothed meteor shower strength from 0 to 1, while the pointer is over the goo. */
-    shower: number;
     /** Whether the goo moves at all. */
     isMoving: boolean;
     /** Return the island cells of the current frame, in client pixels. */
     islands: () => readonly Rect[];
     /** The smoothed page charge from 0 to 1. */
     charge: number;
-    /** Where a click last fired a shooting star, in canvas CSS pixels, and when, in milliseconds. */
-    star: { x: number; y: number; at: number };
     /** The fixed canvas's place on screen, measured once and again after the window resizes. */
     bounds: DOMRect | undefined;
 
@@ -270,16 +197,11 @@ class Field {
         // start the shader and rest the goo until the pointer comes
         this.shader = new Shader(canvas, fragmentSource, 1.25, (now) => this.draw(now));
         this.pointer = { x: 0, y: 0 };
-        this.trail = { x: 0, y: 0 };
         this.lastAt = 0;
         this.pull = 0;
-        this.stir = 0;
-        this.lastTarget = { x: 0, y: 0 };
-        this.shower = 0;
         this.isMoving = isMoving;
         this.islands = islands;
         this.charge = 0;
-        this.star = { x: 0, y: 0, at: -1e9 };
         this.bounds = undefined;
         window.addEventListener("resize", () => {
             this.bounds = undefined;
@@ -301,32 +223,20 @@ class Field {
         this.lastAt = now;
         const follow = (lag: number) => 1 - Math.exp(-elapsed / lag);
 
-        // drag the bulge after the pointer, and the strand's tail after the bulge
+        // ease the bulge after the pointer
         const target = pagePointer.isKnown
             ? { x: pagePointer.x - bounds.left, y: pagePointer.y - bounds.top }
             : this.pointer;
         this.pointer.x += (target.x - this.pointer.x) * follow(gooLag);
         this.pointer.y += (target.y - this.pointer.y) * follow(gooLag);
-        this.trail.x += (this.pointer.x - this.trail.x) * follow(gooTail);
-        this.trail.y += (this.pointer.y - this.trail.y) * follow(gooTail);
 
-        // swell slowly toward a pointer near or over the goo, sag back more slowly still, and heave with the pointer's speed
-        const speed =
-            Math.hypot(target.x - this.lastTarget.x, target.y - this.lastTarget.y) /
-            Math.max(elapsed, 0.001);
-        this.lastTarget = { x: target.x, y: target.y };
+        // swell slowly toward a pointer near the goo, and sag back more slowly still
         const outside = pagePointer.isKnown
             ? outsideAt(pagePointer.x, pagePointer.y, cells)
             : Number.POSITIVE_INFINITY;
-        const swell = outside < 0 ? 1 : Math.exp(-outside / 60) * 0.8;
+        const swell = Math.exp(-Math.max(outside, 0) / 60) * 0.8;
         this.pull += (swell - this.pull) * follow(swell > this.pull ? swellTime : sagTime);
-        this.stir += (Math.min(1, speed / fullStir) * swell - this.stir) * follow(stirTime);
-        this.shower += ((outside < 0 ? 1 : 0) - this.shower) * 0.04;
         this.charge += (pageCharge.target - this.charge) * 0.08;
-
-        // place the sky by page position, far stars shifting less than near ones
-        const lookX = pagePointer.isKnown ? (pagePointer.x - window.innerWidth / 2) * -0.04 : 0;
-        const lookY = pagePointer.isKnown ? (pagePointer.y - window.innerHeight / 2) * -0.04 : 0;
 
         // upload the motion, the pointer, and the sky
         context.uniform1f(shader.uniform("time"), this.isMoving ? seconds : 0);
@@ -337,27 +247,18 @@ class Field {
         );
         context.uniform1f(shader.uniform("outline"), isDarkPage() ? 0 : 1);
         context.uniform1f(shader.uniform("charge"), this.isMoving ? this.charge : 0);
-        context.uniform3f(
-            shader.uniform("star"),
-            this.star.x,
-            this.star.y,
-            this.isMoving ? (now - this.star.at) / 1000 : -1,
-        );
-        context.uniform1f(shader.uniform("wobble"), this.isMoving ? 2.2 : 0);
+        context.uniform1f(shader.uniform("wobble"), this.isMoving ? 1.2 : 0);
         context.uniform2f(shader.uniform("pointer"), this.pointer.x, this.pointer.y);
-        context.uniform2f(shader.uniform("trail"), this.trail.x, this.trail.y);
         context.uniform1f(shader.uniform("pull"), this.isMoving ? this.pull : 0);
-        context.uniform1f(shader.uniform("stir"), this.isMoving ? this.stir : 0);
-        context.uniform1f(shader.uniform("shower"), this.isMoving ? this.shower : 0);
         context.uniform2f(
             shader.uniform("far"),
-            bounds.left + pageScroll.x * 0.3 + lookX * 0.4,
-            bounds.top + pageScroll.y * 0.3 + lookY * 0.4,
+            bounds.left + pageScroll.x * 0.3,
+            bounds.top + pageScroll.y * 0.3,
         );
         context.uniform2f(
             shader.uniform("near"),
-            bounds.left + pageScroll.x * 0.7 + lookX,
-            bounds.top + pageScroll.y * 0.7 + lookY,
+            bounds.left + pageScroll.x * 0.7,
+            bounds.top + pageScroll.y * 0.7,
         );
 
         // upload the islands, each with its rim outside its cell
@@ -388,10 +289,8 @@ class Field {
 
         // twinkle at half the frame rate while nothing moves
         const isBusy =
-            this.pull > 0.02 ||
-            this.stir > 0.02 ||
-            now - this.star.at < starLife * 1000 ||
-            Math.hypot(this.pointer.x - this.trail.x, this.pointer.y - this.trail.y) > 1 ||
+            Math.abs(this.pull - swell) > 0.02 ||
+            Math.hypot(this.pointer.x - target.x, this.pointer.y - target.y) > 1 ||
             Math.abs(this.charge - pageCharge.target) > 0.01;
         shader.pace = isBusy ? 0 : ambientPace;
 
@@ -486,36 +385,9 @@ export function GooField() {
         }
         field.shader.request();
 
-        // fire a shooting star from a click on empty goo, away from anything clickable
-        const shoot = (event: PointerEvent) => {
-            // skip clicks on anything clickable or draggable, and clicks outside the goo
-            const target = event.target;
-            const isEmpty =
-                !(target instanceof Element) ||
-                !target.closest("a, button, input, summary, [role=switch], [data-card]");
-            if (
-                !isEmpty ||
-                !field.isMoving ||
-                outsideAt(event.clientX, event.clientY, islands()) >= 0
-            ) {
-                return;
-            }
-
-            // start the star where the click landed
-            const bounds = field.bounds ?? canvas.getBoundingClientRect();
-            field.star = {
-                x: event.clientX - bounds.left,
-                y: event.clientY - bounds.top,
-                at: performance.now(),
-            };
-            field.shader.request();
-        };
-        window.addEventListener("pointerdown", shoot, { passive: true });
-
         return () => {
             // stop following the pointer and the page, and release the shader
             window.removeEventListener("pointermove", point);
-            window.removeEventListener("pointerdown", shoot);
             window.removeEventListener("resize", remeasure);
             pageSize.disconnect();
             field.shader.dispose();

@@ -953,12 +953,12 @@
 }
 
 :root[data-switched] [data-fade="small"] {
-    animation: flip-in 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: flip-in 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 [data-turn],
 :root[data-switched] [data-fade="large"] {
-    animation: settle-in 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: settle-in 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

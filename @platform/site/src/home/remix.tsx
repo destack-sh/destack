@@ -17,17 +17,17 @@ import { Card, type Entity } from "./card";
 /** The milliseconds each open scene holds before the next one begins. */
 const sceneTime = 5200;
 /** The milliseconds from the water fully draining to the first scene change. */
-const firstSceneTime = 2400;
+const firstSceneTime = 1200;
 /** The milliseconds between neighbouring cards turning over, left to right. */
-const flipStagger = 150;
+const flipStagger = 60;
 /** The milliseconds after the stack opens before its apps turn into view, once the silos have sunk. */
-const openFlipAt = 1500;
+const openFlipAt = 500;
 /** The milliseconds a card's ink takes to fade out before it hands over its box, or to fade in after it takes one. */
 const inkFade = 320;
 /** The milliseconds a card takes to turn over and show the card replacing it. */
-const flipTime = 1200;
+const flipTime = 600;
 /** The milliseconds cards take to travel between places. */
-const moveTime = 1400;
+const moveTime = 600;
 
 /** The humans, agents, silos, and apps the scenes arrange. */
 export const entities: Record<string, Entity> = {
@@ -173,12 +173,10 @@ const slots = new Map(
 );
 /** The silos, which ride the icebergs today. */
 const vendors = new Set(slots.keys());
-/** The milliseconds a silo takes to bob up after the one it replaces starts to sink. */
-const swapDelay = 1000;
-/** The milliseconds a silo waits to land on the reformed ice after the water returns. */
-const landingDelay = 2700;
-/** The open apps and remixes, which anyone can fork. */
-const apps = new Set([...Object.values(replacements), ...Object.keys(remixes)]);
+/** The milliseconds a silo takes to rise after the one it replaces starts to sink. */
+const swapDelay = 400;
+/** The milliseconds a silo waits to rise again after the water returns. */
+const landingDelay = 900;
 
 /** One arrangement of the top two layers. */
 type Scene = {
@@ -427,7 +425,7 @@ type Run = { from: Point; to: Point; bend: number };
 /** A card's edges and centre in layer pixels. */
 type Box = { left: number; right: number; top: number; bottom: number; centre: number };
 
-/** One cable between two cards, its springy middle, and how visible it is. */
+/** One cable between two cards, and how visible it is. */
 type Cable = {
     /** The drawn cable. */
     path: SVGPathElement;
@@ -435,12 +433,6 @@ type Cable = {
     ends: SVGPathElement;
     /** The dash of light that runs down the cable when the scene changes. */
     pulse: SVGPathElement;
-    /** The straight-line middle on the previous frame, to feel how fast the ends move. */
-    middle: Point | undefined;
-    /** How far the middle swings off the straight line. */
-    offset: Point;
-    /** How fast the middle swings. */
-    velocity: Point;
     /** The visibility from 0 to 1. */
     alpha: number;
     /** The time the cable starts to fade in. */
@@ -485,7 +477,7 @@ export function Remix(properties: {
         const before = new Map(last);
         const entering: Placement[] = [];
         const leaving: Placement[] = [];
-        const morphAt = isToggle ? 700 : 0;
+        const morphAt = isToggle ? 300 : 0;
         for (const id of ids) {
             const placement = current.get(id);
             const previous = last.get(id);
@@ -606,8 +598,8 @@ export function Remix(properties: {
         }
 
         // start entering cards after the leaving ones clear, farthest from its edge first; send leaving cards nearest first
-        const enterAt = isToggle ? 700 : moveTime * 0.45;
-        const leaveAt = isToggle ? 1200 : 0;
+        const enterAt = isToggle ? 300 : moveTime * 0.45;
+        const leaveAt = isToggle ? 400 : 0;
         stagger(entering, enterAt, (place) => -edgeDistance(place));
         stagger(leaving, leaveAt, edgeDistance);
 
@@ -706,9 +698,6 @@ export function Remix(properties: {
                     path,
                     ends,
                     pulse,
-                    middle: undefined,
-                    offset: { x: 0, y: 0 },
-                    velocity: { x: 0, y: 0 },
                     alpha: 0,
                     showsAt: 0,
                     settle: 0,
@@ -735,35 +724,16 @@ export function Remix(properties: {
             isStirring ||= found.alpha < 1;
         };
 
-        // push a cable's middle against the motion of its ends, spring it back, and return how far it swings
-        const swing = (found: Cable, middle: Point) => {
-            // swing the middle against its ends' motion and damp it back
-            const previous = found.middle ?? middle;
-            found.middle = middle;
-            const velocity = found.velocity;
-            velocity.x =
-                (velocity.x - (middle.x - previous.x) * 0.9 - found.offset.x * 0.09) * 0.84;
-            velocity.y =
-                (velocity.y - (middle.y - previous.y) * 0.9 - found.offset.y * 0.09) * 0.84;
-            found.offset.x += velocity.x;
-            found.offset.y += velocity.y;
-            isStirring ||= Math.abs(velocity.x) + Math.abs(velocity.y) > 0.02;
-
-            return found.offset;
-        };
-
-        // hang a locked cable between two cards as a taut curve that swings as they bob
+        // hang a locked cable between two cards as a taut curve
         const hang = (key: string, from: Point, to: Point, now: number) => {
-            // draw the plugs and a curve bent by the swing
+            // draw the plugs and the curve
             const found = cable(key, "locked");
             show(found, 1, now);
             found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
-            const offset = swing(found, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
             const half = (to.y - from.y) / 2;
-            const bend = { x: offset.x * 1.33, y: offset.y * 1.33 };
             found.path.setAttribute(
                 "d",
-                `M${from.x} ${from.y}C${from.x + bend.x} ${from.y + half + bend.y} ${to.x + bend.x} ${to.y - half + bend.y} ${to.x} ${to.y}`,
+                `M${from.x} ${from.y}C${from.x} ${from.y + half} ${to.x} ${to.y - half} ${to.x} ${to.y}`,
             );
         };
 
@@ -793,11 +763,7 @@ export function Remix(properties: {
             const mix = (start: number, end: number) => start + (end - start) * settle;
             const from = { x: mix(free.from.x, grid.from.x), y: mix(free.from.y, grid.from.y) };
             const to = { x: mix(free.to.x, grid.to.x), y: mix(free.to.y, grid.to.y) };
-
-            // swing the middle segment across its length while the cable is loose
-            const offset = swing(found, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
-            const bend =
-                mix(free.bend, grid.bend) + (isAcross ? offset.x : offset.y) * 1.33 * (1 - settle);
+            const bend = mix(free.bend, grid.bend);
 
             // draw the plugs, the right-angled path, and its pulse along the same line
             found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
@@ -1036,7 +1002,7 @@ export function Remix(properties: {
             // restart the cable timing when the stack opens, closes, or changes scene
             if (properties.isOpen !== wasOpen) {
                 changedAt = now;
-                delay = properties.isOpen ? 1100 : 3000;
+                delay = properties.isOpen ? 500 : 800;
                 wasOpen = properties.isOpen;
             } else if (scene() !== wasScene || properties.today !== wasToday) {
                 changedAt = now;
@@ -1078,14 +1044,9 @@ export function Remix(properties: {
                 }
             }
 
-            // trace only while something moves: bobbing ice, dancing users, travelling cards, a drag, or a swinging cable
-            const isBobbing = !properties.isOpen && !isStill;
+            // trace only while something moves: travelling cards, a drag, or a settling cable
             const isBusy =
-                isBobbing ||
-                drag() !== undefined ||
-                now - changedAt < 4500 ||
-                now < wakeUntil ||
-                isStirring;
+                drag() !== undefined || now - changedAt < 1500 || now < wakeUntil || isStirring;
             if (isVisible && isBusy) {
                 trace(now);
             }
@@ -1096,7 +1057,7 @@ export function Remix(properties: {
         };
         frame = requestAnimationFrame(loop);
 
-        // retrace after the layout changes, and rest while off screen
+        // retrace after the layout changes or the layer comes into view, and rest while off screen
         const sizes = new ResizeObserver(() => {
             wakeUntil = performance.now() + 300;
         });
@@ -1104,6 +1065,7 @@ export function Remix(properties: {
         const sight = new IntersectionObserver((entries) => {
             for (const entry of entries) {
                 isVisible = entry.isIntersecting;
+                wakeUntil = performance.now() + 300;
             }
         });
         sight.observe(layer);
@@ -1145,7 +1107,6 @@ export function Remix(properties: {
                     const held = () => (drag()?.id === id ? drag() : undefined);
                     const slot = slots.get(id);
                     const isVendor = slot !== undefined;
-                    const isPerson = !isVendor && !apps.has(id);
 
                     return (
                         <div
@@ -1162,26 +1123,7 @@ export function Remix(properties: {
                             }}
                             class={stylex.attrs(styles.card, held() && styles.held).class}
                         >
-                            <div
-                                style={{
-                                    "--toward":
-                                        id === "you" || id === "designer" || id === "roommate"
-                                            ? "1"
-                                            : "-1",
-                                    "animation-delay": `${-ids.indexOf(id) * 0.9}s`,
-                                    transform: isVendor
-                                        ? "translate(var(--sway, 0px), var(--lift, 0px)) rotate(var(--tilt, 0deg))"
-                                        : undefined,
-                                }}
-                                data-bob={isVendor ? String(slot) : undefined}
-                                class={
-                                    stylex.attrs(
-                                        styles.fill,
-                                        isPerson && styles.dance,
-                                        isPerson && properties.isOpen && styles.still,
-                                    ).class
-                                }
-                            >
+                            <div class={stylex.attrs(styles.fill).class}>
                                 <Card
                                     entity={entityOf(id)}
                                     kind={isVendor ? "vendor" : "plain"}
@@ -1203,20 +1145,16 @@ const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 /** The length of the dash of light that runs down a cable, as a share of the cable. */
 const pulseLength = 0.12;
 /** The milliseconds the dash of light takes to run down a cable. */
-const pulseTime = 900;
+const pulseTime = 600;
 /** The milliseconds after a cable appears before its dash of light starts. */
-const pulseDelay = 250;
-/** A merged card settling into place: swelling slightly, then pressing down to its size. */
+const pulseDelay = 150;
+/** A merged card settling into place from slightly smaller. */
 const land = stylex.keyframes({
-    from: { scale: "0.97" },
-    "45%": { scale: "1.035" },
-    to: { scale: "1" },
+    from: { opacity: 0, scale: "0.98" },
 });
-/** The easing of a card springing back from a drag. */
-const spring = "cubic-bezier(0.3, 1.45, 0.5, 1)";
-/** How far a silo sinks below its berg before it is gone, deep enough for the water to hide it. */
+/** How far a silo sinks before it is gone, deep enough for the water to hide it. */
 const sinkDepth = "8rem";
-/** The easing of a vendor app sinking with the ice. */
+/** The easing of a vendor app sinking under the water. */
 const sink = "cubic-bezier(0.5, 0, 0.9, 0.6)";
 
 /** Return the left edge and width of a card's span, as CSS lengths within the layer. */
@@ -1245,7 +1183,7 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
                   translate: "0 0",
                   rotate: "0deg",
                   scale: "1",
-                  transition: `opacity 500ms ease ${place.delay}ms, translate 1100ms ${spring} ${place.delay}ms, rotate 1100ms ${spring} ${place.delay}ms, scale 900ms ${spring} ${place.delay}ms`,
+                  transition: `opacity 300ms ease ${place.delay}ms, translate ${moveTime}ms ${easing} ${place.delay}ms, rotate ${moveTime}ms ${easing} ${place.delay}ms, scale 500ms ${easing} ${place.delay}ms`,
               }
             : {
                   opacity: "0",
@@ -1253,7 +1191,7 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
                   rotate: "5deg",
                   scale: "1",
                   "pointer-events": "none",
-                  transition: `translate 1300ms ${sink}, rotate 1300ms ${sink}, opacity 700ms ease 500ms`,
+                  transition: `translate 600ms ${sink}, rotate 600ms ${sink}, opacity 400ms ease 200ms`,
               };
     }
 
@@ -1289,10 +1227,10 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
           }
         : { "--ink": "0", "--ink-time": `${inkFade}ms`, "--ink-delay": `${swap - inkFade}ms` };
 
-    // land a card that grows out of a merge with a small springy bounce as it takes over
+    // fade in a card that grows out of a merge as it takes over
     const landing: Record<string, string> =
         isShown && place.isLate && place.step !== "park"
-            ? { animation: `${land} 480ms ${spring} ${swap}ms both` }
+            ? { animation: `${land} 320ms ${easing} ${swap}ms both` }
             : {};
 
     return {
@@ -1314,7 +1252,7 @@ function follow(
 ): Record<string, string> {
     // spring the offset home on its own, apart from the entrance and exit delays
     const offset = held ? `translate(${held.x}px, ${held.y}px)` : "translate(0px, 0px)";
-    const release = held ? "transform 0ms" : `transform 700ms ${spring}`;
+    const release = held ? "transform 0ms" : `transform 400ms ${easing}`;
 
     return {
         ...entrance,
@@ -1477,11 +1415,11 @@ function beyond(place: Placement): Placement {
     return { ...place, left, isShown: false, delay: 0 };
 }
 
-/** Delay each card by its turn: the lowest key goes first, then one every 180 milliseconds after a start. */
+/** Delay each card by its turn: the lowest key goes first, then one every 70 milliseconds after a start. */
 function stagger(places: Placement[], start: number, key: (place: Placement) => number) {
     const order = places.toSorted((first, second) => key(first) - key(second));
     order.forEach((place, turn) => {
-        place.delay = start + turn * 180;
+        place.delay = start + turn * 70;
     });
 }
 
@@ -1587,15 +1525,6 @@ function withRemixes(
     return { ...uses, ...Object.fromEntries(joined) };
 }
 
-/** The sway of the people cards dancing while locked. */
-const dance = stylex.keyframes({
-    "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
-    "50%": {
-        transform:
-            "translate(calc(var(--toward) * 2px * var(--sway)), calc(-1.5px * var(--sway))) rotate(calc(var(--toward) * 0.6deg * var(--sway)))",
-    },
-});
-
 /** The cable strokes for each cable kind. */
 const cableKinds = stylex.create({
     locked: { stroke: color.mutedForeground },
@@ -1655,18 +1584,6 @@ const styles = stylex.create({
     held: {
         cursor: "grabbing",
         zIndex: 2,
-    },
-    dance: {
-        animationDuration: "6.5s",
-        animationIterationCount: "infinite",
-        animationName: dance,
-        animationTimingFunction: "ease-in-out",
-        transition: `--sway 900ms ${easing}`,
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
-    },
-    still: {
-        "--sway": "0",
-        animationPlayState: "paused",
     },
     fill: {
         width: "100%",

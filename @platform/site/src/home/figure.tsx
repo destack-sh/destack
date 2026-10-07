@@ -5,17 +5,13 @@ import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/vie
 
 import { isDarkPage, isWeakGraphics } from "../effect/gl";
 import { charge } from "../effect/goo";
-import { type Bob, Ice } from "../effect/ice";
-import { Sparks } from "../effect/sparks";
 import {
     nightWater,
     paperWater,
-    stir,
     travel,
     Water,
     type WaterPalette,
     waterSpill,
-    waveAt,
 } from "../effect/water";
 import { commandEvents } from "../command/command";
 import { lattice } from "../style/lattice.stylex";
@@ -29,9 +25,7 @@ import {
     columnWidth,
     quarterLefts,
     quarterWidth,
-    rowCells,
 } from "./board";
-import { Flotsam } from "./flotsam";
 import { Remix, sceneSources, scenes, slotApps, todayScenes, usesOf } from "./remix";
 import { telemetry } from "@destack/telemetry";
 import { log } from "../site/telemetry.ts";
@@ -45,21 +39,6 @@ const still = "@media (prefers-reduced-motion: reduce)";
 
 /** The rows above the waterline today. */
 const dryRows = 2;
-/** How close to the waterline the pointer stirs the water, in CSS pixels. */
-const stirRange = 90;
-/** How far the pointer moves along the water between ripples, in CSS pixels. */
-const stirStep = 18;
-/** The share of a vendor card's height that sinks below the waterline, so it barely floats. */
-const cardDraft = 0.1;
-/** The milliseconds of calm on the water before things start to drift past. */
-const adriftDelay = 20000;
-
-/** The milliseconds the shattered ice waits before it clumps back together as the water returns. */
-const reformDelay = 1100;
-
-/** A point in drawing pixels. */
-type Point = { x: number; y: number };
-
 /** The two configurations the figure compares. */
 type Stack = "today" | "destack";
 
@@ -123,7 +102,7 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Source",
-        claim: { today: "Trust blindly", destack: "Fork the code" },
+        claim: { today: "Take it on trust", destack: "Fork the code" },
         detail: { today: "Closed source", destack: "Git, npm" },
         item: { today: ({ vendors }) => `${vendors} black boxes`, destack: () => "0 black boxes" },
     },
@@ -186,7 +165,7 @@ const locked: Readonly<Record<string, readonly Entity[]>> = {
     budget: rented(["firebase.svg"], ["firebase.svg"], ["stackblitz.svg"], ["netlify.svg"]),
 };
 
-/** The milliseconds each silo rides its iceberg before the next swap. */
+/** The milliseconds each silo holds its column before the next swap. */
 const swapTime = 6500;
 
 /** The layers every Destack app shares, one per band row, with the packages each holds. */
@@ -311,15 +290,22 @@ const hosts: readonly Entity[] = [
     },
 ];
 
-/** The length of a strip of duct tape, in pixels. */
-const tapeLength = 72;
-/** How far each end of a strip of duct tape grips into its card, in pixels. */
-const tapeGrip = 13;
-/** How far below each card's middle the two ends of each strip are stuck, in pixels. */
-const tapeDrops: readonly (readonly [number, number])[] = [
-    [-5, 3],
-    [4, -4],
+/** The outline of each iceberg's tip above the water, one per column, in a box 100 wide and 60 tall resting on the waterline. */
+const tips: readonly string[] = [
+    "4,60 13,38 24,43 37,14 49,24 60,4 72,28 84,22 96,60",
+    "5,60 16,30 28,36 41,8 54,20 66,12 78,34 88,30 95,60",
+    "4,60 12,42 25,26 38,32 50,6 63,18 75,14 86,36 96,60",
 ];
+
+/** The facet lines inside each iceberg's tip, one per column, in the same box. */
+const facets: readonly string[] = [
+    "37,14 42,60 M60,4 58,42 72,28",
+    "41,8 46,60 M66,12 64,44 78,34",
+    "50,6 47,60 M25,26 30,48 M75,14 72,46",
+];
+
+/** How far each strip of duct tape is turned off level, in degrees, one per gap. */
+const tapeTurns: readonly number[] = [-4, 3];
 
 /** The connectors taped between the vendor apps; the strides that pick them stay coprime to their count, so every swap beside a strip gives it a new one. */
 const tapeLabels = [
@@ -335,25 +321,17 @@ const tapeLabels = [
     "Scripts",
     "Plugins",
 ];
-/** The gaps between the three icebergs that duct tape spans. */
+/** The gaps between the three columns that duct tape spans. */
 const tapeGaps = [0, 1];
 
-/** The seconds a berg takes to follow the water most of the way, so it moves like a heavy body. */
-const bergInertia = 0.9;
-
-/** How far the bergs slide to and fro, in CSS pixels. */
-const swayRange = 3;
-
-/** Compare apps today, as icebergs, with the open Destack stack revealed by draining the water. */
+/** Compare apps today, their lower layers under water, with the open Destack stack revealed by draining it. */
 export function StackFigure(properties: { onChange: (isOpen: boolean) => void }) {
     // hold the chosen stack, the scene, the canvases, and the effect timers
     const [stack, setStack] = createSignal<Stack>("today");
     const [isPainted, setIsPainted] = createSignal(false);
     const [scene, setScene] = createSignal(0);
     const [isLive, setIsLive] = createSignal(false);
-    const [isAdrift, setIsAdrift] = createSignal(false);
     const [today, setToday] = createSignal(0);
-    const [surfacedAt, setSurfacedAt] = createSignal(0);
     const [lit, setLit] = createSignal<number>();
     const isOpen = createMemo(() => stack() === "destack");
     const count = createMemo((): Count => {
@@ -371,43 +349,20 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let figureElement: HTMLElement | undefined;
     let drawingElement: HTMLDivElement | undefined;
     let canvasElement: HTMLCanvasElement | undefined;
-    let iceCanvasElement: HTMLCanvasElement | undefined;
     let water: Water | undefined;
-    let sparks: Sparks | undefined;
-    let sparkCanvasElement: HTMLCanvasElement | undefined;
-    let ice: Ice | undefined;
     let settle: ReturnType<typeof setTimeout> | undefined;
-    let calm: ReturnType<typeof setTimeout> | undefined;
 
     // read the rendered elements or throw when the figure lacks them
     const elements = () => {
-        if (
-            !figureElement ||
-            !drawingElement ||
-            !canvasElement ||
-            !iceCanvasElement ||
-            !sparkCanvasElement
-        ) {
-            throw new TypeError("the stack figure rendered without its drawing and canvases");
+        if (!figureElement || !drawingElement || !canvasElement) {
+            throw new TypeError("the stack figure rendered without its drawing and canvas");
         }
 
-        return {
-            figure: figureElement,
-            drawing: drawingElement,
-            canvas: canvasElement,
-            iceCanvas: iceCanvasElement,
-            sparkCanvas: sparkCanvasElement,
-        };
+        return { figure: figureElement, drawing: drawingElement, canvas: canvasElement };
     };
 
-    // set things adrift after a while on still water
-    const drift = () => {
-        clearTimeout(calm);
-        setIsAdrift(false);
-        calm = setTimeout(() => setIsAdrift(true), adriftDelay);
-    };
+    // hold how far the water has left each row
     const reveals = layers.map(() => 0);
-    let surface = 0;
 
     // keep the drawing's place within the water canvas, measured only when the layout changes
     const frame = { offset: 0, shift: 0, width: 0, height: 0, depth: 0 };
@@ -420,6 +375,15 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         frame.width = bounds.width;
         frame.height = bounds.height;
         frame.depth = elements().canvas.clientHeight;
+
+        // stand an iceberg under each column, from the dry rows down to the bottom of the drawing
+        const cell = frame.width / boardCells;
+        water?.shape({
+            centres: columnCentres.map((centre) => frame.shift + cell * centre),
+            half: (cell * columnWidth) / 2,
+            top: frame.offset + (frame.height * dryRows) / layers.length,
+            bottom: frame.offset + frame.height,
+        });
     };
 
     // return the waterline of a configuration in canvas pixels
@@ -432,7 +396,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const follow = (level: number) => {
         // light the rows the waterline has passed
         setIsPainted(true);
-        surface = level;
         const { offset, height } = frame;
         const row = height / layers.length;
         const { style } = elements().figure;
@@ -448,26 +411,11 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         }
     };
 
-    // stir the water when the pointer skims it, harder the closer it comes
-    let stirredAt: number | undefined;
+    // light the layer on the pointer's row over the drawing or the legend
     const skim = (event: PointerEvent) => {
-        // light the layer on the pointer's row over the drawing or the legend
         const bounds = elements().figure.getBoundingClientRect();
         const row = Math.floor(((event.clientY - bounds.top) / bounds.height) * layers.length);
-        const layer = Math.max(0, Math.min(layers.length - 1, row));
-        setLit(layer);
-
-        // measure the pointer against the waterline
-        const x = event.clientX - bounds.left;
-        const distance = Math.abs(event.clientY - bounds.top - surface);
-        if (!isOpen() && distance < stirRange) {
-            if (stirredAt === undefined || Math.abs(x - stirredAt) > stirStep) {
-                stir(x + waterSpill, 7 * (1 - distance / stirRange));
-                stirredAt = x;
-            }
-        } else {
-            stirredAt = undefined;
-        }
+        setLit(Math.max(0, Math.min(layers.length - 1, row)));
     };
 
     // select a configuration, keep the reader's choice, and move the water
@@ -476,37 +424,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         setStack(next);
         properties.onChange(next === "destack");
         charge(0);
-
-        // toss the flotsam back up as the water refills, or clear it away
-        clearTimeout(calm);
-        if (next === "today") {
-            setIsAdrift(false);
-            calm = setTimeout(() => {
-                setIsAdrift(true);
-                setSurfacedAt(performance.now());
-            }, travel);
-        } else {
-            setIsAdrift(false);
-        }
-
-        // spray sparks where the ice breaks while that line is on screen
-        if (next === "destack" && sparks) {
-            const bounds = elements().drawing.getBoundingClientRect();
-            const origin = elements().sparkCanvas.getBoundingClientRect();
-            const y = frame.offset + (frame.height * dryRows) / layers.length;
-            if (origin.top + y > 0 && origin.top + y < window.innerHeight) {
-                for (const centre of columnCentres) {
-                    sparks.burst(
-                        bounds.left - origin.left + (bounds.width * centre) / boardCells,
-                        y,
-                        14,
-                    );
-                }
-            }
-        }
-
-        // shatter the ice as the water drains, or clump it together just before it returns
-        ice?.breakTo(next === "destack" ? 1 : 0, next === "destack" ? 0 : reformDelay);
 
         // bring the open stack to life only once the water has fully drained
         clearTimeout(settle);
@@ -523,18 +440,17 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         }
     };
 
-    // start the ice and water once the figure is in the page
+    // start the water once the figure is in the page
     onSettled(() => {
-        // require the rendered drawing and canvases
-        const { figure, drawing, canvas, iceCanvas, sparkCanvas } = elements();
+        // require the rendered drawing and canvas
+        const { figure, drawing, canvas } = elements();
 
         // flip the stack whenever the page's switch asks for it
         const flip = () => select(isOpen() ? "today" : "destack");
         document.addEventListener(commandEvents.switchStack, flip);
 
-        // read the motion preference and set the flotsam adrift
+        // read the motion preference
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        drift();
         const scheme = window.matchMedia("(prefers-color-scheme: dark)");
 
         // swap one silo at a time while the stack is locked
@@ -546,190 +462,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                   }
               }, swapTime);
 
-        // start the ice and water, or leave the figure dry when the browser has no WebGL
-        const waterline = () => (frame.height * dryRows) / layers.length;
-        const bergs = columnCentres.map((centre) => ({
-            centre,
-            mass: { lift: 0, sway: 0, tilt: 0, at: 0 },
-            tape: { centre: { x: 0, y: 0 }, tilt: 0 },
-        }));
-        const bergAt = (berg: number) => {
-            // reject a berg index outside the three columns
-            const found = bergs[berg];
-            if (!found) {
-                throw new TypeError(`missing berg ${berg}`);
-            }
-
-            return found;
-        };
-        let riders:
-            | { element: HTMLElement; berg: number; lift: number; rest: number; height: number }[]
-            | undefined;
-        let sunken: { element: HTMLElement; berg: number; depth: number }[] | undefined;
-
-        // float a heavy berg on the waves: heave and lean a little with the water under it, and slide slowly to and fro
-        const bobOf = (berg: number, seconds: number): Bob => {
-            // read the waves under the berg's centre
-            const { centre, mass: state } = bergAt(berg);
-            const x = frame.shift + (frame.width / boardCells) * centre;
-            const heave = Math.sin(seconds * 0.45 + berg * 2.1) * 1.5;
-            const slope = waveAt(x + 60, seconds) - waveAt(x - 60, seconds);
-            const target = {
-                lift: waveAt(x, seconds) * 0.6 + heave,
-                sway: Math.sin(seconds * 0.25 + berg * 2.4) * swayRange,
-                tilt:
-                    ((Math.atan2(slope, 120) * 180) / Math.PI) * 0.5 +
-                    Math.sin(seconds * 0.3 + berg * 1.4) * 0.7,
-            };
-
-            // ease the heavy berg toward what the water asks of it
-            const step = state.at === 0 ? 1 : 1 - Math.exp(-(seconds - state.at) / bergInertia);
-            state.at = seconds;
-            state.lift += (target.lift - state.lift) * step;
-            state.sway += (target.sway - state.sway) * step;
-            state.tilt += (target.tilt - state.tilt) * step;
-
-            return { lift: state.lift, sway: state.sway, tilt: state.tilt };
-        };
-
-        // return the bottom of a card's resting place, ignoring drag and float offsets
-        const restingBottom = (element: HTMLElement) => {
-            let bottom = element.offsetHeight;
-            for (
-                let node: Element | null = element;
-                node instanceof HTMLElement && node !== drawing;
-            ) {
-                bottom += node.offsetTop;
-                node = node.offsetParent;
-            }
-
-            return bottom;
-        };
-        let strips: SVGElement[] | undefined;
-
-        // stick a tape to where its cards actually are, then span, turn, and stretch it
-        const stick = (tape: SVGElement, gap: number) => {
-            // read the bergs on both sides of the gap and where the tape grips them
-            const left = bergAt(gap);
-            const right = bergAt(gap + 1);
-            const drops = tapeDrops[gap];
-            if (!drops) {
-                throw new TypeError(`missing tape drops for gap ${gap}`);
-            }
-
-            // find each tape end on its tilted card
-            const cell = frame.width / boardCells;
-            const middle = (frame.height / (rowCells * layers.length)) * rowCells * 1.5;
-            const half = (cell * columnWidth) / 2 - tapeGrip;
-            const anchor = (
-                berg: { tape: { centre: Point; tilt: number } },
-                side: number,
-                drop: number,
-            ) => {
-                const angle = (berg.tape.tilt * Math.PI) / 180;
-                const x = side * half;
-
-                return {
-                    x: berg.tape.centre.x + x * Math.cos(angle) - drop * Math.sin(angle),
-                    y: berg.tape.centre.y + x * Math.sin(angle) + drop * Math.cos(angle),
-                };
-            };
-            const from = anchor(left, 1, drops[0]);
-            const to = anchor(right, -1, drops[1]);
-            const rest = cell * (left.centre + right.centre) * 0.5;
-            const length = Math.hypot(to.x - from.x, to.y - from.y);
-            const turn = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
-            tape.style.translate = `${((from.x + to.x) / 2 - rest).toFixed(2)}px ${((from.y + to.y) / 2 - middle).toFixed(2)}px`;
-            tape.style.rotate = `${turn.toFixed(2)}deg`;
-            tape.style.scale = `${(length / tapeLength).toFixed(4)} 1`;
-        };
+        // start the water, or leave the figure dry when the browser has no WebGL
         measure();
         try {
-            const centres = columnCentres.map((centre) => centre / boardCells);
-            ice = new Ice(iceCanvas, centres, !isStill && !isWeakGraphics(), bobOf, (bobs) => {
-                // collect the cards riding the bergs and the cards sunk inside them, once
-                riders ??= [...figure.querySelectorAll<HTMLElement>("[data-bob]")].map(
-                    (element) => ({
-                        element,
-                        berg: Number(element.dataset["bob"]),
-                        lift: 0,
-                        rest: restingBottom(element),
-                        height: element.offsetHeight,
-                    }),
-                );
-                sunken ??= [...figure.querySelectorAll<HTMLElement>("[data-sunk]")].map(
-                    (element) => ({
-                        element,
-                        berg: Number(element.dataset["sunk"]),
-                        depth: Number(element.dataset["depth"]),
-                    }),
-                );
-                const cell = frame.width / boardCells;
-                const bobAt = (berg: number) => {
-                    // reject a card riding a berg the ice does not float
-                    const bob = bobs[berg];
-                    if (!bob) {
-                        throw new TypeError(`missing bob for berg ${berg}`);
-                    }
-
-                    return bob;
-                };
-
-                // read where each showing silo is dragged or springing home to, less its centring, before any writes
-                const drags = riders.map((rider) => {
-                    // skip hidden silos
-                    const card = rider.element.parentElement;
-                    if (!card) {
-                        throw new TypeError("a riding card has no silo");
-                    }
-                    if (card.style.opacity === "0") {
-                        return { rider, drag: undefined };
-                    }
-
-                    // read the rendered offset
-                    const offset = new DOMMatrixReadOnly(getComputedStyle(card).transform);
-
-                    return { rider, drag: { x: offset.m41, y: offset.m42 + rider.height / 2 } };
-                });
-
-                // float each vendor card low above its berg, moving with it
-                for (const { rider, drag } of drags) {
-                    // move the rider with its berg
-                    const bob = bobAt(rider.berg);
-                    const berg = bergAt(rider.berg);
-                    const sink = waterline() - rider.rest + rider.height * cardDraft;
-                    rider.lift = sink + bob.lift;
-                    berg.tape.tilt = bob.tilt;
-                    rider.element.style.setProperty("--lift", `${rider.lift.toFixed(2)}px`);
-                    rider.element.style.setProperty("--sway", `${bob.sway.toFixed(2)}px`);
-                    rider.element.style.setProperty("--tilt", `${bob.tilt.toFixed(2)}deg`);
-
-                    // hold the showing silo's tapes where it floats, dragged or not
-                    if (drag) {
-                        berg.tape.centre = {
-                            x: cell * berg.centre + bob.sway + drag.x,
-                            y: rider.rest - rider.height + rider.lift + drag.y,
-                        };
-                    }
-                }
-                strips ??= [...figure.querySelectorAll<SVGElement>("[data-tape]")];
-                for (const tape of strips) {
-                    stick(tape, Number(tape.dataset["tape"]));
-                }
-
-                // swing each sunk card around its berg's pivot on the waterline
-                const row = frame.height / layers.length;
-                for (const card of sunken) {
-                    const bob = bobAt(card.berg);
-                    const angle = (bob.tilt * Math.PI) / 180;
-                    const depth = row * (card.depth + 0.5);
-                    const x = bob.sway - depth * Math.sin(angle);
-                    const y = bob.lift + depth * Math.cos(angle) - depth;
-                    card.element.style.translate = `${x.toFixed(2)}px ${y.toFixed(2)}px`;
-                    card.element.style.rotate = `${bob.tilt.toFixed(2)}deg`;
-                }
-            });
-            ice.place(waterline(), frame.height - waterline(), frame.shift);
             water = new Water(
                 canvas,
                 palette(),
@@ -737,32 +472,27 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 !isStill && !isWeakGraphics(),
                 follow,
             );
-            if (!isStill) {
-                sparks = new Sparks(sparkCanvas);
-            }
+            measure();
             water.shader.request();
         } catch (error) {
             log.error("water.render.failed", telemetry.exceptionAttributes(error, false));
         }
 
-        // repaint on theme changes and keep the ice and water on the waterline through resizes
+        // repaint on theme changes and keep the water on the waterline through resizes
         const repaint = () => water?.paint(palette());
         const themes = new MutationObserver(repaint);
         themes.observe(document.documentElement, { attributeFilter: ["data-theme"] });
         scheme.addEventListener("change", repaint);
         const resize = new ResizeObserver(() => {
-            // measure the drawing again, forget the riders' resting places, and float everything anew
+            // measure the drawing again and rest the water on its line
             measure();
-            riders = undefined;
-            ice?.place(waterline(), frame.height - waterline(), frame.shift);
             water?.place(waterlineOf(stack()));
         });
         resize.observe(drawing);
 
-        // pause the ice, the water and every animation while the figure is off screen
+        // pause the water and every animation while the figure is off screen
         const sight = new IntersectionObserver((entries) => {
             for (const entry of entries) {
-                ice?.shader.show(entry.isIntersecting);
                 water?.shader.show(entry.isIntersecting);
                 figure.toggleAttribute("data-asleep", !entry.isIntersecting);
             }
@@ -777,10 +507,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             resize.disconnect();
             scheme.removeEventListener("change", repaint);
             clearTimeout(settle);
-            clearTimeout(calm);
             clearInterval(swapping);
-            sparks?.stop();
-            ice?.shader.dispose();
             water?.shader.dispose();
         };
     });
@@ -852,24 +579,34 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 )}
             </For>
 
-            {/* drift flotsam along the waterline, in front of the cards and under the water, once it has been calm a while */}
-            <Flotsam isAdrift={isAdrift()} surfacedAt={surfacedAt()} waterline="var(--waterline)" />
-
             {/* draw both configurations in the six middle columns */}
             <div ref={drawingElement} {...stylex.attrs(lattice.ruleRight, styles.drawing)}>
-                <canvas
-                    ref={iceCanvasElement}
-                    aria-hidden="true"
-                    {...stylex.attrs(styles.ice, !isPainted() && styles.unpainted)}
-                />
+                {/* raise each iceberg's tip above the waterline behind the cards, sinking it as the water drains */}
+                {columnLefts.map((left, column) => (
+                    <svg
+                        aria-hidden="true"
+                        viewBox="0 0 100 60"
+                        preserveAspectRatio="none"
+                        style={{
+                            left: `calc(${tokens.cell} * ${left})`,
+                            width: `calc(${tokens.cell} * ${columnWidth})`,
+                            top: `calc(${tokens.cellRow} * ${dryRows * 9 - 13})`,
+                            height: `calc(${tokens.cellRow} * 13)`,
+                            opacity: "calc(1 - var(--reveal-2))",
+                            translate: "0 calc(var(--reveal-2) * 30%)",
+                        }}
+                        {...stylex.attrs(styles.tip)}
+                    >
+                        <polygon points={tips[column] ?? ""} {...stylex.attrs(styles.tipFace)} />
+                        <path d={`M${facets[column] ?? ""}`} {...stylex.attrs(styles.tipFacet)} />
+                    </svg>
+                ))}
 
                 {/* place every entity on its row and column */}
-                {/* sink each silo's hidden layers inside its berg, showing only the silo that rides it now */}
-                {columnLefts.map((left, berg) =>
+                {/* sink each silo's hidden layers under its column, showing only the silo on top of it now */}
+                {columnLefts.map((left, column) =>
                     [0, 1, 2, 3].map((index) => (
                         <div
-                            data-sunk={String(berg)}
-                            data-depth={String(index)}
                             style={{
                                 left: `calc(${tokens.cell} * ${left})`,
                                 width: `calc(${tokens.cell} * ${columnWidth})`,
@@ -878,13 +615,15 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             }}
                             {...stylex.attrs(styles.column, styles.sunkSlot)}
                         >
-                            {silosOf(berg).map((id) => (
+                            {silosOf(column).map((id) => (
                                 <div
                                     class={
                                         stylex.attrs(
                                             styles.sunkCard,
-                                            siloOn(present(todayScenes[today()], "scene"), berg) !==
-                                                id && styles.sunkAway,
+                                            siloOn(
+                                                present(todayScenes[today()], "scene"),
+                                                column,
+                                            ) !== id && styles.sunkAway,
                                         ).class
                                     }
                                 >
@@ -902,6 +641,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     <DuctTape
                         label={tapeLabel(index, present(todayScenes[today()], "scene"))}
                         gap={index}
+                        turn={tapeTurns[index] ?? 0}
                         left={`calc(${tokens.cell} * ${(centreOf(index) + centreOf(index + 1)) / 2})`}
                         style={[styles.tape, isOpen() ? styles.tapeGone : styles.tapeBack]}
                     />
@@ -910,7 +650,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     <div
                         style={{
                             "--row": String(dryRows + index + 1),
-                            "--cascade": `${820 + index * 220}ms`,
+                            "--cascade": `${240 + index * 80}ms`,
                             "--band-reveal": `var(--reveal-${dryRows + index})`,
                             "pointer-events": isOpen() ? "auto" : "none",
                             ...growOutOfPlates(`var(--reveal-${dryRows + index})`),
@@ -975,9 +715,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 {...stylex.attrs(styles.water, !isPainted() && styles.unpainted)}
             />
 
-            {/* glow sparks over the water */}
-            <canvas ref={sparkCanvasElement} aria-hidden="true" {...stylex.attrs(styles.sparks)} />
-
             {/* tint the lit layer across the drawing and its legend row, fading from row to row */}
             {[...layers.keys()].map((index) => (
                 <span
@@ -1013,30 +750,30 @@ function activeOf(scene: number, band: number): readonly string[] {
 }
 
 /** Return the centre of a board column, in cells. */
-function centreOf(berg: number): number {
-    const centre = columnCentres[berg];
+function centreOf(column: number): number {
+    const centre = columnCentres[column];
     if (centre === undefined) {
-        throw new TypeError(`missing column ${berg}`);
+        throw new TypeError(`missing column ${column}`);
     }
 
     return centre;
 }
 
-/** Return the silos that take turns riding a berg. */
-function silosOf(berg: number): readonly string[] {
-    const silos = slotApps[berg];
+/** Return the silos that take turns on a column. */
+function silosOf(column: number): readonly string[] {
+    const silos = slotApps[column];
     if (!silos) {
-        throw new TypeError(`no silos ride berg ${berg}`);
+        throw new TypeError(`no silos ride column ${column}`);
     }
 
     return silos;
 }
 
-/** Return the silo riding a berg in a locked scene. */
-function siloOn(scene: (typeof todayScenes)[number], berg: number): string {
-    const card = scene.lower[berg];
+/** Return the silo riding a column in a locked scene. */
+function siloOn(scene: (typeof todayScenes)[number], column: number): string {
+    const card = scene.lower[column];
     if (!card) {
-        throw new TypeError(`no silo rides berg ${berg}`);
+        throw new TypeError(`no silo rides column ${column}`);
     }
 
     return card.id;
@@ -1165,9 +902,9 @@ function Swap(properties: {
     );
 }
 
-/** Return the label taped across a gap between two icebergs, picked by the pair of silos it joins, so any swap on either side retapes it. */
+/** Return the label taped across a gap between two columns, picked by the pair of silos it joins, so any swap on either side retapes it. */
 function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
-    // place each silo in its iceberg's turn, and step through the labels by coprime strides
+    // place each silo in its column's turn, and step through the labels by coprime strides
     const left = silosOf(gap).indexOf(siloOn(scene, gap));
     const right = silosOf(gap + 1).indexOf(siloOn(scene, gap + 1));
     const label = tapeLabels[(left + right * 3 + gap * 2) % tapeLabels.length];
@@ -1254,12 +991,12 @@ const styles = stylex.create({
         [still]: { transition: "none" },
     },
     swapReturn: {
-        transition: `opacity 300ms ${easing} 1900ms`,
+        transition: `opacity 300ms ${easing} 600ms`,
         [still]: { transition: "none" },
     },
     swapLeave: {
         opacity: 0,
-        transition: `opacity 250ms ${easing} 1700ms`,
+        transition: `opacity 250ms ${easing} 500ms`,
         [still]: { transition: "none" },
     },
     claimText: {
@@ -1318,7 +1055,7 @@ const styles = stylex.create({
     },
     sunkCard: {
         gridArea: "1 / 1",
-        transition: `translate 900ms ${easing} 400ms`,
+        transition: `translate 500ms ${easing} 200ms`,
         width: "100%",
         [still]: { transition: "none" },
     },
@@ -1345,19 +1082,28 @@ const styles = stylex.create({
         transform: "translateY(-50%)",
         zIndex: 1,
     },
+    tip: {
+        overflow: "visible",
+        pointerEvents: "none",
+        position: "absolute",
+        zIndex: 0,
+    },
+    tipFace: {
+        fill: `color-mix(in srgb, ${color.card} 94%, ${tokens.signalInk})`,
+        stroke: `color-mix(in srgb, ${tokens.signalInk} 28%, transparent)`,
+        strokeLinejoin: "round",
+        strokeWidth: 1,
+        vectorEffect: "non-scaling-stroke",
+    },
+    tipFacet: {
+        fill: "none",
+        stroke: `color-mix(in srgb, ${tokens.signalInk} 12%, transparent)`,
+        strokeWidth: 1,
+        vectorEffect: "non-scaling-stroke",
+    },
     tape: {
         top: `calc(${tokens.cellRow} * 13.5)`,
         [mobile]: { display: "none" },
-    },
-    ice: {
-        height: "100%",
-        inset: 0,
-        pointerEvents: "none",
-        position: "absolute",
-        transition: `opacity 400ms ${easing}`,
-        width: "100%",
-        zIndex: 0,
-        [still]: { transition: "none" },
     },
     plates: {
         display: "flex",
@@ -1410,15 +1156,7 @@ const styles = stylex.create({
         transition: `opacity 400ms ${easing} 100ms`,
     },
     tapeBack: {
-        transition: `opacity 400ms ${easing} 2100ms`,
-    },
-    sparks: {
-        height: "100%",
-        inset: 0,
-        pointerEvents: "none",
-        position: "absolute",
-        width: "100%",
-        zIndex: 3,
+        transition: `opacity 300ms ${easing} 600ms`,
     },
     water: {
         pointerEvents: "none",

@@ -144,6 +144,7 @@ export function Band(properties: {
 export function DuctTape(properties: {
     label: string;
     gap: number;
+    turn: number;
     left: string;
     style?: stylex.Styles;
 }) {
@@ -164,7 +165,7 @@ export function DuctTape(properties: {
             aria-hidden="true"
             viewBox="0 0 72 26"
             data-tape={properties.gap}
-            style={{ left: properties.left }}
+            style={{ left: properties.left, rotate: `${properties.turn}deg` }}
             {...stylex.attrs(styles.tape, properties.style)}
         >
             {/* peel the old strip off and slap a fresh one on whenever the label changes */}
@@ -182,6 +183,8 @@ export function DuctTape(properties: {
                             y="15.5"
                             text-anchor="middle"
                             dominant-baseline="central"
+                            textLength={label.length > 6 ? "52" : undefined}
+                            lengthAdjust="spacingAndGlyphs"
                             {...stylex.attrs(styles.tapeText)}
                         >
                             {label}
@@ -193,18 +196,14 @@ export function DuctTape(properties: {
     );
 }
 
-/** A fresh strip of duct tape slapped across a gap: dropped on large and twisted, then pressed flat. */
+/** A fresh strip of duct tape pressed onto a gap from slightly larger. */
 const slap = stylex.keyframes({
-    from: { opacity: 0, transform: "scale(1.4) rotate(-10deg)" },
-    "60%": { opacity: 1, transform: "scale(0.95) rotate(2deg)" },
-    to: { opacity: 1, transform: "none" },
+    from: { opacity: 0, transform: "scale(1.06)" },
 });
 
-/** A worn strip of duct tape peeling away from its left end as its silo sinks: lifting, curling, and falling off. */
+/** A worn strip of duct tape fading off as its silo sinks. */
 const peel = stylex.keyframes({
-    from: { opacity: 1, transform: "none" },
-    "40%": { opacity: 1, transform: "rotate(-14deg) scale(0.97)" },
-    to: { opacity: 0, transform: "translate(6px, 18px) rotate(-32deg) scale(0.85)" },
+    to: { opacity: 0 },
 });
 
 /** The card styles. */
@@ -416,22 +415,20 @@ const styles = stylex.create({
         vectorEffect: "non-scaling-stroke",
     },
     tapeFresh: {
-        animationDelay: "1100ms",
-        animationDuration: "450ms",
+        animationDelay: "400ms",
+        animationDuration: "240ms",
         animationFillMode: "backwards",
         animationName: slap,
-        animationTimingFunction: "cubic-bezier(0.3, 1.4, 0.5, 1)",
+        animationTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
         transformBox: "fill-box",
         transformOrigin: "center",
         "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     tapeWorn: {
-        animationDuration: "500ms",
+        animationDuration: "240ms",
         animationFillMode: "forwards",
         animationName: peel,
-        animationTimingFunction: "cubic-bezier(0.5, 0, 0.9, 0.6)",
-        transformBox: "fill-box",
-        transformOrigin: "0% 50%",
+        animationTimingFunction: "ease",
         "@media (prefers-reduced-motion: reduce)": { animationName: "none", opacity: 0 },
     },
     tapeText: {
