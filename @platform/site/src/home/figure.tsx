@@ -50,6 +50,8 @@ type Layer = {
     claim: Record<Stack, string>;
     /** What the layer is made of. */
     detail: Record<Stack, string>;
+    /** What the layer means for you, as a line under the claim. */
+    note: Record<Stack, string>;
     /** What the layer costs you, as a line on the bill counted from the scene's people and vendors. */
     item: Record<Stack, (count: Count) => string>;
 };
@@ -68,6 +70,7 @@ const layers: readonly Layer[] = [
         name: "Users",
         claim: { today: "Juggle logins", destack: "Sign in once" },
         detail: { today: "Their accounts", destack: "One account, Every agent" },
+        note: { today: "another account with every new app", destack: "one account for all apps" },
         item: {
             today: ({ people, vendors }) => `${people * vendors} logins`,
             destack: ({ people }) => `${people} accounts`,
@@ -77,6 +80,10 @@ const layers: readonly Layer[] = [
         name: "Apps",
         claim: { today: "Duct-tape your apps", destack: "Remix your apps" },
         detail: { today: "Closed apps", destack: "TS, HTML, CSS" },
+        note: {
+            today: "features arrive when they ship them",
+            destack: "features arrive when you ask for them",
+        },
         item: {
             today: ({ people, vendors }) => `${people * vendors} licences`,
             destack: () => "0 licences",
@@ -86,6 +93,10 @@ const layers: readonly Layer[] = [
         name: "Services",
         claim: { today: "Wait on their roadmap", destack: "Build on one API" },
         detail: { today: "Private APIs", destack: "HTTP, OpenAPI" },
+        note: {
+            today: "integrations break when their API changes",
+            destack: "every app calls the same API",
+        },
         item: {
             today: ({ vendors }) => `${vendors} APIs`,
             destack: () => "1 API",
@@ -95,6 +106,10 @@ const layers: readonly Layer[] = [
         name: "Data",
         claim: { today: "Rent your data", destack: "Own your data" },
         detail: { today: "Vendor formats", destack: "SQL, JSON, MD, S3" },
+        note: {
+            today: "exports only in the formats they allow",
+            destack: "queries in any format you like",
+        },
         item: {
             today: ({ vendors }) => `${vendors} silos`,
             destack: () => "1 data store",
@@ -104,12 +119,14 @@ const layers: readonly Layer[] = [
         name: "Source",
         claim: { today: "Take it on trust", destack: "Check it yourself" },
         detail: { today: "Closed source", destack: "Git, npm" },
+        note: { today: "code you can't read or change", destack: "code you can read and change" },
         item: { today: ({ vendors }) => `${vendors} black boxes`, destack: () => "0 black boxes" },
     },
     {
         name: "Hosts",
         claim: { today: "Run where they say", destack: "Run where you like" },
         detail: { today: "Their cloud", destack: "Node, Docker, Workers" },
+        note: { today: "prices set by their margins", destack: "prices set by your hardware" },
         item: {
             today: ({ vendors }) => `${vendors} compute bills`,
             destack: () => "1 compute bill",
@@ -575,6 +592,14 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                 style={styles.detailText}
                             />
                         </span>
+                        {/* say what the layer means for you under the claim */}
+                        <Swap
+                            row={index()}
+                            isOpen={isOpen()}
+                            today={layer.note.today}
+                            destack={layer.note.destack}
+                            style={styles.noteText}
+                        />
                     </div>
                 )}
             </For>
@@ -1109,6 +1134,13 @@ const styles = stylex.create({
         display: "flex",
         gap: "0.375rem",
         justifyContent: "flex-end",
+    },
+    noteText: {
+        color: color.foreground,
+        opacity: 0.72,
+        fontSize: "0.8125rem",
+        lineHeight: "1.125rem",
+        whiteSpace: "nowrap",
     },
     itemText: {
         fontFamily: tokens.monoFont,

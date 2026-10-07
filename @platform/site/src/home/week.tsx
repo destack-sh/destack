@@ -66,6 +66,15 @@ const waiting: readonly (readonly [person: "Friend" | "Me", app: string, text: s
 /** The tint of each person's avatar. */
 const tints = { Friend: "#5b7f2e", Me: "#2f7d8c" };
 
+/** Draw what a rented part of the artifact fails to do, marked the same way everywhere. */
+function Issue(properties: { children: string }) {
+    return (
+        <span data-component="Issue" {...stylex.attrs(styles.issue)}>
+            {properties.children}
+        </span>
+    );
+}
+
 /** Draw a message of yours as a rounded pill on the right. */
 function UserMessage(properties: { children: JSX.Element }) {
     return (
@@ -328,9 +337,7 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                 </span>
                             ) : (
                                 <span data-service="1" {...stylex.attrs(styles.connectors)}>
-                                    <span {...stylex.attrs(styles.snapshot)}>
-                                        Snapshot from 16:40 · version 4 of 4
-                                    </span>
+                                    <Issue>No access to your friend's calendar</Issue>
                                 </span>
                             )}
                         </Fade>
@@ -398,7 +405,11 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                         <section data-component="DueList" {...stylex.attrs(styles.panel)}>
                             <p {...stylex.attrs(styles.panelHead)}>
                                 Due this week
-                                <span {...stylex.attrs(styles.count)}>3</span>
+                                {properties.isOpenAt(2) ? (
+                                    <span {...stylex.attrs(styles.count)}>3</span>
+                                ) : (
+                                    <Issue>Checks reset</Issue>
+                                )}
                             </p>
                             <Fade isOpen={properties.isOpenAt(2)} style={styles.stack}>
                                 {tasks.map(([title, due]) => (
@@ -457,9 +468,11 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                         >
                             <p {...stylex.attrs(styles.panelHead)}>
                                 Waiting on you
-                                <span {...stylex.attrs(styles.count)}>
-                                    {properties.isOpenAt(2) ? "2" : "1"}
-                                </span>
+                                {properties.isOpenAt(2) ? (
+                                    <span {...stylex.attrs(styles.count)}>2</span>
+                                ) : (
+                                    <Issue>Gmail only</Issue>
+                                )}
                             </p>
                             <Fade
                                 isOpen={properties.isOpenAt(2)}
@@ -486,29 +499,18 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
                                             <span {...stylex.attrs(styles.threadText)}>{text}</span>
                                         </div>
                                     ))}
-                                {properties.isOpenAt(2) ? undefined : (
-                                    <p
-                                        data-service="1"
-                                        {...stylex.attrs(styles.row, styles.absent)}
-                                    >
-                                        Changes rebuild the whole view
-                                    </p>
-                                )}
                             </Fade>
                         </section>
                         <section data-component="RippleList" {...stylex.attrs(styles.panel)}>
                             <p {...stylex.attrs(styles.panelHead)}>
                                 Moving the demo
-                                <span
-                                    {...stylex.attrs(
-                                        styles.count,
-                                        properties.isOpenAt(2)
-                                            ? styles.countDone
-                                            : styles.countLeft,
-                                    )}
-                                >
-                                    {properties.isOpenAt(2) ? "1 change" : "2 by hand"}
-                                </span>
+                                {properties.isOpenAt(2) ? (
+                                    <span {...stylex.attrs(styles.count, styles.countDone)}>
+                                        1 change
+                                    </span>
+                                ) : (
+                                    <Issue>2 by hand</Issue>
+                                )}
                             </p>
                             <Fade isOpen={properties.isOpenAt(2)} style={styles.stack}>
                                 {ripple.map(([done, chore, connector]) => (
@@ -858,11 +860,6 @@ const styles = stylex.create({
         display: "flex",
         gap: "0.375rem",
     },
-    snapshot: {
-        color: color.mutedForeground,
-        fontSize: "0.72rem",
-        whiteSpace: "nowrap",
-    },
     days: {
         borderColor: tokens.rule,
         borderRadius: "8px",
@@ -963,10 +960,6 @@ const styles = stylex.create({
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
     },
-    absent: {
-        color: color.mutedForeground,
-        fontWeight: 500,
-    },
     passed: {
         color: "#3c8f58",
         display: "flex",
@@ -1021,16 +1014,30 @@ const styles = stylex.create({
         fontWeight: 500,
         marginLeft: "auto",
     },
+    issue: {
+        alignItems: "center",
+        color: "#a15c07",
+        display: "inline-flex",
+        fontSize: "0.72rem",
+        fontWeight: 600,
+        gap: "0.375rem",
+        marginLeft: "auto",
+        whiteSpace: "nowrap",
+        "::before": {
+            backgroundColor: "#e0a030",
+            borderRadius: "50%",
+            content: "''",
+            height: "0.375rem",
+            width: "0.375rem",
+        },
+    },
     countDone: {
         color: "#3c8f58",
         fontWeight: 600,
     },
-    countLeft: {
-        color: "#b03a2e",
-        fontWeight: 600,
-    },
     stack: {
         display: "grid",
+        minWidth: 0,
     },
     threads: {
         display: "grid",
