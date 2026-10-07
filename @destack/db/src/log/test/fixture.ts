@@ -52,5 +52,19 @@ export const lease = defineTable("lease", {
     expiresAt: integer("expires_at").notNull(),
 });
 
+/** Readings that are only ever appended, pruned once sealed elsewhere. */
+export const reading = defineTable(
+    "reading",
+    {
+        /** The reading identity. */
+        id: text("id").primaryKey(),
+        /** The folder the reading belongs to. */
+        scope: text("scope").notNull(),
+        /** The value read. */
+        value: integer("value").notNull(),
+    },
+    { log: { appendOnly: true } },
+);
+
 /** The log example's tables. */
-export const changeTables = [note, revision, lease];
+export const changeTables = [note, revision, lease, reading];

@@ -274,10 +274,11 @@ An outermost transaction that loses a serialization race runs again up to five t
 ```ts
 await database.transaction(async (transaction) => {
     const [row] = await transaction.select().from(tally).where(eq(tally.name, "a"));
-    await transaction.update(tally).set({ value: row.value + 1 }).where(eq(tally.name, "a"));
-}); // a concurrent increment of the same row commits first, then this one reads it and runs again
-// a race: PostgreSQL 40001 or 40P01, or a busy SQLite database
-// running out answers CONCURRENT_UPDATE as SERVICE_UNAVAILABLE, which callers retry
+    await transaction
+        .update(tally)
+        .set({ value: row.value + 1 })
+        .where(eq(tally.name, "a"));
+}); 
 ```
 
 ## Statements
@@ -386,6 +387,16 @@ for await (const page of database.log.follow(selection, signal)) {
 }
 await database.log.advance("notes/published", consumed, Date.now() + maxLag);
 await database.log.drop("notes/published");
+```
+
+### Append-only tables
+
+`log: { appendOnly: true }` logs a table's insertions alone: updates are refused, and the deletions that prune rows once they are kept elsewhere stay unlogged, so readers following the log see each row once.
+
+```ts
+export const event = defineTable("event", columns, { log: { appendOnly: true } });
+await database.update(event).set({ value: 3 }); // refused: append-only table
+await database.delete(event).where(lt(event.time, sealedBefore)); // no log entries
 ```
 
 ## Log origins

@@ -103,7 +103,11 @@ export function unappliedTables(
 
 /** Describe a state's log retention and scope column. */
 export function logOf(state: TableState): string {
-    return canonicalize({ retention: state.log?.retention, scope: state.log?.scope });
+    return canonicalize({
+        retention: state.log?.retention,
+        appendOnly: state.log?.appendOnly,
+        scope: state.log?.scope,
+    });
 }
 
 /** Report whether an applied state covers a declaration. */

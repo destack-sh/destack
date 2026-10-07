@@ -78,6 +78,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
     return {
         table: definition.sqlName,
         retention: definition.retention,
+        ...(definition.isAppendOnly ? { appendOnly: true as const } : {}),
         key: loggedKey(table).map((column) => column.definition.name),
         columns: recorded.map((column) => column.name),
         exact: recorded

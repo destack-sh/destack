@@ -12,6 +12,8 @@ export const ChangeDescription = defineSchema(
         table: schema.string().min(1),
         /** Whether changes outlive the compaction window. */
         retention: schema.enum(["window", "history"]),
+        /** Whether rows are only ever inserted: updates are refused and deletes are not logged. */
+        appendOnly: schema.literal(true).exactOptional(),
         /** The primary key's SQL column names in key order. */
         key: schema.array(schema.string().min(1)).min(1),
         /** The recorded SQL column names, without sensitive columns. */

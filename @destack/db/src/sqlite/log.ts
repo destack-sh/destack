@@ -84,6 +84,20 @@ function sqliteLogTriggers(
     ]);
     const prefix = `${target}__change`;
 
+    // log only the insertions of an append-only table, refusing its updates and leaving its deletions unlogged
+    const insert = `CREATE TRIGGER ${quote(`${prefix}_insert`)} AFTER INSERT ON ${table} BEGIN
+            ${scoped}
+            ${logEntry(description, "'insert'", "NEW", name)}
+        END`;
+    if (description.appendOnly === true) {
+        return [
+            insert,
+            `CREATE TRIGGER ${quote(`${prefix}_update`)} BEFORE UPDATE ON ${table} BEGIN
+                SELECT RAISE(ABORT, ${literal(`append-only table: ${description.table}`)});
+            END`,
+        ];
+    }
+
     // record a key or scope change as a deletion and an insertion
     return [
         `CREATE TRIGGER ${quote(`${prefix}_insert`)} AFTER INSERT ON ${table} BEGIN

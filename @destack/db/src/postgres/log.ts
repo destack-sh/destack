@@ -21,7 +21,10 @@ const COMMIT_LOCK = 471_026_381;
 export const postgresLog: LogDialect = {
     create: (epoch, scope) => createPostgresLog(epoch, scope),
     install: (table, description) => postgresLogTriggers(table, description),
-    remove: (table) => [`DROP TRIGGER IF EXISTS ${quote("destack_change")} ON ${quote(table)}`],
+    remove: (table) => [
+        `DROP TRIGGER IF EXISTS ${quote("destack_change")} ON ${quote(table)}`,
+        `DROP TRIGGER IF EXISTS ${quote("destack_append")} ON ${quote(table)}`,
+    ],
 };
 
 /** Create the PostgreSQL log, its horizon and its functions. */
@@ -179,6 +182,14 @@ function recordedImage(side: "old" | "new"): string {
             END IF;`;
 }
 
+/** Create the function refusing an update of an append-only table. */
+function createRefusal(): string {
+    return `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_append`)}() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            RAISE EXCEPTION 'append-only table: %', TG_TABLE_NAME;
+        END $$`;
+}
+
 /** Generate the trigger on a table's relation calling the shared PostgreSQL function. */
 function postgresLogTriggers(target: string, description: ChangeDescription): string[] {
     // write the column lists as array literals
@@ -193,6 +204,21 @@ function postgresLogTriggers(target: string, description: ChangeDescription): st
         literal(array(description.binary)),
         ...(description.scope === undefined ? [] : [literal(description.scope)]),
     ];
+
+    // log only the insertions of an append-only table, refusing its updates and leaving its deletions unlogged
+    if (description.appendOnly === true) {
+        return [
+            createRefusal(),
+            `CREATE TRIGGER ${quote("destack_change")}
+                AFTER INSERT ON ${table}
+                FOR EACH ROW
+                EXECUTE FUNCTION ${quote(`${LOG}_record`)}(${parameters.join(", ")})`,
+            `CREATE TRIGGER ${quote("destack_append")}
+                BEFORE UPDATE ON ${table}
+                FOR EACH ROW
+                EXECUTE FUNCTION ${quote(`${LOG}_append`)}()`,
+        ];
+    }
 
     return [
         `CREATE TRIGGER ${quote("destack_change")}

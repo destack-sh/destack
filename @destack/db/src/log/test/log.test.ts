@@ -2,8 +2,8 @@ import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
-import { Change, defineTable, eq, text } from "../../index.ts";
-import { changeTables, lease, note, revision } from "./fixture.ts";
+import { Change, defineTable, eq, TABLE, text } from "../../index.ts";
+import { changeTables, lease, note, reading, revision } from "./fixture.ts";
 
 /** Open a migrated test database. */
 async function open(dialect: (typeof TEST_DIALECTS)[number], kind?: "memory" | "file") {
@@ -465,6 +465,44 @@ test.for(TEST_DIALECTS)(
             ["insert", "space-a"],
             ["update", "space-a"],
             ["delete", "space-a"],
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "log the insertions of an append-only %s table alone, refusing its updates",
+    async (dialect) => {
+        const { database } = await open(dialect);
+
+        // insert two readings, delete the first and try to change the second
+        await database.insert(reading).values([
+            { id: "a", scope: "inbox", value: 1 },
+            { id: "b", scope: "inbox", value: 2 },
+        ]);
+        await database.delete(reading).where(eq(reading.id, "a"));
+        const updated = await database
+            .update(reading)
+            .set({ value: 3 })
+            .where(eq(reading.id, "b"))
+            .then(
+                () => "updated",
+                (error: unknown) => String(error instanceof Error ? (error.cause ?? error) : error),
+            );
+
+        // the log keeps both insertions and no deletion, and the second reading is unchanged
+        const logged = await database.log.read({ tables: [reading], after: 0 });
+        const kept = await database.select({ id: reading.id, value: reading.value }).from(reading);
+        expect([
+            logged.changes.map((change) => [change.operation, change.key]),
+            updated.includes(`append-only table: ${reading[TABLE].sqlName}`),
+            kept,
+        ]).toEqual([
+            [
+                ["insert", { id: "a" }],
+                ["insert", { id: "b" }],
+            ],
+            true,
+            [{ id: "b", value: 2 }],
         ]);
     },
 );

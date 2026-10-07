@@ -119,6 +119,7 @@ export class Table<
             {
                 constraints: () => [],
                 retention: state.log?.retention ?? "none",
+                isAppendOnly: state.log?.appendOnly === true,
                 moved: {},
                 convert: {},
                 aggregates: [],
@@ -150,6 +151,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly columns: Columns;
     /** How long the log keeps the table's changes. */
     readonly retention: ChangeRetention;
+    /** Whether rows are only ever inserted, deletes going unlogged. */
+    readonly isAppendOnly: boolean;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -191,6 +194,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.sqlName = identity.sqlName;
         this.columns = columns;
         this.retention = declaration.retention;
+        this.isAppendOnly = declaration.isAppendOnly;
         this.moved = declaration.moved;
         this.convert = declaration.convert;
         this.aggregates = declaration.aggregates;
@@ -412,6 +416,8 @@ interface TableDeclaration {
     readonly constraints: () => readonly TableConstraint[];
     /** How long the log keeps the table's changes. */
     readonly retention: ChangeRetention;
+    /** Whether rows are only ever inserted, deletes going unlogged. */
+    readonly isAppendOnly: boolean;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -476,6 +482,8 @@ export interface TableOptions<Columns> {
     readonly log?: {
         /** How long the log keeps the changes, the window by default. */
         readonly retention?: Exclude<ChangeRetention, "none">;
+        /** Whether rows are only ever inserted, as events are: updates are refused and the deletes pruning old rows are not logged. */
+        readonly appendOnly?: boolean;
     };
     /** The properties of a single-parent tree per scope. */
     readonly tree?: TreeColumns<keyof Columns & string>;
@@ -597,6 +605,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         {
             constraints: () => options.constraints?.(columns) ?? [],
             retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
+            isAppendOnly: options.log?.appendOnly === true,
             moved: options.moved ?? {},
             convert: options.convert ?? {},
             aggregates: options.aggregates ?? [],
@@ -626,6 +635,7 @@ export function alias<Definition extends Table, Name extends string>(
         {
             constraints: () => [],
             retention: source[TABLE].retention,
+            isAppendOnly: source[TABLE].isAppendOnly,
             moved: source[TABLE].moved,
             convert: source[TABLE].convert,
             aggregates: source[TABLE].aggregates,
