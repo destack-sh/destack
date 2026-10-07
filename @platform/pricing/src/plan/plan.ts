@@ -173,11 +173,12 @@ export const OPERATION_COSTS: readonly {
     { operation: "bucketRead", cost: CLOUDFLARE_COSTS.r2ClassB },
 ];
 
-/** Free: 1 GB of storage and 100 hours of one Durable Object's compute a month, stopping there, the usage paid by Destack. */
+/** Free: every account's default, 1 GB of storage and 100 hours of one Durable Object's compute a month, the usage paid by Destack. */
 export const FREE: ProductDefinition = {
     name: "Free",
     description: "1 GB of storage and 100 hours of compute a month.",
-    prices: monthly("free", { USD: 0, CAD: 0, EUR: 0, CHF: 0, GBP: 0 }),
+    isDefault: true,
+    prices: [],
     features: [
         storage.grant(1_000_000_000),
         compute.grant(100 * 60 * 60 * DURABLE_OBJECT_GIGABYTES),
@@ -244,7 +245,6 @@ function monthly(
         currency,
         unitAmount: fees[currency],
         includedUsage: fees[currency],
-        type: "recurring" as const,
         recurring: { interval: "month" as const, intervalCount: 1, usage: "licensed" as const },
     }));
 }

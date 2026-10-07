@@ -4,7 +4,7 @@ Declare Destack's plans as products, the units and operations it sells usage by 
 
 ## Plans
 
-`PLANS` lists Free, Go, Plus and Pro at 0, 8, 20 and 100 a month as finance products, priced in USD, CAD, EUR, CHF and GBP, each fee including as much usage.
+`PLANS` lists Free, every account's default product, and Go, Plus and Pro at 8, 20 and 100 a month, priced in USD, CAD, EUR, CHF and GBP, each fee including as much usage.
 
 ```ts
 import { ProductDefinition } from "@destack/finance/client";

@@ -1,6 +1,6 @@
 import { account, user } from "@destack/account/object";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { Cost, MeterReference } from "@destack/finance";
+import { Cost } from "@destack/finance";
 import { ProductDefinition } from "@destack/finance/client";
 import { FinanceFixture } from "@destack/finance/test";
 import { databaseStorage, METERS } from "@destack/observability/meter";
@@ -21,6 +21,7 @@ import {
     storage,
     support,
 } from "../src/index.ts";
+import { CatalogReference } from "@destack/finance";
 
 /** Read a price's margin over what it costs, in basis points. */
 function margin(price: bigint, paid: bigint): number {
@@ -45,8 +46,8 @@ test("rate each platform meter by exactly one unit, every priced unit and operat
         (meter) =>
             UNIT_SKUS.filter(
                 (sku) =>
-                    MeterReference.key(sku.definition.meter) ===
-                    MeterReference.key(meter.reference),
+                    CatalogReference.key(sku.definition.meter) ===
+                    CatalogReference.key(meter.reference),
             ).length,
     );
 
@@ -76,7 +77,7 @@ test("rate each platform meter by exactly one unit, every priced unit and operat
 });
 
 test.each(TEST_DIALECTS)(
-    "publish the plans as the platform account's products once, start the free plan at once and refuse a paid one without a payment provider on %s",
+    "publish the plans as the platform account's products once, grant every account Free as the default, and refuse Go without a payment provider on %s",
     async (dialect) => {
         // serve finance with the plans' features and SKUs and observability's meters, the platform and a buyer
         const finance = await FinanceFixture.open(dialect, [
@@ -107,7 +108,7 @@ test.each(TEST_DIALECTS)(
         });
         const { items: prices } = await operator.price.list({ accountId: PLATFORM });
 
-        // start Ada on the free plan, and refuse Go
+        // derive Ada's entitlements from Free, and refuse her Go
         const ada = finance.client(ADA);
         await ada.customer.create({
             accountId: BUYER,
@@ -120,12 +121,6 @@ test.each(TEST_DIALECTS)(
                 products.find((each) => each.name === name),
                 name,
             );
-        const started = await ada.checkoutSession.create({
-            accountId: BUYER,
-            requestId: RequestId.create(),
-            product: { scope: PLATFORM, id: plan("Free").id },
-            currency: "CHF",
-        });
         const refused = await refusal(
             ada.checkoutSession.create({
                 accountId: BUYER,
@@ -134,7 +129,7 @@ test.each(TEST_DIALECTS)(
                 currency: "CHF",
             }),
         );
-        await finance.control("customer");
+        await finance.entitle();
         const { items: entitlements } = await ada.entitlement.list({
             accountId: BUYER,
             orderBy: { feature: "asc" },
@@ -151,7 +146,6 @@ test.each(TEST_DIALECTS)(
                 .map((each) => [each.lookupKey, each.unitAmount, each.includedUsage])
                 .toSorted(([left], [right]) => String(left).localeCompare(String(right))),
             prices: prices.length,
-            started: started.status,
             refused,
             entitlements: entitlements.map((each) => [
                 each.feature,
@@ -162,8 +156,6 @@ test.each(TEST_DIALECTS)(
         }).toEqual({
             products: ["Free", "Go", "Plus", "Pro"],
             fees: [
-                ["free-cad", 0, 0],
-                ["free-usd", 0, 0],
                 ["go-cad", 1100, 1100],
                 ["go-usd", 800, 800],
                 ["plus-cad", 2800, 2800],
@@ -171,11 +163,10 @@ test.each(TEST_DIALECTS)(
                 ["pro-cad", 14_000, 14_000],
                 ["pro-usd", 10_000, 10_000],
             ],
-            prices: 4 * 5,
-            started: "complete",
+            prices: 3 * 5,
             refused: [
                 "PRECONDITION_FAILED",
-                "this universe takes no payments, so it sells only what charges nothing",
+                "this universe takes no payments, so it sells nothing",
             ],
             entitlements: [
                 ["capacityClasses", ["elastic", "machine"], null],
