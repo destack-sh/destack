@@ -21,18 +21,21 @@ function iconPlugin(): Plugin {
                 // parse the module
                 const [path = id] = id.split("?");
                 const parsed = parseSync(path, code);
-                if (parsed.errors.length) {
-                    throw new TypeError(`invalid icon source: ${id}`);
+                const [invalid] = parsed.errors;
+                if (invalid !== undefined) {
+                    return this.error(`invalid icon source: ${invalid.message}`);
                 }
 
                 // pass each literal-named icon its module's bodies, importing each module once
                 const imported = findIconImport(parsed.program);
                 const source = new RolldownMagicString(code);
                 const modules = new Map<string, string>();
+                const refuse = (reason: string, position: number): never =>
+                    this.error(reason, position);
                 new Visitor({
                     JSXOpeningElement(element) {
-                        // name the import of the element's icon module
-                        const name = readIconName(element, imported, id);
+                        // name the import of the element's icon module, failing the build at an unreadable one
+                        const name = readIconName(element, imported, refuse);
                         if (name === undefined) {
                             return;
                         }
@@ -128,11 +131,11 @@ function drawsIcon(element: ESTree.JSXOpeningElement, imported: IconImport): boo
     }
 }
 
-/** Read the literal name of an icon element without bodies, refusing one whose bodies the build cannot pass. */
+/** Read the literal name of an icon element without bodies, refusing one whose bodies the build cannot pass at its position. */
 function readIconName(
     element: ESTree.JSXOpeningElement,
     imported: IconImport,
-    id: string,
+    refuse: (reason: string, position: number) => never,
 ): { readonly value: string; readonly attribute: ESTree.JSXAttribute } | undefined {
     // leave other elements and icons with passed bodies as written
     const hasBodies = element.attributes.some(
@@ -143,13 +146,14 @@ function readIconName(
     }
 
     // refuse spread properties and namespace members, whose names the build cannot read
-    const at = `${id}:${element.start}`;
+    const position = element.start;
     const alternatives = `pass icon imported from ${ICON_PACKAGE}/phosphor/<name>, or draw LazyIcon from ${ICON_PACKAGE}/lazy`;
     if (element.attributes.some((attribute) => attribute.type === "JSXSpreadAttribute")) {
-        throw new TypeError(`icon with spread properties and no bodies: ${at}: ${alternatives}`);
+        refuse(`icon with spread properties and no bodies: ${alternatives}`, position);
     } else if (element.name.type === "JSXMemberExpression") {
-        throw new TypeError(
-            `icon drawn through a namespace import without bodies: ${at}: import Icon by name, ${alternatives}`,
+        refuse(
+            `icon drawn through a namespace import without bodies: import Icon by name, ${alternatives}`,
+            position,
         );
     }
 
@@ -163,7 +167,7 @@ function readIconName(
             ? attribute.value.expression
             : attribute?.value;
     if (attribute === undefined || value?.type !== "Literal" || typeof value.value !== "string") {
-        throw new TypeError(`icon without a literal name or bodies: ${at}: ${alternatives}`);
+        refuse(`icon without a literal name or bodies: ${alternatives}`, position);
     }
 
     return { value: value.value, attribute };

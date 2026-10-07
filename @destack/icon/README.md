@@ -46,12 +46,12 @@ import { LazyIcon } from "@destack/icon/lazy";
 
 ## Builds
 
-`iconExtension` passes each `Icon` imported by name with a literal name the bodies of a static import of `@destack/icon/phosphor/<name>` in builds of every package whose dependency closure includes `@destack/icon`, and fails on an `Icon` without `icon` whose name it cannot read.
+`iconExtension` passes each `Icon` imported by name with a literal name the bodies of a static import of `@destack/icon/phosphor/<name>` in builds of every package whose dependency closure includes `@destack/icon`, and fails the build at the line and column of an `Icon` without `icon` whose name it cannot read.
 
 ```tsx
 <Icon name="trash" />; // <Icon name="trash" icon={trash} /> with trash from @destack/icon/phosphor/trash
 <Icon icon={properties.icon} />; // left as written
-<Icon name={properties.name} />; // fails the build, as do <Icon {...properties} /> and <icons.Icon name="trash" />
+<Icon name={properties.name} />; // fails at 4:58, as do <Icon {...properties} /> and <icons.Icon name="trash" />
 ```
 
 ## Data

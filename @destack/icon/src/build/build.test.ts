@@ -2,6 +2,7 @@
 import { expect, test } from "@destack/test";
 import type { Plugin } from "@destack/package/build";
 import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
+import { rolldown } from "rolldown";
 import { iconExtension } from "./build.ts";
 
 /** Return the icon plugin the extension transforms modules with. */
@@ -36,6 +37,47 @@ function invoke(
     }
 
     return Reflect.apply(hook.handler, undefined, parameters);
+}
+
+/** Build a module through the icon plugin, reading the refusal the bundler reports with its line and column. */
+async function refusalOf(source: string, id: string): Promise<string> {
+    // serve the module from memory and leave the icon package external
+    const build = rolldown({
+        input: id,
+        external: [/^@destack\/icon/u],
+        plugins: [
+            {
+                name: "source",
+                resolveId: (name) => (name === id ? id : undefined),
+                load: () => source,
+            },
+            iconPlugin(),
+        ],
+    });
+
+    // read the plugin's message and where the bundler places it
+    try {
+        await (await build).generate();
+    } catch (error) {
+        const [refusal] = isBuildFailure(error) ? error.errors : [];
+
+        return `${String(refusal?.loc?.line)}:${String(refusal?.loc?.column)} ${String(refusal?.message)}`;
+    }
+    throw new TypeError(`expected the build of ${id} to fail`);
+}
+
+/** A failed build's errors, each with its message and location. */
+interface BuildFailure {
+    /** The errors. */
+    readonly errors: readonly {
+        readonly message: string;
+        readonly loc?: { readonly line: number; readonly column: number };
+    }[];
+}
+
+/** Report whether a thrown value is a failed build carrying its errors. */
+function isBuildFailure(error: unknown): error is BuildFailure {
+    return error instanceof Error && "errors" in error && Array.isArray(error.errors);
 }
 
 test("pass each literal-named icon its bodies from a static import of its module", () => {
@@ -98,9 +140,8 @@ test("pass each literal-named icon its bodies from a static import of its module
     });
 });
 
-test("refuse an icon with neither a literal name nor bodies, naming both alternatives", () => {
+test("refuse an icon with neither a literal name nor bodies, naming both alternatives", async () => {
     // transform a module drawing an icon whose name is computed
-    const icon = iconPlugin();
     const source = [
         'import { Icon, type IconName } from "@destack/icon";',
         "",
@@ -109,11 +150,9 @@ test("refuse an icon with neither a literal name nor bodies, naming both alterna
         "",
     ].join("\n");
 
-    // report the module, the element's offset and both alternatives
-    expect(() => invoke(icon.transform, [source, "/package/src/chosen.tsx"])).toThrow(
-        new TypeError(
-            "icon without a literal name or bodies: /package/src/chosen.tsx:147: pass icon imported from @destack/icon/phosphor/<name>, or draw LazyIcon from @destack/icon/lazy",
-        ),
+    // report the element's line and column and both alternatives
+    expect(await refusalOf(source, "/package/src/chosen.tsx")).toBe(
+        "4:58 icon without a literal name or bodies: pass icon imported from @destack/icon/phosphor/<name>, or draw LazyIcon from @destack/icon/lazy",
     );
 });
 
@@ -140,9 +179,8 @@ test("leave icons with passed bodies as written, with or without spread properti
     expect(transformed).toBeUndefined();
 });
 
-test("refuse an icon with spread properties and no bodies, whose name the build cannot read", () => {
+test("refuse an icon with spread properties and no bodies, whose name the build cannot read", async () => {
     // transform a module drawing an icon whose properties may carry its name
-    const icon = iconPlugin();
     const source = [
         'import { Icon, type IconProperties } from "@destack/icon";',
         "",
@@ -151,17 +189,14 @@ test("refuse an icon with spread properties and no bodies, whose name the build 
         "",
     ].join("\n");
 
-    // report the module, the element's offset and both alternatives
-    expect(() => invoke(icon.transform, [source, "/package/src/spread.tsx"])).toThrow(
-        new TypeError(
-            "icon with spread properties and no bodies: /package/src/spread.tsx:156: pass icon imported from @destack/icon/phosphor/<name>, or draw LazyIcon from @destack/icon/lazy",
-        ),
+    // report the element's line and column and both alternatives
+    expect(await refusalOf(source, "/package/src/spread.tsx")).toBe(
+        "4:54 icon with spread properties and no bodies: pass icon imported from @destack/icon/phosphor/<name>, or draw LazyIcon from @destack/icon/lazy",
     );
 });
 
-test("refuse an icon drawn through a namespace import without bodies", () => {
+test("refuse an icon drawn through a namespace import without bodies", async () => {
     // transform a module drawing the icon component as a namespace member
-    const icon = iconPlugin();
     const source = [
         'import * as icons from "@destack/icon";',
         "",
@@ -170,10 +205,8 @@ test("refuse an icon drawn through a namespace import without bodies", () => {
         "",
     ].join("\n");
 
-    // report the module, the element's offset and the alternatives
-    expect(() => invoke(icon.transform, [source, "/package/src/trash.tsx"])).toThrow(
-        new TypeError(
-            "icon drawn through a namespace import without bodies: /package/src/trash.tsx:89: import Icon by name, pass icon imported from @destack/icon/phosphor/<name>, or draw LazyIcon from @destack/icon/lazy",
-        ),
+    // report the element's line and column and the alternatives
+    expect(await refusalOf(source, "/package/src/trash.tsx")).toBe(
+        "4:27 icon drawn through a namespace import without bodies: import Icon by name, pass icon imported from @destack/icon/phosphor/<name>, or draw LazyIcon from @destack/icon/lazy",
     );
 });
