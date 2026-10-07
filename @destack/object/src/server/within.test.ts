@@ -20,7 +20,7 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 /** People of the universe the spaces they joined read. */
 const person = defineObject({
     name: "person",
-    plural: "persons",
+    plural: "people",
     scope: "universe",
     isScope: true,
     fields: { name: field.string() },
@@ -187,7 +187,7 @@ test.each(TEST_DIALECTS)(
             );
 
             return {
-                persons: (
+                people: (
                     await cell.database.select().from(person.table).orderBy(asc(person.table.id))
                 ).map((row) => row.id),
                 profiles: (
@@ -198,14 +198,14 @@ test.each(TEST_DIALECTS)(
 
         // copy the readable people, and the profile of the one whose scope is active, without its guarded field
         expect(await copied()).toEqual({
-            persons: [ada, cy],
+            people: [ada, cy],
             profiles: [[profileOf(ada), ada, "@0", null]],
         });
 
         // add a person joining the space with their profile
         await join(bob);
         expect(await copied()).toEqual({
-            persons: [ada, bob, cy],
+            people: [ada, bob, cy],
             profiles: [
                 [profileOf(ada), ada, "@0", null],
                 [profileOf(bob), bob, "@1", null],
@@ -215,7 +215,7 @@ test.each(TEST_DIALECTS)(
         // take a person leaving the space out with their profile
         await system.revoke(person.reference(Scope.universe.id, ada), joined.id);
         expect(await copied()).toEqual({
-            persons: [bob, cy],
+            people: [bob, cy],
             profiles: [[profileOf(bob), bob, "@1", null]],
         });
     },

@@ -5,6 +5,7 @@ import { journal } from "@destack/audit/stack";
 import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
+import { v7 } from "uuid";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
@@ -102,3 +103,38 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([[kept], ["alert.expire", "alert.expire"], true]);
     },
 );
+
+test("leave the expired rows a database copies to the deletes their home sends", async () => {
+    // keep the alerts as copies, one long expired
+    const copied = defineDatabase({
+        name: "main",
+        tables: [journal, ...alert.tables.filter((table) => table !== alert.table)],
+        copies: [alert.table],
+    });
+    const storage = await TestDatabase.create("sqlite", copied, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, spaceId);
+    const server = new ObjectServer({
+        objects: { alert },
+        database,
+        callKey: testCallKey,
+        origin: { package: alert.package, service: "test" },
+    });
+    const now = Date.now();
+    await database.insert(alert.table).values({
+        id: alert.identifier(`alert-${v7()}`),
+        scope: spaceId,
+        ownerId: "user-1",
+        title: "Copied",
+        createdAt: now - 400 * DAY,
+        updatedAt: now - 400 * DAY,
+        readAt: null,
+    });
+
+    // expire nothing and schedule nothing
+    const controller = new ExpiringController(server);
+    const delay = await controller.reconcile("expiry", reconciliation(AbortSignal.timeout(5000)));
+    const left = await database.select({ title: alert.table.title }).from(alert.table);
+    expect([left, delay, controller.watches]).toEqual([[{ title: "Copied" }], undefined, []]);
+});

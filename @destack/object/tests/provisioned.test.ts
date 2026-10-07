@@ -1,5 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
-import { ServiceError } from "@destack/service/error";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { journal } from "@destack/audit/stack";
 import { accessRelationship, principal, Relationship } from "@destack/access";
@@ -468,7 +467,7 @@ test("refuse provisioning through a provider that provisions nothing, and finish
     ]);
 });
 
-test("refuse a resource taking the name of another kind's resource in its space", async () => {
+test("name a resource after another kind's resource in its space, refusing a second of its own kind", async () => {
     const { server } = await serve(new Boxes());
     const { scope, approval: _approval, ...written } = declared;
     const create = (kind: typeof box | typeof link) =>
@@ -479,11 +478,15 @@ test("refuse a resource taking the name of another kind's resource in its space"
             Date.now(),
         );
 
-    // create a box named main and refuse a link of the same name
-    await create(box);
-    await expect(create(link)).rejects.toEqual(
-        new ServiceError("CONFLICT", { message: "name is taken" }),
-    );
+    // create a box and a link named main, and refuse another box of the name
+    const [created] = await create(box);
+    const [linked] = await create(link);
+    const taken = await refusal(create(box));
+
+    expect({ names: [created?.name, linked?.name], taken }).toEqual({
+        names: ["main", "main"],
+        taken: ["DUPLICATE", "a record with the same unique key exists"],
+    });
 });
 
 /** Read a box's ready reason and draining status. */

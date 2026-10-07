@@ -245,6 +245,7 @@ test("settle the address of a recipient without a user, and record it again once
         directory: {
             isHome: async () => false,
             locale: async () => undefined,
+            messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
             address: async (address) => {
                 recorded.push(address);
                 waiting.get(recorded.length)?.();

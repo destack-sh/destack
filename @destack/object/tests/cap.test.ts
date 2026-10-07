@@ -50,6 +50,7 @@ async function serveInstalledNotes() {
             isHome: async () => false,
             locale: async () => undefined,
             address: () => Promise.reject(new TypeError("the fixture resolves no address")),
+            messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
         },
     };
     const server = new ObjectServer({

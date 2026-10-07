@@ -5,6 +5,7 @@ import { journal } from "@destack/audit/stack";
 import { asc, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";
+import { defineShape, type Mutation, Replica } from "@destack/sync";
 
 import { outbox } from "@destack/service/outbox";
 import { ServiceError } from "@destack/service/error";
@@ -225,3 +226,142 @@ test.each(TEST_DIALECTS)(
         });
     },
 );
+
+test("pass a pushed mutation of copied rows toward their home as the principal pushing it, and refuse one mixing kept rows in", async () => {
+    // keep the notes at home and copy them in a follower serving members
+    const storage = await TestDatabase.create("sqlite", noteDatabase, { isMigrated: true });
+    const copies = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({
+            name: "main",
+            tables: [outbox, ...accessTables, journal, ...member.tables],
+            copies: [note.table],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(async () => {
+        await Promise.all([storage.close(), copies.close()]);
+    });
+    await openSpace(storage.database, spaceId);
+    await openSpace(copies.database, spaceId);
+    const home = new ObjectServer({
+        objects: { note },
+        database: storage.database,
+        callKey: testCallKey,
+        origin: { package: note.package, service: "test" },
+    });
+    const follower = new ObjectServer({
+        objects: { member },
+        policies: [note],
+        database: copies.database,
+        callKey: testCallKey,
+        origin: { package: note.package, service: "test" },
+        subscriber: {
+            uplink: {
+                stream: async function* (_subscription, signal) {
+                    await until(signal);
+                    yield* [];
+                },
+                receive: (mutation, as) =>
+                    home.receiveFrom(
+                        mutation,
+                        userContext(present(as, "the sender").subject.id, spaceId),
+                    ),
+            },
+            subscriptions: async () => [],
+        },
+    });
+
+    // push a note's creation as bob, then one beside a member's
+    const create = note.calls().create({ title: "Bob's" });
+    const join = member.calls().create({ name: "Bob" });
+    const pushed = await follower.push(
+        spaceId,
+        [
+            { id: RequestId.create(), calls: [create] },
+            { id: RequestId.create(), calls: [join, create] },
+        ],
+        userContext("bob", spaceId),
+    );
+    const notes = await storage.database
+        .select({ owner: note.table.ownerId, title: note.table.title })
+        .from(note.table);
+
+    expect({
+        outcomes: pushed.outcomes.map(({ outcome }) =>
+            "error" in outcome ? outcome.error.code : outcome.value,
+        ),
+        notes,
+    }).toEqual({
+        outcomes: [null, "BAD_REQUEST"],
+        notes: [{ owner: "bob", title: "Bob's" }],
+    });
+});
+
+test("send a change of copied rows to the publisher of the copy keeping them, not the subscriber's uplink", async () => {
+    // keep the notes at home, copied into a follower from a publisher receiving changes beside an uplink refusing them
+    const storage = await TestDatabase.create("sqlite", noteDatabase, { isMigrated: true });
+    const copies = await TestDatabase.create("sqlite", followerDatabase, { isMigrated: true });
+    onTestFinished(async () => {
+        await Promise.all([storage.close(), copies.close()]);
+    });
+    await openSpace(storage.database, spaceId);
+    const home = new ObjectServer({
+        objects: { note },
+        database: storage.database,
+        callKey: testCallKey,
+        origin: { package: note.package, service: "test" },
+    });
+    const noteShape = defineShape({
+        name: "notes",
+        parameters: schema.object({}),
+        audience: "reader",
+        replica: ({ name, scope }) => new Replica({ name, scope, tables: [note.table] }),
+    });
+    const refused: string[] = [];
+    const follower = new ObjectServer({
+        objects: {},
+        policies: [note],
+        database: copies.database,
+        origin: { package: note.package, service: "test" },
+        shapes: [noteShape],
+        subscriber: {
+            uplink: {
+                stream: async function* (_subscription, signal) {
+                    await until(signal);
+                    yield* [];
+                },
+                receive: async (mutation) => {
+                    refused.push(mutation.id);
+                },
+            },
+            subscriptions: async () => [
+                {
+                    subscription: noteShape.subscription({
+                        name: "notes",
+                        scope: spaceId,
+                        below: "follower",
+                        parameters: {},
+                    }),
+                    publisher: {
+                        stream: async function* (_subscription, signal) {
+                            await until(signal);
+                            yield* [];
+                        },
+                        receive: (mutation: Mutation) =>
+                            home.receiveFrom(mutation, userContext("bob", spaceId)),
+                    },
+                },
+            ],
+        },
+    });
+
+    // receive bob's note through the follower
+    const created = note.calls().create({ title: "Bob's" });
+    await follower.receive({ ...created, input: { ...created.input, spaceId } });
+    const notes = await storage.database
+        .select({ owner: note.table.ownerId, title: note.table.title })
+        .from(note.table);
+
+    expect({ notes, refused }).toEqual({ notes: [{ owner: "bob", title: "Bob's" }], refused: [] });
+});

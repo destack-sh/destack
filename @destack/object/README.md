@@ -47,7 +47,8 @@ defineObject({
     projected: { from: () => memo, to: "recipient", source: "memoId" }, // rows of another type projected into each recipient's home
     versioned: true, // the version number within the parent
     controlled: { approval: true }, // the desired generation, conditions, deletion request, approval threshold and approved plan
-    bindable: true, // the consumer relation of the installations whose deployments capture the objects
+    bindable: true, // the consumer relation of the installations capturing the objects, or the cell reading them for them
+    // bindable: { by: "manage" } also adds bindConsumer and releaseConsumer for one consumer at a time
     provisioned: { kind }, // a resource kind's specification, desired states, placement and provider, declarable, controlled and bindable
     declarable: { schema }, // the stack declaration managing the record
     detachable: { by: "manage" }, // detach

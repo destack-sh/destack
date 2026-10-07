@@ -126,6 +126,25 @@ async function reconcile(
     if (row.deletionRequestedAt !== null) {
         return retire(object, row, row.deletionRequestedAt, reconciliation, options);
     }
+    // observe a resource lent from a connection ready at its own identifier below the host's egress
+    else if (row.origin === "connection") {
+        await observe(
+            object,
+            row,
+            reconciliation,
+            { reference: row.id },
+            {
+                ready: {
+                    status: "true",
+                    reason: "Lent",
+                    message:
+                        row.connection === null
+                            ? "lent from the connections each call names"
+                            : `lent from connection ${row.connection}`,
+                },
+            },
+        );
+    }
     // observe a resource whose stack declares its reference ready as declared
     else if (row.origin === "declared") {
         await observe(

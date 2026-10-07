@@ -33,7 +33,7 @@ const call = defineObject(Intrinsic.auditCall(space));
 const target = defineObject(Intrinsic.auditTarget(space, call));
 
 /** Rename a document as the call's target. */
-const renameDocument = defineAuditAction(
+const documentRename = defineAuditAction(
     {
         name: "document.rename",
         targets: schema.object({
@@ -74,7 +74,7 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
     );
     const rename = async (id: string): Promise<string> =>
         (
-            await recorder.record(database, renameDocument, {
+            await recorder.record(database, documentRename, {
                 targets: { document: { type: "document", id } },
                 details: {},
                 outcome: { kind: "success" },

@@ -157,3 +157,44 @@ test("create an object the caller has the permission on only as the creator its 
     const read = await server.call(team, "get", { spaceId, id: created.id }, context);
     expect(read.name).toBe("Core");
 });
+
+test("run only the one method a Loan lends its caller, refusing every other", async () => {
+    const storage = await TestDatabase.create("sqlite", [journal, ...team.tables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const server = new ObjectServer({
+        objects: { team },
+        database: storage.database,
+        callKey: testCallKey,
+        origin: { package: team.package, service: "test" },
+    });
+
+    // create as a caller lent the create method alone, then read and create again
+    const loaned = (method: string) =>
+        userContext("alice", spaceId, {
+            loan: {
+                id: "loan-1",
+                issuer: privateId,
+                method: `${team.package.name}/team.${method}`,
+            },
+        });
+    const created = await server.call(
+        team,
+        "create",
+        { spaceId, requestId: RequestId.create(), name: "Core" },
+        loaned("create"),
+    );
+    const read = await refusal(
+        server.call(team, "get", { spaceId, id: created.id }, loaned("create")),
+    );
+
+    expect([created.name, read]).toEqual([
+        "Core",
+        [
+            "FORBIDDEN",
+            `the loan lends ${team.package.name}/team.create, not ${team.package.name}/team.get`,
+        ],
+    ]);
+});

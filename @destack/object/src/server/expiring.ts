@@ -39,7 +39,11 @@ export class ExpiringController implements Controller {
     /** Watch the expiring objects a server serves. */
     constructor(server: ExpiringServer) {
         this.#server = server;
-        this.#types = server.objects.filter((object) => object.lifecycle.expiring !== undefined);
+        // leave the copied rows to the deletes their home sends
+        this.#types = server.objects.filter(
+            (object) =>
+                object.lifecycle.expiring !== undefined && !server.database.copies(object.table),
+        );
         this.watches = this.#types.map((object) => object.table);
     }
 
@@ -85,7 +89,7 @@ export class ExpiringController implements Controller {
     static async expire(server: ExpiringServer, now: number): Promise<number> {
         // remove each rule's rows in batches until one comes back short
         let removed = 0;
-        for (const object of server.objects) {
+        for (const object of server.objects.filter((each) => !server.database.copies(each.table))) {
             for (const rule of object.lifecycle.expiring ?? []) {
                 for (let batch = EXPIRE_ROWS; batch === EXPIRE_ROWS;) {
                     const rows = await expired(server.database, object, rule, now);

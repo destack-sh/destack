@@ -30,6 +30,7 @@ import {
     type AuditOrigin,
     type CallRequest,
 } from "@destack/audit/server";
+import { Loan } from "@destack/service/authentication";
 import type { CallKey } from "@destack/service/request";
 
 import {
@@ -929,14 +930,19 @@ export class ObjectServer<
         input: JsonObject,
         context: ServiceContext,
     ): Promise<unknown> {
-        // wait for the caller's watermarks
+        // wait for the caller's watermarks, reading only the one method a Loan lends
         const method = object.method(name);
+        Loan.require(context.authentication, Loan.method(object, name));
         const scope = this.#scope(object, input);
         await this.enter(context, scope);
         const database = await this.#databaseOf(object, scope);
         const read = async () => {
-            // prepare, read, commit and settle
-            const prepared = await this.#prepare([{ object, name, input }], scope, context);
+            // prepare on the served type, then read, commit and settle
+            const prepared = await this.#prepare(
+                [{ object: this.served(object), name, input }],
+                scope,
+                context,
+            );
             try {
                 const value = await readIn(prepared[0]);
                 await this.#commit(this.database, prepared);
@@ -1005,8 +1011,11 @@ export class ObjectServer<
         context: ServiceContext,
         client?: string,
     ): Promise<unknown[]> {
-        // resolve each call in one scope
+        // resolve each call in one scope, as the one method a Loan lends when the caller came with one
         const originals = mutation.calls.map((entry) => this.#resolve(entry, true));
+        for (const { object, name } of originals) {
+            Loan.require(context.authentication, Loan.method(object, name));
+        }
         const scope = this.#mutationScope(originals);
         await this.enter(context, scope);
 
@@ -1287,6 +1296,13 @@ export class ObjectServer<
                 calls: pushed.calls.map((call) => this.#within(call, scope)),
             };
             try {
+                // pass a mutation of copied rows toward their home, which decides its scopes
+                if (this.#isForwarded(mutation)) {
+                    await this.receiveFrom(mutation, context);
+                    outcomes.push({ id: mutation.id, outcome: { value: null } });
+                    continue;
+                }
+
                 // require the pushed scope
                 const first = this.#resolve(aligned(mutation.calls, 0), true);
                 if (this.#scope(first.object, first.input) !== scope) {
@@ -1758,7 +1774,6 @@ export class ObjectServer<
             this.sources.find((each) => each.objects.some((object) => object.name === type)),
         );
         const [source] = sources;
-        const uplink = this.subscriber?.uplink;
 
         // run a mutation of served rows here as the caller
         if (types.every((type) => this.objects.some((object) => object.name === type))) {
@@ -1769,9 +1784,10 @@ export class ObjectServer<
             await source.receiveFrom(mutation, context);
         }
         // pass a mutation of rows copied over the uplink toward their home, as the principal that sent it
-        else if (uplink !== undefined && types.every((type) => this.#isUplinked(type))) {
+        else if (types.every((type) => this.#isUplinked(type))) {
             const sender = Caller.principal(context.requireAuthentication().claims);
-            await uplink.receive(mutation, sender === undefined ? undefined : { subject: sender });
+            const home = await this.#homeOfAll(mutation);
+            await home.receive(mutation, sender === undefined ? undefined : { subject: sender });
         }
         // refuse a mutation of rows kept elsewhere or by several sources
         else {
@@ -1779,6 +1795,54 @@ export class ObjectServer<
                 message: `nothing here keeps the rows ${types.join(", ")} change`,
             });
         }
+    }
+
+    /** Report whether every call of a mutation changes rows copied over the uplink. */
+    #isForwarded(mutation: sync.Mutation): boolean {
+        return (
+            this.subscriber !== undefined &&
+            mutation.calls.every((call) =>
+                this.#isUplinked(call.method.slice(0, call.method.lastIndexOf("."))),
+            )
+        );
+    }
+
+    /** Find the publisher receiving a change of copied rows: the one the copy keeping the rows' table in the call's scope follows, else the subscriber's uplink. */
+    async #homeOf(call: sync.Call): Promise<sync.Uplink | undefined> {
+        // find the copy of the call's table in its scope whose publisher receives changes
+        const type = call.method.slice(0, call.method.lastIndexOf("."));
+        const object = this.copied.find((copied) => copied.name === type);
+        const scope = object === undefined ? undefined : this.#scope(object, call.input);
+        const entries = (await this.subscriber?.subscriptions()) ?? [];
+        const copy = entries.find(({ subscription, publisher }) => {
+            const replica = this.source.replicaOf(subscription);
+
+            return (
+                isUplink(publisher) &&
+                replica.scope === scope &&
+                object !== undefined &&
+                replica.tables.includes(object.table)
+            );
+        });
+
+        // fall back to the subscriber's uplink
+        const publisher = copy?.publisher;
+
+        return publisher !== undefined && isUplink(publisher) ? publisher : this.subscriber?.uplink;
+    }
+
+    /** Find the one publisher receiving every call of a mutation of copied rows, refusing a mutation spanning several homes. */
+    async #homeOfAll(mutation: sync.Mutation): Promise<sync.Uplink> {
+        // require one home for every call
+        const homes = await Promise.all(mutation.calls.map((call) => this.#homeOf(call)));
+        const [home] = homes;
+        if (home === undefined || homes.some((each) => each !== home)) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: "a mutation of copied rows changes rows of one home",
+            });
+        }
+
+        return home;
     }
 
     /** Report whether an object type's rows are copied over the uplink rather than kept here or by a source in this process. */
@@ -1805,11 +1869,11 @@ export class ObjectServer<
         const source = this.sources.find((each) =>
             each.objects.some((known) => known.same(object)),
         );
-        const uplink = this.subscriber?.uplink;
+        const uplink = await this.#homeOf(call);
         if (source !== undefined) {
             await source.receive(call, as);
         }
-        // pass it over the uplink the copies follow, once per request
+        // pass it to the publisher the copy keeping its rows follows, once per request
         else if (uplink !== undefined) {
             await uplink.receive({ id: requestId, calls: [call] }, as);
         }
@@ -2108,8 +2172,10 @@ export class ObjectServer<
     /** Run a pushed call that leaves out its scope field in the scope it is pushed to. */
     #within(call: sync.Call, scope: string): sync.Call {
         // leave a call naming its scope, or one of an unknown type the resolution refuses
-        const served = this.#schemas.get(call.method.slice(0, call.method.lastIndexOf(".")));
-        const field = served?.object.route.field;
+        const type = call.method.slice(0, call.method.lastIndexOf("."));
+        const object =
+            this.#schemas.get(type)?.object ?? this.copied.find((copied) => copied.name === type);
+        const field = object?.route.field;
         if (field === undefined || Object.hasOwn(call.input, field)) {
             return call;
         }
@@ -2742,4 +2808,9 @@ function preparedFields(work: Prepared): Partial<Pick<Call, "prepared" | "idempo
 /** List the settlements of prepared work, in call order. */
 function settlementsOf(prepared: readonly Prepared[]): (string | undefined)[] {
     return prepared.map((work) => work?.settlement);
+}
+
+/** Report whether a publisher also receives the changes sent to the rows it publishes. */
+function isUplink(publisher: sync.Publisher): publisher is sync.Uplink {
+    return "receive" in publisher;
 }

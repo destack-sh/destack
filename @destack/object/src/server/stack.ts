@@ -224,6 +224,16 @@ export class Stack {
         return this.#select(name).object;
     }
 
+    /** Find the declared object type whose objects an identifier names, refusing an identifier none names. */
+    typeOf(id: string): ObjectType {
+        const target = this.#ordered.find((entry) => entry.object.identifies(id));
+        if (!target) {
+            throw new ObjectError("UNSUPPORTED_DECLARATION", `this host applies no type of ${id}`);
+        }
+
+        return target.object;
+    }
+
     /** Find the identifier of the record the manager declared under a name. */
     async find(object: ObjectType | string, name: string): Promise<string | undefined> {
         // read through the transaction when the record lives in its database

@@ -265,8 +265,8 @@ export interface ObjectTraits<Declared = unknown, Permissions extends string = s
     readonly versioned?: VersionsDefinition;
     /** A system controller reconciles the objects. */
     readonly controlled?: ControlledDefinition;
-    /** Installations bind to the objects, becoming their consumers while live deployments capture them. */
-    readonly bindable?: true;
+    /** Installations bind to the objects, becoming their consumers while live deployments capture them, or while the holders of a permission bind them one at a time. */
+    readonly bindable?: true | Gated<Permissions>;
     /** The objects are a kind's resources, which its providers provision. */
     readonly provisioned?: ProvisionedDefinition;
     /** Stacks declare the objects. */
@@ -1743,6 +1743,8 @@ export function defineObject<
     const Declarable extends DeclarableDefinition | undefined = undefined,
     const Suspendable extends Gated<NoInfer<Permissions> | RolePermission> | undefined = undefined,
     const Detachable extends Gated<NoInfer<Permissions> | RolePermission> | undefined = undefined,
+    const Bindable extends true | Gated<NoInfer<Permissions> | RolePermission> | undefined =
+        undefined,
     const Tracked extends TrackedDefinition<NoInfer<Permissions> | RolePermission> | undefined =
         undefined,
     const Identity extends string = Name,
@@ -1763,6 +1765,7 @@ export function defineObject<
         readonly declarable: Declarable;
         readonly suspendable: Suspendable;
         readonly detachable: Detachable;
+        readonly bindable: Bindable;
         readonly tracked: Tracked;
     }>,
 >(
@@ -1818,6 +1821,8 @@ export function defineObject<
             readonly suspendable?: Suspendable;
             /** Holders of the permission detach a declared record from its declaration. */
             readonly detachable?: Detachable;
+            /** Installations bind to the objects, and the holders of a permission bind one consumer at a time. */
+            readonly bindable?: Bindable;
             /** Every change stays in the log, grouped into activities. */
             readonly tracked?: Tracked;
             /** Project another type's rows into the objects, each its own object with its own state. */

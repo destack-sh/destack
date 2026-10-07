@@ -11,6 +11,7 @@ import {
 import { PackageId } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import {
+    CONNECTION_PROVIDER,
     ResourceDefinition,
     ResourcePlacement,
     ResourceRetention,
@@ -24,9 +25,7 @@ import { field, type FieldOf } from "../field/field.ts";
 import { method } from "../method/method.ts";
 import {
     ObjectPermissions,
-    ObjectScope,
     type ObjectDefinition,
-    type ObjectIndex,
     type ObjectOf,
     type ObjectType,
     type ScopeIdentityOf,
@@ -49,7 +48,7 @@ export interface ProvisionedDefinition<Kind extends ResourceKind = ResourceKind>
 /** The fields of a kind's resources. */
 function resourceFields(kind: ResourceKind) {
     return {
-        /** The space-local name, unique across every kind. */
+        /** The name, unique among the kind's resources in its scope. */
         name: field.string(),
         /** The immutable package release defining the resource's kind. */
         definitionPackageId: field.string(PackageId),
@@ -65,8 +64,10 @@ function resourceFields(kind: ResourceKind) {
         drainingStates: field.json(desiredStates(kind)).default([]),
         /** The digest of the desired states the provider applied, absent before the first apply. */
         appliedState: field.string(Digest).optional(),
-        /** Whether a host's provider provisions the resource, or its stack declares its reference. */
-        origin: field.enum(["provisioned", "declared"]).default("provisioned"),
+        /** Whether a host's provider provisions the resource, its stack declares its reference, or a connection lends its credential. */
+        origin: field.enum(["provisioned", "declared", "connection"]).default("provisioned"),
+        /** The connection in the space whose credential the host lends to every call, absent where each call names one lent to its installation. */
+        connection: field.string(schema.identifier("connection")).optional(),
         /** The requested placement, absent for automatic selection. */
         placement: field.json(ResourcePlacement).optional(),
         /** The provider supplying the resource, absent before provisioning. */
@@ -189,10 +190,10 @@ export const Provisioned = {
             return definition;
         }
 
-        // require one scope type with the resources
+        // require the scope types the resources live in
         const scope = definition.scope;
-        if (scope === undefined || ObjectScope.isList(scope) || scope === Scope.universe.id) {
-            throw new TypeError(`resources ${definition.name} live in exactly one scope type`);
+        if (scope === undefined || scope === Scope.universe.id) {
+            throw new TypeError(`resources ${definition.name} live in scope types`);
         }
 
         // require the declaration the kind implies
@@ -220,7 +221,6 @@ export const Provisioned = {
             declarable: { schema: ResourceDefinition },
             shareable: {},
             fields: { ...resourceFields(provisioned.kind), ...definition.fields },
-            indexes: { ...Provisioned.indexes(scope), ...definition.indexes },
             constraints: (columns: ColumnMap) => [
                 ...Provisioned.constraints(definition.name, columns),
                 ...(declared?.(columns) ?? []),
@@ -231,18 +231,6 @@ export const Provisioned = {
                 ...permissions,
             },
             methods: { ...resourceMethods(), ...definition.methods },
-        };
-    },
-
-    /** Keep resource names unique in a scope across every kind, keyed like an object type's own. */
-    indexes(scope: ObjectType): Readonly<Record<string, ObjectIndex>> {
-        return {
-            name: {
-                on: ["name"],
-                unique: true,
-                across: () => scope,
-                namespace: `${scope.policy.definition.packageId}/resource/name`,
-            },
         };
     },
 
@@ -335,7 +323,7 @@ function declaredValues(name: string, declared: ResourceDefinition) {
     }
 
     // require the provider connecting a resource whose reference the stack declares
-    const { declaration, placement, reference } = declared;
+    const { declaration, placement, reference, connection } = declared;
     const provider = placement?.provider;
     if (reference !== undefined && provider === undefined) {
         throw new ObjectError(
@@ -352,9 +340,15 @@ function declaredValues(name: string, declared: ResourceDefinition) {
         spec: declaration.spec,
         retention: declared.retention,
         placement: placement ?? null,
-        ...(reference === undefined || provider === undefined
-            ? { origin: "provisioned" as const }
-            : { origin: "declared" as const, reference, provider }),
+        ...(connection !== undefined || provider === CONNECTION_PROVIDER
+            ? {
+                  origin: "connection" as const,
+                  connection: connection ?? null,
+                  provider: CONNECTION_PROVIDER,
+              }
+            : reference === undefined || provider === undefined
+              ? { origin: "provisioned" as const }
+              : { origin: "declared" as const, reference, provider }),
         tags: declared.tags,
     };
 }
