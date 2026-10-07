@@ -47,7 +47,7 @@ jobs:
             checks: ${{ steps.release.outputs.checks }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
                   fetch-depth: 0
@@ -85,7 +85,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -136,7 +136,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -198,7 +198,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -253,7 +253,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -326,7 +326,7 @@ jobs:
                 working-directory: "@platform/stack"
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up platform tools
@@ -374,7 +374,7 @@ jobs:
                 working-directory: "@platform/stack"
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up platform tools
@@ -416,7 +416,7 @@ jobs:
             DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -455,7 +455,7 @@ jobs:
             DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -481,7 +481,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
