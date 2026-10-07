@@ -5,7 +5,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TUNNEL_PATH } from "../server/index.ts";
 import { freePort, until } from "../test/index.ts";
 import { TunnelClient } from "../tunnel/index.ts";
-import { NAME, RENAME_PATH } from "./test/fixture.ts";
+import { JURISDICTION_PATH, NAME, RENAME_PATH } from "./test/fixture.ts";
 
 /** The machine's new name the scenarios rename it to. */
 const RENAMED = "renamed.acme.destack.computer";
@@ -73,7 +73,7 @@ async function ask(worker: Miniflare, path: string, name = NAME): Promise<string
     return response.ok ? body : `${response.status}`;
 }
 
-test("forward a request through a machine's object over RPC, renew its token there, and tell it a new name, refusing the old one", async () => {
+test("forward a request through a machine's object over RPC, renew its token there, and tell it a new name, refusing the old one, reaching the object only in its residency's jurisdiction", async () => {
     const { worker, url } = await start();
     const { names, reports } = await dial(url, async () => "60000", 60_000);
 
@@ -90,7 +90,8 @@ test("forward a request through a machine's object over RPC, renew its token the
         await ask(worker, "/status"),
         await ask(worker, "/status", RENAMED),
         reports,
-    ]).toEqual(["hello /status", 204, "421", "hello /status", []]);
+        await (await worker.dispatchFetch(`http://relay.test${JURISDICTION_PATH}`)).json(),
+    ]).toEqual(["hello /status", 204, "421", "hello /status", [], ["eu"]]);
 });
 
 test("answer a machine's liveness probes on its object's behalf, keeping one connection across them", async () => {

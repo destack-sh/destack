@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { DOMAINS } from "@destack/host";
+import { DOMAINS } from "@destack/account/address";
 import { schema } from "@destack/schema";
 import type { ServiceError } from "@destack/service/error";
 import type { Alarm } from "@destack/service/control";

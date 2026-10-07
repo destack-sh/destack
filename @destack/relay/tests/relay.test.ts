@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "@destack/test";
-import { AccountFixture, ids } from "@destack/host/test";
+import { AccountFixture, ids } from "@destack/account/test";
 import { RequestId } from "@destack/service/request";
 import { DestinationCache } from "../src/server/index.ts";
 import { TUNNEL_PROTOCOL, TunnelProtocol } from "../src/session/index.ts";

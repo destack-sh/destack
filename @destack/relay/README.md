@@ -34,7 +34,7 @@ const listener = BunRelay.listen(service.relay, tunnels, { hostname: "0.0.0.0", 
 
 ## Cloudflare
 
-A Worker keeps a `DestinationCache` in its isolate, admits tunnels with a `Relay` and hands each machine's WebSocket to its `DurableObjectTunnel`, which it calls over RPC and which answers liveness probes asleep and verifies renewals without a database.
+A Worker keeps a `DestinationCache` in its isolate, admits tunnels with a `Relay` and hands each machine's WebSocket to its `DurableObjectTunnel` in the jurisdiction of its account's residency, which it calls over RPC and which answers liveness probes asleep and verifies renewals without a database.
 
 ```ts
 import { DurableObjectTunnel, DurableObjectTunnelHost } from "@destack/relay/cloudflare";
@@ -42,7 +42,7 @@ import { DestinationCache, Relay } from "@destack/relay/server";
 
 const destinations = new DestinationCache(); // per isolate: a kept name reads no database until its cell answers 421
 const relay = new Relay({ ...options, database: () => connect(), destinations }); // connects only on a miss
-const tunnels = new DurableObjectTunnelHost(environment.TUNNEL); // forward, rename and close over RPC
+const tunnels = new DurableObjectTunnelHost(environment.TUNNEL, { eu: "eu" }); // an EU account's machines' objects stay in the EU
 const routed = await relay.route(request); // a name's response, or a machine's admission
 return routed instanceof Response ? routed : tunnels.open(routed, request); // fetch with Destack-Admission
 
@@ -55,7 +55,7 @@ export class DurableObjectRelayTunnel extends DurableObjectTunnel {
 
 ## Workload
 
-`relayWorkload` runs one relay per universe over `relayDatabase`, the `workloadIdentity` and `relayConfiguration`, whose `serve` hands the started relay to a runtime serving its WebSockets, absent where a Worker serves them.
+`relayWorkload` runs one relay per universe over `relayDatabase` (its copies of the accounts, machines, machine keys and zones, and the journal of tunnels opening and closing), the `workloadIdentity` and `relayConfiguration`, whose `serve` hands the started relay to a runtime serving its WebSockets, absent where a Worker serves them.
 
 ```ts
 const tunnels = new MemoryTunnelHost();
@@ -68,14 +68,6 @@ const resources = new ResourceContext()
         tunnels,
         serve: (service) => BunRelay.listen(service.relay, tunnels, listener),
     }); // operators bind the workload RELAY_ROLE, reading accounts, machines, machine keys and zones
-```
-
-## Tables
-
-`relayDatabase` keeps the relay's copies of the accounts, machines, machine keys and zones next to the object server's own tables and the journal of tunnels opening and closing.
-
-```ts
-import { relayDatabase } from "@destack/relay/stack";
 ```
 
 ## Tunnels

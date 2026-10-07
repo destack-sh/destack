@@ -22,7 +22,6 @@
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/directory": "workspace:*",
-        "@destack/host": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",

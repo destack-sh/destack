@@ -1,5 +1,6 @@
 import { principal } from "@destack/access";
-import { type Domains, MachineAddress } from "@destack/host";
+import { type Domains, MachineAddress } from "@destack/account/address";
+import { ResidencyCode } from "@destack/account/object";
 import { schema, type Identifier } from "@destack/schema";
 import { type Authentication, Bearer, type TokenVerifier } from "@destack/service/authentication";
 import { type Alarm, TimerAlarm } from "@destack/service/control";
@@ -20,10 +21,18 @@ export const TUNNEL_PATH = "/tunnel";
 /** How long a machine may take to answer a request's head by default: 100 s, as edge proxies commonly wait for an origin. */
 const ANSWER_TIMEOUT_MILLISECONDS = 100_000;
 
-/** A machine admitted to open a tunnel: its token's lapse, and the name the relay routes to it. */
-export const Admission = schema.object({
+/** A machine's tunnel as the relay reaches it: the machine, and the residency whose jurisdiction keeps the tunnel. */
+export const MachineDestination = schema.object({
     /** The machine. */
     machineId: schema.identifier("machine"),
+    /** The residency the machine's account keeps data in. */
+    residencyId: ResidencyCode,
+});
+/** A machine's tunnel as the relay reaches it. */
+export type MachineDestination = schema.Infer<typeof MachineDestination>;
+
+/** A machine admitted to open a tunnel: its destination, its token's lapse, and the name the relay routes to it. */
+export const Admission = MachineDestination.extend({
     /** When its token lapses, in UTC epoch milliseconds. */
     lapsesAt: schema.number(),
     /** The name the relay routes to the machine, such as `laptop.florian.destack.computer`. */
@@ -61,11 +70,11 @@ export interface TunnelOptions {
 /** Where a relay's machines keep their tunnels: in the relay's memory, or in a Durable Object per machine. */
 export interface TunnelHost {
     /** Forward a request through a machine's tunnel, refusing it while the machine keeps none. */
-    fetch(machineId: Identifier<"machine">, request: Request): Promise<Response>;
+    fetch(machine: MachineDestination, request: Request): Promise<Response>;
     /** Tell a machine through its tunnel the name the relay routes to it, nothing while it keeps none. */
-    rename(machineId: Identifier<"machine">, name: string): Promise<void>;
+    rename(machine: MachineDestination, name: string): Promise<void>;
     /** Close a machine's tunnel, as its revocation does, answering whether a connection was open. */
-    close(machineId: Identifier<"machine">): Promise<boolean>;
+    close(machine: MachineDestination): Promise<boolean>;
 }
 
 /** A machine's tunnel to the relay over its connections: the newest takes new requests, and each closes once its token lapses. */
@@ -330,11 +339,11 @@ export class MemoryTunnelHost implements TunnelHost {
     }
 
     /** Forward a request through a machine's tunnel, refusing it while the machine keeps none. */
-    async fetch(machineId: Identifier<"machine">, request: Request): Promise<Response> {
-        const tunnel = this.#tunnels.get(machineId);
+    async fetch(machine: MachineDestination, request: Request): Promise<Response> {
+        const tunnel = this.#tunnels.get(machine.machineId);
         if (tunnel === undefined) {
             throw new ServiceError("SERVICE_UNAVAILABLE", {
-                message: `machine ${machineId} is not connected`,
+                message: `machine ${machine.machineId} is not connected`,
             });
         }
 
@@ -342,12 +351,12 @@ export class MemoryTunnelHost implements TunnelHost {
     }
 
     /** Tell a connected machine the name the relay routes to it. */
-    async rename(machineId: Identifier<"machine">, name: string): Promise<void> {
-        await this.#tunnels.get(machineId)?.rename(name);
+    async rename(machine: MachineDestination, name: string): Promise<void> {
+        await this.#tunnels.get(machine.machineId)?.rename(name);
     }
 
     /** Close a machine's tunnel, answering whether a connection was open. */
-    async close(machineId: Identifier<"machine">): Promise<boolean> {
-        return (await this.#tunnels.get(machineId)?.close()) ?? false;
+    async close(machine: MachineDestination): Promise<boolean> {
+        return (await this.#tunnels.get(machine.machineId)?.close()) ?? false;
     }
 }

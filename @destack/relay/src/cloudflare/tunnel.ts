@@ -1,13 +1,13 @@
 /// <reference path="./workers.d.ts" />
 import { DurableObject } from "cloudflare:workers";
-import { DOMAINS, type Domains } from "@destack/host";
-import { type Identifier, schema } from "@destack/schema";
+import { DOMAINS, type Domains } from "@destack/account/address";
+import { schema } from "@destack/schema";
 import type { TokenVerifier } from "@destack/service/authentication";
 import type { Alarm } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
 import { refusal } from "@destack/service/server";
 import { PING_MESSAGE, PONG_MESSAGE, type Session, TUNNEL_PROTOCOL } from "../session/index.ts";
-import { Admission, Tunnel, type TunnelHost } from "../server/index.ts";
+import { Admission, type MachineDestination, Tunnel, type TunnelHost } from "../server/index.ts";
 
 /** The header carrying an admitted machine's admission from the relay's Worker to its object, since a WebSocket upgrade only answers `fetch`. */
 const ADMISSION_HEADER = "Destack-Admission";
@@ -57,12 +57,17 @@ export interface DurableObjectTunnelStub {
     close(): Promise<boolean>;
 }
 
+/** A jurisdiction Cloudflare keeps Durable Objects in. */
+export type DurableObjectJurisdiction = "eu" | "fedramp";
+
 /** The namespace of the machines' objects, one per machine named by its identifier. */
 export interface DurableObjectTunnelNamespace {
     /** Derive an object's identifier from its name. */
     idFromName(name: string): unknown;
     /** Reach an object. */
     get(id: unknown): DurableObjectTunnelStub;
+    /** Narrow the namespace to the objects kept in a jurisdiction. */
+    jurisdiction(name: DurableObjectJurisdiction): DurableObjectTunnelNamespace;
 }
 
 /** The pair of WebSocket ends workerd creates for an upgrade, the client's first. */
@@ -100,14 +105,20 @@ export interface DurableObjectTunnelOptions {
     readonly domains?: Domains;
 }
 
-/** The tunnels of a relay's machines as its Worker reaches them: one Durable Object per machine, named by the machine, called over RPC. */
+/** The tunnels of a relay's machines as its Worker reaches them: one Durable Object per machine, named by the machine, in its residency's jurisdiction, called over RPC. */
 export class DurableObjectTunnelHost implements TunnelHost {
     /** The namespace of the machines' objects. */
     readonly #namespace: DurableObjectTunnelNamespace;
+    /** The jurisdiction keeping each residency's objects, absent for a residency kept in none. */
+    readonly #jurisdictions: Readonly<Record<string, DurableObjectJurisdiction>>;
 
-    /** Reach the machines' objects in a namespace. */
-    constructor(namespace: DurableObjectTunnelNamespace) {
+    /** Reach the machines' objects in a namespace, each residency's in its jurisdiction. */
+    constructor(
+        namespace: DurableObjectTunnelNamespace,
+        jurisdictions: Readonly<Record<string, DurableObjectJurisdiction>>,
+    ) {
         this.#namespace = namespace;
+        this.#jurisdictions = jurisdictions;
     }
 
     /** Hand an admitted machine's WebSocket upgrade to its object, the one call RPC cannot carry since its answer holds a WebSocket. */
@@ -115,27 +126,33 @@ export class DurableObjectTunnelHost implements TunnelHost {
         const headers = new Headers(request.headers);
         headers.set(ADMISSION_HEADER, JSON.stringify(admission));
 
-        return this.#object(admission.machineId).fetch(new Request(request, { headers }));
+        return this.#object(admission).fetch(new Request(request, { headers }));
     }
 
     /** Forward a request through a machine's object, which refuses it while the machine keeps no tunnel. */
-    fetch(machineId: Identifier<"machine">, request: Request): Promise<Response> {
-        return this.#object(machineId).forward(request);
+    fetch(machine: MachineDestination, request: Request): Promise<Response> {
+        return this.#object(machine).forward(request);
     }
 
     /** Tell a machine through its object the name the relay routes to it. */
-    rename(machineId: Identifier<"machine">, name: string): Promise<void> {
-        return this.#object(machineId).rename(name);
+    rename(machine: MachineDestination, name: string): Promise<void> {
+        return this.#object(machine).rename(name);
     }
 
     /** Close a machine's tunnel through its object, answering whether a connection was open. */
-    close(machineId: Identifier<"machine">): Promise<boolean> {
-        return this.#object(machineId).close();
+    close(machine: MachineDestination): Promise<boolean> {
+        return this.#object(machine).close();
     }
 
-    /** Reach a machine's object. */
-    #object(machineId: Identifier<"machine">): DurableObjectTunnelStub {
-        return this.#namespace.get(this.#namespace.idFromName(machineId));
+    /** Reach a machine's object in its residency's jurisdiction. */
+    #object(machine: MachineDestination): DurableObjectTunnelStub {
+        const jurisdiction = this.#jurisdictions[machine.residencyId];
+        const namespace =
+            jurisdiction === undefined
+                ? this.#namespace
+                : this.#namespace.jurisdiction(jurisdiction);
+
+        return namespace.get(namespace.idFromName(machine.machineId));
     }
 }
 
