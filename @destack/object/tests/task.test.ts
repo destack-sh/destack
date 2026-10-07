@@ -1,5 +1,5 @@
 import { ObjectServer } from "../src/server/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -10,7 +10,8 @@ import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
-import { project, tasksDatabase, tasksService } from "./fixture/task.ts";
+import { project, task, tasksDatabase, tasksService } from "./fixture/task.ts";
+import type { CallInput } from "../src/index.ts";
 import { ServiceError } from "@destack/service/error";
 import { principal } from "@destack/access";
 import { openSpace } from "./fixture/space.ts";
@@ -257,3 +258,17 @@ test("serve a handled type in place of the service's own", async () => {
 function person(id: string) {
     return principal.user.reference("universe", id);
 }
+
+test("type each written field of a call's input as the value it accepts", () => {
+    // read defaulted, optional and identifier fields as their values, never as unknown
+    type Update = CallInput<typeof task, "update">;
+    type Create = CallInput<typeof task, "create">;
+    expectTypeOf<Update["priority"]>().toEqualTypeOf<
+        "low" | "normal" | "high" | "urgent" | undefined
+    >();
+    expectTypeOf<Update["due"]>().toEqualTypeOf<number | null | undefined>();
+    expectTypeOf<Update["id"]>().toEqualTypeOf<string>();
+    expectTypeOf<Update["assigneeId"]>().toEqualTypeOf<string | null | undefined>();
+    expectTypeOf<Create["parentId"]>().toEqualTypeOf<string>();
+    expectTypeOf<Create["id"]>().toEqualTypeOf<string | undefined>();
+});

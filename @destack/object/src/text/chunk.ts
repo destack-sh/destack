@@ -14,7 +14,7 @@ import {
 } from "@destack/db";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import { Position } from "../field/field.ts";
+import { FractionalIndex } from "../field/fractional-index.ts";
 import type { Call } from "../method/call.ts";
 import { method } from "../method/method.ts";
 import { ObjectType } from "../object/object.ts";
@@ -495,7 +495,7 @@ async function recut(
                 : rows[index + 1]?.position;
         }
         for (const runs of groups) {
-            before = Position.between(before, after);
+            before = FractionalIndex.between(before, after);
             chunks.created.push({
                 ...parent,
                 id: Identifier.create("chunk"),

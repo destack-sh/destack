@@ -12,15 +12,7 @@ import { defineService } from "@destack/service";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
-import {
-    chunk,
-    CHUNK_CHARACTERS,
-    Chunk,
-    defineObject,
-    field,
-    Position,
-    Sequence,
-} from "../src/index.ts";
+import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved } from "./fixture/space.ts";
@@ -164,19 +156,6 @@ async function chunks(database: DatabaseConnection) {
 function digits(length: number, offset = 0): string {
     return Array.from({ length }, (_, index) => String((index + offset) % 10)).join("");
 }
-
-test("generate positions between others in collation-independent order, either end open", () => {
-    // generate between open ends, below, above and between neighbours
-    const middle = Position.between(undefined, undefined);
-    const generated = [
-        Position.between(undefined, middle),
-        middle,
-        Position.between(middle, undefined),
-        Position.between("i", "j"),
-        Position.between("i", "i1"),
-    ];
-    expect(generated).toEqual(["9", "i", "r", "ii", "i0i"]);
-});
 
 test.for(TEST_DIALECTS)(
     "edit a text through chunk splits, read it assembled, undo exactly and guard it on %s",

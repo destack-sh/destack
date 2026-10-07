@@ -120,7 +120,11 @@ function optionsOf(
     return {
         ...(options.extras === undefined ? {} : { extras: options.extras }),
         ...(where === undefined ? {} : { where }),
-        ...(options.orderBy === undefined ? {} : { orderBy: options.orderBy }),
+        ...(options.orderBy !== undefined
+            ? { orderBy: options.orderBy }
+            : object.ordering === undefined
+              ? {}
+              : { orderBy: { position: "asc", id: "asc" } }),
         ...(options.limit === undefined ? {} : { limit: options.limit }),
         ...(options.aggregate === undefined ? {} : { aggregate: options.aggregate }),
         ...(Object.keys(included).length === 0 ? {} : { with: included }),

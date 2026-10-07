@@ -1,7 +1,7 @@
 import { type Insert, type JsonOf, type Select, TABLE } from "@destack/db";
 import type * as sync from "@destack/sync";
 import { Scope } from "@destack/sync";
-import { present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { defineProcedure } from "@destack/service/procedure";
 import { RequestId } from "@destack/service/request";
 import { ParentReference } from "../trait/nested.ts";
@@ -382,8 +382,17 @@ export type ScopeShape<Object extends ObjectType> = {
 
 /** The fields selecting one object. */
 export type TargetShape<Object extends ObjectType> = ScopeShape<Object> & {
-    id: schema.Schema<JsonOf<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>>;
+    id: IdSchema<Object>;
 };
+
+/** The validator of an object's identifier, accepting the plain string its brand reads. */
+export type IdSchema<Object extends ObjectType> = schema.Schema<
+    JsonOf<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>,
+    string
+>;
+
+/** The value a field's validator accepts: an identifier's plain string, any other value as it is. */
+type Accepted<Value> = Value extends Identifier<string> ? string : Value;
 
 /** The input field naming the parent. */
 type ParentField<Object extends ObjectType> = "parentType" extends keyof Select<Object["table"]>
@@ -407,8 +416,10 @@ export type ParentShape<Object extends ObjectType> = "parentId" extends keyof Se
 >
     ? {
           [Field in ParentField<Object>]: IsOrphanable<Object> extends true
-              ? schema.ExactOptional<schema.Schema<ParentValue<Object>>>
-              : schema.Schema<ParentValue<Object>>;
+              ? schema.ExactOptional<
+                    schema.Schema<ParentValue<Object>, Accepted<ParentValue<Object>>>
+                >
+              : schema.Schema<ParentValue<Object>, Accepted<ParentValue<Object>>>;
       }
     : {};
 
@@ -418,8 +429,8 @@ export type DestinationShape<Object extends ObjectType> = "parentId" extends key
 >
     ? {
           [Field in ParentField<Object>]: IsOrphanable<Object> extends true
-              ? schema.Schema<ParentValue<Object> | null>
-              : schema.Schema<ParentValue<Object>>;
+              ? schema.Schema<ParentValue<Object> | null, Accepted<ParentValue<Object>> | null>
+              : schema.Schema<ParentValue<Object>, Accepted<ParentValue<Object>>>;
       }
     : {};
 
@@ -458,12 +469,15 @@ export type WrittenShape<
 > = {
     [
         Key in Name as IsPartial extends true ? never : Key extends OptionalKeys<Row> ? never : Key
-    ]: schema.Schema<JsonOf<Row[Key]>, JsonOf<Row[Key]>>;
+    ]-?: schema.Schema<JsonOf<Row[Key]>, Accepted<JsonOf<Row[Key]>>>;
 } & {
     [
         Key in Name as IsPartial extends true ? Key : Key extends OptionalKeys<Row> ? Key : never
-    ]: schema.ExactOptional<
-        schema.Schema<JsonOf<Exclude<Row[Key], undefined>>, JsonOf<Exclude<Row[Key], undefined>>>
+    ]-?: schema.ExactOptional<
+        schema.Schema<
+            JsonOf<Exclude<Row[Key], undefined>>,
+            Accepted<JsonOf<Exclude<Row[Key], undefined>>>
+        >
     >;
 };
 

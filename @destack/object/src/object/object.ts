@@ -128,6 +128,20 @@ import {
 import { attachments } from "../trait/attachment.ts";
 import { tracked, type TrackedDefinition, type TrackedMethodMap } from "../trait/tracked.ts";
 import { text, type TextMethodMap } from "../trait/text.ts";
+import {
+    Presentable,
+    type PresentableDefinition,
+    type PresentationFieldsOf,
+    type Presentation,
+} from "../trait/presentable.ts";
+import {
+    Orderable,
+    orderable,
+    type OrderableDefinition,
+    type OrderedFieldsOf,
+    type Ordering,
+} from "../trait/orderable.ts";
+import { ObjectSearch, search, type SearchDefinition } from "../trait/search.ts";
 import { Chunk } from "../text/chunk.ts";
 import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait, TraitObject, TraitPolicy } from "../trait/trait.ts";
@@ -180,6 +194,8 @@ const TRAITS: readonly Trait<unknown>[] = [
     attachments,
     tracked,
     text,
+    search,
+    orderable,
 ];
 
 /** A trait an object type takes, with the options its definition gives it. */
@@ -281,6 +297,12 @@ export interface ObjectTraits<Declared = unknown, Permissions extends string = s
     readonly tracked?: TrackedDefinition<Permissions>;
     /** Whether the audit also records reads. */
     readonly audited?: { readonly reads: true };
+    /** How pickers, mentions and titles show the objects: a title, a subtitle, an icon, an accent and a cover. */
+    readonly presentable?: PresentableDefinition;
+    /** How the objects are ordered among their siblings. */
+    readonly orderable?: OrderableDefinition;
+    /** The fields full-text search ranks, lists filter and lists order the objects by. */
+    readonly search?: SearchDefinition;
 }
 
 /** The definition of an object type. */
@@ -514,6 +536,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly traits: readonly TraitInstance[];
     /** The unique indexes the key index keeps across databases, by name. */
     readonly indexes: Readonly<Record<string, ObjectIndex>>;
+    /** How pickers, mentions and titles show the objects, absent for a type presenting none. */
+    readonly presentation: Presentation | undefined;
+    /** How the objects are ordered among their siblings, absent for a type ordering none. */
+    readonly ordering: Ordering | undefined;
+    /** The fields full-text search ranks, lists filter and lists order the objects by, absent for a type declaring none. */
+    readonly search: ObjectSearch | undefined;
     /** Where the objects live. */
     readonly storage: Configuration["storage"];
     /** How long ephemeral objects outlive their session, in milliseconds. */
@@ -569,6 +597,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.traits = traits;
         this.intrinsic = intrinsic;
         this.indexes = definition.indexes ?? {};
+        this.presentation = Presentable.of(definition);
+        this.ordering = Orderable.of(definition);
+        this.search =
+            definition.search === undefined ? undefined : ObjectSearch.of(definition.search);
         this.storage = definition.storage;
         this.linger = this.storage === "ephemeral" ? lingerOf(definition) : undefined;
 
@@ -1666,7 +1698,10 @@ type TypedTrait =
     | "tracked"
     | "shareable"
     | "provisioned"
+    | "bindable"
     | "attachments"
+    | "presentable"
+    | "orderable"
     | "key";
 
 /** The trait options a definition sets, without the absent ones. */
@@ -1756,6 +1791,8 @@ export function defineObject<
     const Plural extends string = string,
     const Attachments extends readonly Attachment[] = [],
     const Key extends schema.Schema<string> | undefined = undefined,
+    const Presenting extends PresentableDefinition | undefined = undefined,
+    const Ordering extends OrderableDefinition | undefined = undefined,
     Traits = TraitOptions<{
         readonly key: Key;
         readonly nested: Nested;
@@ -1789,7 +1826,11 @@ export function defineObject<
                 ScopeIdentityOf<Scope>,
                 NoInfer<
                     ObjectFields<
-                        Fields & RoleFieldsOf<Sharing, IsScope> & ProvisionedFieldsOf<Provisioning>
+                        Fields &
+                            RoleFieldsOf<Sharing, IsScope> &
+                            ProvisionedFieldsOf<Provisioning> &
+                            PresentationFieldsOf<Presenting> &
+                            OrderedFieldsOf<Ordering>
                     >
                 >,
                 NoInfer<TableTraitsOf<TraitsOf<Traits> & ProvisionedTraitsOf<Provisioning>>>,
@@ -1801,7 +1842,11 @@ export function defineObject<
             NoInfer<
                 WrittenField<
                     ObjectFields<
-                        Fields & RoleFieldsOf<Sharing, IsScope> & ProvisionedFieldsOf<Provisioning>
+                        Fields &
+                            RoleFieldsOf<Sharing, IsScope> &
+                            ProvisionedFieldsOf<Provisioning> &
+                            PresentationFieldsOf<Presenting> &
+                            OrderedFieldsOf<Ordering>
                     >
                 >
             >
@@ -1839,6 +1884,10 @@ export function defineObject<
             readonly attachments?: Attachments;
             /** The objects' natural key, which callers and sources name them by. */
             readonly key?: Key;
+            /** How pickers, mentions and titles show the objects. */
+            readonly presentable?: Presenting;
+            /** How the objects are ordered among their siblings. */
+            readonly orderable?: Ordering;
         },
     module?: ModuleMetadata,
 ): ObjectType<{
@@ -1848,13 +1897,23 @@ export function defineObject<
     readonly table: ObjectTable<
         Name,
         ScopeIdentityOf<Scope>,
-        ObjectFields<Fields & RoleFieldsOf<Sharing, IsScope> & ProvisionedFieldsOf<Provisioning>>,
+        ObjectFields<
+            Fields &
+                RoleFieldsOf<Sharing, IsScope> &
+                ProvisionedFieldsOf<Provisioning> &
+                PresentationFieldsOf<Presenting> &
+                OrderedFieldsOf<Ordering>
+        >,
         TableTraitsOf<TraitsOf<Traits> & ProvisionedTraitsOf<Provisioning>>,
         Identity,
         Storage
     >;
     readonly fields: ObjectFields<
-        Fields & RoleFieldsOf<Sharing, IsScope> & ProvisionedFieldsOf<Provisioning>
+        Fields &
+            RoleFieldsOf<Sharing, IsScope> &
+            ProvisionedFieldsOf<Provisioning> &
+            PresentationFieldsOf<Presenting> &
+            OrderedFieldsOf<Ordering>
     >;
     readonly methods: Methods &
         ProvisionedMethodsOf<Provisioning> &
@@ -1942,8 +2001,15 @@ export function defineObject(
     const built = build?.(method);
 
     // collect the traits, adding what the roles define
-    const definition = Roles.expand(
-        Provisioned.expand({ ...declaration, ...(built === undefined ? {} : { methods: built }) }),
+    const definition = Orderable.expand(
+        Presentable.expand(
+            Roles.expand(
+                Provisioned.expand({
+                    ...declaration,
+                    ...(built === undefined ? {} : { methods: built }),
+                }),
+            ),
+        ),
     );
     const intrinsic = definition[INTRINSIC];
     const traits = TRAITS.flatMap((trait) => {

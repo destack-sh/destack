@@ -17,12 +17,8 @@ import {
 import { schema, type Identifier, type JsonValue } from "@destack/schema";
 import type { IdentityOf, ObjectStorage, ObjectType } from "../object/object.ts";
 import { Policy } from "@destack/access";
-
-/** The digits of generated positions in ascending order, sorting alike in every collation. */
-const POSITION_DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz";
-
-/** The shape of a position. */
-const POSITION = /^[0-9a-z]+$/u;
+import { FractionalIndex } from "./fractional-index.ts";
+import { type FileBucket, ObjectFile } from "./file.ts";
 
 /** The meanings of fields beyond their stored values. */
 export const FIELD_TYPES = [
@@ -35,7 +31,8 @@ export const FIELD_TYPES = [
     "json",
     "reference",
     "subject",
-    "position",
+    "fractionalIndex",
+    "file",
     "state",
     "text",
 ] as const;
@@ -243,6 +240,8 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly aggregate?: AggregateFunction | undefined;
     /** The state machine the value follows. */
     readonly machine?: StateMachine | undefined;
+    /** The bucket a file field keeps its files in. */
+    readonly bucket?: FileBucket | undefined;
 }
 
 /** A field of an object. */
@@ -281,6 +280,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly aggregate: AggregateFunction | undefined;
     /** The state machine the value follows. */
     readonly machine: StateMachine | undefined;
+    /** The bucket a file field keeps its files in. */
+    readonly bucket: FileBucket | undefined;
     /** Create the nullable column storing the field. */
     readonly #build: BuildColumn<Configuration["value"]>;
 
@@ -297,6 +298,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.access = definition.access;
         this.aggregate = definition.aggregate;
         this.machine = definition.machine;
+        this.bucket = definition.bucket;
         this.#build = definition.build;
 
         // retain the flags
@@ -891,6 +893,16 @@ export const field = {
         return required("json", (name) => json(name, validator));
     },
 
+    /** A file kept in a bucket the package declares, by its key. */
+    file(bucket: FileBucket) {
+        return new Field<FieldConfigurationOf<{ value: ObjectFile }>>({
+            type: "file",
+            build: (name) => json(name, ObjectFile),
+            bucket,
+            ...WRITTEN,
+        });
+    },
+
     /** A principal of the given kinds, stored as its subject key. */
     subject(...kinds: readonly Policy[]): FieldOf<{ value: string }> {
         // validate key prefixes
@@ -916,48 +928,13 @@ export const field = {
     reference,
 
     /** A fractional index ordering objects among their siblings. */
-    position() {
-        return required("position", (name) => text(name).validate(schema.string().regex(POSITION)));
+    fractionalIndex() {
+        return required("fractionalIndex", (name) => text(name).validate(FractionalIndex));
     },
 
     /** A text kept in chunks and changed by edits, empty at first. */
     text: textField,
 };
-
-/** Fractional indexes ordering siblings. */
-export const Position = {
-    /** Generate a position between two others, either end open when absent. */
-    between(before: string | undefined, after: string | undefined): string {
-        // walk both positions digit by digit
-        let generated = "";
-        let upper = after;
-        for (let index = 0; ; index++) {
-            // read the digits at the index, the ends open past them
-            const low =
-                before !== undefined && index < before.length ? digit(before.charAt(index)) : 0;
-            const high =
-                upper !== undefined && index < upper.length
-                    ? digit(upper.charAt(index))
-                    : POSITION_DIGITS.length;
-
-            // take the middle digit once there is room
-            if (high - low > 1) {
-                return generated + POSITION_DIGITS.charAt(Math.floor((low + high) / 2));
-            }
-
-            // keep the lower digit and drop an upper bound left behind
-            generated += POSITION_DIGITS.charAt(low);
-            if (high > low) {
-                upper = undefined;
-            }
-        }
-    },
-};
-
-/** Read the value of a position digit. */
-function digit(character: string): number {
-    return POSITION_DIGITS.indexOf(character);
-}
 
 /** Match a text literally within a regular expression. */
 function literally(literal: string): string {

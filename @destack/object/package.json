@@ -17,14 +17,16 @@
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/directory": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
-        "uuid": "14.0.2",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/resource": "workspace:*",
-        "@destack/error": "workspace:*"
+        "@destack/theme": "workspace:*",
+        "fractional-indexing": "3.2.0",
+        "uuid": "14.0.2"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

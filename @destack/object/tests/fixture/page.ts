@@ -19,7 +19,7 @@ export const page = defineObject({
     fields: {
         title: field.string(schema.string().max(500)).default(""),
         icon: field.string(schema.string().max(32)).optional(),
-        position: field.position().default("a0"),
+        position: field.fractionalIndex().default("a0"),
     },
     recoverable: { within: { days: 30 }, by: "manage" },
     shareable: { isPublic: true },

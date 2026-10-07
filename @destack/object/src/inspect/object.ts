@@ -8,6 +8,9 @@ import { defineSchema, present, schema, toJsonSchema, type JsonValue } from "@de
 
 import { FIELD_TYPES } from "../field/field.ts";
 import { METHOD_KINDS } from "../method/kind.ts";
+import { BucketName } from "../field/file.ts";
+import { Presentation } from "../trait/presentable.ts";
+import { ObjectSearch } from "../trait/search.ts";
 import type { ObjectType } from "../object/object.ts";
 
 /** One method as the manifest describes it. */
@@ -67,6 +70,10 @@ export const ObjectDescription = defineSchema(
         methods: schema.record(schema.string(), MethodDescription),
         /** The audit action recording each watch of read-audited objects. */
         watch: AuditActionDescription.exactOptional(),
+        /** How pickers, mentions and titles show the objects, absent for a type presenting none. */
+        presentation: Presentation.exactOptional(),
+        /** The fields full-text search ranks, lists filter and lists order the objects by. */
+        search: ObjectSearch.exactOptional(),
         /** The fields callers read and write, by row property. */
         fields: schema.record(
             schema.string(),
@@ -75,6 +82,8 @@ export const ObjectDescription = defineSchema(
                 type: schema.enum(FIELD_TYPES),
                 /** The principal kinds a principal reference or subject field accepts, by name. */
                 principals: schema.array(schema.string().min(1)).exactOptional(),
+                /** The bucket a file field keeps its files in, by its declaring package and name. */
+                bucket: BucketName.exactOptional(),
                 /** The permission a caller needs to read the value. */
                 read: schema.string().min(1).exactOptional(),
                 /** The permission a caller needs to write the value. */
@@ -123,6 +132,8 @@ export function describeObject(object: ObjectType): ObjectDescription {
         ...(object.isReadAudited
             ? { watch: describeAuditAction(object.audit("watch", "collection")) }
             : {}),
+        ...(object.presentation === undefined ? {} : { presentation: object.presentation }),
+        ...(object.search === undefined ? {} : { search: object.search }),
         fields: Object.fromEntries(
             Object.entries(object.fields).map(([name, declared]) => [
                 name,
@@ -131,6 +142,9 @@ export function describeObject(object: ObjectType): ObjectDescription {
                     ...(declared.principals === undefined
                         ? {}
                         : { principals: declared.principals.map((principal) => principal.name) }),
+                    ...(declared.bucket === undefined
+                        ? {}
+                        : { bucket: BucketName.of(declared.bucket) }),
                     ...declared.access,
                 },
             ]),

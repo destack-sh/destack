@@ -56,6 +56,10 @@ defineObject({
     suspendable: { by: "manage" }, // suspend and resume on a scope type
     tracked: { by: "edit", activity, session: { minutes: 10 } }, // changes grouped into activities, with history and revert
     audited: { reads: true }, // an audit event for each read
+    presentable: true, // the title or name field as title, with icon and color fields
+    // presentable: { subtitle: "summary", icon: media, cover: media } sets each piece, images in the media bucket
+    orderable: true, // a position among the siblings under the parent, or { within: "status" }
+    search: { searchable: ["title"], filterable: ["status"], sortable: ["dueAt"] }, // query roles, an index per filtered or sorted field
 });
 ```
 
@@ -369,6 +373,36 @@ export const profile = defineObject({ ..., scope: person, permissions: { read: t
 
 ```ts
 email: field.string().guard({ read: "update" }),
+```
+
+## Files
+
+`field.file` keeps a file of a bucket the package declares, by its key, and the manifest names the bucket.
+
+```ts
+import { media } from "../stack/bucket.ts"; // defineBucket({ name: "media" })
+
+fields: { attachment: field.file(media).optional() }, // { key: "page/page-…/…" }
+```
+
+## Presentation
+
+`presentable` shows objects by a title, a subtitle, an `Icon` (an emoji, a Phosphor icon or an image), one of the theme's `ACCENTS` and a `Cover` centred on a focus.
+
+```ts
+defineObject({ ..., fields: { title: field.string() }, presentable: { icon: media, cover: media } });
+// icon: { emoji: "📘" } | { icon: "book-open" } | { file: { key } }, color: "teal", cover: { file: { key }, focus: 0.4 }
+Presentation.title(described.presentation, row); // "Roadmap", or the identifier of an untitled object
+```
+
+## Ordering
+
+`orderable` keeps each object's place among its siblings as a fractional index, lists the objects in that order and places a created object after its last sibling.
+
+```ts
+defineObject({ ..., nested: { in: "self", optional: true, move: "edit" }, orderable: true });
+await pages.update({ id, position: FractionalIndex.place(before.position, after.position) }); // move between two
+// FractionalIndex.place adds random digits, so two people dropping into one gap never collide
 ```
 
 ## Clients

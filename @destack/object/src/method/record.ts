@@ -1,3 +1,4 @@
+import { Orderable } from "../trait/orderable.ts";
 import {
     AccessError,
     accessRelationship,
@@ -14,7 +15,6 @@ import {
     sql,
     TABLE,
     type InsertValue,
-    type JsonOf,
     type Select,
     type SQL,
     type Table,
@@ -40,6 +40,7 @@ import {
     RevisionShape,
     type FieldShape,
     type WrittenShape,
+    type IdSchema,
     type ParentShape,
     type Procedure,
     type ReplayShape,
@@ -60,7 +61,7 @@ import { isManaging } from "../trait/declarable.ts";
 
 import type { TraitTable } from "../object/table.ts";
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
-/** The count of objects a bulk update changed, after Prisma's batch payload. */
+/** The count of objects a bulk update changed. */
 export const BatchPayload = schema.object({ count: schema.number().int().nonnegative() });
 
 /** The query, page and view of a list's input, beside its scope fields. */
@@ -804,6 +805,18 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
         ? await nextVersion(object, call.requireParent().id, call.database)
         : undefined;
 
+    // place an ordered object after its last sibling unless the caller placed it
+    const decoded = object.table[TABLE].decode(call.input);
+    const parent = object.parent === undefined ? {} : call.parentColumns();
+    const position =
+        object.ordering === undefined || call.input["position"] !== undefined
+            ? undefined
+            : await Orderable.next(
+                  object,
+                  { ...decoded, ...parent, scope: call.scope },
+                  call.database,
+              );
+
     // require the writing client
     if (object.storage === "ephemeral" && call.client === undefined) {
         throw new TypeError(`ephemeral ${object.name} objects are created by a client`);
@@ -811,8 +824,9 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
 
     // assemble the columns
     return {
-        ...object.table[TABLE].decode(call.input),
-        ...(object.parent === undefined ? {} : call.parentColumns()),
+        ...decoded,
+        ...parent,
+        ...(position === undefined ? {} : { position }),
         id: call.id,
         scope: call.scope,
         ...(version === undefined ? {} : { number: version }),
@@ -1194,9 +1208,7 @@ type MatchShape<Object extends ObjectType> = WrittenShape<Object, Method, true>;
 
 /** The identifier a caller may choose for a created object. */
 type CreationShape<Object extends ObjectType> = {
-    id: schema.ExactOptional<
-        schema.Schema<JsonOf<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>>
-    >;
+    id: schema.ExactOptional<IdSchema<Object>>;
 };
 
 /** Read how a call creates its object's first relationships: as declared, else relating the creator as owner of a scope shared through the roles. */
