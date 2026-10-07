@@ -27,13 +27,9 @@
         "@destack/account": "workspace:*"
     },
     "devDependencies": {
-        "@destack/resource": "workspace:*",
-        "@destack/test": "workspace:*",
-        "uuid": "14.0.2",
         "@types/bun": "1.4.2"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "typecheck": "tsc --project tsconfig.json"
     }
 }

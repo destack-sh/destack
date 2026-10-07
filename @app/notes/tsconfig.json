@@ -23,5 +23,5 @@
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
     },
-    "include": ["src", "tests", "*.config.ts"]
+    "include": ["src"]
 }

@@ -15,8 +15,6 @@
         "./object": "./src/object/index.ts"
     },
     "dependencies": {
-        "@destack/access": "workspace:*",
-        "@destack/account": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/icon": "workspace:*",
@@ -26,19 +24,14 @@
         "@destack/service": "workspace:*",
         "@destack/space": "workspace:*",
         "@destack/style": "workspace:*",
-        "@destack/sync": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/ui": "workspace:*",
         "@destack/view": "workspace:*"
     },
     "devDependencies": {
-        "@destack/resource": "workspace:*",
-        "@destack/build": "workspace:*",
-        "@destack/test": "workspace:*",
-        "uuid": "14.0.2"
+        "@destack/build": "workspace:*"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "typecheck": "tsc --project tsconfig.json"
     }
 }

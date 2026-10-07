@@ -10,19 +10,15 @@ typecheck:
 
 # lint
 lint:
-    bun run destack-check check src tests vitest.config.ts README.md
+    bun run destack-check check src README.md
 
 # check formatting
 format-check:
-    bun run destack-check format-check src tests vitest.config.ts package.json destack.json
+    bun run destack-check format-check src package.json destack.json
 
 # typecheck, lint and check formatting
 check: typecheck lint format-check
 
-# test
-test:
-    bun run test
-
 # format
 format *args:
-    bun run destack-check format {{args}} src tests vitest.config.ts package.json destack.json
+    bun run destack-check format {{args}} src package.json destack.json
