@@ -20,12 +20,13 @@ toJsonSchema(Note);
 
 ## JSON Schema
 
-`fromJsonSchema` turns a JSON Schema back into a schema that validates the same values.
+`fromJsonSchema` turns a JSON Schema back into a schema that validates the same values, following local references at any pointer.
 
 ```ts
 import { fromJsonSchema } from "@destack/schema";
 
 fromJsonSchema(toJsonSchema(Note)).parse({ title: "Hello", archived: false });
+fromJsonSchema({ $ref: "#/components/schemas/Pet", components: { schemas: { Pet } } }); // an API description's schema
 ```
 
 ## Comparisons
