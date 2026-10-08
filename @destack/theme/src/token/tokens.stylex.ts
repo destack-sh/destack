@@ -282,102 +282,12 @@ export const swatch = defineConsts({
     orangeText: "var(--destack-swatch-orange-text)",
 });
 
-/** Text styles at the medium text size with 16px body text, scaled by the person's text size. */
-export const text = defineConsts({
+/** Font stacks, which text styles and code take. */
+export const font = defineConsts({
     /** The interface font stack. */
-    family: "var(--destack-text-family)",
+    text: "var(--destack-font-text)",
     /** The code font stack. */
-    codeFamily: "var(--destack-text-code-family)",
-    /** Captions and labels. */
-    captionFontFamily: "var(--destack-text-caption-font-family)",
-    /** Captions and labels. */
-    captionFontSize: "var(--destack-text-caption-font-size)",
-    /** Captions and labels. */
-    captionFontWeight: "var(--destack-text-caption-font-weight)",
-    /** Captions and labels. */
-    captionLineHeight: "var(--destack-text-caption-line-height)",
-    /** Captions and labels. */
-    captionLetterSpacing: "var(--destack-text-caption-letter-spacing)",
-    /** Footnotes and secondary labels. */
-    footnoteFontFamily: "var(--destack-text-footnote-font-family)",
-    /** Footnotes and secondary labels. */
-    footnoteFontSize: "var(--destack-text-footnote-font-size)",
-    /** Footnotes and secondary labels. */
-    footnoteFontWeight: "var(--destack-text-footnote-font-weight)",
-    /** Footnotes and secondary labels. */
-    footnoteLineHeight: "var(--destack-text-footnote-line-height)",
-    /** Footnotes and secondary labels. */
-    footnoteLetterSpacing: "var(--destack-text-footnote-letter-spacing)",
-    /** Body text. */
-    bodyFontFamily: "var(--destack-text-body-font-family)",
-    /** Body text. */
-    bodyFontSize: "var(--destack-text-body-font-size)",
-    /** Body text. */
-    bodyFontWeight: "var(--destack-text-body-font-weight)",
-    /** Body text. */
-    bodyLineHeight: "var(--destack-text-body-line-height)",
-    /** Body text. */
-    bodyLetterSpacing: "var(--destack-text-body-letter-spacing)",
-    /** Callouts beside body text. */
-    calloutFontFamily: "var(--destack-text-callout-font-family)",
-    /** Callouts beside body text. */
-    calloutFontSize: "var(--destack-text-callout-font-size)",
-    /** Callouts beside body text. */
-    calloutFontWeight: "var(--destack-text-callout-font-weight)",
-    /** Callouts beside body text. */
-    calloutLineHeight: "var(--destack-text-callout-line-height)",
-    /** Callouts beside body text. */
-    calloutLetterSpacing: "var(--destack-text-callout-letter-spacing)",
-    /** Headlines within body text. */
-    headlineFontFamily: "var(--destack-text-headline-font-family)",
-    /** Headlines within body text. */
-    headlineFontSize: "var(--destack-text-headline-font-size)",
-    /** Headlines within body text. */
-    headlineFontWeight: "var(--destack-text-headline-font-weight)",
-    /** Headlines within body text. */
-    headlineLineHeight: "var(--destack-text-headline-line-height)",
-    /** Headlines within body text. */
-    headlineLetterSpacing: "var(--destack-text-headline-letter-spacing)",
-    /** First-level titles. */
-    title1FontFamily: "var(--destack-text-title1-font-family)",
-    /** First-level titles. */
-    title1FontSize: "var(--destack-text-title1-font-size)",
-    /** First-level titles. */
-    title1FontWeight: "var(--destack-text-title1-font-weight)",
-    /** First-level titles. */
-    title1LineHeight: "var(--destack-text-title1-line-height)",
-    /** First-level titles. */
-    title1LetterSpacing: "var(--destack-text-title1-letter-spacing)",
-    /** Second-level titles. */
-    title2FontFamily: "var(--destack-text-title2-font-family)",
-    /** Second-level titles. */
-    title2FontSize: "var(--destack-text-title2-font-size)",
-    /** Second-level titles. */
-    title2FontWeight: "var(--destack-text-title2-font-weight)",
-    /** Second-level titles. */
-    title2LineHeight: "var(--destack-text-title2-line-height)",
-    /** Second-level titles. */
-    title2LetterSpacing: "var(--destack-text-title2-letter-spacing)",
-    /** Third-level titles. */
-    title3FontFamily: "var(--destack-text-title3-font-family)",
-    /** Third-level titles. */
-    title3FontSize: "var(--destack-text-title3-font-size)",
-    /** Third-level titles. */
-    title3FontWeight: "var(--destack-text-title3-font-weight)",
-    /** Third-level titles. */
-    title3LineHeight: "var(--destack-text-title3-line-height)",
-    /** Third-level titles. */
-    title3LetterSpacing: "var(--destack-text-title3-letter-spacing)",
-    /** Large titles at the top of a view. */
-    largeTitleFontFamily: "var(--destack-text-large-title-font-family)",
-    /** Large titles at the top of a view. */
-    largeTitleFontSize: "var(--destack-text-large-title-font-size)",
-    /** Large titles at the top of a view. */
-    largeTitleFontWeight: "var(--destack-text-large-title-font-weight)",
-    /** Large titles at the top of a view. */
-    largeTitleLineHeight: "var(--destack-text-large-title-line-height)",
-    /** Large titles at the top of a view. */
-    largeTitleLetterSpacing: "var(--destack-text-large-title-letter-spacing)",
+    code: "var(--destack-font-code)",
 });
 
 /** Font weights after the CSS font-weight keywords and their common names. */

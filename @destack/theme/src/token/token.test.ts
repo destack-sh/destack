@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@destack/test";
 import { Source } from "../token/source.ts";
+import { TextStyleName, WeightName } from "../theme/theme.ts";
 import { TOKENS, TokenTree } from "../token/token.ts";
 
 /** Read a package file. */
@@ -26,6 +27,7 @@ test("declare the token families with their text styles and motion tokens", () =
         "color",
         "surface",
         "swatch",
+        "font",
         "text",
         "weight",
         "space",
@@ -37,27 +39,18 @@ test("declare the token families with their text styles and motion tokens", () =
         "motion",
     ]);
 
-    // the text styles named by role, one constant per typography member
-    const styles = [
-        "caption",
-        "footnote",
-        "body",
-        "callout",
-        "headline",
-        "title1",
-        "title2",
-        "title3",
-        "largeTitle",
-    ];
-    const members = ["FontFamily", "FontSize", "FontWeight", "LineHeight", "LetterSpacing"];
-    expect(keys("text")).toEqual([
-        "family",
-        "codeFamily",
-        ...styles.flatMap((style) => members.map((member) => style + member)),
-    ]);
+    // the interface and code font stacks the text styles and code take
+    expect(keys("font")).toEqual(["text", "code"]);
 
-    // the font weights and line widths
-    expect(keys("weight")).toEqual(["regular", "medium", "semibold", "bold"]);
+    // the text styles a theme names, one custom property per typography member
+    const styles = TextStyleName.options;
+    const members = ["FontFamily", "FontSize", "FontWeight", "LineHeight", "LetterSpacing"];
+    expect(keys("text")).toEqual(
+        styles.flatMap((style) => members.map((member) => style + member)),
+    );
+
+    // the font weights a theme names, and the line widths
+    expect(keys("weight")).toEqual(WeightName.options);
     expect(keys("stroke")).toEqual(["border", "ring"]);
 
     // the durations and easings

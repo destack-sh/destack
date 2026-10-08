@@ -14,11 +14,13 @@
 
 /* set the theme's element defaults in the base layer below every component style */
 @layer base {
-    /* paint the page in the theme's background, text color and interface font */
+    /* paint the page in the theme's background, text color and body text, scaled by the person's text size */
     :root {
         background-color: var(--destack-color-background);
         color: var(--destack-color-foreground);
-        font-family: var(--destack-text-family);
+        font-family: var(--destack-font-text);
+        font-size: var(--destack-text-body-font-size);
+        line-height: var(--destack-text-body-line-height);
         accent-color: var(--destack-color-primary);
     }
 
@@ -27,7 +29,7 @@
     kbd,
     samp,
     pre {
-        font-family: var(--destack-text-code-family);
+        font-family: var(--destack-font-code);
     }
 
     /* draw placeholders in the theme's muted text color */

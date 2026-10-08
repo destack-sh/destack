@@ -36,6 +36,14 @@ export const text = style.create({
         lineHeight: "var(--destack-text-callout-line-height)",
         letterSpacing: "var(--destack-text-callout-letter-spacing)",
     },
+    /** Subheadings and secondary text beside body text. */
+    subheadline: {
+        fontFamily: "var(--destack-text-subheadline-font-family)",
+        fontSize: "var(--destack-text-subheadline-font-size)",
+        fontWeight: "var(--destack-text-subheadline-font-weight)",
+        lineHeight: "var(--destack-text-subheadline-line-height)",
+        letterSpacing: "var(--destack-text-subheadline-letter-spacing)",
+    },
     /** Headlines within body text. */
     headline: {
         fontFamily: "var(--destack-text-headline-font-family)",

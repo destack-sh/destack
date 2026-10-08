@@ -71,6 +71,8 @@ const LARGEST_TEXT = {
     "--destack-text-body-letter-spacing": "-0.582px",
     "--destack-text-callout-font-size": "21.563px",
     "--destack-text-callout-letter-spacing": "-0.418px",
+    "--destack-text-subheadline-font-size": "20.125px",
+    "--destack-text-subheadline-letter-spacing": "-0.221px",
     "--destack-text-headline-font-size": "23px",
     "--destack-text-headline-letter-spacing": "-0.582px",
     "--destack-text-title1-font-size": "38.813px",
@@ -432,51 +434,56 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-surface-base": "light-dark(#fcfdfe, #131314)",
         "--destack-surface-raised": "light-dark(#f8f9fa, #19191a)",
         "--destack-surface-overlay": "light-dark(#fcfdfe, #242425)",
-        "--destack-text-family":
+        "--destack-font-text":
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
-        "--destack-text-code-family":
+        "--destack-font-code":
             'Menlo, Consolas, "Bitstream Vera Sans Mono", monospace, "Apple Color Emoji", "Segoe UI Emoji"',
-        "--destack-text-caption-font-family": "var(--destack-text-family)",
+        "--destack-text-caption-font-family": "var(--destack-font-text)",
         "--destack-text-caption-font-size": "11px",
         "--destack-text-caption-font-weight": "400",
         "--destack-text-caption-line-height": "1.3333",
         "--destack-text-caption-letter-spacing": "0px",
-        "--destack-text-footnote-font-family": "var(--destack-text-family)",
+        "--destack-text-footnote-font-family": "var(--destack-font-text)",
         "--destack-text-footnote-font-size": "12px",
         "--destack-text-footnote-font-weight": "400",
         "--destack-text-footnote-line-height": "1.3846",
         "--destack-text-footnote-letter-spacing": "-0.074px",
-        "--destack-text-body-font-family": "var(--destack-text-family)",
+        "--destack-text-body-font-family": "var(--destack-font-text)",
         "--destack-text-body-font-size": "16px",
         "--destack-text-body-font-weight": "400",
         "--destack-text-body-line-height": "1.2941",
         "--destack-text-body-letter-spacing": "-0.405px",
-        "--destack-text-callout-font-family": "var(--destack-text-family)",
+        "--destack-text-callout-font-family": "var(--destack-font-text)",
         "--destack-text-callout-font-size": "15px",
         "--destack-text-callout-font-weight": "400",
         "--destack-text-callout-line-height": "1.3125",
         "--destack-text-callout-letter-spacing": "-0.291px",
-        "--destack-text-headline-font-family": "var(--destack-text-family)",
+        "--destack-text-subheadline-font-family": "var(--destack-font-text)",
+        "--destack-text-subheadline-font-size": "14px",
+        "--destack-text-subheadline-font-weight": "400",
+        "--destack-text-subheadline-line-height": "1.3333",
+        "--destack-text-subheadline-letter-spacing": "-0.154px",
+        "--destack-text-headline-font-family": "var(--destack-font-text)",
         "--destack-text-headline-font-size": "16px",
         "--destack-text-headline-font-weight": "600",
         "--destack-text-headline-line-height": "1.2941",
         "--destack-text-headline-letter-spacing": "-0.405px",
-        "--destack-text-title1-font-family": "var(--destack-text-family)",
+        "--destack-text-title1-font-family": "var(--destack-font-text)",
         "--destack-text-title1-font-size": "27px",
         "--destack-text-title1-font-weight": "400",
         "--destack-text-title1-line-height": "1.2143",
         "--destack-text-title1-letter-spacing": "0.367px",
-        "--destack-text-title2-font-family": "var(--destack-text-family)",
+        "--destack-text-title2-font-family": "var(--destack-font-text)",
         "--destack-text-title2-font-size": "21px",
         "--destack-text-title2-font-weight": "400",
         "--destack-text-title2-line-height": "1.2727",
         "--destack-text-title2-letter-spacing": "-0.248px",
-        "--destack-text-title3-font-family": "var(--destack-text-family)",
+        "--destack-text-title3-font-family": "var(--destack-font-text)",
         "--destack-text-title3-font-size": "19px",
         "--destack-text-title3-font-weight": "400",
         "--destack-text-title3-line-height": "1.25",
         "--destack-text-title3-letter-spacing": "-0.427px",
-        "--destack-text-large-title-font-family": "var(--destack-text-family)",
+        "--destack-text-large-title-font-family": "var(--destack-font-text)",
         "--destack-text-large-title-font-size": "33px",
         "--destack-text-large-title-font-weight": "400",
         "--destack-text-large-title-line-height": "1.2059",
@@ -619,22 +626,21 @@ test("apply the theme's radius, scaling and fonts", () => {
         standard.variables("light", DEFAULT_PREFERENCES),
     );
 
-    // scale every length by 90% and the radii by the full treatment's 1.5 on top
+    // scale every length by 90% and the radii by the full treatment's 1.5 on top, and drop the token font's tracking
     const text = TOKENS.family("text").entries.flatMap((entry) => {
         if (entry.token.$type !== "typography") {
             return [];
         }
         const { fontSize, letterSpacing } = entry.token.$value;
-        const spacing = letterSpacing.value === 0 ? [] : [["letter-spacing", letterSpacing.value]];
+        const size = [`${entry.variable}-font-size`, pixels(fontSize.value * 0.9)];
+        const spacing =
+            letterSpacing.value === 0 ? [] : [[`${entry.variable}-letter-spacing`, "0px"]];
 
-        return [["font-size", fontSize.value], ...spacing].map(([member, length]) => [
-            `${entry.variable}-${member}`,
-            pixels(Number(length) * 0.9),
-        ]);
+        return [size, ...spacing];
     });
     expect(changed).toEqual({
-        "--destack-text-family": '"IBM Plex Sans", sans-serif',
-        "--destack-text-code-family": '"IBM Plex Mono", monospace',
+        "--destack-font-text": '"IBM Plex Sans", sans-serif',
+        "--destack-font-code": '"IBM Plex Mono", monospace',
         ...Object.fromEntries(text),
         ...Object.fromEntries(scaled("space", SPACE, 0.9)),
         ...Object.fromEntries(scaled("size", SIZE, 0.9)),
@@ -660,3 +666,24 @@ function hex(color: {
 
     return color.alpha === undefined ? opaque : Color.translucent(opaque, color.alpha);
 }
+
+test("weigh the text styles a theme changes by their weight tokens", () => {
+    const theme = defineTheme(
+        {
+            name: "publication",
+            text: { title1: { weight: "medium" }, title2: { weight: "medium" } },
+        },
+        { package: notes },
+    );
+
+    // point each changed style's weight at the named weight token and leave every other value
+    expect(
+        changes(
+            theme.variables("light", DEFAULT_PREFERENCES),
+            standard.variables("light", DEFAULT_PREFERENCES),
+        ),
+    ).toEqual({
+        "--destack-text-title1-font-weight": "var(--destack-weight-medium)",
+        "--destack-text-title2-font-weight": "var(--destack-weight-medium)",
+    });
+});

@@ -59,7 +59,7 @@ const ColorValue = schema.object({
 /** A group of the token tree before its members are read. */
 const Group = schema.record(schema.string(), schema.json());
 
-/** A reference to another token by its path, such as `{text.family}`. */
+/** A reference to another token by its path, such as `{font.text}`. */
 const Alias = schema.string().regex(/^\{[A-Za-z0-9.]+\}$/u);
 
 /** One layer of a shadow. */
@@ -211,6 +211,11 @@ export class TokenEntry {
                 : [this.path];
 
         return paths.map((path) => ({ key: constantKey(path), variable: variable(path) }));
+    }
+
+    /** Read the custom property of one member of a typography token, such as its letter spacing. */
+    member(name: (typeof TYPOGRAPHY_MEMBERS)[number]): Variable {
+        return variable([...this.path, name]);
     }
 
     /** List the token paths this token's aliases name. */

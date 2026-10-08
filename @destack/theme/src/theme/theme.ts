@@ -1,7 +1,7 @@
 import { PackageError, type Package } from "@destack/package";
 import { defineSchema, present, schema } from "@destack/schema";
 import { apca, Palette, Seed, type Scheme } from "../palette/index.ts";
-import { ACCENT_PRESETS, type AccentPreset } from "../preset/index.ts";
+import { ACCENT_PRESETS } from "../preset/index.ts";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
 import {
     DENSITY_SCALES,
@@ -69,7 +69,7 @@ const CHECKS = [
 const CONTRAST_VARIABLE = `${VARIABLE_PREFIX}-contrast`;
 
 /** A package-local theme name. */
-export const ThemeName = defineSchema(schema.string().regex(/^[a-z][a-zA-Z0-9]*$(?![\s\S])/u));
+export const ThemeName = defineSchema(schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u));
 
 /** A corner treatment. */
 export const Radius = defineSchema(schema.enum(["none", "small", "medium", "large", "full"]));
@@ -80,6 +80,39 @@ export type Radius = schema.Infer<typeof Radius>;
 export const Scaling = defineSchema(schema.enum(["90%", "95%", "100%", "105%", "110%"]));
 /** A proportional interface scale. */
 export type Scaling = schema.Infer<typeof Scaling>;
+
+/** A text style of the type scale. */
+export const TextStyleName = defineSchema(
+    schema.enum([
+        "caption",
+        "footnote",
+        "body",
+        "callout",
+        "subheadline",
+        "headline",
+        "title1",
+        "title2",
+        "title3",
+        "largeTitle",
+    ]),
+);
+/** A text style of the type scale. */
+export type TextStyleName = schema.Infer<typeof TextStyleName>;
+
+/** A font weight by its token name. */
+export const WeightName = defineSchema(schema.enum(["regular", "medium", "semibold", "bold"]));
+/** A font weight by its token name. */
+export type WeightName = schema.Infer<typeof WeightName>;
+
+/** A theme's change to one text style. */
+export const TextOverride = defineSchema(
+    schema.object({
+        /** The weight the style takes instead of its token weight. */
+        weight: WeightName.exactOptional(),
+    }),
+);
+/** A theme's change to one text style. */
+export type TextOverride = schema.Infer<typeof TextOverride>;
 
 /** A theme as authored, every field beside the name optional. */
 export const ThemeDefinition = defineSchema(
@@ -109,7 +142,7 @@ export const ThemeDefinition = defineSchema(
         radius: Radius.exactOptional(),
         /** The interface scale, 100% when absent. */
         scaling: Scaling.exactOptional(),
-        /** The font stacks of interface and code text as CSS `font-family` values, the tokens' when absent. */
+        /** The font stacks of interface and code text as CSS `font-family` values, the tokens' and their tracking when absent. */
         fonts: schema
             .object({
                 /** The interface font stack. */
@@ -118,6 +151,8 @@ export const ThemeDefinition = defineSchema(
                 code: schema.string().min(1).exactOptional(),
             })
             .exactOptional(),
+        /** The text styles the theme changes, such as lighter headings for its font. */
+        text: schema.partialRecord(TextStyleName, TextOverride).exactOptional(),
         /** The density a person's density setting overrides, regular when absent. */
         density: Density.exactOptional(),
         /** The roles the theme replaces with a palette's seed or tone or explicit colors, checked like every role. */
@@ -213,9 +248,11 @@ export class Theme {
         }
 
         // resolve each preset's swatch as the roles it takes under the preset as accent
-        for (const entry of TOKENS.family("swatch").entries) {
-            const { preset, part } = swatchOf(entry.key);
-            style[entry.variable] = this.#css(SWATCH_ROLES[part], preferences.contrast, preset);
+        for (const preset of ACCENT_PRESETS) {
+            for (const part of SWATCH_PARTS) {
+                const entry = TOKENS.entry(["swatch", `${preset}${capitalize(part)}`]);
+                style[entry.variable] = this.#css(SWATCH_ROLES[part], preferences.contrast, preset);
+            }
         }
 
         // scale every other token by the theme and the person's preferences
@@ -340,6 +377,7 @@ export class Theme {
                 return scaling * RADIUS_SCALES[this.definition.radius ?? DEFAULT_RADIUS];
             case "text":
                 return scaling * TEXT_SCALES[preferences.textSize];
+            case "font":
             case "weight":
             case "stroke":
             case "shadow":
@@ -352,13 +390,26 @@ export class Theme {
 
     /** Set the theme's font stacks and full radius, and the person's motion. */
     #customize(style: ThemeStyle, preferences: Preferences): void {
-        // replace the token font stacks with the theme's
+        // replace the token text font with the theme's, dropping the tracking that fits only the token font
         const fonts = this.definition.fonts;
         if (fonts?.text !== undefined) {
-            style[TOKENS.entry(["text", "family"]).variable] = fonts.text;
+            style[TOKENS.entry(["font", "text"]).variable] = fonts.text;
+            for (const entry of TOKENS.family("text").entries) {
+                style[entry.member("letterSpacing")] = "0px";
+            }
         }
+
+        // replace the token code font with the theme's
         if (fonts?.code !== undefined) {
-            style[TOKENS.entry(["text", "codeFamily"]).variable] = fonts.code;
+            style[TOKENS.entry(["font", "code"]).variable] = fonts.code;
+        }
+
+        // weigh the text styles the theme changes
+        for (const [name, override] of Object.entries(this.definition.text ?? {})) {
+            if (override.weight !== undefined) {
+                const weight = TOKENS.entry(["weight", override.weight]).variable;
+                style[TOKENS.entry(["text", name]).member("fontWeight")] = `var(${weight})`;
+            }
         }
 
         // square the full radius unless the theme rounds fully
@@ -373,21 +424,9 @@ export class Theme {
     }
 }
 
-/** Read a swatch token's key, its preset then its part in camel case such as `tealSolid`, as the preset and the part. */
-function swatchOf(key: string): {
-    readonly preset: AccentPreset;
-    readonly part: (typeof SWATCH_PARTS)[number];
-} {
-    for (const preset of ACCENT_PRESETS) {
-        const part = SWATCH_PARTS.find(
-            (name) => key === `${preset}${name.charAt(0).toUpperCase()}${name.slice(1)}`,
-        );
-        if (part !== undefined) {
-            return { preset, part };
-        }
-    }
-
-    throw new TypeError(`no swatch token is named ${key}`);
+/** Capitalize a word's first letter, as token keys join a preset and a part such as `tealSolid`. */
+function capitalize(word: string): string {
+    return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
 }
 
 /** Format a color in both appearances, one color when they agree. */

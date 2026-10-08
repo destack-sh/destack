@@ -22,7 +22,8 @@ export const theme = defineTheme({
     radius: "medium",
     scaling: "100%",
     density: "regular",
-    fonts: { text: '"IBM Plex Sans", sans-serif' },
+    fonts: { text: '"IBM Plex Sans", sans-serif' }, // a replaced text font drops the system font's tracking
+    text: { title1: { weight: "medium" } }, // change a text style, such as lighter headings for the font
 });
 
 const styles = style.create({
@@ -161,6 +162,7 @@ const row = theme.rebase({ light: "#c9d8ff", dark: "#1d2f66" });
 ```ts
 import {
     color,
+    font,
     motion,
     radius,
     shadow,
@@ -168,7 +170,6 @@ import {
     space,
     stroke,
     surface,
-    text,
     weight,
 } from "@destack/theme/tokens.stylex";
 
@@ -176,6 +177,7 @@ space[4]; // "var(--destack-space-4)"
 stroke.border; // "var(--destack-stroke-border)", 1px at every scaling
 weight.medium; // "var(--destack-weight-medium)", 500
 color.mutedForeground; // "var(--destack-color-muted-foreground)"
+font.code; // "var(--destack-font-code)", the theme's code font stack
 motion.easingSpring; // "var(--destack-motion-easing-spring)"
 ```
 
@@ -188,7 +190,7 @@ import { text } from "@destack/theme/text";
 
 <h1 {...style.attrs(text.largeTitle)}>Notes</h1>;
 <p {...style.attrs(text.body)}>Body text</p>;
-// at medium: caption 11px, footnote 12, body 16, callout 15, headline 16,
+// at medium: caption 11px, footnote 12, subheadline 14, callout 15, body 16, headline 16,
 // title1 27, title2 21, title3 19, largeTitle 33
 ```
 
