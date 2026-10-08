@@ -21,7 +21,7 @@ export const PLATFORM_PATH = "/.destack/platform";
 /** The same-origin host path of the command palette on a space's origin, and below which it reaches the space's commands. */
 export const COMMAND_PATH = "/.destack/command";
 
-/** The header the command palette's page sends its page token in, as Rails and Laravel send theirs. */
+/** The header the command palette's page sends its page token in. */
 export const PAGE_TOKEN_HEADER = "x-csrf-token";
 
 /** The name of the meta element carrying the command palette's page token in its document. */

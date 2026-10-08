@@ -33,7 +33,7 @@ interface ViewExampleProperties {
 }
 
 /**
- * Render a view's example offline over the objects its calls bring about, after SwiftUI previews' in-memory model containers.
+ * Render a view's example offline over the objects its calls bring about, each scope in memory.
  *
  * Each scope the view opens keeps its objects in memory, written by the declared calls as the person's local changes.
  */

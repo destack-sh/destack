@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
 import { CommandReference } from "../declare/command.ts";
 import { PaletteSource } from "./entry.ts";
-import { Accelerator } from "./keybinding.ts";
+import { Accelerator } from "./accelerator.ts";
 
 /** The key combinations running commands, by command, merged key by key from every scope; null unbinds a command's declared keybinding. */
 export const keybindings = defineSetting({
@@ -17,7 +17,7 @@ export const keybindings = defineSetting({
     merge: "key",
 });
 
-/** The sources the command palette offers, by source, merged key by key from every scope; false turns a source off, as Raycast turns off an extension. */
+/** The sources the command palette offers, by source, merged key by key from every scope; false turns a source off. */
 export const sources = defineSetting({
     name: "palette.sources",
     title: "Command palette sources",

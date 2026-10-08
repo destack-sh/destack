@@ -8,7 +8,7 @@ import {
 } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { CommandReference } from "../declare/command.ts";
-import { Accelerator } from "./keybinding.ts";
+import { Accelerator } from "./accelerator.ts";
 
 /** How strongly a title matching the query from its start ranks: above a word's start and anywhere inside. */
 const MATCHES = { start: 3, word: 2, inside: 1 } as const;

@@ -1,5 +1,5 @@
 import { CommandReference } from "../declare/command.ts";
-import { Accelerator } from "./keybinding.ts";
+import { Accelerator, isCommandPlatform } from "./accelerator.ts";
 import { COMMAND_PATH } from "../declare/context.ts";
 import { type Localization, t } from "@destack/locale";
 import { schema } from "@destack/schema";
@@ -62,18 +62,21 @@ export async function listenForCommands(
 ): Promise<void> {
     // read the keybindings of the installation's commands
     const response = await fetch(`${COMMAND_PATH}/keybindings`, { signal });
-    const keybindings = response.ok ? Keybindings.parse(await response.json()) : [];
-    const isMac = /Mac/u.test(navigator.userAgent);
+    if (!response.ok) {
+        throw new Error(`the command keybindings answered ${response.status}`);
+    }
+    const keybindings = Keybindings.parse(await response.json());
+    const isCommand = isCommandPlatform();
 
     // open the palette, at a command its keybinding runs
     const listener = (event: KeyboardEvent) => {
         const bound = keybindings.find((entry) =>
-            Accelerator.matches(entry.keybinding, event, isMac),
+            Accelerator.matches(entry.keybinding, event, isCommand),
         );
         if (bound !== undefined) {
             event.preventDefault();
             void openPalette(bound.command, localization()).catch(reportError);
-        } else if (Accelerator.matches(PALETTE_ACCELERATOR, event, isMac)) {
+        } else if (Accelerator.matches(PALETTE_ACCELERATOR, event, isCommand)) {
             event.preventDefault();
             void openPalette(undefined, localization()).catch(reportError);
         }
@@ -102,11 +105,11 @@ async function openPalette(command: string | undefined, localization: Localizati
     dialog.dataset["slot"] = "command-palette";
     const name = localization.render(t`Command palette`);
     dialog.setAttribute("aria-label", name);
-    dialog.className = style.attrs(styles.dialog).class ?? "";
+    dialog.className = classOf(styles.dialog);
     const frame = document.createElement("iframe");
     frame.src = url;
     frame.title = name;
-    frame.className = style.attrs(styles.frame).class ?? "";
+    frame.className = classOf(styles.frame);
     dialog.append(frame);
     document.body.append(dialog);
     dialog.showModal();
@@ -133,6 +136,16 @@ async function openPalette(command: string | undefined, localization: Localizati
         }
     });
     frame.focus();
+}
+
+/** Read the class names of a StyleX style, which always compiles to some. */
+function classOf(styled: style.Styles): string {
+    const { class: names } = style.attrs(styled);
+    if (names === undefined) {
+        throw new TypeError("a palette style compiled to no class");
+    }
+
+    return names;
 }
 
 /** Report whether a message asks to close the palette. */

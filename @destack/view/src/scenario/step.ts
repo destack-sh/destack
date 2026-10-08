@@ -32,7 +32,7 @@ export const Step = defineSchema(
                 .exactOptional(),
         }),
         schema.object({
-            /** Press a key, such as `ArrowDown`, `Escape` or `Control+r` in Playwright's key syntax. */
+            /** Press a key, such as `ArrowDown`, `Escape` or `Control+r`, its modifiers joined by plus signs. */
             action: schema.literal("press"),
             /** The key with its modifiers. */
             key: schema.string().min(1),

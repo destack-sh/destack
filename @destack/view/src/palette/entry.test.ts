@@ -1,7 +1,7 @@
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { Accelerator, type KeyPress } from "./keybinding.ts";
+import { Accelerator, type KeyPress } from "./accelerator.ts";
 import { CommandReference } from "../declare/command.ts";
 import { Palette, type PaletteEntry } from "./entry.ts";
 
@@ -44,8 +44,17 @@ function command(
 function press(
     key: string,
     modifiers: Partial<Record<"altKey" | "ctrlKey" | "metaKey" | "shiftKey", boolean>>,
+    code = `Key${key.toUpperCase()}`,
 ): KeyPress {
-    return { key, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...modifiers };
+    return {
+        key,
+        code,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        ...modifiers,
+    };
 }
 
 /** The entries of a work space with tasks and notes, and of a home with notes. */
@@ -95,7 +104,7 @@ test("offer the entries of every source the person leaves on: built-in ones by n
             kind: "window",
             id: "window-1",
             title: "Inbox",
-            link: "destack://home.personal.ada/home",
+            link: "destack://home--personal--ada/home",
         },
         { kind: "space", id: HOME, title: "personal.ada" },
         {
@@ -153,7 +162,7 @@ test("read a command's keybinding: the person's own, none once unbound, else the
     ]).toEqual(["mod+shift+c", null, "mod+e", null]);
 });
 
-test("match key presses against accelerators, mod being Command on macOS and Control elsewhere", () => {
+test("match key presses against accelerators, mod being Command on Command platforms and Control elsewhere, and Option letters by their key", () => {
     expect([
         Accelerator.matches("mod+k", press("k", { metaKey: true }), true),
         Accelerator.matches("mod+k", press("k", { ctrlKey: true }), true),
@@ -161,7 +170,20 @@ test("match key presses against accelerators, mod being Command on macOS and Con
         Accelerator.matches("alt+space", press(" ", { altKey: true }), true),
         Accelerator.matches("mod+shift+k", press("K", { metaKey: true, shiftKey: true }), true),
         Accelerator.matches("mod+k", press("k", { metaKey: true, shiftKey: true }), true),
+        Accelerator.matches("alt+d", press("∂", { altKey: true }, "KeyD"), true),
+        Accelerator.matches("alt+q", press("a", { altKey: true }, "KeyQ"), false),
         Accelerator.safeParse("mod+shift+k").success,
         Accelerator.safeParse("hyper+k").success,
-    ]).toEqual([true, false, true, true, true, false, true, false]);
+    ]).toEqual([true, false, true, true, true, false, true, false, true, false]);
+});
+
+test("write accelerators with Command platform symbols, and with words joined by plus signs elsewhere", () => {
+    expect([
+        Accelerator.format("mod+k", true),
+        Accelerator.format("mod+k", false),
+        Accelerator.format("alt+shift+d", true),
+        Accelerator.format("alt+shift+d", false),
+        Accelerator.format("mod+enter", true),
+        Accelerator.format("up", false),
+    ]).toEqual(["⌘K", "Ctrl+K", "⌥⇧D", "Alt+Shift+D", "⌘Enter", "↑"]);
 });

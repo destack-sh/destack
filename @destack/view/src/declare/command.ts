@@ -12,7 +12,7 @@ export interface CommandDefinition<Object extends ObjectType = ObjectType> {
     readonly object: Object;
     /** The method the command calls. */
     readonly method: CallableName<Object>;
-    /** The key combination running it, in VS Code's keybinding syntax such as `mod+shift+a`. */
+    /** The key combination running it, in the keybinding syntax editors write, such as `mod+shift+a`. */
     readonly keybinding?: string;
 }
 

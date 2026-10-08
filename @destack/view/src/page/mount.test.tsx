@@ -61,7 +61,11 @@ test("render in the person's locale from the view's context with the launch's ca
 
 /** A platform service answering how many notes a person keeps. */
 const counter = defineService("counter", {
-    count: defineProcedure({ authentication: "identity", permission: null, audit: false })
+    count: defineProcedure({
+        authentication: "identity",
+        permission: { principals: [principal.user] },
+        audit: false,
+    })
         .route({ method: "GET", path: "/count" })
         .output(schema.object({ notes: schema.number() })),
 });
@@ -79,7 +83,7 @@ function Count() {
 test("call a platform service the view declares where the host mounts it, and refuse it to a view declaring none", async () => {
     // mount the counter at the view's platform path, answering from a fetch recording the path
     const paths: string[] = [];
-    const mounted = mountServices([counter], "https://notes.personal.florian.localhost");
+    const mounted = mountServices([counter], "https://notes--personal--florian.localhost");
     const services = new Map(
         [...mounted].map(([packageId, options]) => [
             packageId,
