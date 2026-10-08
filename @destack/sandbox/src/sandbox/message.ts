@@ -19,7 +19,7 @@ export const SandboxOptions = defineSchema(
         network: schema.array(schema.string()),
         /** Unix sockets available for host-mediated service connections. */
         sockets: schema.array(schema.string()).exactOptional(),
-        /** Whether the workload may listen on loopback ports, as a runner serving its host does. */
+        /** Whether the workload may listen on loopback ports. */
         allowsListening: schema.boolean().exactOptional(),
     }),
 );
