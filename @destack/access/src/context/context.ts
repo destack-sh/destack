@@ -1,11 +1,10 @@
 import { defineSchema, Instant, schema } from "@destack/schema";
-import { type ObjectReference, Scope, Subject } from "@destack/sync";
+import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
 import { isPrincipal, principal } from "../declare/principal.ts";
 import { Restriction } from "./restriction.ts";
-import { type Attribute, CONTAINED } from "../declare/expression.ts";
-import type { PermissionReference } from "../declare/policy.ts";
+import type { Attribute } from "../declare/expression.ts";
 
 /** The schema of a contact. */
 const contactSchema = defineSchema(
@@ -63,18 +62,6 @@ export const AuthenticationAssurance = defineSchema(
 );
 /** How strongly and how recently a caller authenticated. */
 export type AuthenticationAssurance = schema.Infer<typeof AuthenticationAssurance>;
-
-/** The object standing for a principal: callers with its `represent` permission act as the principal. */
-export interface Standing {
-    /** The permission a caller needs to act as the principal. */
-    readonly permission: PermissionReference;
-    /** The object standing for the principal. */
-    readonly object: ObjectReference;
-    /** The principal. */
-    readonly subject: Subject;
-    /** The scopes below the universe the principal lives inside, nearest first. */
-    readonly within: readonly ObjectReference[];
-}
 
 /** A verified caller: the represented subject, the principals acting for it, and what it proved. */
 export interface Caller {
@@ -164,38 +151,6 @@ export const Caller = {
         });
     },
 
-    /** Act as the principal an object stands for, with the caller as its actor (RFC 8693 4.1), or as that principal lent the authority of a person it acts for. */
-    represent(caller: Caller, standing: Standing, onBehalfOf?: Subject): Caller {
-        // refuse a delegated caller, whose chain the representation would drop
-        if ((caller.delegates ?? []).length > 0) {
-            throw new AccessError("FORBIDDEN", "a delegated caller represents no principal");
-        }
-        const actor = Caller.requirePrincipal(caller);
-
-        // act for the lending person with the principal as the delegate lent their authority
-        if (onBehalfOf !== undefined) {
-            return {
-                subject: onBehalfOf,
-                delegates: [
-                    { subject: standing.subject, authority: "lent" },
-                    { subject: actor, authority: "full" },
-                ],
-                subjects: [onBehalfOf],
-                ...(caller.permissions === undefined ? {} : { permissions: caller.permissions }),
-            };
-        }
-
-        return {
-            subject: standing.subject,
-            delegates: [{ subject: actor, authority: "full" }],
-            subjects: [
-                standing.subject,
-                ...standing.within.map((scope) => ({ ...scope, relation: CONTAINED })),
-            ],
-            ...(caller.permissions === undefined ? {} : { permissions: caller.permissions }),
-        };
-    },
-
     /** Read the contacts the represented subject proved, none under lent authority. */
     contacts(caller: Caller): readonly Contact[] {
         const isLent = caller.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
@@ -233,16 +188,5 @@ export const AccessContext = {
         }
 
         return value;
-    },
-
-    /** Let each machine or region of a context act for the cell it is, which zones name. */
-    withCells(context: AccessContext): AccessContext {
-        const cells = context.subjects
-            .filter((subject) => principal.machine.is(subject) || principal.region.is(subject))
-            .map((subject) => principal.cell.reference(Scope.universe.id, subject.id));
-
-        return cells.length === 0
-            ? context
-            : { ...context, subjects: [...context.subjects, ...cells] };
     },
 };

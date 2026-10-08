@@ -4,8 +4,8 @@ import { accessRole } from "../role/table.ts";
 import { defineSchema, schema } from "@destack/schema";
 import { relationshipBase } from "../relationship/relationship.ts";
 
-/** Where an invitation stands: waiting, taken, withdrawn or lapsed. */
-export const INVITATION_STATUSES = ["pending", "accepted", "revoked", "expired"] as const;
+/** Where an invitation stands: waiting until its expiry, taken, or withdrawn. */
+export const INVITATION_STATUSES = ["pending", "accepted", "revoked"] as const;
 
 /** The statuses as SQL string literals, which the status check lists. */
 const STATUS_LITERALS = INVITATION_STATUSES.map((status) => `'${status}'`).join(", ");

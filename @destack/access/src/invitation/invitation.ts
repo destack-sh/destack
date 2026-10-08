@@ -86,7 +86,7 @@ function pending(page: InvitationPage, now: number) {
         );
     }
 
-    // TODO #Incomplete: mark lapsed invitations expired from a controller
+    // select pending invitations before their expiry
     return and(
         eq(accessInvitation.status, "pending"),
         gt(accessInvitation.expiresAt, now),

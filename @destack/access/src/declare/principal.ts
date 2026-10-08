@@ -9,23 +9,17 @@ const OWNER = import.meta.destack.package;
 /** The identity of the package declaring access's own types. */
 export const ACCESS_PACKAGE_ID = OWNER.id;
 
-/** The kinds of principal: people, machines and installed software that authenticate, and the groups sharing reaches them through. */
+/** The kinds of principal: people, machines and installed software that authenticate, and the groups that objects are shared with. */
 export const principal = {
     /** A person, identified globally, and the scope with their own objects. */
     user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
-    /** A machine running Destack, living in its account, and the scope of its local operations. */
-    machine: new Policy(OWNER, { name: "machine", permissions: {}, scope: true }),
-    /** A region of Destack's hosted platform, administering the spaces placed in it. */
-    region: new Policy(OWNER, { name: "region", permissions: {}, isGlobal: true }),
-    /** An application installed into an account or space: the principal of software. */
+    /** A machine running spaces, identified globally, and the scope of its local operations. */
+    machine: new Policy(OWNER, { name: "machine", permissions: {}, scope: true, isGlobal: true }),
+    /** An application installed into a space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
-    /** A space, the principal its cell copies rows for. */
+    /** A space, which signs with its own key and keeps copies for itself. */
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
-    /** A machine or region serving zones, as the directory knows it. */
-    cell: new Policy(OWNER, { name: "cell", permissions: {}, isGlobal: true }),
-    /** A platform workload placed in a region, which that region's hosts run and act as through workload tokens. */
-    workload: new Policy(OWNER, { name: "workload", permissions: {}, isGlobal: true }),
-    /** A way to reach someone outside Destack that they prove control of, such as an email address. */
+    /** A way to contact someone outside Destack that they prove control of, such as an email address. */
     contact: new Policy(OWNER, { name: "contact", permissions: {} }),
     /** A set of people, software and other groups that objects are shared with at once. */
     group: new Policy(OWNER, {
@@ -91,8 +85,8 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     universe,
     principal.user,
     principal.machine,
-    principal.region,
     principal.installation,
+    principal.space,
     principal.contact,
     principal.group,
     anyone,
