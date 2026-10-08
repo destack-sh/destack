@@ -16,7 +16,7 @@ import { Checkbox } from "../checkbox/index.ts";
 import { Input } from "../input/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import { Textarea } from "../textarea/index.ts";
-import { classes, draw, markup } from "@destack/view/test";
+import { classes, markup, render } from "@destack/view/test";
 
 /** Return the class attribute of each input and select of a container, in order. */
 function controlClasses(container: Element): string[] {
@@ -24,7 +24,7 @@ function controlClasses(container: Element): string[] {
 }
 
 test("connect the label and description to the control by id", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Field>
             <FieldLabel>Email</FieldLabel>
             <Input type="email" />
@@ -43,7 +43,7 @@ test("connect the label and description to the control by id", () => {
 
 test("mark an invalid field's control and describe it by its error", () => {
     const [error, setError] = createSignal<string | undefined>(undefined);
-    const container = draw(() => (
+    const { container } = render(() => (
         <Field invalid={error() !== undefined}>
             <FieldLabel>Title</FieldLabel>
             <Textarea />
@@ -74,7 +74,7 @@ test("mark an invalid field's control and describe it by its error", () => {
 
 test("drop a cleared error from the control's descriptions", () => {
     const [error, setError] = createSignal<string | undefined>("enter a title");
-    const container = draw(() => (
+    const { container } = render(() => (
         <Field invalid={error() !== undefined}>
             <Input />
             <FieldDescription>Shown on the page.</FieldDescription>
@@ -93,7 +93,7 @@ test("drop a cleared error from the control's descriptions", () => {
 });
 
 test("list several errors once each, and children before errors", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <FieldError
                 errors={[
@@ -113,7 +113,7 @@ test("list several errors once each, and children before errors", () => {
 });
 
 test("disable a disabled field's control", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Field disabled>
             <FieldLabel>Name</FieldLabel>
             <Input />
@@ -128,7 +128,7 @@ test("disable a disabled field's control", () => {
 
 test("style an invalid field's controls as controls marked invalid themselves", () => {
     // draw each control in an invalid field and marked invalid outside a field
-    const inField = draw(() => (
+    const { container: inField } = render(() => (
         <>
             <Field invalid>
                 <Input />
@@ -143,7 +143,7 @@ test("style an invalid field's controls as controls marked invalid themselves", 
             </Field>
         </>
     ));
-    const marked = draw(() => (
+    const { container: marked } = render(() => (
         <>
             <Input aria-invalid="true" />
             <Checkbox aria-invalid="true" />
@@ -156,7 +156,7 @@ test("style an invalid field's controls as controls marked invalid themselves", 
 });
 
 test("prefer a control's attributes over its field's", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Field>
             <Input id="name" aria-describedby="hint" />
         </Field>
@@ -168,7 +168,7 @@ test("prefer a control's attributes over its field's", () => {
 });
 
 test("render a fieldset of grouped fields with a legend, title and separator", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <FieldSet>
             <FieldLegend variant="label">Notifications</FieldLegend>
             <FieldGroup>

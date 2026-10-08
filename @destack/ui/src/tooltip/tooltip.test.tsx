@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./index.ts";
-import { draw, markup, stubPopovers, wait } from "@destack/view/test";
+import { markup, render, stubPopovers, wait } from "@destack/view/test";
 
 /** Find the element of a container's first match, refusing none. */
 function find(container: Element, selector: string): HTMLElement {
@@ -22,7 +22,7 @@ function fire(element: Element, type: string): void {
 
 test("describe a trigger by its tooltip, anchored to it while shown", () => {
     stubPopovers();
-    const container = draw(() => (
+    const { container } = render(() => (
         <Tooltip>
             <TooltipTrigger size="icon" aria-label="Archive">
                 A
@@ -41,7 +41,7 @@ test("describe a trigger by its tooltip, anchored to it while shown", () => {
 
 test("show a tooltip after the delay a resting pointer waits, keeping it while the pointer rests on either", async () => {
     stubPopovers();
-    const container = draw(() => (
+    const { container } = render(() => (
         <Tooltip delayDuration={20}>
             <TooltipTrigger>Archive</TooltipTrigger>
             <TooltipContent>Archive note</TooltipContent>
@@ -70,7 +70,7 @@ test("show a tooltip after the delay a resting pointer waits, keeping it while t
 
 test("show the next tooltip of a group at once while the last one just hid", async () => {
     stubPopovers();
-    const container = draw(() => (
+    const { container } = render(() => (
         <TooltipProvider delayDuration={20} skipDelayDuration={200}>
             <Tooltip>
                 <TooltipTrigger>Archive</TooltipTrigger>

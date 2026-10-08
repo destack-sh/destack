@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 /** List whether each item of a container is open, in order. */
 function opened(container: Element): boolean[] {
@@ -9,7 +9,7 @@ function opened(container: Element): boolean[] {
 }
 
 test("name a single accordion's items alike so the platform keeps one open", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Accordion defaultValue="styled">
             <AccordionItem value="accessible">
                 <AccordionTrigger>Is it accessible?</AccordionTrigger>
@@ -22,7 +22,7 @@ test("name a single accordion's items alike so the platform keeps one open", () 
         </Accordion>
     ));
     const chevron =
-        '<span><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true"></svg></span>';
+        '<span><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span>';
     expect(markup(container)).toBe(
         '<div data-slot="accordion" data-orientation="vertical">' +
             '<details name="id-1" data-slot="accordion-item" data-state="closed">' +
@@ -35,7 +35,7 @@ test("name a single accordion's items alike so the platform keeps one open", () 
 });
 
 test("leave a multiple accordion's items unnamed so several stay open", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Accordion multiple>
             <AccordionItem value="shipping">
                 <AccordionTrigger>Shipping</AccordionTrigger>
@@ -47,7 +47,7 @@ test("leave a multiple accordion's items unnamed so several stay open", () => {
 
 test("open the items a controlled accordion's owner names", () => {
     const [value, setValue] = createSignal<readonly string[]>(["shipping"]);
-    const container = draw(() => (
+    const { container } = render(() => (
         <Accordion multiple value={value()} onValueChange={setValue}>
             <AccordionItem value="shipping">
                 <AccordionTrigger>Shipping</AccordionTrigger>
@@ -67,7 +67,7 @@ test("open the items a controlled accordion's owner names", () => {
 });
 
 test("keep a disabled item closed when its trigger is clicked", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Accordion>
             <AccordionItem value="billing" disabled>
                 <AccordionTrigger>Billing</AccordionTrigger>

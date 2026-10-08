@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush, type JSX } from "@destack/view";
-import { draw, focused, press, stubPopovers } from "@destack/view/test";
+import { focused, press, render, stubPopovers } from "@destack/view/test";
 import {
     Menu,
     MenuCheckboxItem,
@@ -38,7 +38,7 @@ function drawMenu(
 ): readonly [HTMLElement, () => MenuControl | undefined] {
     stubPopovers();
     let menu: MenuControl | undefined;
-    const container = draw(() => {
+    const { container } = render(() => {
         const control = new MenuControl(null);
         menu = control;
 

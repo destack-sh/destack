@@ -2,10 +2,10 @@ import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import * as style from "@destack/style";
 import { Button, buttonStyle } from "./index.ts";
-import { classes, draw, markup } from "@destack/view/test";
+import { classes, markup, render } from "@destack/view/test";
 
 test("render a native button with its variant, size and attributes", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Button variant="outline" size="sm" type="submit" aria-label="Save note" disabled>
             Save
         </Button>
@@ -17,7 +17,7 @@ test("render a native button with its variant, size and attributes", () => {
 
 test("restyle a button when its variant changes", () => {
     const [variant, setVariant] = createSignal<"default" | "destructive">("default");
-    const container = draw(() => <Button variant={variant()} />);
+    const { container } = render(() => <Button variant={variant()} />);
     const before = classes(container);
     setVariant("destructive");
     flush();
@@ -30,7 +30,7 @@ test("restyle a button when its variant changes", () => {
 });
 
 test("style a link like a button of the same variant and size", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Button variant="outline" size="sm" />
             <a href="/pricing" {...style.attrs(buttonStyle({ variant: "outline", size: "sm" }))} />
@@ -43,7 +43,7 @@ test("style a link like a button of the same variant and size", () => {
 });
 
 test("render a link with the button's part attributes, its native button's attributes left out", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Button
             variant="outline"
             type="submit"
@@ -60,7 +60,7 @@ test("render a link with the button's part attributes, its native button's attri
 
 test("show a spinner and mark a loading button busy, refusing clicks until it finishes", () => {
     const clicks: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Button loading onClick={() => clicks.push("save")}>
             Save
         </Button>

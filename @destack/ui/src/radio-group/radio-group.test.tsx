@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { RadioGroup, RadioGroupIndicator, RadioGroupItem } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 /** List the state each radio of a container reports, in order. */
 function checked(container: Element): string[] {
@@ -19,7 +19,7 @@ function press(container: Element, key: string): void {
 
 test("check one radio at a time on click, showing its indicator and holding the tab stop", () => {
     const changes: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <RadioGroup
             aria-label="Density"
             defaultValue="compact"
@@ -42,7 +42,7 @@ test("check one radio at a time on click, showing its indicator and holding the 
 });
 
 test("move to and check the next enabled radio on an arrow key, wrapping at the ends", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <RadioGroup aria-label="Density" defaultValue="compact">
             <RadioGroupItem value="compact" aria-label="Compact" />
             <RadioGroupItem value="cozy" aria-label="Cozy" disabled />
@@ -61,7 +61,7 @@ test("move to and check the next enabled radio on an arrow key, wrapping at the 
 });
 
 test("hold a controlled radio group at its owner's value, and submit and reset a named one through hidden radios", () => {
-    const controlled = draw(() => (
+    const { container: controlled } = render(() => (
         <RadioGroup aria-label="Density" value="compact">
             <RadioGroupItem value="compact" aria-label="Compact" />
             <RadioGroupItem value="regular" aria-label="Regular" />
@@ -69,7 +69,7 @@ test("hold a controlled radio group at its owner's value, and submit and reset a
     ));
     controlled.querySelectorAll<HTMLElement>("[role=radio]")[1]?.click();
     flush();
-    const named = draw(() => (
+    const { container: named } = render(() => (
         <form>
             <RadioGroup name="density" aria-label="Density" defaultValue="compact" required>
                 <RadioGroupItem value="compact" aria-label="Compact" />

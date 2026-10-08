@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { FieldContext, FieldControl, useFieldControl } from "../field/control.ts";
 import { JoinContext, useJoin } from "../join/index.ts";
 import { TopLayer } from "./index.ts";
@@ -12,7 +12,7 @@ test("render an overlay's content apart from the field and the joining group aro
 
         return undefined;
     };
-    draw(() => (
+    render(() => (
         <FieldContext
             value={
                 new FieldControl(

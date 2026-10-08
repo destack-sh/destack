@@ -8,14 +8,14 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 /** The markup of an icon whose body is left out. */
 const ICON =
-    '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true"></svg>';
+    '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg>';
 
 test("render a breadcrumb trail ending at the current page", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Breadcrumb>
             <BreadcrumbList>
                 <BreadcrumbItem>

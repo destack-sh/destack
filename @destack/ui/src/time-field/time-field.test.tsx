@@ -2,14 +2,14 @@ import { Locale, Localization } from "@destack/locale";
 import type { PlainTime } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush, type JSX, LocaleContext } from "@destack/view";
-import { draw, press } from "@destack/view/test";
+import { press, render } from "@destack/view/test";
 import { TimeField } from "./index.ts";
 
 /** Render an element in a locale. */
 function drawIn(tag: string, element: () => JSX.Element): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <LocaleContext value={Localization.of(Locale.parse(tag), [])}>{element()}</LocaleContext>
-    ));
+    )).container;
 }
 
 /** Press keys on the focused element in turn. */

@@ -1,7 +1,7 @@
 import { Locale, Localization } from "@destack/locale";
 import type { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { draw, press, stubPopovers } from "@destack/view/test";
+import { press, render, stubPopovers } from "@destack/view/test";
 import { flush, type JSX, LocaleContext } from "@destack/view";
 import { Day, type DateRange } from "../calendar/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
@@ -14,9 +14,9 @@ function day(text: string): PlainDate {
 
 /** Render an element in a locale. */
 function drawIn(tag: string, element: () => JSX.Element): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <LocaleContext value={Localization.of(Locale.parse(tag), [])}>{element()}</LocaleContext>
-    ));
+    )).container;
 }
 
 /** Click an element of a container by a selector. */

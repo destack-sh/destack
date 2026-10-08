@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { draw, press } from "@destack/view/test";
+import { press, render } from "@destack/view/test";
 import {
     DateSegmentGroup,
     type DateSegmentFormat,
@@ -39,7 +39,7 @@ function walk(start: DateSegmentValues, kind: DateSegmentKind, keys: readonly st
     // render the clock over values it follows
     const [values, setValues] = createSignal(start);
     let isTyping = false;
-    const container = draw(() => (
+    const { container } = render(() => (
         <DateSegmentGroup
             aria-label="Time"
             format={CLOCK}
@@ -100,7 +100,7 @@ test("clear a segment on Backspace and finish typing as the focus leaves", () =>
 });
 
 test("show each segment's value or a placeholder and expose it as a spinbutton", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <DateSegmentGroup
             aria-label="Time"
             format={CLOCK}

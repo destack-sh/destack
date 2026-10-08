@@ -1,7 +1,7 @@
 import type { JsonObject } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
-import { draw, press } from "@destack/view/test";
+import { press, render } from "@destack/view/test";
 import { Input } from "../input/index.ts";
 import { SchemaForm, schemaFields } from "./index.ts";
 
@@ -34,7 +34,7 @@ function drawForm(described: JsonObject): {
     readonly submitted: JsonObject[];
 } {
     const submitted: JsonObject[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <SchemaForm schema={described} onSubmit={(value) => submitted.push(value)} />
     ));
 
@@ -164,7 +164,7 @@ test("start fields from their defaults, constants and null, and submit them unto
 });
 
 test("wire each string format and number bound to its native input, the form validating none itself", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <SchemaForm
             schema={{
                 type: "object",
@@ -363,7 +363,7 @@ test("choose the kind of a union of objects, then fill its fields and submit its
 
 test("render a field through renderField, keeping the form's controls for the others", () => {
     const submitted: JsonObject[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <SchemaForm
             schema={{
                 type: "object",

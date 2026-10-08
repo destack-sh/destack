@@ -3,7 +3,7 @@ import { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush, type JSX, LocaleContext } from "@destack/view";
 import { Calendar, type DateRange, Day } from "./index.ts";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 
 /** Read a `YYYY-MM-DD` date. */
 function day(text: string): PlainDate {
@@ -12,9 +12,9 @@ function day(text: string): PlainDate {
 
 /** Render an element in a locale. */
 function drawIn(tag: string, element: () => JSX.Element): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <LocaleContext value={Localization.of(Locale.parse(tag), [])}>{element()}</LocaleContext>
-    ));
+    )).container;
 }
 
 /** Read the column headers of a calendar's grid. */

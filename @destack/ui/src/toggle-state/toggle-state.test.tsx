@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { isSubmitted, ToggleInput, ToggleState } from "./toggle-state.tsx";
 
 test("keep an uncontrolled toggle's own state, report each change and reset to the default", () => {
@@ -60,7 +60,7 @@ test("reflect the toggle's state in the hidden input and restore it when its own
     // render a checked input in one form and a radio in another
     const [isChecked, setChecked] = createSignal(true);
     const resets: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <form id="settings">
                 <ToggleInput
@@ -105,7 +105,7 @@ test("leave the hidden input agreeing with its control after its form resets", a
     // keep one control at its checked default and hold another checked by its owner
     const own = new ToggleState({ defaultChecked: true });
     const held = new ToggleState({ checked: true, defaultChecked: false });
-    const container = draw(() => (
+    const { container } = render(() => (
         <form>
             <ToggleInput
                 name="terms"

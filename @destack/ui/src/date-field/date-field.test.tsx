@@ -2,15 +2,15 @@ import { Locale, Localization } from "@destack/locale";
 import type { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush, type JSX, LocaleContext } from "@destack/view";
-import { draw, markup, press } from "@destack/view/test";
+import { markup, press, render } from "@destack/view/test";
 import { Field, FieldDescription, FieldLabel } from "../field/index.ts";
 import { DateField } from "./index.ts";
 
 /** Render an element in a locale. */
 function drawIn(tag: string, element: () => JSX.Element): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <LocaleContext value={Localization.of(Locale.parse(tag), [])}>{element()}</LocaleContext>
-    ));
+    )).container;
 }
 
 /** Focus the segment of a part in a container. */

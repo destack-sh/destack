@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./index.ts";
-import { draw, stubPopovers, wait } from "@destack/view/test";
+import { render, stubPopovers, wait } from "@destack/view/test";
 
 /** Find the element of a container's first match, refusing none. */
 function find(container: Element, selector: string): HTMLElement {
@@ -21,7 +21,7 @@ function fire(element: Element, type: string): void {
 
 test("keep a hover card open while the pointer moves from its link onto it", async () => {
     stubPopovers();
-    const container = draw(() => (
+    const { container } = render(() => (
         <HoverCard openDelay={10} closeDelay={20}>
             <HoverCardTrigger href="/people/ada">@ada</HoverCardTrigger>
             <HoverCardContent>Ada Lovelace, mathematician</HoverCardContent>

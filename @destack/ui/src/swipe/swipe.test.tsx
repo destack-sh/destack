@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { createRoot, flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { isDismissal, Swipe, type SwipeDirection, type SwipeRelease, swipeStyle } from "./index.ts";
 
 /** The width and height of the swiped test element, in pixels. */
@@ -45,7 +45,7 @@ function drawSwipe(direction: SwipeDirection, canStart: () => boolean = () => tr
             canStart,
         );
     });
-    const container = draw(() => (
+    const { container } = render(() => (
         <div
             onPointerDown={(event) => swipe.start(event)}
             onPointerMove={(event) => swipe.follow(event)}

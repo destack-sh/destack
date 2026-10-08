@@ -10,10 +10,10 @@ import {
     CarouselPlay,
     CarouselPrevious,
 } from "./index.ts";
-import { draw, wait } from "@destack/view/test";
+import { render, wait } from "@destack/view/test";
 
 test("move between a carousel's slides with its buttons, naming each slide by its place", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Carousel aria-label="Photos">
             <CarouselContent>
                 <CarouselItem>Lisbon</CarouselItem>
@@ -46,7 +46,7 @@ test("follow a controlled index, reporting each move the API, buttons or keys as
     const [index, setIndex] = createSignal(1);
     const changes: number[] = [];
     let api: CarouselApi | undefined;
-    const container = draw(() => (
+    const { container } = render(() => (
         <Carousel
             aria-label="Photos"
             index={index()}
@@ -81,7 +81,7 @@ test("follow a controlled index, reporting each move the API, buttons or keys as
 });
 
 test("wrap a looping carousel from its last slide to its first, and move to a slide by its dot", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Carousel aria-label="Photos" loop defaultIndex={2}>
             <CarouselContent>
                 <CarouselItem>Lisbon</CarouselItem>
@@ -106,7 +106,7 @@ test("wrap a looping carousel from its last slide to its first, and move to a sl
 });
 
 test("advance an autoplaying carousel until its play button stops it, pausing its live region while it rotates", async () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Carousel aria-label="Photos" autoplay={20}>
             <CarouselContent>
                 <CarouselItem>Lisbon</CarouselItem>

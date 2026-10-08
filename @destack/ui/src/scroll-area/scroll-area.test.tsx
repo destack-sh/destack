@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
 import { ScrollArea } from "./index.ts";
-import { classes, draw } from "@destack/view/test";
+import { classes, render } from "@destack/view/test";
 
 test("render a focusable scroll area that scrolls along its orientation's axes", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <ScrollArea aria-label="Tags">travel</ScrollArea>
             <ScrollArea orientation="horizontal" />

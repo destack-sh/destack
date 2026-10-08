@@ -9,11 +9,11 @@ import {
     NavigationMenuList,
     NavigationMenuTrigger,
 } from "./index.ts";
-import { draw, wait } from "@destack/view/test";
+import { render, wait } from "@destack/view/test";
 
 /** Render a navigation with two panels, an indicator and short hover delays. */
 function drawPanels(): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <NavigationMenu aria-label="Main" delayDuration={20} skipDelayDuration={60}>
             <NavigationMenuList>
                 <NavigationMenuItem>
@@ -32,7 +32,7 @@ function drawPanels(): HTMLElement {
                 <NavigationMenuIndicator />
             </NavigationMenuList>
         </NavigationMenu>
-    ));
+    )).container;
 }
 
 /** Read which trigger is expanded, by its text. */

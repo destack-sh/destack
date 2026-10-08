@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { createRoot, flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { ListBox, ListBoxItem } from "../list-box/index.ts";
 import { Autocomplete, AutocompleteControl, AutocompleteInput } from "./index.ts";
 
@@ -48,7 +48,7 @@ test("match items by their words holding the search, by the owner's filter, or a
 
 test("drive the list box inside from the search field: its id, its focused option and a new search's first match", () => {
     // render a search over three fruits and move down once
-    const container = draw(() => (
+    const { container } = render(() => (
         <Autocomplete>
             <AutocompleteInput aria-label="Fruit" />
             <ListBox aria-label="Fruits">

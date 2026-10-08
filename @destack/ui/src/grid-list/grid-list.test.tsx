@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Errored, flush, omit } from "@destack/view";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import {
     AutocompleteContext,
     AutocompleteControl,
@@ -29,7 +29,7 @@ const SYMBOLS: readonly (readonly [string, string])[] = [
 test("render every row without a viewport, headings and cells numbered for assistive technology and picked on click", () => {
     // render the digits three to a row and click the second
     const picked: string[] = [];
-    const container = draw(() => {
+    const { container } = render(() => {
         const grid = new GridListControl<string>({
             sections: () => DIGITS,
             key: (digit) => digit,
@@ -74,7 +74,7 @@ test("render every row without a viewport, headings and cells numbered for assis
 test("move the focused cell through the grid's rows and columns from a search field, and pick it on Enter", () => {
     // lay the symbols a search finds out three to a row
     const picked: string[] = [];
-    const container = draw(() => {
+    const { container } = render(() => {
         const autocomplete = new AutocompleteControl({});
         const grid = new GridListControl<readonly [string, string]>({
             sections: () => [
@@ -120,7 +120,7 @@ test("move the focused cell through the grid's rows and columns from a search fi
 
 /** Render a search over a grid list whose items wait for a load, inside an error boundary. */
 function drawLoading(load: Load<readonly string[]>): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <Errored fallback={(error) => <p role="alert">{String(error())}</p>}>
             {(() => {
                 const autocomplete = new AutocompleteControl({});
@@ -145,7 +145,7 @@ function drawLoading(load: Load<readonly string[]>): HTMLElement {
                 );
             })()}
         </Errored>
-    ));
+    )).container;
 }
 
 test("take typing in the search while the items load, then show the loaded items", async () => {

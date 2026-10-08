@@ -7,7 +7,7 @@ import {
     AlertDialogContent,
     AlertDialogTitle,
 } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 /** Find the element of a container's first match, refusing none. */
 function find(container: Element, selector: string): HTMLElement {
@@ -30,7 +30,7 @@ function dialogOf(container: Element): HTMLDialogElement {
 }
 
 test("render an alert dialog that only its buttons or a close request close", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <AlertDialog defaultOpen>
             <AlertDialogContent>
                 <AlertDialogTitle>Delete note?</AlertDialogTitle>

@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { tabsHistoryUnavailable } from "./tabs.example.tsx";
 
 test("connect each tab to its panel and show only the selected panel", () => {
-    const frame = draw(tabsHistoryUnavailable).querySelector("[data-slot=example]");
+    const frame = render(tabsHistoryUnavailable).container.querySelector("[data-slot=example]");
     expect(frame === null ? "" : markup(frame)).toBe(
         '<div data-slot="tabs" data-orientation="horizontal">' +
             '<div role="tablist" data-slot="tabs-list" data-orientation="horizontal" aria-orientation="horizontal" aria-label="Note">' +

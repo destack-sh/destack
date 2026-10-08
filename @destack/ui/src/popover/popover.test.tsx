@@ -9,10 +9,10 @@ import {
     PopoverTrigger,
 } from "./index.ts";
 import { flush } from "@destack/view";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 test("toggle a popover from its trigger through the platform's popover target, named by the trigger", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Popover>
             <PopoverTrigger variant="outline">Share</PopoverTrigger>
             <PopoverContent align="start">Anyone with the link can view.</PopoverContent>
@@ -26,7 +26,7 @@ test("toggle a popover from its trigger through the platform's popover target, n
 
 test("open a modal popover as a modal dialog anchored by name that locks the page's scroll, and refocus its trigger once the platform closes it", () => {
     const changes: boolean[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Popover modal onOpenChange={(open) => changes.push(open)}>
             <PopoverTrigger variant="outline">Share</PopoverTrigger>
             <PopoverContent align="start">
@@ -68,7 +68,7 @@ test("open a modal popover as a modal dialog anchored by name that locks the pag
 });
 
 test("place a modal popover beside its anchor, name it by its title, and close it from its close button", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Popover modal>
             <PopoverAnchor>Row</PopoverAnchor>
             <PopoverTrigger variant="outline">Edit</PopoverTrigger>

@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { Sheet, SheetContent, SheetTitle } from "./index.ts";
 
 test("place a sheet against its side", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Sheet>
             <SheetContent side="left" showCloseButton={false}>
                 <SheetTitle>Filters</SheetTitle>

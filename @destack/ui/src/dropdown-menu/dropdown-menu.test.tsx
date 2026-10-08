@@ -9,7 +9,7 @@ import {
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
 } from "./index.ts";
-import { draw, stubPopovers } from "@destack/view/test";
+import { render, stubPopovers } from "@destack/view/test";
 import { dropdownMenuNoteMenu } from "./dropdown-menu.example.tsx";
 
 /** Find the element of a container's first match, refusing none. */
@@ -26,7 +26,7 @@ test("check items and select radio items, reporting their state", () => {
     stubPopovers();
     const [isShown, setShown] = createSignal(false);
     const [sort, setSort] = createSignal("title");
-    const container = draw(() => (
+    const { container } = render(() => (
         <DropdownMenu>
             <DropdownMenuTrigger>View</DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -51,7 +51,7 @@ test("check items and select radio items, reporting their state", () => {
 
 test("name each menu by the trigger that opens it", () => {
     stubPopovers();
-    const container = draw(dropdownMenuNoteMenu);
+    const { container } = render(dropdownMenuNoteMenu);
     const named = [...container.querySelectorAll("[role=menu]")].map(
         (menu) => document.getElementById(menu.getAttribute("aria-labelledby") ?? "")?.textContent,
     );
@@ -60,7 +60,7 @@ test("name each menu by the trigger that opens it", () => {
 
 test("render an item as a link that keeps the item's role and closes the menu when followed", () => {
     stubPopovers();
-    const container = draw(() => (
+    const { container } = render(() => (
         <DropdownMenu defaultOpen>
             <DropdownMenuTrigger>Note</DropdownMenuTrigger>
             <DropdownMenuContent>

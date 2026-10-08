@@ -10,10 +10,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 test("render a native select with a button showing the chosen option, grouped options and a separator", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Select name="sort" aria-label="Sort by">
             <SelectTrigger>
                 <SelectValue />
@@ -62,7 +62,7 @@ function pick(container: Element, values: readonly string[]): void {
 
 test("show a placeholder until an option is chosen, then report the choice", () => {
     const changes: (string | undefined)[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Select
             aria-label="Sort by"
             placeholder="Sort by…"
@@ -80,7 +80,7 @@ test("show a placeholder until an option is chosen, then report the choice", () 
 
 test("choose several options of a multiple select as a list box", () => {
     const changes: (readonly string[])[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Select
             aria-label="Tags"
             multiple
@@ -103,7 +103,7 @@ test("choose several options of a multiple select as a list box", () => {
 });
 
 test("hold a controlled select at its owner's value", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Select aria-label="Sort by" value="created">
             <SelectItem value="created">Created</SelectItem>
             <SelectItem value="title">Title</SelectItem>

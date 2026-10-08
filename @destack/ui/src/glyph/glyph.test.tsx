@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { Glyph } from "./index.ts";
 
 test("draw an emoji, an image and a named glyph, hiding an unnamed one from assistive technology", () => {
-    const emoji = draw(() => <Glyph glyph={{ emoji: "📘" }} />);
-    const image = draw(() => (
+    const { container: emoji } = render(() => <Glyph glyph={{ emoji: "📘" }} />);
+    const { container: image } = render(() => (
         <Glyph glyph={{ source: "/files/cover.webp" }} size="lg" label="Roadmap" />
     ));
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./index.ts";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 
 /** The custom property StyleX sets to a panel's dynamic flex grow, its share of the group. */
 const SHARE_PROPERTY = "--x-flexGrow";
@@ -14,7 +14,7 @@ function shares(container: Element): string[] {
 }
 
 test("split a group by its panels' shares, the splitter reporting the first panel's share and limits", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={30} minSize={20} maxSize={60}>
                 Notebooks
@@ -43,7 +43,7 @@ function press(container: Element, key: string): void {
 
 test("collapse a collapsible panel on Enter and restore it to its smallest share, reporting each layout", () => {
     const layouts: (readonly number[])[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <ResizablePanelGroup onLayout={(layout) => layouts.push(layout)}>
             <ResizablePanel defaultSize={30} minSize={20} collapsible>
                 Notebooks
@@ -68,7 +68,7 @@ test("collapse a collapsible panel on Enter and restore it to its smallest share
 
 test("restore the layout a group saved under its id", () => {
     localStorage.setItem("destack-resizable:notes", JSON.stringify([45, 55]));
-    const container = draw(() => (
+    const { container } = render(() => (
         <ResizablePanelGroup autoSaveId="notes">
             <ResizablePanel defaultSize={30}>Notebooks</ResizablePanel>
             <ResizableHandle />

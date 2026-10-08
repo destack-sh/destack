@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { Chart } from "./chart.tsx";
 import { defineChart, lineY } from "./index.ts";
 import { scaleLinear } from "./module/scales/linear.ts";
@@ -27,7 +27,7 @@ function strokes(container: Element): (string | null)[] {
 }
 
 test("draw a chart's series in the theme's chart colors under its name, unless its definition sets a palette", () => {
-    const themed = draw(() => (
+    const { container: themed } = render(() => (
         <Chart
             label="Notes written each month"
             description="Notes per month in Work and Trips."
@@ -37,7 +37,7 @@ test("draw a chart's series in the theme's chart colors under its name, unless i
             })}
         />
     ));
-    const own = draw(() => (
+    const { container: own } = render(() => (
         <Chart
             label="Notes written each month"
             definition={defineChart({
@@ -64,7 +64,7 @@ test("draw a chart's series in the theme's chart colors under its name, unless i
 });
 
 test("read out the source rows as a table captioned by the chart's name, formatting the columns that format", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Chart
             label="Notes in Work"
             definition={defineChart({

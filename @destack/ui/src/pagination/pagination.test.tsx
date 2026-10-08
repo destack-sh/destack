@@ -11,14 +11,14 @@ import {
     PaginationPrevious,
     paginationEntries,
 } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 /** The markup of an icon whose body is left out. */
 const ICON =
-    '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true"></svg>';
+    '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg>';
 
 test("render a pagination marking the current page, with labelled steps", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Pagination>
             <PaginationContent>
                 <PaginationItem>
@@ -63,7 +63,7 @@ test("list the pages at either end and around the current one, with gaps between
 
 test("page in place when the owner handles the change, marking the current page", () => {
     const changes: number[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Pagination>
             <PaginationPages
                 count={20}

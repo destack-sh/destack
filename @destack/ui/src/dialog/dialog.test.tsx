@@ -8,7 +8,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 /** Find the element of a container's first match, refusing none. */
 function find(container: Element, selector: string): HTMLElement {
@@ -33,10 +33,10 @@ function dialogOf(container: Element): HTMLDialogElement {
 /** The close button every dialog shows by default, its icon body left out. */
 const CLOSE_BUTTON =
     '<button data-slot="dialog-close" data-variant="ghost" data-size="icon-sm" aria-label="Close">' +
-    '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true"></svg></button>';
+    '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>';
 
 test("open a modal dialog from its trigger, named by its title and described by its description", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Dialog>
             <DialogTrigger>Rename</DialogTrigger>
             <DialogContent>
@@ -60,7 +60,7 @@ test("open a modal dialog from its trigger, named by its title and described by 
 
 test("close a dialog from a close button and report each change", () => {
     const changes: boolean[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Dialog defaultOpen onOpenChange={(open) => changes.push(open)}>
             <DialogContent showCloseButton={false}>
                 <DialogTitle>Rename note</DialogTitle>
@@ -80,7 +80,7 @@ test("close a dialog from a close button and report each change", () => {
 
 test("follow the platform closing a dialog, such as on Escape or a click outside", () => {
     const changes: boolean[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Dialog defaultOpen onOpenChange={(open) => changes.push(open)}>
             <DialogTrigger>Rename</DialogTrigger>
             <DialogContent>
@@ -100,7 +100,7 @@ test("follow the platform closing a dialog, such as on Escape or a click outside
 
 test("open and close a controlled dialog with its open property", () => {
     const [open, setOpen] = createSignal(false);
-    const container = draw(() => (
+    const { container } = render(() => (
         <Dialog open={open()}>
             <DialogContent>
                 <DialogTitle>Rename note</DialogTitle>
@@ -119,7 +119,7 @@ test("open and close a controlled dialog with its open property", () => {
 });
 
 test("open a dialog from a trigger rendered as another element, which keeps the trigger's state and behaviour", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Dialog>
             <DialogTrigger render={(part) => <span tabindex={0} {...part} />}>Rename</DialogTrigger>
             <DialogContent>
@@ -155,7 +155,7 @@ test("open a non-modal dialog beside the page, and a modal one over it", () => {
         Object.defineProperties(prototype, { show: original.show, showModal: original.showModal });
     });
 
-    draw(() => (
+    render(() => (
         <>
             <Dialog defaultOpen modal={false}>
                 <DialogContent showCloseButton={false}>

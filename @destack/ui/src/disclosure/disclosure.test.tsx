@@ -1,12 +1,12 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { followToggle, refuseDisabled } from "./index.ts";
 
 /** Render a native disclosure that hands each toggle to a handler, and return it. */
 function drawDetails(
     onToggle: (event: Event & { readonly currentTarget: HTMLDetailsElement }) => void,
 ): HTMLDetailsElement {
-    const container = draw(() => (
+    const { container } = render(() => (
         <details onToggle={onToggle}>
             <summary>Advanced</summary>
             Options

@@ -1,14 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { toast, Toaster } from "./index.ts";
-import { draw, stubPopovers, wait } from "@destack/view/test";
+import { render, stubPopovers, wait } from "@destack/view/test";
 
 /** Render a toaster that clears the page's toasts after the test. */
 function drawToaster(duration: number): HTMLElement {
     stubPopovers();
     onTestFinished(() => toast.dismiss());
 
-    return draw(() => <Toaster duration={duration} />);
+    return render(() => <Toaster duration={duration} />).container;
 }
 
 /** Make a pointer event at a position along the swipe's axis. */

@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { AspectRatio } from "./index.ts";
 
 test("keep a box's width-to-height ratio, square by default", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <AspectRatio ratio={16 / 9} />
             <AspectRatio />

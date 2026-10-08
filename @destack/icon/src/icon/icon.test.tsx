@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { createSignal, flush } from "solid-js";
 import { Icon } from "@destack/icon";
 import acorn from "@destack/icon/phosphor/acorn";
@@ -16,7 +16,7 @@ function svg(attributes: string, body: string): string {
 
 test("draw the regular weight at 1em, hidden from assistive technology", async () => {
     // an unlabeled icon draws the regular body at 1em, hidden from assistive technology
-    const container = draw(() => <Icon name="trash" />);
+    const { container } = render(() => <Icon name="trash" />);
     await expect
         .poll(() => container.innerHTML)
         .toBe(svg('width="1em" height="1em" aria-hidden="true"', TRASH));
@@ -24,7 +24,7 @@ test("draw the regular weight at 1em, hidden from assistive technology", async (
 
 test("expose a labeled icon as an image named by its label", async () => {
     // a labeled icon is an image with the label as its accessible name
-    const container = draw(() => <Icon name="trash" label="Delete" />);
+    const { container } = render(() => <Icon name="trash" label="Delete" />);
     await expect
         .poll(() => container.innerHTML)
         .toBe(svg('width="1em" height="1em" role="img" aria-label="Delete"', TRASH));
@@ -32,7 +32,7 @@ test("expose a labeled icon as an image named by its label", async () => {
 
 test("draw the body of the selected weight", async () => {
     // the bold weight draws its own body, which differs from the regular one
-    const container = draw(() => <Icon name="trash" weight="bold" />);
+    const { container } = render(() => <Icon name="trash" weight="bold" />);
     await expect
         .poll(() => container.innerHTML)
         .toBe(
@@ -46,7 +46,7 @@ test("draw the body of the selected weight", async () => {
 
 test("size both dimensions as a CSS length or in user units", async () => {
     // a size sets both dimensions, as a CSS length or in user units
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Icon name="trash" size="2rem" />
             <Icon name="trash" size={24} />
@@ -63,7 +63,7 @@ test("size both dimensions as a CSS length or in user units", async () => {
 test("draw the bodies passed for a choice between known icons", () => {
     // passed bodies draw the icon chosen at run time
     const [isAcorn, setAcorn] = createSignal(true);
-    const container = draw(() => <Icon icon={isAcorn() ? acorn : trash} size={16} />);
+    const { container } = render(() => <Icon icon={isAcorn() ? acorn : trash} size={16} />);
     const drawn = container.innerHTML;
     setAcorn(false);
     flush();

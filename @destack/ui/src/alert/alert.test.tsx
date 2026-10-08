@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { Alert, AlertDescription, AlertTitle } from "./index.ts";
 
 test("announce an alert with its title and description", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Alert>
             <AlertTitle>Sync paused</AlertTitle>
             <AlertDescription>Free up space to keep syncing.</AlertDescription>
@@ -17,7 +17,7 @@ test("announce an alert with its title and description", () => {
 });
 
 test("color a destructive alert's description apart from a default alert's", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Alert>
                 <AlertDescription>Saved</AlertDescription>

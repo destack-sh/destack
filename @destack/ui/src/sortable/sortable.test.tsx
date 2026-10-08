@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import {
     Sortable,
     SortableContainer,
@@ -11,7 +11,7 @@ import {
 
 /** Render a board of two columns, its moves collected. */
 function drawBoard(moves: SortableMove[]): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <Sortable onMove={(move) => moves.push(move)}>
             <SortableContainer id="todo" label="To do">
                 <SortableItem id="a">
@@ -30,7 +30,7 @@ function drawBoard(moves: SortableMove[]): HTMLElement {
                 </SortableItem>
             </SortableContainer>
         </Sortable>
-    ));
+    )).container;
 }
 
 /** Give an element a box at a height in a column two hundred pixels wide. */
@@ -130,7 +130,7 @@ test("drag an item with the pointer past the middle of another and drop it there
 
 test("nest an item under the one before it with the right arrow, and move a nested one back out with the left", () => {
     const moves: SortableMove[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Sortable nesting onMove={(move) => moves.push(move)}>
             <SortableContainer id="root" label="Pages">
                 <SortableItem id="guide">

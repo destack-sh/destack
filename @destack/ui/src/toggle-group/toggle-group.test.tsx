@@ -1,11 +1,11 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { ToggleGroup, ToggleGroupItem } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 test("keep one item of a single toggle group on, exposed as radios", () => {
     const changes: (string | undefined)[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <ToggleGroup
             defaultValue="left"
             aria-label="Alignment"
@@ -29,7 +29,7 @@ test("keep one item of a single toggle group on, exposed as radios", () => {
 
 test("report none once a single group's pressed item turns off, and keep a controlled group's value", () => {
     const changes: (string | undefined)[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <ToggleGroup
                 defaultValue="left"
@@ -57,7 +57,7 @@ test("report none once a single group's pressed item turns off, and keep a contr
 });
 
 test("press several items of a multiple toggle group", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <ToggleGroup multiple aria-label="Style">
             <ToggleGroupItem value="bold">B</ToggleGroupItem>
             <ToggleGroupItem value="italic">I</ToggleGroupItem>

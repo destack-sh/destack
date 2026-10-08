@@ -1,10 +1,10 @@
 import * as style from "@destack/style";
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { Item, ItemContent, ItemGroup, ItemTitle, itemStyle } from "./index.ts";
 
 test("list a group's items and leave a lone item without a role", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <ItemGroup aria-label="Recent notes">
                 <Item>
@@ -25,7 +25,7 @@ test("list a group's items and leave a lone item without a role", () => {
 });
 
 test("style a link like an item, adding a hover background", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Item variant="muted" />
             <a href="/notes/trip" {...style.attrs(itemStyle({ variant: "muted" }))} />

@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import { IconPicker, IconPickerContent, IconPickerSearch } from "./index.ts";
 
@@ -21,7 +21,7 @@ async function shown(container: HTMLElement, selector: string): Promise<HTMLElem
 test("pick an icon a search finds by one of its words, under its category's heading", async () => {
     // search savings, which finds the acorn among others
     const picked: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <IconPicker search="savings" onPick={(icon) => picked.push(icon)}>
             <IconPickerSearch />
             <IconPickerContent />

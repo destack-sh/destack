@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import type { AccentPreset } from "@destack/theme";
 import { SwatchPicker } from "./index.ts";
@@ -13,7 +13,7 @@ function checked(container: Element): string[] {
 
 test("offer the given swatches as options, holding a controlled choice and reporting a person's", () => {
     const chosen: AccentPreset[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <SwatchPicker
             presets={["teal", "orange", "plum"]}
             value="orange"
@@ -32,7 +32,7 @@ test("offer the given swatches as options, holding a controlled choice and repor
 });
 
 test("submit the chosen swatch through a hidden input of its name, none while none is chosen", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <form>
             <SwatchPicker name="color" presets={["teal", "plum"]} aria-label="Color" />
         </form>

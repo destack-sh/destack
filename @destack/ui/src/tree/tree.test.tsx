@@ -1,12 +1,12 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { Tree, TreeItem } from "./index.ts";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { treeWorkExpanded } from "./tree.example.tsx";
 
 /** Render the selected Porto under Portugal under Trips, reading the items holding the tab stop. */
 function drawTabStops(isTripsExpanded: boolean, isPortugalExpanded: boolean): (string | null)[] {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Tree aria-label="Notebooks" defaultValue="porto">
             <TreeItem value="recipes" label="Recipes" />
             <TreeItem value="trips" label="Trips" defaultExpanded={isTripsExpanded}>
@@ -23,7 +23,7 @@ function drawTabStops(isTripsExpanded: boolean, isPortugalExpanded: boolean): (s
 }
 
 test("expose items with their level, expansion and selection, the first holding the tab stop", () => {
-    const container = draw(treeWorkExpanded);
+    const { container } = render(treeWorkExpanded);
     const items = [...container.querySelectorAll("[role=treeitem]")].map((item) =>
         [
             item.getAttribute("data-value"),
@@ -56,7 +56,7 @@ test("hold a controlled item at its owner's expansion, reporting the person's to
     // render Trips expanded only while its owner says so
     const changes: boolean[] = [];
     const [isExpanded, setExpanded] = createSignal(false);
-    const container = draw(() => (
+    const { container } = render(() => (
         <Tree aria-label="Notebooks">
             <TreeItem
                 value="trips"

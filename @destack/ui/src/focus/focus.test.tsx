@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Direction } from "@destack/locale";
 import { createEffect, createRoot, createSignal, flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { Collection, type CollectionSection } from "../collection/index.ts";
 import { Focus, isTypeaheadKey, type KeyboardDelegate } from "./focus.ts";
 import { GridDelegate, gridMoveOf } from "./grid.ts";
@@ -269,7 +269,7 @@ test("rerun only the readers of the keys a move leaves and lands on", () => {
 test("give the DOM focus to the focused key's element while the collection holds the focus", () => {
     // render a toolbar whose buttons bind to the focus
     const focus = createToolbar("horizontal");
-    const container = draw(() => (
+    const { container } = render(() => (
         <div role="toolbar" onFocusOut={(event) => focus.focusOut(event)}>
             {TOOLS.map((tool) => {
                 let element: HTMLButtonElement | undefined;
@@ -289,7 +289,7 @@ test("give the DOM focus to the focused key's element while the collection holds
             })}
         </div>
     ));
-    const outside = draw(() => <input />).querySelector("input");
+    const outside = render(() => <input />).container.querySelector("input");
 
     // a move outside the collection leaves the DOM focus, one inside carries it along
     focus.focus("Italic");

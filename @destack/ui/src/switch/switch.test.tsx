@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { Switch, SwitchThumb } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 /** List the checked state each switch of a container reports, in order. */
 function checked(container: Element): string[] {
@@ -12,7 +12,7 @@ function checked(container: Element): string[] {
 
 test("flip a switch and its thumb on click, submitting its state under its name", () => {
     const changes: boolean[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <form>
             <Switch name="notifications" onCheckedChange={(on) => changes.push(on)}>
                 <SwitchThumb />
@@ -31,7 +31,7 @@ test("flip a switch and its thumb on click, submitting its state under its name"
 
 test("hold a controlled switch at its owner's state until the owner changes it", () => {
     const [isOn, setOn] = createSignal(true);
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Switch aria-label="Fixed" checked />
             <Switch aria-label="Followed" checked={isOn()} onCheckedChange={setOn} />
@@ -45,7 +45,7 @@ test("hold a controlled switch at its owner's state until the owner changes it",
 });
 
 test("return a switch to its first state when its form resets, and ignore clicks while disabled", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <form>
             <Switch name="pinned" defaultChecked />
             <Switch name="locked" disabled />

@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
-import { draw, markup, wait } from "@destack/view/test";
+import { markup, render, wait } from "@destack/view/test";
 import { Drawer, DrawerContent, DrawerTitle } from "./index.ts";
 
 test("place a drawer against its direction, with a handle above a bottom drawer's content", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Drawer>
                 <DrawerContent>
@@ -43,7 +43,7 @@ function dragDown(drawer: Element, from: number, to: number): void {
 
 test("close a drawer dragged toward its edge past a share of it, and spring back from a short drag", () => {
     const changes: boolean[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Drawer defaultOpen onOpenChange={(open) => changes.push(open)}>
             <DrawerContent>
                 <DrawerTitle>Share</DrawerTitle>
@@ -74,7 +74,7 @@ async function dragAndHold(drawer: Element, from: number, to: number): Promise<v
 test("settle a dragged drawer at the nearest snap point, carry a flick on, and close it dragged past the smallest", async () => {
     const points: (number | string)[] = [];
     const changes: boolean[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Drawer
             defaultOpen
             snapPoints={[0.5, 1]}

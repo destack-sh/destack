@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 test("toggle a collapsible from its summary", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Collapsible>
             <CollapsibleTrigger>3 more tags</CollapsibleTrigger>
             <CollapsibleContent>travel, food, family</CollapsibleContent>

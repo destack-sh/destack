@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { classes, draw, markup } from "@destack/view/test";
+import { classes, markup, render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import {
     Avatar,
@@ -11,7 +11,7 @@ import {
 
 /** Render an avatar with a picture and initials, recording the picture's status. */
 function drawAvatar(statuses: AvatarImageStatus[]): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <Avatar>
             <AvatarImage
                 src="/people/ada.jpg"
@@ -20,7 +20,7 @@ function drawAvatar(statuses: AvatarImageStatus[]): HTMLElement {
             />
             <AvatarFallback>AL</AvatarFallback>
         </Avatar>
-    ));
+    )).container;
 }
 
 test("show the fallback beside the hidden image until the image loads, then the image alone", () => {
@@ -48,7 +48,7 @@ test("drop an image that fails to load and keep the fallback", () => {
 });
 
 test("overlap avatars inside a group and leave a lone avatar as it is", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Avatar>
                 <AvatarFallback>AL</AvatarFallback>

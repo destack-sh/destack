@@ -1,11 +1,11 @@
 import { expect, onTestFinished, test, vi } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { type ShaderFailure, ShaderMount } from "../mount/mount.ts";
 import { Shader } from "./shader.tsx";
 
 test("show the fallback and report why where the browser draws no WebGL 2", async () => {
     const failures: ShaderFailure[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Shader
             fragmentShader="#version 300 es"
             uniforms={{ u_size: 1 }}
@@ -51,7 +51,7 @@ test("hand each built mount to onMount and hold it still while the theme's motio
     vi.stubGlobal("visualViewport", undefined);
     const speed = vi.spyOn(ShaderMount.prototype, "setSpeed");
     const mounts: ShaderMount[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Shader
             fragmentShader="#version 300 es"
             uniforms={{}}

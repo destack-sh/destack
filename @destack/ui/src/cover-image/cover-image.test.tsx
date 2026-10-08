@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import { CoverImage } from "./index.ts";
 
@@ -13,7 +13,7 @@ function press(container: Element, key: string): void {
 
 test("centre the banner on the position, and move the position a step per arrow key within the image", () => {
     const moved: number[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <CoverImage
             source="/covers/roadmap.webp"
             position={0.98}
@@ -28,8 +28,8 @@ test("centre the banner on the position, and move the position a step per arrow 
     expect({
         value: handle?.value,
         moved: moved.map((position) => Math.round(position * 100) / 100),
-        still: draw(() => (
+        still: render(() => (
             <CoverImage source="/covers/roadmap.webp" position={0.5} />
-        )).querySelector("input[type=range]"),
+        )).container.querySelector("input[type=range]"),
     }).toEqual({ value: "98", moved: [1, 0.93], still: null });
 });

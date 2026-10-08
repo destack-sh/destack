@@ -9,10 +9,10 @@ import {
     TableHeader,
     TableRow,
 } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 test("render a native table inside a container that scrolls sideways", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Table>
             <TableCaption>Invoices this month</TableCaption>
             <TableHeader>

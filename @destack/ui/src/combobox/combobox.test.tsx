@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import {
     Combobox,
     ComboboxChip,
@@ -13,7 +13,7 @@ import {
 
 test("follow a controlled input text, reporting what the person types and filtering by the owner's text", () => {
     const [text, setText] = createSignal("wo");
-    const container = draw(() => (
+    const { container } = render(() => (
         <Combobox inputValue={text()} onInputValueChange={setText}>
             <ComboboxInput aria-label="Notebook" />
             <ComboboxItem value="Trips">Trips</ComboboxItem>
@@ -37,7 +37,7 @@ test("follow a controlled input text, reporting what the person types and filter
 
 test("drop a chosen value from the remove button of the caller's own chip", () => {
     const changes: (readonly string[])[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Combobox
             multiple
             defaultValue={["travel", "food"]}
@@ -58,7 +58,7 @@ test("drop a chosen value from the remove button of the caller's own chip", () =
 });
 
 test("check the chosen item's indicator and move it as the person chooses another", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Combobox defaultValue="Work">
             <ComboboxInput aria-label="Notebook" />
             <ComboboxItem value="Trips">

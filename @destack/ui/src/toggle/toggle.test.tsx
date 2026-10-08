@@ -1,11 +1,11 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { Toggle } from "./index.ts";
-import { classes, draw, markup } from "@destack/view/test";
+import { classes, markup, render } from "@destack/view/test";
 
 test("turn a toggle on and off, reporting its state", () => {
     const changes: boolean[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <Toggle aria-label="Bold" onPressedChange={(pressed) => changes.push(pressed)}>
             B
         </Toggle>

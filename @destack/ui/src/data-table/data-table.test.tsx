@@ -15,7 +15,7 @@ import {
     tableFeatures,
 } from "@tanstack/table-core";
 import { Errored, flush, type JSX } from "@destack/view";
-import { draw, stubPopovers } from "@destack/view/test";
+import { render, stubPopovers } from "@destack/view/test";
 import {
     createTable,
     DataTable,
@@ -81,7 +81,7 @@ const COLUMNS = COLUMN.columns([
 
 /** Render the invoices with a filter and a pagination. */
 function drawInvoices(): HTMLElement {
-    return draw(() => {
+    return render(() => {
         const table = createTable({
             features: FEATURES,
             columns: COLUMNS,
@@ -96,7 +96,7 @@ function drawInvoices(): HTMLElement {
                 <DataTablePagination table={table} />
             </>
         );
-    });
+    }).container;
 }
 
 /** Read the invoice numbers of the shown rows. */
@@ -210,7 +210,7 @@ function treeRows(container: Element): (string | null)[][] {
 }
 
 test("group rows by a column with each group's count and sum, expanding a group to its rows", () => {
-    const container = draw(() => dataTableNotesGrouped.render?.());
+    const { container } = render(() => dataTableNotesGrouped.render?.());
     const collapsed = treeRows(container);
     const role = container.querySelector("table")?.getAttribute("role");
     container.querySelector<HTMLElement>("[aria-label='Expand row']")?.click();
@@ -233,7 +233,7 @@ test("group rows by a column with each group's count and sum, expanding a group 
 });
 
 test("expand a row to its sub rows and collapse it again from its button", () => {
-    const container = draw(() => dataTableTasksNested.render?.());
+    const { container } = render(() => dataTableTasksNested.render?.());
     const expanded = treeRows(container);
     container.querySelector<HTMLElement>("[aria-label='Collapse row']")?.click();
     flush();
@@ -252,7 +252,7 @@ test("expand a row to its sub rows and collapse it again from its button", () =>
 });
 
 test("refuse a template reading a data table's state outside a data table", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Errored fallback={(error) => String(error())}>
             <StateTemplate />
         </Errored>
@@ -301,7 +301,7 @@ test("move the focus by key onto rows a virtualized table renders only once they
         }
     });
     stubPopovers();
-    const container = draw(dataTableNotesVirtual);
+    const { container } = render(dataTableNotesVirtual);
     flush();
     const scroller = container.querySelector<HTMLElement>("[data-slot=data-table]");
     let scrollTop = 0;

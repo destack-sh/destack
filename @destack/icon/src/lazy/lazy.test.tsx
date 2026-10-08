@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { createSignal } from "solid-js";
 import acorn from "@destack/icon/phosphor/acorn";
 import alien from "@destack/icon/phosphor/alien";
@@ -13,7 +13,7 @@ function svg(attributes: string, body: string): string {
 
 test("draw an icon chosen at run time empty at its final size until its module arrives", async () => {
     // the icon renders its sized frame at once and its body once its module loads
-    const container = draw(() => <LazyIcon name="acorn" size={32} label="Acorn" />);
+    const { container } = render(() => <LazyIcon name="acorn" size={32} label="Acorn" />);
     const loading = container.innerHTML;
     await expect.poll(() => container.innerHTML).not.toBe(loading);
     expect([loading, container.innerHTML]).toEqual([
@@ -28,7 +28,7 @@ test("draw an icon chosen at run time empty at its final size until its module a
 test("load the module of each name a signal selects", async () => {
     // switching the name draws the newly selected icon in the selected weight
     const [name, setName] = createSignal<IconName>("acorn");
-    const container = draw(() => <LazyIcon name={name()} weight="bold" />);
+    const { container } = render(() => <LazyIcon name={name()} weight="bold" />);
     setName("alien");
     await expect
         .poll(() => container.innerHTML)

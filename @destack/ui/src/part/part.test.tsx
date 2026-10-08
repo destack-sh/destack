@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { forwarded, type PartAttributes, rendered } from "./index.ts";
 
 /** The properties of a test part: attributes any element takes, and options only the part reads. */
@@ -33,7 +33,7 @@ test("forward the attributes any element takes and leave the part's own options 
 });
 
 test("render a part's own element, or the caller's element with the part's and the forwarded attributes", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             {rendered(undefined, PART, PROPERTIES, () => (
                 <button {...PART}>Own</button>

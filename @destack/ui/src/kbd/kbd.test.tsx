@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
 import { Kbd, KbdGroup } from "./index.ts";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 
 test("render the keys of a shortcut as nested kbd elements", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <KbdGroup>
             <Kbd>⌘</Kbd>
             <Kbd>K</Kbd>

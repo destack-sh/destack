@@ -1,11 +1,11 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { Field, FieldLabel } from "../field/index.ts";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "./index.ts";
 
 test("focus the group's input on a click on an addon, but not on a click on its button", () => {
     const pressed: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <InputGroup>
             <InputGroupInput aria-label="Search notes" />
             <InputGroupAddon>
@@ -30,7 +30,7 @@ test("focus the group's input on a click on an addon, but not on a click on its 
 });
 
 test("label a group's input by its field", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Field>
             <FieldLabel>Search</FieldLabel>
             <InputGroup>
@@ -47,7 +47,7 @@ test("label a group's input by its field", () => {
 });
 
 test("give a group's button the ghost variant and extra small size and keep it from submitting", () => {
-    const container = draw(() => <InputGroupButton>Clear</InputGroupButton>);
+    const { container } = render(() => <InputGroupButton>Clear</InputGroupButton>);
     const button = container.querySelector("button");
     expect([button?.type, button?.dataset["variant"], button?.dataset["size"]]).toEqual([
         "button",

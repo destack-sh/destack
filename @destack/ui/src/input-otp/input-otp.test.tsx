@@ -1,12 +1,12 @@
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "./index.ts";
 
 /** Render a four-digit code input labelled by its field, recording each change and completion. */
 function drawCode(changes: string[], completions: string[]): HTMLElement {
-    return draw(() => (
+    return render(() => (
         <Field>
             <FieldLabel>Code</FieldLabel>
             <InputOTP
@@ -22,7 +22,7 @@ function drawCode(changes: string[], completions: string[]): HTMLElement {
                 </InputOTPGroup>
             </InputOTP>
         </Field>
-    ));
+    )).container;
 }
 
 /** Type text into an input as a paste or autofill would. */

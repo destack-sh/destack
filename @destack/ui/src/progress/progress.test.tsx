@@ -1,10 +1,10 @@
 import { Errored } from "@destack/view";
 import { expect, test } from "@destack/test";
-import { draw, markup } from "@destack/view/test";
+import { markup, render } from "@destack/view/test";
 import { Progress, ProgressIndicator } from "./index.ts";
 
 test("report a progress bar's value, state and percentage, and an indeterminate one without a value", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <>
             <Progress value={30} aria-label="Upload">
                 <ProgressIndicator />
@@ -22,7 +22,7 @@ test("report a progress bar's value, state and percentage, and an indeterminate 
 });
 
 test("refuse a progress bar whose maximum is not positive", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Errored fallback={(error) => String(error())}>
             <Progress value={0} max={0} aria-label="Upload" />
         </Errored>

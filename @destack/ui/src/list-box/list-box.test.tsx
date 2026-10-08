@@ -1,13 +1,13 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { ListBox, ListBoxItem, ListBoxSection } from "./index.ts";
 
 test("expose a single selection's options with the selected one holding the tab stop, and select another on click", () => {
     // render two sections of notebooks and click the third
     const chosen: (string | undefined)[] = [];
     const actions: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <ListBox
             aria-label="Notebook"
             selection={{ defaultValue: "work", onValueChange: (value) => chosen.push(value) }}
@@ -51,7 +51,7 @@ test("expose a single selection's options with the selected one holding the tab 
 });
 
 test("toggle the values of a multiple selection, marking the list box multiselectable", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <ListBox aria-label="Tags" selection={{ multiple: true, defaultValue: ["travel"] }}>
             <ListBoxItem value="travel">travel</ListBoxItem>
             <ListBoxItem value="food">food</ListBoxItem>

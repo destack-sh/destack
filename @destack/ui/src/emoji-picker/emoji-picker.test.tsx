@@ -1,6 +1,6 @@
 import { Locale, Localization } from "@destack/locale";
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { flush, LocaleContext } from "@destack/view";
 import {
     EmojiPicker,
@@ -46,7 +46,7 @@ function type(container: HTMLElement, search: string): void {
 test("pick the emoji a search finds in the chosen skin tone, and show the empty part when nothing matches", async () => {
     // search for waving and pick it in the darkest tone
     const picked: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <EmojiPicker onPick={(entry) => picked.push(entry.emoji)}>
             <EmojiPickerSearch />
             <EmojiPickerSkinTone />
@@ -68,7 +68,7 @@ test("pick the emoji a search finds in the chosen skin tone, and show the empty 
 });
 
 test("name and find emoji in the reader's language, a regional locale falling back to its language", async () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <LocaleContext value={Localization.of(Locale.parse("de-AT"), [])}>
             <EmojiPicker defaultSearch="tschüss" onPick={() => undefined}>
                 <EmojiPickerContent />
@@ -84,7 +84,7 @@ test("name and find emoji in the reader's language, a regional locale falling ba
 test("move the active emoji through the rows and columns from the search, show it in the footer and pick it on Enter", async () => {
     // search the faces, laid out three to a row
     const picked: string[] = [];
-    const container = draw(() => (
+    const { container } = render(() => (
         <EmojiPicker columns={3} onPick={(entry) => picked.push(entry.label)}>
             <EmojiPickerSearch />
             <EmojiPickerContent />

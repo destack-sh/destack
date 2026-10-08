@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { commandNoteCommands } from "./command.example.tsx";
 import {
     Command,
@@ -43,7 +43,7 @@ function shown(container: Element): string[] {
 }
 
 test("filter a command list by the search and its keywords, hiding empty groups", () => {
-    const container = draw(commandNoteCommands);
+    const { container } = render(commandNoteCommands);
     const input = find(container, "input", HTMLInputElement);
     const all = shown(container);
     typeInto(input, "TRASH");
@@ -77,7 +77,7 @@ function press(input: HTMLInputElement, key: string): void {
 
 test("follow a controlled search, reporting what the person types, and match by the owner's filter", () => {
     const [search, setSearch] = createSignal("cal");
-    const container = draw(() => (
+    const { container } = render(() => (
         <Command
             search={search()}
             onSearchChange={setSearch}
@@ -103,7 +103,7 @@ test("follow a controlled search, reporting what the person types, and match by 
 });
 
 test("start on the default highlight, jump to the ends with Home and End, and wrap in a looping list", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <Command defaultValue="Two" loop>
             <CommandInput />
             <CommandList>

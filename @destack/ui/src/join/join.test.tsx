@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 import { expect, test } from "@destack/test";
-import { draw } from "@destack/view/test";
+import { render } from "@destack/view/test";
 import { JoinContext, type JoinOrientation, useJoin } from "./index.ts";
 
 /** Read the styles that join a control in the nearest group, outside any group and in each orientation. */
@@ -11,7 +11,7 @@ function joinedStyles(): Record<"outside" | JoinOrientation, style.Styles> {
 
         return undefined;
     };
-    draw(() => (
+    render(() => (
         <>
             <Probe name="outside" />
             <JoinContext value={() => "horizontal"}>
