@@ -48,6 +48,31 @@
                 "files": ["src/media/image.tsx"],
                 "rules": ["destack/prevent-abbreviations"],
                 "reason": "src is the image element's attribute name, which images keep"
+            },
+            {
+                "files": [
+                    "src/primitives/event-props.ts",
+                    "src/primitives/input-mask.ts",
+                    "src/primitives/upload.ts",
+                    "src/primitives/video.ts"
+                ],
+                "rules": ["destack/prevent-abbreviations"],
+                "reason": "the primitives keep their upstream names, such as createEventProps, maskArrayToFn and the media elements' src"
+            },
+            {
+                "files": ["src/test/server.ts"],
+                "rules": ["typescript/no-unnecessary-type-parameters"],
+                "reason": "untouched returns a stand-in typed as the node the caller names, which only its return type carries"
+            },
+            {
+                "files": ["src/test/dom.ts"],
+                "rules": ["eslint/id-length"],
+                "reason": "the hydration bootstrap keeps the r and fe fields the server's hydration script installs"
+            },
+            {
+                "files": ["src/document/script.tsx", "src/document/font.tsx"],
+                "rules": ["destack/prevent-abbreviations"],
+                "reason": "src is the script element's attribute and the font definition's file list, whose names they keep"
             }
         ]
     }

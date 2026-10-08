@@ -1,14 +1,15 @@
 # @destack/view
 
-Render interfaces with Solid 2.
+`@destack/view` is Solid 2, `/router` is Solid Router 2 with nuqs' `useQueryState` and React Router's `useBlocker`, `/primitives/*` is solid-primitives, `/document` is Next.js's `Metadata`, `Viewport`, `next/font` and `next/script` with next-themes, `/media` is `next/image`, and `/test` is Testing Library's `render`.
 
-## Usage
-
-The package root exports the Solid reactive runtime.
-
-```ts
-import { createSignal } from "@destack/view";
-import { render } from "@destack/view/render";
+```tsx
+const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1)); // page() is an accessor
+const blocker = useBlocker(() => form.isEdited()); // blocker.state(), "unblocked" | "blocked"
+const sans = defineFont({ src: plexSans, fallback: ["sans-serif"] }); // next/font/local's localFont
+<Font font={sans} />; // writes the faces next/font injects
+const { resolvedAppearance } = createAppearance(); // next-themes' resolvedTheme
+<Image src={cover} alt="" placeholder="blur" />; // next/image with AVIF and WebP variants
+render(() => <Notes />, { container, hydrate: true }); // Testing Library's render
 ```
 
 ## Views
@@ -45,9 +46,7 @@ export const issues = defineView({
 });
 
 const observability = useService(observabilityService);
-const page = createMemo(() =>
-    observability.search({ scope, attributes: { "destack.issue": id }, from, before, limit }),
-);
+const trace = createMemo(() => observability.trace({ scope, trace: traceId }));
 ```
 
 ## Commands
@@ -68,15 +67,26 @@ export const archive = defineCommand({
 
 ## Palette ranking
 
-`Palette` from `@destack/view/palette`, the palette's target-neutral model, ranks entries by the typed text and the focus, reads a command's keybinding and honours the sources a person turned off.
+`Palette.rank` orders entries by the typed text and the focused object.
 
 ```ts
-import { Accelerator, Palette } from "@destack/view/palette";
+import { Palette } from "@destack/view/palette";
 
-Palette.rank(entries, "arch", focus); // titles starting with the text first, then a word's start, then anywhere
-Palette.keybinding({ packageId, name: "archive" }, "mod+e", { [`${packageId}/archive`]: null }); // null
-Palette.isOffered(entry, { recent: false, [packageId]: false }); // false for a recent object or that package's commands
-Accelerator.matches("mod+k", event, isMac); // ⌘K on macOS, Ctrl+K elsewhere
+const ranked = Palette.rank(entries, "arch", focus);
+const binding = Palette.keybinding(command, "mod+e", overrides); // "mod+e" or null
+const isOffered = Palette.isOffered(entry, { recent: false }); // false
+```
+
+## Shortcuts
+
+`Accelerator` reads keybindings such as `mod+k`, `mod` being Command on Apple platforms and Control elsewhere.
+
+```ts
+import { Accelerator, isCommandPlatform } from "@destack/view/palette";
+import { createShortcut } from "@destack/view/primitives/keyboard";
+
+Accelerator.format("mod+shift+k", isCommandPlatform()); // "⌘⇧K" or "Ctrl+Shift+K"
+createShortcut(Accelerator.keys("mod+k", isCommandPlatform()), openPalette);
 ```
 
 ## Context
@@ -91,7 +101,7 @@ const { space, user, home, locale, target } = useView();
 
 ## Controllable signals
 
-`createControllableSignal` follows the value an owner passes while it controls it, else the holder's own, and tells the owner of each change.
+`createControllableSignal` is Kobalte's: it follows an owner's value while the owner controls it, else its own.
 
 ```ts
 import { createControllableSignal } from "@destack/view";
@@ -123,16 +133,13 @@ await space.mutation(async (mutation) => {
 await space.undo().confirmed;
 ```
 
-## Query updates
+## Accounts and text
 
-`useQuery` re-renders only the rows that changed.
+`useAccount` opens the objects of the view's account, and `useText` follows one text field with every keystroke shared live.
 
 ```tsx
-const notes = useQuery(() => space.query.note.findMany()); // a failure goes to the nearest error boundary
-await space.mutate.note.update({ id, title }).confirmed; // predicted at once, confirmed by the server
-await space.mutation(async (mutation) => edit(mutation)).predicted; // one atomic step that undo reverts together
-const account = useAccount({ member }); // the account's objects its account permissions grant
-const body = useText(note, id, "body"); // one text field, with every keystroke shared live
+const account = useAccount({ member });
+const body = useText(note, id, "body");
 ```
 
 ## Permissions and calls
@@ -148,13 +155,13 @@ if (await space.can("write")) {
 
 ## Forms
 
-`useForm` edits the input of one call of an object's method, checking each held field against the method's input schema and explaining refusals in the person's language.
+`useForm` edits the input of an object's method call, checked against the method's input schema.
 
 ```tsx
 const form = useForm(note, "update", {
     values: () => ({ id: note().id, title: note().title }),
     submit: (input) => space.mutate.note.update(input),
-    mode: "submit", // or "change" to submit each edit in place
+    mode: "submit", // or "change"
 });
 <Field invalid={form.field("title").problem() !== undefined}>
     <Input
@@ -166,18 +173,17 @@ const form = useForm(note, "update", {
 <Button loading={form.status() === "pending"} onClick={() => form.submit()}>
     Save
 </Button>;
-// status: idle → pending → saved | failed; reset() drops the edits
 ```
 
 ## Schema forms
 
-`useSchemaForm` edits an input any schema checks, such as one read from JSON Schema, showing refusals of edited values at once and of every value from the first submit, by JSON Pointer.
+`useSchemaForm` edits an input any schema checks, such as one read from JSON Schema, and reports refusals by JSON Pointer.
 
 ```ts
 const form = useSchemaForm(fromJsonSchema(input), { values: () => ({ place: {} }), submit });
 form.field("place").set({ city: "" });
 form.problems(); // Map { "/place/city" => "Enter a value" }
-form.field("place").problem(); // "Enter a value", the first refusal inside the field
+form.field("place").problem(); // "Enter a value"
 ```
 
 ## Home
@@ -209,27 +215,16 @@ const { space } = useView();
 <a href={urlOf(note.reference(space, id), { view: "editor" })}>Edit</a>;
 ```
 
-## Locations
-
-`@destack/view/router` moves a view between locations of its page.
-
-```tsx
-import { createRouter, defineRoutes } from "@destack/view/router";
-
-const routes = defineRoutes([{ path: "/", component: () => <h1>Notes</h1> }]);
-export const Router = createRouter({ routes });
-```
-
 ## Language
 
-`useLocale` reads the person's `Localization`, which `renderView` provides in their locale with the catalogs of the view's package and its dependencies, and the source language without a provider.
+`useLocale` reads the person's `Localization`, which `renderView` provides for views and `LocaleContext` for websites.
 
 ```tsx
 import { plural, t } from "@destack/locale";
 import { useLocale } from "@destack/view";
 
 export function Archived(properties: { count: number; notebook: string }) {
-    const locale = useLocale(); // provided by renderView for views, by LocaleContext for websites
+    const locale = useLocale();
 
     return (
         <p>
@@ -240,67 +235,31 @@ export function Archived(properties: { count: number; notebook: string }) {
     );
 }
 
-// a website provides it itself
 <LocaleContext value={Localization.of(Locale.parse("de-AT"), catalogs)}>{page}</LocaleContext>;
-```
-
-## Theme
-
-The host writes the theme as custom properties on `<html>`.
-
-```ts
-import { defineTheme } from "@destack/theme/declare";
-
-export const theme = defineTheme({ name: "notes", base: "sand", accent: "orange" });
 ```
 
 ## Display preferences
 
-The `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings hold a person's display preferences, and `resolveDisplay` resolves them all for a selection.
+`resolveDisplay` resolves a person's appearance and display preferences from the `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings.
 
 ```ts
-import { DISPLAY_SETTINGS, resolveDisplay } from "@destack/view/setting";
+import { resolveDisplay } from "@destack/view/setting";
 
-// the values placed for DISPLAY_SETTINGS along the person's scope chain, nearest first
-const { appearance, preferences } = resolveDisplay(
-    { scope: person, package: packageId, space, installation },
-    values,
-    chain,
-);
-const style = theme.variables(appearance, preferences); // a person's accent replaces the app's own and its chart series
+const { appearance, preferences } = resolveDisplay(selection, values, chain);
+const style = theme.variables(appearance, preferences);
 ```
 
-## Launch
+## Styles
 
-`ViewLaunch` parses the launch JSON of the page's `destack-view` script element.
-
-```ts
-import { ViewLaunch } from "@destack/view/declare";
-
-const launch = ViewLaunch.parse(JSON.parse(element.textContent));
-// { installation, space, account, view, user, home?, target?, locale?, release, endpoint, catalogs }
-```
-
-## Document
-
-`@destack/view/document` exports Solid Meta 1, with `Head`, `Title` and `Meta`.
+`@destack/view/styles` loads a document's base styles: Preflight, the theme's element defaults and the StyleX rules.
 
 ```tsx
-import { Head, Meta, Title } from "@destack/view/document";
-
-export function Metadata() {
-    return (
-        <Head>
-            <Title>Notes</Title>
-            <Meta name="description" content="Your notes." />
-        </Head>
-    );
-}
+import "@destack/view/styles";
 ```
 
 ## Examples
 
-`renderExample` from `@destack/view/example` renders an example into an element in one environment: its locale, its theme settings, its width, and the direction its localization gives components.
+`renderExample` renders an example into an element in a locale, direction, width and theme.
 
 ```ts
 import { renderExample } from "@destack/view/example";
@@ -308,17 +267,8 @@ import { renderExample } from "@destack/view/example";
 const unmount = renderExample(element, {
     example: buttonGhost,
     environment: { locale: "ar-EG", direction: "rtl", width: 320, theme: { appearance: "dark" } },
-    properties: { variant: "outline" }, // the properties a control changed
     catalogs,
 });
-```
-
-## Builds
-
-`viewExtension` compiles Solid components and emits each view as a `./view/<name>` browser chunk.
-
-```ts
-const { entrypoint, permissions, presents } = build.manifest.outputs.browser.views.notes;
 ```
 
 ## Tests
@@ -358,49 +308,14 @@ export const dropdownMenuOpenOntoFirstItem = defineScenario({
 });
 ```
 
-## Steps
-
-A step is `focus`, `click`, `rightClick`, `press` in Playwright's key syntax, or `fill`, beside the `set` step every interaction shares.
-
-```ts
-{ action: "click", target: { role: "button", name: "Note" } }
-{ action: "rightClick", target: { text: "Groceries" }, position: { x: 40, y: 120 } }
-{ action: "press", key: "Control+r", target: { role: "treeitem", name: "Trips" } }
-{ action: "fill", target: { label: "Notebook" }, value: "wo" }
-```
-
-## Locators
-
-A locator finds an element by role and accessible name first, then by label, text or test id, and by CSS only as a last resort, with `nth` and `within` where several match.
-
-```ts
-{ role: "tab", name: "Edit" }
-{ role: "option", selected: true }
-{ label: "Notebook" }
-{ text: "Groceries" }
-{ testId: "toolbar" }
-{ css: "[data-slot=menubar-trigger][tabindex='0']", within: { role: "menubar" }, nth: 0 }
-```
-
-## Observations
-
-An observation reads one JSON value after Playwright's assertions: the focused element's accessible name, a name, text, texts, value, attribute, ARIA state, visibility or count.
-
-```ts
-{ kind: "focused" }
-{ kind: "state", target: { role: "button", name: "Note" }, state: "expanded" }
-{ kind: "attribute", target: { css: "[role=listbox]" }, name: "data-popover-open" }
-{ kind: "texts", target: { role: "option" } }
-```
-
 ## Scenario tests
 
-`ViewDriver` plays the UI interaction in the test DOM, and `defineConfiguration` from `@destack/view/test` plays every `*.scenario.ts` module through it.
+`ViewDriver` plays the UI interaction in the test DOM.
 
 ```ts
 import { ViewDriver } from "@destack/view/test";
 
-const driver = ViewDriver.start({ examples: [dropdownMenuNoteMenu] }); // ViewDriver.interaction is viewInteraction
+const driver = ViewDriver.start({ examples: [dropdownMenuNoteMenu] });
 driver.act({ action: "click", target: { role: "button", name: "Note" } });
 driver.observe({ kind: "focused" }); // "Rename"
 ```
