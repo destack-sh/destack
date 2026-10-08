@@ -45,3 +45,27 @@ test("map personal values apart from secrets, through the same walk that leaves 
         { method: "update" },
     ]);
 });
+
+test("mark a copy of a shared schema, leaving the original and its other uses plain", () => {
+    // mark a shared schema personal
+    const attributes = schema.record(schema.string(), schema.string());
+    const personal = schema.sensitive(attributes, "personal");
+
+    // read the mark on the copy, its clones and the original
+    expect([
+        personal === attributes,
+        schema.sensitivityOf(personal),
+        schema.isSensitive(personal),
+        schema.sensitivityOf(personal.describe("the personal attributes")),
+        schema.isSensitive(personal.describe("the personal attributes")),
+        schema.sensitivityOf(attributes),
+        schema.isSensitive(attributes),
+    ]).toEqual([false, "personal", true, "personal", true, undefined, false]);
+
+    // keep values under the original and drop them under the copy
+    const value = { "enduser.email": "ada@example.com" };
+    expect([schema.redact(attributes, value), schema.redact(personal, value)]).toEqual([
+        value,
+        undefined,
+    ]);
+});

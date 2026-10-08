@@ -7,14 +7,16 @@ export type Sensitivity = "secret" | "personal";
 /** The schemas whose values are sensitive and how, as zod metadata. */
 const SENSITIVE = z.registry<{ readonly sensitivity: Sensitivity }>();
 
-/** Mark a schema's values sensitive: a secret by default, or personal data. */
+/** Copy a schema with its values marked sensitive: a secret by default, or personal data. */
 export function sensitive<Value extends z.ZodType>(
     value: Value,
     sensitivity: Sensitivity = "secret",
 ): Value {
-    SENSITIVE.add(value, { sensitivity });
+    // mark a copy, so other uses of the shared schema stay plain
+    const marked = value.clone();
+    SENSITIVE.add(marked, { sensitivity });
 
-    return value;
+    return marked;
 }
 
 /** Read how a schema marks its values sensitive, absent for values that are not. */
@@ -24,7 +26,7 @@ export function sensitivityOf(value: z.core.$ZodType): Sensitivity | undefined {
 
 /** Report whether a schema marks its values sensitive, secret or personal. */
 export function isSensitive(value: z.core.$ZodType): boolean {
-    return SENSITIVE.has(value);
+    return sensitivityOf(value) !== undefined;
 }
 
 /** Leave out what a schema marks sensitive, handing each dropped value to `found`. */
