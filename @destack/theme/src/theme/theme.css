@@ -12,14 +12,37 @@
     }
 }
 
-/* paint the page in the theme's background, text color and interface font */
-:root {
-    background-color: var(--destack-color-background);
-    color: var(--destack-color-foreground);
-    font-family: var(--destack-text-family);
-}
+/* set the theme's element defaults in the base layer below every component style */
+@layer base {
+    /* paint the page in the theme's background, text color and interface font */
+    :root {
+        background-color: var(--destack-color-background);
+        color: var(--destack-color-foreground);
+        font-family: var(--destack-text-family);
+        accent-color: var(--destack-color-primary);
+    }
 
-/* let the theme's page fill the viewport */
-body {
-    margin: 0;
+    /* set code in the theme's code font */
+    code,
+    kbd,
+    samp,
+    pre {
+        font-family: var(--destack-text-code-family);
+    }
+
+    /* draw placeholders in the theme's muted text color */
+    ::placeholder {
+        color: var(--destack-color-muted-foreground);
+    }
+
+    /* select text in the theme's accent */
+    ::selection {
+        background-color: color-mix(in oklab, var(--destack-color-primary) 30%, transparent);
+    }
+
+    /* ring the focused element in the theme's ring color */
+    :focus-visible {
+        outline: var(--destack-stroke-ring) solid var(--destack-color-ring);
+        outline-offset: 2px;
+    }
 }

@@ -147,20 +147,6 @@ const row = theme.rebase({ light: "#c9d8ff", dark: "#1d2f66" });
 // card #c5d4fb, mutedForeground #5b5c62 against the row, #62636a against the page
 ```
 
-## Role overrides
-
-`roles` replaces any color role with a palette's seed or tone or explicit light and dark colors, and the replacement is checked like every other role.
-
-```ts
-defineTheme({
-    name: "paper",
-    roles: {
-        background: { light: "#f8f5ee", dark: "#0b2029" },
-        mutedForeground: { palette: "base", lightness: { light: 0.242, dark: 0.948 } },
-    },
-});
-```
-
 ## Tokens
 
 `src/token/tokens.json` holds every token in the W3C Design Tokens format, and `bun run generate` compiles it into StyleX constants whose values are stable `--destack-*` custom properties.
@@ -214,6 +200,15 @@ import { text } from "@destack/theme/text";
 import { transition } from "@destack/theme/motion";
 
 <dialog {...style.attrs(isOpen() ? transition.enter : transition.exit)} />;
+```
+
+## Element defaults
+
+`theme.css` sets the element defaults that read the theme in the `base` layer after `@destack/style/preflight.css`: page paint and font, code font, form accent, placeholders, selection and the focus ring.
+
+```tsx
+import "@destack/style/preflight.css";
+import "@destack/theme/theme.css";
 ```
 
 ## Default theme
