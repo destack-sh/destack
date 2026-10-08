@@ -62,6 +62,7 @@ export {
     uuidv7,
     xid,
     xor,
+    ZodDiscriminatedUnion as DiscriminatedUnion,
     ZodObject as Object,
     ZodType as Schema,
 } from "zod";

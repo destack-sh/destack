@@ -5,6 +5,9 @@ import { defineSchema } from "../declare/schema.ts";
 /** The characters of a UUID's canonical text form, RFC 9562. */
 const UUID_LENGTH = 36;
 
+/** The position of a UUID's version digit in its text form (RFC 9562 4.2). */
+const VERSION_POSITION = 14;
+
 /** The canonical lowercase UUIDv7 representation from RFC 9562. */
 const UUID_V7 = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 
@@ -63,6 +66,14 @@ export const Identifier = {
     /** Create a new identifier with a prefix, ordered by its creation time. */
     create<const Prefix extends string>(prefix: Prefix): Identifier<Prefix> {
         return identifier(prefix).parse(`${prefix}-${v7()}`);
+    },
+
+    /** Derive the identifier of a request's object: the request's time and bits as a UUIDv7, the same for every repeat. */
+    derive<const Prefix extends string>(prefix: Prefix, requestId: string): Identifier<Prefix> {
+        const head = requestId.slice(0, VERSION_POSITION);
+        const tail = requestId.slice(VERSION_POSITION + 1);
+
+        return identifier(prefix).parse(`${prefix}-${head}7${tail}`);
     },
 
     /** Read the UUIDv7 an identifier ends with. */
