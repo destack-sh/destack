@@ -12,7 +12,14 @@ const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
 const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 
 /** The state units the package exports, which render nothing of their own and so show no examples. */
-const STATE = new Set(["collection", "focus", "position", "selection", "toggle-state", "virtualizer"]);
+const STATE = new Set([
+    "collection",
+    "focus",
+    "position",
+    "selection",
+    "toggle-state",
+    "virtualizer",
+]);
 
 /** The components the package exports, its wrapped chart entry points and state units left out. */
 const COMPONENTS = Object.keys(manifest.exports)
@@ -38,14 +45,14 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
         </SidebarProvider>
     ));
 
-    // the server renders the defaults: an expanded sidebar on a wide screen and an empty stack
+    // the server renders the defaults with their hydration keys: an expanded sidebar on a wide screen and an empty stack
     expect(html.replaceAll(CLASS_ATTRIBUTE, "").replaceAll(ICON_BODY, "$1$2")).toBe(
-        '<div data-slot="sidebar-wrapper">' +
-            '<div id="0" data-slot="sidebar" data-state="expanded" data-variant="sidebar" data-side="left">' +
-            '<div><div data-slot="sidebar-content">Notebooks</div></div></div>' +
-            '<button data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="0" aria-expanded="true" >' +
-            '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true"></svg></button>' +
-            '<section aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
+        '<div _hk=200 data-slot="sidebar-wrapper">' +
+            '<div _hk=2040 id="0" data-slot="sidebar" data-state="expanded" data-variant="sidebar" data-side="left">' +
+            '<div><div _hk=20420 data-slot="sidebar-content">Notebooks</div></div></div>' +
+            '<button _hk=206 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="0" aria-expanded="true" >' +
+            '<svg _hk=20a0 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon" ></svg></button>' +
+            '<section _hk=20d aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
             '<ol popover="manual" data-slot="toaster-stack"></ol></section></div>',
     );
 });
