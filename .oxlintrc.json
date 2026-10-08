@@ -140,10 +140,7 @@
             "files": ["@destack/view/src/test/server.ts"],
             "rules": { "typescript/no-unnecessary-type-parameters": "off" }
         },
-        {
-            "files": ["@destack/view/src/test/hydration.ts"],
-            "rules": { "eslint/id-length": "off" }
-        },
+        { "files": ["@destack/view/src/test/dom.ts"], "rules": { "eslint/id-length": "off" } },
         {
             "files": [
                 "@destack/view/src/document/script.tsx",
