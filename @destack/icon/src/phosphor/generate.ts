@@ -41,14 +41,18 @@ async function generate(): Promise<void> {
     const bodies = await Promise.all(WEIGHTS.map((weight) => readWeight(weight)));
     const names = [...(bodies[0]?.keys() ?? [])].toSorted();
 
-    // write every icon with its categories and search words, without Phosphor's release markers, the name type derived from the list
+    // write every icon with its categories and search words, without Phosphor's release markers, rejecting an icon without metadata
     const metadata: readonly PhosphorIcon[] = icons;
     const described = new Map(metadata.map((icon) => [icon.name, icon]));
     const listed = names.map((name) => {
+        // read the icon's metadata
         const icon = described.get(name);
-        const tags = (icon?.tags ?? []).filter((tag) => !tag.startsWith("*"));
+        if (icon === undefined) {
+            throw new Error(`the ${name} icon has no metadata`);
+        }
+        const tags = icon.tags.filter((tag) => !tag.startsWith("*"));
 
-        return `    { name: ${JSON.stringify(name)}, categories: ${JSON.stringify(icon?.categories ?? [])}, tags: ${JSON.stringify(tags)} },\n`;
+        return `    { name: ${JSON.stringify(name)}, categories: ${JSON.stringify(icon.categories)}, tags: ${JSON.stringify(tags)} },\n`;
     });
     await writeModule(
         ICONS_LIST,

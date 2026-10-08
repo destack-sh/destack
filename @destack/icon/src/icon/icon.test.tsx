@@ -11,7 +11,7 @@ const TRASH =
 
 /** Wrap an icon body in the SVG element an icon renders. */
 function svg(attributes: string, body: string): string {
-    return `<svg viewBox="0 0 256 256" fill="currentColor" ${attributes}>${body}</svg>`;
+    return `<svg viewBox="0 0 256 256" fill="currentColor" ${attributes} data-slot="icon">${body}</svg>`;
 }
 
 test("draw the regular weight at 1em, hidden from assistive technology", async () => {

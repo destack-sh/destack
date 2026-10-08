@@ -8,7 +8,7 @@ import { LazyIcon } from "@destack/icon/lazy";
 
 /** Wrap an icon body in the SVG element an icon renders. */
 function svg(attributes: string, body: string): string {
-    return `<svg viewBox="0 0 256 256" fill="currentColor" ${attributes}>${body}</svg>`;
+    return `<svg viewBox="0 0 256 256" fill="currentColor" ${attributes} data-slot="icon">${body}</svg>`;
 }
 
 test("draw an icon chosen at run time empty at its final size until its module arrives", async () => {

@@ -1,3 +1,4 @@
+import * as style from "@destack/style";
 import type { JSX } from "@solidjs/web";
 import type { IconName } from "../phosphor/icons.ts";
 
@@ -19,6 +20,8 @@ export interface IconProperties {
     readonly size?: number | string;
     /** The accessible name, which exposes the icon as an image instead of hiding it. */
     readonly label?: string;
+    /** The StyleX styles applied to the icon, such as its size or margins. */
+    readonly xstyle?: style.Styles;
 }
 
 /** Draw a Phosphor icon inline in the current text color. */
@@ -41,7 +44,9 @@ export function Icon(properties: IconProperties): JSX.Element {
             role={properties.label === undefined ? undefined : "img"}
             aria-label={properties.label}
             aria-hidden={properties.label === undefined ? "true" : undefined}
+            data-slot="icon"
             innerHTML={body()}
+            {...style.attrs(properties.xstyle)}
         />
     );
 }

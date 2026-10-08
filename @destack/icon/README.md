@@ -11,6 +11,7 @@ import { Icon } from "@destack/icon";
 
 <Icon name="trash" />;
 <Icon name="trash" weight="bold" size="1.5rem" label="Delete" />;
+<Icon name="github-logo" weight="fill" xstyle={styles.toolIcon} />;
 ```
 
 ## Weights
