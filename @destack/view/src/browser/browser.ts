@@ -1,3 +1,4 @@
+import "@destack/style/preflight.css";
 import "@destack/theme/theme.css";
 import { Catalog, Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { ObjectType } from "@destack/object";
