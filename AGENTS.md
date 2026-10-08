@@ -476,7 +476,7 @@ Check every change with tests, formatting, lints, and any relevant static and dy
 - **CT03** Code that is awkward to test SHOULD be refactored, since it is almost always poorly factored (also see above).
 - **CT04** Hard-to-test code SHOULD get crisper models and more realistic tests instead.
 
-- **CT05** Tests MUST be named with a verb that states their content, such as `test_roundtrip_duration` or `test_send_receive_message`.
+- **CT05** Tests MUST be named with a verb that states their content, such as `roundtrip duration` or `test_send_receive_message`.
 - **CT06** Test first lines or docstrings MUST describe the desired behavior without mentioning "test".
 
 - **CT07** Tests SHOULD be the strongest, most brutal form we can think of: PBT, DST, roundtrip tests, whatever is applicable.
