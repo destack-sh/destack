@@ -1,0 +1,242 @@
+/* reset the browser's element styles in the base layer below every component style */
+@layer base {
+    /* size boxes by their border box, and clear margins, padding and borders */
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        border: 0 solid;
+    }
+
+    /* set a readable line height, tab size and system font, and keep text size on rotation */
+    html,
+    :host {
+        line-height: 1.5;
+        -webkit-text-size-adjust: 100%;
+        tab-size: 4;
+        font-family:
+            system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+            "Noto Color Emoji";
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* draw rules as one top border in the text color */
+    hr {
+        height: 0;
+        color: inherit;
+        border-top-width: 1px;
+    }
+
+    /* underline abbreviations with titles */
+    abbr:where([title]) {
+        text-decoration: underline dotted;
+    }
+
+    /* let headings take the text they sit in */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-size: inherit;
+        font-weight: inherit;
+    }
+
+    /* let links take the color and decoration of the text they sit in */
+    a {
+        color: inherit;
+        text-decoration: inherit;
+    }
+
+    /* embolden strong text one step */
+    b,
+    strong {
+        font-weight: bolder;
+    }
+
+    /* set code in the system monospace font at the size of its text */
+    code,
+    kbd,
+    samp,
+    pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 1em;
+    }
+
+    /* shrink small text */
+    small {
+        font-size: 80%;
+    }
+
+    /* raise and lower sub and sup without changing the line height */
+    sub,
+    sup {
+        font-size: 75%;
+        line-height: 0;
+        position: relative;
+        vertical-align: baseline;
+    }
+
+    sub {
+        bottom: -0.25em;
+    }
+
+    sup {
+        top: -0.5em;
+    }
+
+    /* collapse table borders and inherit their color */
+    table {
+        text-indent: 0;
+        border-color: inherit;
+        border-collapse: collapse;
+    }
+
+    /* ring focused elements in Firefox like every other browser */
+    :-moz-focusring:where(:not(iframe)) {
+        outline: auto;
+    }
+
+    /* align progress bars to the baseline */
+    progress {
+        vertical-align: baseline;
+    }
+
+    /* show summaries as list items */
+    summary {
+        display: list-item;
+    }
+
+    /* unstyle lists */
+    ol,
+    ul,
+    menu {
+        list-style: none;
+    }
+
+    /* show replaced elements as blocks aligned to the middle */
+    img,
+    svg,
+    video,
+    canvas,
+    audio,
+    iframe,
+    embed,
+    object {
+        display: block;
+        vertical-align: middle;
+    }
+
+    /* fit images and videos to their container at their aspect ratio */
+    img,
+    video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* let controls take the text they sit in, without a background or rounding */
+    button,
+    input,
+    select,
+    optgroup,
+    textarea,
+    ::file-selector-button {
+        font: inherit;
+        font-feature-settings: inherit;
+        font-variation-settings: inherit;
+        letter-spacing: inherit;
+        color: inherit;
+        border-radius: 0;
+        background-color: transparent;
+        opacity: 1;
+    }
+
+    /* restore option groups in list boxes */
+    :where(select:is([multiple], [size])) optgroup {
+        font-weight: bolder;
+    }
+
+    :where(select:is([multiple], [size])) optgroup option {
+        padding-inline-start: 20px;
+    }
+
+    /* space the file button from its file name */
+    ::file-selector-button {
+        margin-inline-end: 4px;
+    }
+
+    /* draw placeholders at half the text color */
+    ::placeholder {
+        opacity: 1;
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+    }
+
+    /* resize text areas vertically only */
+    textarea {
+        resize: vertical;
+    }
+
+    /* remove the search field's inner padding in Safari */
+    ::-webkit-search-decoration {
+        -webkit-appearance: none;
+    }
+
+    /* keep date and time fields one line tall and aligned in Safari */
+    ::-webkit-date-and-time-value {
+        min-height: 1lh;
+        text-align: inherit;
+    }
+
+    ::-webkit-datetime-edit {
+        display: inline-flex;
+    }
+
+    ::-webkit-datetime-edit-fields-wrapper {
+        padding: 0;
+    }
+
+    ::-webkit-datetime-edit,
+    ::-webkit-datetime-edit-year-field,
+    ::-webkit-datetime-edit-month-field,
+    ::-webkit-datetime-edit-day-field,
+    ::-webkit-datetime-edit-hour-field,
+    ::-webkit-datetime-edit-minute-field,
+    ::-webkit-datetime-edit-second-field,
+    ::-webkit-datetime-edit-millisecond-field,
+    ::-webkit-datetime-edit-meridiem-field {
+        padding-block: 0;
+    }
+
+    /* center the datalist marker in Chrome */
+    ::-webkit-calendar-picker-indicator {
+        line-height: 1;
+    }
+
+    /* drop Firefox's invalid field shadow */
+    :-moz-ui-invalid {
+        box-shadow: none;
+    }
+
+    /* let Safari round buttons */
+    button,
+    input:where([type="button"], [type="reset"], [type="submit"]),
+    ::file-selector-button {
+        appearance: button;
+    }
+
+    /* size Safari's number steppers */
+    ::-webkit-inner-spin-button,
+    ::-webkit-outer-spin-button {
+        height: auto;
+    }
+
+    /* keep hidden elements hidden */
+    [hidden]:where(:not([hidden="until-found"])) {
+        display: none !important;
+    }
+}

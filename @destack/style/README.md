@@ -30,3 +30,21 @@ const styles = style.create({ row: (row: number) => ({ gridRow: row }) });
 ```ts
 import { Button } from "@destack/ui/button"; // the build compiles the button's styles through @destack/ui's dependency on @destack/style
 ```
+
+## Layers
+
+StyleX emits styles into the `priority1` to `priority10` cascade layers, and `styleExtension` orders a `base` layer before them for element defaults, so any component style wins.
+
+```css
+@layer base, priority1, priority2; /* … priority10 */
+```
+
+## Preflight
+
+`preflight.css` resets the browser's element styles in the `base` layer: boxes size by their border, margins and borders clear, lists unstyle, media fits its container, and controls take the text they sit in.
+
+```tsx
+import "@destack/style/preflight.css";
+
+<button {...style.attrs(styles.button)}>Save</button>; // no browser border, background or font to undo
+```

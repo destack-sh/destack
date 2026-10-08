@@ -3,11 +3,14 @@
     "version": "2026.9.0",
     "license": "MIT",
     "type": "module",
-    "sideEffects": false,
+    "sideEffects": [
+        "**/*.css"
+    ],
     "exports": {
         ".": "./src/index.ts",
         "./build": "./src/build/index.ts",
-        "./media.stylex": "./src/condition/media.stylex.ts"
+        "./media.stylex": "./src/condition/media.stylex.ts",
+        "./preflight.css": "./src/preflight/preflight.css"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
