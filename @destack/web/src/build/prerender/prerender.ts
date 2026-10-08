@@ -1,13 +1,12 @@
+import { type ChildProcessByStdio, spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
+import type { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { PackagePath } from "@destack/package/file";
 import { schema } from "@destack/schema";
-import { type ChildProcessByStdio, spawn } from "node:child_process";
-import type { Readable } from "node:stream";
-import { createInterface } from "node:readline";
-import { RobotsOptions, writeRobots, writeSitemap } from "./sitemap.ts";
 
 /** The longest a request's response may take by default, in milliseconds. */
 const RESPONSE_TIMEOUT = 10_000;
@@ -15,18 +14,12 @@ const RESPONSE_TIMEOUT = 10_000;
 /** The most renderer diagnostics kept: 1 MiB, far more than any failure prints. */
 const MAX_DIAGNOSTICS = 1024 * 1024;
 
-/** Requests rendered to static HTML during a build. */
+/** Requests rendered to static HTML during a build, at the site's origin. */
 export const PrerenderOptions = schema.object({
-    /** Absolute origin used for build-time requests. */
-    origin: schema.string(),
     /** URL paths to render, including a leading slash. */
     routes: schema.array(schema.string()).readonly(),
     /** Route returning 404 to publish as 404.html. */
     notFound: schema.string().exactOptional(),
-    /** Publish sitemap.xml listing the rendered routes. */
-    sitemap: schema.boolean().exactOptional(),
-    /** Publish robots.txt with these rules. */
-    robots: RobotsOptions.exactOptional(),
     /** Maximum time per request, including its body, in milliseconds. */
     timeout: schema.number().exactOptional(),
 });
@@ -51,13 +44,14 @@ interface PageRequest {
     readonly status: number;
 }
 
-/** Render explicit public routes into a browser output directory. */
+/** Render explicit public routes at a site's origin into a browser output directory. */
 export async function prerender(
     module: string,
+    site: string,
     options: PrerenderOptions,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     // reject ambiguous URLs before executing application code
-    const requests = planRequests(options);
+    const requests = planRequests(site, options);
 
     // reuse the renderer across requests
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -72,28 +66,13 @@ export async function prerender(
         await rm(directory, { recursive: true });
     }
 
-    // publish the sitemap of the rendered routes and the crawler rules
-    const encoder = new TextEncoder();
-    if (options.sitemap === true) {
-        files.set("sitemap.xml", encoder.encode(writeSitemap(options.origin, options.routes)));
-    }
-    if (options.robots !== undefined) {
-        const robots = writeRobots(options.origin, options.robots, options.sitemap === true);
-        files.set("robots.txt", encoder.encode(robots));
-    }
-
     return files;
 }
 
-/** Plan each route's request and page, refusing a non-HTTP origin, uncanonical paths and duplicate files. */
-function planRequests(options: PrerenderOptions): PageRequest[] {
-    // require an HTTP origin
-    const origin = new URL(options.origin);
-    if (origin.origin !== options.origin || !["http:", "https:"].includes(origin.protocol)) {
-        throw new Error(`expected an HTTP origin: ${options.origin}`);
-    }
-
-    // require a canonical path on the same origin for each route
+/** Plan each route's request and page, refusing uncanonical paths and duplicate files. */
+function planRequests(site: string, options: PrerenderOptions): PageRequest[] {
+    // require a canonical path on the site's origin for each route
+    const origin = new URL(site);
     const routes = [
         ...options.routes,
         ...(options.notFound === undefined ? [] : [options.notFound]),

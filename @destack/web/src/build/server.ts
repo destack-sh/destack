@@ -14,7 +14,11 @@ import { PackageLocator } from "@destack/package/transform";
 import { modulePlugin } from "@destack/package/vite";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
 import { entryPlugin } from "./entry.ts";
-import type { WebOptions } from "./output.ts";
+import { writeMetadata } from "./metadata/index.ts";
+import { requireSite, type WebOptions } from "./output.ts";
+
+/** The browsers development serves syntax for, the ones Vite's `baseline-widely-available` build target names. */
+const BROWSER_TARGETS = ["chrome111", "edge111", "firefox114", "safari16.4"];
 
 /** A local application server with Vite's watcher and module graph, restarted when a package definition it reads changes. */
 export class DevelopmentServer implements AsyncDisposable {
@@ -169,9 +173,6 @@ async function open(options: DevelopmentServerOptions): Promise<PackageSource> {
     });
 }
 
-/** The browsers development serves syntax for, the ones Vite's `baseline-widely-available` build target names. */
-const BROWSER_TARGETS = ["chrome111", "edge111", "firefox114", "safari16.4"];
-
 /** Create and listen with a Vite server of fresh plugins for an application, calling back when a dependency's definition changes. */
 async function serve(
     options: DevelopmentServerOptions,
@@ -193,6 +194,7 @@ async function serve(
             modulePlugin(),
             resolutionPlugin(source, dependencies, runtime),
             definitionPlugin(source.directory, onDefinitionChange),
+            metadataPlugin(application),
             ...(await loadTransforms({
                 directory: source.directory,
                 runtime: "browser",
@@ -256,6 +258,35 @@ function definitionPlugin(directory: string, onChange: () => void): Plugin {
             }
 
             return null;
+        },
+    };
+}
+
+/** Serve the site files an application publishes, written afresh for each request as builds write them. */
+function metadataPlugin(application: WebOptions): Plugin {
+    return {
+        name: "@destack/web/metadata",
+        configureServer(vite) {
+            // leave an application without site files
+            const metadata = application.metadata;
+            if (metadata === undefined) {
+                return;
+            }
+            const site = requireSite(application);
+
+            // answer a request for a site file, passing every other request on
+            vite.middlewares.use((request, response, next) => {
+                const path = request.url?.replace(/\?.*$/su, "");
+                const files = writeMetadata(site, metadata, new Date());
+                const file = files.find((candidate) => candidate.path === path);
+                if (file === undefined) {
+                    next();
+
+                    return;
+                }
+                response.setHeader("Content-Type", `${file.type}; charset=utf-8`);
+                response.end(file.text);
+            });
         },
     };
 }

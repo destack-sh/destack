@@ -326,3 +326,42 @@ test("load an authored client entry in served pages, which hydrates them", async
         await rm(root, { recursive: true });
     }
 });
+
+test("serve the site files an application publishes as builds write them", async () => {
+    // serve an application publishing its crawler rules and model guide
+    const { root, application } = await writeApplication();
+    try {
+        await using server = await DevelopmentServer.start({
+            directory: application,
+            dependencies: {},
+            application: {
+                kind: "web",
+                app: "src/app.ts",
+                ssr: false,
+                publicDirectory: false,
+                site: "https://example.test",
+                metadata: {
+                    robots: { rules: [{ userAgent: "*", allow: ["/"] }] },
+                    llms: { title: "Example", summary: "A site.", sections: [] },
+                },
+            },
+            server: { port: 0 },
+        });
+        const address = server.vite.httpServer?.address();
+        const port = typeof address === "object" && address !== null ? address.port : undefined;
+
+        // read each file with its media type
+        const read = async (path: string) => {
+            const response = await fetch(`http://127.0.0.1:${port}${path}`);
+
+            return [response.headers.get("content-type"), await response.text()];
+        };
+
+        expect([await read("/robots.txt"), await read("/llms.txt?fresh")]).toEqual([
+            ["text/plain; charset=utf-8", "User-agent: *\nAllow: /\n"],
+            ["text/plain; charset=utf-8", "# Example\n\n> A site.\n"],
+        ]);
+    } finally {
+        await rm(root, { recursive: true });
+    }
+});

@@ -8,14 +8,5 @@
             "runtimes": ["bun"]
         }
     },
-    "build": "./build#webExtension",
-    "check": {
-        "expect": [
-            {
-                "files": ["src/document/script.tsx", "src/document/font.tsx"],
-                "rules": ["destack/prevent-abbreviations"],
-                "reason": "src is the script element's attribute and next/font's file list, whose names they keep"
-            }
-        ]
-    }
+    "build": "./build#webExtension"
 }

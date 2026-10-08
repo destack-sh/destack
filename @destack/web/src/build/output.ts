@@ -14,6 +14,7 @@ import type { Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
 import { entryPlugin } from "./entry.ts";
+import { MetadataOptions, writeMetadata } from "./metadata/index.ts";
 import { prerender, PrerenderOptions } from "./prerender/index.ts";
 import { sourcePlugin } from "./source.ts";
 
@@ -37,8 +38,15 @@ export const WebOptions = SolidApplication.extend({
     minify: schema.boolean().exactOptional(),
     /** Package-relative public asset directory, public by default. */
     publicDirectory: schema.union([schema.string(), schema.literal(false)]).exactOptional(),
+    /** The site's public origin, such as `https://example.com`, which prerendered pages and site files address. */
+    site: schema
+        .string()
+        .refine((site) => isHttpOrigin(site), "expected an HTTP origin")
+        .exactOptional(),
     /** Render these public routes during the build. */
     prerender: PrerenderOptions.exactOptional(),
+    /** Publish these files beside the pages, such as sitemap.xml and robots.txt. */
+    metadata: MetadataOptions.exactOptional(),
 });
 /** A Solid application compiled into a browser output and, with server rendering, a server output. */
 export type WebOptions = schema.Infer<typeof WebOptions>;
@@ -74,10 +82,13 @@ const RENDER_MODES = new Set(["sync", "async", "stream"]);
 /** Compile Solid applications through Start's client and server environments. */
 export const webOutput: OutputKind = {
     expand(name, request) {
-        // require a server renderer for prerendered pages
+        // require a server renderer for prerendered pages, and an origin for them and the site files
         const application = WebOptions.parse(request);
         if (application.prerender !== undefined && application.ssr === false) {
             throw new TypeError("prerendering requires an SSR handler");
+        }
+        if (application.prerender !== undefined || application.metadata !== undefined) {
+            requireSite(application);
         }
 
         // inspect the framework entries beside the application
@@ -121,14 +132,19 @@ export const webOutput: OutputKind = {
         }
         await pass.check(browser);
 
-        // keep prerendered pages beside the browser assets for static or hybrid hosting
+        // keep prerendered pages and site files beside the browser assets for static or hybrid hosting
         if (application.prerender !== undefined) {
-            const pages = await prerender(
-                join(temporary, "server/server.js"),
-                application.prerender,
-            );
+            const module = join(temporary, "server/server.js");
+            const pages = await prerender(module, requireSite(application), application.prerender);
             for (const [path, bytes] of pages) {
                 pass.file(`output/${browser}/${path}`, bytes);
+            }
+        }
+        if (application.metadata !== undefined) {
+            const encoder = new TextEncoder();
+            const site = requireSite(application);
+            for (const file of writeMetadata(site, application.metadata, new Date())) {
+                pass.file(`output/${browser}${file.path}`, encoder.encode(file.text));
             }
         }
 
@@ -361,4 +377,24 @@ function sideExports(
     else {
         return {};
     }
+}
+
+/** Read an application's site origin, which prerendered pages and site files require. */
+export function requireSite(application: WebOptions): string {
+    if (application.site === undefined) {
+        throw new TypeError("prerendered pages and site files require a site origin");
+    }
+
+    return application.site;
+}
+
+/** Report whether a URL is the bare origin of an HTTP or HTTPS site. */
+function isHttpOrigin(site: string): boolean {
+    const url = URL.parse(site);
+
+    return (
+        url !== null &&
+        url.origin === site &&
+        (url.protocol === "http:" || url.protocol === "https:")
+    );
 }

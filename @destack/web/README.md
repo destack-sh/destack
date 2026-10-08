@@ -14,9 +14,31 @@ const website: WebOptions = {
     kind: "web",
     app: "src/app.tsx",
     ssr: { runtime: "bun", emit: false },
-    prerender: { origin: "https://example.com", routes: ["/"], notFound: "/404" },
+    site: "https://example.com",
+    prerender: { routes: ["/"], notFound: "/404" },
 };
 await using build = await buildPackage({ directory, dependencies, outputs: { website } });
+```
+
+## Site files
+
+`metadata` publishes the files crawlers, readers and tools fetch beside the pages, at `site`, the site's origin, in builds and in development: `sitemap.xml`, `robots.txt`, an Atom feed, `llms.txt`, `manifest.webmanifest` and `/.well-known/security.txt`.
+
+```ts
+const website: WebOptions = {
+    kind: "web",
+    app: "src/app.tsx",
+    ssr: { runtime: "bun" },
+    site: "https://example.com", // the origin prerendered pages and site files address
+    metadata: {
+        sitemap: ["/", "/blog/"], // sitemap.xml of these paths
+        robots: { rules: [{ userAgent: "*", allow: ["/"] }] }, // robots.txt naming the sitemap
+        feed: { path: "/blog/feed.xml", home: "/blog/", title: "Blog", author: { name: "Ada" }, entries },
+        llms: { title: "Example", summary: "What the site is.", sections: [] },
+        manifest: { name: "Example", icons: [] },
+        security: { contact: ["mailto:security@example.com"], expires: "2027-04-01T00:00:00Z" },
+    },
+};
 ```
 
 ## Entries

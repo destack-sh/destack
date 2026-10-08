@@ -1,6 +1,7 @@
 import { schema } from "@destack/schema";
+import { escapeXml } from "./xml.ts";
 
-/** What crawlers may fetch, after Next.js's robots rules. */
+/** What crawlers may fetch, per the Robots Exclusion Protocol (RFC 9309). */
 export const RobotsOptions = schema.object({
     /** The rules, each for the crawlers a user agent names. */
     rules: schema
@@ -22,7 +23,7 @@ export type RobotsOptions = schema.Infer<typeof RobotsOptions>;
 /** Write the sitemap of a site's pages at their absolute addresses (sitemaps.org 0.9). */
 export function writeSitemap(origin: string, routes: readonly string[]): string {
     const entries = routes.map(
-        (route) => `  <url><loc>${escape(new URL(route, origin).href)}</loc></url>`,
+        (route) => `  <url><loc>${escapeXml(new URL(route, origin).href)}</loc></url>`,
     );
 
     return [
@@ -49,14 +50,4 @@ export function writeRobots(origin: string, options: RobotsOptions, hasSitemap: 
     const sitemap = hasSitemap ? [`Sitemap: ${new URL("/sitemap.xml", origin).href}`] : [];
 
     return `${[...groups, ...sitemap].join("\n\n")}\n`;
-}
-
-/** Escape text for an XML element. */
-function escape(text: string): string {
-    return text
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&apos;");
 }
