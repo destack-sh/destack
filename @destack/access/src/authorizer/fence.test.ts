@@ -33,16 +33,16 @@ test.for(TEST_DIALECTS)(
             );
 
         // move the account and the space below it once fenced, and neither once unfenced
-        await Scope.fence(database, "account-a", "host-b", 2000);
+        await Scope.fence(database, "account-a", "machine-b", 2000);
         expect(await moved()).toEqual([
-            { scope: "account-a", cell: "host-b" },
-            { scope: "account-a", cell: "host-b" },
+            { scope: "account-a", machine: "machine-b" },
+            { scope: "account-a", machine: "machine-b" },
         ]);
         await Scope.unfence(database, "account-a");
         expect(await moved()).toEqual([undefined, undefined]);
 
         // refuse fencing a scope the database does not keep
-        await expect(Scope.fence(database, "account-z", "host-b", 2000)).rejects.toMatchObject({
+        await expect(Scope.fence(database, "account-z", "machine-b", 2000)).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: "unknown scope: account-z",
         });
@@ -75,7 +75,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
             events.push("committed");
         });
         await guarded.promise;
-        const fencing = Scope.fence(other, "account-a", "host-b", 2000).then(() =>
+        const fencing = Scope.fence(other, "account-a", "machine-b", 2000).then(() =>
             events.push("fenced"),
         );
 

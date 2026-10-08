@@ -81,7 +81,7 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     });
     const reach = async (scope: string) => {
         const head = await home.database.log.position();
-        await Replica.reach(app.database, scope, head, controller.signal);
+        await Replica.wait(app.database, scope, head, controller.signal);
     };
 
     // list the space alone until its copy lists the account containing it, up to the universe
@@ -107,7 +107,7 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     ]);
 
     // leave the access rows of local types and of universe-living types out of every copy
-    const types = [...app.authorizer.local, ...authorizer.universal];
+    const types = [...app.authorizer.local, ...authorizer.global];
     expect(
         authorizer.chainShape
             .replica(
@@ -122,7 +122,7 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     ).toEqual({
         NOT: { OR: types.map((type) => ({ packageId: type.packageId, type: type.type })) },
     });
-    expect(authorizer.universal.map((type) => type.type)).toEqual(["region", "user"]);
+    expect(authorizer.global.map((type) => type.type)).toEqual(["machine", "space", "user"]);
 
     // follow a grant on the account into the copy
     await owner.grant({
@@ -178,6 +178,22 @@ test("copy the chains of the accounts a follower outside them replicates in one 
             via: ["account-1", "account-2"],
             between: [],
         },
+    });
+
+    // leave out the copied types another publisher copies
+    const policyType = { packageId: policy.definition.packageId, type: policy.definition.name };
+    const elsewhere = await app.authorizer.chainVia(
+        app.database,
+        "placement",
+        [account.reference("universe", "account-1")],
+        app.authorizer.scoped,
+        [policyType],
+    );
+    expect(elsewhere?.parameters).toEqual({
+        local: [...app.authorizer.local],
+        copied: [],
+        via: ["account-1"],
+        between: [],
     });
 
     // copy both accounts' access rows and the universe's in one stream, kept at each scope by the one record

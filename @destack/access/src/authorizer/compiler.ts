@@ -1,4 +1,4 @@
-import { ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
 import {
     alias,
     type CommonTable,
@@ -378,6 +378,18 @@ export class Compiler {
         }
     }
 
+    /** Decide whether an authority may hold a containment grant: one acting for itself, of the named principal types alone when given. */
+    static #admits(
+        authority: Compilation["authority"],
+        principals: readonly ObjectTypeReference[] | undefined,
+    ): boolean {
+        const isTyped =
+            principals === undefined ||
+            principals.some((type) => authority.isMember({ ...type, scope: "*", id: "*" }));
+
+        return authority.delegator === undefined && isTyped;
+    }
+
     /** Match a row when the authority lives inside its scope, or inside the scope it is, lending nothing to delegates. */
     static #contained(
         expression: Extract<AccessExpression, { kind: "contained" }>,
@@ -387,12 +399,7 @@ export class Compiler {
     ): SQL {
         // lend nothing to delegates, and admit only the named principal types when given
         const { authority, access } = compilation;
-        const isTyped =
-            expression.principals === undefined ||
-            expression.principals.some((type) =>
-                authority.isMember({ ...type, scope: "*", id: "*" }),
-            );
-        if (authority.delegator !== undefined || !isTyped) {
+        if (!Compiler.#admits(authority, expression.principals)) {
             return sql`false`;
         }
 
@@ -418,31 +425,29 @@ export class Compiler {
             : sql`false`;
     }
 
-    /** Match a current relationship of the authority on an object of the scope chain granting the enclosing scope's permission. */
+    /** Match the authority by a current relationship or containment on an object of the scope chain granting the enclosing scope's permission. */
     #enclosing(
         expression: ThroughExpression,
         mapping: TableMapping,
         compilation: Compilation,
     ): SQL {
-        // find each type along the chain and the relations granting the permission on its object
-        const scope = this.#authorizer.onlySubject(mapping.policy, expression.relation);
-        const steps = this.#authorizer
-            .inherited({
-                packageId: scope.packageId,
-                type: scope.type,
-                name: expression.permission,
-            })
-            .flatMap(({ type, relations }) => {
-                const object = compilation.access.scopes.find(
-                    (link) => link.packageId === type.packageId && link.type === type.type,
-                );
+        // find the objects of the chain deciding the enclosing scope's permission
+        const steps = this.#authorizer.chainSteps(
+            mapping.policy,
+            expression,
+            compilation.access.scopes,
+        );
 
-                return object === undefined || relations.length === 0
-                    ? []
-                    : [{ object, relations }];
-            });
-        if (steps.length === 0) {
-            return sql`false`;
+        // match a chain scope whose containment set holds the authority of an admitted type, lending nothing to delegates
+        const { authority } = compilation;
+        const isContained = steps.some(
+            ({ object, contained }) =>
+                contained !== undefined &&
+                authority.isMember({ ...object, relation: CONTAINED }) &&
+                Compiler.#admits(authority, contained.principals),
+        );
+        if (isContained) {
+            return sql`true`;
         }
 
         // match one current relationship of the authority on any of them
@@ -450,10 +455,15 @@ export class Compiler {
             accessRelationship,
             `access_enclosing_${compilation.aliases.next++}`,
         );
-        const matches = steps.map(
-            ({ object, relations }) =>
-                sql`(${Relationship.on(object, relationship)} AND ${inArray(relationship.relation, [...relations])})`,
-        );
+        const matches = steps
+            .filter(({ relations }) => relations.length > 0)
+            .map(
+                ({ object, relations }) =>
+                    sql`(${Relationship.on(object, relationship)} AND ${inArray(relationship.relation, [...relations])})`,
+            );
+        if (matches.length === 0) {
+            return sql`false`;
+        }
 
         return sql`EXISTS (
             SELECT 1 FROM ${current(compilation)} AS ${relationship}

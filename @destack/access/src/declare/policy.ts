@@ -252,7 +252,7 @@ export interface RelationInput {
     readonly grantedBy?: string | null;
     /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
     readonly open?: true;
-    /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row. */
+    /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row, of any scope type without subject types. */
     readonly isScope?: true;
     /** Whether the relation's relationships show only to holders of the permission granting it. */
     readonly concealed?: true;
@@ -314,10 +314,10 @@ function qualifyRelations<Name extends string>(
     );
 }
 
-/** Require every relation to accept a subject type unless other types contribute them. */
+/** Require every relation kept in rows to accept a subject type unless other types contribute them. */
 function requireSubjectTypes(relations: Readonly<Record<string, RelationDefinition>>): void {
     for (const [name, relation] of Object.entries(relations)) {
-        if (relation.subjects.length === 0 && relation.open !== true) {
+        if (relation.subjects.length === 0 && relation.open !== true && relation.isScope !== true) {
             throw new AccessError(
                 "INVALID_DECLARATION",
                 `relation ${name} accepts no subject type and is not open`,

@@ -34,7 +34,7 @@ permission("read"); // the holders of another permission on the object
 through("parent", "read"); // the holders of a permission on the related object
 grantersOf("object"); // whoever may grant on the object a row references
 readersOf("object", "relation"); // whoever sees the relationships of the object a row references
-contained(principal.installation); // the principals inside the object's scope, or inside the scope it is
+contained(principal.installation); // the principals inside the object's scope, or inside the scope it is, along its chain too
 resource({ team: 1 }); // everyone, where a condition over the object's attributes holds
 context({ team: 1 }); // everyone, where a condition over the request's attributes holds
 union(relation("owner"), relation("editor")); // also intersection and exclusion
@@ -75,6 +75,18 @@ export const document = new Policy(import.meta.destack.package, {
     name: "document",
     relations: { folder: { subjects: [folder], grantedBy: null, isScope: true } },
     permissions: { edit: through("folder", "edit") },
+});
+```
+
+## Scope relation
+
+`through("scope", permission)` reads a permission on the scope holding each object through its declared scope relation, which the scope chain decides; without subject types it reads whichever scope type holds the object.
+
+```ts
+export const connection = new Policy(pkg, {
+    name: "connection",
+    relations: { scope: { subjects: [], isScope: true } },
+    permissions: { read: through("scope", "serve") }, // a space's or an account's serve
 });
 ```
 

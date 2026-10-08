@@ -40,8 +40,8 @@ export class Access {
     readonly isSuspended: boolean;
     /** Whether the storage of the scope or one enclosing it is capped, refusing writes but deletes. */
     readonly isCapped: boolean;
-    /** The fenced scope nearest in the chain and the cell it moves to. */
-    readonly moved: { readonly scope: string; readonly cell: string } | undefined;
+    /** The fenced scope nearest in the chain and the machine it moves to. */
+    readonly moved: { readonly scope: string; readonly machine: string } | undefined;
     /** The next moment time changes the caller's subject sets, roles or elevation. */
     readonly until: number | undefined;
     /** The roles along the scope chain under each permission key they grant as one JSON list, each `[permission, role]`, the roles granting every permission under `*`. */
@@ -78,7 +78,7 @@ export class Access {
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
         this.isCapped = resolved.links.some((link) => link.isCapped);
         const [moved] = resolved.links.flatMap((link) =>
-            link.movedTo === undefined ? [] : [{ scope: link.object.id, cell: link.movedTo }],
+            link.movedTo === undefined ? [] : [{ scope: link.object.id, machine: link.movedTo }],
         );
         this.moved = moved;
         this.until = resolved.until;

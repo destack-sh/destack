@@ -3,8 +3,15 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Snapshot, sql } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
-import { Authorizer, contained, Policy, principal, type TableMapping } from "../index.ts";
-import { accountTable, fixtureDatabase, groupTable, module4, spaceTable } from "../test/fixture.ts";
+import { Authorizer, contained, Policy, principal, through, type TableMapping } from "../index.ts";
+import {
+    accountTable,
+    fixtureDatabase,
+    groupTable,
+    module4,
+    spaceTable,
+    teamTable,
+} from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
 
 /** Realms, root scopes holding districts, read by the principals inside them. */
@@ -14,11 +21,18 @@ const realm = new Policy(module4.package, {
     scope: true,
 });
 
-/** Districts, scopes inside a realm, read by the principals inside them. */
+/** Districts, scopes inside a realm, read by the principals inside them and visited by the installations inside them. */
 const district = new Policy(module4.package, {
     name: "district",
-    permissions: { reside: contained() },
+    permissions: { reside: contained(), visit: contained(principal.installation) },
     scope: true,
+});
+
+/** Lots, objects living in a district, looked at by whoever visits the district. */
+const lot = new Policy(module4.package, {
+    name: "lot",
+    relations: { district: { subjects: [district], grantedBy: null, isScope: true } },
+    permissions: { look: through("district", "visit") },
 });
 
 /** Parcels, objects living in a realm, read by the installations inside the realm alone. */
@@ -39,6 +53,7 @@ const mappings: TableMapping[] = [
         relations: {},
     },
     { policy: parcel, table: groupTable, id: "id", scope: "scope", attributes: {}, relations: {} },
+    { policy: lot, table: teamTable, id: "id", scope: "scope", attributes: {}, relations: {} },
 ];
 
 test.for(TEST_DIALECTS)(
@@ -48,7 +63,7 @@ test.for(TEST_DIALECTS)(
         const opened = await TestDatabase.create(dialect, fixtureDatabase, { isMigrated: true });
         onTestFinished(() => opened.close());
         const { database } = opened;
-        const authorizer = new Authorizer([realm, district, parcel], mappings);
+        const authorizer = new Authorizer([realm, district, parcel, lot], mappings);
         const scopes = [
             realm.reference("universe", "near"),
             realm.reference("universe", "far"),
@@ -70,6 +85,9 @@ test.for(TEST_DIALECTS)(
         ]);
 
         await database.insert(groupTable).values([{ id: "plot", scope: "near" }]);
+        await database
+            .insert(teamTable)
+            .values([{ id: "yard", scope: "inside", member: "nobody" }]);
 
         // decide a principal living in a scope on a row, resolved in the scope holding the row, in memory and in SQL
         const snapshot = Snapshot.live(database);
@@ -77,11 +95,13 @@ test.for(TEST_DIALECTS)(
             target: ObjectReference,
             scope: string,
             subject = principal.installation.reference(scope, "app"),
+            name = "reside",
         ) => {
             const caller = { subjects: [subject], now: 1000, attributes: {} };
-            const holder = target.type === parcel.name ? target.scope : target.id;
+            const isScope = target.type === realm.name || target.type === district.name;
+            const holder = isScope ? target.id : target.scope;
             const access = await authorizer.resolve(snapshot, holder, caller);
-            const permission = { ...target, name: "reside" };
+            const permission = { ...target, name };
             const memory = await authorizer.check(snapshot, permission, target, access);
             const [row] = await database.execute(
                 sql`SELECT CASE WHEN ${authorizer.permits(permission, target, access)} THEN 1 ELSE 0 END AS permitted`,
@@ -114,18 +134,30 @@ test.for(TEST_DIALECTS)(
             ["outside", false, false],
         ]);
 
-        // permit a parcel to the installations inside its realm, refusing a host living there and another realm's installation
+        // permit a parcel to the installations inside its realm, refusing a machine living there and another realm's installation
         const plot = parcel.reference("near", "plot");
         expect([
             await decide(plot, "inside"),
             await decide(plot, "near"),
-            await decide(plot, "near", principal.machine.reference("near", "laptop")),
+            await decide(plot, "near", principal.machine.reference("near", "machine-a")),
             await decide(plot, "outside"),
         ]).toEqual([
             ["inside", true, true],
             ["near", true, true],
             ["near", false, false],
             ["outside", false, false],
+        ]);
+
+        // permit a lot to the installations inside its district through the district's typed containment, refusing a machine living there and a sibling's installation
+        const yard = lot.reference("inside", "yard");
+        expect([
+            await decide(yard, "inside", undefined, "look"),
+            await decide(yard, "inside", principal.machine.reference("inside", "pc"), "look"),
+            await decide(yard, "sibling", undefined, "look"),
+        ]).toEqual([
+            ["inside", true, true],
+            ["inside", false, false],
+            ["sibling", false, false],
         ]);
     },
 );

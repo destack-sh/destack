@@ -106,6 +106,16 @@ export interface Admission {
     readonly until?: number;
 }
 
+/** One scope type along a permission's scope chain and what on its object grants the permission. */
+export interface ChainStep {
+    /** The scope type. */
+    readonly type: Pick<PermissionReference, "packageId" | "type">;
+    /** The relations whose relationships on its object grant the permission. */
+    readonly relations: readonly string[];
+    /** The containment set of its object the permission admits, of the named principal types alone when given, absent where containment grants nothing. */
+    readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
+}
+
 /** Decide policies over their objects' tables, in SQL or in memory from grants. */
 export class Authorizer {
     /** The keys of permissions that only their expressions grant. */
@@ -125,13 +135,7 @@ export class Authorizer {
     /** The scope types that take subject sets from the scopes enclosing them. */
     readonly #enclosedTypes = new Set<string>();
     /** The scope chain steps of permissions read through enclosing scopes, by permission key. */
-    readonly #inherited = new Map<
-        string,
-        readonly {
-            readonly type: Pick<PermissionReference, "packageId" | "type">;
-            readonly relations: readonly string[];
-        }[]
-    >();
+    readonly #inherited = new Map<string, readonly ChainStep[]>();
     /** How long a copy of access may go without its home before decisions refuse it, in milliseconds. */
     readonly lag: number;
     /** The object types whose access rows live in this database, rather than as copies. */
@@ -140,8 +144,8 @@ export class Authorizer {
     readonly copied: readonly ObjectTypeReference[];
     /** The object types this database keeps copies of whose rows live in a scope, which a follower outside their chains copies in the scopes it replicates. */
     readonly scoped: readonly ObjectTypeReference[];
-    /** The types whose objects live in the universe, whose access rows stay in the account service's database. */
-    readonly universal: readonly ObjectTypeReference[];
+    /** The types of global principals, identified apart from any scope chain, whose access rows stay in the account service's database. */
+    readonly global: readonly ObjectTypeReference[];
     /** The policies indexed by package and type. */
     readonly #policies = new Map<string, Policy>();
     /** The subject types other types contribute to each open relation, by type and relation. */
@@ -196,7 +200,7 @@ export class Authorizer {
         this.local = this.#localTypes(copies);
         this.copied = this.#copiedTypes(copies);
         this.scoped = this.#scopedTypes(copies);
-        this.universal = this.#universalTypes();
+        this.global = this.#globalTypes();
 
         // expand the subject sets roles may bind to
         const sets = this.#subjectSets();
@@ -380,8 +384,8 @@ export class Authorizer {
             }));
     }
 
-    /** List the types whose objects live in the universe. */
-    #universalTypes(): ObjectTypeReference[] {
+    /** List the types of global principals. */
+    #globalTypes(): ObjectTypeReference[] {
         return [...this.#policies.values()]
             .filter((policy) => policy.definition.isGlobal === true)
             .map((policy) => ({
@@ -626,10 +630,7 @@ export class Authorizer {
     }
 
     /** Read what a permission of a scope type grants through a scope chain: each type along the chain, and the relations on its object that grant it. */
-    inherited(reference: PermissionReference): readonly {
-        readonly type: Pick<PermissionReference, "packageId" | "type">;
-        readonly relations: readonly string[];
-    }[] {
+    inherited(reference: PermissionReference): readonly ChainStep[] {
         // read a permission's chain once, refusing a scope type that encloses itself
         const key = PermissionReference.key(reference);
         const cached = this.#inherited.get(key);
@@ -643,13 +644,7 @@ export class Authorizer {
     }
 
     /** Walk a permission's chain up its enclosing scopes, refusing one it reaches twice. */
-    #inherit(
-        reference: PermissionReference,
-        visited: ReadonlySet<string>,
-    ): {
-        readonly type: Pick<PermissionReference, "packageId" | "type">;
-        readonly relations: readonly string[];
-    }[] {
+    #inherit(reference: PermissionReference, visited: ReadonlySet<string>): ChainStep[] {
         // refuse a permission the walk reached before
         const key = PermissionReference.key(reference);
         if (visited.has(key)) {
@@ -658,11 +653,15 @@ export class Authorizer {
                 `${reference.type}.${reference.name} encloses itself`,
             );
         }
-        const { relations, enclosing } = this.deciding(reference);
+        const { relations, contained, enclosing } = this.deciding(reference);
         const reached = new Set([...visited, key]);
 
         return [
-            { type: { packageId: reference.packageId, type: reference.type }, relations },
+            {
+                type: { packageId: reference.packageId, type: reference.type },
+                relations,
+                ...(contained === undefined ? {} : { contained }),
+            },
             ...enclosing.flatMap((permission) => this.#inherit(permission, reached)),
         ];
     }
@@ -777,12 +776,13 @@ export class Authorizer {
         );
     }
 
-    /** Request the one copy of the scope chains above the scopes a follower replicates, recorded at the universe, with the scoped types the publisher keeps, every copied one by default. */
+    /** Request the one copy of the scope chains above the scopes a follower replicates, recorded at the universe, with the scoped types the publisher keeps, every copied one by default, leaving out the types another publisher copies. */
     async chainVia(
         database: DatabaseConnection,
         follower: string,
         via: readonly ObjectReference[],
         scoped: readonly ObjectTypeReference[] = this.scoped,
+        elsewhere: readonly ObjectTypeReference[] = [],
     ): Promise<Subscription | undefined> {
         // request nothing without a replicated scope
         if (via.length === 0) {
@@ -814,7 +814,13 @@ export class Authorizer {
                 copied: [
                     ...this.copied.filter((type) => this.mapping(type).inherited !== undefined),
                     ...scoped,
-                ],
+                ].filter(
+                    (type) =>
+                        !elsewhere.some(
+                            (other) =>
+                                other.packageId === type.packageId && other.type === type.type,
+                        ),
+                ),
                 via: [...replicated].toSorted(),
                 between: [...between].toSorted(),
             },
@@ -866,7 +872,7 @@ export class Authorizer {
         // leave out the access rows of the objects the follower keeps, and of objects living in the universe
         const remote: Condition = {
             NOT: {
-                OR: [...parameters.local, ...this.universal].map((type) => ({
+                OR: [...parameters.local, ...this.global].map((type) => ({
                     packageId: type.packageId,
                     type: type.type,
                 })),
@@ -878,10 +884,11 @@ export class Authorizer {
             scopes,
         ]);
 
-        // add each copied type's inherited rows, the scopes' own rows of a copied scope type, and a scoped type's rows
-        const copied = parameters.copied.flatMap((type) => this.#copiedRows(type, scopes, via));
+        // add the rows of each copied type this database keeps
+        const kept = parameters.copied.filter((type) => this.mappingOf(type) !== undefined);
+        const copied = kept.flatMap((type) => this.#copiedRows(type, scopes, via));
         const owned = new Set(
-            parameters.copied
+            kept
                 .filter((type) => this.mapping(type).policy.definition.scope === true)
                 .map((type) => this.#copiedTable(type)),
         );
@@ -1535,6 +1542,48 @@ export class Authorizer {
         }
     }
 
+    /** List the types a relation leads to for a permission: its subject types, or for the scope of whichever type holds each object, every scope type declaring the permission. */
+    scopeTypes(type: Policy, name: string, permission: string): readonly SubjectType[] {
+        // follow a relation to its declared subject types
+        const relation = this.relation(type, name);
+        if (relation.isScope !== true || relation.subjects.length > 0) {
+            return relation.subjects;
+        }
+
+        // follow the scope of any type to each scope type declaring the permission
+        return [...this.#policies.values()]
+            .filter(
+                (policy) =>
+                    policy.definition.scope === true &&
+                    Object.hasOwn(policy.definition.permissions, permission),
+            )
+            .map((policy) => ({ packageId: policy.definition.packageId, type: policy.name }));
+    }
+
+    /** List the scope types an arrow to an enclosing scope follows along a chain, nearest first: its declared one, or for the scope of any type the nearest scope's own type where it declares the permission. */
+    enclosingTypes(
+        type: Policy,
+        expression: Extract<AccessExpression, { kind: "through" }>,
+        chain: readonly Pick<ObjectReference, "packageId" | "type">[],
+    ): readonly SubjectType[] {
+        // take the declared scope type
+        const types = this.scopeTypes(type, expression.relation, expression.permission);
+        const relation = this.relation(type, expression.relation);
+        if (relation.subjects.length > 0) {
+            return types;
+        }
+
+        // take the nearest scope's type alone
+        const [nearest] = chain;
+
+        return types.filter(
+            (scope) =>
+                nearest !== undefined &&
+                scope.packageId === nearest.packageId &&
+                scope.type === nearest.type,
+        );
+    }
+
     /** Read the one subject type a relation accepts, refusing a relation accepting several. */
     onlySubject(type: Policy, name: string): SubjectType {
         const [only, ...others] = this.relation(type, name).subjects;
@@ -1550,10 +1599,12 @@ export class Authorizer {
 
     /** Require a relation to the scope holding each object to accept one scope type alone, kept by the scope chain rather than a field. */
     #validateScopeRelation(type: Policy, name: string, relation: RelationDefinition): void {
-        // require one scope type, kept by the scope chain
+        // require one scope type, kept by the scope chain, or none for the scope of whichever type holds each object
         const [scope, ...others] = relation.subjects;
+        if (scope === undefined) {
+            return;
+        }
         const isScopeType =
-            scope !== undefined &&
             scope.relation === undefined &&
             scope.wildcard !== true &&
             this.policy(scope).definition.scope === true;
@@ -1592,14 +1643,68 @@ export class Authorizer {
         }
     }
 
+    /** List the objects of a scope chain deciding an arrow to the enclosing scope, with the relations and containment granting its permission on each. */
+    chainSteps(
+        policy: Policy,
+        expression: Extract<AccessExpression, { kind: "through" }>,
+        chain: readonly ObjectReference[],
+    ): readonly (Omit<ChainStep, "type"> & { readonly object: ObjectReference })[] {
+        return this.enclosingTypes(policy, expression, chain)
+            .flatMap((type) =>
+                this.inherited({
+                    packageId: type.packageId,
+                    type: type.type,
+                    name: expression.permission,
+                }),
+            )
+            .flatMap(({ type, relations, contained }) => {
+                const object = chain.find(
+                    (link) => link.packageId === type.packageId && link.type === type.type,
+                );
+                const isDeciding = relations.length > 0 || contained !== undefined;
+
+                return object === undefined || !isDeciding
+                    ? []
+                    : [{ object, relations, ...(contained === undefined ? {} : { contained }) }];
+            });
+    }
+
+    /** List the permissions of the scope types an arrow to the enclosing scope follows. */
+    #enclosingPermissions(
+        policy: Policy,
+        expression: Extract<AccessExpression, { kind: "through" }>,
+    ): PermissionReference[] {
+        const { relation, permission } = expression;
+
+        return this.scopeTypes(policy, relation, permission).map((scope) => ({
+            packageId: scope.packageId,
+            type: scope.type,
+            name: permission,
+        }));
+    }
+
+    /** Refuse deciding a permission along a scope chain by a relation a field or the scope chain keeps, which relationships on the chain cannot hold. */
+    #requireRelationships(reference: PermissionReference, name: string): void {
+        const isScope = this.policy(reference).definition.relations[name]?.isScope === true;
+        const isField = this.mappingOf(reference)?.relations[name] !== undefined;
+        if (isScope || isField) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `${reference.type}.${name} is kept ${isScope ? "by the scope chain" : "in a field"}, so relationships on the chain cannot decide ${reference.name}`,
+            );
+        }
+    }
+
     /** Read what decides a permission along a scope chain: relations on the object and permissions of enclosing scopes. */
     deciding(reference: PermissionReference): {
         readonly relations: readonly string[];
+        readonly contained?: ChainStep["contained"];
         readonly enclosing: readonly PermissionReference[];
     } {
         // collect the relations and enclosing sets the permission's unions and named permissions reach
         const policy = this.policy(reference);
         const relations = new Set<string>();
+        let contained: ChainStep["contained"];
         const enclosing: PermissionReference[] = [];
         const seen = new Set<string>();
         const pending = [this.expression(reference)];
@@ -1607,36 +1712,39 @@ export class Authorizer {
             if (expression.kind === "none") {
                 continue;
             }
-            // take a relation relationships keep, refusing one a field or the scope chain keeps
+            // take a relation relationships keep
             else if (expression.kind === "relation") {
-                const isScope = policy.definition.relations[expression.name]?.isScope === true;
-                const isField = this.mappingOf(reference)?.relations[expression.name] !== undefined;
-                if (isScope || isField) {
-                    throw new AccessError(
-                        "INVALID_DECLARATION",
-                        `${reference.type}.${expression.name} is kept ${isScope ? "by the scope chain" : "in a field"}, so relationships on the chain cannot decide ${reference.name}`,
-                    );
-                }
+                this.#requireRelationships(reference, expression.name);
                 relations.add(expression.name);
-            } else if (expression.kind === "union") {
+            }
+            // take the scope's containment set, of any principal or of the named types
+            else if (expression.kind === "contained") {
+                const { principals } = expression;
+                contained =
+                    principals === undefined ||
+                    (contained !== undefined && contained.principals === undefined)
+                        ? {}
+                        : { principals: [...(contained?.principals ?? []), ...principals] };
+            }
+            // follow a union's operands
+            else if (expression.kind === "union") {
                 pending.push(...expression.expressions);
-            } else if (expression.kind === "permission") {
-                if (!seen.has(expression.name)) {
-                    seen.add(expression.name);
-                    pending.push(this.expression(policy.permission(expression.name)));
-                }
+            }
+            // follow a named permission once
+            else if (expression.kind === "permission" && !seen.has(expression.name)) {
+                seen.add(expression.name);
+                pending.push(this.expression(policy.permission(expression.name)));
+            }
+            // skip a named permission followed before
+            else if (expression.kind === "permission") {
+                continue;
             }
             // follow the scope enclosing the object
             else if (
                 expression.kind === "through" &&
                 policy.definition.relations[expression.relation]?.isScope === true
             ) {
-                const scope = this.onlySubject(policy, expression.relation);
-                enclosing.push({
-                    packageId: scope.packageId,
-                    type: scope.type,
-                    name: expression.permission,
-                });
+                enclosing.push(...this.#enclosingPermissions(policy, expression));
             }
             // refuse what relationships on the chain cannot decide
             else {
@@ -1647,7 +1755,11 @@ export class Authorizer {
             }
         }
 
-        return { relations: [...relations], enclosing };
+        return {
+            relations: [...relations],
+            ...(contained === undefined ? {} : { contained }),
+            enclosing,
+        };
     }
 
     /** List the permissions accepted as subject sets on enclosed scopes of a type that an enclosing scope's set makes its members members of. */
@@ -1727,7 +1839,7 @@ export class Authorizer {
         // follow the relation to plain objects of types declaring the permission
         const definition = type.definition;
         const relation = this.relation(type, expression.relation);
-        for (const subject of relation.subjects) {
+        for (const subject of this.scopeTypes(type, expression.relation, expression.permission)) {
             if (subject.relation !== undefined || subject.wildcard) {
                 throw new AccessError(
                     "INVALID_DECLARATION",

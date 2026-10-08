@@ -363,3 +363,76 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "read a permission through the scope of whichever type holds each object, granting nothing where that type declares no such permission, on %s",
+    async (dialect) => {
+        // keep notes in a shop serving its workers and in a club declaring no serving
+        const storage = await TestDatabase.create(dialect, fixtureDatabase, {
+            isMigrated: true,
+        });
+        onTestFinished(() => storage.close());
+        const { database } = storage;
+        const shop = new Policy(module1.package, {
+            name: "shop",
+            relations: { worker: { subjects: [principal.user] } },
+            permissions: { serve: relation("worker") },
+            scope: true,
+        });
+        const club = new Policy(module1.package, {
+            name: "club",
+            relations: { worker: { subjects: [principal.user] } },
+            permissions: { read: relation("worker") },
+            scope: true,
+        });
+        const note = new Policy(module1.package, {
+            name: "note",
+            relations: {
+                owner: { subjects: [principal.user], grantedBy: null },
+                scope: { subjects: [], isScope: true },
+            },
+            permissions: { read: union(relation("owner"), through("scope", "serve")) },
+        });
+        const corner = shop.reference("universe", "corner");
+        const chess = club.reference("universe", "chess");
+        const copies = new AccessFixture(database);
+        await copies.copyScope(corner);
+        await copies.copyScope(chess);
+        await database.insert(item).values([
+            { ...documentRow("a"), scope: "corner" },
+            { ...documentRow("b"), scope: "chess" },
+        ]);
+
+        // make dave a worker of both
+        await relate(database, corner, "worker", people.dave);
+        await relate(database, chess, "worker", people.dave);
+        const authorizer = new Authorizer([shop, club, note], [{ ...mapping, policy: note }]);
+
+        // list and check the notes dave reads in each scope, in SQL and in memory alike
+        const reads = async (scope: string, id: string) => {
+            const context: AccessContext = { subjects: [people.dave], now: 1000, attributes: {} };
+            const access = await authorizer.resolve(Snapshot.live(database), scope, context);
+            const listed = (
+                await database
+                    .select({ id: item.id })
+                    .from(item)
+                    .where(authorizer.where(note.permission("read"), access))
+                    .orderBy(asc(item.id))
+            ).map((row) => row.id);
+            const checked = (
+                await authorizer.check(
+                    Snapshot.live(database),
+                    note.permission("read"),
+                    note.reference(scope, id),
+                    access,
+                )
+            ).isAllowed;
+
+            return [listed, checked];
+        };
+        expect([await reads("corner", "a"), await reads("chess", "b")]).toEqual([
+            [["a"], true],
+            [[], false],
+        ]);
+    },
+);

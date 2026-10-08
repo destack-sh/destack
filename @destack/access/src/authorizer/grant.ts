@@ -1,5 +1,5 @@
 import { AccessContext } from "../context/context.ts";
-import { ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
 import { type Match, Predicate, type Row, type Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
@@ -346,15 +346,25 @@ export class GrantReader {
         }
 
         // grant the scope's containment set, to principals of the named types alone when given
-        const path = [...trail.path, CONTAINED];
+        return GrantReader.#containment(object, expression.principals, {
+            ...trail,
+            path: [...trail.path, CONTAINED],
+        });
+    }
+
+    /** Grant an object's containment set, to principals of the named types alone when given. */
+    static #containment(
+        object: ObjectReference,
+        principals: readonly ObjectTypeReference[] | undefined,
+        trail: Trail,
+    ): GrantTree {
         const grant = (subject: Subject): Grant => ({
             subject,
             arrows: trail.arrows,
             object,
-            path,
+            path: trail.path,
         });
         const inside = any([grant({ ...object, relation: CONTAINED })]);
-        const { principals } = expression;
 
         return principals === undefined
             ? inside
@@ -543,7 +553,7 @@ export class GrantReader {
         // decide a permission of the enclosing scope by the relationships on the scope chain's objects
         const scope = TableMapping.scope(mapping, row);
         if (mapping.policy.definition.relations[expression.relation]?.isScope === true) {
-            return any(await this.#enclosing(expression, mapping, scope, trail));
+            return this.#enclosing(expression, mapping, scope, trail);
         }
 
         // follow relationships to plain objects in the same scope
@@ -676,56 +686,56 @@ export class GrantReader {
         return some(trees);
     }
 
-    /** Collect the relationships on the objects of a row's scope chain that grant the enclosing scope's permission. */
+    /** Collect the relationships and containment sets on the objects of a row's scope chain that grant the enclosing scope's permission. */
     async #enclosing(
         expression: Extract<AccessExpression, { kind: "through" }>,
         mapping: TableMapping,
         scope: string,
         trail: Trail,
-    ): Promise<Grant[]> {
-        // find each type along the chain and the relations granting the permission on its object
-        const type = this.#authorizer.onlySubject(mapping.policy, expression.relation);
-        const chain = this.#chain(scope);
-        const steps = this.#authorizer
-            .inherited({
-                packageId: type.packageId,
-                type: type.type,
-                name: expression.permission,
-            })
-            .flatMap(({ type: inherited, relations }) => {
-                const object = chain.find(
-                    (link) =>
-                        link.packageId === inherited.packageId && link.type === inherited.type,
-                );
+    ): Promise<GrantTree> {
+        // find the objects of the chain deciding the enclosing scope's permission
+        const steps = this.#authorizer.chainSteps(mapping.policy, expression, this.#chain(scope));
 
-                return object === undefined || relations.length === 0
-                    ? []
-                    : [{ object, relations }];
-            });
-
-        // grant to the subjects of those relationships
-        const grants = await Promise.all(
-            steps.map(async ({ object, relations }) =>
-                (await this.#relationships(object)).flatMap((entry) =>
-                    entry.relation !== null && relations.includes(entry.relation)
-                        ? [
-                              {
-                                  subject: subjectOf(entry),
-                                  condition: new GrantCondition(entry),
-                                  object,
-                                  path: [
-                                      ...trail.path,
-                                      `relation ${entry.relation} on ${object.type} ${object.id} enclosing it`,
-                                  ],
-                                  arrows: trail.arrows,
-                              },
-                          ]
-                        : [],
-                ),
-            ),
+        // grant to the containment sets of the chain scopes admitting their principals
+        const contained = steps.flatMap(({ object, contained: admitted }) =>
+            admitted === undefined
+                ? []
+                : [
+                      GrantReader.#containment(object, admitted.principals, {
+                          ...trail,
+                          path: [
+                              ...trail.path,
+                              `${CONTAINED} in ${object.type} ${object.id} enclosing it`,
+                          ],
+                      }),
+                  ],
         );
 
-        return grants.flat();
+        // grant to the subjects of the relationships
+        const grants = await Promise.all(
+            steps
+                .filter(({ relations }) => relations.length > 0)
+                .map(async ({ object, relations }) =>
+                    (await this.#relationships(object)).flatMap((entry) =>
+                        entry.relation !== null && relations.includes(entry.relation)
+                            ? [
+                                  {
+                                      subject: subjectOf(entry),
+                                      condition: new GrantCondition(entry),
+                                      object,
+                                      path: [
+                                          ...trail.path,
+                                          `relation ${entry.relation} on ${object.type} ${object.id} enclosing it`,
+                                      ],
+                                      arrows: trail.arrows,
+                                  },
+                              ]
+                            : [],
+                    ),
+                ),
+        );
+
+        return some([any(grants.flat()), ...contained]);
     }
 
     /** Collect the role bindings on the row, its ancestors, owners or scope chain that grant a permission. */
