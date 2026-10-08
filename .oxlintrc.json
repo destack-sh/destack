@@ -108,11 +108,15 @@
             "rules": { "typescript/no-unnecessary-type-parameters": "off" }
         },
         {
+            "files": ["@destack/connection/src/test/fixture.ts"],
+            "rules": { "destack/valid-declaration": "off" }
+        },
+        {
             "files": ["@destack/forge/tests/fixture/consumer/run.js"],
             "rules": { "eslint/no-console": "off", "typescript/no-unsafe-call": "off" }
         },
         {
-            "files": ["@destack/host/src/cloudflare/instance.ts"],
+            "files": ["@destack/space/src/cloudflare/instance.ts"],
             "rules": { "destack/prevent-abbreviations": "off" }
         },
         {
@@ -124,7 +128,27 @@
             "rules": { "destack/prevent-abbreviations": "off" }
         },
         {
-            "files": ["@destack/web/src/document/script.tsx", "@destack/web/src/document/font.tsx"],
+            "files": [
+                "@destack/view/src/primitives/event-props.ts",
+                "@destack/view/src/primitives/input-mask.ts",
+                "@destack/view/src/primitives/upload.ts",
+                "@destack/view/src/primitives/video.ts"
+            ],
+            "rules": { "destack/prevent-abbreviations": "off" }
+        },
+        {
+            "files": ["@destack/view/src/test/server.ts"],
+            "rules": { "typescript/no-unnecessary-type-parameters": "off" }
+        },
+        {
+            "files": ["@destack/view/src/test/hydration.ts"],
+            "rules": { "eslint/id-length": "off" }
+        },
+        {
+            "files": [
+                "@destack/view/src/document/script.tsx",
+                "@destack/view/src/document/font.tsx"
+            ],
             "rules": { "destack/prevent-abbreviations": "off" }
         },
         {
