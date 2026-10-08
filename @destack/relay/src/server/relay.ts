@@ -161,7 +161,7 @@ export class Relay {
                 { type: "system", name: "relay" },
                 (recorder, transaction) =>
                     recorder.record(transaction, tunnelClose, {
-                        targets: { machine: { type: "machine", id: machineId } },
+                        target: { type: "machine", id: machineId },
                         details: { reason },
                         outcome: { kind: "success" },
                     }),
@@ -239,7 +239,7 @@ export class Relay {
         });
         await journal.database.transaction((transaction) =>
             recorder.record(transaction, tunnelOpen, {
-                targets: { machine: { type: "machine", id: machineId } },
+                target: { type: "machine", id: machineId },
                 details: { name },
                 outcome: { kind: "success" },
             }),
