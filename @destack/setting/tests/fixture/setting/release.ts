@@ -13,5 +13,5 @@ export async function release(settings: readonly Setting[]): Promise<BuildReader
         description: describeSetting(declared),
     }));
 
-    return (await MemoryBuild.declaring(setting.package, declarations)).reader;
+    return await MemoryBuild.declaring(setting.package, declarations);
 }
