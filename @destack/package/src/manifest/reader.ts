@@ -1,4 +1,4 @@
-import { Digest, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
 import { SourceMapReference } from "../source/map.ts";
@@ -11,32 +11,24 @@ import { PackageLocation, PackageManifest } from "./manifest.ts";
 /** The path of a build's root manifest beside its files, as stores and running workloads keep it. */
 export const MANIFEST_PATH = "manifest.json";
 
-/** A readable package distribution supplied by local or remote storage. */
-export interface PackageDistribution {
-    /** The root manifest. */
-    readonly manifest: PackageManifest;
-    /** Verified access to serialized descriptions. */
-    readonly reader: BuildReader;
-    /** Open a distributed file without retaining its complete contents in memory. */
-    open(path: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>>;
-}
-
-/** Read selected manifest descriptions through a caller-supplied file transport. */
+/** A build's manifest and its files, read through a caller-supplied file transport: a directory, a store, a registry or memory. */
 export class BuildReader {
     /** Manifest describing the stored package. */
     readonly manifest: PackageManifest;
-    /** Read one package file by its relative path. */
-    readonly load: (path: string) => Promise<Uint8Array<ArrayBuffer>>;
+    /** Stream one package file by its relative path, without keeping it whole in memory. */
+    readonly stream: (path: string, signal?: AbortSignal) => Promise<ReadableStream<Uint8Array>>;
     /** The graph file of each module, read once. */
     #modules: Promise<Module[]> | undefined;
 
     /** Bind a manifest to local, registry or browser file access. */
-    constructor(
-        manifest: PackageManifest,
-        load: (path: string) => Promise<Uint8Array<ArrayBuffer>>,
-    ) {
+    constructor(manifest: PackageManifest, stream: BuildReader["stream"]) {
         this.manifest = manifest;
-        this.load = load;
+        this.stream = stream;
+    }
+
+    /** Read one package file whole by its relative path. */
+    async load(path: string, signal?: AbortSignal): Promise<Uint8Array<ArrayBuffer>> {
+        return new Uint8Array(await new Response(await this.stream(path, signal)).arrayBuffer());
     }
 
     /** Read exact compiler dependency resolutions. */
@@ -157,7 +149,8 @@ export class BuildReader {
         }
 
         // authenticate and verify the root before trusting its file references
-        const bytes = await BuildReader.#fetch(new URL(MANIFEST_PATH, base), fetch, signal);
+        const response = await BuildReader.#request(new URL(MANIFEST_PATH, base), fetch, signal);
+        const bytes = new Uint8Array(await response.arrayBuffer());
         await PackageFile.verify(
             {
                 path: MANIFEST_PATH,
@@ -171,19 +164,24 @@ export class BuildReader {
             JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
         );
 
-        return new BuildReader(manifest, async (path) => {
+        return new BuildReader(manifest, async (path, read) => {
             const encoded = PackagePath.parse(path).split("/").map(encodeURIComponent).join("/");
+            const file = await BuildReader.#request(
+                new URL(`files/${encoded}`, base),
+                fetch,
+                read ?? signal,
+            );
 
-            return BuildReader.#fetch(new URL(`files/${encoded}`, base), fetch, signal);
+            return present(file.body, "a package file's body");
         });
     }
 
-    /** Read one complete package file and reject HTTP failures before decoding it. */
-    static async #fetch(
+    /** Request one package file, rejecting HTTP failures before its body is read. */
+    static async #request(
         url: URL,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
         signal: AbortSignal | undefined,
-    ): Promise<Uint8Array<ArrayBuffer>> {
+    ): Promise<Response> {
         const response = await fetch(url, {
             redirect: "manual",
             ...(signal === undefined ? {} : { signal }),
@@ -193,7 +191,7 @@ export class BuildReader {
             throw new PackageError("INVALID_FILE", `package read failed: HTTP ${response.status}`);
         }
 
-        return new Uint8Array(await response.arrayBuffer());
+        return response;
     }
 }
 

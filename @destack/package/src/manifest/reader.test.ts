@@ -35,10 +35,12 @@ test("refuse a module's graph file whose bytes differ from its digest", async ()
     });
     const other = await graph.Module.file(await module("src/other.ts", source));
     const tampered = new BuildReader(build.manifest, (path) =>
-        path.startsWith("graph/") ? Promise.resolve(other.bytes) : build.reader.load(path),
+        path.startsWith("graph/")
+            ? Promise.resolve(new Blob([other.bytes]).stream())
+            : build.stream(path),
     );
 
-    const [digest] = Object.values((await build.reader.graph()).modules);
+    const [digest] = Object.values((await build.graph()).modules);
     await expect(tampered.modules()).rejects.toThrow(
         new PackageError("INVALID_FILE", `file digest mismatch: graph/${digest}.json`),
     );
@@ -48,7 +50,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
     // serve a build's manifest and one file over a fake endpoint
     const content = new TextEncoder().encode("export {};");
     const build = await MemoryBuild.write(new Map([["src/index.js", content]]), { package: app });
-    const bytes = await new Response(await build.open("manifest.json")).bytes();
+    const bytes = await build.load("manifest.json");
     const served = new Map([
         ["https://registry.example/build/manifest.json", bytes],
         ["https://registry.example/build/files/src/index.js", content],
