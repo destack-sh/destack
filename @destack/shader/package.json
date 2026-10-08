@@ -4,20 +4,38 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Draw GPU shader effects in views, composed as layers and colored by the theme.",
+    "description": "Draw fragment shader effects in views, colored by the theme.",
     "exports": {
         ".": "./src/index.ts",
+        "./dithering": "./src/dithering/index.ts",
+        "./dot-grid": "./src/dot-grid/index.ts",
+        "./fluted-glass": "./src/fluted-glass/index.ts",
+        "./god-rays": "./src/god-rays/index.ts",
+        "./grain-gradient": "./src/grain-gradient/index.ts",
+        "./halftone-cmyk": "./src/halftone-cmyk/index.ts",
+        "./halftone-dots": "./src/halftone-dots/index.ts",
+        "./image-dithering": "./src/image-dithering/index.ts",
+        "./mesh-gradient": "./src/mesh-gradient/index.ts",
+        "./metaballs": "./src/metaballs/index.ts",
+        "./paper-texture": "./src/paper-texture/index.ts",
+        "./perlin-noise": "./src/perlin-noise/index.ts",
+        "./pulsing-border": "./src/pulsing-border/index.ts",
+        "./simplex-noise": "./src/simplex-noise/index.ts",
+        "./static-mesh-gradient": "./src/static-mesh-gradient/index.ts",
+        "./static-radial-gradient": "./src/static-radial-gradient/index.ts",
+        "./voronoi": "./src/voronoi/index.ts",
+        "./warp": "./src/warp/index.ts",
+        "./water": "./src/water/index.ts",
+        "./waves": "./src/waves/index.ts",
         "./destack.json": "./destack.json"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts",
-        "generate": "bun run src/effect/generate.ts"
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
         "@destack/style": "workspace:*",
-        "@destack/view": "workspace:*",
-        "shaders": "4.0.0"
+        "@destack/view": "workspace:*"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",

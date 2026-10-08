@@ -1,0 +1,6 @@
+Paper Shaders
+Copyright 2026 Paper
+
+The shader mount, the shared GLSL and the effects of this package are ported from
+Paper Shaders (https://shaders.paper.design), licensed under the Apache License 2.0
+in the LICENSE file beside this notice.

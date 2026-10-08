@@ -1,81 +1,73 @@
 # @destack/shader
 
-Draw GPU shader effects in views, composed as layers, colored by the theme and still under reduced motion.
-
-## Shader
-
-`Shader` draws its effects as layers from bottom to top on a WebGPU canvas, and shows `fallback` where the device draws none.
-
-```tsx
-import { Aurora, Shader } from "@destack/shader";
-import { color } from "@destack/theme/tokens.stylex";
-
-<Shader xstyle={styles.hero} fallback={<img alt="" src="/hero.png" />}>
-    <Aurora colorA={color.primary} colorB={color.accent} />
-</Shader>;
-// data-state="drawing", or "fallback" with onFailure("unsupported") where WebGPU is missing
-```
+Draw fragment shader effects in views on WebGL 2, colored by the theme and held still under reduced motion.
 
 ## Effects
 
-Every effect of the effect registry is a component typed by its own properties, each optional over its default, and an effect wraps the effects inside it.
+Each effect is a component of its own export, which draws with its defaults and takes theme tokens as colors.
 
 ```tsx
-<Shader>
-    <FilmGrain strength={0.2}>
-        <WaveDistortion strength={0.3}>
-            <RadialGradient colorA={color.primary} colorB={color.background} />
-        </WaveDistortion>
-    </FilmGrain>
-</Shader>
+import { Metaballs } from "@destack/shader/metaballs";
+import { color } from "@destack/theme/tokens.stylex";
+
+<Metaballs colors={[color.primary, color.accent]} colorBack={color.background} count={12} speed={0.5} />;
 ```
 
-## Custom effects
+## Sizing
 
-`defineEffect` makes a component of a custom effect from `defineShader`, written in the `shaders/std` words or raw WGSL, and the shader hands each custom definition it draws to the renderer.
+`fit`, `scale`, `rotation`, `offsetX` and `offsetY` place an effect's graphic in its canvas.
 
 ```tsx
-import { defineEffect, defineShader, Shader, transformColor, wgsl } from "@destack/shader";
-
-const Halo = defineEffect(
-    defineShader({
-        name: "Halo",
-        props: {
-            inner: { default: "#ffd166", transform: transformColor },
-            radius: { default: 0.6 },
-        },
-        paint: wgsl`return vec4f(inner.rgb * (1.0 - smoothstep(0.0, radius, length(uv - 0.5))), 1.0);`,
-    }),
-);
-
-<Shader>
-    <Halo inner={color.primary} />
-</Shader>;
+<MeshGradient fit="cover" scale={1.4} rotation={30} offsetX={-0.2} />;
 ```
 
-## Rendering
+## Images
 
-`colorSpace`, `toneMapping` and `observeElement` pass to the renderer, which builds the shader again when one changes, and `onReady` reports the first frame.
+An image effect samples `image`, an address or an element, and draws without one where its fragment shader allows.
 
 ```tsx
-<Shader colorSpace="p3-linear" toneMapping="aces" observeElement={false} onReady={() => reveal()}>
-    <Aurora colorA={color.primary} />
-</Shader>
-// colorSpace "p3-linear" | "srgb"; toneMapping "linear" | "reinhard" | "aces" | "agx" | …
+<FlutedGlass image="/cover.jpg" colorHighlight={color.primary} />;
 ```
 
-## Theme
+## Custom shaders
 
-A property naming a theme token, such as `color.primary`, draws the color the canvas computes, and the shader updates its layers when the device's scheme or contrast or a theme root above it changes.
+`Shader` draws any GLSL ES 3.0 fragment shader with its uniforms: numbers, vectors, CSS colors and theme tokens as `vec4`, and images as samplers.
 
 ```tsx
-<RadialGradient colorA={color.primary} /> // var(--destack-color-primary) → "#3e63dd" in light, its dark color in dark
+import { Shader } from "@destack/shader";
+
+const glow = `#version 300 es
+precision mediump float;
+uniform float u_time;
+uniform vec4 u_color;
+in vec2 v_objectUV;
+out vec4 fragColor;
+void main() { fragColor = u_color * (1. - length(v_objectUV) * (1.5 + .2 * sin(u_time))); }`;
+
+<Shader fragment={glow} uniforms={{ u_color: color.primary }} speed={1} />;
+```
+
+## Fallback
+
+`fallback` shows where the browser draws no WebGL 2, and `onFailure` reports why.
+
+```tsx
+<Shader fragment={glow} uniforms={{}} fallback={<img alt="" src="/glow.png" />} onFailure={report} />;
+// "unsupported" | "compile" | "link"
+```
+
+## Resolution
+
+A shader renders at the canvas's device pixels, and the page's shaders lower their resolution together while frames run slow.
+
+```tsx
+<Shader fragment={glow} uniforms={{}} minPixelRatio={1} maxPixelCount={1920 * 1080} resolution="fixed" />;
 ```
 
 ## Motion
 
-A person who asked for reduced motion sees the first frame, paused.
+`speed` scales animation time, `frame` sets it, and a person who asked for reduced motion sees one still frame.
 
-```ts
-matchMedia("(prefers-reduced-motion: reduce)").matches; // true
+```tsx
+<Waves speed={0} frame={2400} />;
 ```

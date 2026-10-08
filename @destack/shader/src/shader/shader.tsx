@@ -1,72 +1,85 @@
 import * as style from "@destack/style";
+import { createEffect, createSignal, type JSX, omit, onCleanup, Show } from "@destack/view";
 import {
-    createEffect,
-    createSignal,
-    type JSX,
-    omit,
-    onCleanup,
-    Show,
-    untrack,
-} from "@destack/view";
-import type { ComponentConfig } from "shaders/core";
-import {
-    createShader,
-    isWebGPUSupported,
-    type ShaderInstance,
-    type ShaderOptions,
-} from "shaders/js";
-import { LayerContext } from "./context.ts";
-import { definitionsOf, type Layer, LayerList, structureOf } from "./layer.ts";
+    ShaderError,
+    type ShaderFailure,
+    ShaderMount,
+    type ShaderResolution,
+} from "../mount/mount.ts";
+import { resolveValues, type ShaderValues } from "./value.ts";
 
 /** The device preferences a theme's colors follow. */
 const THEME_QUERIES = ["(prefers-color-scheme: dark)", "(prefers-contrast: more)"];
 
+/** The device preference that holds animation still. */
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
 /** The styles of a shader's surface. */
 const styles = style.create({
     shader: {
+        isolation: "isolate",
         position: "relative",
-        overflow: "hidden",
     },
     canvas: {
-        position: "absolute",
-        inset: 0,
-        width: "100%",
+        borderRadius: "inherit",
+        contain: "strict",
+        display: "block",
         height: "100%",
+        inset: 0,
+        position: "absolute",
+        width: "100%",
+        zIndex: -1,
     },
 });
 
 /** The properties of a shader, the native element's attributes included. */
-export interface ShaderProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
-    /** The effects drawn, as layers from bottom to top. */
+export interface ShaderProperties extends Omit<
+    JSX.HTMLAttributes<HTMLDivElement>,
+    "class" | "style"
+> {
+    /** The GLSL ES 3.0 fragment shader, which reads the vertex shader's coordinates and the uniforms. */
+    readonly fragment: string;
+    /** The uniforms by their GLSL names: numbers, vectors, CSS colors and theme tokens, or images. */
+    readonly uniforms: ShaderValues;
+    /** The speed of animation time, 0 to hold one frame; held still under reduced motion. */
+    readonly speed?: number;
+    /** The animation time to draw, in milliseconds. */
+    readonly frame?: number;
+    /** The least pixel ratio to render at, 2 by default. */
+    readonly minPixelRatio?: number;
+    /** The most device pixels to render. */
+    readonly maxPixelCount?: number;
+    /** Whether slow frames lower the resolution, adaptive by default. */
+    readonly resolution?: ShaderResolution;
+    /** The image uniforms that get mipmaps. */
+    readonly mipmaps?: readonly string[];
+    /** The content drawn over the shader. */
     readonly children?: JSX.Element;
-    /** What shows where the device draws no GPU effects, such as a gradient image. */
+    /** What shows where the shader cannot draw, such as a still image. */
     readonly fallback?: JSX.Element;
-    /** The color space the effects blend in, linear Display P3 by default. */
-    readonly colorSpace?: ShaderOptions["colorSpace"];
-    /** The curve that maps the effects' light onto the screen, linear by default. */
-    readonly toneMapping?: ShaderOptions["toneMapping"];
-    /** Whether the shader follows its element's size and pauses off screen, true by default. */
-    readonly observeElement?: boolean;
-    /** Handle the shader drawing its first frame. */
-    readonly onReady?: () => void;
-    /** Handle the shader giving up for good, with the reason the renderer reports. */
-    readonly onFailure?: (reason: string) => void;
+    /** Handle the shader failing to draw. */
+    readonly onFailure?: (failure: ShaderFailure) => void;
     /** The StyleX styles applied after the shader's styles. */
     readonly xstyle?: style.Styles;
+    /** The inline style applied last. */
+    readonly style?: JSX.CSSProperties | string;
 }
 
-/** Draw effects as layers on a GPU canvas, coloured by theme tokens, still under reduced motion, and its fallback where the GPU draws nothing. */
+/** Draw a fragment shader behind its content, colored by theme tokens and held still under reduced motion. */
 export function Shader(properties: ShaderProperties): JSX.Element {
-    // collect the layers and keep the canvas, the running shader and whether it failed
-    const layers = new LayerList();
+    // hold the canvas, the running mount, the failure and the device preferences
     const rest = omit(
         properties,
+        "fragment",
+        "uniforms",
+        "speed",
+        "frame",
+        "minPixelRatio",
+        "maxPixelCount",
+        "resolution",
+        "mipmaps",
         "children",
         "fallback",
-        "colorSpace",
-        "toneMapping",
-        "observeElement",
-        "onReady",
         "onFailure",
         "xstyle",
         "style",
@@ -74,106 +87,136 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>(undefined, {
         ownedWrite: true,
     });
-    const [failure, setFailure] = createSignal<string | undefined>(undefined, {
+    const [mount, setMount] = createSignal<ShaderMount | undefined>(undefined, {
         ownedWrite: true,
     });
-    const [colors, setColors] = createSignal(0, { ownedWrite: true });
-    let running: ShaderInstance | undefined;
-    const fail = (reason: string): void => {
-        setFailure(reason);
-        properties.onFailure?.(reason);
-    };
+    const [failure, setFailure] = createSignal<ShaderFailure | undefined>(undefined, {
+        ownedWrite: true,
+    });
+    const [theme, setTheme] = createSignal(0, { ownedWrite: true });
+    const [isStill, setIsStill] = createSignal(false, { ownedWrite: true });
 
-    // build the shader again whenever a layer joins, leaves or moves, or a rendering option changes
+    // build the mount once the canvas exists, and again for a new fragment shader
     createEffect(
-        () => ({
-            element: canvas(),
-            structure: structureOf(layers.layers()),
-            options: optionsOf(properties),
-        }),
-        ({ element, options }) => {
+        () => ({ element: canvas(), fragment: properties.fragment }),
+        ({ element, fragment }) => {
             if (element === undefined) {
                 return undefined;
             }
-            if (!isWebGPUSupported()) {
-                fail("unsupported");
-
-                return undefined;
-            }
             let isCurrent = true;
-            const preset = { components: untrack(() => configsOf(layers.layers(), element)) };
-            void createShader(element, preset, {
-                ...options,
-                components: untrack(() => definitionsOf(layers.layers())),
-                disableTelemetry: true,
-                onReady: () => properties.onReady?.(),
-                onError: (reason) => running?.getFailureReason() !== null && fail(reason),
-            }).then(
-                (created) => {
-                    // keep the shader unless a newer build replaced it, still under reduced motion
-                    if (!isCurrent) {
-                        created.destroy();
-                        return;
+            void resolveValues(properties.uniforms, element).then((uniforms) => {
+                // drop a build a newer one replaced
+                if (!isCurrent) {
+                    return;
+                }
+                try {
+                    setMount(
+                        new ShaderMount(element, fragment, uniforms, {
+                            speed: isStill() ? 0 : (properties.speed ?? 0),
+                            frame: properties.frame ?? 0,
+                            minPixelRatio: properties.minPixelRatio,
+                            maxPixelCount: properties.maxPixelCount,
+                            resolution: properties.resolution,
+                            mipmaps: properties.mipmaps,
+                        }),
+                    );
+                } catch (error) {
+                    // show the fallback where the shader cannot draw, and rethrow anything else
+                    if (!(error instanceof ShaderError)) {
+                        throw error;
                     }
-                    running = created;
-                    if (prefersReducedMotion()) {
-                        created.pause();
-                    }
-                },
-                (error: unknown) => fail(error instanceof Error ? error.message : "init-failed"),
-            );
+                    setFailure(error.reason);
+                    properties.onFailure?.(error.reason);
+                }
+            });
 
             return () => {
                 isCurrent = false;
-                running?.destroy();
-                running = undefined;
+                mount()?.dispose();
+                setMount(undefined);
             };
         },
     );
 
-    // update a layer in place as its properties or the theme's colors change
+    // set the uniforms again as they or the theme's colors change, keeping only the newest
     createEffect(
-        () => {
-            colors();
-
-            return flatten(layers.layers()).map((layer) => ({
-                id: layer.id,
-                values: layer.properties(),
-            }));
-        },
-        (updates) => {
-            const element = canvas();
-            for (const update of updates) {
-                if (element !== undefined) {
-                    running?.update(update.id, resolved(update.values, element));
+        () => ({ running: mount(), uniforms: properties.uniforms, theme: theme() }),
+        ({ running, uniforms }) => {
+            if (running === undefined) {
+                return undefined;
+            }
+            let isCurrent = true;
+            void resolveValues(uniforms, running.canvas).then((resolved) => {
+                if (isCurrent) {
+                    running.setUniforms(resolved);
                 }
+            });
+
+            return () => {
+                isCurrent = false;
+            };
+        },
+    );
+
+    // follow the speed, the frame and the resolution limits
+    createEffect(
+        () => ({ running: mount(), speed: isStill() ? 0 : (properties.speed ?? 0) }),
+        ({ running, speed }) => running?.setSpeed(speed),
+    );
+    createEffect(
+        () => ({ running: mount(), frame: properties.frame }),
+        ({ running, frame }) => {
+            if (frame !== undefined) {
+                running?.setFrame(frame);
             }
         },
     );
-    onCleanup(() => running?.destroy());
+    createEffect(
+        () => ({ running: mount(), limit: properties.maxPixelCount }),
+        ({ running, limit }) => {
+            if (limit !== undefined) {
+                running?.setMaxPixelCount(limit);
+            }
+        },
+    );
+    createEffect(
+        () => ({ running: mount(), ratio: properties.minPixelRatio }),
+        ({ running, ratio }) => {
+            if (ratio !== undefined) {
+                running?.setMinPixelRatio(ratio);
+            }
+        },
+    );
+    onCleanup(() => mount()?.dispose());
 
-    // resolve the colors again when the device's scheme or contrast or a theme root above the canvas changes
+    // follow reduced motion and the theme: the device's scheme and contrast, and theme roots above the canvas
     createEffect(canvas, (element) => {
         if (element === undefined) {
             return undefined;
         }
-        const follow = (): void => {
-            setColors((count) => count + 1);
+        const still = matchMedia(REDUCED_MOTION_QUERY);
+        const followMotion = (): void => {
+            setIsStill(still.matches);
         };
-        const queries =
-            typeof matchMedia === "function" ? THEME_QUERIES.map((query) => matchMedia(query)) : [];
+        const followTheme = (): void => {
+            setTheme((count) => count + 1);
+        };
+        followMotion();
+        still.addEventListener("change", followMotion);
+        const queries = THEME_QUERIES.map((query) => matchMedia(query));
         for (const query of queries) {
-            query.addEventListener("change", follow);
+            query.addEventListener("change", followTheme);
         }
-        const observer = new MutationObserver(follow);
+        const observer = new MutationObserver(followTheme);
         for (let root = element.parentElement; root !== null; root = root.parentElement) {
             observer.observe(root, { attributes: true, attributeFilter: ["style", "class"] });
         }
 
         return () => {
             observer.disconnect();
+            still.removeEventListener("change", followMotion);
             for (const query of queries) {
-                query.removeEventListener("change", follow);
+                query.removeEventListener("change", followTheme);
             }
         };
     });
@@ -193,96 +236,7 @@ export function Shader(properties: ShaderProperties): JSX.Element {
                     {...style.attrs(styles.canvas)}
                 />
             </Show>
-            <LayerContext value={layers}>{properties.children}</LayerContext>
+            {properties.children}
         </div>
-    );
-}
-
-/** Read the rendering options a shader passes on, leaving out the ones it does not set. */
-function optionsOf(properties: ShaderProperties): ShaderOptions {
-    return {
-        ...(properties.colorSpace === undefined ? {} : { colorSpace: properties.colorSpace }),
-        ...(properties.toneMapping === undefined ? {} : { toneMapping: properties.toneMapping }),
-        ...(properties.observeElement === undefined
-            ? {}
-            : { observeElement: properties.observeElement }),
-    };
-}
-
-/** Write layers as the renderer's components, theme tokens resolved against the canvas. */
-export function configsOf(layers: readonly Layer[], element: HTMLElement): ComponentConfig[] {
-    return layers.map((layer) => ({
-        type: layer.type,
-        id: layer.id,
-        props: resolved(layer.properties(), element),
-        children: configsOf(layer.layers(), element),
-    }));
-}
-
-/** List a layer tree's layers, each before the layers it wraps. */
-function flatten(layers: readonly Layer[]): Layer[] {
-    return layers.flatMap((layer) => [layer, ...flatten(layer.layers())]);
-}
-
-/** Resolve the theme tokens among properties, such as `var(--destack-color-primary)`, to the hex colors the element computes in its color scheme. */
-function resolved(
-    values: Readonly<Record<string, unknown>>,
-    element: HTMLElement,
-): Record<string, unknown> {
-    const resolve = (value: unknown): unknown => {
-        // compute a token's color, and the tokens inside lists and objects
-        if (typeof value === "string") {
-            return value.trim().startsWith("var(") ? colorOf(value, element) : value;
-        }
-        if (Array.isArray(value)) {
-            return value.map(resolve);
-        }
-        if (typeof value === "object" && value !== null) {
-            return Object.fromEntries(
-                Object.entries(value).map(([key, entry]) => [key, resolve(entry)]),
-            );
-        }
-
-        return value;
-    };
-
-    return Object.fromEntries(Object.entries(values).map(([key, value]) => [key, resolve(value)]));
-}
-
-/** Compute a CSS color the way the element would draw it, as six-digit hex, light or dark as its scheme picks. */
-function colorOf(value: string, element: HTMLElement): string {
-    // let the browser resolve the color on a probe inside the element
-    const probe = document.createElement("span");
-    probe.style.color = value;
-    element.append(probe);
-    const computed = getComputedStyle(probe).color;
-    probe.remove();
-
-    // read rgb() channels, paint any other color syntax such as oklab() to read its pixel
-    const written = /^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/u.exec(computed);
-    const channels = written === null ? paintedOf(computed) : written.slice(1, 4).map(Number);
-
-    return channels === undefined
-        ? computed
-        : `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
-}
-
-/** Paint a CSS color on one pixel and read its sRGB channels, absent where no canvas draws. */
-function paintedOf(color: string): number[] | undefined {
-    // paint the color on a one-pixel canvas
-    const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
-    if (context === null) {
-        return undefined;
-    }
-    context.fillStyle = color;
-    context.fillRect(0, 0, 1, 1);
-
-    return Array.from(context.getImageData(0, 0, 1, 1).data.subarray(0, 3));
-}
-
-/** Report whether the person asked the system for reduced motion. */
-function prefersReducedMotion(): boolean {
-    return (
-        typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
     );
 }

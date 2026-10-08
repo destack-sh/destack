@@ -27,6 +27,3 @@ test:
 format *args:
     bun run destack-check format {{args}} src vitest.config.ts package.json destack.json
 
-# generate the typed effect components from the upstream effect registry
-generate:
-    bun run generate
