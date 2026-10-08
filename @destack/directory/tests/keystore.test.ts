@@ -1,11 +1,11 @@
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
-import { principal } from "@destack/access";
+import { principal, universe } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { present } from "@destack/schema";
 import { SPACE_KEY } from "@destack/service/authentication";
 import { Scope } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { decodeProtectedHeader, jwtVerify } from "jose";
 import {
     directoryTables,
@@ -101,4 +101,80 @@ test("send a request as an installation with a token its space's key signs, whic
         verified.claims.credential.kind,
         verified.claims.deployments,
     ]).toEqual([installation, SPACE_KEY, undefined]);
+});
+
+test("send a request as the universe bound to one space, which the directory verifies for that space alone, and refuse signing as anyone else", async () => {
+    // start the universe's identity
+    const storage = await TestDatabase.create("sqlite", [...directoryTables, identityKey], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const directory = new DirectoryStore(storage.database);
+    const keystore = new IdentityKeystore(
+        await LocalKeyring.read(LocalKeyring.generate()),
+        directory,
+    );
+    await keystore.generate(storage.database, Scope.universe.id);
+
+    // send a request as the universe to a space and verify it for that space and another
+    const issuer = "https://accounts.test";
+    const space = "space-01996ab0-0000-7000-8000-000000000011";
+    const audience = PackageId.parse("package-01996ab0-0000-7000-8000-000000000012");
+    const self = universe.reference(Scope.universe.id, Scope.universe.id);
+    let received: Request | undefined;
+    const send = keystore.fetch(
+        storage.database,
+        self,
+        audience,
+        async (request) => {
+            received = request;
+
+            return new Response(null, { status: 204 });
+        },
+        { issuer, space },
+    );
+    await send(new Request("https://notes.test/"));
+    const sent = present(received, "the sent request");
+    const verified = await directory.authenticate(sent.clone(), {
+        audience,
+        universe: issuer,
+        scope: space,
+    });
+    const elsewhere = await refusal(
+        directory.authenticate(sent, {
+            audience,
+            universe: issuer,
+            scope: "space-01996ab0-0000-7000-8000-000000000013",
+        }),
+    );
+
+    // refuse the universe without a bound space and a person
+    const unbound = () => keystore.fetch(storage.database, self, audience, fetch);
+    const person = () =>
+        keystore.fetch(
+            storage.database,
+            principal.user.reference(
+                Scope.universe.id,
+                "user-01996ab0-0000-7000-8000-000000000014",
+            ),
+            audience,
+            fetch,
+        );
+    expect({
+        verified: [verified.claims.subject, verified.claims.credential.kind, verified.claims.scope],
+        elsewhere,
+    }).toEqual({
+        verified: [self, "universe-key", space],
+        elsewhere: ["UNAUTHORIZED", "invalid access token claims"],
+    });
+    expect(unbound).toThrow(
+        new TypeError(
+            `universe ${Scope.universe.id} signs as no space, installation or bound universe`,
+        ),
+    );
+    expect(person).toThrow(
+        new TypeError(
+            "user user-01996ab0-0000-7000-8000-000000000014 signs as no space, installation or bound universe",
+        ),
+    );
 });

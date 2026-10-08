@@ -99,7 +99,12 @@ test.each(TEST_DIALECTS)(
         });
 
         // publish a machine's endpoint
-        await directory.publish("machine-b", "account-1", "https://machine-b.test/");
+        await directory.publish(
+            "machine-b",
+            "account-1",
+            "https://machine-b.test/",
+            "publication-1",
+        );
         expect([
             seen,
             await directory.endpoint("machine-b"),
@@ -107,6 +112,28 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([
             [null, "machine-b", null],
             { machine: "machine-b", scope: "account-1", url: "https://machine-b.test/" },
+            undefined,
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "withdraw an endpoint only under the publication holding it, keeping a later tunnel's on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const directory = new DirectoryStore(storage.database);
+
+        // publish through a first tunnel, then through a second as the machine reconnects
+        await directory.publish("machine-a", "account-1", "https://relay-1.test/", "tunnel-1");
+        await directory.publish("machine-a", "account-1", "https://relay-2.test/", "tunnel-2");
+
+        // keep the second tunnel's endpoint as the first one's withdrawal arrives late
+        await directory.unpublish("machine-a", "tunnel-1");
+        const kept = await directory.endpoint("machine-a");
+        await directory.unpublish("machine-a", "tunnel-2");
+        expect([kept, await directory.endpoint("machine-a")]).toEqual([
+            { machine: "machine-a", scope: "account-1", url: "https://relay-2.test/" },
             undefined,
         ]);
     },
@@ -135,7 +162,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "reserve, confirm and replace claims, refusing a name another object owns, and release the rest on %s",
+    "reserve, confirm and replace claims, refusing a name another object holds, resolving active names alone, and release the rest on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -155,27 +182,46 @@ test.each(TEST_DIALECTS)(
             await directory.claim([claim("notes", "space-2")], "request-2"),
         ]).toEqual([[], [claim("notes", "space-2")]]);
         const reserved = await directory.owner(index, "notes");
-        await directory.confirm("request-1", [
-            { indexes: [index], objectId: "space-1", claims: [claim("notes", "space-1")] },
-        ]);
+        const owned = (key: string, state: "active" | "held") => ({
+            indexes: [index],
+            objectId: "space-1",
+            claims: [claim(key, "space-1")],
+            state,
+        });
+        await directory.confirm("request-1", [owned("notes", "active")]);
+        const active = await directory.owner(index, "notes");
 
-        // refuse another object's replacement and rename the object
+        // hold the name while its object sits in the trash, still refusing it to another object
+        await directory.replace(owned("notes", "held"), "request-3");
+        const trashed = await directory.owner(index, "notes");
         const taken = await directory.replace(
-            { indexes: [index], objectId: "space-2", claims: [claim("notes", "space-2")] },
-            "request-3",
-        );
-        await directory.replace(
-            { indexes: [index], objectId: "space-1", claims: [claim("archive", "space-1")] },
+            {
+                indexes: [index],
+                objectId: "space-2",
+                claims: [claim("notes", "space-2")],
+                state: "active",
+            },
             "request-4",
         );
+
+        // restore and rename the object
+        await directory.replace(owned("notes", "active"), "request-5");
+        const restored = await directory.owner(index, "notes");
+        await directory.replace(owned("archive", "active"), "request-6");
         expect([
             reserved,
+            active,
+            trashed,
             taken,
+            restored,
             await directory.owner(index, "notes"),
             await directory.owner(index, "archive"),
         ]).toEqual([
             undefined,
+            { objectId: "space-1", scope: "account-1" },
+            undefined,
             [claim("notes", "space-2")],
+            { objectId: "space-1", scope: "account-1" },
             undefined,
             { objectId: "space-1", scope: "account-1" },
         ]);
@@ -188,8 +234,18 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
-        await directory.publish("machine-a", "account-1", "https://machine-a.test/");
-        await directory.publish("machine-b", "account-1", "https://machine-b.test");
+        await directory.publish(
+            "machine-a",
+            "account-1",
+            "https://machine-a.test/",
+            "publication-1",
+        );
+        await directory.publish(
+            "machine-b",
+            "account-1",
+            "https://machine-b.test",
+            "publication-1",
+        );
 
         // answer misdirected at the first machine and the placement at the second
         const mount = ServiceMount.path(placements.package.id);
@@ -228,6 +284,51 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
+    "send a service's requests below the mount of its space and of an installation of its space at the machine serving the space on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const directory = new DirectoryStore(storage.database);
+        await directory.publish(
+            "machine-a",
+            "account-1",
+            "https://machine-a.test/",
+            "publication-1",
+        );
+        await directory.place({
+            id: "space-1",
+            scope: "account-1",
+            machine: "machine-a",
+            epoch: 1,
+        });
+
+        // call the service of the space and of its finance installation
+        const sent: string[] = [];
+        const fetch = async (request: Request) => {
+            sent.push(`${request.method} ${request.url}`);
+
+            return Response.json({
+                id: "space-1",
+                scope: "account-1",
+                machine: "machine-a",
+                epoch: 1,
+            });
+        };
+        await directory.spaceClient(placements, "space-1", fetch).locate({ scope: "space-1" });
+        await directory
+            .installationClient(placements, "space-1", "finance", fetch)
+            .locate({ scope: "space-1" });
+
+        // mount the service below the space's path and below the installation's
+        const mount = ServiceMount.path(placements.package.id);
+        expect(sent).toEqual([
+            `GET https://machine-a.test/spaces/space-1${mount}/placements/space-1`,
+            `GET https://machine-a.test/spaces/space-1/installations/finance${mount}/placements/space-1`,
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
     "refuse a malformed identity operation, start a space's identity from its machine, chain operations by rotation keys, and let a higher-priority key nullify a lower one's within the recovery window on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
@@ -260,9 +361,9 @@ test.each(TEST_DIALECTS)(
             message: "only the machine serving space-1 starts its identity",
         });
         await expect(directory.apply(first)).rejects.toEqual(unserved);
-        await expect(directory.apply(first, { ...placement, machine: "machine-b" })).rejects.toEqual(
-            unserved,
-        );
+        await expect(
+            directory.apply(first, { ...placement, machine: "machine-b" }),
+        ).rejects.toEqual(unserved);
         await directory.apply(first, placement);
         expect(await directory.identity("space-1")).toEqual({
             signingKeys: [signing.key],

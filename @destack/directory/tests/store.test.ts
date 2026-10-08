@@ -12,7 +12,12 @@ test.each(TEST_DIALECTS)(
         const operations = () => storage.database.driver.state.operations;
         const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
         await directory.place(placement);
-        await directory.publish("machine-a", "account-1", "https://machine-a.test/");
+        await directory.publish(
+            "machine-a",
+            "account-1",
+            "https://machine-a.test/",
+            "publication-1",
+        );
         const index = "package-1/place/name";
         const owned = (key: string) => ({
             indexes: [index],
@@ -20,6 +25,7 @@ test.each(TEST_DIALECTS)(
             claims: [
                 { index, key, packageId: "package-1", objectId: "space-1", scope: "account-1" },
             ],
+            state: "active" as const,
         });
         await directory.replace(owned("notes"), "request-1");
 
@@ -43,7 +49,12 @@ test.each(TEST_DIALECTS)(
         // follow a move to another machine, its endpoint and a renamed claim
         await directory.move(placement, "machine-b");
         await directory.place({ ...placement, machine: "machine-b", epoch: 2 });
-        await directory.publish("machine-b", "account-1", "https://machine-b.test/");
+        await directory.publish(
+            "machine-b",
+            "account-1",
+            "https://machine-b.test/",
+            "publication-1",
+        );
         await directory.replace(owned("archive"), "request-2");
         await expect
             .poll(async () => [

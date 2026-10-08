@@ -1,4 +1,4 @@
-import { principal } from "@destack/access";
+import { principal, universe } from "@destack/access";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { type Directory, KEY_SET_MILLISECONDS } from "../directory/directory.ts";
 import type { Placement } from "../placement/placement.ts";
@@ -22,7 +22,7 @@ import {
 } from "@destack/service/authentication";
 import type { Fetch } from "@destack/service";
 import type { PackageId } from "@destack/package";
-import type { Subject } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
 import { ServiceError } from "@destack/service/error";
 import type { Digest } from "@destack/schema";
@@ -37,11 +37,32 @@ const LABEL = "destack identity key v1";
 /** The bytes of an identity's root secret: 256 bits, the HKDF-SHA256 output length. */
 const ROOT_BYTES = 32;
 
+/** The credential kind of a token the universe's own key signs for the universe. */
+const UNIVERSE_KEY = "universe-key";
+
 /** The uses of an identity's secrets: its private keys and its root. */
 type KeyUse = "signing" | "rotation" | "root";
 
 /** The keys a process keeps for one identity. */
 type HeldKeys = typeof identityKey.$inferSelect;
+
+/** The issuer the universe's tokens name, and the one space each of its tokens is bound to (RFC 8707). */
+export interface UniverseBinding {
+    /** The universe's issuer, such as its sign-in's base URL. */
+    readonly issuer: string;
+    /** The space the tokens are for. */
+    readonly space: string;
+}
+
+/** How a subject's tokens are issued: by whose key, under which credential, bound to which space. */
+interface Issuance {
+    /** The issuer signing with the identity's key. */
+    readonly issuer: TokenIssuer;
+    /** The credential the tokens name. */
+    readonly credential: { readonly kind: string; readonly id: string };
+    /** The space the tokens are bound to, absent for the tokens a space signs. */
+    readonly scope?: string;
+}
 
 /** The keys of the identities a process holds, its spaces' or the universe's: generated with each identity, decrypted only to sign or derive, and sealed to the machine a space moves to. */
 export class IdentityKeystore {
@@ -122,21 +143,25 @@ export class IdentityKeystore {
         }
     }
 
-    /** Wrap a fetch to send each request as a space or one of its installations, with a token the space's key signs for the audience. */
-    fetch(database: DatabaseConnection, subject: Subject, audience: PackageId, send: Fetch): Fetch {
-        // refuse a subject that is neither a space nor an installation
-        if (!principal.installation.is(subject) && !principal.space.is(subject)) {
-            throw new TypeError(`${subject.type} ${subject.id} is no space or installation`);
-        }
-        const space = principal.installation.is(subject) ? subject.scope : subject.id;
+    /** Wrap a fetch to send each request as a space or one of its installations, with a token the space's key signs for the audience, or as the universe to one space, with a token the universe's key signs under its issuer. */
+    fetch(
+        database: DatabaseConnection,
+        subject: Subject,
+        audience: PackageId,
+        send: Fetch,
+        binding?: UniverseBinding,
+    ): Fetch {
+        // sign with the key of the subject's identity
+        const issuance = this.#issuance(database, subject, binding);
 
         return async (request) => {
-            // sign a short token of only the subject as its space
+            // sign a short token of only the subject
             const now = Date.now();
-            const { accessToken } = await this.issuer(database, space).issue(
+            const { accessToken } = await issuance.issuer.issue(
                 new Authentication({
-                    credential: { kind: SPACE_KEY, id: space },
+                    credential: issuance.credential,
                     audience,
+                    ...(issuance.scope === undefined ? {} : { scope: issuance.scope }),
                     subject,
                     subjects: [subject],
                     verifiedAt: now,
@@ -151,6 +176,46 @@ export class IdentityKeystore {
 
             return send(signed);
         };
+    }
+
+    /** Choose how a subject's tokens are issued: the universe signs as itself for the one space it binds to, a space as itself for itself and its installations. */
+    #issuance(
+        database: DatabaseConnection,
+        subject: Subject,
+        binding: UniverseBinding | undefined,
+    ): Issuance {
+        // sign as the universe under its issuer for one space
+        if (universe.is(subject) && binding !== undefined) {
+            const issuer = new TokenIssuer({
+                authority: { kind: "universe" },
+                issuer: binding.issuer,
+                sign: (claims) => this.sign(database, Scope.universe.id, claims),
+            });
+
+            return {
+                issuer,
+                credential: { kind: UNIVERSE_KEY, id: Scope.universe.id },
+                scope: binding.space,
+            };
+        }
+        // sign as a space for itself or one of its installations
+        else if (
+            binding === undefined &&
+            (principal.installation.is(subject) || principal.space.is(subject))
+        ) {
+            const space = principal.installation.is(subject) ? subject.scope : subject.id;
+
+            return {
+                issuer: this.issuer(database, space),
+                credential: { kind: SPACE_KEY, id: space },
+            };
+        }
+        // refuse any other signer, and a universe without its issuer and space
+        else {
+            throw new TypeError(
+                `${subject.type} ${subject.id} signs as no space, installation or bound universe`,
+            );
+        }
     }
 
     /** Issue tokens as a space this machine keeps keys of, signed with its active signing key. */

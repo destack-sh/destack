@@ -4,13 +4,14 @@ Record which machine runs each space, where each machine answers, which machines
 
 ## Placements and endpoints
 
-`place` puts a space on a machine at an epoch and refuses an earlier epoch, `publish` records the URL a machine answers at, and `Placement.project` writes a space's placement into its own database.
+`place` puts a space on a machine at an epoch and refuses an earlier epoch, `publish` records the URL a machine answers at under a publication that `unpublish` must name, and `Placement.project` writes a space's placement into its own database.
 
 ```ts
 import { DirectoryStore, Placement } from "@destack/directory";
 
 const directory = new DirectoryStore(accountDatabase);
-await directory.publish(cloudMachineId, platformAccountId, "https://eu.destack.app");
+await directory.publish(cloudMachineId, platformAccountId, "https://eu.destack.app", publication); // a token per tunnel or process
+await directory.unpublish(cloudMachineId, publication); // a no-op once a later publication replaced it
 await directory.place({ id: spaceId, scope: accountId, machine: cloudMachineId, epoch: 1 });
 const placement = present(await directory.locate(spaceId), "placement"); // { id, scope, machine, epoch: 1 }
 await directory.move(placement, laptopMachineId); // the target machine copies the spaces moving to it
@@ -91,12 +92,12 @@ await keystore.reencrypt(database, previous.active); // after the keyring's root
 
 ## Claims
 
-`claim` reserves unique names for a request's objects for a minute, and `confirm` or `release` ends the reservation after the write.
+A claim is `pending` while its write may still fail, `active` while it resolves to its object, and `held` while its object sits in the trash; uniqueness covers all three, lookups resolve `active` alone.
 
 ```ts
-const taken = await directory.claim([{ index, key, objectId, scope }], requestId); // the names other objects hold
-await directory.confirm(requestId, owned); // or directory.release(requestId) after a failed write
-const owner = await directory.owner(index, key); // { objectId, scope }
+const taken = await directory.claim([{ index, key, objectId, scope }], requestId); // pending for a minute; the names other objects hold
+await directory.confirm(requestId, owned); // owned.state: "active" | "held"; or directory.release(requestId) after a failed write
+const owner = await directory.owner(index, key); // { objectId, scope }, none for a pending or held name
 ```
 
 ## Caching

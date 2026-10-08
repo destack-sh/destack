@@ -14,12 +14,15 @@ import {
     ReadCache,
     CHAIN_TERMS,
     type Select,
+    type SQL,
     type Table,
 } from "@destack/db";
+import { Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { Scope } from "@destack/sync";
 import {
     claimTable,
+    ObjectClaimState,
     RESERVATION_MILLISECONDS,
     type Claim,
     type Expiry,
@@ -221,16 +224,23 @@ export class DirectoryStore extends Directory {
         }
     }
 
-    /** Record the URL a machine answers at, replacing the one it published before. */
-    async publish(machine: string, scope: string, url: string): Promise<void> {
+    /** Record the URL a machine answers at under a publication, replacing the one it published before. */
+    async publish(machine: string, scope: string, url: string, publication: string): Promise<void> {
         const now = this.#clock();
         await this.database
             .insert(endpointTable)
-            .values({ machine, scope, url, publishedAt: now })
+            .values({ id: machine, scope, url, publication, publishedAt: now })
             .onConflictDoUpdate({
-                target: endpointTable.machine,
-                set: { scope, url, publishedAt: now },
+                target: endpointTable.id,
+                set: { scope, url, publication, publishedAt: now },
             });
+    }
+
+    /** Withdraw the URL a machine answers at while the publication named still holds it. */
+    async unpublish(machine: string, publication: string): Promise<void> {
+        await this.database
+            .delete(endpointTable)
+            .where(and(eq(endpointTable.id, machine), eq(endpointTable.publication, publication)));
     }
 
     /** Read the URL a machine answers at, absent before it published one. */
@@ -238,12 +248,12 @@ export class DirectoryStore extends Directory {
         return this.#read(this.#endpoints, machine, async () => {
             const [found] = await this.database
                 .select({
-                    machine: endpointTable.machine,
+                    machine: endpointTable.id,
                     scope: endpointTable.scope,
                     url: endpointTable.url,
                 })
                 .from(endpointTable)
-                .where(eq(endpointTable.machine, machine));
+                .where(eq(endpointTable.id, machine));
 
             return found;
         });
@@ -400,12 +410,11 @@ export class DirectoryStore extends Directory {
         return refused;
     }
 
-    /** Confirm a request's reserved claims and release the names its objects dropped. */
+    /** Settle the names of a request's committed write in its objects' states and release the names its objects dropped. */
     async confirm(requestId: string, owned: readonly ObjectClaims[]): Promise<void> {
-        await this.database
-            .update(claimTable)
-            .set({ state: "confirmed" })
-            .where(eq(claimTable.requestId, requestId));
+        // settle the request's pending claims and the names the objects held already
+        const settled = or(ne(claimTable.state, "pending"), eq(claimTable.requestId, requestId));
+        await this.#settle(owned, settled);
         await this.#release(owned);
     }
 
@@ -413,7 +422,7 @@ export class DirectoryStore extends Directory {
     async release(requestId: string): Promise<void> {
         await this.database
             .delete(claimTable)
-            .where(and(eq(claimTable.requestId, requestId), eq(claimTable.state, "reserved")));
+            .where(and(eq(claimTable.requestId, requestId), eq(claimTable.state, "pending")));
     }
 
     /** Replace an object's claims after a write that reserved none, unless other objects hold some of its names. */
@@ -431,36 +440,28 @@ export class DirectoryStore extends Directory {
             return refused;
         }
 
-        // confirm the names the object owns already and insert the new ones
-        const now = this.#clock();
+        // insert the new names, settle every name in the object's state and release the names it dropped
         for (const { claims, owners } of chunks) {
-            const held = claims.filter((entry) => owners.has(nameKey(entry)));
             const fresh = claims.filter((entry) => !owners.has(nameKey(entry)));
-            if (held.length > 0) {
-                await this.database
-                    .update(claimTable)
-                    .set({ state: "confirmed" })
-                    .where(or(...held.map(matches)));
-            }
             if (fresh.length > 0) {
                 await this.database.insert(claimTable).values(
                     fresh.map((entry) => ({
                         ...entry,
-                        state: "confirmed" as const,
+                        id: Identifier.create("claim"),
+                        state: owned.state,
                         requestId,
-                        expiresAt: now,
+                        expiresAt: null,
                     })),
                 );
             }
         }
-
-        // release the names the object no longer claims
+        await this.#settle([owned], undefined); // take over every reservation of the object
         await this.#release([owned]);
 
         return [];
     }
 
-    /** Find the object owning a confirmed name. */
+    /** Find the object an active name resolves to. */
     owner(index: string, key: string): Promise<Pick<Claim, "objectId" | "scope"> | undefined> {
         return this.#read(this.#owners, nameKey({ index, key }), async () => {
             const [found] = await this.database
@@ -470,7 +471,7 @@ export class DirectoryStore extends Directory {
                     and(
                         eq(claimTable.index, index),
                         eq(claimTable.key, key),
-                        eq(claimTable.state, "confirmed"),
+                        eq(claimTable.state, "active"),
                     ),
                 );
 
@@ -478,12 +479,22 @@ export class DirectoryStore extends Directory {
         });
     }
 
+    /** List the keys of one index some object holds, active or reserved, in one read. */
+    async held(index: string, keys: readonly string[]): Promise<ReadonlySet<string>> {
+        const rows = await this.database
+            .select({ key: claimTable.key })
+            .from(claimTable)
+            .where(and(eq(claimTable.index, index), inArray(claimTable.key, [...keys])));
+
+        return new Set(rows.map((row) => row.key));
+    }
+
     /** List the expired reservations of some indexes, and the next deadline, by the directory's clock. */
     async expired(indexes: readonly string[]): Promise<Expiry> {
         // read the expired reservations of the indexes
         const now = this.#clock();
         const reserved = and(
-            eq(claimTable.state, "reserved"),
+            eq(claimTable.state, "pending"),
             inArray(claimTable.index, [...indexes]),
         );
         const claims = await this.database
@@ -573,7 +584,8 @@ export class DirectoryStore extends Directory {
             .values(
                 claims.map((entry) => ({
                     ...entry,
-                    state: "reserved" as const,
+                    id: Identifier.create("claim"),
+                    state: "pending" as const,
                     requestId,
                     expiresAt,
                 })),
@@ -638,7 +650,33 @@ export class DirectoryStore extends Directory {
         // forget an endpoint by its machine
         else if (Change.of(change, endpointTable)) {
             for (const image of imagesOf(change)) {
-                this.#endpoints.forget(image.machine);
+                this.#endpoints.forget(image.id);
+            }
+        }
+    }
+
+    /** Put each object's names in its state and end their reservations, only those a condition keeps when given. */
+    async #settle(owned: readonly ObjectClaims[], settling: SQL | undefined): Promise<void> {
+        for (const state of ObjectClaimState.options) {
+            const settled = owned.filter((entry) => entry.state === state);
+            for (let start = 0; start < settled.length; start += CHAIN_TERMS) {
+                const chunk = settled.slice(start, start + CHAIN_TERMS);
+                await this.database
+                    .update(claimTable)
+                    .set({ state, expiresAt: null })
+                    .where(
+                        and(
+                            settling,
+                            or(
+                                ...chunk.map(({ indexes, objectId }) =>
+                                    and(
+                                        inArray(claimTable.index, [...indexes]),
+                                        eq(claimTable.objectId, objectId),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    );
             }
         }
     }

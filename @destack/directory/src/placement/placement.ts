@@ -111,16 +111,18 @@ export const assignmentTable = defineTable(
     },
 );
 
-/** The URLs the machines serving spaces answer at. */
+/** The URLs the machines serving spaces answer at, one per machine. */
 export const endpointTable = defineTable(
     "endpoint",
     {
-        /** The machine. */
-        machine: text("machine").primaryKey(),
+        /** The machine answering at the URL. */
+        id: text("id").primaryKey(),
         /** The scope it belongs to. */
         scope: text("scope").notNull(),
         /** The URL its services answer at. */
         url: text("url").notNull(),
+        /** The token of the publication, one per tunnel or serving process, which a withdrawal names. */
+        publication: text("publication").notNull(),
         /** When the machine last published it, in UTC epoch milliseconds. */
         publishedAt: integer("published_at").notNull(),
     },

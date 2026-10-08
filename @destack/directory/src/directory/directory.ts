@@ -68,8 +68,16 @@ export abstract class Directory {
     /** List the machines a space gave work, in identity order. */
     abstract assigned(space: string): Promise<readonly string[]>;
 
-    /** Record the URL a machine answers at. */
-    abstract publish(machine: string, scope: string, url: string): Promise<void>;
+    /** Record the URL a machine answers at under a publication: a token per tunnel or serving process. */
+    abstract publish(
+        machine: string,
+        scope: string,
+        url: string,
+        publication: string,
+    ): Promise<void>;
+
+    /** Withdraw the URL a machine answers at while the publication named still holds it, as a machine's tunnel closes. */
+    abstract unpublish(machine: string, publication: string): Promise<void>;
 
     /** Read the URL a machine answers at, absent before it published one. */
     abstract endpoint(machine: string): Promise<Endpoint | undefined>;
@@ -198,7 +206,7 @@ export abstract class Directory {
     /** Reserve a request's claims until its write commits, returning the names other objects own. */
     abstract claim(claims: readonly Claim[], requestId: string): Promise<readonly Claim[]>;
 
-    /** Confirm a request's reserved claims and release the names its objects dropped. */
+    /** Settle the names of a request's committed write in its objects' states and release the names its objects dropped. */
     abstract confirm(requestId: string, owned: readonly ObjectClaims[]): Promise<void>;
 
     /** Release the reservations of a request with a failed write. */
@@ -207,7 +215,7 @@ export abstract class Directory {
     /** Replace an object's claims after a write without reservations, unless other objects own some of its names, which it returns. */
     abstract replace(owned: ObjectClaims, requestId: string): Promise<readonly Claim[]>;
 
-    /** Find the object owning a confirmed name. */
+    /** Find the object an active name resolves to, none for a reserved name. */
     abstract owner(
         index: string,
         key: string,
@@ -236,7 +244,7 @@ export abstract class Directory {
         return SpaceMount.url(await this.#served(space), space);
     }
 
-    /** Create a client of an installation's service, by the installation's identifier or alias, on the machine serving its space, following the space as it moves. */
+    /** Create a client of a service of an installation, by the installation's identifier or alias, below the installation's path where it mounts the service, following the space as it moves. */
     installationClient<Router extends ServiceRouter>(
         service: Service<Router>,
         space: string,
@@ -244,12 +252,13 @@ export abstract class Directory {
         fetch: (request: Request) => Promise<Response>,
     ) {
         return createClient(service, {
-            url: () => this.installationUrl(space, installation),
+            url: async () =>
+                `${await this.installationUrl(space, installation)}${ServiceMount.path(service.package.id)}`,
             fetch,
         });
     }
 
-    /** Find the URL of an installation, by its identifier or alias, on the machine serving its space. */
+    /** Find the URL below which an installation, by its identifier or alias, mounts its services on the machine serving its space. */
     async installationUrl(space: string, installation: string): Promise<string> {
         return InstallationMount.url(await this.#served(space), space, installation);
     }
