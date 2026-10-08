@@ -7,8 +7,8 @@ import { createAppearance } from "@destack/view/document";
 
 /** Switch between the light and dark appearance, following the system until switched and kept for the next visit. */
 export function AppearanceToggle() {
-    const { setAppearance, scheme } = createAppearance();
-    const target = () => (scheme() === "dark" ? "light" : "dark");
+    const { setAppearance, resolvedAppearance } = createAppearance();
+    const target = () => (resolvedAppearance() === "dark" ? "light" : "dark");
 
     return (
         <Button

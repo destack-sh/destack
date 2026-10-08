@@ -18,7 +18,7 @@ import {
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@destack/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 import { type Accessor, createMemo, For, type JSX, Show } from "@destack/view";
-import { useSearchParams } from "@destack/view/router";
+import { parseAsInteger, useQueryState } from "@destack/view/router";
 
 import { type ContentEntry, formatDate } from "../content/presentation";
 import { PageHeader } from "./header";
@@ -29,27 +29,22 @@ const ALL_YEARS = "all";
 
 /** Keep collection filters in the URL so Back restores the previous view. */
 export function createDirectory(entries: Accessor<readonly ContentEntry[]>) {
-    // read the year filter from the URL and list the years on offer
-    const [parameters, setParameters] = useSearchParams();
-    const year = () => String(parameters["year"] ?? "");
+    // read the year filter from the URL and list the years on offer, latest first
+    const [year, setYear] = useQueryState("year", parseAsInteger);
     const years = createMemo(() =>
         [
             ...new Set(
                 entries().flatMap((entry) =>
-                    entry.date === undefined || entry.date === "" ? [] : [entry.date.slice(0, 4)],
+                    entry.date === undefined || entry.date === ""
+                        ? []
+                        : [Number(entry.date.slice(0, 4))],
                 ),
             ),
-        ]
-            .toSorted()
-            .toReversed(),
+        ].toSorted((left, right) => right - left),
     );
-    const filtered = createMemo(() =>
-        entries().filter((entry) => {
-            return year() === "" || entry.date?.startsWith(year()) === true;
-        }),
-    );
+    const filtered = createMemo(() => entries().filter((entry) => isIn(entry, year())));
 
-    return { entries, year, years, filtered, setParameters };
+    return { entries, year, years, filtered, setYear };
 }
 
 /** The year filter state of a dated collection. */
@@ -60,20 +55,16 @@ export function DirectoryArchive(properties: { directory: Directory }) {
     const directory = properties.directory;
 
     // count the entries published in one year
-    const countIn = (year: string) =>
-        directory.entries().filter((entry) => entry.date?.startsWith(year) === true).length;
+    const countIn = (year: number) =>
+        directory.entries().filter((entry) => isIn(entry, year)).length;
 
     return (
         <Show when={directory.years().length > 1}>
             <ToggleGroup
                 aria-label="Archive"
                 orientation="vertical"
-                value={directory.year() === "" ? ALL_YEARS : directory.year()}
-                onValueChange={(value) =>
-                    directory.setParameters({
-                        year: value === undefined || value === ALL_YEARS ? undefined : value,
-                    })
-                }
+                value={optionOf(directory.year())}
+                onValueChange={(option) => void directory.setYear(yearOf(option))}
                 xstyle={publicationStyles.collectionList}
             >
                 <ToggleGroupItem
@@ -81,7 +72,7 @@ export function DirectoryArchive(properties: { directory: Directory }) {
                     xstyle={[
                         publicationStyles.collectionLink,
                         styles.year,
-                        directory.year() === "" && publicationStyles.active,
+                        directory.year() === null && publicationStyles.active,
                     ]}
                 >
                     All time{" "}
@@ -90,7 +81,7 @@ export function DirectoryArchive(properties: { directory: Directory }) {
                 <For each={directory.years()}>
                     {(year) => (
                         <ToggleGroupItem
-                            value={year}
+                            value={optionOf(year)}
                             xstyle={[
                                 publicationStyles.collectionLink,
                                 styles.year,
@@ -134,17 +125,15 @@ export function DirectoryContent(properties: {
     return (
         <DirectorySection title={properties.title} description={properties.description}>
             {/* offer the year filter inline when the sidebar archive is hidden */}
-            <Show when={properties.directory.years().length > 1 || properties.directory.year()}>
+            <Show
+                when={
+                    properties.directory.years().length > 1 || properties.directory.year() !== null
+                }
+            >
                 <Select
                     aria-label="Archive year"
-                    value={
-                        properties.directory.year() === "" ? ALL_YEARS : properties.directory.year()
-                    }
-                    onValueChange={(value) =>
-                        properties.directory.setParameters({
-                            year: value === ALL_YEARS ? undefined : value,
-                        })
-                    }
+                    value={optionOf(properties.directory.year())}
+                    onValueChange={(option) => void properties.directory.setYear(yearOf(option))}
                     xstyle={styles.filter}
                 >
                     <SelectTrigger>
@@ -152,7 +141,7 @@ export function DirectoryContent(properties: {
                     </SelectTrigger>
                     <SelectItem value={ALL_YEARS}>All time</SelectItem>
                     <For each={properties.directory.years()}>
-                        {(year) => <SelectItem value={year}>{year}</SelectItem>}
+                        {(year) => <SelectItem value={optionOf(year)}>{year}</SelectItem>}
                     </For>
                 </Select>
             </Show>
@@ -166,7 +155,7 @@ export function DirectoryContent(properties: {
                     <EmptyContent>
                         <Button
                             variant="link"
-                            onClick={() => properties.directory.setParameters({ year: undefined })}
+                            onClick={() => void properties.directory.setYear(null)}
                         >
                             Clear filters
                         </Button>
@@ -237,6 +226,21 @@ function DirectoryList(properties: { label: string; entries: readonly ContentEnt
             </For>
         </ItemGroup>
     );
+}
+
+/** Report whether an entry was published in a year, every entry for no year. */
+function isIn(entry: ContentEntry, year: number | null): boolean {
+    return year === null || entry.date?.startsWith(String(year)) === true;
+}
+
+/** Write a year as its archive option, all years for none. */
+function optionOf(year: number | null): string {
+    return year === null ? ALL_YEARS : String(year);
+}
+
+/** Read the year an archive option names, none for all years. */
+function yearOf(option: string | undefined): number | null {
+    return option === undefined || option === ALL_YEARS ? null : Number(option);
 }
 
 /** The directory styles. */
