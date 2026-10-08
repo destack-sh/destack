@@ -1,7 +1,7 @@
 import { DriverValue } from "../table/column.ts";
 import { schema } from "@destack/schema";
 import type * as declaration from "../declare/database.ts";
-import { typedChannel, type Channel } from "../channel/channel.ts";
+import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import type { Table } from "../table/table.ts";
 import { SqliteDatabase } from "../sqlite/database.ts";
 import { DatabaseError, errorCode } from "../error/error.ts";
@@ -85,10 +85,7 @@ export const Message = schema.discriminatedUnion("kind", [
             })
             .exactOptional(),
     }),
-    schema.object({
-        /** A commit every party may read. */
-        kind: schema.literal("commit"),
-    }),
+    Commit,
     schema.object({
         /** An owner serving from now on. */
         kind: schema.literal("serving"),

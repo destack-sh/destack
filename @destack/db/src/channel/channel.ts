@@ -17,6 +17,8 @@ export interface Channel<Message> {
 export const Commit = schema.object({
     /** The message kind. */
     kind: schema.literal("commit"),
+    /** The SQL names of the tables the commit wrote, every declared table when the writer cannot know them. */
+    tables: schema.array(schema.string()),
 });
 /** A commit announced on a database's channel. */
 export type Commit = schema.Infer<typeof Commit>;

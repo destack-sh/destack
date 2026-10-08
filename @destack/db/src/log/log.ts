@@ -505,8 +505,15 @@ export class Log {
         return this.until(async () => (await this.position()).sequence >= sequence, signal);
     }
 
-    /** Wait until a check passes after a commit, returning false once the signal aborts. */
-    until(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
+    /**
+     * Wait until a check of the tables committed since the last check passes after a commit, returning false once the signal aborts.
+     *
+     * The first check gets every table.
+     */
+    until(
+        check: (tables: ReadonlySet<string>) => Promise<boolean>,
+        signal: AbortSignal,
+    ): Promise<boolean> {
         return this.database.state.commits.until(check, signal);
     }
 

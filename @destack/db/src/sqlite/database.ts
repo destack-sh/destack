@@ -36,13 +36,15 @@ export class SqliteDatabase<
         super(
             new DatabaseDriver(
                 new SqliteSession(client),
-                new ConnectionState(
+                new ConnectionState({
                     locality,
                     openChannel,
-                    "connection",
-                    "tables" in tables ? tables.spec.copies : [],
-                    namespace,
-                ),
+                    announcer: "connection",
+                    tables: declared,
+                    dialect: "sqlite",
+                    copies: "tables" in tables ? tables.spec.copies : [],
+                    ...(namespace === undefined ? {} : { namespace }),
+                }),
             ),
             declared,
             "tables" in tables ? tables.relations : new Relations<Models>(),

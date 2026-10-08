@@ -10,9 +10,12 @@ export class TransactionState {
     readonly #failures: unknown[] = [];
     /** The caller's cancellation signal. */
     readonly signal: AbortSignal | undefined;
+    /** The SQL names of the tables the outermost transaction writes, which its commit announces. */
+    readonly written: Set<string>;
 
-    /** Create the state. */
-    constructor(signal?: AbortSignal) {
+    /** Create the state, recording its writes in the outermost transaction's tables. */
+    constructor(written: Set<string>, signal?: AbortSignal) {
+        this.written = written;
         this.signal = signal;
     }
 

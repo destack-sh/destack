@@ -34,6 +34,9 @@ import { RelationalQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
 
+/** The referential actions that write the referencing rows. */
+const WRITING_ACTIONS: ReadonlySet<string> = new Set(["cascade", "set null", "set default"]);
+
 /** Queries over one database connection or transaction. */
 export class DatabaseConnection<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
@@ -193,9 +196,10 @@ export class DatabaseConnection<
         }
     }
 
-    /** Execute a SQL script in one round trip. */
+    /** Execute a SQL script in one round trip, as a write of every declared table, since a script's text hides the tables it writes. */
     async executeScript(script: string): Promise<void> {
-        await this.driver.commit(() => this.driver.session.exec(script));
+        const every = new Set(this.state.cascades.keys());
+        await this.driver.commit(() => this.driver.session.exec(script), every);
     }
 
     /** Run SQL and read its rows by column name, as the database returns them. */
@@ -304,6 +308,7 @@ export class DatabaseConnection<
 
         // open the transaction or savepoint, deferring constraints and marking the outermost SQLite write for the log
         const isNested = this.driver.transaction !== undefined;
+        const written = this.driver.transaction?.written ?? new Set<string>();
         const execute = () =>
             this.driver.session.transaction(
                 async (session) => {
@@ -321,7 +326,7 @@ export class DatabaseConnection<
                         !isNested &&
                         options.isReadOnly !== true &&
                         (await openTransaction(session, this.state));
-                    const result = await this.#transact(session, operation, signal);
+                    const result = await this.#transact(session, operation, written, signal);
                     if (isMarked) {
                         await closeTransaction(session, this.state);
                     }
@@ -344,7 +349,12 @@ export class DatabaseConnection<
             }
         }
 
-        return retried(() => this.driver.commit(execute), signal);
+        // forget the writes of an attempt that lost, then announce the written tables once committed
+        return retried(() => {
+            written.clear();
+
+            return this.driver.commit(execute, written);
+        }, signal);
     }
 
     /** Run work in a transaction and roll its writes back, returning what it read or planned. */
@@ -377,9 +387,10 @@ export class DatabaseConnection<
     #transact<Value>(
         session: Session,
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
+        written: Set<string>,
         signal?: AbortSignal,
     ): Promise<Value> {
-        const state = new TransactionState(signal);
+        const state = new TransactionState(written, signal);
         const transaction = new DatabaseConnection(
             new DatabaseDriver(session, this.state, state),
             this.tables,
@@ -393,12 +404,32 @@ export class DatabaseConnection<
 /** Where a connection's database runs: in the process, or across a network. */
 export type Locality = "embedded" | "networked";
 
+/** How a physical connection runs: where, over which channels, who announces its commits, and the tables it declares and copies. */
+export interface ConnectionOptions {
+    /** Where the connection runs. */
+    readonly locality: Locality;
+    /** Open a named channel shared with the database's other writers, absent for a sole writer. */
+    readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
+    /** Who announces the commits of logged tables. */
+    readonly announcer: Announcer;
+    /** The declared tables. */
+    readonly tables: readonly Table[];
+    /** The dialect the tables render in. */
+    readonly dialect: Dialect;
+    /** The SQL names of the tables the database copies from elsewhere. */
+    readonly copies: readonly string[];
+    /** The namespace of the database's relations, absent for none. */
+    readonly namespace?: string;
+}
+
 /** The operations, shutdown and commit watch of one physical connection. */
 export class ConnectionState {
     /** Where the connection's database runs. */
     readonly locality: Locality;
     /** The SQL names of the tables the database copies, empty for a connection over bare tables. */
     readonly copies: ReadonlySet<string>;
+    /** The SQL names of the tables a write to each declared table changes, itself first, through triggers and referential actions. */
+    readonly cascades: ReadonlyMap<string, readonly string[]>;
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
@@ -416,22 +447,24 @@ export class ConnectionState {
     /** The shutdown. */
     #closing?: Promise<void>;
 
-    /** Create the state of a new connection. */
-    constructor(
-        locality: Locality,
-        openChannel: ((name: string) => Channel<unknown>) | undefined,
-        announcer: Announcer,
-        copies: readonly string[],
-        namespace?: string,
-    ) {
-        // keep the channels and the namespace, and watch commits on the log channel
-        this.locality = locality;
-        this.copies = new Set(copies);
+    /** Create the state of a new connection over declared tables. */
+    constructor(options: ConnectionOptions) {
+        // keep the channels, the namespace and what writes to the declared tables change
+        const { openChannel, tables } = options;
+        this.locality = options.locality;
+        this.copies = new Set(options.copies);
         this.openChannel = openChannel;
-        this.namespace = namespace;
+        this.namespace = options.namespace;
+        this.cascades = listCascades(tables, options.dialect);
+
+        // watch commits on the log channel, announcing those the database leaves unannounced
+        const logged = tables
+            .filter((table) => table[TABLE].retention !== "none")
+            .map((table) => table[TABLE].sqlName);
         this.commits = new CommitWatch(
             openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
-            announcer,
+            new Set(options.announcer === "database" ? logged : []),
+            [...this.cascades.keys()],
         );
     }
 
@@ -470,6 +503,70 @@ export class ConnectionState {
 
 /** The unwinding of a rehearsed transaction. */
 class Rollback extends Error {}
+
+/** List the tables a write to each table changes, itself first, through triggers and referential actions. */
+function listCascades(tables: readonly Table[], dialect: Dialect): Map<string, readonly string[]> {
+    // start each table with no changed table
+    const direct = new Map<string, Set<string>>();
+    for (const table of tables) {
+        direct.set(table[TABLE].sqlName, new Set());
+    }
+
+    // link each written table to the tables its triggers and referential actions write
+    for (const table of tables) {
+        const definition = table[TABLE];
+        for (const [written, changed] of cascadeLinks(table, dialect)) {
+            direct.get(written)?.add(changed);
+        }
+        if (definition.tree !== undefined) {
+            direct.get(definition.sqlName)?.add(definition.tree.ancestors[TABLE].sqlName);
+        }
+    }
+
+    // close each table's links
+    const cascades = new Map<string, readonly string[]>();
+    for (const name of direct.keys()) {
+        const reached = new Set([name]);
+        for (const next of reached) {
+            for (const changed of direct.get(next) ?? []) {
+                reached.add(changed);
+            }
+        }
+        cascades.set(name, [...reached]);
+    }
+
+    return cascades;
+}
+
+/** List the links a table declares from a written table to a table the write changes: aggregates, cascading dependents and writing references. */
+function cascadeLinks(table: Table, dialect: Dialect): (readonly [string, string])[] {
+    // link an aggregate's source to its holder
+    const definition = table[TABLE];
+    const aggregates = definition.aggregates.map((aggregate) => {
+        const source = "from" in aggregate ? aggregate.from() : table;
+        const holder = "into" in aggregate ? aggregate.into() : table;
+
+        return [source[TABLE].sqlName, holder[TABLE].sqlName] as const;
+    });
+
+    // link the table to the dependents its deletion deletes
+    const dependents = definition.dependents
+        .filter((dependent) => dependent.onDelete === "cascade")
+        .map((dependent) => [definition.sqlName, dependent.from()[TABLE].sqlName] as const);
+
+    // link each referenced table to the table whose rows its writes update or delete
+    const references = definition.constraints(dialect).flatMap((constraint) => {
+        const isWriting =
+            constraint.kind === "foreignKey" &&
+            [constraint.actions.onDelete, constraint.actions.onUpdate].some(
+                (action) => action !== undefined && WRITING_ACTIONS.has(action),
+            );
+
+        return isWriting ? [[constraint.references, definition.sqlName] as const] : [];
+    });
+
+    return [...aggregates, ...dependents, ...references];
+}
 
 /** Require distinct SQL names across a database's tables and their indexes and keys. */
 export function requireDistinct(tables: readonly Table[], dialect: Dialect): void {

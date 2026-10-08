@@ -211,8 +211,9 @@ export class MutationQuery<
             return undefined;
         }
         const projection = new Projection(unqualified(state.returning));
-        const rows = await state.driver.write((session) =>
-            session.values(statement.text, statement.parameters),
+        const rows = await state.driver.write(
+            (session) => session.values(statement.text, statement.parameters),
+            statement.tables,
         );
 
         return projection.decode(rows, state.driver.dialect, new Set());

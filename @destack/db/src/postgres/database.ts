@@ -52,14 +52,17 @@ export class PostgresDatabase<
         super(
             new DatabaseDriver(
                 new PostgresSession(client),
-                new ConnectionState(
-                    "networked",
-                    writers === "sole"
-                        ? undefined
-                        : (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
-                    "database",
-                    "tables" in tables ? tables.spec.copies : [],
-                ),
+                new ConnectionState({
+                    locality: "networked",
+                    openChannel:
+                        writers === "sole"
+                            ? undefined
+                            : (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
+                    announcer: "database",
+                    tables: declared,
+                    dialect: "postgresql",
+                    copies: "tables" in tables ? tables.spec.copies : [],
+                }),
             ),
             declared,
             "tables" in tables ? tables.relations : new Relations<Models>(),

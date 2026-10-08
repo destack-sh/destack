@@ -13,7 +13,10 @@ import {
 /** The transaction-local setting naming the already stamped transaction. */
 const STAMPED_SETTING = "destack.stamped";
 
-// TODO #Architecture: one lock per log caps logged commits at about 500 to 1000 a second; replace it with a sequencer numbering committed changes below the snapshot's xmin, as PgQ does
+/** The bytes of table names one commit notification carries: below PostgreSQL's payload limit of 8000, leaving room for the message around them. */
+const NOTIFICATION_BYTES = 7_800;
+
+// TODO #Architecture: replace the one lock per log with PgQ positions over a ticker's snapshots
 /** The advisory lock class serialising PostgreSQL commit stamping, keyed by the log's schema. */
 const COMMIT_LOCK = 471_026_381;
 
@@ -65,7 +68,7 @@ function createLogTables(): string[] {
     ];
 }
 
-/** Create the function and deferred trigger stamping sequences at commit. */
+/** Create the function and deferred trigger numbering a transaction's entries at commit in commit order, and announcing their tables. */
 function createStamp(): string[] {
     const log = quote(LOG);
 
@@ -74,10 +77,15 @@ function createStamp(): string[] {
         DECLARE
             unstamped BIGINT;
             base BIGINT;
+            tables TEXT[];
+            batch TEXT[] := '{}';
+            bytes INTEGER := 0;
+            name TEXT;
         BEGIN
             IF current_setting('${STAMPED_SETTING}', true) = NEW."transaction" THEN RETURN NULL; END IF;
             PERFORM pg_advisory_xact_lock(${COMMIT_LOCK}, hashtext(TG_TABLE_SCHEMA));
-            SELECT count(*) INTO unstamped FROM ${log} WHERE "transaction" = NEW."transaction" AND sequence IS NULL;
+            SELECT count(*), array_agg(DISTINCT "table") INTO unstamped, tables
+            FROM ${log} WHERE "transaction" = NEW."transaction" AND sequence IS NULL;
             base := nextval('${LOG}_sequence');
             PERFORM setval('${LOG}_sequence', base + unstamped - 1);
             UPDATE ${log} SET sequence = numbered.sequence
@@ -86,8 +94,17 @@ function createStamp(): string[] {
                 FROM ${log} WHERE "transaction" = NEW."transaction" AND sequence IS NULL
             ) AS numbered
             WHERE ${log}.id = numbered.id;
+            FOREACH name IN ARRAY tables LOOP
+                IF bytes + octet_length(name) + 3 > ${NOTIFICATION_BYTES} THEN
+                    PERFORM pg_notify('${LOG_CHANNEL}', json_build_object('kind', 'commit', 'tables', batch)::TEXT);
+                    batch := '{}';
+                    bytes := 0;
+                END IF;
+                batch := batch || name;
+                bytes := bytes + octet_length(name) + 3;
+            END LOOP;
+            PERFORM pg_notify('${LOG_CHANNEL}', json_build_object('kind', 'commit', 'tables', batch)::TEXT);
             PERFORM set_config('${STAMPED_SETTING}', NEW."transaction", true);
-            PERFORM pg_notify('${LOG_CHANNEL}', '{"kind":"commit"}');
             RETURN NULL;
         END $$`,
         `DO $$ BEGIN

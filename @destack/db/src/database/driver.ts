@@ -55,19 +55,48 @@ export class DatabaseDriver {
     }
 
     /**
-     * Submit a write and notify readers and writers after it commits outside a transaction.
+     * Submit a write of the tables it names, and notify readers and writers after it commits outside a transaction.
      *
+     * A write naming no table writes every declared table, since its text hides the tables it writes.
      * On SQLite, a write outside a transaction runs as one identified transaction.
      */
-    write<Value>(operation: (session: Session) => Promise<Value>): Promise<Value> {
-        return this.commit(() => this.#identified(operation));
+    write<Value>(
+        operation: (session: Session) => Promise<Value>,
+        tables: readonly string[],
+    ): Promise<Value> {
+        const written =
+            tables.length === 0 ? new Set(this.state.cascades.keys()) : this.#cascade(tables);
+
+        return this.commit(() => this.#identified(operation), written);
     }
 
-    /** Submit work that commits on its own, such as a transaction, and notify readers and writers after it commits. */
-    async commit<Value>(operation: () => Promise<Value>): Promise<Value> {
+    /**
+     * Submit work that commits on its own and writes some tables, such as a transaction.
+     *
+     * Inside a transaction, the tables join its written tables.
+     * Outside one, readers and writers learn of the commit.
+     */
+    async commit<Value>(
+        operation: () => Promise<Value>,
+        tables: ReadonlySet<string>,
+    ): Promise<Value> {
+        // record the tables in the enclosing transaction
+        const transaction = this.transaction;
+        if (transaction !== undefined) {
+            const result = await this.run(operation);
+            for (const table of tables) {
+                transaction.written.add(table);
+            }
+
+            return result;
+        }
+
+        // commit
         const result = await this.run(operation);
-        if (this.transaction === undefined) {
-            this.state.commits.notify();
+
+        // announce a commit that wrote tables
+        if (tables.size > 0) {
+            this.state.commits.notify([...tables]);
         }
 
         return result;
@@ -75,28 +104,55 @@ export class DatabaseDriver {
 
     /** Read every row of a bound statement as an array of values. */
     values(statement: DriverStatement): Promise<unknown[][]> {
-        this.transaction?.assertActive();
-
-        return this.run(() =>
-            failing(statement, this.session.values(statement.text, statement.parameters)),
+        return this.#query(statement, (session) =>
+            session.values(statement.text, statement.parameters),
         );
     }
 
     /** Read every row of a bound statement by column name. */
     all(statement: DriverStatement): Promise<Record<string, unknown>[]> {
-        this.transaction?.assertActive();
-
-        return this.run(() =>
-            failing(statement, this.session.all(statement.text, statement.parameters)),
+        return this.#query(statement, (session) =>
+            session.all(statement.text, statement.parameters),
         );
     }
 
-    /** Run a bound write statement, identified on SQLite outside a transaction. */
+    /** Run a bound write statement of the tables it names, identified on SQLite outside a transaction. */
     async execute(statement: DriverStatement): Promise<void> {
         this.transaction?.assertActive();
-        await this.write((session) =>
-            failing(statement, session.run(statement.text, statement.parameters)),
+        await this.write(
+            (session) => failing(statement, session.run(statement.text, statement.parameters)),
+            statement.tables,
         );
+    }
+
+    /** Run a statement returning rows, as a read or as a write of the tables it names. */
+    #query<Value>(
+        statement: DriverStatement,
+        query: (session: Session) => Promise<Value>,
+    ): Promise<Value> {
+        this.transaction?.assertActive();
+
+        return statement.isRead
+            ? this.run(() => failing(statement, query(this.session)))
+            : this.write((session) => failing(statement, query(session)), statement.tables);
+    }
+
+    /** List the tables writes naming some tables change, through triggers and referential actions. */
+    #cascade(tables: readonly string[]): Set<string> {
+        const written = new Set<string>();
+        for (const table of tables) {
+            // add a declared table's cascade, and an undeclared table alone
+            const cascade = this.state.cascades.get(table);
+            if (cascade === undefined) {
+                written.add(table);
+            } else {
+                for (const changed of cascade) {
+                    written.add(changed);
+                }
+            }
+        }
+
+        return written;
     }
 
     /** Run a write outside a transaction as one identified SQLite transaction. */

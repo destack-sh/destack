@@ -38,7 +38,7 @@ test("wake a file's readers on a commit another process announces on the file's 
         database.close();
         const channel = socketChannel(${JSON.stringify(`${path}#log`)});
         const stop = channel.listen(() => {}, () => {
-            channel.notify({ kind: "commit" });
+            channel.notify({ kind: "commit", tables: ["destack__db__setting"] });
             setTimeout(() => { stop(); }, 50);
         });
     `;

@@ -5,6 +5,12 @@ import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { Change, defineTable, eq, TABLE, text } from "../../index.ts";
 import { changeTables, lease, note, reading, revision } from "./fixture.ts";
 
+/** The concurrent writers of the PostgreSQL numbering test: four per pool, filling both test pools. */
+const WRITERS = 8;
+
+/** The commits each writer makes. */
+const COMMITS = 10;
+
 /** Open a migrated test database. */
 async function open(dialect: (typeof TEST_DIALECTS)[number], kind?: "memory" | "file") {
     const storage = await TestDatabase.create(
@@ -371,6 +377,67 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         expect(
             await database.select({ title: note.title }).from(note).where(eq(note.id, "a")),
         ).toEqual([{ title: "Late" }]);
+    },
+);
+
+test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
+    "number concurrent postgresql commits of two pools without gaps, each key's changes in commit order, at once for their writer",
+    async () => {
+        const storage = await open("postgresql");
+        const other = await storage.connect(changeTables);
+        await storage.database.insert(note).values({ ...first, editedAt: 0 });
+
+        // follow every change from the start through the other pool
+        const total = 1 + WRITERS * COMMITS * 2;
+        const followed: Change[] = [];
+        const following = (async () => {
+            const selection = { tables: [note, revision], after: 0 };
+            for await (const page of other.log.follow(selection, AbortSignal.timeout(10_000))) {
+                followed.push(...page.changes);
+                if (followed.length >= total) {
+                    return;
+                }
+            }
+        })();
+
+        // commit from both pools at once, each commit counting the shared note up and adding a revision
+        await Promise.all(
+            Array.from({ length: WRITERS }, async (_, writer) => {
+                const database = writer % 2 === 0 ? storage.database : other;
+                for (let number = 0; number < COMMITS; number++) {
+                    await database.transaction(
+                        async (transaction) => {
+                            await transaction
+                                .update(note)
+                                .set({ editedAt: sql`${note.editedAt} + 1` })
+                                .where(eq(note.id, "a"));
+                            await transaction.insert(revision).values({
+                                scope: "inbox",
+                                noteId: `writer-${writer}`,
+                                number,
+                                title: "Counted",
+                            });
+                        },
+                        { isolationLevel: "read committed" },
+                    );
+                }
+            }),
+        );
+
+        // read the last commit at once through its writer's pool
+        expect((await storage.database.log.position()).sequence).toBe(total);
+
+        // number every change once, without gaps
+        await following;
+        expect(followed.map((change) => change.sequence)).toEqual(
+            Array.from({ length: total }, (_, index) => index + 1),
+        );
+
+        // place each later update of the shared note at a higher position, with its higher count
+        const counts = followed.flatMap((change) =>
+            Change.of(change, note) ? [Change.after(change)?.editedAt] : [],
+        );
+        expect(counts).toEqual(Array.from({ length: WRITERS * COMMITS + 1 }, (_, index) => index));
     },
 );
 

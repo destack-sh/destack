@@ -19,12 +19,23 @@ import {
     type SQLWrapper,
 } from "./sql.ts";
 
+/**
+ * The start of a statement that only reads: SELECT after any space.
+ *
+ * A statement starting with WITH counts as a write, since its common tables may write.
+ */
+const READ = /^\s*SELECT\b/iu;
+
 /** A statement's text and positional parameters, some of them filled by name when it runs. */
 export interface StatementTemplate {
     /** The statement text with positional parameter markers. */
     readonly text: string;
     /** The driver values and placeholders in marker order. */
     readonly parameters: readonly (DriverValue | Placeholder)[];
+    /** The SQL names of the tables the statement names through tables, columns and relations, outside a namespace. */
+    readonly tables: readonly string[];
+    /** Whether the statement only reads, as a statement starting with SELECT does. */
+    readonly isRead: boolean;
 }
 
 /** A statement's text and the driver values of its parameters. */
@@ -33,6 +44,10 @@ export interface DriverStatement {
     readonly text: string;
     /** The driver values in marker order. */
     readonly parameters: readonly DriverValue[];
+    /** The SQL names of the tables the statement names through tables, columns and relations, outside a namespace. */
+    readonly tables: readonly string[];
+    /** Whether the statement only reads, as a statement starting with SELECT does. */
+    readonly isRead: boolean;
 }
 
 /** Render a fragment for a dialect: identifiers quoted, relations within the database's namespace, values bound in order. */
@@ -44,21 +59,25 @@ export function render(
     // render the statement, then define the common tables it reads at its start
     const parameters: (DriverValue | Placeholder)[] = [];
     const commons = new Map<string, string>();
+    const named = new Set<string>();
     const text = renderChunk(fragment, {
         dialect,
         namespace,
         parameters,
         bound: new Map(),
         commons,
+        tables: named,
     });
+    const tables = [...named];
+    const isRead = READ.test(text);
     if (commons.size === 0) {
-        return { text, parameters };
+        return { text, parameters, tables, isRead };
     }
     const defined = [...commons].map(
         ([name, query]) => `${quote(name)} AS NOT MATERIALIZED (${query})`,
     );
 
-    return { text: `WITH ${defined.join(", ")} ${text}`, parameters };
+    return { text: `WITH ${defined.join(", ")} ${text}`, parameters, tables, isRead };
 }
 
 /** Render a fragment or value as standalone SQL for declarations: values as literals, columns without their table. */
@@ -69,6 +88,7 @@ export function inline(value: SQLWrapper | DriverValue, dialect: Dialect): strin
         parameters: undefined,
         bound: new Map(),
         commons: undefined,
+        tables: undefined,
     });
 }
 
@@ -100,7 +120,7 @@ export function fill(
         return value;
     });
 
-    return { text: rendered.text, parameters };
+    return { text: rendered.text, parameters, tables: rendered.tables, isRead: rendered.isRead };
 }
 
 /** Where a render writes values: bound parameters, or literals for a declaration when absent. */
@@ -115,6 +135,20 @@ interface Target {
     readonly bound: Map<string, number>;
     /** The bound values so far, absent to write literals. */
     readonly parameters: (DriverValue | Placeholder)[] | undefined;
+    /** The SQL names of the tables named so far, absent for a declaration. */
+    readonly tables: Set<string> | undefined;
+}
+
+/** Render a column qualified by its table within the database's namespace, or by its alias. */
+function renderColumn(column: Column, target: Target): string {
+    if (!column.isAliased) {
+        target.tables?.add(column.table);
+    }
+    const table = column.isAliased ? column.table : relation(column.table, target.namespace);
+
+    return target.parameters === undefined
+        ? quote(column.definition.name)
+        : `${quote(table)}.${quote(column.definition.name)}`;
 }
 
 /** Render one chunk, binding or writing its values. */
@@ -142,6 +176,8 @@ function renderChunk(chunk: Chunk, target: Target): string {
     }
     // quote a relation within the database's namespace
     else if (chunk instanceof RelationName) {
+        target.tables?.add(chunk.value);
+
         return quote(relation(chunk.value, target.namespace));
     }
     // select the dialect's fragment
@@ -150,15 +186,12 @@ function renderChunk(chunk: Chunk, target: Target): string {
     }
     // qualify a column by its table or alias
     else if (Column.is(chunk)) {
-        const table = chunk.isAliased ? chunk.table : relation(chunk.table, target.namespace);
-
-        return target.parameters === undefined
-            ? quote(chunk.definition.name)
-            : `${quote(table)}.${quote(chunk.definition.name)}`;
+        return renderColumn(chunk, target);
     }
     // render an alias by its own name, and a table within the database's namespace
     else if (chunk instanceof Table) {
         const { source, sqlName } = chunk[TABLE];
+        target.tables?.add((source ?? chunk)[TABLE].sqlName);
 
         return quote(source === undefined ? relation(sqlName, target.namespace) : sqlName);
     }
