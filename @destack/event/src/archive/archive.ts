@@ -16,12 +16,9 @@ import {
 import { present } from "@destack/schema";
 import type { AsyncBuffer } from "hyparquet";
 import { eventSegment } from "./catalog.ts";
-import type { Event, EventPolicy, EventKind } from "../kind/kind.ts";
+import { type Event, type EventPolicy, type EventKind, EventTime } from "../kind/kind.ts";
 import { EventCursor, EventFilter, type EventOrder } from "../query/query.ts";
 import { SegmentFile } from "./segment.ts";
-
-/** The microseconds in a millisecond, between event times and policy durations. */
-const MICROSECONDS = 1000;
 
 /** The events one pruning statement deletes, far below every dialect's bound on parameters. */
 const PRUNE_BATCH = 500;
@@ -100,7 +97,7 @@ export class EventArchive {
 
         // flush at the age or the count the scope's policy sets
         const { flush } = await this.#policy(kind, scope);
-        const at = Math.floor(oldest / MICROSECONDS) + flush.maxAge;
+        const at = EventTime.milliseconds(oldest) + flush.maxAge;
 
         return { isDue: held.events >= flush.maxRows || at <= now, at };
     }
@@ -195,7 +192,7 @@ export class EventArchive {
     async expire(kind: EventKind, scope: string, now: number): Promise<number> {
         // read the segments whose latest event is older than the scope's retention
         const { retention } = await this.#policy(kind, scope);
-        const before = (now - retention) * MICROSECONDS;
+        const before = EventTime.of(now - retention);
         const expired = await this.#database
             .select({ id: eventSegment.id, file: eventSegment.file })
             .from(eventSegment)

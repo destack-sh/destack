@@ -14,6 +14,9 @@ import { ModuleMetadata, Package } from "@destack/package";
 import { defineSchema, type JsonValue, schema, toJsonSchema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 
+/** The microseconds in a millisecond, the unit of event times. */
+const MICROSECONDS_PER_MILLISECOND = 1000;
+
 /** The query keys of an event kind: a schema per key. */
 export type EventKeyShape = Readonly<Record<string, schema.Schema>>;
 
@@ -48,6 +51,19 @@ export interface Event<
     readonly data: Data;
 }
 
+/** Times of events, in Unix microseconds. */
+export const EventTime = {
+    /** Convert Unix milliseconds to an event time. */
+    of(milliseconds: number): number {
+        return milliseconds * MICROSECONDS_PER_MILLISECOND;
+    },
+
+    /** Convert an event time to Unix milliseconds, rounding down. */
+    milliseconds(time: number): number {
+        return Math.floor(time / MICROSECONDS_PER_MILLISECOND);
+    },
+};
+
 /** An event of any kind as it is kept and routed, its personal values sealed. */
 export const Event = defineSchema(
     schema.object({
@@ -80,7 +96,13 @@ export const Route = defineSchema(schema.enum(["enclosing", "payer"]));
 /** The scopes a kind's events are copied to beside their own. */
 export type Route = schema.Infer<typeof Route>;
 
-/** Whether an event is kept exactly once, in the caller's transaction, or at most once. */
+/**
+ * How an event is kept: exactly once in the caller's transaction, or at most once outside it.
+ *
+ * Exactly once holds until the event's scope flushes it: an event appended again before then is kept once, or refused when its contents differ.
+ * A flush moves the event into a segment and frees its identity, so the same identity appended after the flush is kept a second time.
+ * The flush policy bounds that window: its age or its row count, whichever comes first.
+ */
 export const Delivery = defineSchema(schema.enum(["exactly-once", "at-most-once"]));
 /** Whether an event is kept exactly once or at most once. */
 export type Delivery = schema.Infer<typeof Delivery>;

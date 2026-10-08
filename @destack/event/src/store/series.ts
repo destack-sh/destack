@@ -1,7 +1,4 @@
-import type { EventKeyShape } from "../kind/kind.ts";
-
-/** The microseconds in a millisecond, between event times and steps. */
-const MICROSECONDS = 1000;
+import { type EventKeyShape, EventTime } from "../kind/kind.ts";
 
 /** How a series folds the measured key in each step. */
 export const SERIES_FOLDS = ["sum", "count", "min", "max", "average", "last", "unique"] as const;
@@ -90,7 +87,7 @@ export class SeriesFold<Shape extends EventKeyShape> {
         }
         this.measure = request.measure;
         this.group = request.group ?? [];
-        this.width = request.step === undefined ? undefined : request.step * MICROSECONDS;
+        this.width = request.step === undefined ? undefined : EventTime.of(request.step);
         this.#fold = request.fold;
         this.#from = from ?? 0;
     }

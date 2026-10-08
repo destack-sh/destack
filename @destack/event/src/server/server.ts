@@ -6,7 +6,7 @@ import {
     type ServiceContext,
     type ServiceImplementation,
 } from "@destack/service/server";
-import type { Event, EventKind } from "../kind/kind.ts";
+import { type Event, type EventKind, EventTime } from "../kind/kind.ts";
 import type { EventFilter } from "../query/query.ts";
 import { eventService, type EventSelection, FilterText } from "../service/service.ts";
 import type { Series } from "../store/series.ts";
@@ -104,7 +104,10 @@ export function serveEvents(options: EventServiceOptions) {
                 operation: "export",
                 unmasked,
             });
-            const before = Math.min(input.before ?? Number.POSITIVE_INFINITY, Date.now() * 1000);
+            const before = Math.min(
+                input.before ?? Number.POSITIVE_INFINITY,
+                EventTime.of(Date.now()),
+            );
             const filter = { ...filterOf(input, read.where), before };
 
             return exported(store.export(kind, filter), read.redact, context.signal);
