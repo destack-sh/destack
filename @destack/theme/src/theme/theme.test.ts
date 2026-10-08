@@ -285,6 +285,32 @@ test("check the roles a theme replaces like every other role", async () => {
     ]);
 });
 
+test("raise a translucent role's opacity until its blend reads, keeping the declared opacity where it does", () => {
+    // a rule of the text at a fifth, as a paper page draws its lines
+    const theme = defineTheme(
+        {
+            name: "rule",
+            roles: { border: { from: "foreground", lightness: { light: 0, dark: 0 }, alpha: 0.2 } },
+        },
+        { package: notes },
+    );
+    const borders = (["light", "dark"] as const).flatMap((scheme) =>
+        [0, 1].map((level) => {
+            const resolution = theme.resolve(scheme, level);
+
+            return [resolution.color("border"), resolution.reads("border").toFixed(1)];
+        }),
+    );
+
+    // standard contrast keeps a fifth, more contrast raises it exactly to the line floor of Lc 30
+    expect(borders).toEqual([
+        ["#1f202133", "23.3"],
+        ["#1f202141", "30.0"],
+        ["#ededf233", "7.5"],
+        ["#ededf275", "30.0"],
+    ]);
+});
+
 test("label an overridden primary with the candidate that reads best on it", () => {
     const theme = defineTheme(
         { name: "signal", roles: { primary: { palette: "warning" } } },

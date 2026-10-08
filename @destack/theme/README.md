@@ -62,6 +62,30 @@ BACKGROUND_LIGHTNESS; // { light: 0.993, dark: 0.187 }
 CONTENT_CONTRAST; // { standard: 60, more: 90 }
 ```
 
+## Role overrides
+
+`roles` replaces a role with any source the built-in roles use: a palette's tone or seed, another role moved in lightness, or explicit colors, each at an `alpha`.
+
+```ts
+defineTheme({
+    name: "paper",
+    roles: {
+        background: { light: "#f8f5ee", dark: "#0b2029" },
+        border: { from: "foreground", lightness: { light: 0, dark: 0 }, alpha: 0.2 },
+        accent: { palette: "accent", lightness: { light: 0.04, dark: -0.04 }, from: "background" },
+    },
+});
+```
+
+## Translucent roles
+
+A translucent role reading on another settles in opacity: it keeps its declared `alpha` where its blend reaches the floor, and takes the least opacity that does where it does not.
+
+```ts
+theme.resolve("light", 0).color("border"); // "#1f202133", a fifth, Lc 23.3
+theme.resolve("light", 1).color("border"); // "#1f202141", raised to the line floor, Lc 30
+```
+
 ## Contrast
 
 A person's contrast level runs from 0, the APCA-W3 bronze floors, to 1, each floor's most, and `system` mixes between the two as far as the device asks for more contrast.

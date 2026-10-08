@@ -39,6 +39,9 @@ const SUBTLE_OFFSET: Lightness = { light: -0.034, dark: 0.077 };
 /** The light label candidate on solid colors. */
 const WHITE = "#ffffff";
 
+/** The halvings of the opacity search, enough for a step below one 8-bit alpha level. */
+const OPACITY_STEPS = 9;
+
 /** The opacity of the scrim behind modal surfaces: half strength. */
 const SCRIM_ALPHA = 0.5;
 
@@ -115,7 +118,7 @@ export interface Reading {
     readonly contrast: Floor;
 }
 
-/** Where a role's color comes from: another role's color moved in lightness, a tone of a palette, a palette's seed, the best label on the role it reads on, or explicit colors. */
+/** Where a role's color comes from: another role's color moved in lightness, a tone of a palette, a palette's seed, the best label on the role it reads on, or explicit colors; translucent ones settle in opacity. */
 export type RoleSource =
     | {
           /** Another role's color at a lightness offset, keeping its chroma and hue. */
@@ -124,6 +127,8 @@ export type RoleSource =
           readonly from: RoleName;
           /** The lightness offset. */
           readonly lightness: Lightness;
+          /** The opacity from 0 to 1, opaque when absent. */
+          readonly alpha?: number;
       }
     | {
           /** A palette's tone, moved away from the role it reads on until it reads. */
@@ -154,29 +159,58 @@ export type RoleSource =
           readonly light: string;
           /** The dark appearance's six-digit sRGB hex color. */
           readonly dark: string;
+          /** The opacity from 0 to 1, opaque when absent. */
+          readonly alpha?: number;
       };
 
-/** A theme's replacement for one role: a palette's seed or tone, or explicit colors. */
+/** A color role name. */
+export const RoleName = defineSchema(schema.enum(ROLE_NAMES));
+/** A color role name. */
+export type RoleName = schema.Infer<typeof RoleName>;
+
+/** An OKLCH lightness or lightness offset in each appearance. */
+const LightnessPair = schema.object({
+    /** The light appearance's value. */
+    light: schema.number().min(-1).max(1),
+    /** The dark appearance's value. */
+    dark: schema.number().min(-1).max(1),
+});
+
+/** An opacity from 0 to 1. */
+const Alpha = schema.number().min(0).max(1);
+
+/** A theme's replacement for one role, in the sources the built-in roles use: a palette's tone or seed, another role moved in lightness, or explicit colors. */
 export const RoleOverride = defineSchema(
     schema.union([
         schema.object({
             /** The palette. */
             palette: PaletteName,
-            /** The tone's OKLCH lightness in each appearance, the palette's seed when absent. */
-            lightness: schema
-                .object({
-                    /** The light appearance's lightness. */
-                    light: schema.number().min(0).max(1),
-                    /** The dark appearance's lightness. */
-                    dark: schema.number().min(0).max(1),
-                })
-                .exactOptional(),
+            /** The tone's OKLCH lightness, or its offset from the role it follows. */
+            lightness: LightnessPair,
+            /** The role whose lightness the lightness offsets, absolute when absent. */
+            from: RoleName.exactOptional(),
+            /** The opacity, opaque when absent. */
+            alpha: Alpha.exactOptional(),
+        }),
+        schema.object({
+            /** The palette whose seed the role takes, moved by the least lightness that lets it and its label read. */
+            palette: PaletteName,
+        }),
+        schema.object({
+            /** The role whose color this one takes, keeping its chroma and hue. */
+            from: RoleName,
+            /** The lightness offset from that role. */
+            lightness: LightnessPair,
+            /** The opacity, opaque when absent. */
+            alpha: Alpha.exactOptional(),
         }),
         schema.object({
             /** The light appearance's color. */
             light: HexColor,
             /** The dark appearance's color. */
             dark: HexColor,
+            /** The opacity, opaque when absent. */
+            alpha: Alpha.exactOptional(),
         }),
     ]),
 );
@@ -201,21 +235,28 @@ export class Role {
 
     /** Replace the color source, keeping what the role reads on and what its label needs. */
     override(override: RoleOverride): Role {
-        const source: RoleSource =
-            "palette" in override
-                ? override.lightness === undefined
-                    ? { kind: "solid", palette: override.palette }
-                    : { kind: "tone", palette: override.palette, lightness: override.lightness }
-                : { kind: "color", light: override.light, dark: override.dark };
-
-        return new Role(source, this.reading, this.labelled);
+        return new Role(sourceOf(override), this.reading, this.labelled);
     }
 }
 
-/** A color role name. */
-export const RoleName = defineSchema(schema.enum(ROLE_NAMES));
-/** A color role name. */
-export type RoleName = schema.Infer<typeof RoleName>;
+/** Read an override as the role source it names. */
+function sourceOf(override: RoleOverride): RoleSource {
+    // a palette's tone, at its opacity
+    if ("palette" in override && "lightness" in override) {
+        return { kind: "tone", ...override };
+    }
+    // a palette's seed
+    else if ("palette" in override) {
+        return { kind: "solid", palette: override.palette };
+    }
+    // another role moved in lightness, at its opacity
+    else if ("from" in override) {
+        return { kind: "shift", ...override };
+    }
+
+    // explicit colors, at their opacity
+    return { kind: "color", ...override };
+}
 
 /** The color roles of a theme by name. */
 export type Roles = Readonly<Record<RoleName, Role>>;
@@ -266,12 +307,16 @@ export class Resolution {
 
     /** Measure the APCA lightness contrast a role reads at on the role it reads on, as a magnitude. */
     reads(name: RoleName): number {
+        // require the role it reads on
         const reading = this.#roles[name].reading;
         if (reading === undefined) {
             throw new RangeError(`role ${name} reads on no role`);
         }
 
-        return Math.abs(apca(this.color(name), this.color(reading.on)));
+        // measure a translucent role blended over the role it reads on
+        const ground = this.color(reading.on);
+
+        return Math.abs(apca(Color.composite(this.color(name), ground), ground));
     }
 
     /** Read a floor at the level. */
@@ -299,8 +344,9 @@ export class Resolution {
                 // move the role's color in lightness alone
                 const color = Color.parse(this.color(source.from));
                 const lightness = color.lightness + source.lightness[this.scheme];
+                const shifted = new Color(lightness, color.chroma, color.hue).hex();
 
-                return new Color(lightness, color.chroma, color.hue).hex();
+                return this.#translucent(shifted, source.alpha, role);
             }
             case "tone": {
                 // start from the lightness and move away from the background it reads on
@@ -310,9 +356,11 @@ export class Resolution {
                     source.from === undefined
                         ? offset
                         : Color.parse(this.color(source.from)).lightness + offset;
-                const color = palette.tone(this.#settle(palette, start, role));
 
-                return source.alpha === undefined ? color : Color.translucent(color, source.alpha);
+                // settle an opaque tone in lightness, a translucent one in opacity
+                return source.alpha === undefined
+                    ? palette.tone(this.#settle(palette, start, role))
+                    : this.#translucent(palette.tone(start), source.alpha, role);
             }
             case "solid": {
                 const palette = this.#palettes[source.palette];
@@ -331,8 +379,37 @@ export class Resolution {
                 return this.label(palette, this.color(reading.on));
             }
             case "color":
-                return source[this.scheme];
+                return this.#translucent(source[this.scheme], source.alpha, role);
         }
+    }
+
+    /** Apply an opacity to a color, raised by the least amount that lets its blend read on the role it reads on. */
+    #translucent(color: string, alpha: number | undefined, role: Role): string {
+        // keep an opaque color, and a translucent one reading on nothing
+        const reading = role.reading;
+        if (alpha === undefined) {
+            return color;
+        } else if (reading === undefined) {
+            return Color.translucent(color, alpha);
+        }
+
+        // find the least opacity at or above the declared one whose blend reaches the floor
+        const ground = this.color(reading.on);
+        const floor = this.floor(reading.contrast);
+        const reads = (opacity: number) =>
+            Math.abs(apca(Color.composite(Color.translucent(color, opacity), ground), ground)) >=
+            floor;
+        let low = alpha;
+        let high = 1;
+        if (reads(low) || !reads(high)) {
+            return Color.translucent(color, reads(low) ? low : high);
+        }
+        for (let step = 0; step < OPACITY_STEPS; step += 1) {
+            const middle = (low + high) / 2;
+            [low, high] = reads(middle) ? [low, middle] : [middle, high];
+        }
+
+        return Color.translucent(color, high);
     }
 
     /** Find the lightness nearest a start at which a role and its label read, the farthest from its background when none does. */

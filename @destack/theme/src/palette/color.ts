@@ -101,6 +101,22 @@ export class Color {
         return `${hex}${byte(alpha)}`;
     }
 
+    /** Blend a color over an opaque one in gamma-encoded sRGB, as CSS composites, an opaque color staying itself. */
+    static composite(hex: string, under: string): string {
+        // keep an opaque color
+        if (HEX.test(hex)) {
+            return hex;
+        }
+
+        // weigh each channel by the color's opacity
+        const alpha = Number.parseInt(hex.slice(7, 9), 16) / 255;
+        const over = Color.channels(hex.slice(0, 7));
+        const ground = Color.channels(under);
+        const blend = (index: 0 | 1 | 2) => over[index] * alpha + ground[index] * (1 - alpha);
+
+        return Color.format([blend(0), blend(1), blend(2)]);
+    }
+
     /** Convert to a six-digit sRGB hex color, reducing chroma at the same lightness and hue until it fits sRGB. */
     hex(): string {
         // search the largest displayable chroma
