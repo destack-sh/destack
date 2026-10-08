@@ -1,3 +1,4 @@
+import type { ElementContent, Root } from "hast";
 import type { DocumentationPage, RenderedPage } from "./page.ts";
 import { formatSource } from "@destack/check";
 import type { MarkdownContext } from "./markdown.ts";
@@ -29,12 +30,28 @@ import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.ts";
 import { writePageSources } from "./sources.ts";
 import { withLock } from "./lock.ts";
 
+/** A public documentation path: lowercase hyphenated segments ending in a Markdown file. */
+const DOCUMENT_PATH_PATTERN = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
+
+/** A numbered documentation source segment: a two-digit order and its public name. */
+const DOCUMENT_SEGMENT_PATTERN = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$/u;
+
+/** The repository root. */
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+/** The site package directory. */
 const siteDirectory = join(repositoryDirectory, "@platform/site");
-const contentDirectory = join(
-    repositoryDirectory,
-    collections.find((collection) => collection.route === "/blog/")!.sources[0].directory,
-);
+
+/** The blog's source collection. */
+const blogSource = collections.find((collection) => collection.route === "/blog/")?.sources[0];
+if (blogSource == undefined) {
+    throw new Error("missing blog collection source");
+}
+
+/** The blog post directory. */
+const contentDirectory = join(repositoryDirectory, blogSource.directory);
+
+/** The documentation source directories with absolute paths. */
 const documentDirectories = collections
     .filter((collection) => collection.route.startsWith("/docs/"))
     .flatMap((collection) =>
@@ -43,20 +60,37 @@ const documentDirectories = collections
             directory: join(repositoryDirectory, source.directory),
         })),
     );
-const generatedDirectory = join(siteDirectory, "src/generated");
+
+/** The generated TypeScript module directory. */
+const generatedDirectory = join(siteDirectory, "src/view/content/generated");
+
+/** The public asset directory. */
 const publicDirectory = join(siteDirectory, "public");
+
+/** The public rendered-content directory. */
 const publicContentDirectory = join(publicDirectory, "_content");
+
+/** The routes published by the previous run. */
 const publishedPageFile = join(siteDirectory, ".generated/published-pages.json");
+
+/** The public full-text search index. */
 const publicSearchFile = join(publicDirectory, "search.json");
+
+/** The generated blog post module. */
 const generatedPostFile = join(generatedDirectory, "posts.ts");
+
+/** The generated prerender route module. */
 const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
+
+/** The generated rendered-body loader module. */
 const generatedAssetFile = join(generatedDirectory, "assets.ts");
+
+/** Whether this run checks the generated files instead of writing them. */
 const isCheck = process.argv.includes("--check");
-const documentPathPattern = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
-const documentSegmentPattern = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
 mkdirSync(generatedDirectory, { recursive: true });
 await withLock(join(generatedDirectory, ".content-lock"), async () => {
+    // render documentation, posts and the blog index
     const documentSources = readDocumentSources();
     const documents = renderDocuments(documentSources);
     const postSources = readPostSources();
@@ -74,12 +108,10 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
     }
     generateDocumentMetadata(documents);
     const postSource = await formatSource(generatedPostFile, renderPostModule(posts, blogIndex));
-    const routeSource = await formatSource(
-        generatedRouteFile,
-        renderRouteModule(posts, documents),
-    );
+    const routeSource = await formatSource(generatedRouteFile, renderRouteModule(posts, documents));
     const assetSource = await formatSource(generatedAssetFile, renderAssetModule(pages));
 
+    // check or write the generated modules
     if (isCheck) {
         checkGeneratedFile(generatedPostFile, postSource);
         checkGeneratedFile(generatedRouteFile, routeSource);
@@ -102,11 +134,11 @@ function renderAssetModule(pages: RenderedPage[]): string {
         ]),
     );
     const entries = [...routes]
-        .sort()
+        .toSorted()
         .map(
             (route) =>
                 `    ${JSON.stringify(route)}: () => import(${JSON.stringify(
-                    `../../public${route}?raw`,
+                    `../../../../public${route}?raw`,
                 )}).then((module) => module.default),`,
         );
 
@@ -119,7 +151,7 @@ function renderAssetModule(pages: RenderedPage[]): string {
     ].join("\n");
 }
 
-/// Append immediate child chapters to each authored index.
+/** Append immediate child chapters to each authored index. */
 function appendChapterContents(documents: DocumentationPage[]) {
     // preserve the resolved navigation order
     for (const chapter of documents) {
@@ -135,8 +167,7 @@ function appendChapterContents(documents: DocumentationPage[]) {
         // render the same generated links in each published representation
         const links = children
             .map((page) => {
-                const title = page.title.replace(/[\\`*_[\]<>]/g, "\\$&");
-
+                const title = page.title.replace(/[\\`*_[\]<>]/gu, "\\$&");
                 const summary = page.lead ?? page.description;
 
                 return `- [${title}](${page.route})${
@@ -146,18 +177,19 @@ function appendChapterContents(documents: DocumentationPage[]) {
             .join("\n");
         const contents = `---\n\n${links}`;
         chapter.markdown = `${chapter.markdown.trimEnd()}\n\n${contents}\n`;
-        chapter.entries = children.map((page) => ({
-            title: page.title,
-            href: page.route,
-            summary:
-                (page.lead ?? page.description) !== page.title
-                    ? (page.lead ?? page.description)
-                    : undefined,
-        }));
+        chapter.entries = children.map((page) => {
+            const summary = page.lead ?? page.description;
+
+            return {
+                title: page.title,
+                href: page.route,
+                ...(summary === page.title ? {} : { summary }),
+            };
+        });
 
         // generated indexes use directory presentation rather than article introductions
         chapter.kind = "catalog";
-        chapter.lead = undefined;
+        delete chapter.lead;
 
         // keep search text and token counts consistent with the published body
         chapter.searchSections = searchSectionsFor(chapter.markdown);
@@ -166,7 +198,7 @@ function appendChapterContents(documents: DocumentationPage[]) {
     }
 }
 
-/// Write rendered page bodies and their content-addressed assets.
+/** Write rendered page bodies and their content-addressed assets. */
 function writePageContent(pages: RenderedPage[]) {
     mkdirSync(publicContentDirectory, { recursive: true });
     const assetRoutes = new Map<string, string>();
@@ -193,21 +225,21 @@ function writePageContent(pages: RenderedPage[]) {
                 return [asset.placeholder, route];
             }),
         );
-        const html = resolveAssets(page.html, assets);
+        const tree = resolveAssets(JSON.stringify(page.tree), assets);
         const file = join(publicDirectory, contentRouteFor(page).slice(1));
         mkdirSync(dirname(file), { recursive: true });
-        writeGeneratedFile(file, html);
+        writeGeneratedFile(file, tree);
     }
 }
 
-/// Return the content-addressed route an asset is published under.
+/** Return the content-addressed route an asset is published under. */
 function assetRouteFor(path: string) {
     const digest = createHash("sha256").update(readFileSync(path)).digest("hex").slice(0, 16);
 
     return `/_content/assets/${digest}${extname(path)}`;
 }
 
-/// Generate or check the metadata for every documentation page.
+/** Generate or check the metadata for every documentation page. */
 function generateDocumentMetadata(documents: DocumentationPage[]) {
     for (const document of documents) {
         const metadata = {
@@ -235,22 +267,31 @@ function generateDocumentMetadata(documents: DocumentationPage[]) {
     }
 }
 
-/// Remove portable sources and metadata for pages that are no longer published.
+/** Remove portable sources and metadata for pages that are no longer published. */
 function removeObsoletePages(pages: RenderedPage[]) {
+    // compare the routes of this run with those of the previous run
     const routes = pages.flatMap((page) => [
         page.markdownRoute,
         page.textRoute,
         ...(page.route.startsWith("/docs/") ? [documentMetadataRoute(page.route)] : []),
     ]);
-    const previous = existsSync(publishedPageFile)
+    const previous: unknown = existsSync(publishedPageFile)
         ? JSON.parse(readFileSync(publishedPageFile, "utf8"))
         : [];
+    if (!Array.isArray(previous)) {
+        throw new Error(`invalid published page list: ${publishedPageFile}`);
+    }
+    const published: unknown[] = previous;
     const current = new Set(routes);
 
     // retain immutable bodies for readers that already loaded earlier metadata
-    for (const route of previous) {
-        if (!/^\/(?:docs|blog|_content\/docs)\//.test(route) || route.includes("..")) {
-            throw new Error(`invalid published page route: ${route}`);
+    for (const route of published) {
+        if (
+            typeof route !== "string" ||
+            !/^\/(?:docs|blog|_content\/docs)\//u.test(route) ||
+            route.includes("..")
+        ) {
+            throw new Error(`invalid published page route: ${JSON.stringify(route)}`);
         }
         if (!current.has(route)) {
             rmSync(join(publicDirectory, route.slice(1)), { force: true });
@@ -260,24 +301,24 @@ function removeObsoletePages(pages: RenderedPage[]) {
     writeGeneratedFile(publishedPageFile, JSON.stringify(routes));
 }
 
-/// Return the static metadata route for one documentation page.
+/** Return the static metadata route for one documentation page. */
 function documentMetadataRoute(route: string) {
     return `/_content${route}index.json`;
 }
 
-/// Return the static rendered-body route for one content page.
-function contentRouteFor(page: Pick<RenderedPage, "html" | "assets">) {
-    const hash = createHash("sha256").update(page.html);
+/** Return the static rendered-body route for one content page. */
+function contentRouteFor(page: Pick<RenderedPage, "tree" | "assets">) {
+    const hash = createHash("sha256").update(JSON.stringify(page.tree));
     for (const asset of page.assets) {
         hash.update(readFileSync(asset.path));
     }
 
-    return `/_content/html/${hash.digest("hex")}.html`;
+    return `/_content/tree/${hash.digest("hex")}.json`;
 }
 
-/// Replace content asset placeholders with their public routes.
-function resolveAssets(html: string, assets: Record<string, string>) {
-    let resolved = html;
+/** Replace content asset placeholders with their public routes. */
+function resolveAssets(tree: string, assets: Record<string, string>) {
+    let resolved = tree;
 
     // replace every placeholder emitted by the Markdown renderer
     for (const [placeholder, route] of Object.entries(assets)) {
@@ -287,7 +328,7 @@ function resolveAssets(html: string, assets: Record<string, string>) {
     return resolved;
 }
 
-/// Read every documentation source in path order.
+/** Read every documentation source in path order. */
 function readDocumentSources() {
     const sources = documentDirectories
         .flatMap((collection) => {
@@ -298,6 +339,7 @@ function readDocumentSources() {
 
             // map files into the documentation tree
             return markdownFiles(collection.directory).map((file) => {
+                // read the title and description from the frontmatter
                 const source = readFileSync(file, "utf8");
                 const { markdown, metadata } = parseFrontmatter(source, file);
                 requireString(metadata, "title", file);
@@ -308,6 +350,7 @@ function readDocumentSources() {
                     throw new Error(`documentation order belongs in the source path: ${file}`);
                 }
 
+                // derive the public path and route from the numbered source path
                 const sourcePath = relative(collection.directory, file).replaceAll("\\", "/");
                 const { hierarchy, path: publicPath } = parseDocumentPath(sourcePath, file);
                 const path =
@@ -326,7 +369,7 @@ function readDocumentSources() {
                     markdown,
                     path,
                     route,
-                    textRoute: `/${join("docs", path.replace(/\.md$/, ".txt")).replaceAll(
+                    textRoute: `/${join("docs", path.replace(/\.md$/u, ".txt")).replaceAll(
                         "\\",
                         "/",
                     )}`,
@@ -335,7 +378,7 @@ function readDocumentSources() {
                 };
             });
         })
-        .sort(compareDocuments);
+        .toSorted(compareDocuments);
 
     validateDocuments(sources);
 
@@ -345,8 +388,9 @@ function readDocumentSources() {
     }));
 }
 
-/// Parse a numbered source path into its public path and hierarchy.
+/** Parse a numbered source path into its public path and hierarchy. */
 function parseDocumentPath(path: string, file: string) {
+    // collect public names and order numbers per segment
     const segments = path.split("/");
     const names = [];
     const hierarchy = [];
@@ -361,7 +405,7 @@ function parseDocumentPath(path: string, file: string) {
 
         const extension = index === segments.length - 1 ? ".md" : "";
         const name = extension === "" ? segment : segment.slice(0, -extension.length);
-        const match = documentSegmentPattern.exec(name);
+        const match = DOCUMENT_SEGMENT_PATTERN.exec(name);
         if (match == null) {
             throw new Error(`documentation path lacks a numeric prefix: ${file}`);
         }
@@ -373,16 +417,18 @@ function parseDocumentPath(path: string, file: string) {
     return { hierarchy, path: names.join("/") };
 }
 
-/// Compare documentation sources by their numeric hierarchy.
+/** Compare documentation sources by their numeric hierarchy. */
 function compareDocuments(
     left: { hierarchy: number[]; path: string; route: string },
     right: { hierarchy: number[]; path: string; route: string },
 ) {
-    const depthCount = Math.min(left.hierarchy.length, right.hierarchy.length);
-
     // compare every shared level
-    for (let depth = 0; depth < depthCount; depth += 1) {
-        const difference = left.hierarchy[depth] - right.hierarchy[depth];
+    for (const [depth, level] of left.hierarchy.entries()) {
+        const other = right.hierarchy[depth];
+        if (other == undefined) {
+            break;
+        }
+        const difference = level - other;
         if (difference !== 0) {
             return difference;
         }
@@ -393,7 +439,7 @@ function compareDocuments(
     return depthDifference || left.route.localeCompare(right.route);
 }
 
-/// Validate the path, hierarchy, and title invariants of the manual.
+/** Validate the path, hierarchy, and title invariants of the manual. */
 function validateDocuments(
     documents: {
         route: string;
@@ -408,7 +454,7 @@ function validateDocuments(
     const paths = new Set(documents.map((document) => document.path));
 
     for (const document of documents) {
-        if (!documentPathPattern.test(document.path)) {
+        if (!DOCUMENT_PATH_PATTERN.test(document.path)) {
             throw new Error(`invalid documentation path: ${document.path}`);
         }
 
@@ -419,7 +465,8 @@ function validateDocuments(
         hierarchies.add(hierarchy);
 
         const titles = document.headings.filter((heading) => heading.depth === 1);
-        if (titles.length !== 1 || titles[0].text !== document.title) {
+        const [title] = titles;
+        if (titles.length !== 1 || title?.text !== document.title) {
             throw new Error(`documentation title does not match its H1: ${document.path}`);
         }
 
@@ -433,7 +480,7 @@ function validateDocuments(
     }
 }
 
-/// Recursively collect Markdown files below one directory.
+/** Recursively collect Markdown files below one directory. */
 function markdownFiles(directory: string): string[] {
     return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
         const path = join(directory, entry.name);
@@ -446,7 +493,7 @@ function markdownFiles(directory: string): string[] {
     });
 }
 
-/// Convert a documentation source path into its public route.
+/** Convert a documentation source path into its public route. */
 function documentRoute(path: string) {
     const withoutExtension = path.slice(0, -3);
     const routePath =
@@ -459,7 +506,7 @@ function documentRoute(path: string) {
     return `/docs/${routePath === "" ? "" : `${routePath}/`}`;
 }
 
-/// Render documentation sources against the complete manual graph.
+/** Render documentation sources against the complete manual graph. */
 function renderDocuments(sources: ReturnType<typeof readDocumentSources>): DocumentationPage[] {
     const sourceRoutes = new Map(
         sources.map((source) => [
@@ -486,7 +533,7 @@ function renderDocuments(sources: ReturnType<typeof readDocumentSources>): Docum
         return {
             ...source,
             assets: context.assets,
-            html: renderMarkdown(source.markdown, context),
+            tree: renderMarkdown(source.markdown, context),
             kind: "chapter",
             searchSections: searchSectionsFor(source.markdown),
             searchText: searchTextFor(source.markdown),
@@ -495,60 +542,67 @@ function renderDocuments(sources: ReturnType<typeof readDocumentSources>): Docum
     });
 }
 
-/// Read blog posts, newest first.
+/** Read blog posts, newest first. */
 function readPostSources() {
     if (!existsSync(contentDirectory)) {
         return [];
     }
 
+    // read post directories in path order
     const directories = readdirSync(contentDirectory)
         .filter((entry) => statSync(join(contentDirectory, entry)).isDirectory())
-        .sort();
+        .toSorted();
     const seen = new Set();
 
-    return directories.map((directory) => {
-        // apply the documentation numbering convention to blog source directories
-        const postDirectory = join(contentDirectory, directory);
-        const { path } = parseDocumentPath(`${directory}/index.md`, postDirectory);
-        const slug = path.slice(0, -"/index.md".length);
+    return directories
+        .map((directory) => {
+            // apply the documentation numbering convention to blog source directories
+            const postDirectory = join(contentDirectory, directory);
+            const { path } = parseDocumentPath(`${directory}/index.md`, postDirectory);
+            const slug = path.slice(0, -"/index.md".length);
 
-        if (seen.has(slug)) {
-            throw new Error(`duplicate blog slug: ${slug}`);
-        }
-        seen.add(slug);
+            // refuse a repeated slug
+            if (seen.has(slug)) {
+                throw new Error(`duplicate blog slug: ${slug}`);
+            }
+            seen.add(slug);
 
-        const sourceFile = join(postDirectory, "index.md");
-        if (!existsSync(sourceFile)) {
-            throw new Error(`missing blog post entrypoint: ${sourceFile}`);
-        }
+            // require the post entrypoint
+            const sourceFile = join(postDirectory, "index.md");
+            if (!existsSync(sourceFile)) {
+                throw new Error(`missing blog post entrypoint: ${sourceFile}`);
+            }
 
-        const source = readFileSync(sourceFile, "utf8");
-        const { markdown, metadata } = parseFrontmatter(source, sourceFile);
-        requireString(metadata, "title", sourceFile);
-        requireString(metadata, "subtitle", sourceFile);
-        requireString(metadata, "date", sourceFile);
-        requireString(metadata, "author", sourceFile);
+            // require the post metadata
+            const source = readFileSync(sourceFile, "utf8");
+            const { markdown, metadata } = parseFrontmatter(source, sourceFile);
+            requireString(metadata, "title", sourceFile);
+            requireString(metadata, "subtitle", sourceFile);
+            requireString(metadata, "date", sourceFile);
+            requireString(metadata, "author", sourceFile);
 
-        const headings = headingsFor(markdown);
+            // record the post with its routes and headings
+            const headings = headingsFor(markdown);
 
-        return {
-            ...metadata,
-            file: sourceFile,
-            headings,
-            markdown,
-            markdownRoute: `/blog/${slug}.md`,
-            route: `/blog/${slug}/`,
-            slug,
-            textRoute: `/blog/${slug}.txt`,
-            tokens: tokenEstimateFor(plainTextFor(markdown)),
-        };
-    }).sort(
-        (left, right) =>
-            right.date.localeCompare(left.date) || left.title.localeCompare(right.title),
-    );
+            return {
+                ...metadata,
+                file: sourceFile,
+                headings,
+                markdown,
+                markdownRoute: `/blog/${slug}.md`,
+                route: `/blog/${slug}/`,
+                slug,
+                textRoute: `/blog/${slug}.txt`,
+                tokens: tokenEstimateFor(plainTextFor(markdown)),
+            };
+        })
+        .toSorted(
+            (left, right) =>
+                right.date.localeCompare(left.date) || left.title.localeCompare(right.title),
+        );
 }
 
-/// Render blog sources against the complete post graph.
+/** Render blog sources against the complete post graph. */
 function renderPosts(sources: ReturnType<typeof readPostSources>) {
     const sourceRoutes = new Map(
         sources.map((source) => [
@@ -571,13 +625,13 @@ function renderPosts(sources: ReturnType<typeof readPostSources>) {
             sourceRoutes,
         };
 
-        const html = renderMarkdown(source.markdown, context);
+        const tree = renderMarkdown(source.markdown, context);
 
         return {
             ...source,
             assets: context.assets,
-            cover: coverFor(html, context.assets),
-            html,
+            cover: coverFor(tree, context.assets),
+            tree,
             searchSections: searchSectionsFor(source.markdown),
             searchText: searchTextFor(source.markdown),
             tableOfContents: source.headings,
@@ -585,22 +639,49 @@ function renderPosts(sources: ReturnType<typeof readPostSources>) {
     });
 }
 
-/// Return the first image of a rendered post at its published route, if it has one.
-function coverFor(html: string, assets: MarkdownContext["assets"]) {
-    const image = /<img\b[^>]*>/.exec(html)?.[0];
-    const src = image && /\ssrc="([^"]+)"/.exec(image)?.[1];
-    if (!src) {
+/** Return the first image of a rendered post at its published route, if it has one. */
+function coverFor(tree: Root, assets: MarkdownContext["assets"]) {
+    // read the first image or image figure's source and description
+    const image = firstImageOf(tree);
+    if (image === undefined) {
         return null;
     }
-    const asset = assets.find((asset) => asset.placeholder === src);
 
-    return {
-        source: asset ? assetRouteFor(asset.path) : src,
-        alt: /\salt="([^"]*)"/.exec(image)?.[1] ?? "",
-    };
+    // publish a collected asset under its content-addressed route
+    const asset = assets.find((candidate) => candidate.placeholder === image.source);
+
+    return { source: asset ? assetRouteFor(asset.path) : image.source, alt: image.alt };
 }
 
-/// Publish the blog directory in the same portable formats as documentation indexes.
+/** Find the first image of a tree, an image element or an image figure, in document order. */
+function firstImageOf(node: Root | ElementContent): { source: string; alt: string } | undefined {
+    // read an image element or an image figure
+    if (node.type === "element") {
+        const properties = node.properties;
+        if (node.tagName === "img" && typeof properties["src"] === "string") {
+            const alt = properties["alt"];
+
+            return { source: properties["src"], alt: typeof alt === "string" ? alt : "" };
+        } else if (
+            properties["dataKind"] === "image" &&
+            typeof properties["dataSrc"] === "string"
+        ) {
+            return { source: properties["dataSrc"], alt: String(properties["dataAlt"] ?? "") };
+        }
+    }
+
+    // search the children in order
+    for (const child of "children" in node ? node.children : []) {
+        const image = child.type === "doctype" ? undefined : firstImageOf(child);
+        if (image !== undefined) {
+            return image;
+        }
+    }
+
+    return undefined;
+}
+
+/** Publish the blog directory in the same portable formats as documentation indexes. */
 function renderBlogIndex(posts: ReturnType<typeof renderPosts>): RenderedPage {
     const markdown =
         "# Blog\n\n" +
@@ -617,7 +698,7 @@ function renderBlogIndex(posts: ReturnType<typeof renderPosts>): RenderedPage {
         markdown,
         markdownRoute: "/blog/index.md",
         textRoute: "/blog/index.txt",
-        html: renderMarkdown(markdown, { assets: [], route: "/blog/", kind: "blog" }),
+        tree: renderMarkdown(markdown, { assets: [], route: "/blog/", kind: "blog" }),
         assets: [],
         tokens: tokenEstimateFor(plainTextFor(markdown)),
         headings: headingsFor(markdown),
@@ -627,11 +708,11 @@ function renderBlogIndex(posts: ReturnType<typeof renderPosts>): RenderedPage {
     };
 }
 
-/// Generate the blog metadata and rendered-body loader.
+/** Generate the blog metadata and rendered-body loader. */
 function renderPostModule(posts: ReturnType<typeof renderPosts>, index: RenderedPage) {
     const records = posts.map((post) => renderPostRecord(post)).join(",\n");
 
-    return `import { loadContent, type RenderedContent } from "../content/load";
+    return `import { loadContent, type RenderedContent } from "../load";
 
 /** One generated blog post record. */
 export type Post = {
@@ -700,7 +781,7 @@ export async function loadPost(slug: string): Promise<PostContent | undefined> {
 `;
 }
 
-/// Generate one blog metadata record.
+/** Generate one blog metadata record. */
 function renderPostRecord(post: ReturnType<typeof renderPosts>[number]) {
     return `    {
         author: ${JSON.stringify(post.author)},
@@ -718,7 +799,7 @@ function renderPostRecord(post: ReturnType<typeof renderPosts>[number]) {
     }`;
 }
 
-/// Generate the complete prerender route list.
+/** Generate the complete prerender route list. */
 function renderRouteModule(posts: RenderedPage[], documents: DocumentationPage[]) {
     const routes = [
         "/",
@@ -734,7 +815,7 @@ function renderRouteModule(posts: RenderedPage[], documents: DocumentationPage[]
     )} as const;\n`;
 }
 
-/// Return the complete full-text search index.
+/** Return the complete full-text search index. */
 function searchEntriesFor(posts: ReturnType<typeof renderPosts>, documents: DocumentationPage[]) {
     return [
         ...documents.flatMap((document) => [
@@ -781,7 +862,7 @@ function searchEntriesFor(posts: ReturnType<typeof renderPosts>, documents: Docu
     ];
 }
 
-/// Require one generated file to match its expected contents.
+/** Require one generated file to match its expected contents. */
 function checkGeneratedFile(file: string, source: string) {
     if (!existsSync(file)) {
         throw new Error(`missing generated content file: ${file}`);
@@ -793,12 +874,14 @@ function checkGeneratedFile(file: string, source: string) {
     }
 }
 
-/// Atomically replace changed generated content.
+/** Atomically replace changed generated content. */
 function writeGeneratedFile(file: string, source: string) {
-    if (existsSync(file) && readFileSync(file, "utf8") === source) return;
+    if (existsSync(file) && readFileSync(file, "utf8") === source) {
+        return;
+    }
 
+    // write a temporary file and rename it into place
     const temporaryFile = `${file}.${process.pid}.tmp`;
-
     writeFileSync(temporaryFile, source);
     renameSync(temporaryFile, file);
 }

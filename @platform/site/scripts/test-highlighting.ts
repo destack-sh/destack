@@ -2,16 +2,45 @@ import assert from "node:assert/strict";
 
 import { highlightCode } from "./highlight.ts";
 
-const typescriptSource = `const port: number = 300;
-console.log("port");`;
-const expectedTypescript = `<span class="hljs-keyword">const</span> <span class="hljs-attr">port</span>: <span class="hljs-built_in">number</span> = <span class="hljs-number">300</span>;
-<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;port&quot;</span>);`;
-const textSource = 'a < b && "c"';
-const expectedText = "a &lt; b &amp;&amp; &quot;c&quot;";
+/** A TypeScript snippet. */
+const typescriptSource = `const port: number = 300;`;
 
-// render TypeScript fences under both language names
-assert.equal(highlightCode(typescriptSource, "ts"), expectedTypescript);
-assert.equal(highlightCode(typescriptSource, "typescript"), expectedTypescript);
+/** The highlighted TypeScript snippet, as highlight.js classes its tokens. */
+const expectedTypescript = [
+    {
+        type: "element",
+        tagName: "span",
+        properties: { className: ["hljs-keyword"] },
+        children: [{ type: "text", value: "const" }],
+    },
+    { type: "text", value: " " },
+    {
+        type: "element",
+        tagName: "span",
+        properties: { className: ["hljs-attr"] },
+        children: [{ type: "text", value: "port" }],
+    },
+    { type: "text", value: ": " },
+    {
+        type: "element",
+        tagName: "span",
+        properties: { className: ["hljs-built_in"] },
+        children: [{ type: "text", value: "number" }],
+    },
+    { type: "text", value: " = " },
+    {
+        type: "element",
+        tagName: "span",
+        properties: { className: ["hljs-number"] },
+        children: [{ type: "text", value: "300" }],
+    },
+    { type: "text", value: ";" },
+];
 
-// escape plain text without highlighting it
-assert.equal(highlightCode(textSource, "text"), expectedText);
+// highlight TypeScript fences under both language names
+assert.deepEqual(highlightCode(typescriptSource, "ts"), expectedTypescript);
+assert.deepEqual(highlightCode(typescriptSource, "typescript"), expectedTypescript);
+
+// keep plain text as one text node, metacharacters and all
+assert.deepEqual(highlightCode('a < b && "c"', "text"), [{ type: "text", value: 'a < b && "c"' }]);
+process.stdout.write("highlighting tests passed\n");

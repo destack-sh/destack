@@ -1,34 +1,35 @@
-/// Transform block directives while preserving code and HTML comments.
-export function mapDirectives(markdown: string, render: (name: string, attributes: Record<string, string>, body: string) => string) {
+/** Transform block directives while preserving code and HTML comments. */
+export function mapDirectives(
+    markdown: string,
+    render: (name: string, attributes: Record<string, string>, body: string) => string,
+) {
+    // track the open fence and comment while copying lines
     const lines = markdown.split("\n");
     const output = [];
     let fence: string | undefined;
-    let comment = false;
-
+    let isComment = false;
     for (let index = 0; index < lines.length; index += 1) {
         const line = lines[index];
-        const delimiter = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+        if (line == undefined) {
+            throw new Error(`missing Markdown line ${index}`);
+        }
+        const delimiter = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(line);
 
         // leave fenced listings and comments unchanged
         if (fence != undefined) {
-            if (
-                delimiter &&
-                delimiter[1][0] === fence[0] &&
-                delimiter[1].length >= fence.length &&
-                delimiter[2].trim() === ""
-            ) {
+            if (delimiter && closesFence(delimiter, fence)) {
                 fence = undefined;
             }
             output.push(line);
             continue;
         }
-        if (comment || line.trimStart().startsWith("<!--")) {
-            comment = !line.includes("-->");
+        if (isComment || line.trimStart().startsWith("<!--")) {
+            isComment = !line.includes("-->");
             output.push(line);
             continue;
         }
         if (delimiter) {
-            fence = delimiter[1];
+            fence = captured(delimiter, 1);
             output.push(line);
             continue;
         }
@@ -48,9 +49,10 @@ export function mapDirectives(markdown: string, render: (name: string, attribute
     return output.join("\n");
 }
 
-/// Parse a directive at the beginning of a Markdown block.
+/** Parse a directive at the beginning of a Markdown block. */
 export function parseDirective(source: string) {
-    const opening = /^:::(\w+)(?:[ \t]+([^\n]*))?(?:\n|$)/.exec(source);
+    // match the opening line
+    const opening = /^:::(\w+)(?:[ \t]+([^\n]*))?(?:\n|$)/u.exec(source);
     if (opening == null) {
         return;
     }
@@ -60,31 +62,27 @@ export function parseDirective(source: string) {
     if (attributes.endsWith(":::")) {
         return {
             raw: opening[0].trimEnd(),
-            name: opening[1],
+            name: captured(opening, 1),
             attributes: parseAttributes(attributes.slice(0, -3)),
             body: "",
         };
     }
 
+    // close the directive at the first bare marker outside a fence
     let length = opening[0].length;
     let fence: string | undefined;
     for (const line of source.slice(length).split("\n")) {
-        const delimiter = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+        const delimiter = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(line);
         if (fence != undefined) {
-            if (
-                delimiter &&
-                delimiter[1][0] === fence[0] &&
-                delimiter[1].length >= fence.length &&
-                delimiter[2].trim() === ""
-            ) {
+            if (delimiter && closesFence(delimiter, fence)) {
                 fence = undefined;
             }
         } else if (delimiter) {
-            fence = delimiter[1];
+            fence = captured(delimiter, 1);
         } else if (line === ":::") {
             return {
                 raw: source.slice(0, length + line.length),
-                name: opening[1],
+                name: captured(opening, 1),
                 attributes: parseAttributes(attributes),
                 body: source.slice(opening[0].length, length).trimEnd(),
             };
@@ -92,18 +90,46 @@ export function parseDirective(source: string) {
         length += line.length + 1;
     }
 
+    // refuse a directive without its closing marker
     throw new Error(`unclosed ${opening[1]} directive`);
 }
 
-/// Parse quoted and unquoted directive or fence attributes.
-export function parseAttributes(source: string) {
-    const attributes: Record<string, string> = {};
-    for (const match of source.matchAll(/(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g)) {
-        attributes[match[1]] = match[2] ?? match[3] ?? match[4];
+/** Return whether a fence delimiter closes the open fence. */
+function closesFence(delimiter: RegExpExecArray, fence: string) {
+    const marker = captured(delimiter, 1);
+
+    return (
+        marker[0] === fence[0] &&
+        marker.length >= fence.length &&
+        captured(delimiter, 2).trim() === ""
+    );
+}
+
+/** Read one capture group that a successful match always fills. */
+export function captured(match: RegExpMatchArray | RegExpExecArray, group: number) {
+    const value = match[group];
+    if (value == undefined) {
+        throw new Error(`missing capture group ${group} in ${match[0]}`);
     }
 
+    return value;
+}
+
+/** Parse quoted and unquoted directive or fence attributes. */
+export function parseAttributes(source: string) {
+    // read each key and its quoted or bare value
+    const attributes: Record<string, string> = {};
+    for (const match of source.matchAll(/(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/gu)) {
+        const value = match[2] ?? match[3] ?? match[4];
+        if (value == undefined) {
+            throw new Error(`missing attribute value in ${match[0]}`);
+        }
+        attributes[captured(match, 1)] = value;
+    }
+
+    // read a bare word as the kind
     if (!source.includes("=") && source.trim() !== "") {
-        attributes.kind = source.trim();
+        attributes["kind"] = source.trim();
     }
 
     return attributes;

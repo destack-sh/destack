@@ -1,7 +1,9 @@
 import { collections } from "../content.ts";
+import type { DevelopmentServer } from "@destack/web/build";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { watch } from "node:fs";
 import { isAbsolute, join, normalize, relative, resolve } from "node:path";
-import type { ViteDevServer } from "vite";
 
 /** The milliseconds to wait after the last source change before regenerating, so one save runs one generation. */
 const debounceTime = 150;
@@ -12,16 +14,16 @@ type ContentTask = {
     workingDirectory: string;
 
     /** Whether another generation is required after the active process exits. */
-    isPending?: boolean;
+    isPending: boolean;
 
     /** Whether content watching has stopped. */
-    isClosed?: boolean;
+    isClosed: boolean;
 
     /** The task name used in diagnostics. */
     name: string;
 
     /** The active generator process. */
-    process?: ReturnType<typeof spawn>;
+    process?: ReturnType<typeof spawn> | undefined;
 
     /** The generator path relative to the site directory. */
     script: string;
@@ -37,42 +39,43 @@ type ContentTask = {
 };
 
 /** Regenerate content modules and reload the development server after source changes. */
-export function watchContent(siteDirectory: string, server: ViteDevServer): AsyncDisposable {
+export function watchContent(
+    siteDirectory: string,
+    development: DevelopmentServer,
+): AsyncDisposable {
     // watch every content source directory
     const task: ContentTask = {
         name: "content",
-        outputDirectory: join(siteDirectory, "src/generated"),
+        outputDirectory: join(siteDirectory, "src/view/content/generated"),
         workingDirectory: siteDirectory,
+        isPending: false,
+        isClosed: false,
         script: "scripts/generate-content.ts",
         triggers: collections.flatMap((collection) =>
             collection.sources.map((source) => resolve(siteDirectory, "../..", source.directory)),
         ),
     };
 
-    // register content generation separately from application compilation
-    const changed = (_event: string, path: string) => {
-        if (isTriggered(path, task)) {
-            schedule(task, server);
-        }
-    };
-    server.watcher.add([...task.triggers]);
-    server.watcher.on("all", changed);
+    // watch the sources apart from the development server, which replaces its Vite server on restart
+    const watchers = task.triggers.map((trigger) =>
+        watch(trigger, { recursive: true }, () => schedule(task, development)),
+    );
 
     // stop watching and end any running generator with the server
     return {
         async [Symbol.asyncDispose]() {
             // stop listening and drop queued runs
             task.isClosed = true;
-            server.watcher.off("all", changed);
+            for (const watcher of watchers) {
+                watcher.close();
+            }
             clearTimeout(task.timeout);
             task.isPending = false;
 
             // end the active generator and wait for it to exit
             const process = task.process;
             if (process) {
-                const closed = new Promise<void>((resolve) =>
-                    process.once("close", () => resolve()),
-                );
+                const closed = once(process, "close");
                 process.kill();
                 await closed;
             }
@@ -80,26 +83,14 @@ export function watchContent(siteDirectory: string, server: ViteDevServer): Asyn
     };
 }
 
-/** Return whether one changed path belongs to a task source directory. */
-function isTriggered(path: string, task: ContentTask) {
-    const file = normalize(path);
-
-    return task.triggers.some((trigger) => {
-        const normalizedTrigger = normalize(trigger);
-        const relation = relative(normalizedTrigger, file);
-
-        return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
-    });
-}
-
 /** Debounce one content task after a source change. */
-function schedule(task: ContentTask, server: ViteDevServer) {
+function schedule(task: ContentTask, development: DevelopmentServer) {
     clearTimeout(task.timeout);
-    task.timeout = setTimeout(() => run(task, server), debounceTime);
+    task.timeout = setTimeout(() => run(task, development), debounceTime);
 }
 
 /** Start one generator or request another run after its active process exits. */
-function run(task: ContentTask, server: ViteDevServer) {
+function run(task: ContentTask, development: DevelopmentServer) {
     // queue another run while one is active
     if (task.process != undefined) {
         task.isPending = true;
@@ -113,7 +104,7 @@ function run(task: ContentTask, server: ViteDevServer) {
         stdio: "inherit",
     });
     task.process.on("error", (error) => {
-        server.config.logger.error(`[site] ${task.name}: ${error.message}`);
+        development.vite.config.logger.error(`[site] ${task.name}: ${error.message}`);
     });
     task.process.on("close", (code) => {
         // ignore exits after the server closed
@@ -124,27 +115,29 @@ function run(task: ContentTask, server: ViteDevServer) {
 
         // reload after a successful generation
         if (code === 0) {
-            invalidate(task, server);
+            invalidate(task, development);
         }
         // report a failed generation
         else {
-            server.config.logger.error(`[site] ${task.name} generation failed with code ${code}`);
+            development.vite.config.logger.error(
+                `[site] ${task.name} generation failed with code ${code}`,
+            );
         }
 
         // run once more for changes made during this run
         if (task.isPending) {
             task.isPending = false;
-            run(task, server);
+            run(task, development);
         }
     });
 }
 
 /** Invalidate generated modules and reload the active page. */
-function invalidate(task: ContentTask, server: ViteDevServer) {
+function invalidate(task: ContentTask, development: DevelopmentServer) {
+    // invalidate generated modules in every environment of the current Vite server
     const outputDirectory = normalize(task.outputDirectory);
-
-    // invalidate generated modules in every serving environment before reloading
-    for (const environment of Object.values(server.environments)) {
+    const { vite } = development;
+    for (const environment of Object.values(vite.environments)) {
         for (const module of environment.moduleGraph.idToModuleMap.values()) {
             if (module.file != null && isWithin(module.file, outputDirectory)) {
                 environment.moduleGraph.invalidateModule(module);
@@ -152,7 +145,8 @@ function invalidate(task: ContentTask, server: ViteDevServer) {
         }
     }
 
-    server.ws.send({ type: "full-reload" });
+    // reload the active page
+    vite.ws.send({ type: "full-reload" });
 }
 
 /** Return whether one path belongs to a directory. */

@@ -14,11 +14,11 @@ deploy:
 
 # format
 format:
-    bun run destack-check format src build
+    bun run format
 
 # check formatting
 format-check:
-    bun run destack-check format-check src build
+    bun run format-check
 
 # generate
 generate:
@@ -35,6 +35,7 @@ typecheck:
 
 # lint
 lint:
+    bun run lint
     just typecheck
     just build
 
@@ -49,6 +50,7 @@ check:
 # check quick
 check-quick:
     just generate-check
+    just format-check
     just lint
 
 # check full
