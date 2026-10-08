@@ -11,8 +11,14 @@ import { schema } from "@destack/schema";
 /** How often `expect.poll` rechecks, in milliseconds: a local sync round trip takes a few, so the default 50 only adds idle waiting. */
 const POLL = { poll: { interval: 5 } };
 
-/** The workspace patterns of a package.json. */
-const Manifest = schema.looseObject({ workspaces: schema.array(schema.string()).exactOptional() });
+/** The workspace patterns and exports of a package.json. */
+const Manifest = schema.looseObject({
+    workspaces: schema.array(schema.string()).exactOptional(),
+    exports: schema.record(schema.string(), schema.unknown()).exactOptional(),
+});
+
+/** The build extension a destack.json declares, such as `./build#viewExtension`. */
+const Definition = schema.looseObject({ build: schema.string().exactOptional() });
 
 /** Define a test configuration whose package sources receive Destack module metadata. */
 export function defineConfiguration(configuration: ViteUserConfig): ViteUserConfig {
@@ -107,7 +113,7 @@ function cachePlugin(): Plugin {
     };
 }
 
-/** Digest the workspace's package definitions and the module transform's sources. */
+/** Digest the workspace's package definitions and the sources of the module transform and every build extension. */
 function definitions(): string {
     // find the workspace root listing the packages
     let root = process.cwd();
@@ -138,7 +144,10 @@ function definitions(): string {
         ...globSync("*.ts", { cwd: transform }).map((file) => join(transform, file)),
         fileURLToPath(import.meta.resolve("@destack/package/vite")),
     ];
-    const files = [...packages, ...sources].toSorted();
+    const extensions = packages
+        .filter((file) => basename(file) === "destack.json")
+        .flatMap((file) => extensionSources(dirname(file)));
+    const files = [...packages, ...sources, ...extensions].toSorted();
 
     // hash each file's path and content
     const hash = createHash("sha256");
@@ -147,6 +156,33 @@ function definitions(): string {
     }
 
     return hash.digest("hex");
+}
+
+/** List the sources of the build extension a package declares, the modules beside its build export. */
+function extensionSources(directory: string): string[] {
+    // read the build export the package's definition names, if it names one
+    const definition = Definition.parse(
+        JSON.parse(readFileSync(join(directory, "destack.json"), "utf8")),
+    );
+    if (definition.build === undefined) {
+        return [];
+    }
+    const [subpath = ""] = definition.build.split("#", 1);
+    const manifest = Manifest.parse(
+        JSON.parse(readFileSync(join(directory, "package.json"), "utf8")),
+    );
+    const file = manifest.exports?.[subpath];
+    if (typeof file !== "string") {
+        throw new TypeError(`${directory} exports no build module at ${subpath}`);
+    }
+
+    // list the modules of the export's directory, its tests aside
+    const root = dirname(join(directory, file));
+
+    return globSync("**/*.{ts,tsx}", {
+        cwd: root,
+        exclude: (path) => path.endsWith(".test.ts"),
+    }).map((path) => join(root, path));
 }
 
 /** Read the workspace patterns a directory's package.json lists, if it lists any. */

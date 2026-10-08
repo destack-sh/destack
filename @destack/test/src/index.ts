@@ -9,6 +9,7 @@ export {
     onTestFailed,
     onTestFinished,
     test,
+    vi,
 } from "vitest";
 export type { TestAnnotation, TestArtifact, TestContext } from "vitest";
 export { refusal } from "./refusal/index.ts";
