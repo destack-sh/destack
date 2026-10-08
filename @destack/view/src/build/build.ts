@@ -7,21 +7,27 @@ import type {
 import { BROWSER_CAPABILITIES, Capabilities } from "@destack/package";
 import { ViewDescription } from "@destack/package/manifest";
 import { SolidApplication } from "./application.ts";
+import { fontPlugin } from "./font.ts";
+import { imagePlugin } from "./image.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
 
 /** The prefix of the generated modules mounting each view. */
 const PREFIX = "virtual:@destack/view/view/";
 
-/** Compile Solid components wherever modules compile, and mount each declared view from a separate browser chunk. */
+/** Compile Solid components wherever modules compile, turn imported images and fonts into assets, and mount each declared view from a separate browser chunk. */
 export const viewExtension: BuildExtension = {
     transform(context) {
         // compile Solid, as the application an output names when it names one
         const application = context.options[VIEW_PACKAGE];
 
-        return viewPlugins(
-            context.server,
-            application === undefined ? undefined : SolidApplication.parse(application),
-        );
+        return [
+            ...viewPlugins(
+                context.server,
+                application === undefined ? undefined : SolidApplication.parse(application),
+            ),
+            imagePlugin(),
+            fontPlugin(),
+        ];
     },
     compile(compilation) {
         // emit one browser entry per view

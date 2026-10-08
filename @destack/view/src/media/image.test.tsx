@@ -1,5 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { render } from "@solidjs/web";
+import { flush } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { Image, Picture } from "./image.tsx";
 import type { ImageAsset } from "./asset.ts";
@@ -89,4 +90,21 @@ test("show an image given by its address at its given dimensions", () => {
         <Image src="/logo.svg" alt="" width={32} height={32} />
     )).querySelector("img");
     expect([image?.getAttribute("width"), image?.getAttribute("srcset")]).toEqual(["32", null]);
+});
+
+test("drop the blurred rendition once the image loads, telling the caller", () => {
+    // render the asset, then load it
+    const loads: string[] = [];
+    const image = mount(() => (
+        <Image src={hero} alt="" onLoad={(event) => loads.push(event.type)} />
+    )).querySelector("img");
+    const before = image?.getAttribute("class");
+    image?.dispatchEvent(new Event("load"));
+    flush();
+
+    expect([before !== null, image?.getAttribute("class") ?? null, loads]).toEqual([
+        true,
+        null,
+        ["load"],
+    ]);
 });

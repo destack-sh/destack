@@ -1,13 +1,15 @@
-import "@destack/style/preflight.css";
-import "@destack/theme/theme.css";
+import "../styles/styles.ts";
 import { Catalog, Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
+import { BrowserClient } from "@destack/account/browser";
+import type { Subject } from "@destack/sync";
 import { PermissionScope } from "@destack/access";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import {
     type CatalogReference,
+    CLIENT_PATH,
     DISPLAY_PATH,
     type ViewContext,
     ViewDisplay,
@@ -41,9 +43,10 @@ export async function mount(view: View): Promise<() => Promise<void>> {
         exporter.options({ name: view.package.name, version: release }),
     );
 
-    // open the view's scopes over the launch's endpoint while fetching its catalogs
+    // open the view's scopes as this browser's client over the launch's endpoint while fetching its catalogs
+    const client = await new BrowserClient({ path: CLIENT_PATH }).subject();
     const [tabs, translations] = await Promise.all([
-        openTabs(context, endpoint, view),
+        openTabs(context, endpoint, view, client),
         fetchCatalogs(catalogs),
     ]);
     const clients = Object.fromEntries([...tabs].map(([scope, tab]) => [scope, tab.client]));
@@ -172,16 +175,16 @@ async function followDisplay(
 ): Promise<void> {
     while (!signal.aborted) {
         try {
-            // stop once the host refuses the page's credential
+            // stop once the host refuses the page's credential, and report any other failure
             const response = await fetch(new URL(DISPLAY_PATH, location.origin), { signal });
             if (response.status === 401 || response.status === 403) {
                 return;
+            } else if (!response.ok || response.body === null) {
+                throw new Error(`the display stream answered ${response.status}`);
             }
 
             // read the event stream's data lines as displays
-            const lines = (response.body ?? new ReadableStream<Uint8Array>()).pipeThrough(
-                lineDecoder(),
-            );
+            const lines = response.body.pipeThrough(lineDecoder());
             for await (const line of lines) {
                 if (line.startsWith("data: ")) {
                     receive(ViewDisplay.parse(JSON.parse(line.slice("data: ".length))));
@@ -262,11 +265,12 @@ async function fetchCatalogs(references: readonly CatalogReference[]): Promise<C
     );
 }
 
-/** Open a tab for each scope a view requests permissions in over the page's endpoint, each once its tables exist. */
+/** Open a tab for each scope a view requests permissions in as the browser's client over the page's endpoint, each once its tables exist. */
 async function openTabs(
     context: ViewContext,
     endpoint: string,
     view: View,
+    client: Subject,
 ): Promise<Map<string, BrowserTab>> {
     // group the object types by the scope each opens in, merging a home that is the view's space
     const byScope = new Map<string, Readonly<Record<string, ObjectType>>>();
@@ -290,6 +294,7 @@ async function openTabs(
                     objects,
                     scope,
                     caller: context.user,
+                    client,
                     endpoint: { url },
                     // reopen the same endpoint
                     reconnect: () => ({ url }),

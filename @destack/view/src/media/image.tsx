@@ -22,14 +22,18 @@ const styles = style.create({
 /** The attributes of an image beside its source, an image element's attributes included. */
 interface ImageAttributes extends Omit<
     JSX.ImgHTMLAttributes<HTMLImageElement>,
-    "src" | "srcset" | "width" | "height" | "alt" | "style"
+    "src" | "srcset" | "width" | "height" | "alt" | "style" | "onLoad"
 > {
     /** The text standing in for the image, empty for a decorative one. */
     readonly alt: string;
     /** Show the asset's blurred rendition until the image loads, or nothing. */
     readonly placeholder?: "blur" | "empty";
+    /** Call back once the image loads. */
+    readonly onLoad?: (event: Event) => void;
     /** The StyleX styles applied last. */
-    readonly style?: style.Styles;
+    readonly xstyle?: style.Styles;
+    /** The inline style applied last. */
+    readonly style?: JSX.CSSProperties | string;
 }
 
 /** The properties of an image: a build's asset with its own size, or an address with its width and height. */
@@ -83,7 +87,7 @@ function ImageElement(properties: {
 }): JSX.Element {
     // read the asset, or the address and size given beside it
     const image = properties.image;
-    const rest = omit(image, "src", "alt", "placeholder", "style", "onLoad");
+    const rest = omit(image, "src", "alt", "placeholder", "xstyle", "style", "onLoad");
     const [isLoaded, setLoaded] = createSignal(false);
     const asset = () => (typeof image.src === "string" ? undefined : image.src);
     const size = () =>
@@ -118,8 +122,11 @@ function ImageElement(properties: {
             alt={image.alt}
             width={size().width}
             height={size().height}
-            onLoad={() => setLoaded(true)}
-            {...style.attrs(placeholder(), image.style)}
+            onLoad={(event) => {
+                setLoaded(true);
+                image.onLoad?.(event);
+            }}
+            {...style.attributes([placeholder(), image.xstyle], image.style)}
         />
     );
 }
