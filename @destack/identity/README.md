@@ -71,7 +71,7 @@ await LocalKeyring.rotate(keychain, machineId); // a new active version beside t
 ```ts
 const root = Derivation.of(await Derivation.root(secretBytes)); // a Deriver
 const s3 = await root.derive("destack s3 v1"); // 32 bytes, the same for the label
-const vapid = await root.derivePrivateKey("destack vapid v1"); // a P-256 JWK
+const vapid = await root.derivePrivateKey("@destack/message/vapid"); // a P-256 JWK
 ```
 
 ## Ciphertexts
