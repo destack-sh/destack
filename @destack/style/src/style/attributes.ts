@@ -1,4 +1,4 @@
-import { attrs, type CompiledStyles, type InlineStyles, type StyleXArray } from "@stylexjs/stylex";
+import { props, type CompiledStyles, type InlineStyles, type StyleXArray } from "@stylexjs/stylex";
 
 /** The styles an element takes, as StyleX merges them: compiled styles, markers, conditions and dynamic styles, nested in arrays. */
 export type Styles = StyleXArray<
@@ -13,28 +13,32 @@ export interface StyleAttributes {
     readonly style?: string;
 }
 
-/** A caller's inline style: CSS text, or an object of properties by their CSS names, as JSX `style` takes it. */
+/** An inline style: CSS text, or an object of properties by their CSS names, as JSX `style` takes it. */
 export type InlineStyle = string | object;
+
+/** Read the class names and dynamic values some StyleX styles give an element. */
+export function attrs(...styles: Styles[]): StyleAttributes {
+    return attributes(styles);
+}
 
 /** Read the attributes some StyleX styles give an element, with a caller's inline style applied after them. */
 export function attributes(styles: Styles, inline?: InlineStyle | false | null): StyleAttributes {
-    // read StyleX's class names and dynamic values
-    const compiled = attrs(styles);
-    const caller = textOf(inline);
+    // read StyleX's class names and the custom properties its dynamic values set
+    const compiled = props(styles);
 
     // append the caller's inline style to win on conflict
-    const joined = [compiled.style, caller].filter((part) => part !== undefined && part !== "");
+    const parts = [cssText(compiled.style), cssText(inline)].filter((part) => part !== "");
 
     return {
-        ...(compiled.class === undefined ? {} : { class: compiled.class }),
-        ...(joined.length === 0 ? {} : { style: joined.join(";") }),
+        ...(compiled.className === undefined ? {} : { class: compiled.className }),
+        ...(parts.length === 0 ? {} : { style: parts.join(";") }),
     };
 }
 
-/** Write a caller's inline style as CSS text: its text, or its set properties by their CSS names. */
-function textOf(inline: InlineStyle | false | null | undefined): string | undefined {
+/** Write an inline style as CSS text, with every property name as written. */
+function cssText(inline: InlineStyle | false | null | undefined): string {
     if (inline === undefined || inline === null || inline === false) {
-        return undefined;
+        return "";
     } else if (typeof inline === "string") {
         return inline;
     }

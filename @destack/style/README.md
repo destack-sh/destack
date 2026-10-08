@@ -12,6 +12,17 @@ import * as style from "@destack/style";
 const styles = style.create({ container: { display: "flex" } });
 ```
 
+## Attributes
+
+`attrs` reads the class names and dynamic values an element takes, and `attributes` applies a caller's inline style after them.
+
+```tsx
+const styles = style.create({ row: (row: number) => ({ gridRow: row }) });
+
+<div {...style.attrs(styles.row(3))} />; // class="x33j1x8" style="--x-gridRow:3"
+<div {...style.attributes(styles.row(3), { "pointer-events": "none" })} />;
+```
+
 ## Builds
 
 `styleExtension` compiles StyleX styles into the output's stylesheet in builds of every package whose dependency closure includes `@destack/style`.

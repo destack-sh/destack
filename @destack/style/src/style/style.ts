@@ -1,4 +1,4 @@
-export { attrs, create, firstThatWorks, props } from "@stylexjs/stylex";
+export { create, firstThatWorks, props } from "@stylexjs/stylex";
 export type {
     CompiledStyles,
     CSSProperties,

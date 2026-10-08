@@ -2,7 +2,7 @@ import { unplugin } from "@stylexjs/unplugin";
 import type { BuildExtension, Plugin } from "@destack/package/build";
 
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
-export const styleExtension: BuildExtension = {
+export const styleExtension = {
     transform: ({ directory }) => {
         // read the plugin StyleX declares without a type
         const plugin: unknown = unplugin.vite({
@@ -17,7 +17,7 @@ export const styleExtension: BuildExtension = {
 
         return [plugin];
     },
-};
+} satisfies BuildExtension;
 
 /** Check that a value is a Vite plugin, which always has a name. */
 function isPlugin(value: unknown): value is Plugin {
