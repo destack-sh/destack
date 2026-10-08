@@ -8,12 +8,14 @@ export const requests = {
         kind: "web",
         app: "src/app.tsx",
         ssr: { runtime: "bun", emit: false },
-        prerender: { origin: "https://example.test", routes: ["/", "/about/"] },
+        site: "https://example.test",
+        prerender: { routes: ["/", "/about/"] },
     },
     mixed: {
         kind: "web",
         app: "src/app.tsx",
         ssr: { runtime: "workerd" },
-        prerender: { origin: "https://example.test", routes: ["/"] },
+        site: "https://example.test",
+        prerender: { routes: ["/"] },
     },
 } satisfies Record<string, WebOptions>;
