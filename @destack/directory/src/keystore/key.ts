@@ -16,7 +16,7 @@ export const SigningKey = defineSchema(
 /** A signing key an identity publishes. */
 export type SigningKey = schema.Infer<typeof SigningKey>;
 
-/** The private keys and root secret of each identity this process keeps, a cell's spaces' or the universe's, encrypted under its keyring. */
+/** The private keys and root secret of each identity this process keeps, its spaces' or the universe's, encrypted under its keyring. */
 export const identityKey = defineTable("identity_key", {
     /** The space or universe the identity is, the keys' scope. */
     scope: text("scope").primaryKey(),

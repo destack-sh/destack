@@ -5,14 +5,14 @@ import { directoryTables, DirectoryStore } from "../src/index.ts";
 test.each(TEST_DIALECTS)(
     "keep the directory's reads until their rows change on %s",
     async (dialect) => {
-        // place a zone in host-1, publish its endpoint and claim a name
+        // place a space on machine-a, publish its endpoint and claim a name
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
         const operations = () => storage.database.driver.state.operations;
-        const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
-        await directory.place(zone);
-        await directory.publish("host-1", "account-1", "https://host-1.test/");
+        const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
+        await directory.place(placement);
+        await directory.publish("machine-a", "account-1", "https://machine-a.test/");
         const index = "package-1/place/name";
         const owned = (key: string) => ({
             indexes: [index],
@@ -38,23 +38,23 @@ test.each(TEST_DIALECTS)(
 
                 return [found, operations() - before];
             })
-            .toEqual([zone, 0]);
+            .toEqual([placement, 0]);
 
-        // follow a move to another cell, its endpoint and a renamed claim
-        await directory.move(zone, "host-2");
-        await directory.place({ ...zone, cell: "host-2", epoch: 2 });
-        await directory.publish("host-2", "account-1", "https://host-2.test/");
+        // follow a move to another machine, its endpoint and a renamed claim
+        await directory.move(placement, "machine-b");
+        await directory.place({ ...placement, machine: "machine-b", epoch: 2 });
+        await directory.publish("machine-b", "account-1", "https://machine-b.test/");
         await directory.replace(owned("archive"), "request-2");
         await expect
             .poll(async () => [
                 await directory.locate("space-1"),
-                (await directory.cell("host-2"))?.endpoint,
+                (await directory.endpoint("machine-b"))?.url,
                 await directory.owner(index, "notes"),
                 await directory.owner(index, "archive"),
             ])
             .toEqual([
-                { ...zone, cell: "host-2", epoch: 2 },
-                "https://host-2.test/",
+                { ...placement, machine: "machine-b", epoch: 2 },
+                "https://machine-b.test/",
                 undefined,
                 { objectId: "space-1", scope: "account-1" },
             ]);
@@ -62,60 +62,60 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "give cells work in a zone only from the cell serving it, and list each cell's zones on %s",
+    "give machines work in a space only from the machine serving it, and list each machine's spaces on %s",
     async (dialect) => {
-        // place two zones in host-1
+        // place two spaces on machine-a
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
-        const first = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
-        const second = { id: "space-2", scope: "account-1", cell: "host-1", epoch: 1 };
+        const first = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
+        const second = { id: "space-2", scope: "account-1", machine: "machine-a", epoch: 1 };
         await directory.place(first);
         await directory.place(second);
 
-        // give laptop work in both and withdraw it from the second
-        await directory.assign(first, "laptop");
-        await directory.assign(first, "laptop");
-        await directory.assign(second, "laptop");
-        await directory.unassign(second, "laptop");
+        // give machine-c work in both and withdraw it from the second
+        await directory.assign(first, "machine-c");
+        await directory.assign(first, "machine-c");
+        await directory.assign(second, "machine-c");
+        await directory.unassign(second, "machine-c");
         expect([
-            await directory.assignments("laptop"),
+            await directory.assignments("machine-c"),
             await directory.assigned("space-1"),
-        ]).toEqual([["space-1"], ["laptop"]]);
+        ]).toEqual([["space-1"], ["machine-c"]]);
 
-        // refuse a cell or epoch that no longer serves the zone
-        await directory.move(first, "host-2");
-        await directory.place({ ...first, cell: "host-2", epoch: 2 });
-        await expect(directory.assign(first, "laptop")).rejects.toMatchObject({
+        // refuse a machine or epoch that no longer serves the space
+        await directory.move(first, "machine-b");
+        await directory.place({ ...first, machine: "machine-b", epoch: 2 });
+        await expect(directory.assign(first, "machine-c")).rejects.toMatchObject({
             code: "CONFLICT",
-            message: "space-1 is no longer placed in host-1 at epoch 1",
+            message: "space-1 is no longer placed on machine-a at epoch 1",
         });
     },
 );
 
 test.each(TEST_DIALECTS)(
-    "advance a zone's epoch in its own cell, ending its move and refusing every step of the earlier epoch, on %s",
+    "advance a space's epoch on its own machine, ending its move and refusing every step of the earlier epoch, on %s",
     async (dialect) => {
-        // place a zone in host-1 moving to host-2 and advance its epoch in host-1
+        // place a space on machine-a moving to machine-b and advance its epoch on machine-a
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
-        const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
-        await directory.place(zone);
-        await directory.move(zone, "host-2");
-        await directory.place({ ...zone, epoch: 2 });
+        const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
+        await directory.place(placement);
+        await directory.move(placement, "machine-b");
+        await directory.place({ ...placement, epoch: 2 });
 
         // refuse the earlier epoch's announcement, takeover and placement
         expect([
-            await refusal(directory.move(zone, "host-2")),
-            await refusal(directory.place({ ...zone, cell: "host-2", epoch: 2 })),
-            await refusal(directory.place(zone)),
+            await refusal(directory.move(placement, "machine-b")),
+            await refusal(directory.place({ ...placement, machine: "machine-b", epoch: 2 })),
+            await refusal(directory.place(placement)),
             await directory.locate("space-1"),
         ]).toEqual([
-            ["CONFLICT", "space-1 is no longer placed in host-1 at epoch 1"],
-            ["CONFLICT", "space-1 is neither placed in host-2 at epoch 2 nor moving there"],
-            ["CONFLICT", "space-1 is neither placed in host-1 at epoch 1 nor moving there"],
-            { ...zone, epoch: 2 },
+            ["CONFLICT", "space-1 is no longer placed on machine-a at epoch 1"],
+            ["CONFLICT", "space-1 is neither placed on machine-b at epoch 2 nor moving there"],
+            ["CONFLICT", "space-1 is neither placed on machine-a at epoch 1 nor moving there"],
+            { ...placement, epoch: 2 },
         ]);
     },
 );

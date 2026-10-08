@@ -1,6 +1,7 @@
+import { principal } from "@destack/access";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { type Directory, KEY_SET_MILLISECONDS } from "../directory/directory.ts";
-import type { Zone } from "../zone/zone.ts";
+import type { Placement } from "../placement/placement.ts";
 import { identityKey, type SigningKey } from "./key.ts";
 import {
     type Ciphertext,
@@ -13,7 +14,15 @@ import {
     PublicKey,
     type Recipient,
 } from "@destack/identity";
-import { TokenIssuer } from "@destack/service/authentication";
+import {
+    SPACE_KEY,
+    AUTHENTICATION_LIFETIME_MILLISECONDS,
+    Authentication,
+    TokenIssuer,
+} from "@destack/service/authentication";
+import type { Fetch } from "@destack/service";
+import type { PackageId } from "@destack/package";
+import type { Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
 import { ServiceError } from "@destack/service/error";
 import type { Digest } from "@destack/schema";
@@ -34,13 +43,13 @@ type KeyUse = "signing" | "rotation" | "root";
 /** The keys a process keeps for one identity. */
 type HeldKeys = typeof identityKey.$inferSelect;
 
-/** The keys of the identities a process holds, a cell's spaces' or the universe's: generated with each identity, decrypted only to sign or derive, and sealed to the cell a space moves to. */
+/** The keys of the identities a process holds, its spaces' or the universe's: generated with each identity, decrypted only to sign or derive, and sealed to the machine a space moves to. */
 export class IdentityKeystore {
     /** The process's keyring encrypting the identities' secrets. */
     readonly keyring: Keyring;
     /** The universe's directory publishing each identity. */
     readonly directory: Directory;
-    /** The sealing of the keys to the cell a space moves to. */
+    /** The sealing of the keys to the machine a space moves to. */
     readonly rewrap: Rewrapper<typeof identityKey, HeldKeys>;
     /** The decrypted signing keys, non-extractable, by subject and thumbprint. */
     readonly #signers = new Map<string, Promise<CryptoKey>>();
@@ -62,8 +71,12 @@ export class IdentityKeystore {
         };
     }
 
-    /** Generate an identity's signing and rotation keys and root secret, and start it in the directory: a space's from the cell serving its zone, the universe's from the process hosting the directory. */
-    async generate(database: DatabaseConnection, subject: string, zone?: Zone): Promise<void> {
+    /** Generate an identity's signing and rotation keys and root secret, and start it in the directory: a space's from the machine serving it, the universe's from the process hosting the directory. */
+    async generate(
+        database: DatabaseConnection,
+        subject: string,
+        placement?: Placement,
+    ): Promise<void> {
         // generate and keep the keys and the root secret
         const signing = await this.#generateSigningKey(subject);
         const rotation = await crypto.subtle.generateKey(ALGORITHM, true, ["sign", "verify"]);
@@ -94,7 +107,7 @@ export class IdentityKeystore {
             },
             rotation.privateKey,
         );
-        await this.directory.apply(operation, zone);
+        await this.directory.apply(operation, placement);
     }
 
     /** Forget an identity's keys. */
@@ -109,12 +122,43 @@ export class IdentityKeystore {
         }
     }
 
-    /** Issue tokens as a space this cell keeps keys of, signed with its active signing key. */
-    issuer(database: DatabaseConnection, spaceId: string): TokenIssuer {
+    /** Wrap a fetch to send each request as a space or one of its installations, with a token the space's key signs for the audience. */
+    fetch(database: DatabaseConnection, subject: Subject, audience: PackageId, send: Fetch): Fetch {
+        // refuse a subject that is neither a space nor an installation
+        if (!principal.installation.is(subject) && !principal.space.is(subject)) {
+            throw new TypeError(`${subject.type} ${subject.id} is no space or installation`);
+        }
+        const space = principal.installation.is(subject) ? subject.scope : subject.id;
+
+        return async (request) => {
+            // sign a short token of only the subject as its space
+            const now = Date.now();
+            const { accessToken } = await this.issuer(database, space).issue(
+                new Authentication({
+                    credential: { kind: SPACE_KEY, id: space },
+                    audience,
+                    subject,
+                    subjects: [subject],
+                    verifiedAt: now,
+                    expiresAt: now + AUTHENTICATION_LIFETIME_MILLISECONDS,
+                }),
+                now,
+            );
+
+            // send the request with it
+            const signed = new Request(request);
+            signed.headers.set("authorization", `Bearer ${accessToken}`);
+
+            return send(signed);
+        };
+    }
+
+    /** Issue tokens as a space this machine keeps keys of, signed with its active signing key. */
+    issuer(database: DatabaseConnection, space: string): TokenIssuer {
         return new TokenIssuer({
-            authority: { kind: "space", spaceId },
-            issuer: spaceId,
-            sign: (claims) => this.sign(database, spaceId, claims),
+            authority: { kind: "space", space },
+            issuer: space,
+            sign: (claims) => this.sign(database, space, claims),
         });
     }
 
@@ -348,7 +392,7 @@ export class IdentityKeystore {
         }
     }
 
-    /** Seal a row's secrets to the recipient of the cell a space moves to. */
+    /** Seal a row's secrets to the recipient of the machine a space moves to. */
     async #seal(row: HeldKeys, recipient: Recipient): Promise<HeldKeys> {
         const seal = async (use: KeyUse, ciphertext: Ciphertext): Promise<Ciphertext> => {
             const bytes = await this.keyring.decrypt(ciphertext, context(row.scope, use));
@@ -372,7 +416,7 @@ export class IdentityKeystore {
         };
     }
 
-    /** Open a row's secrets sealed to this cell's recipient and encrypt them under this process's keyring. */
+    /** Open a row's secrets sealed to this machine's recipient and encrypt them under this process's keyring. */
     async #open(row: HeldKeys, recipient: Recipient): Promise<HeldKeys> {
         const open = async (use: KeyUse, sealed: Ciphertext): Promise<Ciphertext> =>
             this.#encrypt(row.scope, use, await recipient.open(sealed, context(row.scope, use)));

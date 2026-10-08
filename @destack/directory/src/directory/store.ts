@@ -14,6 +14,7 @@ import {
     ReadCache,
     CHAIN_TERMS,
     type Select,
+    type Table,
 } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import { Scope } from "@destack/sync";
@@ -26,12 +27,11 @@ import {
 } from "../claim/claim.ts";
 import {
     assignmentTable,
-    cellTable,
-    ZONE_SCOPE,
-    zoneTable,
-    type Cell,
-    type Zone,
-} from "../zone/zone.ts";
+    endpointTable,
+    placementTable,
+    type Endpoint,
+    type Placement,
+} from "../placement/placement.ts";
 import { Directory } from "./directory.ts";
 import { identityOperation } from "../identity/operation.ts";
 import { type Identity, IdentityOperation } from "@destack/identity";
@@ -43,14 +43,14 @@ export const RECOVERY_MILLISECONDS = 72 * 60 * 60 * 1000;
 const CAPACITY = 16_384;
 
 /** The tables of the kept reads, with logged changes that invalidate them. */
-const CACHED_TABLES = [claimTable, zoneTable, cellTable, identityOperation];
+const CACHED_TABLES = [claimTable, placementTable, endpointTable, identityOperation];
 
-/** The columns of a zone. */
-const ZONE_COLUMNS = {
-    id: zoneTable.id,
-    scope: zoneTable.parent,
-    cell: zoneTable.cell,
-    epoch: zoneTable.epoch,
+/** The columns of a placement. */
+const PLACEMENT_COLUMNS = {
+    id: placementTable.id,
+    scope: placementTable.scope,
+    machine: placementTable.machine,
+    epoch: placementTable.epoch,
 };
 
 /** The directory itself, in the account service's database, keeping its reads while it follows the log. */
@@ -59,10 +59,10 @@ export class DirectoryStore extends Directory {
     readonly database: DatabaseConnection;
     /** Claim owners by index and key. */
     readonly #owners = new ReadCache<Pick<Claim, "objectId" | "scope"> | undefined>(CAPACITY);
-    /** Zones by scope. */
-    readonly #zones = new ReadCache<Zone | undefined>(CAPACITY);
-    /** Cells by identifier. */
-    readonly #cells = new ReadCache<Cell | undefined>(CAPACITY);
+    /** Placements by space. */
+    readonly #placements = new ReadCache<Placement | undefined>(CAPACITY);
+    /** Endpoints by machine. */
+    readonly #endpoints = new ReadCache<Endpoint | undefined>(CAPACITY);
     /** Current identities by subject. */
     readonly #identities = new ReadCache<Identity | undefined>(CAPACITY);
     /** The directory's clock, in UTC epoch milliseconds. */
@@ -97,143 +97,153 @@ export class DirectoryStore extends Directory {
         }
     }
 
-    // zones and cells
+    // placements and machines
 
-    /** Place a zone in its cell: create it, keep its placement and end its move, advance its epoch in its own cell, or take it over in its move's target at the next epoch. */
-    async place(zone: Zone): Promise<void> {
-        // keep the placement, advance the epoch or take the zone over
+    /** Place a space of its account on its machine: create the placement, keep it and end its move, advance its epoch on its own machine, or take it over on its move's target at the next epoch. */
+    async place(placement: Placement): Promise<void> {
+        // keep the placement, advance the epoch or take the space over
         const placed = await this.database
-            .insert(zoneTable)
+            .insert(placementTable)
             .values({
-                id: zone.id,
-                scope: ZONE_SCOPE,
-                parent: zone.scope,
-                cell: zone.cell,
-                epoch: zone.epoch,
+                id: placement.id,
+                scope: placement.scope,
+                machine: placement.machine,
+                epoch: placement.epoch,
             })
             .onConflictDoUpdate({
-                target: zoneTable.id,
-                set: { parent: zone.scope, cell: zone.cell, epoch: zone.epoch, target: null },
-                setWhere: sql`(${zoneTable.epoch} = ${zone.epoch} AND ${zoneTable.cell} = ${zone.cell}) OR (${zoneTable.epoch} + 1 = ${zone.epoch} AND (${zoneTable.cell} = ${zone.cell} OR ${zoneTable.target} = ${zone.cell}))`,
+                target: placementTable.id,
+                set: { machine: placement.machine, epoch: placement.epoch, target: null },
+                setWhere: sql`${placementTable.scope} = ${placement.scope} AND ((${placementTable.epoch} = ${placement.epoch} AND ${placementTable.machine} = ${placement.machine}) OR (${placementTable.epoch} + 1 = ${placement.epoch} AND (${placementTable.machine} = ${placement.machine} OR ${placementTable.target} = ${placement.machine})))`,
             })
-            .returning({ id: zoneTable.id });
+            .returning({ id: placementTable.id });
         if (placed.length === 0) {
             throw new ServiceError("CONFLICT", {
-                message: `${zone.id} is neither placed in ${zone.cell} at epoch ${zone.epoch} nor moving there`,
+                message: `${placement.id} is neither placed on ${placement.machine} at epoch ${placement.epoch} nor moving there`,
             });
         }
     }
 
-    /** Withdraw a zone its cell serves at an epoch and refuse a later epoch. */
-    async withdraw(zone: Zone): Promise<void> {
-        // delete the zone as its cell serves it
+    /** Withdraw a space its machine serves at an epoch and refuse a later epoch. */
+    async withdraw(placement: Placement): Promise<void> {
+        // delete the placement as its machine serves it
         const withdrawn = await this.database
-            .delete(zoneTable)
-            .where(this.#serving(zone))
-            .returning({ id: zoneTable.id });
+            .delete(placementTable)
+            .where(this.#serving(placement))
+            .returning({ id: placementTable.id });
 
-        // refuse a zone another cell or a later epoch serves
-        const moved = withdrawn.length === 0 ? await this.locate(zone.id) : undefined;
+        // refuse a space another machine or a later epoch serves
+        const moved = withdrawn.length === 0 ? await this.locate(placement.id) : undefined;
         if (moved !== undefined) {
             throw new ServiceError("CONFLICT", {
-                message: `${zone.id} is no longer placed in ${zone.cell} at epoch ${zone.epoch}`,
+                message: `${placement.id} is no longer placed on ${placement.machine} at epoch ${placement.epoch}`,
             });
         }
     }
 
-    /** Find the zone of a scope's databases. */
-    locate(scope: string): Promise<Zone | undefined> {
-        return this.#read(this.#zones, scope, async () => {
-            const [zone] = await this.database
-                .select(ZONE_COLUMNS)
-                .from(zoneTable)
-                .where(eq(zoneTable.id, scope));
+    /** Find where a space runs. */
+    locate(space: string): Promise<Placement | undefined> {
+        return this.#read(this.#placements, space, async () => {
+            const [placement] = await this.database
+                .select(PLACEMENT_COLUMNS)
+                .from(placementTable)
+                .where(eq(placementTable.id, space));
 
-            return zone;
+            return placement;
         });
     }
 
-    /** List the zones a scope contains, in identity order. */
-    async list(scope: string): Promise<readonly Zone[]> {
+    /** List the placements of an account's spaces, in identity order. */
+    async list(account: string): Promise<readonly Placement[]> {
         return this.database
-            .select(ZONE_COLUMNS)
-            .from(zoneTable)
-            .where(eq(zoneTable.parent, scope))
-            .orderBy(zoneTable.id);
+            .select(PLACEMENT_COLUMNS)
+            .from(placementTable)
+            .where(eq(placementTable.scope, account))
+            .orderBy(placementTable.id);
     }
 
-    /** Give a cell work in a zone, as the cell serving the zone at its epoch. */
-    async assign(zone: Zone, cell: string): Promise<void> {
-        await this.#requireServing(zone);
+    /** Give a machine work in a space, as the machine serving the space at its epoch. */
+    async assign(placement: Placement, machine: string): Promise<void> {
+        await this.#requireServing(placement);
         await this.database
             .insert(assignmentTable)
-            .values({ zone: zone.id, cell, scope: ZONE_SCOPE, assignedAt: this.#clock() })
+            .values({
+                space: placement.id,
+                machine,
+                scope: Scope.universe.id,
+                assignedAt: this.#clock(),
+            })
             .onConflictDoNothing();
     }
 
-    /** Withdraw a cell's work in a zone, as the cell serving the zone at its epoch. */
-    async unassign(zone: Zone, cell: string): Promise<void> {
-        await this.#requireServing(zone);
+    /** Withdraw a machine's work in a space, as the machine serving the space at its epoch. */
+    async unassign(placement: Placement, machine: string): Promise<void> {
+        await this.#requireServing(placement);
         await this.database
             .delete(assignmentTable)
-            .where(and(eq(assignmentTable.zone, zone.id), eq(assignmentTable.cell, cell)));
+            .where(
+                and(eq(assignmentTable.space, placement.id), eq(assignmentTable.machine, machine)),
+            );
     }
 
-    /** List the zones that gave a cell work, in identity order. */
-    async assignments(cell: string): Promise<readonly string[]> {
+    /** List the spaces that gave a machine work, in identity order. */
+    async assignments(machine: string): Promise<readonly string[]> {
         const rows = await this.database
-            .select({ zone: assignmentTable.zone })
+            .select({ space: assignmentTable.space })
             .from(assignmentTable)
-            .where(eq(assignmentTable.cell, cell))
-            .orderBy(assignmentTable.zone);
+            .where(eq(assignmentTable.machine, machine))
+            .orderBy(assignmentTable.space);
 
-        return rows.map((row) => row.zone);
+        return rows.map((row) => row.space);
     }
 
-    /** List the cells a zone gave work, in identity order. */
-    async assigned(zone: string): Promise<readonly string[]> {
+    /** List the machines a space gave work, in identity order. */
+    async assigned(space: string): Promise<readonly string[]> {
         const rows = await this.database
-            .select({ cell: assignmentTable.cell })
+            .select({ machine: assignmentTable.machine })
             .from(assignmentTable)
-            .where(eq(assignmentTable.zone, zone))
-            .orderBy(assignmentTable.cell);
+            .where(eq(assignmentTable.space, space))
+            .orderBy(assignmentTable.machine);
 
-        return rows.map((row) => row.cell);
+        return rows.map((row) => row.machine);
     }
 
-    /** Mark a zone as moving to a target cell. */
-    async move(zone: Zone, target: string): Promise<void> {
+    /** Mark a space as moving to a target machine. */
+    async move(placement: Placement, target: string): Promise<void> {
         const moving = await this.database
-            .update(zoneTable)
+            .update(placementTable)
             .set({ target })
-            .where(this.#serving(zone))
-            .returning({ id: zoneTable.id });
+            .where(this.#serving(placement))
+            .returning({ id: placementTable.id });
         if (moving.length === 0) {
             throw new ServiceError("CONFLICT", {
-                message: `${zone.id} is no longer placed in ${zone.cell} at epoch ${zone.epoch}`,
+                message: `${placement.id} is no longer placed on ${placement.machine} at epoch ${placement.epoch}`,
             });
         }
     }
 
-    /** Record the URL a cell answers at, replacing the one it published before. */
-    async publish(cell: string, scope: string, endpoint: string): Promise<void> {
+    /** Record the URL a machine answers at, replacing the one it published before. */
+    async publish(machine: string, scope: string, url: string): Promise<void> {
         const now = this.#clock();
         await this.database
-            .insert(cellTable)
-            .values({ id: cell, scope, endpoint, publishedAt: now })
+            .insert(endpointTable)
+            .values({ machine, scope, url, publishedAt: now })
             .onConflictDoUpdate({
-                target: cellTable.id,
-                set: { scope, endpoint, publishedAt: now },
+                target: endpointTable.machine,
+                set: { scope, url, publishedAt: now },
             });
     }
 
-    /** Read a cell, absent before it published an endpoint. */
-    cell(id: string): Promise<Cell | undefined> {
-        return this.#read(this.#cells, id, async () => {
+    /** Read the URL a machine answers at, absent before it published one. */
+    endpoint(machine: string): Promise<Endpoint | undefined> {
+        return this.#read(this.#endpoints, machine, async () => {
             const [found] = await this.database
-                .select({ id: cellTable.id, scope: cellTable.scope, endpoint: cellTable.endpoint })
-                .from(cellTable)
-                .where(eq(cellTable.id, id));
+                .select({
+                    machine: endpointTable.machine,
+                    scope: endpointTable.scope,
+                    url: endpointTable.url,
+                })
+                .from(endpointTable)
+                .where(eq(endpointTable.machine, machine));
 
             return found;
         });
@@ -241,8 +251,8 @@ export class DirectoryStore extends Directory {
 
     // identities
 
-    /** Apply a signed identity operation: a space's first only from the cell serving its zone, the universe's first from the process hosting the directory. */
-    async apply(operation: string, zone?: Zone): Promise<void> {
+    /** Apply a signed identity operation: a space's first only from the machine serving it, the universe's first from the process hosting the directory. */
+    async apply(operation: string, placement?: Placement): Promise<void> {
         // read the operation and its identity's log
         const claims = IdentityOperation.read(operation);
         const log = await this.database
@@ -253,31 +263,37 @@ export class DirectoryStore extends Directory {
 
         // start the identity or follow a current operation of it
         if (log.length === 0) {
-            await this.#start(operation, claims, zone);
+            await this.#start(operation, claims, placement);
         } else {
             await this.#follow(operation, claims, log);
         }
     }
 
-    /** Start an identity signed by one of the operation's rotation keys: a space's from the cell serving its zone, the universe's from the process hosting the directory. */
-    async #start(operation: string, claims: IdentityOperation, zone?: Zone): Promise<void> {
-        // require the universe's first operation or the cell serving the space
+    /** Start an identity signed by one of the operation's rotation keys: a space's from the machine serving it, the universe's from the process hosting the directory. */
+    async #start(
+        operation: string,
+        claims: IdentityOperation,
+        placement?: Placement,
+    ): Promise<void> {
+        // require the universe's first operation or the machine serving the space
         const isUniverse =
-            claims.subject === Scope.universe.id && claims.previous === null && zone === undefined;
+            claims.subject === Scope.universe.id &&
+            claims.previous === null &&
+            placement === undefined;
         const isServed =
             isUniverse ||
-            (zone !== undefined &&
-                zone.id === claims.subject &&
+            (placement !== undefined &&
+                placement.id === claims.subject &&
                 claims.previous === null &&
                 (
                     await this.database
-                        .select({ id: zoneTable.id })
-                        .from(zoneTable)
-                        .where(this.#serving(zone))
+                        .select({ id: placementTable.id })
+                        .from(placementTable)
+                        .where(this.#serving(placement))
                 ).length > 0);
         if (!isServed) {
             throw new ServiceError("FORBIDDEN", {
-                message: `only the cell serving ${claims.subject} starts its identity`,
+                message: `only the machine serving ${claims.subject} starts its identity`,
             });
         }
 
@@ -493,22 +509,22 @@ export class DirectoryStore extends Directory {
         return next.expiresAt === null ? { claims } : { claims, next: next.expiresAt };
     }
 
-    /** Refuse a zone its cell no longer serves at the epoch given. */
-    async #requireServing(zone: Zone): Promise<void> {
-        const placed = await this.locate(zone.id);
-        if (placed?.cell !== zone.cell || placed.epoch !== zone.epoch) {
+    /** Refuse a space its machine no longer serves at the epoch given. */
+    async #requireServing(placement: Placement): Promise<void> {
+        const placed = await this.locate(placement.id);
+        if (placed?.machine !== placement.machine || placed.epoch !== placement.epoch) {
             throw new ServiceError("CONFLICT", {
-                message: `${zone.id} is no longer placed in ${zone.cell} at epoch ${zone.epoch}`,
+                message: `${placement.id} is no longer placed on ${placement.machine} at epoch ${placement.epoch}`,
             });
         }
     }
 
-    /** Match a zone as its cell serves it at its epoch. */
-    #serving(zone: Zone) {
+    /** Match a placement as its machine serves it at its epoch. */
+    #serving(placement: Placement) {
         return and(
-            eq(zoneTable.id, zone.id),
-            eq(zoneTable.cell, zone.cell),
-            eq(zoneTable.epoch, zone.epoch),
+            eq(placementTable.id, placement.id),
+            eq(placementTable.machine, placement.machine),
+            eq(placementTable.epoch, placement.epoch),
         );
     }
 
@@ -536,7 +552,7 @@ export class DirectoryStore extends Directory {
         await database.insert(identityOperation).values({
             subject,
             sequence,
-            scope: ZONE_SCOPE,
+            scope: Scope.universe.id,
             digest: await IdentityOperation.digest(operation),
             operation,
             priority,
@@ -594,32 +610,35 @@ export class DirectoryStore extends Directory {
     #clear(): void {
         // forget each kind of read
         this.#owners.clear();
-        this.#zones.clear();
-        this.#cells.clear();
+        this.#placements.clear();
+        this.#endpoints.clear();
         this.#identities.clear();
     }
 
     /** Forget the reads one change affects, before and after it. */
     #forget(change: Change<(typeof CACHED_TABLES)[number]>): void {
-        const images = [Change.before(change), Change.after(change)].filter(
-            (image) => image !== null,
-        );
-        for (const image of images) {
-            // forget a claim by its name
-            if ("index" in image) {
+        // forget a claim by its name
+        if (Change.of(change, claimTable)) {
+            for (const image of imagesOf(change)) {
                 this.#owners.forget(nameKey({ index: image.index, key: image.key }));
             }
-            // forget an identity by its subject
-            else if ("sequence" in image) {
+        }
+        // forget an identity by its subject
+        else if (Change.of(change, identityOperation)) {
+            for (const image of imagesOf(change)) {
                 this.#identities.forget(image.subject);
             }
-            // forget a zone by its identifier
-            else if (change.table === zoneTable) {
-                this.#zones.forget(image.id);
+        }
+        // forget a placement by its space
+        else if (Change.of(change, placementTable)) {
+            for (const image of imagesOf(change)) {
+                this.#placements.forget(image.id);
             }
-            // forget a cell by its identifier
-            else {
-                this.#cells.forget(image.id);
+        }
+        // forget an endpoint by its machine
+        else if (Change.of(change, endpointTable)) {
+            for (const image of imagesOf(change)) {
+                this.#endpoints.forget(image.machine);
             }
         }
     }
@@ -667,4 +686,9 @@ function taken(claims: readonly Claim[], owners: ReadonlyMap<string, string>): C
 
         return owner !== undefined && owner !== entry.objectId;
     });
+}
+
+/** List a change's row images before and after it, leaving out an absent one. */
+function imagesOf<Definition extends Table>(change: Change<Definition>) {
+    return [Change.before(change), Change.after(change)].filter((image) => image !== null);
 }

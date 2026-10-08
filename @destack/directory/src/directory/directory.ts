@@ -1,9 +1,19 @@
-import { ServiceMount, type Service, type ServiceRouter } from "@destack/service";
+import {
+    InstallationMount,
+    SpaceMount,
+    ServiceMount,
+    type Service,
+    type ServiceRouter,
+} from "@destack/service";
+import { type Authentication, Bearer, TokenVerifier } from "@destack/service/authentication";
+import type { PackageId } from "@destack/package";
+import { schema } from "@destack/schema";
+import { Scope } from "@destack/sync";
 import { createClient } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
 import type { Claim, Expiry, ObjectClaims } from "../claim/claim.ts";
 import { Moved } from "../moved/moved.ts";
-import type { Cell, Zone } from "../zone/zone.ts";
+import type { Endpoint, Placement } from "../placement/placement.ts";
 import { type Identity, PublicKey } from "@destack/identity";
 import { createLocalJWKSet, errors, type JWTVerifyGetKey } from "jose";
 
@@ -24,50 +34,50 @@ interface KeptKeySet {
     readonly readAt: number;
 }
 
-/** The universe's cell router: which cell serves each zone, where each cell answers, and which object claims each unique name. */
+/** The universe's router: which machine serves each space, where each machine answers, and which object claims each unique name. */
 export abstract class Directory {
     /** The key sets verifiers read, by subject. */
     readonly #keySets = new Map<string, Promise<KeptKeySet>>();
 
-    // zones and cells
+    // placements and machines
 
-    /** Place a zone in its cell: create it, keep its placement and end its move, advance its epoch in its own cell, or take it over in its move's target at the next epoch. */
-    abstract place(zone: Zone): Promise<void>;
+    /** Place a space on its machine: create the placement, keep it and end its move, advance its epoch on its own machine, or take it over on its move's target at the next epoch. */
+    abstract place(placement: Placement): Promise<void>;
 
-    /** Withdraw a zone its cell serves at an epoch. */
-    abstract withdraw(zone: Zone): Promise<void>;
+    /** Withdraw a space its machine serves at an epoch. */
+    abstract withdraw(placement: Placement): Promise<void>;
 
-    /** Find the zone of a scope's databases. */
-    abstract locate(scope: string): Promise<Zone | undefined>;
+    /** Find where a space runs. */
+    abstract locate(space: string): Promise<Placement | undefined>;
 
-    /** List the zones a scope contains, such as an account's spaces. */
-    abstract list(scope: string): Promise<readonly Zone[]>;
+    /** List the placements of an account's spaces. */
+    abstract list(account: string): Promise<readonly Placement[]>;
 
-    /** Mark a zone its cell serves at an epoch as moving to a target cell. */
-    abstract move(zone: Zone, target: string): Promise<void>;
+    /** Mark a space its machine serves at an epoch as moving to a target machine. */
+    abstract move(placement: Placement, target: string): Promise<void>;
 
-    /** Give a cell work in a zone, as the cell serving the zone at its epoch. */
-    abstract assign(zone: Zone, cell: string): Promise<void>;
+    /** Give a machine work in a space, as the machine serving the space at its epoch. */
+    abstract assign(placement: Placement, machine: string): Promise<void>;
 
-    /** Withdraw a cell's work in a zone, as the cell serving the zone at its epoch. */
-    abstract unassign(zone: Zone, cell: string): Promise<void>;
+    /** Withdraw a machine's work in a space, as the machine serving the space at its epoch. */
+    abstract unassign(placement: Placement, machine: string): Promise<void>;
 
-    /** List the zones that gave a cell work, in identity order. */
-    abstract assignments(cell: string): Promise<readonly string[]>;
+    /** List the spaces that gave a machine work, in identity order. */
+    abstract assignments(machine: string): Promise<readonly string[]>;
 
-    /** List the cells a zone gave work, in identity order. */
-    abstract assigned(zone: string): Promise<readonly string[]>;
+    /** List the machines a space gave work, in identity order. */
+    abstract assigned(space: string): Promise<readonly string[]>;
 
-    /** Record the URL a cell answers at. */
-    abstract publish(cell: string, scope: string, endpoint: string): Promise<void>;
+    /** Record the URL a machine answers at. */
+    abstract publish(machine: string, scope: string, url: string): Promise<void>;
 
-    /** Read a cell, absent before it published an endpoint. */
-    abstract cell(id: string): Promise<Cell | undefined>;
+    /** Read the URL a machine answers at, absent before it published one. */
+    abstract endpoint(machine: string): Promise<Endpoint | undefined>;
 
     // identities
 
-    /** Apply a signed identity operation: a space's first only from the cell serving its zone, the universe's first from the process hosting the directory. */
-    abstract apply(operation: string, zone?: Zone): Promise<void>;
+    /** Apply a signed identity operation: a space's first only from the machine serving it, the universe's first from the process hosting the directory. */
+    abstract apply(operation: string, placement?: Placement): Promise<void>;
 
     /** Read a space's or the universe's current identity, absent before its first operation. */
     abstract identity(subject: string): Promise<Identity | undefined>;
@@ -93,6 +103,53 @@ export abstract class Directory {
                 return kept.keys(header, token);
             }
         };
+    }
+
+    /** Verify a request's bearer token by its issuer's keys. */
+    authenticate(
+        request: Request,
+        options: Parameters<Directory["verify"]>[1],
+        now = Date.now(),
+    ): Promise<Authentication> {
+        return this.verify(Bearer.require(request.headers), options, now);
+    }
+
+    /** Verify a token by its issuer's keys: the universe's for a token the universe issued, else the space's that signed it, refusing one bound to another space than the call targets. */
+    async verify(
+        token: string,
+        options: {
+            /** The package receiving the call. */
+            readonly audience: PackageId;
+            /** The universe's issuer, which its tokens name, absent to accept tokens of spaces alone. */
+            readonly universe?: string;
+            /** The space the call targets, absent for a call outside any one space. */
+            readonly scope?: string;
+        },
+        now = Date.now(),
+    ): Promise<Authentication> {
+        // read the issuing space, or the universe
+        const issuer = Bearer.issuer(token);
+        const space = schema.identifier("space").safeParse(issuer);
+        let verifier: TokenVerifier;
+        if (options.universe !== undefined && issuer === options.universe) {
+            verifier = new TokenVerifier({
+                authority: { kind: "universe" },
+                issuer: options.universe,
+                audience: options.audience,
+                keys: this.keys(Scope.universe.id),
+            });
+        } else if (space.success) {
+            verifier = new TokenVerifier({
+                authority: { kind: "space", space: space.data },
+                issuer: space.data,
+                audience: options.audience,
+                keys: this.keys(space.data),
+            });
+        } else {
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid access token" });
+        }
+
+        return verifier.verify(token, options.scope, now);
     }
 
     /** Read the directory's clock, in UTC epoch milliseconds. */
@@ -161,29 +218,77 @@ export abstract class Directory {
 
     // clients
 
-    /** Create a client of a service where a cell mounts it, following a moved scope to its new cell. */
-    client<Router extends ServiceRouter>(
+    /** Create a client of a service in a space, below the space's path where the machine serving it mounts the service, following the space as it moves. */
+    spaceClient<Router extends ServiceRouter>(
         service: Service<Router>,
-        cell: string,
+        space: string,
         fetch: (request: Request) => Promise<Response>,
     ) {
-        // resolve the current cell's endpoint for every request
-        let current = cell;
+        return createClient(service, {
+            url: async () =>
+                `${await this.spaceUrl(space)}${ServiceMount.path(service.package.id)}`,
+            fetch,
+        });
+    }
+
+    /** Find the URL below which a space's machine serves its services. */
+    async spaceUrl(space: string): Promise<string> {
+        return SpaceMount.url(await this.#served(space), space);
+    }
+
+    /** Create a client of an installation's service, by the installation's identifier or alias, on the machine serving its space, following the space as it moves. */
+    installationClient<Router extends ServiceRouter>(
+        service: Service<Router>,
+        space: string,
+        installation: string,
+        fetch: (request: Request) => Promise<Response>,
+    ) {
+        return createClient(service, {
+            url: () => this.installationUrl(space, installation),
+            fetch,
+        });
+    }
+
+    /** Find the URL of an installation, by its identifier or alias, on the machine serving its space. */
+    async installationUrl(space: string, installation: string): Promise<string> {
+        return InstallationMount.url(await this.#served(space), space, installation);
+    }
+
+    /** Find the endpoint URL of the machine serving a space, refusing a space no machine serves. */
+    async #served(space: string): Promise<string> {
+        // find the space's machine and its endpoint
+        const placed = await this.locate(space);
+        const found = placed === undefined ? undefined : await this.endpoint(placed.machine);
+        if (found === undefined) {
+            throw new ServiceError("NOT_FOUND", { message: `no machine serves ${space}` });
+        }
+
+        return found.url;
+    }
+
+    /** Create a client of a service where a machine mounts it, following a moved scope to its new machine. */
+    machineClient<Router extends ServiceRouter>(
+        service: Service<Router>,
+        machine: string,
+        fetch: (request: Request) => Promise<Response>,
+    ) {
+        // resolve the current machine's endpoint for every request
+        let current = machine;
         const endpoint = async () => {
-            const found = await this.cell(current);
+            const found = await this.endpoint(current);
             if (found === undefined) {
                 throw new ServiceError("NOT_FOUND", {
-                    message: `cell ${current} publishes no endpoint`,
+                    message: `machine ${current} publishes no endpoint`,
                 });
             }
 
-            return `${found.endpoint.replace(/\/+$/u, "")}${ServiceMount.path(service.package.id)}`;
+            return `${found.url.replace(/\/+$/u, "")}${ServiceMount.path(service.package.id)}`;
         };
 
         return createClient(service, {
             url: endpoint,
             fetch: async (request, options) => {
-                // send the request and keep its body for the moved scope's cell
+                // send the request and keep its body for the moved scope's machine
                 const sent = new Request(request, options);
                 const body = sent.body === null ? null : await sent.clone().arrayBuffer();
                 const from = await endpoint();
@@ -193,8 +298,8 @@ export abstract class Directory {
                     return response;
                 }
 
-                // resend once to the cell the scope moved to
-                current = moved.cell;
+                // resend once to the machine the scope moved to
+                current = moved.machine;
                 const target = `${await endpoint()}${sent.url.slice(from.length)}`;
 
                 return fetch(

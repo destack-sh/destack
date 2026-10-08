@@ -4,62 +4,62 @@ import { schema } from "@destack/schema";
 import { defineProcedure, defineService, ServiceMount } from "@destack/service";
 import { ServiceError } from "@destack/service/error";
 import { expect, onTestFinished, test } from "@destack/test";
-import { directoryTables, DirectoryStore, Zone, zoneTable } from "../src/index.ts";
+import { directoryTables, DirectoryStore, Placement, placementTable } from "../src/index.ts";
 import { IdentityError, IdentityOperation } from "@destack/identity";
 import { RECOVERY_MILLISECONDS } from "../src/directory/store.ts";
 
-/** A service a cell mounts, answering a zone's location. */
-const zones = defineService("zones", {
+/** A service a machine mounts, answering a space's placement. */
+const placements = defineService("placements", {
     locate: defineProcedure({ authentication: "public", permission: null, audit: false })
-        .route({ method: "GET", path: "/zones/{scope}" })
+        .route({ method: "GET", path: "/placements/{scope}" })
         .input(schema.object({ scope: schema.string() }))
-        .output(Zone),
+        .output(Placement),
 });
 
 test.each(TEST_DIALECTS)(
-    "locate a zone, take it over only in the cell its move still targets at the next epoch, and withdraw it on %s",
+    "locate a space, take it over only on the machine its move still targets at the next epoch, and withdraw it on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
-        const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
+        const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
 
-        // place a zone in its host twice
-        await directory.place(zone);
-        await directory.place(zone);
+        // place a space on its machine twice
+        await directory.place(placement);
+        await directory.place(placement);
         expect([await directory.locate("space-1"), await directory.locate("account-1")]).toEqual([
-            zone,
+            placement,
             undefined,
         ]);
 
         // refuse an arrival without a move
-        const moved = { ...zone, cell: "region-1", epoch: 2 };
+        const moved = { ...placement, machine: "machine-b", epoch: 2 };
         const unmoved = {
             code: "CONFLICT",
-            message: "space-1 is neither placed in region-1 at epoch 2 nor moving there",
+            message: "space-1 is neither placed on machine-b at epoch 2 nor moving there",
         };
         await expect(directory.place(moved)).rejects.toMatchObject(unmoved);
-        await directory.move(zone, "region-1");
-        await directory.place(zone);
+        await directory.move(placement, "machine-b");
+        await directory.place(placement);
         await expect(directory.place(moved)).rejects.toMatchObject(unmoved);
 
-        // take it over in the region its move targets
-        await directory.move(zone, "region-1");
+        // take it over on the machine its move targets
+        await directory.move(placement, "machine-b");
         await directory.place(moved);
-        await expect(directory.place(zone)).rejects.toMatchObject({
+        await expect(directory.place(placement)).rejects.toMatchObject({
             code: "CONFLICT",
-            message: "space-1 is neither placed in host-1 at epoch 1 nor moving there",
+            message: "space-1 is neither placed on machine-a at epoch 1 nor moving there",
         });
-        await expect(directory.place({ ...moved, cell: "region-2" })).rejects.toMatchObject({
+        await expect(directory.place({ ...moved, machine: "machine-c" })).rejects.toMatchObject({
             code: "CONFLICT",
-            message: "space-1 is neither placed in region-2 at epoch 2 nor moving there",
+            message: "space-1 is neither placed on machine-c at epoch 2 nor moving there",
         });
         expect(await directory.locate("space-1")).toEqual(moved);
 
-        // withdraw the zone only at the epoch and cell serving it now
-        await expect(directory.withdraw(zone)).rejects.toMatchObject({
+        // withdraw the space only at the epoch and machine serving it now
+        await expect(directory.withdraw(placement)).rejects.toMatchObject({
             code: "CONFLICT",
-            message: "space-1 is no longer placed in host-1 at epoch 1",
+            message: "space-1 is no longer placed on machine-a at epoch 1",
         });
         await directory.withdraw(moved);
         expect(await directory.locate("space-1")).toBeUndefined();
@@ -67,60 +67,64 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "mark a zone moving to a cell until it takes it, and serve cells' endpoints on %s",
+    "mark a space moving to a machine until it takes it, and serve machines' endpoints on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
-        const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
-        await directory.place(zone);
+        const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
+        await directory.place(placement);
 
-        // mark the zone moving to the target
+        // mark the space moving to the target
         const target = async () => {
-            const [zoneRow] = await storage.database
-                .select({ target: zoneTable.target })
-                .from(zoneTable);
-            if (zoneRow === undefined) {
-                throw new TypeError("zone table has no row");
+            const [placed] = await storage.database
+                .select({ target: placementTable.target })
+                .from(placementTable);
+            if (placed === undefined) {
+                throw new TypeError("placement table has no row");
             }
 
-            return zoneRow.target;
+            return placed.target;
         };
         const seen = [await target()];
-        await directory.move(zone, "host-2");
+        await directory.move(placement, "machine-b");
         seen.push(await target());
-        await directory.place({ ...zone, cell: "host-2", epoch: 2 });
+        await directory.place({ ...placement, machine: "machine-b", epoch: 2 });
         seen.push(await target());
 
-        // refuse moving a zone its cell no longer serves at the epoch
-        await expect(directory.move(zone, "host-3")).rejects.toMatchObject({
+        // refuse moving a space its machine no longer serves at the epoch
+        await expect(directory.move(placement, "machine-c")).rejects.toMatchObject({
             code: "CONFLICT",
-            message: "space-1 is no longer placed in host-1 at epoch 1",
+            message: "space-1 is no longer placed on machine-a at epoch 1",
         });
 
-        // publish a cell's endpoint
-        await directory.publish("host-2", "account-1", "https://host-2.test/");
-        expect([seen, await directory.cell("host-2"), await directory.cell("host-9")]).toEqual([
-            [null, "host-2", null],
-            { id: "host-2", scope: "account-1", endpoint: "https://host-2.test/" },
+        // publish a machine's endpoint
+        await directory.publish("machine-b", "account-1", "https://machine-b.test/");
+        expect([
+            seen,
+            await directory.endpoint("machine-b"),
+            await directory.endpoint("machine-z"),
+        ]).toEqual([
+            [null, "machine-b", null],
+            { machine: "machine-b", scope: "account-1", url: "https://machine-b.test/" },
             undefined,
         ]);
     },
 );
 
 test.each(TEST_DIALECTS)(
-    "list the zones a scope contains in identity order on %s",
+    "list the placements of an account's spaces in identity order on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
         const placed = [
-            { id: "space-2", scope: "account-1", cell: "host-1", epoch: 1 },
-            { id: "space-1", scope: "account-1", cell: "region-1", epoch: 1 },
-            { id: "space-3", scope: "account-2", cell: "host-1", epoch: 1 },
+            { id: "space-2", scope: "account-1", machine: "machine-a", epoch: 1 },
+            { id: "space-1", scope: "account-1", machine: "machine-b", epoch: 1 },
+            { id: "space-3", scope: "account-2", machine: "machine-a", epoch: 1 },
         ];
-        for (const zone of placed) {
-            await directory.place(zone);
+        for (const placement of placed) {
+            await directory.place(placement);
         }
 
         expect([await directory.list("account-1"), await directory.list("account-9")]).toEqual([
@@ -179,95 +183,97 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "send a service's requests to a cell's endpoint and resend them once to the cell a scope moved to on %s",
+    "send a service's requests to a machine's endpoint and resend them once to the machine a scope moved to on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
-        await directory.publish("host-1", "account-1", "https://host-1.test/");
-        await directory.publish("host-2", "account-1", "https://host-2.test");
+        await directory.publish("machine-a", "account-1", "https://machine-a.test/");
+        await directory.publish("machine-b", "account-1", "https://machine-b.test");
 
-        // answer misdirected at the first cell and the zone at the second
-        const mount = ServiceMount.path(zones.package.id);
-        const zone = { id: "space-1", scope: "account-1", cell: "host-2", epoch: 2 };
+        // answer misdirected at the first machine and the placement at the second
+        const mount = ServiceMount.path(placements.package.id);
+        const placement = { id: "space-1", scope: "account-1", machine: "machine-b", epoch: 2 };
         const sent: string[] = [];
-        const client = directory.client(zones, "host-1", async (request) => {
+        const client = directory.machineClient(placements, "machine-a", async (request) => {
             sent.push(`${request.method} ${request.url}`);
             const moved = {
                 defined: true,
                 code: "MISDIRECTED_REQUEST",
                 status: 421,
-                message: "space-1 moves to host-2",
-                data: { scope: "space-1", cell: "host-2" },
+                message: "space-1 moves to machine-b",
+                data: { scope: "space-1", machine: "machine-b" },
             };
 
-            return request.url.startsWith("https://host-1.test")
+            return request.url.startsWith("https://machine-a.test")
                 ? Response.json(moved, { status: 421 })
-                : Response.json(zone);
+                : Response.json(placement);
         });
 
-        // follow the move once and stay at the new cell
+        // follow the move once and stay at the new machine
         expect([
             await client.locate({ scope: "space-1" }),
             await client.locate({ scope: "space-1" }),
             sent,
         ]).toEqual([
-            zone,
-            zone,
+            placement,
+            placement,
             [
-                `GET https://host-1.test${mount}/zones/space-1`,
-                `GET https://host-2.test${mount}/zones/space-1`,
-                `GET https://host-2.test${mount}/zones/space-1`,
+                `GET https://machine-a.test${mount}/placements/space-1`,
+                `GET https://machine-b.test${mount}/placements/space-1`,
+                `GET https://machine-b.test${mount}/placements/space-1`,
             ],
         ]);
     },
 );
 
 test.each(TEST_DIALECTS)(
-    "refuse a malformed identity operation, start a space's identity from its cell, chain operations by rotation keys, and let a higher-priority key nullify a lower one's within the recovery window on %s",
+    "refuse a malformed identity operation, start a space's identity from its machine, chain operations by rotation keys, and let a higher-priority key nullify a lower one's within the recovery window on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         let now = Date.now();
         const directory = new DirectoryStore(storage.database, { clock: () => now });
-        const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
-        await directory.place(zone);
+        const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
+        await directory.place(placement);
         const signing = await keyPair();
-        const cell = await keyPair();
+        const machine = await keyPair();
         const owner = await keyPair();
         const intruder = await keyPair();
 
         // refuse a malformed operation
-        await expect(directory.apply("not.an.operation", zone)).rejects.toEqual(
+        await expect(directory.apply("not.an.operation", placement)).rejects.toEqual(
             new IdentityError("INVALID_OPERATION", "the operation is no identity operation"),
         );
 
-        // start the identity only from the serving cell
+        // start the identity only from the serving machine
         const first = await IdentityOperation.sign(
             {
                 subject: "space-1",
                 previous: null,
                 signingKeys: [signing.key],
-                rotationKeys: [cell.key],
+                rotationKeys: [machine.key],
             },
-            cell.privateKey,
+            machine.privateKey,
         );
         const unserved = new ServiceError("FORBIDDEN", {
-            message: "only the cell serving space-1 starts its identity",
+            message: "only the machine serving space-1 starts its identity",
         });
         await expect(directory.apply(first)).rejects.toEqual(unserved);
-        await expect(directory.apply(first, { ...zone, cell: "host-2" })).rejects.toEqual(unserved);
-        await directory.apply(first, zone);
+        await expect(directory.apply(first, { ...placement, machine: "machine-b" })).rejects.toEqual(
+            unserved,
+        );
+        await directory.apply(first, placement);
         expect(await directory.identity("space-1")).toEqual({
             signingKeys: [signing.key],
-            rotationKeys: [cell.key],
+            rotationKeys: [machine.key],
             digest: await IdentityOperation.digest(first),
         });
 
-        // add the owner's key above the cell's
+        // add the owner's key above the machine's
         const previous = await IdentityOperation.digest(first);
         const owned = { subject: "space-1", previous, signingKeys: [signing.key] };
-        const rotationKeys = [owner.key, cell.key];
+        const rotationKeys = [owner.key, machine.key];
         await expect(
             directory.apply(
                 await IdentityOperation.sign({ ...owned, rotationKeys }, intruder.privateKey),
@@ -277,10 +283,10 @@ test.each(TEST_DIALECTS)(
                 message: "no rotation key of the identity signed the operation",
             }),
         );
-        const second = await IdentityOperation.sign({ ...owned, rotationKeys }, cell.privateKey);
+        const second = await IdentityOperation.sign({ ...owned, rotationKeys }, machine.privateKey);
         await directory.apply(second);
 
-        // let the cell's key replace the signing key
+        // let the machine's key replace the signing key
         const unrecoverable = new ServiceError("CONFLICT", {
             message: "the operation cannot nullify the later operations of space-1",
         });
@@ -291,7 +297,7 @@ test.each(TEST_DIALECTS)(
         };
         const stolen = await IdentityOperation.sign(
             { ...after, signingKeys: [intruder.key] },
-            cell.privateKey,
+            machine.privateKey,
         );
         await directory.apply(stolen);
         expect((await directory.identity("space-1"))?.signingKeys).toEqual([intruder.key]);
@@ -304,7 +310,7 @@ test.each(TEST_DIALECTS)(
             directory.apply(
                 await IdentityOperation.sign(
                     { ...after, signingKeys: [intruder.key] },
-                    cell.privateKey,
+                    machine.privateKey,
                 ),
             ),
         ).rejects.toEqual(unrecoverable);
@@ -320,7 +326,7 @@ test.each(TEST_DIALECTS)(
             [first, second, stolen, recovered],
         ]);
 
-        // refuse the owner's key nullifying the cell's next operation once the recovery window passed
+        // refuse the owner's key nullifying the machine's next operation once the recovery window passed
         const settled = {
             subject: "space-1",
             previous: await IdentityOperation.digest(recovered),
@@ -329,7 +335,7 @@ test.each(TEST_DIALECTS)(
         await directory.apply(
             await IdentityOperation.sign(
                 { ...settled, signingKeys: [intruder.key] },
-                cell.privateKey,
+                machine.privateKey,
             ),
         );
         now += RECOVERY_MILLISECONDS + 1000;

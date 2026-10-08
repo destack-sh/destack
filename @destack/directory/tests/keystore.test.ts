@@ -1,5 +1,9 @@
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
+import { principal } from "@destack/access";
+import { PackageId } from "@destack/package";
+import { present } from "@destack/schema";
+import { SPACE_KEY } from "@destack/service/authentication";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { decodeProtectedHeader, jwtVerify } from "jose";
@@ -54,4 +58,47 @@ test("sign with the active key until every verifier read the next one, verifying
         await verified(after),
         (await directory.identity(subject))?.signingKeys.length,
     ]).toEqual([true, false, "user-1", "user-1", 2]);
+});
+
+test("send a request as an installation with a token its space's key signs, which the directory verifies without a deployment", async () => {
+    // start a space's identity on its machine
+    const storage = await TestDatabase.create("sqlite", [...directoryTables, identityKey], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const directory = new DirectoryStore(storage.database);
+    const keystore = new IdentityKeystore(
+        await LocalKeyring.read(LocalKeyring.generate()),
+        directory,
+    );
+    const placement = {
+        id: "space-01996ab0-0000-7000-8000-000000000001",
+        scope: "account-01996ab0-0000-7000-8000-000000000002",
+        machine: "machine-01996ab0-0000-7000-8000-000000000003",
+        epoch: 1,
+    };
+    await directory.place(placement);
+    await keystore.generate(storage.database, placement.id, placement);
+
+    // send a request as an installation of the space and verify what arrives
+    const audience = PackageId.parse("package-01996ab0-0000-7000-8000-000000000004");
+    const installation = principal.installation.reference(
+        placement.id,
+        "installation-01996ab0-0000-7000-8000-000000000005",
+    );
+    let received: Request | undefined;
+    const send = keystore.fetch(storage.database, installation, audience, async (request) => {
+        received = request;
+
+        return new Response(null, { status: 204 });
+    });
+    await send(new Request("https://notes.test/"));
+    const verified = await directory.authenticate(present(received, "the sent request"), {
+        audience,
+    });
+    expect([
+        verified.claims.subject,
+        verified.claims.credential.kind,
+        verified.claims.deployments,
+    ]).toEqual([installation, SPACE_KEY, undefined]);
 });
