@@ -35,6 +35,16 @@ export const call = defineEventKind({
 });
 ```
 
+### Delivery
+
+`exactly-once` keeps an event once from its append in the caller's transaction until its scope flushes it, and an identity appended after the flush is kept again.
+
+```ts
+await store.append(call, [event], transaction); // kept with the transaction's writes
+await store.append(call, [event]); // the same contents again: kept once
+await store.append(call, [{ ...event, data: other }]); // CONFLICT: other contents for a kept identity
+```
+
 ### Map keys
 
 A key declared as a record of text, numbers and booleans, such as OpenTelemetry's attributes, is kept as one JSON column whose entries conditions and series name as `<key>.<entry>`.

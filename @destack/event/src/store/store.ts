@@ -18,8 +18,10 @@ import {
     type DatabaseConnection,
     type SQL,
     type SQLWrapper,
+    TABLE,
 } from "@destack/db";
-import { type JsonValue } from "@destack/schema";
+import { canonicalize, type JsonValue, schema } from "@destack/schema";
+import { ServiceError } from "@destack/service/error";
 import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/service/control";
 import type { Outbox } from "@destack/service/outbox";
@@ -406,17 +408,69 @@ export class EventStore {
         copies: readonly Event[],
         transaction: DatabaseConnection,
     ): Promise<void> {
-        // write the events
-        await transaction
+        // write the events, requiring each one stored before to repeat its contents
+        const table = kind.table[TABLE];
+        const written = await transaction
             .insert(kind.table)
             .values(stored.map((event) => kind.row(event)))
-            .onConflictDoNothing();
+            .onConflictDoNothing()
+            .returning({ scope: table.column("scope"), id: table.column("id") });
+        const isWritten = new Set(
+            written.map(
+                (row) => `${schema.string().parse(row.scope)} ${schema.string().parse(row.id)}`,
+            ),
+        );
+        const repeated = stored.filter((event) => !isWritten.has(`${event.scope} ${event.id}`));
+        if (repeated.length > 0) {
+            await this.#requireRepeats(kind, repeated, transaction);
+        }
 
         // append each copy to the outbox, keyed so a repeated append routes nothing again
         for (const copy of copies) {
             const key = new TextEncoder().encode(`${copy.scope} ${copy.source} ${copy.id}`);
             const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", key)).toHex();
             await this.#outbox?.append(routeAddress(kind), digest, copy, transaction);
+        }
+    }
+
+    /** Require events stored before to repeat their time, keys and data, personal values left out on both sides since each seal differs. */
+    async #requireRepeats(
+        kind: EventKind,
+        repeated: readonly Event[],
+        transaction: DatabaseConnection,
+    ): Promise<void> {
+        // read the stored events of the repeated identities
+        const table = kind.table[TABLE];
+        const rows = await transaction
+            .select()
+            .from(kind.table)
+            .where(
+                or(
+                    ...repeated.map((event) =>
+                        and(
+                            eq(table.column("scope"), event.scope),
+                            eq(table.column("source"), event.source),
+                            eq(table.column("id"), event.id),
+                        ),
+                    ),
+                ),
+            );
+        const kept = new Map(
+            rows.map((row) => {
+                const event = kind.event(row);
+
+                return [`${event.scope} ${event.id}`, contentsOf(kind, event)];
+            }),
+        );
+
+        // refuse an identity stored with other contents
+        const changed = repeated.find(
+            (event) => kept.get(`${event.scope} ${event.id}`) !== contentsOf(kind, event),
+        );
+        if (changed !== undefined) {
+            throw new ServiceError("CONFLICT", {
+                message: `event ${changed.id} of ${kind.key} was stored with other contents`,
+            });
         }
     }
 
@@ -673,4 +727,13 @@ function sameSegments(
         left.length === right.length &&
         left.every((segment, index) => segment.id === right[index]?.id)
     );
+}
+
+/** Write an event's time, keys and data without its personal values, which every seal writes anew. */
+function contentsOf(kind: EventKind, event: Event): string {
+    const data = kind.mapSensitive(event.data, (value, sensitivity) =>
+        sensitivity === "personal" ? undefined : value,
+    );
+
+    return canonicalize({ time: event.time, keys: kind.keyValues(event.keys), data });
 }

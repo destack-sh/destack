@@ -102,7 +102,7 @@ function at(minute: number): number {
 }
 
 test.for(TEST_DIALECTS)(
-    "page a scope's %s events a condition selects in time order, appending one again changing nothing",
+    "page a scope's %s events a condition selects in time order, appending one again changing nothing and refusing one with other contents",
     async (dialect) => {
         const { store } = await open(dialect);
 
@@ -113,9 +113,17 @@ test.for(TEST_DIALECTS)(
             measured("b", 2, "bucket.bytes", 20),
         ]);
         await store.append(reading, [
-            measured("a", 1, "db.bytes", 99),
+            measured("a", 1, "db.bytes", 10),
             { ...measured("x", 1, "db.bytes", 1), scope: "space-2" },
         ]);
+
+        // refuse a reading appended again with another value
+        await expect(
+            store.append(reading, [measured("a", 1, "db.bytes", 99)]),
+        ).rejects.toMatchObject({
+            code: "CONFLICT",
+            message: `event a of ${reading.key} was stored with other contents`,
+        });
 
         // read the scope's database readings one per page, then every reading of at least 20
         const where = Filter.parse('meter = "db.bytes"');
