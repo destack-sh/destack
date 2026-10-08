@@ -6,19 +6,12 @@ import { auditActionVocabulary, describeAuditAction } from "../src/inspect/index
 /** The JSON Schema dialect every described shape names. */
 const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 
-/** The JSON Schema of the renamed document target. */
-const targets = {
+/** The JSON Schema of the renamed document. */
+const target = {
     $schema: DIALECT,
     type: "object",
-    properties: {
-        document: {
-            type: "object",
-            properties: { type: { type: "string", const: "document" }, id: { type: "string" } },
-            required: ["type", "id"],
-            additionalProperties: false,
-        },
-    },
-    required: ["document"],
+    properties: { type: { type: "string", const: "document" }, id: { type: "string" } },
+    required: ["type", "id"],
     additionalProperties: false,
 };
 
@@ -46,9 +39,9 @@ test("describe an action with its package and call shapes, and list its term fro
                 name: "@example/document",
                 version: "2026.9.0",
             },
-            targets,
+            target,
             details,
         },
-        vocabulary: { "document.rename": { targets, details } },
+        vocabulary: { "document.rename": { target, details } },
     });
 });

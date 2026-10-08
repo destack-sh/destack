@@ -4,7 +4,7 @@ import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
 import { schema } from "@destack/schema";
-import { AuditCaller } from "../src/record/index.ts";
+import { AuditActor, AuditCaller } from "../src/record/index.ts";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./storage.ts";
 import { principal } from "@destack/access";
@@ -61,8 +61,10 @@ test("persist verified caller identities and tell apart identities of different 
                 origin,
                 request.requestId,
             );
-            const event = recorder.begin(documentRename, rename);
-            await recorder.append(event);
+            const event = await recorder.record(undefined, documentRename, {
+                ...rename,
+                outcome: { kind: "success" },
+            });
             calls.push(event);
         }
 
@@ -82,8 +84,10 @@ test("persist verified caller identities and tell apart identities of different 
             origin,
             rejected.requestId,
         );
-        const anonymous = recorder.begin(documentRename, rename);
-        await recorder.append(anonymous);
+        const anonymous = await recorder.record(undefined, documentRename, {
+            ...rename,
+            outcome: { kind: "success" },
+        });
         calls.push(anonymous);
 
         // compare the full recorded identity
@@ -108,13 +112,8 @@ test("persist verified caller identities and tell apart identities of different 
         // read the identities back through delivery and history queries
         expect(await storage.journal.deliver(storage.history)).toBe(5);
         for (const event of calls) {
-            const page = await storage.history.list({
-                scope: "universe",
-                actor: AuditCaller.actor(event.execution.context.caller),
-                limit: 10,
-            });
-            expect(page.items.map((record) => record.call)).toEqual([event]);
-            expect(page.cursor).toBeNull();
+            const key = AuditActor.key(AuditCaller.actor(event.execution.context.caller));
+            expect(await storage.calls("universe", { where: { actor: key } })).toEqual([event]);
         }
     } finally {
         await storage.close();

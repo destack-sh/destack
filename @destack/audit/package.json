@@ -22,15 +22,17 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/event": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "uuid": "14.0.2",
-        "@destack/error": "workspace:*"
+        "uuid": "14.0.2"
     },
     "devDependencies": {
+        "@destack/identity": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1"

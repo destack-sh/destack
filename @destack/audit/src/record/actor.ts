@@ -3,7 +3,7 @@ import { Delegate } from "@destack/access";
 import { Subject } from "@destack/sync";
 
 /** The identity that performed a call: a subject, the platform, or an anonymous caller. */
-export const AuditActor = defineSchema(
+const auditActor = defineSchema(
     schema.discriminatedUnion("type", [
         schema.object({
             /** A verified subject acted. */
@@ -25,8 +25,26 @@ export const AuditActor = defineSchema(
         }),
     ]),
 );
+/** The identity that performed a call, and the key filters name it by. */
+export const AuditActor = Object.assign(auditActor, {
+    /** Encode an actor as the actor key a call's event is filtered by. */
+    key(actor: AuditActor): string {
+        // key a subject by its access key
+        if (actor.type === "subject") {
+            return Subject.key(actor.subject);
+        }
+        // key a system component by its name
+        else if (actor.type === "system") {
+            return JSON.stringify([actor.type, actor.name]);
+        }
+        // key an anonymous caller by its type
+        else {
+            return JSON.stringify([actor.type]);
+        }
+    },
+});
 /** The identity that performed a call. */
-export type AuditActor = schema.Infer<typeof AuditActor>;
+export type AuditActor = schema.Infer<typeof auditActor>;
 
 /** The schema of a recorded caller. */
 const auditCaller = defineSchema(

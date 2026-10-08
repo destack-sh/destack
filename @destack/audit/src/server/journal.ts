@@ -12,9 +12,8 @@ import {
     type DatabaseConnection,
     type TransactionOptions,
     CHAIN_TERMS,
-    Snapshot,
 } from "@destack/db";
-import { Digest, Duration, canonicalize, found } from "@destack/schema";
+import { Digest, Duration, canonicalize } from "@destack/schema";
 import { errorOf, ServiceError } from "@destack/service/error";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
@@ -23,10 +22,11 @@ import {
     type RequestIdentity,
 } from "@destack/service/request";
 import type { Controller } from "@destack/service/control";
-import { type Outcome, Scope } from "@destack/sync";
+import type { Outcome } from "@destack/sync";
 import { AuditError } from "../error/index.ts";
 import { AuditHistory } from "../history/history.ts";
-import { AuditCall } from "../record/call.ts";
+import { AuditCall, JournalEntry } from "../record/call.ts";
+import type { AuditBatch } from "../service/batch.ts";
 import { MAX_EXECUTION_BYTES } from "../record/execution.ts";
 import { Replay } from "../record/replay.ts";
 import { journal } from "../stack/db.ts";
@@ -43,15 +43,12 @@ const READ_CALLS = 1000;
 const DELIVERY_TIMEOUT_MILLISECONDS = 30_000;
 
 /** The columns of a journal change the journal's controller reads. */
-type JournalTimes = Pick<typeof journal.$inferSelect, "isAudited" | "deliveredAt">;
+type JournalTimes = Pick<typeof journal.$inferSelect, "isAudited" | "finishedAt" | "deliveredAt">;
 
 /** The history a journal delivers its audited calls to. */
 export interface AuditDestination {
     /** Store a batch's calls once in one transaction. */
-    ingest(
-        batch: { readonly calls: AuditCall[] },
-        options?: { signal?: AbortSignal },
-    ): Promise<unknown>;
+    ingest(batch: AuditBatch, options?: { signal?: AbortSignal }): Promise<unknown>;
 }
 
 /** The options of a journal. */
@@ -108,7 +105,7 @@ export class Journal {
 
     /** Record a call, or its outcome once it ends, inside a transaction when given. */
     async record(
-        value: AuditCall,
+        value: JournalEntry,
         options: {
             readonly isAudited: boolean;
             readonly caller?: string;
@@ -117,7 +114,7 @@ export class Journal {
         transaction?: DatabaseConnection,
     ): Promise<void> {
         // read the call with its execution
-        const call = AuditCall.parse(value);
+        const call = JournalEntry.parse(value);
         const execution = call.execution;
 
         // bound what the history keeps
@@ -164,7 +161,7 @@ export class Journal {
 
     /** Key a call for replay when a retry of its request should see its final outcome again, null otherwise. */
     static #replayKey(
-        execution: AuditCall["execution"],
+        execution: JournalEntry["execution"],
         caller: string | undefined,
     ): string | null {
         const { requestId } = execution;
@@ -181,7 +178,7 @@ export class Journal {
     }
 
     /** Require a call already recorded as finished to repeat it exactly. */
-    static async #requireRepeat(database: DatabaseConnection, call: AuditCall): Promise<void> {
+    static async #requireRepeat(database: DatabaseConnection, call: JournalEntry): Promise<void> {
         const [existing] = await database
             .select({ call: journal.call })
             .from(journal)
@@ -244,7 +241,7 @@ export class Journal {
             readonly isAudited?: boolean;
             readonly isPending?: boolean;
         } = {},
-    ): Promise<AuditCall[]> {
+    ): Promise<JournalEntry[]> {
         const rows = await this.database
             .select({ call: journal.call })
             .from(journal)
@@ -303,7 +300,7 @@ export class Journal {
         return rows.length;
     }
 
-    /** Deliver the oldest pending audited calls to a history as one batch, returning how many. */
+    /** Deliver the oldest ended audited calls waiting for delivery to a history as one batch, returning how many. */
     async deliver(history: AuditDestination, signal?: AbortSignal): Promise<number> {
         // read the oldest pending batch
         const rows = await this.#pending(this.batch);
@@ -311,12 +308,14 @@ export class Journal {
             return 0;
         }
 
-        // deliver the kept calls with their chains within a timeout and mark the delivered versions
+        // deliver the kept calls within a timeout and mark them delivered
         const timeout = AbortSignal.timeout(DELIVERY_TIMEOUT_MILLISECONDS);
-        const calls = await this.#chained(rows.map((row) => AuditHistory.kept(row.call)));
+        const calls = rows.map((row) => AuditHistory.kept(AuditCall.parse(row.call)));
         await history.ingest(
             { calls },
-            { signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]) },
+            {
+                signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
+            },
         );
         const now = this.clock();
         for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
@@ -327,14 +326,7 @@ export class Journal {
                     or(
                         ...rows
                             .slice(start, start + CHAIN_TERMS)
-                            .map((row) =>
-                                and(
-                                    eq(journal.id, row.id),
-                                    row.finishedAt === null
-                                        ? isNull(journal.finishedAt)
-                                        : eq(journal.finishedAt, row.finishedAt),
-                                ),
-                            ),
+                            .map((row) => eq(journal.id, row.id)),
                     ),
                 );
         }
@@ -353,12 +345,13 @@ export class Journal {
                     return [];
                 }
 
-                // deliver a pending audited call, and look again once a call is delivered
+                // deliver an ended audited call, and look again once a call is delivered
                 const after: JournalTimes | null = Change.after(change);
                 const before: JournalTimes | null = Change.before(change);
                 const isPending =
                     history !== undefined &&
                     after?.isAudited === true &&
+                    after.finishedAt !== null &&
                     after.deliveredAt === null;
                 const isDelivered =
                     before?.deliveredAt === null && typeof after?.deliveredAt === "number";
@@ -392,31 +385,6 @@ export class Journal {
         };
     }
 
-    /** Stamp each call's context with the scopes enclosing its scope, outermost first, as the database's scope copies keep them. */
-    async #chained(calls: readonly AuditCall[]): Promise<AuditCall[]> {
-        // read the chain of each call's scope once per scope
-        const scopes = calls.map((call) => call.execution.context.scope);
-        const chains = await Scope.chains(Snapshot.live(this.database), scopes);
-
-        return calls.map((call) => {
-            // leave a call unstamped when its scope has no known enclosing scope
-            const { context } = call.execution;
-            const links = found(chains, context.scope);
-            const chain = links.slice(1).map((link) => link.object.id);
-            if (chain.length === 0) {
-                return call;
-            }
-
-            return {
-                ...call,
-                execution: {
-                    ...call.execution,
-                    context: { ...context, chain: chain.toReversed() },
-                },
-            };
-        });
-    }
-
     /** Read the earliest expiry of the calls a prune may remove. */
     async #removable(): Promise<number | undefined> {
         const [row] = await this.database
@@ -428,7 +396,10 @@ export class Journal {
     }
 
     /** Read a request's recorded calls in order. */
-    async #recorded(database: DatabaseConnection, request: RequestIdentity): Promise<AuditCall[]> {
+    async #recorded(
+        database: DatabaseConnection,
+        request: RequestIdentity,
+    ): Promise<JournalEntry[]> {
         const rows = await database
             .select({ call: journal.call })
             .from(journal)
@@ -443,18 +414,24 @@ export class Journal {
         return canonicalize([request.caller, request.scope, request.requestId]);
     }
 
-    /** Read the oldest pending audited calls. */
+    /** Read the oldest audited calls that ended and wait for delivery. */
     async #pending(limit: number) {
         return this.database
-            .select({ id: journal.id, call: journal.call, finishedAt: journal.finishedAt })
+            .select({ id: journal.id, call: journal.call })
             .from(journal)
-            .where(and(eq(journal.isAudited, true), isNull(journal.deliveredAt)))
+            .where(
+                and(
+                    eq(journal.isAudited, true),
+                    isNotNull(journal.finishedAt),
+                    isNull(journal.deliveredAt),
+                ),
+            )
             .orderBy(asc(journal.startedAt), asc(journal.id))
             .limit(limit);
     }
 
     /** Replay a request's recorded calls: their results, or the failure that ended them. */
-    static #replay(calls: readonly AuditCall[], fingerprint: string): unknown[] {
+    static #replay(calls: readonly JournalEntry[], fingerprint: string): unknown[] {
         // refuse other input
         if (calls.some((call) => call.execution.digest !== fingerprint)) {
             throw new ServiceError("CONFLICT", {

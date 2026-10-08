@@ -5,4 +5,5 @@ export * from "./call.ts";
 export * from "./action.ts";
 export * from "./replay.ts";
 export * from "./access.ts";
-export * from "./table.ts";
+export * from "./event.ts";
+export * from "./unmask.ts";

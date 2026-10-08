@@ -12,7 +12,7 @@ import { Scope } from "@destack/sync";
 test("keep each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();
     try {
-        // record a running call of a space
+        // record a call of a space
         const scope = schema
             .identifier("space")
             .parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -25,21 +25,23 @@ test("keep each call in the history of its scope", async () => {
             },
             storage.journal,
         );
-        const recorded = recorder.begin(documentRename, rename);
-        await recorder.append(recorded);
+        const recorded = await recorder.record(undefined, documentRename, {
+            ...rename,
+            outcome: { kind: "success" },
+        });
         expect(await storage.journal.deliver(storage.history)).toBe(1);
 
         // read it in the space's history and nowhere else
-        expect([
-            (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.call),
-            await storage.history.list({ scope: "universe", limit: 100 }),
-        ]).toEqual([[recorded], { items: [], cursor: null }]);
+        expect([await storage.calls(scope), await storage.calls("universe")]).toEqual([
+            [recorded],
+            [],
+        ]);
     } finally {
         await storage.close();
     }
 });
 
-test("read the calls of a scope and of the scopes inside it by the chains their journal delivers", async () => {
+test("read the calls of a scope and of the scopes inside it, routed to each scope enclosing theirs", async () => {
     const storage = await AuditStorage.open();
     try {
         // copy an organisation with a space inside it, and another organisation
@@ -77,19 +79,15 @@ test("read the calls of a scope and of the scopes inside it by the chains their 
             );
         }
         expect(await storage.journal.deliver(storage.history)).toBe(3);
+        await storage.route();
 
-        // read the outer organisation's own calls, and its calls within with each call's enclosing scopes
+        // read the outer organisation's own calls, and its calls within, routed from the scopes inside it
         const read = async (within: boolean) =>
-            (await storage.history.list({ scope: outer.id, within, limit: 10 })).items.map(
-                (record) => [record.call.execution.id, record.call.execution.context.chain],
-            );
+            (await storage.calls(outer.id, { within })).map((record) => record.execution.id);
         const [outerCall, , innerCall] = recorded.map((call) => call.execution.id);
         expect([await read(false), await read(true)]).toEqual([
-            [[outerCall, ["universe"]]],
-            [
-                [outerCall, ["universe"]],
-                [innerCall, ["universe", outer.id]],
-            ],
+            [outerCall],
+            [outerCall, innerCall],
         ]);
     } finally {
         await storage.close();
@@ -190,7 +188,7 @@ test("leave sensitive values out of running and read details", async () => {
         const accountSignIn = defineAuditAction(
             {
                 name: "account.signIn",
-                targets: documentRename.targets,
+                target: documentRename.target,
                 details: schema.object({
                     method: schema.string(),
                     code: schema.sensitive(schema.string()).exactOptional(),
@@ -203,9 +201,9 @@ test("leave sensitive values out of running and read details", async () => {
         );
 
         // keep the method in the running call's details
-        const targets = rename.targets;
+        const target = rename.target;
         const running = storage.recorder.begin(accountSignIn, {
-            targets,
+            target,
             details: { method: "code", code: "123456" },
         });
         expect(running.execution.details).toEqual({ method: "code" });
@@ -213,7 +211,7 @@ test("leave sensitive values out of running and read details", async () => {
         // keep the account's identifier in the read's details
         const read = await storage.recorder.read(
             accountSignIn,
-            { targets, details: { method: "code" } },
+            { target, details: { method: "code" } },
             async () => ({ id: "account-2", secret: "hunter3" }),
             (account) => ({ method: "code", account }),
         );
@@ -261,6 +259,7 @@ test("keep a moved scope's earlier calls within it, and within the scope that en
                 outcome: { kind: "success" },
             });
             await storage.journal.deliver(storage.history);
+            await storage.route();
 
             return call.execution.id;
         };
@@ -273,9 +272,7 @@ test("keep a moved scope's earlier calls within it, and within the scope that en
 
         // read the account within, and each organisation within
         const within = async (scope: string) =>
-            (await storage.history.list({ scope, within: true, limit: 10 })).items.map(
-                (item) => item.call.execution.id,
-            );
+            (await storage.calls(scope, { within: true })).map((item) => item.execution.id);
         expect([await within(account.id), await within(first.id), await within(second.id)]).toEqual(
             [[before, after], [before], [after]],
         );

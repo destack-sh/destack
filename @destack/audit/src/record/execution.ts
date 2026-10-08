@@ -5,20 +5,22 @@ import { AuditContext } from "./context.ts";
 /** The largest stored execution, in bytes. */
 export const MAX_EXECUTION_BYTES = 65536;
 
-/** An object a call affected. */
+/** The categories of a call: a write, a read of data, or a refused call. */
+export const AUDIT_CATEGORIES = ["activity", "access", "denial"] as const;
+
+/** The ways a call ends. */
+export const AUDIT_OUTCOMES = ["success", "failure", "denied", "cancelled"] as const;
+
+/** The object a call acts on. */
 export const AuditTarget = defineSchema(
     schema.object({
         /** The object type. */
         type: schema.string().min(1),
         /** The object identifier. */
         id: schema.string().min(1),
-        /** The display name at the time of the call. */
-        name: schema.string().exactOptional(),
-        /** The object version. */
-        version: schema.string().exactOptional(),
     }),
 );
-/** An object a call affected. */
+/** The object a call acts on. */
 export type AuditTarget = schema.Infer<typeof AuditTarget>;
 
 /** The execution of a call: who ran it where, what it affected, and how it ended. */
@@ -29,11 +31,11 @@ export const AuditExecution = defineSchema(
         /** The request the call belongs to, which retries repeat. */
         requestId: schema.string().min(1).exactOptional(),
         /** A write, a read of data, or a refused call. */
-        category: schema.enum(["activity", "access", "denial"]),
+        category: schema.enum(AUDIT_CATEGORIES),
         /** The authority and origin. */
         context: AuditContext,
-        /** The named affected objects. */
-        targets: schema.record(schema.string().min(1), AuditTarget),
+        /** The object the call acts on. */
+        target: AuditTarget,
         /** The details the method's audit schema accepts, sensitive values redacted. */
         details: schema.json(),
         /** The digest of the input, sensitive values fingerprinted under the call key. */

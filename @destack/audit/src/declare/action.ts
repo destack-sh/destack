@@ -9,7 +9,7 @@ export const AuditActionName = defineSchema(
 
 /** A typed action declared by a package. */
 export interface AuditAction<
-    Targets extends schema.Schema = schema.Schema,
+    Target extends schema.Schema<AuditTarget> = schema.Schema<AuditTarget>,
     Details extends schema.Schema<JsonValue> = schema.Schema<JsonValue>,
 > {
     /** The declaring package. */
@@ -18,20 +18,20 @@ export interface AuditAction<
     readonly name: string;
     /** A short description for inspection. */
     readonly description?: string;
-    /** Named affected objects. */
-    readonly targets: Targets;
+    /** The object each call acts on. */
+    readonly target: Target;
     /** The serializable action details. */
     readonly details: Details;
 }
 
 /** Declare an action. */
 export function defineAuditAction<
-    Targets extends schema.Schema<Record<string, AuditTarget>>,
+    Target extends schema.Schema<AuditTarget>,
     Details extends schema.Schema<JsonValue>,
 >(
-    definition: Omit<AuditAction<Targets, Details>, "package">,
+    definition: Omit<AuditAction<Target, Details>, "package">,
     module?: ModuleMetadata,
-): AuditAction<Targets, Details> {
+): AuditAction<Target, Details> {
     // validate the action name
     AuditActionName.parse(definition.name);
 

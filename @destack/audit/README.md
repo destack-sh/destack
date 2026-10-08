@@ -1,19 +1,17 @@
 # @destack/audit
 
-Declare audit actions, record every executed call once in a journal, and query a scope's history.
+Declare audit actions, record every executed call once in a journal, and keep, query and follow a scope's history as call events.
 
 ## Declarations
 
-`defineAuditAction` declares a `noun.verb` action with its affected objects and recorded details.
+`defineAuditAction` declares a `noun.verb` action with the one object it acts on and its recorded details.
 
 ```ts
 import { defineAuditAction } from "@destack/audit";
 
 export const noteRename = defineAuditAction({
     name: "note.rename",
-    targets: schema.object({
-        note: schema.object({ type: schema.literal("note"), id: schema.string() }),
-    }),
+    target: schema.object({ type: schema.literal("note"), id: schema.string() }),
     details: schema.object({ title: schema.string() }),
 });
 ```
@@ -43,7 +41,7 @@ Replay.failure(new ServiceError("CONFLICT", { message: "name is taken" })); // {
 const calls = new Journal(database, callKey, { clock: server.clock });
 ```
 
-## Tables
+### Journal table
 
 `journal` is the table a database with journaled calls includes.
 
@@ -72,7 +70,7 @@ const recorder = audit(spaceId, context);
 await database.transaction(async (transaction) => {
     await transaction.update(note).set({ title }).where(eq(note.id, id));
     await recorder.record(transaction, noteRename, {
-        targets: { note: { type: "note", id } },
+        target: { type: "note", id },
         details: { title },
         outcome: { kind: "success" },
     });
@@ -84,8 +82,8 @@ await database.transaction(async (transaction) => {
 `attempt` records an external effect as a running `activity` call and its outcome, and `read` records a read as one `access` call.
 
 ```ts
-await recorder.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
-const secret = await recorder.read(openSecret, { targets, details: {} }, () => secrets.get(id));
+await recorder.attempt(sendInvitation, { target, details: {} }, () => invitations.send(id));
+const secret = await recorder.read(openSecret, { target, details: {} }, () => secrets.get(id));
 ```
 
 ## Procedures
@@ -101,7 +99,7 @@ Server.start({
 
 ## Delivery
 
-`Journal.controller` delivers audited calls to a history in batches, without their input and result values: the history itself where its host runs the service, and the host relaying the journal where a workload runs it.
+`Journal.controller` delivers each ended audited call once to a history, without its input and result values.
 
 ```ts
 import { ControlLoop } from "@destack/service/control";
@@ -109,41 +107,43 @@ import { ControlLoop } from "@destack/service/control";
 await new ControlLoop(database, [calls.controller(history)], { report }).run(signal);
 ```
 
-### Chains
-
-Each delivered call's context carries its `chain`, the scopes enclosing its scope outermost first, as the journal's scope copies keep them.
-
-```ts
-call.execution.context; // { scope: "space-…", chain: ["universe", "organisation-…", "account-…"], … }
-```
-
 ## History
 
-`AuditHistory` stores each call once and lists, exports and prunes a scope's calls.
+`AuditHistory` keeps each ended call once as an event of the `call` kind in the host's `EventStore`, copied to every scope enclosing its scope, which the event service reads.
 
 ```ts
+import { AuditActor } from "@destack/audit";
 import { AuditHistory } from "@destack/audit/history";
-import { implementAudit } from "@destack/audit/server";
 
-const history = new AuditHistory(historyDatabase);
-Server.start({ ...implementAudit({ history, access, record }), ...hosting });
-
-const page = await history.list({ scope: spaceId, limit: 100 });
-await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
-```
-
-### Scopes within
-
-`within` reads the calls of a scope and of every scope inside it, by each call's chain.
-
-```ts
-const page = await client.list({
+const history = new AuditHistory(store); // an EventStore keeping the call kind
+await history.ingest({ calls }); // ended calls, each once
+await events.query({
+    kind: "call",
     scope: organisationId,
     within: true,
-    outcome: "success",
-    limit: 100,
+    where: 'outcome = "denied"',
 });
-page.cursor; // the position the next page continues after, null at the end
+await events.query({
+    kind: "call",
+    scope,
+    where: `actor = ${JSON.stringify(AuditActor.key(actor))}`,
+});
+```
+
+### Intake
+
+`implementAudit` takes the ended calls another host's journal delivers, once its `intake` admits the sender for their scopes.
+
+```ts
+implementAudit({ history, intake: (context, scopes) => requireServing(context, scopes) });
+```
+
+### Retention
+
+`forget` erases a person's addresses and user agents from the calls, which stay locked for 400 days.
+
+```ts
+await events.forget(Subject.key(person)); // the calls stay, their addresses gone
 ```
 
 ## Relays
@@ -152,22 +152,12 @@ page.cursor; // the position the next page continues after, null at the end
 
 ```ts
 await history.relay(batch, { scope: spaceId, packageId, installationId, instanceId }); // 2
-// FORBIDDEN: a call of another space or package, or one naming an installation, instance or machine
-```
-
-## History tables
-
-`auditTables` lists the tables of the history's database.
-
-```ts
-import { auditTables } from "@destack/audit/stack";
-
-export const histories = defineDatabase({ name: "history", tables: auditTables });
+// FORBIDDEN: a call of another space or package, or one with an installation, instance or machine
 ```
 
 ## Errors
 
-A refused or failed audit operation throws an `AuditError`, and `toServiceError` names the service error its caller receives.
+A refused or failed audit operation throws an `AuditError`, and `toServiceError` returns the service error its caller receives.
 
 ```ts
 import { AuditError } from "@destack/audit/error";

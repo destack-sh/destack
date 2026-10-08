@@ -4,7 +4,7 @@ import { ControlLoop } from "@destack/service/control";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { AuditError } from "../src/error/index.ts";
-import type { AuditCall } from "../src/record/index.ts";
+import { type AuditCall, call } from "../src/record/index.ts";
 import { AuditRecorder, Journal } from "../src/server/index.ts";
 import { journal } from "../src/stack/index.ts";
 import { AuditStorage, documentRename, rename } from "./storage.ts";
@@ -13,8 +13,10 @@ test("deliver a batch again after its acceptance was lost, the history holding e
     let storage = await AuditStorage.open();
     try {
         // lose a delivery's acknowledgement
-        const call = storage.recorder.begin(documentRename, rename);
-        await storage.recorder.append(call);
+        const recorded = await storage.recorder.record(undefined, documentRename, {
+            ...rename,
+            outcome: { kind: "success" },
+        });
         const failure = new AuditError("UNAVAILABLE", "acceptance lost");
         await expect(
             storage.journal.deliver({
@@ -30,9 +32,7 @@ test("deliver a batch again after its acceptance was lost, the history holding e
         expect(await storage.journal.deliver(storage.history)).toBe(1);
         expect(await storage.journal.deliver(storage.history)).toBe(0);
         const scope = "universe";
-        expect(
-            (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.call),
-        ).toEqual([call]);
+        expect(await storage.calls(scope)).toEqual([recorded]);
     } finally {
         await storage.close();
     }
@@ -58,30 +58,23 @@ test("deliver calls and their outcomes as they commit through control loops of c
 
         // wait until the history holds the outcome
         const waiting = AbortSignal.any([stopping.signal, AbortSignal.timeout(1000)]);
-        const history = async () =>
-            (await storage.history.list({ scope: "universe", limit: 100 })).items.map(
-                (record) => record.call,
-            );
+        const history = async () => await storage.calls("universe");
         await storage.database.log.until(
             async () => (await history())[0]?.execution.outcome !== undefined,
             waiting,
         );
         expect([await history(), failures]).toEqual([[finished], []]);
 
-        // refuse a finished call with other contents
-        await expect(
-            storage.history.ingest({
-                calls: [
-                    {
-                        ...finished,
-                        execution: { ...finished.execution, details: { name: "other" } },
-                    },
-                ],
-            }),
-        ).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: "audited call has conflicting contents",
-        });
+        // refuse a call delivered again with other contents
+        const changed = {
+            ...finished,
+            execution: { ...finished.execution, details: { name: "other" } },
+        };
+        expect(await refusal(storage.history.ingest({ calls: [changed] }))).toEqual([
+            "CONFLICT",
+            `event ${finished.execution.id} of ${call.key} was stored with other contents`,
+        ]);
+        expect(await history()).toEqual([finished]);
     } finally {
         stopping.abort();
         await Promise.all(loops);
@@ -99,13 +92,8 @@ test("refuse a second outcome of a call in the journal and in the history", asyn
         const finished = storage.recorder.finish(running, { kind: "success" });
         await storage.recorder.append(finished);
         expect(await storage.journal.deliver(storage.history)).toBe(1);
-        const scope = "universe";
-        expect(await storage.history.list({ scope, isRunning: true, limit: 100 })).toEqual({
-            items: [],
-            cursor: null,
-        });
 
-        // refuse a second outcome in both places
+        // refuse a second outcome in the journal and in the history
         const conflicting = storage.recorder.finish(running, {
             kind: "failure",
             error: { code: "FAILED", status: 500, message: "failed" },
@@ -114,10 +102,10 @@ test("refuse a second outcome of a call in the journal and in the history", asyn
             code: "CONFLICT",
             message: `call ${running.execution.id} has conflicting contents`,
         });
-        await expect(storage.history.ingest({ calls: [conflicting] })).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: "audited call has conflicting contents",
-        });
+        expect(await refusal(storage.history.ingest({ calls: [conflicting] }))).toEqual([
+            "CONFLICT",
+            `event ${running.execution.id} of ${call.key} was stored with other contents`,
+        ]);
     } finally {
         await storage.close();
     }
@@ -129,9 +117,11 @@ test("remove delivered calls once past their lifetime, keeping a call the histor
     const failures: unknown[] = [];
     const report = (_controller: unknown, _key: string, error: unknown) => failures.push(error);
     try {
-        // deliver one call, and record another the history never receives
-        const delivered = storage.recorder.begin(documentRename, rename);
-        await storage.recorder.append(delivered);
+        // deliver one ended call, and record a running one the history receives only once it ends
+        await storage.recorder.record(undefined, documentRename, {
+            ...rename,
+            outcome: { kind: "success" },
+        });
         expect(await storage.journal.deliver(storage.history)).toBe(1);
         const pending = storage.recorder.begin(documentRename, rename);
         await storage.recorder.append(pending);
@@ -171,7 +161,9 @@ test("relay an instance's journal with its installation and instance as provenan
             },
             storage.journal,
         );
-        const call = recorder.finish(recorder.begin(documentRename, rename), { kind: "success" });
+        const finished = recorder.finish(recorder.begin(documentRename, rename), {
+            kind: "success",
+        });
         const provenance = {
             scope: space,
             packageId: documentRename.package.id,
@@ -185,11 +177,14 @@ test("relay an instance's journal with its installation and instance as provenan
         const relay = (relayed: AuditCall) =>
             refusal(storage.history.relay({ calls: [relayed] }, provenance));
         const context = (fields: Partial<AuditCall["execution"]["context"]>): AuditCall => ({
-            ...call,
-            execution: { ...call.execution, context: { ...call.execution.context, ...fields } },
+            ...finished,
+            execution: {
+                ...finished.execution,
+                context: { ...finished.execution.context, ...fields },
+            },
         });
 
-        // refuse an empty batch, another space, another package and a forged provenance, then relay the call twice
+        // refuse an empty batch, another space, another package and a forged provenance, then relay the finished twice
         const other = PackageId.parse("package-01996ab0-0000-7000-8000-000000000009");
         expect([
             await refusal(storage.history.relay({ calls: [] }, provenance)),
@@ -197,8 +192,8 @@ test("relay an instance's journal with its installation and instance as provenan
             await relay(context({ package: { ...documentRename.package, id: other } })),
             await relay(context({ installationId: provenance.installationId })),
             await relay(context({ instanceId: provenance.instanceId })),
-            await relay(call),
-            await relay(call),
+            await relay(finished),
+            await relay(finished),
         ]).toEqual([
             ["INVALID_EVENT", "invalid journal batch"],
             [
@@ -216,10 +211,10 @@ test("relay an instance's journal with its installation and instance as provenan
         ]);
 
         // keep the call once, with the installation and the instance the host verified
-        const { items } = await storage.history.list({ scope: space, limit: 100 });
-        expect(items.map((record) => record.call.execution.context)).toEqual([
+        const items = await storage.calls(space);
+        expect(items.map((record) => record.execution.context)).toEqual([
             {
-                ...call.execution.context,
+                ...finished.execution.context,
                 installationId: provenance.installationId,
                 instanceId: provenance.instanceId,
             },

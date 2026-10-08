@@ -9,8 +9,6 @@ export const AuditContext = defineSchema(
         caller: AuditCaller,
         /** The scope whose history receives the call. */
         scope: schema.string().min(1),
-        /** The scopes enclosing the call's scope, outermost first, as its journal's scope copies knew them on delivery. */
-        chain: schema.array(schema.string().min(1)).exactOptional(),
         /** The Loan the caller's authority came with: its identifier and the home space that signed it. */
         loan: schema
             .object({
@@ -46,9 +44,9 @@ export const AuditContext = defineSchema(
             .regex(/^[0-9a-f]{32}$/u)
             .exactOptional(),
         /** The caller's network address, as the host saw it. */
-        address: schema.string().exactOptional(),
+        address: schema.sensitive(schema.string(), "personal").exactOptional(),
         /** The caller's user agent, as the host saw it. */
-        userAgent: schema.string().exactOptional(),
+        userAgent: schema.sensitive(schema.string(), "personal").exactOptional(),
     }),
 );
 /** The authority and origin of an executed call, as its host supplied them. */

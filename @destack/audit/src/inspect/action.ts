@@ -11,8 +11,8 @@ export const AuditActionDescription = defineSchema(
         package: Package,
         /** A short description. */
         description: schema.string().exactOptional(),
-        /** The JSON Schema of the named affected objects. */
-        targets: schema.json(),
+        /** The JSON Schema of the object each call acts on. */
+        target: schema.json(),
         /** The JSON Schema of the action details. */
         details: schema.json(),
     }),
@@ -26,7 +26,7 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
         name: action.name,
         package: action.package,
         ...(action.description === undefined ? {} : { description: action.description }),
-        targets: toJsonSchema(action.targets),
+        target: toJsonSchema(action.target),
         details: toJsonSchema(action.details),
     });
 }
@@ -35,5 +35,5 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
 export function auditActionVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
     const description = AuditActionDescription.parse(input);
 
-    return { [description.name]: { targets: description.targets, details: description.details } };
+    return { [description.name]: { target: description.target, details: description.details } };
 }

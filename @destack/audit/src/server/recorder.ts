@@ -1,7 +1,7 @@
 import { AuditCaller } from "../record/actor.ts";
-import { AuditCall } from "../record/call.ts";
+import { AuditCall, JournalEntry } from "../record/call.ts";
 import { AuditContext } from "../record/context.ts";
-import { AuditExecution } from "../record/execution.ts";
+import { AuditExecution, type AuditTarget } from "../record/execution.ts";
 import { v7 } from "uuid";
 import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
 import { Failure, Outcome } from "@destack/sync";
@@ -22,9 +22,11 @@ export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceI
 
 /** The durable store of recorded calls. */
 export interface AuditWriter<Transaction = never> {
+    /** Read the current time in Unix milliseconds, which calls start and end at. */
+    readonly clock: () => number;
     /** Record a call, or its outcome once it ends, inside a transaction when given. */
     record(
-        call: AuditCall,
+        call: JournalEntry,
         options: {
             readonly isAudited: boolean;
             readonly caller?: string;
@@ -53,9 +55,9 @@ export interface CallRequest {
 }
 
 /** The ended call values a recorder takes. */
-type Ended<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>> = {
-    /** The named affected objects. */
-    readonly targets: schema.Input<Targets>;
+type Ended<Target extends schema.Schema<AuditTarget>, Details extends schema.Schema<JsonValue>> = {
+    /** The object the call acts on. */
+    readonly target: schema.Input<Target>;
     /** The details the action schema accepts. */
     readonly details: schema.Input<Details>;
     /** How the call ended. */
@@ -193,7 +195,7 @@ export class AuditRecorder<Transaction = never> {
                 undefined,
                 serviceInvoke,
                 {
-                    targets: { procedure: { type: "procedure", id: event.call.path.join(".") } },
+                    target: { type: "procedure", id: event.call.path.join(".") },
                     details: { authentication: access.authentication },
                     outcome,
                 },
@@ -204,7 +206,7 @@ export class AuditRecorder<Transaction = never> {
 
     /** Read the outcome a failed call ends with: a denial for rejected access, a failure otherwise. */
     static outcome(error: unknown): Exclude<Outcome, { kind: "success" }> {
-        // read the service error a failure is or names
+        // read the service error a failure is or holds
         const known = ServiceError.of(error);
         const denial = known === undefined ? undefined : denialOf(known);
 
@@ -230,11 +232,14 @@ export class AuditRecorder<Transaction = never> {
         this.#writer = writer;
     }
 
-    /** Record an ended call, a committed write unless named otherwise. */
-    async record<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
+    /** Record an ended call, a committed write unless the category says otherwise. */
+    async record<
+        Target extends schema.Schema<AuditTarget>,
+        Details extends schema.Schema<JsonValue>,
+    >(
         transaction: Transaction | undefined,
-        action: AuditAction<Targets, Details>,
-        values: Ended<Targets, Details>,
+        action: AuditAction<Target, Details>,
+        values: Ended<Target, Details>,
         category: AuditExecution["category"] = "activity",
         request?: CallRequest,
     ): Promise<AuditCall> {
@@ -242,27 +247,29 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Record an executed call only retries read, such as an ephemeral write no history receives. */
-    async keep<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
+    async keep<Target extends schema.Schema<AuditTarget>, Details extends schema.Schema<JsonValue>>(
         transaction: Transaction | undefined,
-        action: AuditAction<Targets, Details>,
-        values: Ended<Targets, Details>,
+        action: AuditAction<Target, Details>,
+        values: Ended<Target, Details>,
         request: CallRequest,
     ): Promise<AuditCall> {
         return this.#ended(transaction, action, values, "activity", false, request);
     }
 
     /** Prepare a running call, recorded before its external effect runs. */
-    begin<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
-        action: AuditAction<Targets, Details>,
-        values: Omit<Ended<Targets, Details>, "outcome">,
-    ): AuditCall {
-        return this.#call(action, values, "activity", { startedAt: Date.now() });
+    begin<Target extends schema.Schema<AuditTarget>, Details extends schema.Schema<JsonValue>>(
+        action: AuditAction<Target, Details>,
+        values: Omit<Ended<Target, Details>, "outcome">,
+    ): JournalEntry {
+        return JournalEntry.parse(
+            this.#call(action, values, "activity", { startedAt: this.#writer.clock() }),
+        );
     }
 
     /** Prepare the end of a running call, merging any result details. */
-    finish(running: AuditCall, outcome: Outcome, details?: JsonObject): AuditCall {
+    finish(running: JournalEntry, outcome: Outcome, details?: JsonObject): AuditCall {
         // require a running call of this context
-        const call = AuditCall.parse(running);
+        const call = JournalEntry.parse(running);
         const execution = call.execution;
         if (
             execution.outcome !== undefined ||
@@ -283,13 +290,13 @@ export class AuditRecorder<Transaction = never> {
                         ? execution.details
                         : mergeDetails(execution.details, details),
                 outcome,
-                finishedAt: Date.now(),
+                finishedAt: this.#writer.clock(),
             },
         });
     }
 
     /** Record a prepared call of this context, running or ended. */
-    async append(call: AuditCall): Promise<void> {
+    async append(call: JournalEntry): Promise<void> {
         // require this recorder's context
         if (canonicalize(call.execution.context) !== canonicalize(this.#context)) {
             throw new AuditError("INVALID_EVENT", "call belongs to another context");
@@ -299,9 +306,13 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Record a running call, run an external effect, and record how it ended. */
-    async attempt<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>, Value>(
-        action: AuditAction<Targets, Details>,
-        values: Omit<Ended<Targets, Details>, "outcome">,
+    async attempt<
+        Target extends schema.Schema<AuditTarget>,
+        Details extends schema.Schema<JsonValue>,
+        Value,
+    >(
+        action: AuditAction<Target, Details>,
+        values: Omit<Ended<Target, Details>, "outcome">,
         execute: () => Promise<Value>,
     ): Promise<Value> {
         // record the call before executing
@@ -324,9 +335,13 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Run a read and record it as one access call, with the details its result holds. */
-    async read<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>, Value>(
-        action: AuditAction<Targets, Details>,
-        values: Omit<Ended<Targets, Details>, "outcome">,
+    async read<
+        Target extends schema.Schema<AuditTarget>,
+        Details extends schema.Schema<JsonValue>,
+        Value,
+    >(
+        action: AuditAction<Target, Details>,
+        values: Omit<Ended<Target, Details>, "outcome">,
         execute: () => Promise<Value>,
         detail?: (value: Value) => schema.Input<Details>,
     ): Promise<Value> {
@@ -349,7 +364,7 @@ export class AuditRecorder<Transaction = never> {
         await this.record(
             undefined,
             action,
-            { targets: values.targets, details, outcome: { kind: "success" } },
+            { target: values.target, details, outcome: { kind: "success" } },
             "access",
         );
 
@@ -357,9 +372,13 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Pass on a stream's values and record it as one access call when it ends. */
-    async *stream<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>, Value>(
-        action: AuditAction<Targets, Details>,
-        values: Omit<Ended<Targets, Details>, "outcome">,
+    async *stream<
+        Target extends schema.Schema<AuditTarget>,
+        Details extends schema.Schema<JsonValue>,
+        Value,
+    >(
+        action: AuditAction<Target, Details>,
+        values: Omit<Ended<Target, Details>, "outcome">,
         source: () => AsyncIterable<Value>,
     ): AsyncGenerator<Value> {
         // count the stream cancelled until it ends
@@ -385,28 +404,35 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Build and write an ended call. */
-    async #ended<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
+    async #ended<
+        Target extends schema.Schema<AuditTarget>,
+        Details extends schema.Schema<JsonValue>,
+    >(
         transaction: Transaction | undefined,
-        action: AuditAction<Targets, Details>,
-        values: Ended<Targets, Details>,
+        action: AuditAction<Target, Details>,
+        values: Ended<Target, Details>,
         category: AuditExecution["category"],
         isAudited: boolean,
         request?: CallRequest,
     ): Promise<AuditCall> {
         // build the call, ended now
-        const now = Date.now();
-        const call = this.#call(
-            action,
-            values,
-            category,
-            {
-                ...(request === undefined ? {} : { digest: request.digest }),
-                ...(request?.transaction === undefined ? {} : { transaction: request.transaction }),
-                outcome: values.outcome,
-                startedAt: now,
-                finishedAt: now,
-            },
-            request,
+        const now = this.#writer.clock();
+        const call = AuditCall.parse(
+            this.#call(
+                action,
+                values,
+                category,
+                {
+                    ...(request === undefined ? {} : { digest: request.digest }),
+                    ...(request?.transaction === undefined
+                        ? {}
+                        : { transaction: request.transaction }),
+                    outcome: values.outcome,
+                    startedAt: now,
+                    finishedAt: now,
+                },
+                request,
+            ),
         );
 
         // write it, keyed for retries within a request
@@ -439,17 +465,17 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Build a call of this context, redacting sensitive details. */
-    #call<Targets extends schema.Schema, Details extends schema.Schema<JsonValue>>(
-        action: AuditAction<Targets, Details>,
-        values: Omit<Ended<Targets, Details>, "outcome">,
+    #call<Target extends schema.Schema<AuditTarget>, Details extends schema.Schema<JsonValue>>(
+        action: AuditAction<Target, Details>,
+        values: Omit<Ended<Target, Details>, "outcome">,
         category: AuditExecution["category"],
         execution: Omit<
             AuditExecution,
-            "id" | "requestId" | "category" | "context" | "targets" | "details"
+            "id" | "requestId" | "category" | "context" | "target" | "details"
         >,
         request?: CallRequest,
-    ): AuditCall {
-        return AuditCall.parse({
+    ): object {
+        return {
             method: action.name,
             input: request?.input ?? {},
             release: request?.release ?? action.package.version,
@@ -460,11 +486,11 @@ export class AuditRecorder<Transaction = never> {
                     : { requestId: request?.requestId ?? this.#requestId }),
                 category,
                 context: this.#context,
-                targets: action.targets.parse(values.targets),
+                target: action.target.parse(values.target),
                 details: schema.redact(action.details, action.details.parse(values.details)),
                 ...execution,
             },
-        });
+        };
     }
 }
 

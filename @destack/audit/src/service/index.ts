@@ -1,2 +1,2 @@
 export * from "./service.ts";
-export * from "./query.ts";
+export * from "./batch.ts";

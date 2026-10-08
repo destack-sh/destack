@@ -7,15 +7,10 @@ import {
     json,
     text,
     uniqueIndex,
-    type Table,
 } from "@destack/db";
-import { AuditCall } from "../record/call.ts";
-import { auditCall, auditTarget, auditEnclosure } from "../record/table.ts";
+import { JournalEntry } from "../record/call.ts";
 
-/** The audit history tables. */
-export const auditTables: readonly Table[] = [auditCall, auditTarget, auditEnclosure];
-
-/** The calls a service database executed, kept for retries and delivered to the audit history. */
+/** The calls a service database executed, kept for retries and delivered to the audit history once they end. */
 export const journal = defineTable(
     "journal",
     {
@@ -34,7 +29,7 @@ export const journal = defineTable(
         /** Whether the audit history receives the call. */
         isAudited: boolean("is_audited").notNull(),
         /** The complete call with its execution. */
-        call: json("call", AuditCall).notNull(),
+        call: json("call", JournalEntry).notNull(),
         /** The start time, in UTC epoch milliseconds. */
         startedAt: integer("started_at").notNull(),
         /** The end time, in UTC epoch milliseconds, absent while the call runs. */
