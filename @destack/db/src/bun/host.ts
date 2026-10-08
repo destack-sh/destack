@@ -8,7 +8,7 @@ import { DatabaseError } from "../error/error.ts";
 import type { DatabaseKind } from "../declare/database.ts";
 import type { DatabaseHost } from "../provider/provider.ts";
 import { mergeStates } from "../migration/merge.ts";
-import type { DatabaseHandle } from "../database/handle.ts";
+import { DatabaseHandle } from "../database/handle.ts";
 import { Table } from "../table/table.ts";
 
 /** Keep databases as SQLite files below a directory, one folder per space. */
@@ -113,5 +113,15 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         };
 
         return handle;
+    }
+
+    /** Copy a database's rows into a store as content-addressed pages, answering the copy's digest. */
+    snapshot(...copy: Parameters<DatabaseHost["snapshot"]>): Promise<Digest> {
+        return DatabaseHandle.snapshotter(this).snapshot(...copy);
+    }
+
+    /** Restore the rows a copy keeps into a database, onto the base copy it holds already when given. */
+    restore(...copy: Parameters<DatabaseHost["restore"]>): Promise<void> {
+        return DatabaseHandle.snapshotter(this).restore(...copy);
     }
 }

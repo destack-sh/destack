@@ -46,6 +46,11 @@ const RECORD = {
     reference: null,
 };
 
+/** The content keeper of operations that copy nothing, refusing every page. */
+const UNKEPT = () => ({
+    fetch: () => Promise.reject(new TypeError("the scenario keeps no content")),
+});
+
 /** A Durable Object keeping notes in its SQLite storage through a Destack connection. */
 export class Notes {
     /** The object's storage. */
@@ -112,6 +117,7 @@ export class Notes {
                 method: "POST",
                 body: JSON.stringify({ operation: "plan", record, desired }),
             }),
+            UNKEPT,
         );
         const plan = Plan.parse(await answered.json());
 
@@ -139,6 +145,7 @@ export class Notes {
                 method: "POST",
                 body: JSON.stringify({ operation: "measure" }),
             }),
+            UNKEPT,
         );
         const { bytes } = DurableObjectMeasurement.parse(await measuring.json());
         const isMeasured = bytes > 0 && bytes === this.storage.sql.databaseSize;

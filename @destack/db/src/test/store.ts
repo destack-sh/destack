@@ -23,7 +23,9 @@ export class MemoryContentStore implements ContentStore {
     /** Keep bytes under their digest, marking a kept part used now. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         // gather and hash the bytes
-        const bytes = await gathered(body);
+        const bytes = await new Blob(
+            (await Array.fromAsync(body)).map((chunk) => new Uint8Array(chunk)),
+        ).bytes();
         const digest = Digest.parse(
             new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex(),
         );
@@ -60,18 +62,4 @@ export class MemoryContentStore implements ContentStore {
             }
         }
     }
-}
-
-/** Gather a body's chunks into one array of bytes. */
-async function gathered(body: AsyncIterable<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
-    // copy the chunks one after another
-    const chunks = await Array.fromAsync(body);
-    const bytes = new Uint8Array(chunks.reduce((size, chunk) => size + chunk.byteLength, 0));
-    let offset = 0;
-    for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-    }
-
-    return bytes;
 }

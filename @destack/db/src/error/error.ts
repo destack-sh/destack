@@ -20,6 +20,7 @@ const SERVICE_CODES = {
     INVALID_QUERY: "BAD_REQUEST",
     QUERY_FAILED: "INTERNAL_SERVER_ERROR",
     NO_CHANNEL: "INTERNAL_SERVER_ERROR",
+    CONTENT_UNAVAILABLE: "SERVICE_UNAVAILABLE",
 } as const satisfies Readonly<Record<string, ServiceErrorCode>>;
 
 /** The database failure codes. */

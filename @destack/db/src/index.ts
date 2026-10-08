@@ -10,4 +10,4 @@ export * from "./tree/index.ts";
 export * from "./error/index.ts";
 export * from "./channel/index.ts";
 export * from "./provider/index.ts";
-export { type DatabaseState, TableState } from "./migration/state.ts";
+export { type DatabaseState, TableState, declareState } from "./migration/state.ts";

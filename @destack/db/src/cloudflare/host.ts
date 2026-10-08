@@ -1,6 +1,6 @@
 import { defineSchema, Digest, schema } from "@destack/schema";
 import { type KindState, Plan, ResourceId, type ResourceRecord } from "@destack/resource";
-import type { DatabaseHandle } from "../database/handle.ts";
+import { DatabaseHandle } from "../database/handle.ts";
 import { type DatabaseKind, DatabaseSpec } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
 import { mergeStates } from "../migration/merge.ts";
@@ -10,6 +10,7 @@ import { relation } from "../table/namespace.ts";
 import { Table } from "../table/table.ts";
 import { type DurableObjectStorage, RowCount } from "./client.ts";
 import { connectDurableObject } from "./connection.ts";
+import { DurableObjectContentStore } from "./content.ts";
 
 /** The provider code of databases in Durable Objects' SQLite storage. */
 export const DURABLE_OBJECT_PROVIDER = "durable-object";
@@ -60,6 +61,26 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
         desired: schema.array(DatabaseState),
         /** The reviewed plan's digest. */
         digest: Digest,
+    }),
+    schema.object({
+        /** Copy the database's rows into the content the sender keeps, answering the copy's digest. */
+        operation: schema.literal("snapshot"),
+        /** The database resource. */
+        record: DatabaseRecord,
+        /** The desired states. */
+        desired: schema.array(DatabaseState),
+    }),
+    schema.object({
+        /** Restore a copy the sender keeps into the database, onto the base copy it holds already when given. */
+        operation: schema.literal("restore"),
+        /** The database resource. */
+        record: DatabaseRecord,
+        /** The desired states. */
+        desired: schema.array(DatabaseState),
+        /** The copy's digest. */
+        digest: Digest,
+        /** The digest of the copy the database holds already, absent for an empty database. */
+        base: Digest.exactOptional(),
     }),
     schema.object({
         /** Count the bytes of every database the object keeps, and take the rows they read and wrote. */
@@ -191,6 +212,16 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         };
     }
 
+    /** Copy a database's rows into a store as content-addressed pages, answering the copy's digest. */
+    snapshot(...copy: Parameters<DatabaseHost["snapshot"]>): Promise<Digest> {
+        return DatabaseHandle.snapshotter(this).snapshot(...copy);
+    }
+
+    /** Restore the rows a copy keeps into a database, onto the base copy it holds already when given. */
+    restore(...copy: Parameters<DatabaseHost["restore"]>): Promise<void> {
+        return DatabaseHandle.snapshotter(this).restore(...copy);
+    }
+
     /** Count the bytes of every database the object keeps: its whole SQLite storage, as Cloudflare bills it. */
     bytes(): number {
         return this.storage.sql.databaseSize;
@@ -201,10 +232,24 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         return { bytes: this.bytes(), ...RowCount.take(this.storage) };
     }
 
-    /** Answer an operation another object sends on the databases this object keeps. */
-    async answer(request: Request): Promise<Response> {
+    /** Answer an operation another object sends on the databases this object keeps, copying through the content the object keeping a resource's space keeps under the request's credential. */
+    async answer(
+        request: Request,
+        keeper: (scope: string) => DurableObjectStub,
+    ): Promise<Response> {
         // run the operation the body names
         const body = DurableObjectDatabaseOperation.parse(await request.json());
+        const content = (scope: string) => {
+            const authorization = request.headers.get("authorization");
+            if (authorization === null) {
+                throw new DatabaseError(
+                    "CONTENT_UNAVAILABLE",
+                    "a copy needs the sender's credential",
+                );
+            }
+
+            return new DurableObjectContentStore(keeper(scope), authorization);
+        };
         switch (body.operation) {
             case "provision":
                 return Response.json(await this.provision(body.record));
@@ -218,9 +263,33 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
                 await this.apply(body.record, body.desired, body.digest);
 
                 return Response.json({});
+            case "snapshot": {
+                await using opened = await this.#opened(body.record, body.desired);
+                const store = content(body.record.scope);
+
+                return Response.json({ digest: await DatabaseHandle.snapshot(opened, store) });
+            }
+            case "restore": {
+                const { record, desired, digest, base } = body;
+                await using opened = await this.#opened(record, desired);
+                const store = content(record.scope);
+                await DatabaseHandle.restore(opened, digest, store, undefined, base);
+
+                return Response.json({});
+            }
             case "measure":
                 return Response.json(this.measure());
         }
+    }
+
+    /** Open a database for one copy, closing it when disposed. */
+    async #opened(
+        record: ResourceRecord<typeof DatabaseKind>,
+        desired: readonly KindState<typeof DatabaseKind>[],
+    ): Promise<DatabaseHandle & AsyncDisposable> {
+        const handle = await this.open(record, desired);
+
+        return Object.assign(handle, { [Symbol.asyncDispose]: () => handle.close() });
     }
 
     /** List the relations of a database's namespace. */
@@ -238,19 +307,62 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     }
 }
 
-/** A Durable Object answering operations on the databases it keeps, such as an instance's object before its workload first starts. */
+/** A Durable Object's stub, through which requests reach the object. */
+export interface DurableObjectStub {
+    /** Send the object a request. */
+    fetch(request: Request): Promise<Response>;
+}
+
+/** Where a residency's objects and storage stay: a Cloudflare jurisdiction, the European Union or the United States, or local for workerd, which enforces none. */
+export type Jurisdiction = "eu" | "us" | "local";
+
+/** The jurisdictions a namespace narrows to. */
+export const Jurisdiction = {
+    /** Narrow a namespace to the objects a jurisdiction keeps, the whole namespace locally. */
+    narrow(namespace: DurableObjectNamespace, jurisdiction: Jurisdiction): DurableObjectNamespace {
+        return jurisdiction === "local" ? namespace : namespace.jurisdiction(jurisdiction);
+    },
+};
+
+/** The Durable Objects of a binding, as a Worker addresses them. */
+export interface DurableObjectNamespace {
+    /** Derive the identifier of the object of a name. */
+    idFromName(name: string): unknown;
+    /** Get an object's stub, hinting where a new one starts. */
+    get(id: unknown, options?: { readonly locationHint?: string }): DurableObjectStub;
+    /** Narrow the namespace to the objects kept in a jurisdiction. */
+    jurisdiction(name: Exclude<Jurisdiction, "local">): DurableObjectNamespace;
+}
+
+/** The bindings a database's object reads: the spaces' objects keeping the content its copies read and write. */
+export interface DurableObjectDatabaseEnvironment {
+    /** The spaces' objects, each named by its space. */
+    readonly SPACE: DurableObjectNamespace;
+    /** The jurisdiction keeping the spaces' objects. */
+    readonly DESTACK_JURISDICTION: Jurisdiction;
+}
+
+/** A Durable Object answering operations on the databases it keeps, such as an instance's object before its workload first starts, copying through its databases' spaces' objects. */
 export class DurableObjectDatabase {
     /** The databases the object keeps. */
     readonly #databases: DurableObjectDatabaseHost;
+    /** The spaces' objects, in their jurisdiction. */
+    readonly #spaces: DurableObjectNamespace;
 
-    /** Keep databases in the object's storage. */
-    constructor(state: { readonly storage: DurableObjectStorage }) {
+    /** Keep databases in the object's storage, reaching the spaces' objects through the Worker's bindings. */
+    constructor(
+        state: { readonly storage: DurableObjectStorage },
+        environment: DurableObjectDatabaseEnvironment,
+    ) {
         this.#databases = new DurableObjectDatabaseHost(state.storage);
+        this.#spaces = Jurisdiction.narrow(environment.SPACE, environment.DESTACK_JURISDICTION);
     }
 
-    /** Answer an operation on a database the object keeps. */
+    /** Answer an operation on a database the object keeps, copying through the object of the database's space. */
     fetch(request: Request): Promise<Response> {
-        return this.#databases.answer(request);
+        return this.#databases.answer(request, (scope) =>
+            this.#spaces.get(this.#spaces.idFromName(scope)),
+        );
     }
 }
 
