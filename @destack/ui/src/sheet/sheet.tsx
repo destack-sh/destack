@@ -28,10 +28,8 @@ const styles = style.create({
     sheet: {
         display: { default: "none", ":modal": "flex" },
         flexDirection: "column",
-        margin: 0,
         maxWidth: "none",
         maxHeight: "none",
-        borderWidth: 0,
         borderRadius: 0,
         transitionProperty: "transform, display, overlay",
         transitionDuration: motion.durationMedium,

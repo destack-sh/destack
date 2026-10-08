@@ -5,7 +5,6 @@ import { type Accessor, createControllableSignal, type JSX, onSettled } from "@d
 /** The styles of the hidden native input that carries a control's state into its form. */
 const styles = style.create({
     input: {
-        margin: 0,
         opacity: 0,
         pointerEvents: "none",
     },

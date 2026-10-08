@@ -17,12 +17,9 @@ const styles = style.create({
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: { default: "transparent", ":focus-visible": color.ring },
         borderRadius: radius[3],
-        color: "inherit",
-        textDecoration: "none",
         transitionProperty: "background-color, border-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
@@ -60,7 +57,6 @@ const styles = style.create({
     description: {
         display: "-webkit-box",
         overflow: "hidden",
-        margin: 0,
         WebkitBoxOrient: "vertical",
         WebkitLineClamp: 2,
         color: color.mutedForeground,
@@ -82,9 +78,7 @@ const styles = style.create({
 
 /** The colors of each variant. */
 const variants = style.create({
-    default: {
-        backgroundColor: "transparent",
-    },
+    default: {},
     outline: {
         borderColor: color.border,
     },
@@ -136,7 +130,6 @@ const medias = style.create({
     icon: {
         width: size[2],
         height: size[2],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[2],

@@ -67,9 +67,6 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         gap: space[1],
-        margin: 0,
-        padding: 0,
-        listStyle: "none",
     },
     item: {
         position: "relative",
@@ -81,7 +78,6 @@ const styles = style.create({
         gap: space[1],
         height: size[3],
         paddingInline: space[4],
-        borderWidth: 0,
         borderRadius: radius[3],
         backgroundColor: {
             default: color.background,
@@ -93,7 +89,6 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.accentForeground },
         },
         fontWeight: weight.medium,
-        textDecoration: "none",
         cursor: "pointer",
         transitionProperty: "color, background-color",
         transitionDuration: motion.durationShort,
@@ -125,7 +120,6 @@ const styles = style.create({
         insetInlineStart: 0,
         zIndex: 1,
         marginTop: space[2],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],
@@ -158,8 +152,6 @@ const styles = style.create({
         gap: space[1],
         padding: space[2],
         borderRadius: radius[2],
-        color: "inherit",
-        textDecoration: "none",
         backgroundColor: {
             default: "transparent",
             ":hover": { default: null, [media.hover]: color.accent },

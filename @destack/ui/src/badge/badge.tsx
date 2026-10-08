@@ -20,7 +20,6 @@ const styles = style.create({
         overflow: "hidden",
         paddingBlock: `calc(${space[1]} / 2)`,
         paddingInline: space[2],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: "transparent",
         borderRadius: radius.full,

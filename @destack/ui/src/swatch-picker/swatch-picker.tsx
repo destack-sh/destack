@@ -45,10 +45,8 @@ const styles = style.create({
         gap: space[1],
     },
     swatch: {
-        boxSizing: "border-box",
         width: `calc(${size[1]} * 0.75)`,
         height: `calc(${size[1]} * 0.75)`,
-        padding: 0,
         borderRadius: radius.full,
         cursor: "pointer",
         boxShadow: {

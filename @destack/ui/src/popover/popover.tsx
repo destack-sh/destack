@@ -41,12 +41,10 @@ const PopoverContext = createContext<PopoverControl | null>(null);
 /** The styles every popover shares. */
 const styles = style.create({
     content: {
-        boxSizing: "border-box",
         width: width.popover,
         inset: "auto",
         margin: space[1],
         padding: space[4],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],
@@ -74,11 +72,9 @@ const styles = style.create({
         gap: space[1],
     },
     title: {
-        margin: 0,
         fontWeight: weight.medium,
     },
     description: {
-        margin: 0,
         color: color.mutedForeground,
     },
 });

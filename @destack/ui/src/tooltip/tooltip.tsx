@@ -97,7 +97,6 @@ const styles = style.create({
         margin: space[1],
         paddingBlock: space[1],
         paddingInline: space[3],
-        borderWidth: 0,
         borderRadius: radius[3],
         backgroundColor: color.foreground,
         color: color.background,

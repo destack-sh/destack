@@ -40,8 +40,8 @@ const styles = style.create({
         gap: space[4],
         width: `min(100% - 2 * ${space[4]}, ${DIALOG_WIDTH})`,
         maxWidth: "none",
+        margin: "auto",
         padding: space[5],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[4],
@@ -70,12 +70,10 @@ const styles = style.create({
         gap: space[2],
     },
     title: {
-        margin: 0,
         fontWeight: weight.semibold,
         lineHeight: 1,
     },
     description: {
-        margin: 0,
         color: color.mutedForeground,
     },
 });

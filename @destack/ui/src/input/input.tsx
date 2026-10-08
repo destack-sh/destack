@@ -18,11 +18,9 @@ import { useJoin } from "../join/index.ts";
 const styles = style.create({
     box: {
         paddingInline: space[3],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: { default: color.input, ":focus-visible": color.ring },
         borderRadius: radius[3],
-        backgroundColor: "transparent",
         boxShadow: shadow.inset,
         color: color.foreground,
         transitionProperty: "border-color, outline-color",
@@ -48,12 +46,7 @@ const styles = style.create({
         "::file-selector-button": {
             height: "100%",
             marginInlineEnd: space[2],
-            padding: 0,
-            borderWidth: 0,
-            backgroundColor: "transparent",
             color: color.foreground,
-            fontFamily: "inherit",
-            fontSize: "inherit",
             fontWeight: weight.medium,
         },
     },

@@ -68,7 +68,6 @@ const styles = style.create({
         justifyContent: "center",
         gap: space[1],
         height: size[2],
-        margin: 0,
         fontWeight: weight.medium,
     },
     week: {
@@ -87,13 +86,11 @@ const styles = style.create({
         fontWeight: weight.regular,
     },
     cell: {
-        padding: 0,
         textAlign: "center",
     },
     day: {
         width: size[3],
         height: size[3],
-        padding: 0,
         fontWeight: weight.regular,
         fontVariantNumeric: "tabular-nums",
     },

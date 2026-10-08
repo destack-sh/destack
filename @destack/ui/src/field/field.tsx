@@ -30,13 +30,9 @@ const styles = style.create({
         flexDirection: "column",
         gap: space[5],
         minWidth: 0,
-        margin: 0,
-        padding: 0,
-        borderWidth: 0,
     },
     legend: {
         marginBottom: space[3],
-        padding: 0,
         fontWeight: weight.medium,
     },
     group: {
@@ -64,7 +60,6 @@ const styles = style.create({
         opacity: 0.5,
     },
     description: {
-        margin: 0,
         color: color.mutedForeground,
     },
     error: {
@@ -74,7 +69,6 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         gap: space[1],
-        margin: 0,
         paddingInlineStart: space[4],
     },
     separator: {

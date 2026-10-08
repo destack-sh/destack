@@ -80,9 +80,7 @@ const styles = style.create({
         marginBlock: space[1],
         marginInline: `calc(-1 * ${space[1]})`,
         height: 0,
-        borderWidth: 0,
         borderTopWidth: stroke.border,
-        borderStyle: "solid",
         borderColor: color.border,
     },
 });

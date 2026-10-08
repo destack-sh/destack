@@ -51,7 +51,6 @@ const styles = style.create({
         gap: space[1],
         height: size[3],
         padding: space[1],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],
@@ -63,7 +62,6 @@ const styles = style.create({
         alignItems: "center",
         paddingBlock: space[1],
         paddingInline: space[2],
-        borderWidth: 0,
         borderRadius: radius[2],
         backgroundColor: {
             default: "transparent",

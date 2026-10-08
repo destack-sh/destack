@@ -52,7 +52,6 @@ const styles = style.create({
             [style.when.descendant('[data-align="block-start"]', addonMarker)]: "auto",
             [style.when.descendant('[data-align="block-end"]', addonMarker)]: "auto",
         },
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: {
             default: color.input,

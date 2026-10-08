@@ -10,7 +10,6 @@ const styles = style.create({
         flexDirection: "column",
         gap: space[5],
         paddingBlock: space[5],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[5],

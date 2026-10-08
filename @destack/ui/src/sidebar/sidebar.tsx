@@ -87,7 +87,6 @@ const styles = style.create({
     floating: {
         height: `calc(100vh - 2 * ${space[2]})`,
         margin: space[2],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[4],
@@ -108,9 +107,6 @@ const styles = style.create({
         top: 0,
         bottom: 0,
         width: space[4],
-        padding: 0,
-        borderWidth: 0,
-        backgroundColor: "transparent",
         cursor: "ew-resize",
     },
     inset: {
@@ -160,9 +156,6 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         gap: space[1],
-        margin: 0,
-        padding: 0,
-        listStyle: "none",
     },
     menuItem: { position: "relative" },
     menuButton: {
@@ -172,7 +165,6 @@ const styles = style.create({
         width: "100%",
         overflow: "hidden",
         paddingInline: space[2],
-        borderWidth: 0,
         borderRadius: radius[3],
         backgroundColor: {
             default: "transparent",
@@ -183,11 +175,8 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.accentForeground },
         },
         textAlign: "start",
-        textDecoration: "none",
         whiteSpace: "nowrap",
         cursor: "pointer",
-        fontFamily: "inherit",
-        fontSize: "inherit",
         outlineStyle: { default: "none", ":focus-visible": "solid" },
         outlineWidth: stroke.ring,
         outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
@@ -237,7 +226,6 @@ const styles = style.create({
         borderInlineStartStyle: "solid",
         borderInlineStartWidth: stroke.border,
         borderInlineStartColor: color.border,
-        listStyle: "none",
     },
 });
 

@@ -173,7 +173,6 @@ const styles = style.create({
     tone: {
         width: size[2],
         height: size[2],
-        borderWidth: 0,
         borderRadius: radius[1],
         fontSize: `calc(${size[2]} * 0.6)`,
         backgroundColor: {
@@ -189,8 +188,6 @@ const styles = style.create({
         justifyContent: "center",
         width: size[2],
         height: size[2],
-        padding: 0,
-        borderWidth: 0,
         borderRadius: radius[1],
         fontSize: `calc(${size[2]} * 0.6)`,
         backgroundColor: {

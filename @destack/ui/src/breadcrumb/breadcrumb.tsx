@@ -17,9 +17,6 @@ const styles = style.create({
         flexWrap: "wrap",
         alignItems: "center",
         gap: space[2],
-        margin: 0,
-        padding: 0,
-        listStyle: "none",
         color: color.mutedForeground,
         wordBreak: "break-word",
     },
@@ -30,7 +27,6 @@ const styles = style.create({
     },
     link: {
         color: { default: "inherit", ":hover": { default: null, [media.hover]: color.foreground } },
-        textDecoration: "none",
         transitionProperty: "color",
         transitionDuration: motion.durationShort,
         outlineStyle: { default: "none", ":focus-visible": "solid" },

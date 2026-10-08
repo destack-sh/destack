@@ -56,7 +56,6 @@ const styles = style.create({
     grip: {
         zIndex: 1,
         borderRadius: radius[2],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         backgroundColor: color.border,

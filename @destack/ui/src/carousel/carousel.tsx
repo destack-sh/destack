@@ -46,8 +46,6 @@ const styles = style.create({
     dot: {
         width: space[2],
         height: space[2],
-        padding: 0,
-        borderWidth: 0,
         borderRadius: radius.full,
         backgroundColor: color.muted,
         cursor: "pointer",

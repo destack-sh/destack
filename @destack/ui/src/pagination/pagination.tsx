@@ -20,9 +20,6 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         gap: space[1],
-        margin: 0,
-        padding: 0,
-        listStyle: "none",
     },
     step: {
         paddingInline: space[3],

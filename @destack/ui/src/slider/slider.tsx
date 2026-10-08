@@ -89,8 +89,6 @@ const styles = style.create({
         appearance: "none",
         width: "100%",
         height: space[4],
-        margin: 0,
-        backgroundColor: "transparent",
         pointerEvents: "none",
         outlineStyle: "none",
         cursor: { default: "pointer", ":disabled": "not-allowed" },

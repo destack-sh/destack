@@ -53,10 +53,6 @@ const styles = style.create({
     },
     remove: {
         display: "inline-flex",
-        padding: 0,
-        borderWidth: 0,
-        backgroundColor: "transparent",
-        color: "inherit",
         cursor: "pointer",
     },
     input: {
@@ -65,14 +61,12 @@ const styles = style.create({
         cursor: { default: "text", ":disabled": "not-allowed" },
     },
     content: {
-        boxSizing: "border-box",
         width: "anchor-size(width)",
         maxHeight: `calc(8 * ${size[3]})`,
         overflowY: "auto",
         inset: "auto",
         margin: space[1],
         padding: space[1],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],

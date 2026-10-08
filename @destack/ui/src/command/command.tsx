@@ -57,10 +57,7 @@ const styles = style.create({
     input: {
         flex: 1,
         height: "100%",
-        padding: 0,
-        borderWidth: 0,
         outlineStyle: "none",
-        backgroundColor: "transparent",
         color: color.foreground,
         "::placeholder": { color: color.mutedForeground },
     },

@@ -18,7 +18,6 @@ const styles = style.create({
         width: "100%",
         paddingInline: space[4],
         paddingBlock: space[3],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[4],

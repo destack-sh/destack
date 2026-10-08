@@ -22,7 +22,6 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         gap: space[2],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: "transparent",
         borderRadius: radius[3],

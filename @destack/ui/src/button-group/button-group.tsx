@@ -24,7 +24,6 @@ const styles = style.create({
         alignItems: "center",
         gap: space[2],
         paddingInline: space[4],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],
@@ -35,7 +34,6 @@ const styles = style.create({
     separator: {
         position: "relative",
         alignSelf: "stretch",
-        margin: 0,
         borderColor: color.input,
     },
 });

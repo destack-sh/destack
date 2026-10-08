@@ -23,12 +23,10 @@ const HoverCardContext = createContext<HoverPopover | null>(null);
 /** The styles of a hover card. */
 const styles = style.create({
     content: {
-        boxSizing: "border-box",
         width: width.hoverCard,
         inset: "auto",
         margin: space[1],
         padding: space[4],
-        borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],

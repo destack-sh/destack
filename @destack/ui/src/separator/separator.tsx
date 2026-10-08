@@ -14,18 +14,14 @@ const orientations = style.create({
         flexShrink: 0,
         width: "100%",
         height: 0,
-        borderWidth: 0,
         borderTopWidth: stroke.border,
-        borderStyle: "solid",
         borderColor: color.border,
     },
     vertical: {
         flexShrink: 0,
         alignSelf: "stretch",
         width: 0,
-        borderWidth: 0,
         borderLeftWidth: stroke.border,
-        borderStyle: "solid",
         borderColor: color.border,
     },
 });

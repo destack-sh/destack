@@ -34,9 +34,6 @@ const TreeParentContext = createContext<string | null>(null);
 /** The styles of a tree and its items. */
 const styles = style.create({
     tree: {
-        margin: 0,
-        padding: 0,
-        listStyle: "none",
         outlineStyle: "none",
     },
     item: {
@@ -85,11 +82,7 @@ const styles = style.create({
     expandedBack: {
         transform: "rotate(-90deg)",
     },
-    group: {
-        margin: 0,
-        padding: 0,
-        listStyle: "none",
-    },
+    group: {},
 });
 
 /** The items, selection and focused item of a tree, which its items share. */
