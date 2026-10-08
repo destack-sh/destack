@@ -6,7 +6,7 @@ import type { Arrangement } from "./filter.ts";
 import type { Pipeline } from "./pipeline.ts";
 import { Input } from "./input.ts";
 import type { Run } from "./run.ts";
-import type { Part } from "./tally.ts";
+import type { Average } from "./tally.ts";
 
 /** What a copy knows of its source: the source's groups with the copy's predictions. */
 export interface Upstream {
@@ -226,5 +226,5 @@ export interface Group {
     /** The rows of the group. */
     readonly rows: number;
     /** Each average's sum and count of present values. */
-    readonly parts: Record<string, Part>;
+    readonly averages: Record<string, Average>;
 }

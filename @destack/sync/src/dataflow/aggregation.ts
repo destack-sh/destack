@@ -727,7 +727,7 @@ function resultOf(group: Group): Result {
         rows: group.rows,
         isEmpty: group.rows === 0,
         values: () => group.values,
-        parts: () => group.parts,
+        averages: () => group.averages,
     };
 }
 
@@ -743,7 +743,7 @@ function sameGroup(
 function signatureOf(tally: Tally | undefined): string {
     return tally === undefined || tally.isEmpty
         ? ""
-        : JSON.stringify([tally.rows, tally.values(), tally.parts()]);
+        : JSON.stringify([tally.rows, tally.values(), tally.averages()]);
 }
 
 /** Build what a row adds to its group in one partition. */

@@ -188,7 +188,7 @@ export class Follower {
     }
 
     /** Wait until the copy reaches a position. */
-    async reach(position: LogPosition): Promise<void> {
+    async wait(position: LogPosition): Promise<void> {
         for (;;) {
             if (this.#failure !== undefined) {
                 throw this.#failure;

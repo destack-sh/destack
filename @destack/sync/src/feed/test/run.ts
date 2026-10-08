@@ -110,7 +110,7 @@ async function matchExactly(run: Run, dialect: Dialect): Promise<void> {
         for (let index = 0; index < WRITES; index += 1) {
             await workload.write(source);
         }
-        await follower.reach(await source.log.position());
+        await follower.wait(await source.log.position());
 
         // seed more than a page of rows
         if (run.seedRows !== undefined) {

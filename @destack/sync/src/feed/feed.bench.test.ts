@@ -135,7 +135,7 @@ test.for(TEST_DIALECTS)(
             const start = cpuTime();
             const follower = new Follower(feed, SNAPSHOT_QUERIES, TABLES, { audience: AUDIENCE });
             follower.start();
-            await follower.reach(await source.log.position());
+            await follower.wait(await source.log.position());
             await follower.stop();
 
             return {
@@ -158,7 +158,7 @@ test.for(TEST_DIALECTS)(
                 replica: { replica, database: client },
             });
             replicated.start();
-            await replicated.reach(await source.log.position());
+            await replicated.wait(await source.log.position());
             await replicated.stop();
 
             return {
@@ -198,7 +198,7 @@ test.for(TEST_DIALECTS)(
             follower.start();
         }
         const snapshot = await source.log.position();
-        await Promise.all(followers.map((follower) => follower.reach(snapshot)));
+        await Promise.all(followers.map((follower) => follower.wait(snapshot)));
 
         // time a burst of writes
         const writes = 40;
@@ -209,7 +209,7 @@ test.for(TEST_DIALECTS)(
             const start = cpuTime();
             const operations = source.driver.state.operations;
             const position = await source.log.position();
-            await Promise.all(followers.map((follower) => follower.reach(position)));
+            await Promise.all(followers.map((follower) => follower.wait(position)));
 
             return {
                 milliseconds: cpuTime() - start,
@@ -242,10 +242,10 @@ test.for(TEST_DIALECTS)(
             audience: AUDIENCE,
         });
         follower.start();
-        await follower.reach(await source.log.position());
+        await follower.wait(await source.log.position());
         const sent = follower.copy.pages.length;
         await follower.reconnect();
-        await follower.reach(await source.log.position());
+        await follower.wait(await source.log.position());
 
         // rebuild the windows without rows or a snapshot
         const resumed = follower.copy.pages.slice(sent);
@@ -331,7 +331,7 @@ test.for(TEST_DIALECTS)(
         );
         const follower = new Follower(feed, LOOKUPS, TABLES, { audience: AUDIENCE });
         follower.start();
-        await follower.reach(await source.log.position());
+        await follower.wait(await source.log.position());
 
         // rename the project back and forth
         const { milliseconds, operations } = await measure(
@@ -343,7 +343,7 @@ test.for(TEST_DIALECTS)(
                     .set({ name: index % 2 === 0 ? "x" : "a" })
                     .where(eq(project.id, "p0"));
             },
-            (position) => follower.reach(position),
+            (position) => follower.wait(position),
         );
         await follower.stop();
 
@@ -365,14 +365,14 @@ test.for(TEST_DIALECTS)(
         // follow every query set
         const follower = new Follower(feed, EVERYTHING, TABLES, { audience: AUDIENCE });
         follower.start();
-        await follower.reach(await source.log.position());
+        await follower.wait(await source.log.position());
 
         // time single writes
         const { milliseconds, operations } = await measure(
             source,
             48,
             () => workload.write(source),
-            (position) => follower.reach(position),
+            (position) => follower.wait(position),
         );
         await follower.stop();
 
@@ -410,7 +410,7 @@ test.for(TEST_DIALECTS)(
             follower.start();
         }
         const snapshot = await source.log.position();
-        await Promise.all(followers.map((follower) => follower.reach(snapshot)));
+        await Promise.all(followers.map((follower) => follower.wait(snapshot)));
 
         // time single writes
         const { milliseconds, operations } = await measure(
@@ -418,7 +418,7 @@ test.for(TEST_DIALECTS)(
             40,
             () => workload.write(source),
             async (position) => {
-                await Promise.all(followers.map((follower) => follower.reach(position)));
+                await Promise.all(followers.map((follower) => follower.wait(position)));
             },
         );
         await Promise.all(followers.map((follower) => follower.stop()));
@@ -450,7 +450,7 @@ test.for(TEST_DIALECTS)(
         }
         const follower = new Follower(feed, DISCUSSED, TABLES, { audience: AUDIENCE });
         follower.start();
-        await follower.reach(await source.log.position());
+        await follower.wait(await source.log.position());
 
         // comment on random tasks
         const random = new Random(17);
@@ -465,7 +465,7 @@ test.for(TEST_DIALECTS)(
                     position: index,
                 });
             },
-            (position) => follower.reach(position),
+            (position) => follower.wait(position),
         );
         await follower.stop();
 

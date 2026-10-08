@@ -158,13 +158,13 @@ export class Patch {
         }
 
         // record the values or the leaving
-        const parts = isPresent ? tally.parts() : {};
+        const averages = isPresent ? tally.averages() : {};
         this.results.set(key, {
             query: node.name,
             group: { ...group },
             values: isPresent ? tally.values() : null,
             ...(isPresent ? { rows: tally.rows } : {}),
-            ...(Object.keys(parts).length === 0 ? {} : { parts }),
+            ...(Object.keys(averages).length === 0 ? {} : { averages }),
         });
     }
 

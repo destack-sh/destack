@@ -232,7 +232,7 @@ export class Tally implements Result {
     }
 
     /** Read each average's sum and count of present values. */
-    parts(): Record<string, Part> {
+    averages(): Record<string, Average> {
         return Object.fromEntries(
             Object.entries(this.#measures).flatMap(([name, measure]) => {
                 if (measure.function !== "avg") {
@@ -306,7 +306,7 @@ export interface Result {
     /** Read the measures in JSON form. */
     values(): Record<string, Scalar>;
     /** Read each average's sum and count of present values. */
-    parts(): Record<string, Part>;
+    averages(): Record<string, Average>;
 }
 
 /** A group's measures as one SQL count read them. */
@@ -337,7 +337,7 @@ type Sum =
       };
 
 /** An average's terms: the sum of present values in JSON form, and their count. */
-export interface Part {
+export interface Average {
     /** The sum. */
     readonly sum: Scalar;
     /** The count of present values. */

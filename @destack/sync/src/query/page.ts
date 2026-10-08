@@ -31,7 +31,7 @@ export const ResultChange = defineSchema(
         /** The group's row count. */
         rows: schema.number().int().positive().exactOptional(),
         /** Each average's sum and count of present values. */
-        parts: schema
+        averages: schema
             .record(schema.string(), schema.object({ sum: Scalar, count: schema.number().int() }))
             .exactOptional(),
     }),
