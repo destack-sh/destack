@@ -4,14 +4,6 @@ import { DeclarationReference } from "../declare/declaration.ts";
 import { ComputeDefinition } from "../definition/compute.ts";
 import { Capabilities, CapabilityName } from "../definition/capability.ts";
 
-/** A tier a universe places workloads in: the universe once, each residency, or each cell, however a host splits a cell into processes. */
-export const Tier = defineSchema(schema.enum(["universe", "residency", "cell"]));
-/** A tier a universe places workloads in. */
-export type Tier = schema.Infer<typeof Tier>;
-
-/** The placements a universe's deployer chooses from for a platform workload, as its deployment shape supports them. */
-const Placement = schema.array(Tier).min(1);
-
 /** A unit of deployment, as its declaration defines it. */
 export const WorkloadDefinition = defineSchema(
     schema
@@ -22,8 +14,6 @@ export const WorkloadDefinition = defineSchema(
             compute: ComputeDefinition.exactOptional(),
             /** The package's capabilities the workload uses, every one when omitted. */
             capabilities: schema.array(CapabilityName).exactOptional(),
-            /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
-            placement: Placement.exactOptional(),
             /** The permissions the workload requests by scope, as `@destack/access` reads a `PermissionRequest`. */
             permissions: schema.record(schema.string(), schema.json()).exactOptional(),
         })
@@ -32,30 +22,28 @@ export const WorkloadDefinition = defineSchema(
 /** A unit of deployment, as its declaration defines it. */
 export type WorkloadDefinition = schema.Infer<typeof WorkloadDefinition>;
 
-/** A workload located in a compiled output with the declarations its code reaches. */
+/** A workload located in a compiled output with the declarations its code imports. */
 export const WorkloadDescription = defineSchema(
     schema.object({
         /** The package entrypoint running the workload. */
         entrypoint: Entrypoint,
-        /** Service declarations of this package reachable from the workload. */
+        /** Service declarations of this package the workload imports. */
         services: schema.array(DeclarationReference),
-        /** Trigger declarations (schedules, webhooks, subscriptions) of this package reachable from the workload. */
+        /** Trigger declarations (schedules, webhooks, subscriptions) of this package the workload imports. */
         triggers: schema.array(DeclarationReference),
-        /** Resource declarations reachable from the workload. */
+        /** Resource declarations the workload imports. */
         resources: schema.array(DeclarationReference),
-        /** Secret declarations reachable from the workload. */
+        /** Secret declarations the workload imports. */
         secrets: schema.array(DeclarationReference),
-        /** Service connection declarations reachable from the workload. */
+        /** Service connection declarations the workload imports. */
         connections: schema.array(DeclarationReference),
         /** Capacity and lifecycle policy for each instance. */
         compute: ComputeDefinition,
-        /** What the workload may reach beyond its sandbox, as its package declares it. */
+        /** What the workload may call beyond its sandbox, as its package declares it. */
         capabilities: Capabilities,
-        /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
-        placement: Placement.exactOptional(),
         /** The permissions the workload requests by scope, as `@destack/access` reads a `PermissionRequest`. */
         permissions: schema.record(schema.string(), schema.json()),
     }),
 );
-/** A workload located in a compiled output with the declarations its code reaches. */
+/** A workload located in a compiled output with the declarations its code imports. */
 export type WorkloadDescription = schema.Infer<typeof WorkloadDescription>;
