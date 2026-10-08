@@ -46,11 +46,11 @@ test.for(TEST_DIALECTS)(
             code: "NOT_FOUND",
         });
 
-        // fence a scope for its target cell and lift the fence
-        await Scope.fence(database, "space", "cell-b", 1000);
+        // fence a scope for its target machine and lift the fence
+        await Scope.fence(database, "space", "machine-b", 1000);
         const moved = async () =>
             (await Scope.chain(Snapshot.live(database), "space")).map((link) => link.movedTo);
-        expect(await moved()).toEqual(["cell-b", undefined, undefined]);
+        expect(await moved()).toEqual(["machine-b", undefined, undefined]);
         await Scope.unfence(database, "space");
         expect(await moved()).toEqual([undefined, undefined, undefined]);
     },
@@ -120,7 +120,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         const fenced = Promise.withResolvers<void>();
         const release = Promise.withResolvers<void>();
         const fencing = other.transaction(async (transaction) => {
-            await Scope.fence(transaction, "account", "cell-b", 1000);
+            await Scope.fence(transaction, "account", "machine-b", 1000);
             fenced.resolve();
             await release.promise;
         });
@@ -154,6 +154,9 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
             .select({ scope: Scope.table.scope })
             .from(Scope.table)
             .where(eq(Scope.table.scope, "note"));
-        expect([written, notes]).toEqual([[undefined, "cell-b", undefined], [{ scope: "note" }]]);
+        expect([written, notes]).toEqual([
+            [undefined, "machine-b", undefined],
+            [{ scope: "note" }],
+        ]);
     },
 );

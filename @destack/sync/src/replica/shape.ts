@@ -92,22 +92,37 @@ export function defineShape<Parameters extends object>(definition: {
     };
 }
 
-/** Serves the subscriptions of a copy one step closer to its rows' home: its cell, or the installation keeping its rows. */
+/** Serves the subscriptions of a copy one step closer to its rows' home: its machine, or the installation keeping its rows. */
 export interface Publisher {
     /** Stream a subscription's pages from its position, or a snapshot without one. */
     stream(subscription: Subscription, signal: AbortSignal): AsyncIterable<Page>;
 }
 
-/** A principal a follower acts as, which it represents, and the person lending that principal their authority, if any. */
-export interface Representation {
-    /** The represented principal, such as an installation of a space the follower serves. */
-    readonly subject: Subject;
-    /** The person lending the principal their authority, absent for the principal acting on its own. */
-    readonly onBehalfOf?: Subject;
+/** A publisher that also receives the changes its follower's server sends to the rows' home. */
+export interface Uplink extends Publisher {
+    /** Run a mutation of the rows at their home, signed as the follower's space or one of its installations, once however often it is delivered. */
+    receive(mutation: Mutation, signer?: Subject): Promise<void>;
 }
 
-/** A publisher that also receives the changes its followers send to the rows they copy from it. */
-export interface Uplink extends Publisher {
-    /** Run a mutation of copied rows at their home as the follower, or as a principal it represents, once per mutation however often it is delivered. */
-    receive(mutation: Mutation, as?: Representation): Promise<void>;
-}
+/** A publisher that also receives the changes its follower's server sends to the rows' home. */
+export const Uplink = {
+    /** Copy and send through a client's replica procedures, called as the follower or as the signer of a forwarded change. */
+    of(
+        replica: (signer?: Subject) => {
+            stream(
+                subscription: Subscription,
+                options: { readonly signal: AbortSignal },
+            ): Promise<AsyncIterable<Page>>;
+            receive(input: { readonly mutation: Mutation }): Promise<unknown>;
+        },
+    ): Uplink {
+        return {
+            async *stream(subscription, signal) {
+                yield* await replica().stream(subscription, { signal });
+            },
+            receive: async (mutation, signer) => {
+                await replica(signer).receive({ mutation });
+            },
+        };
+    },
+};

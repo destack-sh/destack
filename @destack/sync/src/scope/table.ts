@@ -23,7 +23,7 @@ export const scopeTable = defineTable(
         cappedAt: integer("capped_at"),
         /** When a transfer stopped the scope's writes. */
         fencedAt: integer("fenced_at"),
-        /** The cell a transfer moves the scope to. */
+        /** The machine a transfer moves the scope to. */
         movedTo: text("moved_to"),
     },
     {

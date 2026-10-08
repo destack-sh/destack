@@ -130,8 +130,8 @@ export const replicaResult = defineTable(
         /** The rows of the group. */
         rows: integer("rows").notNull(),
         /** Each average's sum and count of present values, by measure name. */
-        parts: json(
-            "parts",
+        averages: json(
+            "averages",
             schema.record(
                 schema.string(),
                 schema.object({ sum: Scalar, count: schema.number().int() }),
@@ -341,19 +341,38 @@ export class Replica {
         return new Set(included.map((row) => row.key));
     }
 
-    /** Report whether a database copies a scope. */
-    static async isCopied(database: DatabaseConnection, scope: string): Promise<boolean> {
-        const [copy] = await database
-            .select({ name: replica.name })
-            .from(replica)
-            .where(eq(replica.scope, scope))
-            .limit(1);
+    /** List the scopes whose rows of a table a database keeps as copies. */
+    static async scopes(database: DatabaseConnection, table: Table): Promise<string[]> {
+        const name = table[TABLE].sqlName;
+        const copies = await database
+            .select({ scope: replica.scope, tables: replica.tables })
+            .from(replica);
 
-        return copy !== undefined;
+        return [
+            ...new Set(
+                copies.filter((copy) => copy.tables.includes(name)).map(({ scope }) => scope),
+            ),
+        ];
+    }
+
+    /** Report whether a database copies a scope, or the scope's rows of one table. */
+    static async isCopied(
+        database: DatabaseConnection,
+        scope: string,
+        table?: Table,
+    ): Promise<boolean> {
+        // read the copies of the scope with the tables they keep
+        const copies = await database
+            .select({ tables: replica.tables })
+            .from(replica)
+            .where(eq(replica.scope, scope));
+        const name = table?.[TABLE].sqlName;
+
+        return copies.some((copy) => name === undefined || copy.tables.includes(name));
     }
 
     /** Wait until every copy of a scope reflects its home up to a position, returning false once the signal aborts. */
-    static async reach(
+    static async wait(
         database: DatabaseConnection,
         scope: string,
         position: LogPosition,
@@ -385,7 +404,7 @@ export class Replica {
     }
 
     /** Wait until the copy reflects its home up to a position, returning false once the signal aborts. */
-    async reach(
+    async wait(
         database: DatabaseConnection,
         position: LogPosition,
         signal: AbortSignal,
@@ -416,16 +435,34 @@ export class Replica {
         return (await this.#record(database)) !== undefined;
     }
 
+    /** Report whether a database's copy of a scope holds a complete snapshot, as an informer has synced. */
+    static async isSynced(
+        database: DatabaseConnection,
+        name: string,
+        scope: string,
+    ): Promise<boolean> {
+        const record = await Replica.#find(database, name, scope);
+
+        return record !== undefined && Replica.#origin(record) !== undefined;
+    }
+
+    /** Read a database's record of a named copy of a scope, absent before the copy follows. */
+    static async #find(database: DatabaseConnection, name: string, scope: string) {
+        const [record] = await database
+            .select()
+            .from(replica)
+            .where(and(eq(replica.name, name), eq(replica.scope, scope)));
+
+        return record;
+    }
+
     /** Refuse relaying a copy that has no position yet. */
     static async requireRelayable(
         database: DatabaseConnection,
         name: string,
         scope: string,
     ): Promise<void> {
-        const [record] = await database
-            .select()
-            .from(replica)
-            .where(and(eq(replica.name, name), eq(replica.scope, scope)));
+        const record = await Replica.#find(database, name, scope);
         if (record !== undefined && Replica.#origin(record) === undefined) {
             throw new SyncError("STALE", `copy of ${scope} holds no position yet`);
         }
@@ -698,7 +735,7 @@ export class Replica {
                 group: replicaResult.group,
                 values: replicaResult.values,
                 rows: replicaResult.rows,
-                parts: replicaResult.parts,
+                averages: replicaResult.averages,
             })
             .from(replicaResult)
             .where(and(this.#match(replicaResult), eq(replicaResult.query, node.name)));
@@ -709,7 +746,7 @@ export class Replica {
                     group: GroupValues.parse(JSON.parse(row.group)),
                     values: { ...row.values },
                     rows: row.rows,
-                    parts: { ...row.parts },
+                    averages: { ...row.averages },
                 },
             ]),
         );
@@ -1174,7 +1211,7 @@ export class Replica {
                     ...key,
                     values: { ...result.values },
                     rows: result.rows,
-                    parts: result.parts === undefined ? null : { ...result.parts },
+                    averages: result.averages === undefined ? null : { ...result.averages },
                 };
                 groups.set(JSON.stringify(key), { key, row });
             }
@@ -1539,7 +1576,7 @@ function predict(node: Node, groups: Map<string, GroupPrediction>, row: Row, sig
     // find or start the row's group
     const group = node.groupOf(row);
     const key = canonicalize(group);
-    const known = groups.get(key) ?? { group, values: node.emptyValues(), rows: 0, parts: {} };
+    const known = groups.get(key) ?? { group, values: node.emptyValues(), rows: 0, averages: {} };
     groups.set(key, known);
     known.rows += sign;
 
@@ -1568,9 +1605,9 @@ function predict(node: Node, groups: Map<string, GroupPrediction>, row: Row, sig
         }
         // average present values through their sum and count
         else if (measure.function === "avg") {
-            const part = known.parts[name] ?? { sum: 0, count: 0 };
-            const next = { sum: add(part.sum, present, sign), count: part.count + sign };
-            known.parts[name] = next;
+            const average = known.averages[name] ?? { sum: 0, count: 0 };
+            const next = { sum: add(average.sum, present, sign), count: average.count + sign };
+            known.averages[name] = next;
             known.values[name] = next.count === 0 ? null : Number(next.sum) / next.count;
         }
         // pass an added value that beats the extreme

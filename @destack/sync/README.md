@@ -123,13 +123,11 @@ const projects = await copy.rows(local, "board", board, prediction);
 
 ## Uplinks
 
-An `Uplink` streams copies to its followers and receives the changes they send to copied rows, as the follower or as a principal it represents.
+An `Uplink` streams copies to its followers and receives the changes their server sends to the rows' home, signed as the follower's space or one of its installations, and `Uplink.of` builds one from a client's replica procedures.
 
 ```ts
-const uplink: Uplink = {
-    stream: (subscription, signal) => feed.subscribe(queries, subscription.after, signal),
-    receive: async (mutation, as) => home.receive(mutation, as), // as: { subject: installation, onBehalfOf: person }
-};
+const uplink = Uplink.of((signer) => client(signer).replica); // the follower, or the signer of a forwarded change
+await uplink.receive(mutation, installation); // runs once at the rows' home however often it arrives
 ```
 
 ## Copy topology
@@ -171,7 +169,7 @@ const folders = new Replica({
         [note, [inboxId, archiveId]],
     ]),
 });
-await Replica.reach(local, inboxId, position, signal); // the folders copy keeps the inbox
+await Replica.wait(local, inboxId, position, signal); // the folders copy keeps the inbox
 ```
 
 ## Shared rows
@@ -180,6 +178,16 @@ A row stays in a copy until no replica includes it.
 
 ```ts
 const tasks = await local.select().from(task).where(Replica.includes("board", task));
+```
+
+## Copy state
+
+`Replica.scopes`, `Replica.isCopied` and `Replica.isSynced` report which scopes' rows of a table a database copies and whether a copy holds a complete snapshot.
+
+```ts
+await Replica.scopes(local, note); // ["inbox"]
+await Replica.isCopied(local, inboxId, note); // true while a copy of the inbox keeps notes
+await Replica.isSynced(local, "notes", inboxId); // true once the copy took its first snapshot
 ```
 
 ## Dropping copies
@@ -201,7 +209,7 @@ const inbox = new Replica({ name: "inbox", scope: spaceId, tables: [], projector
 
 ## Shapes
 
-`defineShape` declares a shape that cells and clients subscribe to.
+`defineShape` declares a shape that machines and clients subscribe to.
 
 ```ts
 const board = defineShape({
@@ -322,7 +330,7 @@ const owner = await Scope.object(snapshot, spaceId);
 
 ### Fences
 
-`Scope.fence` stops the writes to a scope while a transfer moves it to another cell.
+`Scope.fence` stops the writes to a scope while a transfer moves it to another machine.
 
 ```ts
 await Scope.fence(database, spaceId, targetCell, Date.now()); // writes to the scope now refuse

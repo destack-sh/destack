@@ -54,7 +54,7 @@ export interface ScopeLink {
     readonly isSuspended: boolean;
     /** Whether the scope's storage is capped. */
     readonly isCapped: boolean;
-    /** The cell a transfer moves the scope to, while fenced. */
+    /** The machine a transfer moves the scope to, while fenced. */
     readonly movedTo: string | undefined;
 }
 
@@ -68,7 +68,7 @@ const LockedScope = schema.object({
     suspended_at: schema.unknown(),
     /** When the scope's storage was capped. */
     capped_at: schema.unknown(),
-    /** The cell a transfer moves the scope to. */
+    /** The machine a transfer moves the scope to. */
     moved_to: schema.string().nullable(),
 });
 
@@ -165,17 +165,17 @@ async function cap(
     }
 }
 
-/** Send a scope and the scopes below it to another cell once the writes guarding it commit. */
+/** Send a scope and the scopes below it to another machine once the writes guarding it commit. */
 async function fence(
     database: DatabaseConnection,
     scope: string,
-    cell: string,
+    machine: string,
     now: number,
 ): Promise<void> {
     // mark the scope moved, waiting on its row lock for the writes guarding it
     const [fenced] = await database
         .update(scopeTable)
-        .set({ fencedAt: now, movedTo: cell })
+        .set({ fencedAt: now, movedTo: machine })
         .where(eq(scopeTable.scope, scope))
         .returning({ scope: scopeTable.scope });
     if (fenced === undefined) {

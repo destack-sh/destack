@@ -23,7 +23,7 @@ import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { schema } from "@destack/schema";
 import { replicaTables, Replica, replica, replicaRow, type Projector } from "./replica.ts";
-import type { Resumption } from "./shape.ts";
+import { type Resumption, Uplink } from "./shape.ts";
 import {
     asset,
     first,
@@ -67,10 +67,20 @@ test.for(TEST_DIALECTS)(
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
-        expect(await Replica.reach(copy, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
+
+        // record the copy synced, keeping the scope's notes and no other table
+        expect([
+            await Replica.isSynced(copy, "notes", "inbox"),
+            await Replica.isSynced(copy, "notes", "archive"),
+            await Replica.isCopied(copy, "inbox", note),
+            await Replica.isCopied(copy, "inbox", task),
+            await Replica.scopes(copy, note),
+            await Replica.scopes(copy, task),
+        ]).toEqual([true, false, true, false, ["inbox"], []]);
         await source.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
         await source.delete(note).where(eq(note.id, "b"));
-        expect(await Replica.reach(copy, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
         controller.abort();
         await following;
 
@@ -112,7 +122,7 @@ test.for(TEST_DIALECTS)(
         // reach the latest change of each database the other did not originate
         const signal = AbortSignal.timeout(5000);
         const reach = async (copy: DatabaseConnection, source: DatabaseConnection) =>
-            Replica.reach(copy, "inbox", await source.log.position(await copy.log.epoch()), signal);
+            Replica.wait(copy, "inbox", await source.log.position(await copy.log.epoch()), signal);
         expect([await reach(other, home), await reach(home, other)]).toEqual([true, true]);
 
         // go quiet once the last records of the reached positions commit
@@ -144,7 +154,7 @@ test.for(TEST_DIALECTS)(
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
-        expect(await Replica.reach(other, "inbox", await home.log.position(), signal)).toBe(true);
+        expect(await Replica.wait(other, "inbox", await home.log.position(), signal)).toBe(true);
         controller.abort();
         await following;
 
@@ -217,8 +227,8 @@ test.for(TEST_DIALECTS)(
         const head = await source.log.position();
         const signal = AbortSignal.timeout(5000);
         const reached = [
-            await Replica.reach(copy, "inbox", head, signal),
-            await Replica.reach(copy, "archive", head, signal),
+            await Replica.wait(copy, "inbox", head, signal),
+            await Replica.wait(copy, "archive", head, signal),
         ];
         controller.abort();
         await following;
@@ -275,7 +285,7 @@ test.for(TEST_DIALECTS)(
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
-        expect(await Replica.reach(target, "database", await source.log.position(), signal)).toBe(
+        expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(
             true,
         );
         await source
@@ -283,7 +293,7 @@ test.for(TEST_DIALECTS)(
             .values({ id: "b", scope: "archive", title: "Second", secret: "s2", data });
         await source.insert(cache).values({ id: "c", value: "cached" });
         await source.insert(hostKey).values({ id: "k", scope: "inbox", wrapped: "source:k" });
-        expect(await Replica.reach(target, "database", await source.log.position(), signal)).toBe(
+        expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(
             true,
         );
         controller.abort();
@@ -333,7 +343,7 @@ test.for(TEST_DIALECTS)(
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
-        expect(await Replica.reach(copy, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
         controller.abort();
         await following;
         const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
@@ -353,7 +363,7 @@ test.for(TEST_DIALECTS)(
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const epoch = "01996ab0-0000-7000-8000-000000000001";
         const reach = () =>
-            Replica.reach(copy, "inbox", { epoch, sequence: 5 }, AbortSignal.timeout(20));
+            Replica.wait(copy, "inbox", { epoch, sequence: 5 }, AbortSignal.timeout(20));
 
         // reach no position of an uncopied scope
         expect([await Replica.isCopied(copy, "inbox"), await reach()]).toEqual([false, false]);
@@ -483,7 +493,7 @@ test.for(TEST_DIALECTS)(
             controller.signal,
         );
         expect(
-            await Replica.reach(
+            await Replica.wait(
                 copy,
                 "inbox",
                 await source.log.position(),
@@ -534,7 +544,7 @@ test.for(TEST_DIALECTS)(
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
-        expect(await Replica.reach(copy, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
         controller.abort();
         await following;
 
@@ -581,7 +591,7 @@ test.for(TEST_DIALECTS)(
         const snapshot = await source.log.position();
         await source.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
         const signal = AbortSignal.timeout(5000);
-        expect(await Replica.reach(copy, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
         controller.abort();
         await following;
 
@@ -806,7 +816,7 @@ test.for(TEST_DIALECTS)(
         });
         const signal = AbortSignal.timeout(5000);
         const tags = async () => {
-            expect(await Replica.reach(copy, "inbox", await source.log.position(), signal)).toBe(
+            expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(
                 true,
             );
 
@@ -1162,7 +1172,7 @@ test.for(TEST_DIALECTS)(
         };
         const reach = async () =>
             expect(
-                await Replica.reach(
+                await Replica.wait(
                     copy,
                     "inbox",
                     await source.log.position(),
@@ -1196,3 +1206,39 @@ test.for(TEST_DIALECTS)(
         await snapshotting.stop();
     },
 );
+
+test("stream through a client's replica procedures as the follower, and send a forwarded change as its signer", async () => {
+    // call a fake client, recording whom each call signs as
+    const signers: string[] = [];
+    const uplink = Uplink.of((signer) => {
+        signers.push(signer === undefined ? "follower" : signer.id);
+
+        return {
+            stream: async () => (async function* (): AsyncIterable<Page> {})(),
+            receive: async () => ({}),
+        };
+    });
+
+    // stream a copy, then send a change an installation signs
+    const pages = await Array.fromAsync(
+        uplink.stream(
+            { name: "notes", scope: "inbox", below: "inbox", shape: "notes", parameters: {} },
+            AbortSignal.timeout(1000),
+        ),
+    );
+    await uplink.receive(
+        {
+            id: "019f5530-8000-7000-8000-000000000001",
+            calls: [{ method: "note.create", release: "1.0.0", input: { id: "a" } }],
+        },
+        {
+            packageId: schema
+                .identifier("package")
+                .parse("package-01996ab0-0000-7000-8000-000000000001"),
+            type: "installation",
+            scope: "inbox",
+            id: "installation-a",
+        },
+    );
+    expect([pages, signers]).toEqual([[], ["follower", "installation-a"]]);
+});
