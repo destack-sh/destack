@@ -8,10 +8,14 @@ import type {
     MultipartOptions,
     UploadPartOptions,
 } from "../bucket/index.ts";
-import { BucketFileBody, StorageClass } from "../bucket/index.ts";
-import { BucketKey } from "../bucket/key.ts";
-import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
-import { MAX_PART_NUMBER, UploadedPart } from "../bucket/multipart.ts";
+import {
+    StorageClass,
+    BucketKey,
+    BucketListing,
+    MAX_BATCH_FILES,
+    MAX_PART_NUMBER,
+    UploadedPart,
+} from "../bucket/index.ts";
 import type {
     Part,
     PartCopyOptions,
@@ -222,20 +226,17 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         }
     }
 
-    /** Stream a file or a range of it into one upload part. */
+    /** Stream a file or a range of it into one upload part, refusing a failed source precondition. */
     async uploadPartCopy(
         partNumber: number,
         source: string,
         options: PartCopyOptions = {},
-    ): Promise<Part | null> {
+    ): Promise<Part> {
         // read the source under its preconditions
         UploadedPart.checkNumber(partNumber);
         const selected = await this.#bucket.get(source, options);
         if (selected === null) {
             throw new BucketError("NO_SUCH_KEY", "the source file does not exist");
-        }
-        if (!(selected instanceof BucketFileBody)) {
-            return null;
         }
 
         return await this.uploadPart(partNumber, selected.body);
@@ -318,7 +319,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             version: first.etag,
             size: ordered.reduce((total, entry) => total + entry.size, 0),
             etag: multipartEtag(ordered),
-            checksums: {},
+            digest: {},
             uploaded: Date.now(),
             httpMetadata: metadata.options.httpMetadata ?? {},
             customMetadata: metadata.options.customMetadata ?? {},
@@ -463,7 +464,7 @@ function requireSizes(ordered: readonly (typeof part.$inferSelect)[]): void {
     }
 }
 
-/** Derive the multipart entity tag from the parts' checksums. */
+/** Derive the multipart entity tag from the parts' digest. */
 function multipartEtag(ordered: readonly (typeof part.$inferSelect)[]): string {
     const hash = createHash("md5");
     for (const entry of ordered) {

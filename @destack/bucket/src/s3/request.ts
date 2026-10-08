@@ -1,6 +1,12 @@
 import { aligned } from "@destack/schema";
-import type { BucketHttpMetadata, BucketRange, StorageClass } from "../bucket/index.ts";
-import { HTTP_METADATA_FIELDS, STORAGE_CLASSES, UploadedPart } from "../bucket/index.ts";
+import {
+    type BucketHttpMetadata,
+    type BucketRange,
+    type StorageClass,
+    HTTP_METADATA_FIELDS,
+    STORAGE_CLASSES,
+    UploadedPart,
+} from "../bucket/index.ts";
 import { EntityTag, type S3Condition } from "./condition.ts";
 import { CryptoHasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
@@ -12,7 +18,7 @@ import { XmlNode } from "./xml.ts";
 /**
  * The largest request document in bytes.
  *
- * A DeleteObjects document names 1000 keys of up to 1024 bytes, about 6 MiB when every byte is escaped.
+ * A DeleteObjects document lists 1000 keys of up to 1024 bytes, about 6 MiB when every byte is escaped.
  */
 const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
 /** The largest total size of user metadata names and values in bytes, the S3 limit. */
@@ -87,7 +93,7 @@ export class S3Request {
         }
     }
 
-    /** The path naming the addressed bucket and key in error documents. */
+    /** The path of the addressed bucket and key in error documents. */
     get resource(): string {
         return this.url.pathname;
     }
@@ -121,7 +127,7 @@ export class S3Request {
         return number;
     }
 
-    /** Read the upload an upload request names. */
+    /** Read the upload of an upload request. */
     uploadId(): string {
         const uploadId = this.query.get("uploadId");
         if (uploadId === undefined) {
@@ -208,7 +214,7 @@ export class S3Request {
         return readRange(first, last);
     }
 
-    /** Read the bucket and key the copy source header names. */
+    /** Read the bucket and key in the copy source header. */
     copySource(): { bucketName: string; key: string } {
         // refuse versioned sources and customer keys of the source
         const value = this.headers.get("x-amz-copy-source");

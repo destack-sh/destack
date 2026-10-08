@@ -63,6 +63,7 @@ const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
     INVALID_STORAGE_CLASS: "InvalidStorageClass",
     INVALID_CUSTOMER_KEY: "InvalidRequest",
     INCOMPLETE_BODY: "IncompleteBody",
+    PRECONDITION_FAILED: "PreconditionFailed",
     NO_SUCH_KEY: "NoSuchKey",
     NO_SUCH_UPLOAD: "NoSuchUpload",
     LOCKED: "AccessDenied",

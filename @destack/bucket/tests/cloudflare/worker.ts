@@ -1,6 +1,7 @@
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import type * as Cloudflare from "@cloudflare/workers-types";
+import { BucketPreconditionError } from "../../src/error/index.ts";
 import { R2Bucket } from "../../src/cloudflare/bucket.ts";
 
 /** The disposable bucket and test authorization supplied at deployment. */
@@ -39,7 +40,7 @@ export default {
     },
 };
 
-/** Preserve metadata, views, checksums and conditional writes. */
+/** Preserve metadata, views, content digests and conditional writes. */
 async function exerciseMetadata(bucket: R2Bucket): Promise<void> {
     const bytes = new Uint8Array([0, 65, 66, 0]);
     const original = await bucket.put("document", new DataView(bytes.buffer, 1, 2), {
@@ -52,17 +53,16 @@ async function exerciseMetadata(bucket: R2Bucket): Promise<void> {
     assert.deepEqual(present(await bucket.head("document"), "document").customMetadata, {
         author: "alice",
     });
-    assert.equal(
-        await bucket.put("document", "wrong", {
-            onlyIf: { etagDoesNotMatch: "*" },
-        }),
-        null,
+    await assert.rejects(
+        bucket.put("document", "wrong", { onlyIf: { etagDoesNotMatch: "*" } }),
+        (error: unknown) =>
+            error instanceof BucketPreconditionError && error.current?.etag === original.etag,
     );
-    const conditional = await bucket.get("document", {
-        onlyIf: { etagMatches: "wrong" },
-    });
-    assert(conditional && !("body" in conditional));
-    assert.equal(conditional.etag, original.etag);
+    await assert.rejects(
+        bucket.get("document", { onlyIf: { etagMatches: "wrong" } }),
+        (error: unknown) =>
+            error instanceof BucketPreconditionError && error.current?.etag === original.etag,
+    );
 }
 
 /** Check ranged responses and empty contents against the hosted service. */

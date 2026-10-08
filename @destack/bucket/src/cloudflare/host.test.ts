@@ -8,7 +8,7 @@ import { ResourceId } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { BucketError } from "../error/index.ts";
-import { LocalBucket, LocalBucketHost, LocalBlobStore } from "../local/index.ts";
+import { LocalBucket, LocalBucketHost, LocalBlobStore } from "../bun/index.ts";
 import { bucketProvider } from "../provider/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import type { CatalogueStore } from "../catalogue/index.ts";
@@ -100,7 +100,7 @@ test.for(TEST_DIALECTS)(
             region: "auto",
             credentials: async () => CREDENTIALS,
         });
-        const provider = bucketProvider(buckets);
+        const provider = bucketProvider(buckets, null);
 
         // refuse a bucket never provisioned, then provision it twice under one reference
         await expect(buckets.open({ bucketId })).rejects.toMatchObject({
@@ -184,7 +184,7 @@ test.for(TEST_DIALECTS)(
             region: "auto",
             credentials: async () => CREDENTIALS,
         });
-        const [source, target] = [bucketProvider(device), bucketProvider(cell)];
+        const [source, target] = [bucketProvider(device, null), bucketProvider(cell, null)];
         const written = await device.open({ bucketId }, record.scope);
         await written.put("notes/a.txt", "first");
         await written.put("notes/b.txt", "second");
@@ -224,7 +224,7 @@ test.for(TEST_DIALECTS)(
             credentials: async () => CREDENTIALS,
         };
         const buckets = new R2BucketHost(options);
-        const provider = bucketProvider(buckets);
+        const provider = bucketProvider(buckets, null);
         const provisioned = { ...record, ...(await provider.provision.provision(record)) };
         await (await buckets.open({ bucketId })).put("notes/a.txt", "first");
         const reference = { scope: record.scope, bucketId };
@@ -259,7 +259,7 @@ test.for(TEST_DIALECTS)(
         const refused = await reopened
             .put("notes/b.txt", "second")
             .catch((error: unknown) => error);
-        await bucketProvider(restarted).fence.lift(provisioned);
+        await bucketProvider(restarted, null).fence.lift(provisioned);
         await reopened.put("notes/b.txt", "second");
         expect({
             put: [put.status, await put.text()],

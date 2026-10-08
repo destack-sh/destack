@@ -7,11 +7,15 @@ import type {
     BucketPutOptions,
     MultipartOptions,
 } from "../bucket/index.ts";
-import { BucketFile, BucketFileBody, StorageClass } from "../bucket/index.ts";
-import { BucketKey } from "../bucket/key.ts";
-import { BucketRange } from "../bucket/range.ts";
-import { BucketCondition } from "../bucket/condition.ts";
-import { MAX_BATCH_FILES } from "../bucket/list.ts";
+import {
+    BucketFile,
+    BucketFileBody,
+    StorageClass,
+    BucketKey,
+    BucketRange,
+    BucketCondition,
+    MAX_BATCH_FILES,
+} from "../bucket/index.ts";
 import type {
     BucketCopyOptions,
     S3Bucket,
@@ -75,21 +79,8 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         return entry ? CatalogueFile.describe(entry) : null;
     }
 
-    /** Open the immutable contents selected by the catalogue. */
-    get(
-        key: string,
-        options?: BucketGetOptions & { onlyIf?: undefined },
-    ): Promise<BucketFileBody | null>;
-    get(key: string, options: BucketGetOptions): Promise<BucketFileBody | BucketFile | null>;
-    /**
-     * Read a file, or its metadata when a precondition fails.
-     *
-     * @construct only an `onlyIf` precondition answers metadata without a body.
-     */
-    async get(
-        key: string,
-        options: BucketGetOptions = {},
-    ): Promise<BucketFileBody | BucketFile | null> {
+    /** Open the immutable contents the catalogue selects, refusing a failed precondition. */
+    async get(key: string, options: BucketGetOptions = {}): Promise<BucketFileBody | null> {
         // validate the requested key, customer key and byte selection before entering the catalogue lock
         BucketKey.check(key);
         const customerKey = await CustomerKey.read(options.ssecKey);
@@ -106,7 +97,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             CustomerKey.require(customerKey, entry.ssecKeyMd5);
             const current = CatalogueFile.describe(entry);
             if (!BucketCondition.matches(current, options.onlyIf)) {
-                return current;
+                throw BucketError.preconditionFailed(current);
             }
 
             // read the selected bytes, cancelling the read when the body cannot take it
@@ -158,27 +149,12 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         );
     }
 
-    /** Write immutable contents, then atomically publish their catalogue entry. */
-    put(
-        key: string,
-        body: BucketBody | null,
-        options?: BucketPutOptions & { onlyIf?: undefined },
-    ): Promise<BucketFile>;
-    put(
-        key: string,
-        body: BucketBody | null,
-        options: BucketPutOptions,
-    ): Promise<BucketFile | null>;
-    /**
-     * Write a file, or answer null when its precondition fails.
-     *
-     * @construct only an `onlyIf` precondition refuses a write.
-     */
+    /** Write immutable contents, then atomically publish their catalogue entry, refusing a failed precondition. */
     async put(
         key: string,
         body: BucketBody | null,
         options: BucketPutOptions = {},
-    ): Promise<BucketFile | null> {
+    ): Promise<BucketFile> {
         return this.#write(key, body, options);
     }
 
@@ -236,31 +212,13 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         return last === undefined ? keys : keys.filter((key) => !isAfter(key, last));
     }
 
-    /** Write and publish a file with no precondition. */
-    #write(
-        key: string,
-        body: BucketBody | null,
-        options: BucketPutOptions & { onlyIf?: undefined },
-        identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
-    ): Promise<BucketFile>;
-    /** Write and publish a file when its precondition matches, else answer null. */
-    #write(
-        key: string,
-        body: BucketBody | null,
-        options: BucketPutOptions,
-        identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
-    ): Promise<BucketFile | null>;
-    /**
-     * Write immutable contents, then publish their catalogue entry under its own or a restored identity.
-     *
-     * @construct only an `onlyIf` precondition refuses a write.
-     */
+    /** Write immutable contents, then publish their catalogue entry under its own or a restored identity, refusing a failed precondition. */
     async #write(
         key: string,
         body: BucketBody | null,
         options: BucketPutOptions,
         identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
-    ): Promise<BucketFile | null> {
+    ): Promise<BucketFile> {
         // retain the storage while writing unpublished content
         BucketKey.check(key);
         const customerKey = await CustomerKey.read(options.ssecKey);
@@ -284,13 +242,9 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 // reclaim earlier writes, then check the precondition against the current entry
                 await this.#storage.collect();
                 const previous = await this.#storage.entry(key);
-                if (
-                    !BucketCondition.matches(
-                        previous ? CatalogueFile.describe(previous) : null,
-                        options.onlyIf,
-                    )
-                ) {
-                    return null;
+                const current = previous ? CatalogueFile.describe(previous) : null;
+                if (!BucketCondition.matches(current, options.onlyIf)) {
+                    throw BucketError.preconditionFailed(current);
                 }
 
                 // atomically publish the new immutable file
@@ -326,7 +280,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             key,
             version: identity?.version ?? content.version,
             etag: identity?.etag ?? content.etag,
-            checksums: content.checksums,
+            digest: content.digest,
             size: content.size,
             uploaded: identity?.uploaded.getTime() ?? Date.now(),
             httpMetadata: CatalogueFile.encodeHttpMetadata(options.httpMetadata ?? {}),
@@ -335,12 +289,12 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         };
     }
 
-    /** Publish a new version of the destination that shares the source's immutable content. */
+    /** Publish a new version of the destination that shares the source's immutable content, refusing a failed source precondition. */
     async copy(
         source: string,
         destination: string,
         options: BucketCopyOptions = {},
-    ): Promise<BucketFile | null> {
+    ): Promise<BucketFile> {
         // validate both keys and the storage class before entering the catalogue lock
         BucketKey.check(source);
         BucketKey.check(destination);
@@ -353,8 +307,9 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             if (!entry) {
                 throw new BucketError("NO_SUCH_KEY", "the source file does not exist");
             }
-            if (!BucketCondition.matches(CatalogueFile.describe(entry), options.onlyIf)) {
-                return null;
+            const current = CatalogueFile.describe(entry);
+            if (!BucketCondition.matches(current, options.onlyIf)) {
+                throw BucketError.preconditionFailed(current);
             }
 
             // describe the copy with the source's metadata unless the caller replaces it

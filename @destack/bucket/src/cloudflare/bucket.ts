@@ -8,10 +8,14 @@ import type {
     MultipartOptions,
     MultipartUpload,
 } from "../bucket/index.ts";
-import { BucketFile, BucketFileBody } from "../bucket/index.ts";
-import { BucketKey } from "../bucket/key.ts";
-import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
-import { BucketRange } from "../bucket/range.ts";
+import {
+    BucketFile,
+    BucketFileBody,
+    BucketKey,
+    BucketListing,
+    MAX_BATCH_FILES,
+    BucketRange,
+} from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { R2Body } from "./body.ts";
 import { R2MultipartUpload } from "./multipart.ts";
@@ -60,21 +64,8 @@ export class R2Bucket implements Bucket {
         return entry ? R2File.describe(entry) : null;
     }
 
-    /** Read a file with R2's atomic precondition and range handling. */
-    get(
-        key: string,
-        options?: BucketGetOptions & { onlyIf?: undefined },
-    ): Promise<BucketFileBody | null>;
-    get(key: string, options: BucketGetOptions): Promise<BucketFileBody | BucketFile | null>;
-    /**
-     * Read a file, or its metadata when a precondition fails.
-     *
-     * @construct only an `onlyIf` precondition answers metadata without a body.
-     */
-    async get(
-        key: string,
-        options: BucketGetOptions = {},
-    ): Promise<BucketFileBody | BucketFile | null> {
+    /** Read a file with R2's atomic precondition and range handling, refusing a failed precondition. */
+    async get(key: string, options: BucketGetOptions = {}): Promise<BucketFileBody | null> {
         // validate the key and range
         BucketKey.check(key);
         if (options.range) {
@@ -90,7 +81,7 @@ export class R2Bucket implements Bucket {
             return null;
         }
         if (!("body" in entry)) {
-            return R2File.describe(entry);
+            throw BucketError.preconditionFailed(R2File.describe(entry));
         }
 
         // return the body with its resolved range
@@ -113,27 +104,12 @@ export class R2Bucket implements Bucket {
         }
     }
 
-    /** Publish a file with its metadata and optional precondition. */
-    put(
-        key: string,
-        body: BucketBody | null,
-        options?: BucketPutOptions & { onlyIf?: undefined },
-    ): Promise<BucketFile>;
-    put(
-        key: string,
-        body: BucketBody | null,
-        options: BucketPutOptions,
-    ): Promise<BucketFile | null>;
-    /**
-     * Write a file, or answer null when its precondition fails.
-     *
-     * @construct only an `onlyIf` precondition refuses a write.
-     */
+    /** Publish a file with its metadata, refusing a failed precondition with the file it met. */
     async put(
         key: string,
         body: BucketBody | null,
         options: BucketPutOptions = {},
-    ): Promise<BucketFile | null> {
+    ): Promise<BucketFile> {
         // refuse a lock per file, which R2 keeps only as bucket lock rules, and pass the body as R2 takes it
         BucketKey.check(key);
         const { retainUntil, ...written } = options;
@@ -146,8 +122,11 @@ export class R2Bucket implements Bucket {
         const value = body === null ? null : R2Body.write(body);
         this.#operations.classA += 1;
         const entry = await this.#bucket.put(key, value, written);
+        if (entry === null) {
+            throw BucketError.preconditionFailed(await this.head(key));
+        }
 
-        return entry === null ? null : R2File.describe(entry);
+        return R2File.describe(entry);
     }
 
     /** Delete the current file. */

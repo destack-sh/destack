@@ -14,14 +14,13 @@ import {
     type CatalogueHandle,
 } from "../catalogue/index.ts";
 import type { BucketReference } from "../s3/index.ts";
-import { serveBuckets } from "../server/index.ts";
-import { BucketKind } from "../declare/bucket.ts";
+import { BucketKind } from "../declare/index.ts";
 import { SweepController } from "./sweep.ts";
 
-/** A bucket provider: provisioning, opening, fencing and snapshotting one host's buckets, serving their files and sweeping them. */
-export type BucketProvider = Provider<
+/** A bucket provider: provisioning, opening, fencing and snapshotting one host's buckets, serving their files through an object's handlers and sweeping them. */
+export type BucketProvider<Object> = Provider<
     typeof BucketKind,
-    ReturnType<typeof serveBuckets>,
+    Object,
     CatalogueHandle,
     never,
     never,
@@ -34,12 +33,15 @@ export type BucketProvider = Provider<
     readonly controllers: readonly Controller[];
 };
 
-/** Provide a host's buckets under its provider code, one per resource, swept by the host. */
-export function bucketProvider(buckets: CatalogueBucketHost): BucketProvider {
+/** Provide a host's buckets under its provider code, one per resource, served through an object's handlers and swept by the host. */
+export function bucketProvider<Object>(
+    buckets: CatalogueBucketHost,
+    object: Object,
+): BucketProvider<Object> {
     return {
         kind: BucketKind,
         code: buckets.provider,
-        object: serveBuckets(buckets),
+        object,
         provision: {
             provision: async (resource) => {
                 // create the bucket in its space

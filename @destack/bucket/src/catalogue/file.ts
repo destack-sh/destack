@@ -1,4 +1,4 @@
-import { BucketChecksums, BucketFile, type BucketHttpMetadata } from "../bucket/index.ts";
+import { ContentDigest, BucketFile, type BucketHttpMetadata } from "../bucket/index.ts";
 import type { file } from "./stack/index.ts";
 
 /** A catalogue row describing the current file at one key. */
@@ -21,7 +21,7 @@ function describe(entry: CatalogueFile): BucketFile {
         new Date(entry.uploaded),
         httpMetadata,
         entry.customMetadata,
-        new BucketChecksums(entry.checksums),
+        new ContentDigest(entry.digest),
         entry.storageClass,
         entry.ssecKeyMd5 ?? undefined,
         entry.retainUntil === null ? undefined : new Date(entry.retainUntil),

@@ -10,11 +10,11 @@ import { test } from "@destack/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LocalBucket } from "../src/local/index.ts";
+import { LocalBucket } from "../src/bun/index.ts";
 
 /** Independent bucket behaviors exercised against both implementations. */
 const cases = [
-    { name: "preserve bodies, metadata, and checksums", run: exerciseContents },
+    { name: "preserve bodies, metadata, and content digests", run: exerciseContents },
     {
         name: "apply conditions and ranges without losing retained readers",
         run: exerciseConditions,

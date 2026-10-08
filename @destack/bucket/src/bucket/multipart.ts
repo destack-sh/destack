@@ -1,7 +1,7 @@
 import type { BucketBody } from "./bucket.ts";
 import type { BucketFile, StorageClass } from "./file.ts";
 import type { BucketHttpMetadata } from "./metadata.ts";
-import { BucketError } from "../error/index.ts";
+import { BucketError } from "../error/error.ts";
 
 /** The highest part number of a multipart upload, the S3 and R2 limit. */
 export const MAX_PART_NUMBER = 10000;

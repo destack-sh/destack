@@ -1,5 +1,4 @@
-import { aligned } from "@destack/schema";
-import { Digest } from "@destack/schema";
+import { aligned, Digest } from "@destack/schema";
 import { Crc32, Crc32c, CryptoHasher, type Hasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
 import { EMPTY_HASH, UNSIGNED_PAYLOAD } from "@destack/identity/aws";
@@ -38,7 +37,7 @@ interface Checksum {
 
 /** A checksum a request declares, verified over the decoded body. */
 interface Check {
-    /** The header or trailer naming the expected value. */
+    /** The header or trailer holding the expected value. */
     readonly name: string;
     /** The running digest. */
     readonly digest: Hasher;

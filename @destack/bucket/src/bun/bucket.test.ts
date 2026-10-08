@@ -5,8 +5,7 @@ import { expect, refusal, test } from "@destack/test";
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { UploadedPart } from "../bucket/index.ts";
-import { StorageClass } from "../bucket/index.ts";
+import { type UploadedPart, StorageClass } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
 
 test("retain local files across reopen and failed streamed uploads", async () => {
@@ -212,15 +211,12 @@ test("copy files by sharing their contents until the last reference goes", async
         });
 
         // copy with the source's metadata, or with replaced metadata and storage class
-        const copy = present(await bucket.copy("source", "copy"), "copy");
-        const replaced = present(
-            await bucket.copy("source", "replaced", {
-                httpMetadata: { contentType: "text/markdown" },
-                customMetadata: {},
-                storageClass: "InfrequentAccess",
-            }),
-            "replaced",
-        );
+        const copy = await bucket.copy("source", "copy");
+        const replaced = await bucket.copy("source", "replaced", {
+            httpMetadata: { contentType: "text/markdown" },
+            customMetadata: {},
+            storageClass: "InfrequentAccess",
+        });
         expect([copy, replaced]).toEqual([
             await bucket.head("copy"),
             await bucket.head("replaced"),
@@ -244,9 +240,9 @@ test("copy files by sharing their contents until the last reference goes", async
             code: "NO_SUCH_KEY",
             message: "the source file does not exist",
         });
-        expect(await bucket.copy("source", "copy", { onlyIf: { etagMatches: "other" } })).toBe(
-            null,
-        );
+        await expect(
+            bucket.copy("source", "copy", { onlyIf: { etagMatches: "other" } }),
+        ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
 
         // keep the one blob, named by its digest, while any copy references it
         await bucket.delete(["source", "copy"]);

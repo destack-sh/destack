@@ -1,5 +1,5 @@
 import { aligned } from "@destack/schema";
-import { BucketFileBody, MAX_BATCH_FILES, MAX_PART_NUMBER, UploadedPart } from "../bucket/index.ts";
+import { MAX_BATCH_FILES, MAX_PART_NUMBER, UploadedPart } from "../bucket/index.ts";
 import type { S3Bucket } from "./bucket.ts";
 import { S3Error } from "./error.ts";
 import { type CopySource, keyEncoder, xmlResponse } from "./operation.ts";
@@ -88,14 +88,7 @@ async function uploadPartCopy(
         if (file === null) {
             throw new S3Error("NoSuchKey", "the specified key does not exist");
         }
-        part =
-            file instanceof BucketFileBody ? await upload.uploadPart(partNumber, file.body) : null;
-    }
-    if (part === null) {
-        throw new S3Error(
-            "PreconditionFailed",
-            "at least one of the preconditions you specified did not hold",
-        );
+        part = await upload.uploadPart(partNumber, file.body);
     }
 
     return xmlResponse("CopyPartResult", { LastModified: part.uploaded, ETag: `"${part.etag}"` });

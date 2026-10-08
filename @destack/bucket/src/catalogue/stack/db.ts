@@ -1,6 +1,6 @@
 import { check, index, integer, json, sql, defineTable, text, defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";
-import { CHECKSUM_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
+import { DIGEST_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
 
 /** Stored HTTP metadata with textual expiration times. */
 const HttpMetadata = schema.object({
@@ -22,10 +22,10 @@ export const file = defineTable(
         version: text("version").notNull(),
         /** The entity tag. */
         etag: text("etag").notNull(),
-        /** The stored content checksums. */
-        checksums: json(
-            "checksums",
-            schema.partialRecord(schema.enum(CHECKSUM_ALGORITHMS), schema.string()),
+        /** The stored content digest. */
+        digest: json(
+            "digest",
+            schema.partialRecord(schema.enum(DIGEST_ALGORITHMS), schema.string()),
         ).notNull(),
         /** The stored byte count. */
         size: integer("size").notNull(),

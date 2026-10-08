@@ -9,7 +9,7 @@ import { BucketError } from "../error/index.ts";
 /** The bytes one read of a blob file takes: 64 KiB, as a bucket's readers stream them. */
 const READ_BYTES = 64 * 1024;
 
-/** A bucket's blobs as files in a directory, each named by its digest, beside the temporary files of unfinished writes. */
+/** A bucket's blobs as files in a directory, each keyed by its digest, beside the temporary files of unfinished writes. */
 export class LocalBlobStore implements BlobStore {
     /** The directory of blob files. */
     readonly directory: string;

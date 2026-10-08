@@ -1,5 +1,6 @@
 import { aligned, Duration } from "@destack/schema";
-import type { BucketCondition, BucketFile } from "../bucket/index.ts";
+import { type BucketCondition, type BucketFile } from "../bucket/index.ts";
+import { BucketPreconditionError } from "../error/index.ts";
 
 /** An HTTP entity tag, compared strongly unless weak comparison applies. */
 export interface EntityTag {
@@ -28,7 +29,7 @@ export interface S3Condition {
 export type S3Resolution = { onlyIf?: BucketCondition } | { failed: BucketFile | null };
 
 /** The conditional headers of an S3 request, with entity tags as HTTP lists. */
-export const S3Condition = { matches, resolve };
+export const S3Condition = { matches, resolve, failed };
 
 /** Read an HTTP entity-tag list, or an asterisk, accepting unquoted tags as S3 does. */
 function readList(value: string): EntityTag[] | "*" {
@@ -140,4 +141,12 @@ function includes(tags: EntityTag[] | "*", etag: string, isWeakComparison: boole
 /** Truncate a time to whole seconds. */
 function seconds(time: Date): number {
     return Math.floor(Duration.seconds({ milliseconds: time.getTime() }));
+}
+
+/** Read the file a refused precondition met, null where none exists, rethrowing any other failure. */
+function failed(error: unknown): BucketFile | null {
+    if (error instanceof BucketPreconditionError) {
+        return error.current;
+    }
+    throw error;
 }

@@ -1,5 +1,5 @@
 import type { R2Object } from "@cloudflare/workers-types";
-import { BucketChecksums, BucketFile, StorageClass } from "../bucket/index.ts";
+import { ContentDigest, BucketFile, StorageClass } from "../bucket/index.ts";
 
 /** The storage class of files stored without one, which R2 reports and its local simulator leaves empty. */
 const DEFAULT_STORAGE_CLASS = "Standard";
@@ -17,7 +17,7 @@ function describe(entry: R2Object): BucketFile {
         entry.uploaded,
         entry.httpMetadata,
         entry.customMetadata,
-        new BucketChecksums(entry.checksums.toJSON()),
+        new ContentDigest(entry.checksums.toJSON()),
         StorageClass.read(entry.storageClass === "" ? DEFAULT_STORAGE_CLASS : entry.storageClass),
         entry.ssecKeyMd5,
     );

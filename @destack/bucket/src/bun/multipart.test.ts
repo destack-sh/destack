@@ -216,9 +216,9 @@ test("list uploads and parts, and copy parts from files", async () => {
         // copy a whole file and a range of it into parts, and list them in order
         const whole = await first.uploadPartCopy(2, "source");
         const range = await first.uploadPartCopy(1, "source", { range: { offset: 2, length: 3 } });
-        expect(await first.uploadPartCopy(3, "source", { onlyIf: { etagMatches: "other" } })).toBe(
-            null,
-        );
+        await expect(
+            first.uploadPartCopy(3, "source", { onlyIf: { etagMatches: "other" } }),
+        ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
         await expect(first.uploadPartCopy(3, "missing")).rejects.toMatchObject({
             code: "NO_SUCH_KEY",
         });

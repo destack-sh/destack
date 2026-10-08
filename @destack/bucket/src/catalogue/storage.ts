@@ -13,9 +13,13 @@ import {
     type SQL,
     type Table,
 } from "@destack/db";
-import type { BucketFile, BucketListOptions } from "../bucket/index.ts";
-import { BucketKey } from "../bucket/key.ts";
-import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
+import {
+    type BucketFile,
+    type BucketListOptions,
+    BucketKey,
+    BucketListing,
+    MAX_BATCH_FILES,
+} from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { file, part, segment, upload } from "./stack/index.ts";
 import { CatalogueFile } from "./file.ts";
@@ -405,7 +409,7 @@ export class CatalogueStorage implements AsyncDisposable {
 
         // seek past each emitted prefix instead of reading every file inside it
         while (true) {
-            // start after the requested key without skipping a group it names, then after the last key
+            // start after the requested key without skipping a group it starts, then after the last key
             const lower =
                 startAfter === undefined
                     ? lowerBound(prefix, delimiter, after)
@@ -502,7 +506,7 @@ function listingColumns(options: BucketListOptions) {
         etag: file.etag,
         size: file.size,
         uploaded: file.uploaded,
-        checksums: file.checksums,
+        digest: file.digest,
         storageClass: file.storageClass,
         ssecKeyMd5: file.ssecKeyMd5,
         retainUntil: file.retainUntil,

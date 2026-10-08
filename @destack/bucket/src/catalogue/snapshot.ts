@@ -27,7 +27,7 @@ export interface CatalogueHandle extends DatabaseHandle {
 
 /** Copy a bucket's catalogue and blobs into a snapshot store, and restore such a copy into another bucket. */
 export const BucketSnapshot = {
-    /** Copy the catalogue's rows and the blobs they reference into a store, answering the digest naming the copy. */
+    /** Copy the catalogue's rows and the blobs they reference into a store, answering the copy's digest. */
     async take(bucket: CatalogueHandle, store: ContentStore): Promise<Digest> {
         // copy the rows in one read, noting the blobs their segments and parts reference
         await using _held = await bucket.hold();

@@ -46,7 +46,7 @@ function matches(file: BucketFile | null, condition?: BucketCondition): boolean 
     return isMatching && isDifferent && isAfter && isBefore;
 }
 
-/** Compare one unquoted entity tag, or an asterisk naming any file, with a file's tag. */
+/** Compare one unquoted entity tag, or an asterisk matching any file, with a file's tag. */
 function matchesEtag(expected: string, etag: string): boolean {
     return expected === "*" || expected === etag;
 }

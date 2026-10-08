@@ -1,7 +1,11 @@
 import { createHash, type Hash } from "node:crypto";
 import type { ContentStore } from "@destack/resource";
-import type { BucketBody, BucketPutOptions, ChecksumAlgorithm } from "../bucket/index.ts";
-import { CHECKSUM_ALGORITHMS } from "../bucket/index.ts";
+import {
+    type BucketBody,
+    type BucketPutOptions,
+    type DigestAlgorithm,
+    DIGEST_ALGORITHMS,
+} from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { CustomerKey } from "./encryption.ts";
 
@@ -33,8 +37,8 @@ export class Content {
     readonly size: number;
     /** The MD5 entity tag. */
     readonly etag: string;
-    /** The stored content checksums. */
-    readonly checksums: Partial<Record<ChecksumAlgorithm, string>>;
+    /** The stored content digest. */
+    readonly digest: Partial<Record<DigestAlgorithm, string>>;
 
     /** Retain the written content's identifier, blob, length, and digest. */
     constructor(
@@ -43,7 +47,7 @@ export class Content {
         nonce: string | null,
         size: number,
         etag: string,
-        checksums: Partial<Record<ChecksumAlgorithm, string>>,
+        digest: Partial<Record<DigestAlgorithm, string>>,
     ) {
         // retain the content description
         this.version = version;
@@ -51,7 +55,7 @@ export class Content {
         this.nonce = nonce;
         this.size = size;
         this.etag = etag;
-        this.checksums = checksums;
+        this.digest = digest;
     }
 
     /** Write contents into the blob store before the catalogue refers to them. */
@@ -62,7 +66,7 @@ export class Content {
         key?: CustomerKey,
     ): Promise<Content> {
         // accept at most one supplied checksum
-        const supplied = CHECKSUM_ALGORITHMS.flatMap((name) => {
+        const supplied = DIGEST_ALGORITHMS.flatMap((name) => {
             const value = options[name];
 
             return value === undefined ? [] : [{ name, value }];
@@ -93,12 +97,12 @@ export class Content {
         if (etag === undefined || actual === undefined) {
             throw new TypeError("content hashes are unfinished after the write");
         }
-        const checksums: Partial<Record<ChecksumAlgorithm, string>> = { md5: etag };
+        const digest: Partial<Record<DigestAlgorithm, string>> = { md5: etag };
         if (algorithm !== undefined && key === undefined) {
-            checksums[algorithm] = actual;
+            digest[algorithm] = actual;
         }
 
-        return new Content(crypto.randomUUID(), blob, nonce, hashes.size, etag, checksums);
+        return new Content(crypto.randomUUID(), blob, nonce, hashes.size, etag, digest);
     }
 }
 

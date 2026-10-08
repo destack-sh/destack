@@ -1,5 +1,5 @@
-import type { ResourceDeclaration } from "@destack/resource";
 import { BucketKind, type BucketDescription } from "../declare/bucket.ts";
+import type { ResourceDeclaration } from "@destack/resource";
 
 /** Describe a declared bucket for the package manifest. */
 export function describeBucket(

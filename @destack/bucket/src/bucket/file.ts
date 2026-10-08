@@ -1,7 +1,7 @@
 import { BucketHttpMetadata } from "./metadata.ts";
-import { BucketChecksums } from "./checksum.ts";
+import { ContentDigest } from "./digest.ts";
 import { schema, type JsonValue } from "@destack/schema";
-import { BucketError } from "../error/index.ts";
+import { BucketError } from "../error/error.ts";
 
 /** The storage classes R2 offers, in its own spelling. */
 export const STORAGE_CLASSES = ["Standard", "InfrequentAccess"] as const;
@@ -28,8 +28,8 @@ export class BucketFile {
     readonly httpMetadata: BucketHttpMetadata;
     /** Application metadata. */
     readonly customMetadata: Record<string, string>;
-    /** The stored content checksums. */
-    readonly checksums: BucketChecksums;
+    /** The stored content digest. */
+    readonly digest: ContentDigest;
     /** The storage class. */
     readonly storageClass: StorageClass;
     /** The MD5 digest of the customer key encrypting the file, as base64. */
@@ -46,7 +46,7 @@ export class BucketFile {
         uploaded: Date,
         httpMetadata: BucketHttpMetadata = {},
         customMetadata: Record<string, string> = {},
-        checksums: BucketChecksums = new BucketChecksums(),
+        digest: ContentDigest = new ContentDigest(),
         storageClass: StorageClass = "Standard",
         ssecKeyMd5?: string,
         retainUntil?: Date,
@@ -59,7 +59,7 @@ export class BucketFile {
         this.uploaded = uploaded;
         this.httpMetadata = httpMetadata;
         this.customMetadata = customMetadata;
-        this.checksums = checksums;
+        this.digest = digest;
         this.storageClass = storageClass;
         this.ssecKeyMd5 = ssecKeyMd5;
         this.retainUntil = retainUntil;
@@ -106,7 +106,7 @@ export class BucketFileBody extends BucketFile {
             file.uploaded,
             file.httpMetadata,
             file.customMetadata,
-            file.checksums,
+            file.digest,
             file.storageClass,
             file.ssecKeyMd5,
         );

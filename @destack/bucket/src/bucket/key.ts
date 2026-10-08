@@ -1,5 +1,5 @@
 import { aligned } from "@destack/schema";
-import { BucketError } from "../error/index.ts";
+import { BucketError } from "../error/error.ts";
 
 /** The longest file key in UTF-8 bytes, the S3 and R2 limit. */
 const MAX_KEY_BYTES = 1024;

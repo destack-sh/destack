@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { Bucket } from "../../src/index.ts";
+import type { Bucket } from "../../src/bucket/index.ts";
 
 /** Compare complete streamed contents and publication behavior across backends. */
 export async function exerciseMultipart(bucket: Bucket): Promise<void> {

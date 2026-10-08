@@ -1,6 +1,10 @@
-import type { BucketFile } from "../bucket/index.ts";
-import { BucketFileBody, BucketRange, MAX_BATCH_FILES } from "../bucket/index.ts";
-import { BucketKey } from "../bucket/key.ts";
+import {
+    type BucketFile,
+    BucketFileBody,
+    BucketRange,
+    MAX_BATCH_FILES,
+    BucketKey,
+} from "../bucket/index.ts";
 import type { BucketCopyOptions, S3Bucket } from "./bucket.ts";
 import { S3Condition } from "./condition.ts";
 import { S3Error } from "./error.ts";
@@ -50,21 +54,23 @@ async function getObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
         return preconditionFailure(requireFile(resolution.failed), condition);
     }
 
-    // read the file under the resolved conditions and the request's range
+    // read the file under the resolved conditions and the request's range, answering a condition a concurrent write broke
     const range = call.range();
     const ssecKey = call.ssecKey();
-    const file = requireFile(
-        await bucket.get(call.key, {
-            ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
-            ...(range === undefined ? {} : { range }),
-            ...(ssecKey === undefined ? {} : { ssecKey }),
-        }),
-    );
-    if (!(file instanceof BucketFileBody)) {
-        return preconditionFailure(file, condition);
+    let file: BucketFileBody;
+    try {
+        file = requireFile(
+            await bucket.get(call.key, {
+                ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
+                ...(range === undefined ? {} : { range }),
+                ...(ssecKey === undefined ? {} : { ssecKey }),
+            }),
+        );
+    } catch (error) {
+        return preconditionFailure(requireFile(S3Condition.failed(error)), condition);
     }
 
-    // describe the returned bytes, with the overrides the query names
+    // describe the returned bytes, with the query's overrides
     const headers = fileHeaders(file);
     headers.set("content-length", String(file.range?.length ?? file.size));
     if (file.range !== undefined) {
@@ -122,16 +128,20 @@ async function putObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
     const storageClass = call.storageClass();
     const ssecKey = call.ssecKey();
     const retainUntil = call.retainUntil();
-    const file = await bucket.put(call.key, call.body(), {
-        httpMetadata: call.httpMetadata(),
-        customMetadata: call.customMetadata(),
-        ...(storageClass === undefined ? {} : { storageClass }),
-        ...(ssecKey === undefined ? {} : { ssecKey }),
-        ...(retainUntil === undefined ? {} : { retainUntil }),
-        ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
-    });
-    if (file === null) {
-        return writeConditionFailure(call, await bucket.head(call.key));
+    const sha256 = call.headers.get("x-amz-checksum-sha256");
+    let file: BucketFile;
+    try {
+        file = await bucket.put(call.key, call.body(), {
+            ...(sha256 === null ? {} : { sha256: Uint8Array.fromBase64(sha256).buffer }),
+            httpMetadata: call.httpMetadata(),
+            customMetadata: call.customMetadata(),
+            ...(storageClass === undefined ? {} : { storageClass }),
+            ...(ssecKey === undefined ? {} : { ssecKey }),
+            ...(retainUntil === undefined ? {} : { retainUntil }),
+            ...(resolution.onlyIf === undefined ? {} : { onlyIf: resolution.onlyIf }),
+        });
+    } catch (error) {
+        return writeConditionFailure(call, S3Condition.failed(error));
     }
 
     return new Response(null, { headers: writeHeaders(call, file) });
@@ -190,12 +200,6 @@ async function copyObject(
     const file = source.isSameBucket
         ? await bucket.copy(source.key, call.key, options)
         : await copyBetween(source, bucket, call.key, options);
-    if (file === null) {
-        throw new S3Error(
-            "PreconditionFailed",
-            "at least one of the preconditions you specified did not hold",
-        );
-    }
 
     return xmlResponse("CopyObjectResult", { LastModified: file.uploaded, ETag: file.httpEtag });
 }
@@ -300,13 +304,13 @@ async function deleteObjects(call: S3Request, bucket: S3Bucket): Promise<Respons
     });
 }
 
-/** Copy a file from another bucket by streaming it, returning null when a source precondition fails. */
+/** Copy a file from another bucket by streaming it, refusing a failed source precondition. */
 async function copyBetween(
     source: CopySource,
     bucket: S3Bucket,
     key: string,
     options: BucketCopyOptions,
-): Promise<BucketFile | null> {
+): Promise<BucketFile> {
     // read the source under its conditions
     const file = requireFile(
         await source.bucket.get(
@@ -314,9 +318,6 @@ async function copyBetween(
             options.onlyIf === undefined ? {} : { onlyIf: options.onlyIf },
         ),
     );
-    if (!(file instanceof BucketFileBody)) {
-        return null;
-    }
 
     // write it with its metadata unless the copy replaces it
     return await bucket.put(key, file.body, {
@@ -362,7 +363,7 @@ function preconditionFailure(file: BucketFile, condition: S3Condition | undefine
     });
 }
 
-/** Refuse a failed write precondition: 404 when If-Match names an absent key, else 412. */
+/** Refuse a failed write precondition: 404 when If-Match targets an absent key, else 412. */
 function writeConditionFailure(call: S3Request, current: BucketFile | null): never {
     if (call.headers.has("if-match") && current === null) {
         throw new S3Error("NoSuchKey", "the specified key does not exist");

@@ -9,25 +9,10 @@ import type { BucketListing } from "./list.ts";
 export interface Bucket {
     /** Read metadata; return null when the key does not exist. */
     head(key: string): Promise<BucketFile | null>;
-    /** Read a file without conditional metadata responses. */
-    get(
-        key: string,
-        options?: BucketGetOptions & { onlyIf?: undefined },
-    ): Promise<BucketFileBody | null>;
-    /** Read a file; return metadata alone when a precondition fails. */
-    get(key: string, options: BucketGetOptions): Promise<BucketFileBody | BucketFile | null>;
-    /** Store a file without preconditions. */
-    put(
-        key: string,
-        body: BucketBody | null,
-        options?: BucketPutOptions & { onlyIf?: undefined },
-    ): Promise<BucketFile>;
-    /** Store a complete file and atomically replace any previous value. */
-    put(
-        key: string,
-        body: BucketBody | null,
-        options: BucketPutOptions,
-    ): Promise<BucketFile | null>;
+    /** Read a file, null when the key does not exist, refusing a failed precondition with `PRECONDITION_FAILED`. */
+    get(key: string, options?: BucketGetOptions): Promise<BucketFileBody | null>;
+    /** Store a complete file, atomically replacing any previous one, refusing a failed precondition with `PRECONDITION_FAILED`. */
+    put(key: string, body: BucketBody | null, options?: BucketPutOptions): Promise<BucketFile>;
     /** Delete up to 1000 files; absent keys remain absent. */
     delete(key: string | string[]): Promise<void>;
     /** List a page of metadata. */

@@ -4,7 +4,7 @@ import { test } from "@destack/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LocalBucket } from "../src/local/index.ts";
+import { LocalBucket } from "../src/bun/index.ts";
 
 test("keep, read, copy and delete blobs below a prefix of a local and an R2 bucket", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-store-"));

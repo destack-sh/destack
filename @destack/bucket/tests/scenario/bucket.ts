@@ -1,10 +1,23 @@
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { Bucket, BucketFile } from "../../src/index.ts";
-import { CHECKSUM_ALGORITHMS } from "../../src/index.ts";
+import { type Bucket, type BucketFile, DIGEST_ALGORITHMS } from "../../src/bucket/index.ts";
+import { BucketError, BucketPreconditionError } from "../../src/error/index.ts";
 
-/** Retain exact body bytes, HTTP metadata, and content checksums. */
+/** Read the file a refused precondition met, null where none exists, failing when the precondition held. */
+async function refused(operation: Promise<unknown>): Promise<BucketFile | null> {
+    try {
+        await operation;
+    } catch (error) {
+        if (error instanceof BucketPreconditionError) {
+            return error.current;
+        }
+        throw error;
+    }
+    throw new TypeError("the precondition held");
+}
+
+/** Retain exact body bytes, HTTP metadata, and content digest. */
 export async function exerciseContents(bucket: Bucket): Promise<void> {
     assert.strictEqual(await bucket.head("missing"), null);
     assert.strictEqual(await bucket.get("missing"), null);
@@ -34,18 +47,18 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
     );
     await bucket.delete("view");
 
-    // keep supplied checksums that describe exactly the accepted contents
+    // keep supplied digests that describe exactly the accepted contents
     const value = new TextEncoder().encode("checksummed contents");
     const md5 = createHash("md5").update(value).digest("hex");
-    for (const algorithm of CHECKSUM_ALGORITHMS) {
+    for (const algorithm of DIGEST_ALGORITHMS) {
         const digest = createHash(algorithm).update(value).digest("hex");
         const file = await bucket.put("checksum", value, { [algorithm]: digest });
-        assert.deepStrictEqual(JSON.parse(JSON.stringify(file.checksums)), {
+        assert.deepStrictEqual(JSON.parse(JSON.stringify(file.digest)), {
             md5,
             [algorithm]: digest,
         });
         const restored = present(await bucket.get("checksum"), "restored");
-        assert.deepStrictEqual(restored.checksums.toJSON(), file.checksums.toJSON());
+        assert.deepStrictEqual(restored.digest.toJSON(), file.digest.toJSON());
         assert.deepStrictEqual(new Uint8Array(await restored.arrayBuffer()), value);
     }
     await bucket.delete("checksum");
@@ -109,18 +122,21 @@ async function readUnderDates(bucket: Bucket, first: BucketFile): Promise<void> 
     // compare the upload time with an earlier and a later moment
     const earlier = new Date(first.uploaded.getTime() - 1000);
     const later = new Date(first.uploaded.getTime() + 1000);
-    assert.deepStrictEqual(await bucket.get("📁/one", { onlyIf: { uploadedAfter: later } }), first);
     assert.deepStrictEqual(
-        await bucket.get("📁/one", { onlyIf: { uploadedBefore: earlier } }),
+        await refused(bucket.get("📁/one", { onlyIf: { uploadedAfter: later } })),
+        first,
+    );
+    assert.deepStrictEqual(
+        await refused(bucket.get("📁/one", { onlyIf: { uploadedBefore: earlier } })),
         first,
     );
     const matching = await bucket.get("📁/one", {
         onlyIf: { etagMatches: first.etag, uploadedBefore: earlier },
     });
-    assert.strictEqual(matching && "body" in matching ? await matching.text() : matching, "abcdef");
-    assert.strictEqual(
-        await bucket.put("📁/one", "wrong", { onlyIf: { uploadedAfter: later } }),
-        null,
+    assert.strictEqual(await matching?.text(), "abcdef");
+    assert.deepStrictEqual(
+        await refused(bucket.put("📁/one", "wrong", { onlyIf: { uploadedAfter: later } })),
+        first,
     );
 }
 
@@ -161,17 +177,20 @@ async function readRanges(bucket: Bucket, isSimulatedR2: boolean): Promise<void>
 /** Keep the complete previous file and absent keys when a precondition fails. */
 async function keepUnderFailedPreconditions(bucket: Bucket, first: BucketFile): Promise<void> {
     // preserve the complete previous file when a precondition fails
-    assert.strictEqual(
-        await bucket.put("📁/one", "wrong", { onlyIf: { etagDoesNotMatch: "*" } }),
-        null,
+    assert.deepStrictEqual(
+        await refused(bucket.put("📁/one", "wrong", { onlyIf: { etagDoesNotMatch: "*" } })),
+        first,
     );
-    assert.deepStrictEqual(await bucket.get("📁/one", { onlyIf: { etagMatches: "wrong" } }), first);
+    assert.deepStrictEqual(
+        await refused(bucket.get("📁/one", { onlyIf: { etagMatches: "wrong" } })),
+        first,
+    );
     assert.deepStrictEqual(await bucket.head("📁/one"), first);
 
     // preserve absent keys under conditional operations
     assert.strictEqual(await bucket.get("missing", { onlyIf: { etagMatches: "*" } }), null);
     assert.strictEqual(
-        await bucket.put("missing", "wrong", { onlyIf: { etagMatches: "*" } }),
+        await refused(bucket.put("missing", "wrong", { onlyIf: { etagMatches: "*" } })),
         null,
     );
     assert.strictEqual(await bucket.head("missing"), null);
@@ -180,16 +199,22 @@ async function keepUnderFailedPreconditions(bucket: Bucket, first: BucketFile): 
 /** Accept one of two competing replacements of the previous entity tag. */
 async function replaceOnce(bucket: Bucket, first: BucketFile): Promise<void> {
     // race two replacements naming the same entity tag
-    const replacements = await Promise.all([
+    const replacements = await Promise.allSettled([
         bucket.put("📁/one", "second", { onlyIf: { etagMatches: first.etag } }),
         bucket.put("📁/one", "third", { onlyIf: { etagMatches: first.etag } }),
     ]);
     assert.deepStrictEqual(
-        replacements.filter((entry) => entry === null),
-        [null],
+        replacements
+            .map((entry) =>
+                entry.status === "rejected" && entry.reason instanceof BucketError
+                    ? entry.reason.code
+                    : entry.status,
+            )
+            .toSorted(),
+        ["PRECONDITION_FAILED", "fulfilled"],
     );
     assert.deepStrictEqual(
-        replacements.filter((entry) => entry !== null),
+        replacements.flatMap((entry) => (entry.status === "fulfilled" ? [entry.value] : [])),
         [await bucket.head("📁/one")],
     );
 }

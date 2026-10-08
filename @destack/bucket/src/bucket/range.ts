@@ -1,4 +1,4 @@
-import { BucketError } from "../error/index.ts";
+import { BucketError } from "../error/error.ts";
 
 /** An inclusive starting byte and optional byte count, or a trailing byte count. */
 export type BucketRange =

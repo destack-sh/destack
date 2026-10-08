@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
 import { S3Client } from "@aws-sdk/client-s3";
-import { LocalBucket } from "../../local/index.ts";
+import { LocalBucket } from "../../bun/index.ts";
 import { S3Server } from "../server.ts";
 
 /** The credentials the test server accepts. */

@@ -1,9 +1,8 @@
 import { createHash, type Hash } from "node:crypto";
 import type { ContentStore } from "@destack/resource";
 import { Digest, present } from "@destack/schema";
-import type { Bucket, UploadedPart } from "../bucket/index.ts";
+import { type Bucket, type UploadedPart, MAX_BATCH_FILES } from "../bucket/index.ts";
 import type { BlobStore } from "../catalogue/index.ts";
-import { MAX_BATCH_FILES } from "../bucket/list.ts";
 import { BucketError } from "../error/index.ts";
 
 /** The bytes of each part of a blob written in parts: 8 MiB, above R2's 5 MiB minimum, since R2 takes parts of one size. */
@@ -13,7 +12,7 @@ const PART_BYTES = 8 * 1024 * 1024;
 const STAGING = "staging/";
 
 /**
- * A bucket's blobs as files of a residency's R2 bucket below the bucket's prefix, each named by its digest.
+ * A bucket's blobs as files of a residency's R2 bucket below the bucket's prefix, each keyed by its digest.
  *
  * A body longer than one part is staged under a random name, since R2 renames no file, and written under its digest once hashed.
  */

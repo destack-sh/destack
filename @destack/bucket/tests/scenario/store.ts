@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { Bucket } from "../../src/index.ts";
+import type { Bucket } from "../../src/bucket/index.ts";
 import { R2BlobStore } from "../../src/cloudflare/store.ts";
 
 /** The bytes of one stored part, as the store splits long bodies. */

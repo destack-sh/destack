@@ -546,3 +546,45 @@ test("lock an object in compliance mode through the AWS SDK, refusing its deleti
         { name: "AccessDenied", status: 403 },
     ]);
 });
+
+test("keep the SHA-256 checksum a write declares as the stored file's, refusing a body that does not match it", async () => {
+    await using fixture = await S3Fixture.open();
+    const client = fixture.client();
+
+    // store an object declaring its body's SHA-256 checksum, and one declaring another body's
+    await client.send(
+        new PutObjectCommand({
+            Bucket: "files",
+            Key: "builds/one",
+            Body: "one",
+            ChecksumSHA256: checksum("one"),
+        }),
+    );
+    const mismatched = await failure(
+        client.send(
+            new PutObjectCommand({
+                Bucket: "files",
+                Key: "builds/two",
+                Body: "two",
+                ChecksumSHA256: checksum("one"),
+            }),
+        ),
+    );
+    const files = present(fixture.buckets.get("files"), "files");
+    const stored = present(await files.head("builds/one"), "the stored file");
+
+    expect({
+        sha256: stored.digest.toJSON().sha256,
+        mismatched: mismatched.name,
+        refused: await files.head("builds/two"),
+    }).toEqual({
+        sha256: createHash("sha256").update("one").digest("hex"),
+        mismatched: "BadDigest",
+        refused: null,
+    });
+});
+
+/** Read a body's SHA-256 checksum as S3 headers carry it. */
+function checksum(body: string): string {
+    return createHash("sha256").update(body).digest("base64");
+}

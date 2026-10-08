@@ -1,8 +1,8 @@
 import { schema } from "@destack/schema";
 import type { BucketFile } from "./file.ts";
-import { BucketError } from "../error/index.ts";
+import { BucketError } from "../error/error.ts";
 
-/** The most files one listing page or one delete names, the S3 and R2 limit. */
+/** The most files one listing page or one delete takes, the S3 and R2 limit. */
 export const MAX_BATCH_FILES = 1000;
 
 /** A file-list continuation with the backend and selection it continues. */

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { aligned, schema, present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { LocalBucketHost, LocalBlobStore } from "../local/index.ts";
+import { LocalBucketHost, LocalBlobStore } from "../bun/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
 import { BucketError } from "../error/index.ts";
 import { bucketProvider } from "./provider.ts";
@@ -38,7 +38,7 @@ test("provision a bucket once and destroy it with its files", async () => {
         region: "local",
         credentials: async () => CREDENTIALS,
     });
-    const provider = bucketProvider(buckets);
+    const provider = bucketProvider(buckets, null);
 
     // provision twice under one reference, keeping a file
     const provision = await provider.provision.provision(record);
@@ -60,7 +60,7 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
         region: "local",
         credentials: async () => CREDENTIALS,
     });
-    const provider = bucketProvider(buckets);
+    const provider = bucketProvider(buckets, null);
     const provisioned = { ...record, ...(await provider.provision.provision(record)) };
     const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
 
@@ -93,7 +93,7 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
         region: "local",
         credentials: async () => CREDENTIALS,
     });
-    const provider = bucketProvider(buckets);
+    const provider = bucketProvider(buckets, null);
     const provision = await provider.provision.provision(record);
     const bucket = await buckets.open({ bucketId: schema.identifier("bucket").parse(record.id) });
     await bucket.put("notes/a.txt", "first");
@@ -124,8 +124,8 @@ test("snapshot a bucket's catalogue and files into a content-addressed store and
     await using source = new LocalBucketHost({ directory: await temporary(), ...options });
     await using target = new LocalBucketHost({ directory: await temporary(), ...options });
     const store = await LocalBlobStore.open(await temporary());
-    const sending = bucketProvider(source);
-    const receiving = bucketProvider(target);
+    const sending = bucketProvider(source, null);
+    const receiving = bucketProvider(target, null);
     const bucketId = schema.identifier("bucket").parse(record.id);
     const sent = { ...record, ...(await sending.provision.provision(record)) };
     await (await source.open({ bucketId })).put("notes/a.txt", "first");

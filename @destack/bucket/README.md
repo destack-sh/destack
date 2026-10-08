@@ -1,13 +1,13 @@
 # @destack/bucket
 
-Declare file storage, read and write its files, and serve it over S3.
+Store files in buckets: the `Bucket` contract, its Bun, Cloudflare and memory hosts, their provider, and the S3 API over them.
 
 ## Declarations
 
-`defineBucket` declares a bucket by name.
+`defineBucket` declares a bucket by name, and `Bucket` is the file storage a host binds it to.
 
 ```ts
-import { defineBucket } from "@destack/bucket";
+import { defineBucket } from "@destack/bucket/declare";
 
 export const files = defineBucket({ name: "files", spec: {} });
 export const build = defineBucket({ name: "build", spec: { write: "system" } });
@@ -22,6 +22,15 @@ const bucket = files.get(context);
 await bucket.put("documents/readme.txt", "Hello", { httpMetadata: { contentType: "text/plain" } });
 const document = await bucket.get("documents/readme.txt");
 const text = document ? await document.text() : undefined;
+```
+
+### Preconditions
+
+`onlyIf` makes a read or write conditional, and a failed condition throws `BucketError` `PRECONDITION_FAILED` with the file it met.
+
+```ts
+await bucket.put("index.json", body, { onlyIf: { etagMatches: previous.etag } }); // PRECONDITION_FAILED once another write won
+error.current; // the file the condition met, null where none exists
 ```
 
 ### Multipart uploads
@@ -46,27 +55,36 @@ await bucket.put("private/report.pdf", report, { ssecKey });
 const sealed = await bucket.get("private/report.pdf", { ssecKey });
 ```
 
-## Objects
+## Object lock
 
-`serveBuckets` serves the `bucket` objects of a host's buckets.
+`retainUntil` locks a file in compliance mode until a date, as S3 Object Lock does.
 
 ```ts
-import { serveBuckets } from "@destack/bucket/server";
-
-const handled = serveBuckets(host);
-await client.open({ mode: "write", ...file }); // ServiceError FORBIDDEN: the system alone writes bucket-…
+await bucket.put("audit/2026-10/segment.parquet", body, {
+    retainUntil: new Date(sealedAt + SEVEN_YEARS),
+});
+await bucket.delete("audit/2026-10/segment.parquet"); // LOCKED
+(await bucket.head("audit/2026-10/segment.parquet"))?.retainUntil; // the date
 ```
 
-## Service
+## Errors
 
-`implementBucket` serves the bucket objects and runs the providers' controllers.
+A storage failure throws a `BucketError` with a stable code.
 
 ```ts
-import { implementBucket } from "@destack/bucket/server";
-import { bucketDatabase } from "@destack/bucket/stack";
+import { BucketError } from "@destack/bucket/error";
 
-const buckets = implementBucket({ database, callKey, directory, providers, machine, cell, spaces });
-const source = buckets.objects; // a space creates a bucket by a call this service runs
+new BucketError("FENCED", "bucket is fenced while a transfer copies it").toServiceError(); // { code: "SERVICE_UNAVAILABLE", message: "bucket is fenced while a transfer copies it" }
+```
+
+## Memory buckets
+
+`MemoryBucket` keeps files in memory with a host's conditions, ranges, object locks and listings, on a clock the test sets.
+
+```ts
+import { MemoryBucket } from "@destack/bucket/test";
+
+const bucket = new MemoryBucket(() => now);
 ```
 
 ## Hosts
@@ -78,7 +96,7 @@ A bucket host stores buckets and serves them over S3.
 `LocalBucket.open` opens a bucket in a local directory.
 
 ```ts
-import { LocalBucket } from "@destack/bucket/local";
+import { LocalBucket } from "@destack/bucket/bun";
 import { ResourceContext } from "@destack/resource/context";
 
 await using bucket = await LocalBucket.open("./resources/files");
@@ -86,12 +104,12 @@ const context = new ResourceContext();
 context.bind(files, bucket);
 ```
 
-### Device hosts
+### Machine hosts
 
-`LocalBucketHost` stores a device host's buckets in local directories.
+`LocalBucketHost` stores a machine's buckets in local directories.
 
 ```ts
-import { LocalBucketHost } from "@destack/bucket/local";
+import { LocalBucketHost } from "@destack/bucket/bun";
 import { bucketProvider } from "@destack/bucket/provider";
 import { S3Credentials } from "@destack/bucket/s3";
 
@@ -101,12 +119,12 @@ const buckets = new LocalBucketHost({
     region: "local",
     credentials: async (space) => S3Credentials.derive(await root(space), space),
 });
-const provider = bucketProvider(buckets);
+const provider = bucketProvider(buckets, serveBuckets(buckets)); // serveBuckets from @destack/space/server
 ```
 
 ### Operations
 
-`R2Bucket.takeOperations` takes the operations a binding sent since the last take, in the classes R2 bills: Class A for writes, lists and multipart steps, Class B for reads, deletes free.
+`R2Bucket.takeOperations` takes the operations a binding sent since the last take, by R2's billing class.
 
 ```ts
 const files = new R2Bucket(environment.FILES);
@@ -141,18 +159,6 @@ await provider.fence.fence(record);
 await provider.fence.lift(record);
 ```
 
-## Object lock
-
-`retainUntil` locks a file in compliance mode, as S3 Object Lock does: nobody replaces or deletes it before the date, and R2's own buckets lock files by bucket lock rules instead.
-
-```ts
-await bucket.put("audit/2026-10/segment.parquet", body, {
-    retainUntil: new Date(sealedAt + SEVEN_YEARS),
-});
-await bucket.delete("audit/2026-10/segment.parquet"); // BucketError LOCKED until the date, S3 AccessDenied
-(await bucket.head("audit/2026-10/segment.parquet"))?.retainUntil; // the date
-```
-
 ## S3
 
 `S3Server` serves the path-style S3 API over any `S3Bucket`, such as a `LocalBucket`.
@@ -169,20 +175,9 @@ const server = new S3Server({
 const response = await server.fetch(request);
 ```
 
-### Spaces
-
-`serveS3` serves a cell's buckets: each space signs with credentials its root secret derives and reaches only its own buckets.
-
-```ts
-import { serveS3 } from "@destack/bucket/server";
-
-const server = serveS3(buckets, database); // database: the bucket service's, keeping each bucket's space
-await S3Credentials.derive(root, spaceId); // { accessKeyId: spaceId, secretAccessKey: HKDF-SHA256 output }
-```
-
 ### Presigned URLs
 
-`S3Signature.presign` signs a URL for one request on one key until it expires, with the upstream Signature Version 4 signer over WebCrypto on Bun, workerd and browsers.
+`S3Signature.presign` signs a URL for one request on one key until it expires (Signature Version 4).
 
 ```ts
 import { S3Location, S3Signature } from "@destack/bucket/s3";
@@ -195,24 +190,16 @@ const presigned = await new S3Signature({ region: location.region }).presign(
     900,
     Date.now(),
 );
-// signed by AwsSigner from @destack/identity/aws, keeping each access key's daily signing key
-// verification signs the request's signed parts again and compares the signatures in constant time
 ```
 
-### Coverage
+### Customer keys
 
-`S3Server` implements the S3 subset that R2 implements.
+`customerKeyHeaders` writes the SSE-C headers of a customer key, which `S3Server` encrypts and decrypts with.
 
-```text
-objects         GetObject, HeadObject, PutObject, DeleteObject, DeleteObjects, CopyObject, ListObjectsV2
-multipart       CreateMultipartUpload, UploadPart, UploadPartCopy, CompleteMultipartUpload,
-                AbortMultipartUpload, ListParts, ListMultipartUploads
-authentication  SigV4 headers, presigned queries, aws-chunked bodies with signed chunks,
-                or unsigned chunks and a trailing checksum
-requests        conditional and copy-source conditional headers, ranges, CORS,
-                STANDARD and STANDARD_IA storage classes
-integrity       x-amz-content-sha256, Content-MD5, and CRC32, CRC32C and SHA-256 checksums
-encryption      customer keys (SSE-C) on reads, writes and multipart uploads
+```ts
+import { customerKeyHeaders } from "@destack/bucket/s3";
+
+await fetch(url, { method: "PUT", body, headers: customerKeyHeaders(key) });
 ```
 
 ## Cloudflare
@@ -245,26 +232,5 @@ const buckets = new R2BucketHost({
     region: "auto",
     credentials,
 });
-const provider = bucketProvider(buckets);
-```
-
-## Errors
-
-A storage failure throws a `BucketError` with a stable code.
-
-```ts
-import { BucketError } from "@destack/bucket/error";
-
-new BucketError("FENCED", "bucket is fenced while a transfer copies it").toServiceError(); // { code: "SERVICE_UNAVAILABLE", message: "bucket is fenced while a transfer copies it" }
-```
-
-## Tests
-
-`BucketFixture` provisions a space with a local bucket served over S3.
-
-```ts
-import { BucketFixture } from "@destack/bucket/test";
-
-await using fixture = await BucketFixture.open(database);
-const response = await fixture.transfer(upload, "Hello, bucket");
+const provider = bucketProvider(buckets, serveBuckets(buckets)); // serveBuckets from @destack/space/server
 ```

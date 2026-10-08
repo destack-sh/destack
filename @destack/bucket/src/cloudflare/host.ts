@@ -147,7 +147,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     }
 }
 
-/** The catalogues of a cell's buckets in its Durable Object's storage, each in a namespace named by its bucket. */
+/** The catalogues of a cell's buckets in its Durable Object's storage, each in its bucket's namespace. */
 export class DurableObjectCatalogueStore implements CatalogueStore {
     /** The object's databases. */
     readonly #databases: DurableObjectDatabaseHost;

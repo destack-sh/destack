@@ -22,7 +22,7 @@ export const CorsRule = { preflight, apply };
 
 /** Answer a preflight request with the first rule allowing its origin, method and headers. */
 function preflight(rules: CorsRule[], request: Request): Response {
-    // require the origin and method a preflight names
+    // require a preflight's origin and method
     const origin = request.headers.get("origin");
     const method = request.headers.get("access-control-request-method");
     if (origin === null || method === null) {
@@ -99,7 +99,7 @@ function allowsOrigin(rule: CorsRule, origin: string): boolean {
     return rule.allowed.origins.some((pattern) => matches(pattern, origin));
 }
 
-/** The allowed origin a response names: any origin for a lone wildcard, else the request's. */
+/** The allowed origin a response states: any origin for a lone wildcard, else the request's. */
 function allowedOrigin(rule: CorsRule, origin: string): string {
     return rule.allowed.origins.includes("*") ? "*" : origin;
 }
