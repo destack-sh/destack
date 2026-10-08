@@ -3,21 +3,28 @@ import { loadTransforms } from "@destack/build/local";
 import { builtinModules } from "node:module";
 import { fileURLToPath } from "node:url";
 
+/** How a test configuration compiles components beside its DOM. */
+export interface ViewTestOptions {
+    /** Compile components to hydrate pages a server rendered, as builds of server-rendered applications do. */
+    readonly isHydrated?: boolean;
+}
+
 /** Define a test configuration that compiles modules as builds do and renders them into a DOM. */
 export function defineConfiguration(
     configuration: Parameters<typeof test.defineConfiguration>[0],
+    options: ViewTestOptions = {},
 ): ReturnType<typeof test.defineConfiguration> {
-    // transform modules as builds do
+    // transform modules as builds do, for the server outside the DOM and to hydrate when asked
     const root = configuration.root ?? process.cwd();
+    const isDom = configuration.test?.environment === undefined;
     const transforms = loadTransforms({
         directory: root,
-        runtime: "browser",
-        server: false,
+        runtime: isDom ? "browser" : "bun",
+        server: !isDom || options.isHydrated === true,
         options: {},
     });
 
     // play the package's scenarios through the DOM driver when the tests render into the DOM
-    const isDom = configuration.test?.environment === undefined;
     const include = configuration.test?.include ?? test.configDefaults.include;
 
     // render components in a DOM, loading the runtime's modules natively for test servers

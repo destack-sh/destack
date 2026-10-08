@@ -16,7 +16,7 @@ import {
 } from "../scenario/index.ts";
 import { stubPopovers } from "./dom.ts";
 
-/** The modifiers of Playwright's key syntax, with the keyboard event flag each sets. */
+/** The modifiers a key step names before its key, with the keyboard event flag each sets. */
 const MODIFIERS = new Map([
     ["Control", "ctrlKey"],
     ["Meta", "metaKey"],
@@ -35,7 +35,7 @@ interface Rendered {
     readonly set: (properties: Readonly<Record<string, JsonValue>>) => void;
 }
 
-/** A driver playing UI scenarios in the test DOM in process, as a browser driver plays them through Playwright. */
+/** A driver playing UI scenarios in the test DOM in process, as a browser driver plays them in a browser. */
 export class ViewDriver implements Driver<typeof viewInteraction> {
     /** The interaction the driver speaks. */
     static readonly interaction = viewInteraction;
@@ -240,7 +240,7 @@ function rightClick(
     );
 }
 
-/** Press a key in Playwright's key syntax, such as `Control+r`, on the focused element or the body. */
+/** Press a key with its modifiers joined by plus signs, such as `Control+r`, on the focused element or the body. */
 function press(shortcut: string): void {
     // read the modifiers before the key
     const [key, ...held] = shortcut.split("+").toReversed();

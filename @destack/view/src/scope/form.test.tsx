@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { flush } from "../solid/reactive.ts";
-import { draw, wait } from "../test/index.ts";
+import { render, wait } from "../test/index.ts";
 import { type Form, type FormMode, useForm, useSchemaForm } from "./form.ts";
 
 /** The first strong isolate MessageFormat 2 places around a placeholder's value. */
@@ -39,7 +39,7 @@ function renameForm(mode: FormMode): {
     const submitted: Rename[] = [];
     let settle: ((isConfirmed: boolean) => void) | undefined;
     let form: Form<Rename> | undefined;
-    draw(() => {
+    render(() => {
         form = useForm(note, "update", {
             values: () => ({ id: note.generateId(), title: "Groceries" }),
             submit: (input): Submission<unknown> => {
@@ -138,7 +138,7 @@ const FILING = schema.object({
 /** Edit a filing in a drawn component that submits nothing. */
 function filingForm(): Form<Record<string, unknown>> {
     let form: Form<Record<string, unknown>> | undefined;
-    draw(() => {
+    render(() => {
         form = useSchemaForm<Record<string, unknown>>(FILING, {
             values: () => ({ title: undefined, estimate: undefined, place: {}, shape: undefined }),
             submit: (input) => ({

@@ -6,14 +6,14 @@ import type { Plugin, PluginOption } from "@destack/package/build";
 /** The package declaring views, whose installation resolves the framework's generated imports. */
 export const VIEW_PACKAGE = "@destack/view";
 
-/** Return the Solid and framework plugins, rendering on the server when asked. */
+/** Return the Solid and framework plugins, rendering on the server and hydrating its pages when asked, in tests too. */
 export function viewPlugins(ssr: boolean, start?: StartOptions): PluginOption[] {
     return [
         frameworkPlugin(),
         solid({
             ssr,
             serverFunctions: false,
-            solid: { moduleName: "@destack/view/runtime" },
+            solid: { moduleName: "@destack/view/runtime", hydratable: ssr },
             ...(start === undefined ? {} : { start: { ...start, env: start.env ?? false } }),
         }),
     ];

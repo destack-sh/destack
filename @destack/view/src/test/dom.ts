@@ -1,6 +1,6 @@
 import { onTestFinished } from "@destack/test";
 import type { JSX } from "@solidjs/web";
-import { render } from "@solidjs/web";
+import * as web from "@solidjs/web";
 import type { Example } from "@destack/package/declare";
 import { renderExample } from "../example/frame.ts";
 
@@ -16,21 +16,81 @@ const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 /** The ids Solid generates, numbered across every render in a test file. */
 const GENERATED_ID = /cl-\d+/gu;
 
-/** Render an element, or an example as its hosts render it, into a container in the document for the test's duration. */
-export function draw<Properties extends object>(
-    subject: (() => JSX.Element) | Example<Properties, JSX.Element>,
-): HTMLElement {
-    // mount into the document and unmount and remove after the test
-    const container = document.createElement("div");
-    document.body.append(container);
-    onTestFinished(() => container.remove());
-    onTestFinished(
-        typeof subject === "function"
-            ? render(subject, container)
-            : renderExample(container, { example: subject }),
-    );
+/** How `render` mounts: into which container, and whether it hydrates the server's HTML the container holds. */
+export interface RenderOptions {
+    /** The element to render into, a new one in the document by default. */
+    readonly container?: HTMLElement;
+    /** Hydrate the server's HTML the container holds instead of rendering anew. */
+    readonly hydrate?: boolean;
+}
 
-    return container;
+/** A rendered element: its container, and how to unmount it before the test ends. */
+export interface RenderResult {
+    /** The element rendered into. */
+    readonly container: HTMLElement;
+    /** Unmount the element, which happens after the test otherwise. */
+    readonly unmount: () => void;
+}
+
+/** The bootstrap the document's hydration script installs before a page hydrates, without its event replay. */
+interface HydrationBootstrap {
+    /** The events replayed once their elements hydrate. */
+    readonly events: unknown[];
+    /** The elements already hydrated. */
+    readonly completed: WeakSet<object>;
+    /** The resources the server streamed. */
+    readonly r: Record<string, unknown>;
+    /** Mark a hydration step. */
+    fe(): void;
+}
+
+/** Render an element, or an example as its hosts render it, into a container in the document for the test's duration, hydrating the container's server HTML when asked. */
+export function render<Properties extends object>(
+    ui: (() => JSX.Element) | Example<Properties, JSX.Element>,
+    options: RenderOptions = {},
+): RenderResult {
+    // take the given container, or a new one in the document
+    const container = options.container ?? document.createElement("div");
+    if (!container.isConnected) {
+        document.body.append(container);
+    }
+
+    // hydrate the server's HTML under the bootstrap its document installs, or render anew
+    let dispose: () => void;
+    if (options.hydrate === true) {
+        if (typeof ui !== "function") {
+            throw new TypeError("an example renders anew, so it cannot hydrate");
+        }
+        const bootstrap: HydrationBootstrap = {
+            events: [],
+            completed: new WeakSet(),
+            r: {},
+            fe() {},
+        };
+        Reflect.set(globalThis, "_$HY", bootstrap);
+        const disposeHydration = web.hydrate(ui, container);
+        dispose = () => {
+            disposeHydration();
+            Reflect.deleteProperty(globalThis, "_$HY");
+        };
+    } else if (typeof ui === "function") {
+        dispose = web.render(ui, container);
+    } else {
+        dispose = renderExample(container, { example: ui });
+    }
+
+    // unmount and remove once, by hand or after the test
+    let isMounted = true;
+    const unmount = (): void => {
+        if (isMounted) {
+            isMounted = false;
+            dispose();
+            container.remove();
+        }
+    };
+    onTestFinished(unmount);
+
+    return { container, unmount };
 }
 
 /** Press a key on the focused element, or on the body when nothing has the focus. */
