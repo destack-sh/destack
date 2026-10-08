@@ -13,11 +13,11 @@ Both products and processes will evolve under intense competition, with free mig
 :::
 
 The current stack is fundamentally broken:
-We've got a thousand little software silos, each with their own slightly incompatible slice of the stack, holding together custom auth and telemetry and UI and compute and storage.
-The "stack" is not really designed, coherent or integrated; it's a hodgepodge of different technologies and services where nothing _quite_ works together. 
+We've got a thousand little software silos, each with their own slightly incompatible slice of the stack and terms and standards.
+The "stack" was never really designed, re-designed or integrated; it's a hodgepodge of different technologies and services where nothing _quite_ works together. 
 
-Now, the technical debt accumulated over decades of organic software sediment growth is coming due.
-Probabilistic computing is finally here - we _could_ let agents contribue to and become part of all software, not not by tacking them on top of and next to one immovable, opaque stack that rejects integration and modification at every layer.
+Now, the technical debt accumulated over decades of organic software growth is coming due.
+Probabilistic computing is finally here: we _could_ let agents contribue to and become part of all software, but we can't, because we're stuck on top of an immovable, opaque stack that rejects integration and modification at every layer.
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
@@ -28,11 +28,10 @@ Once more, we will have to retrace from the beginning, reconsider what programmi
 
 # Higher Order Programming
 
-The history of programming has been one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script however it likes.
-And that's great.
+The history of programming machines to do our bidding is one of monotonically increasing levels of abstraction: from handcrafting mechanical gears, to wiring up vacuum tubes, to punching paper cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script in whatever way.
 
-Climbing the ladder of abstraction yields more output for every bit of input.
-We gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which wires? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
+Climbing the ladder of abstraction yields more output for every (human) bit of input.
+We gradually remove ourselves from the cumbersome burden of having to spell out _exactly_ what we want the machine to be doing: which gears? which wires? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
 
 :::figure width="440" src="./babbage-engine.jpg" alt="The 1832 demonstration portion of Babbage’s Difference Engine No. 1, with its columns of brass gears and hand crank."
 [Difference Engine No. 1, 1832](https://commons.wikimedia.org/wiki/File:Babbages_difference_engine_1832.jpg) — Sebastian Wallroth, public domain.
@@ -41,12 +40,12 @@ We gradually remove ourselves from the cumbersome burden of having to actually s
 Programming, then, is just reified problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
 We used to solve software-shaped problems with artisanal human-directed next-character-prediction of symbolic code, but really, it doesn't have to be any formal language at all.
 
-The idea of programming beyond code is as old as code itself, and there is broad and successful prior art on "higher order programming".
-Most prominently, game developers have been doing this for _decades_:
-early on, game development was also a complete schlep, and only a tiny guild of brilliant nerds could pull off presentable commercial games.
+There was programming before code, there is programming after code, and the idea of programming _outside_ code is rich with prior art of "higher order programming".
+_Game_ developers have perfected multimodal, multi-disciplinary software production for _decades_:
+early on, game development was also a schlep, and only a tiny guild of brilliant nerds managed to produce presentable commercial games.
 
-Initially, to build a game, _everyone_ had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
-Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine".
+To build a game, _everyone_ had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
+Then, we figured out how to package the hard bits into reusable components and more complete, higher level packages of reusable software components we call a "game engine".
 
 :::figure width="480" src="./ibm-extra-engineers.jpg" alt="IBM’s 1951 advertisement, 150 Extra Engineers, showing rows of engineers doing calculations."
 [150 Extra Engineers, 1951](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg) — IBM.
