@@ -1,5 +1,4 @@
-import { expect, test } from "vitest";
-
+import { expect, test } from "@destack/test";
 import { attributes, attrs, create } from "@destack/style";
 
 /** A dynamic style whose property StyleX names in camel case. */

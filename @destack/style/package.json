@@ -9,7 +9,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./build": "./src/build/index.ts",
-        "./media.stylex": "./src/condition/media.stylex.ts",
+        "./media.stylex": "./src/style/media.stylex.ts",
         "./preflight.css": "./src/preflight/preflight.css"
     },
     "scripts": {

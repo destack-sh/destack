@@ -97,7 +97,7 @@
         border-collapse: collapse;
     }
 
-    /* ring focused elements in Firefox like every other browser */
+    /* ring focused elements in every browser alike */
     :-moz-focusring:where(:not(iframe)) {
         outline: auto;
     }
@@ -181,12 +181,12 @@
         resize: vertical;
     }
 
-    /* remove the search field's inner padding in Safari */
+    /* remove the search field's inner padding */
     ::-webkit-search-decoration {
         -webkit-appearance: none;
     }
 
-    /* keep date and time fields one line tall and aligned in Safari */
+    /* keep date and time fields one line tall and aligned */
     ::-webkit-date-and-time-value {
         min-height: 1lh;
         text-align: inherit;
@@ -212,24 +212,24 @@
         padding-block: 0;
     }
 
-    /* center the datalist marker in Chrome */
+    /* center the datalist marker */
     ::-webkit-calendar-picker-indicator {
         line-height: 1;
     }
 
-    /* drop Firefox's invalid field shadow */
+    /* drop the invalid field shadow */
     :-moz-ui-invalid {
         box-shadow: none;
     }
 
-    /* let Safari round buttons */
+    /* draw buttons as buttons in every browser */
     button,
     input:where([type="button"], [type="reset"], [type="submit"]),
     ::file-selector-button {
         appearance: button;
     }
 
-    /* size Safari's number steppers */
+    /* size the number steppers */
     ::-webkit-inner-spin-button,
     ::-webkit-outer-spin-button {
         height: auto;
