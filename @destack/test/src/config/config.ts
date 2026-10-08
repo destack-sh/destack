@@ -4,7 +4,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as vitest from "vitest/config";
 import type { UserWorkspaceConfig, ViteUserConfig } from "vitest/config";
-import type { Plugin } from "vite";
+import type { Plugin, PluginOption } from "vite";
 import { modulePlugin } from "@destack/package/vite";
 import { schema } from "@destack/schema";
 
@@ -19,7 +19,11 @@ export function defineConfiguration(configuration: ViteUserConfig): ViteUserConf
     return vitest.defineConfig({
         ...configuration,
         test: { fsModuleCache: true, expect: POLL, ...configuration.test },
-        plugins: [modulePlugin(), cachePlugin(), ...(configuration.plugins ?? [])],
+        plugins: [
+            modulePlugin(),
+            cachePlugin(),
+            ...(configuration.plugins ?? []).map(withoutServer),
+        ],
     });
 }
 
@@ -28,7 +32,11 @@ export function defineProject(configuration: UserWorkspaceConfig): UserWorkspace
     return vitest.defineProject({
         ...configuration,
         test: { fsModuleCache: true, expect: POLL, ...configuration.test },
-        plugins: [modulePlugin(), cachePlugin(), ...(configuration.plugins ?? [])],
+        plugins: [
+            modulePlugin(),
+            cachePlugin(),
+            ...(configuration.plugins ?? []).map(withoutServer),
+        ],
     });
 }
 
@@ -68,6 +76,23 @@ export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
             },
         },
     };
+}
+
+/** Drop the development server hook of a plugin, since tests serve nothing and its timers would outlive them. */
+async function withoutServer(
+    option: PluginOption,
+): Promise<Exclude<PluginOption, Promise<unknown>>> {
+    // descend into nested and pending options
+    const settled = await option;
+    if (Array.isArray(settled)) {
+        return await Promise.all(settled.map(withoutServer));
+    }
+    // keep disabled options as they are
+    else if (settled === false || settled === null || settled === undefined) {
+        return settled;
+    }
+
+    return { ...settled, configureServer: undefined };
 }
 
 /** Key cached module transforms by every package definition the module transform reads, and by its own sources. */
