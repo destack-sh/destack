@@ -275,7 +275,7 @@ export class PackageBuilder implements AsyncDisposable {
         const build = new PackageBuild(response.manifest, destination, "temporary", reused);
 
         // store the build, then name it and each compiled output by its key
-        const manifest = await store.put(build, signal);
+        const manifest = await store.put(build.reader, signal);
         for (const [name, output] of Object.entries(response.outputs)) {
             const key = present(keys.outputs[name], `the key of output ${name}`);
             await store.cache(key, { kind: "output", output });
@@ -525,7 +525,8 @@ async function restore(
     destination: string,
 ): Promise<PackageManifest> {
     // write the files, then the manifest naming them
-    const { manifest, reader } = await store.contents(digest);
+    const reader = await store.contents(digest);
+    const { manifest } = reader;
     await place(store, await reader.distributed(), destination);
     await writeFile(join(destination, "manifest.json"), JSON.stringify(manifest), { flag: "wx" });
 

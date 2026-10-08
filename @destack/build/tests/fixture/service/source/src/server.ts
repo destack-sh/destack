@@ -12,9 +12,7 @@ import { defineAuditAction } from "@destack/audit";
 /** Record a published note under its declaring package. */
 export const notePublish = defineAuditAction({
     name: "note.publish",
-    targets: schema.object({
-        note: schema.object({ type: schema.literal("note"), id: schema.string() }),
-    }),
+    target: schema.object({ type: schema.literal("note"), id: schema.string() }),
     details: schema.object({ revision: schema.number().int() }),
 });
 

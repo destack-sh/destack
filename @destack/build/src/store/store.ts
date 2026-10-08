@@ -3,16 +3,12 @@ import {
     type Bucket,
     type BucketBody,
     type BucketFile,
+    BucketPreconditionError,
     type BucketRange,
     MAX_BATCH_FILES,
 } from "@destack/bucket";
 import { PackageFile } from "@destack/package/file";
-import {
-    BuildReader,
-    type PackageDistribution,
-    type PackageLocation,
-    PackageManifest,
-} from "@destack/package/manifest";
+import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import { ServiceError } from "@destack/service/error";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
@@ -38,20 +34,20 @@ export class PackageStore {
     }
 
     /** Store each file of a build, then its manifest, returning the manifest's digest. */
-    async put(source: PackageDistribution, signal?: AbortSignal): Promise<string> {
+    async put(source: BuildReader, signal?: AbortSignal): Promise<string> {
         // parse the manifest and refuse reserved and duplicate file paths
         const manifest = PackageManifest.parse(source.manifest);
-        const list = await source.reader.distributed();
+        const list = await source.distributed();
         requireDistinctPaths(list);
 
         // store each distinct file, a bounded number of streams at a time
         await inBatches(distinctFiles(list), signal, (file) =>
-            this.putFile(file, () => source.open(file.path, signal)),
+            this.putFile(file, () => source.stream(file.path, signal)),
         );
 
         // store the manifest last
         signal?.throwIfAborted();
-        const bytes = new TextEncoder().encode(JSON.stringify(manifest));
+        const bytes = encodeManifest(manifest);
         const file = await PackageFile.describe("manifest.json", "application/json", bytes);
         await this.#put(`manifests/${file.digest}`, bytes, file);
 
@@ -71,44 +67,14 @@ export class PackageStore {
     ): Promise<void> {
         // read the served manifest, verified by its digest
         const reader = await BuildReader.open(location, fetch, signal);
-        const base = new URL(location.url.endsWith("/") ? location.url : `${location.url}/`);
 
         // store each missing file as served, then the manifest
-        const open = (path: string) => fetchFile(fetch, base, path, location.manifest, signal);
-        const digest = await this.put({ manifest: reader.manifest, reader, open }, signal);
+        const digest = await this.put(reader, signal);
         if (digest !== location.manifest) {
             throw new ServiceError("BAD_GATEWAY", {
                 message: `build ${location.manifest} was stored as ${digest}`,
             });
         }
-    }
-
-    /** Upload a kept build to the package server at a URL: each file the server lacks, then the manifest. */
-    async push(
-        digest: string,
-        url: string,
-        fetch: (request: Request) => Promise<Response>,
-        signal?: AbortSignal,
-    ): Promise<void> {
-        // upload each distinct file the server lacks, a bounded number at a time
-        const { reader } = await this.contents(digest);
-        const files = distinctFiles(await reader.distributed());
-        const base = url.endsWith("/") ? url : `${url}/`;
-        await inBatches(files, signal, (file) =>
-            this.#offer(fetch, `${base}files/${file.digest}`, file),
-        );
-
-        // upload the manifest last
-        signal?.throwIfAborted();
-        const manifest = new Uint8Array(await (await this.manifest(digest)).arrayBuffer());
-        await upload(
-            fetch,
-            new Request(`${base}${digest}/manifest.json`, {
-                method: "PUT",
-                body: manifest,
-                headers: { "content-type": "application/json" },
-            }),
-        );
     }
 
     /** Store an uploaded file under its digest, refusing bytes of another digest. */
@@ -141,8 +107,10 @@ export class PackageStore {
         );
 
         // require the files the manifest names, then each file its lists name under a distinct path
-        const reader = new BuildReader(manifest, (path) =>
-            this.file(present(references.get(path), `the listed file ${path}`)),
+        const reader = new BuildReader(
+            manifest,
+            async (path) =>
+                (await this.open(present(references.get(path), `the listed file ${path}`))).body,
         );
         const references = new Map(reader.references().map((file) => [file.path, file]));
         await this.#requireStored(digest, reader.references());
@@ -182,10 +150,17 @@ export class PackageStore {
     }
 
     /** Open a stored build for selective reads. */
-    async contents(digest: string): Promise<PackageDistribution> {
+    async contents(digest: string): Promise<BuildReader> {
         // index the files the manifest lists directly
         const manifest = await this.get(digest);
-        const reader = new BuildReader(manifest, async (path) => this.file(await select(path)));
+        const reader = new BuildReader(manifest, async (path, signal) => {
+            signal?.throwIfAborted();
+            const object = await this.open(await select(path));
+
+            return signal
+                ? object.body.pipeThrough(new TransformStream(), { signal })
+                : object.body;
+        });
         const references = new Map(reader.references().map((file) => [file.path, file]));
         let list: Promise<PackageFile[]> | undefined;
         const select = async (path: string) => {
@@ -205,18 +180,7 @@ export class PackageStore {
             return file;
         };
 
-        return {
-            manifest,
-            reader,
-            open: async (path, signal) => {
-                signal?.throwIfAborted();
-                const object = await this.open(await select(path));
-
-                return signal
-                    ? object.body.pipeThrough(new TransformStream(), { signal })
-                    : object.body;
-            },
-        };
+        return reader;
     }
 
     /** Read the entry a cache key names, a miss when it names none or names something the store no longer keeps. */
@@ -439,36 +403,13 @@ export class PackageStore {
         const contents = await this.contents(digest);
         yield {
             path: "manifest.json",
-            contents: new TextEncoder().encode(JSON.stringify(contents.manifest)),
+            contents: encodeManifest(contents.manifest),
         };
 
         // yield each file after verifying its bytes
-        const list = await contents.reader.distributed();
+        const list = await contents.distributed();
         for (const file of list.toSorted(comparePath)) {
             yield { path: file.path, contents: await this.file(file) };
-        }
-    }
-
-    /** Upload a file to a package server unless it holds the file. */
-    async #offer(
-        fetch: (request: Request) => Promise<Response>,
-        target: string,
-        file: PackageFile,
-    ): Promise<void> {
-        // ask whether the server holds the file
-        const held = await fetch(new Request(target, { method: "HEAD" }));
-
-        // upload a file the server lacks
-        if (held.status === 404) {
-            const body = await this.file(file);
-            const headers = { "content-type": file.mediaType };
-            await upload(fetch, new Request(target, { method: "PUT", body, headers }));
-        }
-        // refuse a failed probe
-        else if (!held.ok) {
-            throw new ServiceError("BAD_GATEWAY", {
-                message: `cannot probe ${new URL(target).pathname}: HTTP ${held.status}`,
-            });
         }
     }
 
@@ -493,7 +434,7 @@ export class PackageStore {
             }
 
             // keep every file the manifest lists
-            const { reader } = await this.contents(digest);
+            const reader = await this.contents(digest);
             for (const file of await reader.distributed()) {
                 kept.add(file.digest);
             }
@@ -559,14 +500,27 @@ export class PackageStore {
         return true;
     }
 
-    /** Create an immutable object whose checksum the bucket verifies. */
+    /** Create an immutable object the bucket verifies by checksum, or keep the one another writer created first. */
     async #put(key: string, body: BucketBody, file: PackageFile): Promise<void> {
-        const created = await this.bucket.put(key, body, {
-            sha256: file.digest,
-            httpMetadata: { contentType: file.mediaType },
-            onlyIf: { etagDoesNotMatch: "*" },
-        });
-        const stored = created ?? (await this.bucket.head(key));
+        // create the object, or read the object another writer created first
+        const stored = await this.bucket
+            .put(key, body, {
+                sha256: file.digest,
+                httpMetadata: { contentType: file.mediaType },
+                onlyIf: { etagDoesNotMatch: "*" },
+            })
+            .catch((error: unknown) => {
+                // read the existing object
+                if (error instanceof BucketPreconditionError) {
+                    return error.current;
+                }
+                // rethrow any other failure
+                else {
+                    throw error;
+                }
+            });
+
+        // require the stored object to hold the file
         if (!stored || !isStored(stored, file)) {
             throw new ServiceError("INTERNAL_SERVER_ERROR", {
                 message: `stored object differs: ${key}`,
@@ -575,18 +529,23 @@ export class PackageStore {
     }
 }
 
+/** Encode a parsed manifest as its stored bytes, whose digest identifies the build. */
+export function encodeManifest(manifest: PackageManifest): Uint8Array<ArrayBuffer> {
+    return new TextEncoder().encode(JSON.stringify(manifest));
+}
+
 /** Report whether a bucket object holds a file's exact size and digest. */
 function isStored(object: BucketFile, file: PackageFile): boolean {
-    return object.size === file.size && object.checksums.toJSON().sha256 === file.digest;
+    return object.size === file.size && object.digest.toJSON().sha256 === file.digest;
 }
 
 /** Keep the first file of each digest. */
-function distinctFiles(list: readonly PackageFile[]): PackageFile[] {
+export function distinctFiles(list: readonly PackageFile[]): PackageFile[] {
     return [...new Map(list.map((file) => [file.digest, file])).values()];
 }
 
 /** Run a task per file, a bounded number at a time, checking the signal before each batch. */
-async function inBatches(
+export async function inBatches(
     files: readonly PackageFile[],
     signal: AbortSignal | undefined,
     task: (file: PackageFile) => Promise<void>,
@@ -595,31 +554,6 @@ async function inBatches(
         signal?.throwIfAborted();
         await Promise.all(files.slice(start, start + CONCURRENT_UPLOADS).map(task));
     }
-}
-
-/** Fetch one file of a build below its served URL, refusing a failed read. */
-async function fetchFile(
-    fetch: (input: URL, init: RequestInit) => Promise<Response>,
-    base: URL,
-    path: string,
-    manifest: string,
-    signal: AbortSignal | undefined,
-): Promise<ReadableStream<Uint8Array>> {
-    // fetch the file by its encoded path
-    const encoded = path.split("/").map(encodeURIComponent).join("/");
-    const response = await fetch(new URL(`files/${encoded}`, base), {
-        redirect: "error",
-        ...(signal === undefined ? {} : { signal }),
-    });
-
-    // refuse a failed read
-    if (!response.ok || response.body === null) {
-        throw new ServiceError("BAD_GATEWAY", {
-            message: `cannot read ${path} of build ${manifest}: HTTP ${response.status}`,
-        });
-    }
-
-    return response.body;
 }
 
 /** Refuse a file list naming the reserved manifest path or one path twice. */
@@ -635,18 +569,5 @@ function requireDistinctPaths(list: readonly PackageFile[]): void {
             });
         }
         paths.add(file.path);
-    }
-}
-
-/** Send an upload, refusing a failed one. */
-async function upload(
-    fetch: (request: Request) => Promise<Response>,
-    request: Request,
-): Promise<void> {
-    const response = await fetch(request);
-    if (!response.ok) {
-        throw new ServiceError("BAD_GATEWAY", {
-            message: `cannot upload ${new URL(request.url).pathname}: HTTP ${response.status}`,
-        });
     }
 }

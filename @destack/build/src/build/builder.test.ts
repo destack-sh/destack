@@ -21,7 +21,7 @@ import { formatSource } from "@destack/check";
 import { Vocabulary } from "@destack/resource";
 import { Commit, present } from "@destack/schema";
 import { DatabaseDeclaration } from "@destack/db/inspect";
-import { LocalBucket } from "@destack/bucket/local";
+import { LocalBucket } from "@destack/bucket/bun";
 import { PackageStore } from "../store/index.ts";
 
 /** The error a denied read reports: Seatbelt refuses it, bubblewrap hides the file. */

@@ -89,9 +89,14 @@ export class PackageServer {
             return new Response(null, { status: 413 });
         }
 
-        // store a file
+        // store a file under its upload's media type, refusing an upload without one
         if (target.kind === "file") {
-            const type = request.headers.get("content-type") ?? "application/octet-stream";
+            const type = request.headers.get("content-type");
+            if (type === null) {
+                throw new ServiceError("BAD_REQUEST", {
+                    message: `the upload of ${target.digest} has no media type`,
+                });
+            }
             await this.store.receive(target.digest, bytes, type);
         }
         // store a manifest
@@ -164,9 +169,9 @@ export class PackageServer {
 
         // look the path up among the manifest's direct references first, else in the list
         const contents = await this.store.contents(digest);
-        const direct = contents.reader.references().find((entry) => entry.path === name);
+        const direct = contents.references().find((entry) => entry.path === name);
         const listed =
-            direct ?? (await contents.reader.distributed()).find((entry) => entry.path === name);
+            direct ?? (await contents.distributed()).find((entry) => entry.path === name);
 
         return listed ?? new Response(null, { status: 404 });
     }

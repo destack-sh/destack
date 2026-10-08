@@ -149,3 +149,60 @@ test("refuse an unsupported dependency in a build as the development server does
         await rm(root, { recursive: true });
     }
 });
+
+test("build a browser-safe export whose entry re-exports a sibling of a package that runs in Bun alone", async () => {
+    // write a Bun package with a browser export that re-exports a sibling module
+    const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-export-")));
+    await writeFile(join(root, "bun.lock"), JSON.stringify({ lockfileVersion: 1, workspaces: {} }));
+    const library = join(root, "library");
+    await writePackage(
+        library,
+        {
+            name: "@fixture/library",
+            exports: { ".": "./src/index.ts", "./release": "./src/release/index.ts" },
+        },
+        { id: "package-01a10a00-0000-7000-8000-000000000011", runtimes: ["bun"] },
+        "export const server = true;\n",
+    );
+    await writeFile(
+        join(library, "destack.json"),
+        JSON.stringify({
+            $schema: SCHEMA,
+            language: "typescript",
+            id: "package-01a10a00-0000-7000-8000-000000000011",
+            runtimes: ["bun"],
+            exports: { "./release": { runtimes: ["browser", "bun"] } },
+        }),
+    );
+    await mkdir(join(library, "src", "release"), { recursive: true });
+    await writeFile(join(library, "src", "release", "index.ts"), 'export * from "./release.ts";\n');
+    await writeFile(
+        join(library, "src", "release", "release.ts"),
+        'export const channel = "stable";\n',
+    );
+
+    // build an application importing the export for the browser
+    const directory = join(root, "application");
+    await writePackage(
+        directory,
+        {
+            name: "@fixture/application",
+            exports: { ".": "./src/index.ts" },
+            dependencies: { "@fixture/library": "2026.9.0" },
+        },
+        { id: "package-01a10a00-0000-7000-8000-000000000012", runtimes: ["browser", "bun"] },
+        'export { channel } from "@fixture/library/release";\n',
+    );
+    await mkdir(join(directory, "node_modules", "@fixture"), { recursive: true });
+    await symlink(library, join(directory, "node_modules", "@fixture", "library"));
+    try {
+        const build = await buildPackage({
+            directory,
+            dependencies: {},
+            outputs: { browser: { kind: "module", runtime: "browser", bundle: true } },
+        });
+        expect(Object.keys(build.manifest.outputs)).toEqual(["browser"]);
+    } finally {
+        await rm(root, { recursive: true });
+    }
+});

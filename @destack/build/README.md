@@ -107,25 +107,22 @@ await using edited = await builder.build({ dependencies, outputs });
 `PackageBuilder.start` runs the `Compiler` in a `@destack/sandbox` sandbox without network or host environment, because evaluating a package's declarations runs its code.
 
 ```ts
-import { Compiler, PackageBuilder } from "@destack/build";
+import { PackageBuilder } from "@destack/build";
 
 // read the workspace and the compiler's tools, and write only the compiler's temporary files
-await using builder = await PackageBuilder.start(directory, Compiler.beside(process.execPath));
+await using builder = await PackageBuilder.start(directory);
 ```
 
 ## Toolchain
 
-A release ships `destack-build` next to a `toolchain` directory that holds its native tools, and a workspace runs the entry with Bun over its installed packages.
+`Compiler.beside` locates a release's `destack-build` and the `toolchain` directory beside it, which holds the native compiler, the bundler binding, the checkers, the runtime declarations and the lint rules.
 
-```text
-destack-build                                     Bun with the compiler bundled
-toolchain/
-├── node_modules/@typescript/typescript-<os>-<cpu>/lib/tsc   the API's tsserverPath
-├── node_modules/@rolldown/binding-<platform>/               NAPI_RS_NATIVE_LIBRARY_PATH
-├── node_modules/vite/dist/client/                           read by the bundled vite
-├── node_modules/{oxlint,oxfmt,@oxlint-tsgolint/<os>-<cpu>}  checks, run as Bun children
-├── node_modules/{@types/bun,@cloudflare/workers-types}      runtime declarations
-└── lint.js                                                  the Destack lint rules
+```ts
+import { Compiler, PackageBuilder } from "@destack/build";
+
+const compiler = Compiler.beside("/opt/destack/destack");
+// { executable: "/opt/destack/destack-build", arguments: [], read: ["/opt/destack/destack-build", "/opt/destack/toolchain"] }
+await using builder = await PackageBuilder.start(directory, compiler);
 ```
 
 ## Cancellation
@@ -135,18 +132,6 @@ toolchain/
 ```ts
 await builder.build({ dependencies, outputs, signal, timeout: 60_000 }); // rejects with BUILD_FAILED when cancelled
 await using next = await builder.build({ dependencies, outputs });
-```
-
-## Workspaces
-
-`Workspace.read` reads the members of the enclosing Bun workspace from its lockfile, and `dependencies` and `dependents` follow their workspace dependencies.
-
-```ts
-import { Workspace } from "@destack/build";
-
-const workspace = await Workspace.read(directory); // undefined outside any workspace
-workspace?.dependencies("packages/app"); // ["packages/app", "packages/library"]
-workspace?.dependents("packages/library"); // ["packages/library", "packages/app"]
 ```
 
 ## Cache
@@ -162,24 +147,33 @@ await using warm = await builder.build({ dependencies, outputs, store }); // war
 
 The compiler derives the cache keys without checking or compiling, and counts an installed package by its release and a source package by its manifests and `src` files.
 
-```text
-module   the module's bytes, the API digest of each import, the compiler options and packages, the toolchain
-         feeds the output and build keys
-output   the keys of the modules the output imports, its request and configuration, the package's manifests,
-         the released version, the extensions and the toolchain
-         names the output's files, description and source maps
-build    every output key, every module key, the package's catalogs, the dependency resolutions,
-         the released version, the published history, the template and the toolchain
-         names the stored build's manifest
+```ts
+// key each module by the program, its path and the digest of its import cycle
+const module = await Digest.json({ context: { toolchain, options, packages }, path, cycle });
+
+// key each output by the modules it imports and its request
+const output = await Digest.json({
+    ...{ toolchain, extensions, manifests, version, request, configuration },
+    modules: [...imported].toSorted(),
+});
+
+// key the build by every output key and every input that changes it
+const build = await Digest.json({
+    ...{ toolchain, extensions, manifests, version, catalogs, outputs, modules },
+    ...{ dependencies, history, commit, template },
+});
 ```
 
 ## Cache hits
 
-The builder looks up each key and skips the work a hit covers.
+The builder looks up the build key in the store, then each output key, and skips the work a hit covers.
 
-```text
-build key    skips the check, the evaluation and the bundle, and restores the stored build
-output key   skips the output's bundle and writes its files, and still checks and describes every source
+```ts
+// restore the stored build without checking, evaluating or bundling
+await store.cached(keys.build); // { kind: "build", manifest }
+
+// write the output's files without bundling, still checking and describing every source
+await store.cached(keys.outputs["bun"]); // { kind: "output", output: { outputs, sourceMaps, files } }
 ```
 
 ## Retention
@@ -238,13 +232,12 @@ export const webExtension: BuildExtension = { outputs: { web: webOutput } };
 
 The build compiles only module outputs, and the extensions of the package's dependency closure add the rest.
 
-```text
-@destack/icon    the bodies of each icon drawn by a literal name
-@destack/style   StyleX compilation
-@destack/view    Solid compilation and one ./view/<name> entry per view
-@destack/web     web outputs: Solid applications with server rendering and prerendered pages
-@destack/space   one ./workload/<name> entry per workload on Bun, and one workload per objects-only service
-                 of a package without workloads
+```ts
+import { iconExtension } from "@destack/icon/build"; // the body of each icon drawn by a literal name
+import { styleExtension } from "@destack/style/build"; // StyleX compilation
+import { viewExtension } from "@destack/view/build"; // Solid compilation and one ./view/<name> entry per view
+import { webExtension } from "@destack/web/build"; // Solid applications with server rendering and prerendered pages
+import { spaceBuild } from "@destack/space/build"; // one ./workload/<name> entry per workload on Bun and workerd
 ```
 
 ## Views and workloads
@@ -282,13 +275,12 @@ const catalogs = await Catalog.read(reader); // [{ package, locale: "de", messag
 
 ## Graph files
 
-A build writes its graph as one file per module named by its digest, which stays the same for an unchanged module because symbols carry the names their declarations write (a private member's as `#name`), and a root file that names them.
+A build writes its graph as a root file listing one file per module by its digest, which stays the same for an unchanged module because symbols carry the names their declarations write, such as `#name` for a private member.
 
-```text
-manifest.json             { …, "graph": { "path": "manifest/graph.json", "digest": … } }
-manifest/graph.json       { "modules": { "src/note.ts": "e23ace0a…", "src/index.ts": "24b08be6…" } }
-graph/e23ace0a….json      the symbols, declarations and edges of src/note.ts
-graph/24b08be6….json      the symbols, declarations and edges of src/index.ts
+```ts
+build.manifest.lists.graph; // { path: "manifest/graph.json", digest: "…", size, mediaType }
+const root = await reader.graph(); // { modules: { "src/note.ts": "e23ace0a…", "src/index.ts": "24b08be6…" } }
+const note = await reader.module(root.modules["src/note.ts"]); // graph/e23ace0a….json: the symbols, declarations and edges
 ```
 
 ## Verification
@@ -319,12 +311,15 @@ const response = await server.fetch(request, { authorize });
 
 ## Uploads
 
-`PackageServer` accepts uploads when given an `upload` function, and `push` sends each missing file and then the manifest.
+`PackageServer` accepts uploads when the access gives an `upload` function, and `pushBuild` sends each missing file and then the manifest.
 
-```text
-HEAD files/<digest>          200 when the store holds the file, else 404
-PUT files/<digest>           201, or 400 for bytes of another digest and 413 past 64 MiB
-PUT <digest>/manifest.json   201, or 409 while a file it lists is missing
+```ts
+import { pushBuild } from "@destack/build/store";
+
+await pushBuild(await store.contents(digest), "https://packages.example.com/builds/", fetch);
+// HEAD files/<digest>: 200 when the server holds the file, else 404
+// PUT files/<digest>: 201, or 400 for bytes of another digest and 413 past 64 MiB
+// PUT <digest>/manifest.json: 201, or 409 while a file it lists is missing
 ```
 
 ## Templates

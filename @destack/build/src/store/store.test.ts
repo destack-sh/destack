@@ -2,13 +2,13 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LocalBucket } from "@destack/bucket/local";
+import { LocalBucket } from "@destack/bucket/bun";
 import { PackageError } from "@destack/package/error";
 import { PackageFile } from "@destack/package/file";
-import { BuildReader, type PackageDistribution, PackageManifest } from "@destack/package/manifest";
+import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { ServiceError } from "@destack/service/error";
 import { found, present } from "@destack/schema";
-import { type PackageAccess, PackageServer, PackageStore } from "./index.ts";
+import { type PackageAccess, PackageClient, PackageServer, PackageStore } from "./index.ts";
 
 /** The source files of the fixture build. */
 const SOURCES = {
@@ -33,10 +33,8 @@ async function temporary(): Promise<string> {
     return directory;
 }
 
-/** Describe a build of some source files in memory, as a builder distributes one. */
-async function distribution(
-    sources: Readonly<Record<string, string>>,
-): Promise<PackageDistribution> {
+/** Write a build of some source files in memory, as a builder writes one. */
+async function written(sources: Readonly<Record<string, string>>): Promise<BuildReader> {
     // describe each source file
     const encoder = new TextEncoder();
     const bytes = new Map(
@@ -72,11 +70,7 @@ async function distribution(
         outputs: {},
     });
 
-    return {
-        manifest,
-        reader: new BuildReader(manifest, async (path) => found(bytes, path)),
-        open: async (path) => new Blob([found(bytes, path)]).stream(),
-    };
+    return new BuildReader(manifest, async (path) => new Blob([found(bytes, path)]).stream());
 }
 
 /** Read a stream's bytes. */
@@ -105,8 +99,8 @@ async function extract(archive: Uint8Array, directory: string): Promise<void> {
 
 test("store a build's files once by digest, read it after reopening, and refuse stored corruption", async () => {
     const directory = await temporary();
-    const build = await distribution(SOURCES);
-    const list = await build.reader.distributed();
+    const build = await written(SOURCES);
+    const list = await build.distributed();
     const answer = present(
         list.find((file) => file.path === "src/answer.ts"),
         "the answer module",
@@ -154,9 +148,9 @@ test("sweep the builds retention drops, the files only they list and the cache e
     const directory = await temporary();
     await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
     const store = new PackageStore(bucket);
-    const kept = await store.put(await distribution(SOURCES));
+    const kept = await store.put(await written(SOURCES));
     const dropped = await store.put(
-        await distribution({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
+        await written({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
     );
     const keys = { kept: "a".repeat(64), dropped: "b".repeat(64) };
     await store.cache(keys.kept, { kind: "build", manifest: kept });
@@ -173,7 +167,7 @@ test("sweep the builds retention drops, the files only they list and the cache e
     await store.sweep(new Set([kept]), later, new Set(), later, later);
 
     // keep exactly the kept build's manifest, the files it lists and its cache entry
-    const { reader } = await store.contents(kept);
+    const reader = await store.contents(kept);
     const files = await reader.distributed();
     expect((await bucket.list()).files.map((file) => file.key)).toEqual(
         [
@@ -190,18 +184,18 @@ test("sweep an old unretained build but keep the files a recent build shares wit
     const directory = await temporary();
     await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
     const store = new PackageStore(bucket);
-    const old = await store.put(await distribution(SOURCES));
+    const old = await store.put(await written(SOURCES));
     await Bun.sleep(2);
     const moment = new Date();
     const recent = await store.put(
-        await distribution({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
+        await written({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
     );
 
     // mark and drop the old manifest alone, keeping every file the recent manifest lists
     const later = new Date(Date.now() + 1000);
     await store.sweep(new Set(), moment);
     await store.sweep(new Set(), moment, new Set(), later, later);
-    const { reader } = await store.contents(recent);
+    const reader = await store.contents(recent);
     const files = await reader.distributed();
     expect({
         isOldKept: await store.contains(old),
@@ -220,7 +214,7 @@ test("keep a leased build through sweeps until its lease expires, then mark and 
     const directory = await temporary();
     await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
     const store = new PackageStore(bucket);
-    const digest = await store.put(await distribution(SOURCES));
+    const digest = await store.put(await written(SOURCES));
     const build = await listing(bucket);
     const start = Date.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
@@ -245,7 +239,7 @@ test("delete an unretained old build only in the second sweep after a sweep mark
     const directory = await temporary();
     await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
     const store = new PackageStore(bucket);
-    await store.put(await distribution(SOURCES));
+    await store.put(await written(SOURCES));
     const build = await listing(bucket);
     const start = Date.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
@@ -268,7 +262,7 @@ test("keep a build retained between its mark and the next sweep, and clear its m
     const directory = await temporary();
     await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
     const store = new PackageStore(bucket);
-    const digest = await store.put(await distribution(SOURCES));
+    const digest = await store.put(await written(SOURCES));
     const build = await listing(bucket);
     const start = Date.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
@@ -283,10 +277,10 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     const directory = await temporary();
     await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
     const store = new PackageStore(bucket);
-    const build = await distribution(SOURCES);
+    const build = await written(SOURCES);
     const digest = await store.put(build);
     const answer = present(
-        (await build.reader.distributed()).find((file) => file.path === "src/answer.ts"),
+        (await build.distributed()).find((file) => file.path === "src/answer.ts"),
         "the answer module",
     );
     const bytes = new TextEncoder().encode(SOURCES["src/answer.ts"]);
@@ -313,10 +307,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
 
     // open the build as a remote package, refusing another manifest digest
     const reader = await BuildReader.open({ manifest: digest, url }, fetchPackage);
-    expect([reader.manifest, await reader.files()]).toEqual([
-        build.manifest,
-        await build.reader.files(),
-    ]);
+    expect([reader.manifest, await reader.files()]).toEqual([build.manifest, await build.files()]);
     await expect(BuildReader.open({ manifest: "0".repeat(64), url }, fetchPackage)).rejects.toEqual(
         new PackageError("INVALID_FILE", "file digest mismatch: manifest.json"),
     );
@@ -378,7 +369,7 @@ test("copy a served build into another store by its digest, fetching only the fi
     await using copied = await LocalBucket.open(join(directory, "copied"), "space-test");
     const source = new PackageStore(served);
     const target = new PackageStore(copied);
-    const build = await distribution(SOURCES);
+    const build = await written(SOURCES);
     const digest = await source.put(build);
     const server = new PackageServer(new URL("https://packages.test/packages/"), source);
     const paths: string[] = [];
@@ -425,7 +416,7 @@ test("push a kept build to a package server by its digest, uploading only the fi
     await using received = await LocalBucket.open(join(directory, "received"), "space-test");
     const source = new PackageStore(kept);
     const target = new PackageStore(received);
-    const build = await distribution(SOURCES);
+    const build = await written(SOURCES);
     const digest = await source.put(build);
     const server = new PackageServer(new URL("https://packages.test/packages/"), target);
     const uploads: string[] = [];
@@ -438,10 +429,11 @@ test("push a kept build to a package server by its digest, uploading only the fi
     };
 
     // push the build, then push it again, which uploads its manifest alone
-    await source.push(digest, "https://packages.test/packages/", accepting);
+    const client = new PackageClient("https://packages.test/packages/", accepting);
+    await client.push(await source.contents(digest));
     const first = uploads.splice(0);
-    await source.push(digest, "https://packages.test/packages/", accepting);
-    const list = await build.reader.distributed();
+    await client.push(await source.contents(digest));
+    const list = await build.distributed();
     expect({
         manifest: (await target.contents(digest)).manifest,
         first: first.toSorted(),
@@ -462,7 +454,7 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
     await using kept = await LocalBucket.open(join(directory, "kept"), "space-test");
     await using empty = await LocalBucket.open(join(directory, "empty"), "space-test");
     const source = new PackageStore(kept);
-    const digest = await source.put(await distribution(SOURCES));
+    const digest = await source.put(await written(SOURCES));
     const server = new PackageServer(
         new URL("https://packages.test/packages/"),
         new PackageStore(empty),
@@ -517,7 +509,11 @@ async function upload(
     access: PackageAccess,
 ): Promise<[number, unknown]> {
     const response = await server.fetch(
-        new Request(`https://packages.test/packages/${path}`, { method: "PUT", body }),
+        new Request(`https://packages.test/packages/${path}`, {
+            method: "PUT",
+            body,
+            headers: { "content-type": "application/octet-stream" },
+        }),
         access,
     );
     const text = await response.text();

@@ -1,4 +1,4 @@
-import { Text } from "@destack/schema";
+import { canonicalize, Text } from "@destack/schema";
 import { graph, type Package, type DeclarationDescription } from "@destack/package";
 import type {
     ModuleDescription,
@@ -120,6 +120,22 @@ export function describeGraph(
     return modules.map((module) =>
         describeModule(source, module, { declared, tested, examples, scenarios, exported }),
     );
+}
+
+/** Join two outputs' descriptions of one module, keeping each runtime's imports, globals and errors once, refusing descriptions of other source bytes. */
+export function joinModules(kept: ModuleDescription, other: ModuleDescription): ModuleDescription {
+    // require the same source bytes, which give both outputs the same symbols and exports
+    if (kept.source.digest !== other.source.digest) {
+        throw new BuildError("BUILD_FAILED", `module ${kept.path} was inspected from two sources`);
+    }
+
+    // keep each runtime's imports, globals and errors once
+    return {
+        ...kept,
+        imports: distinct([...kept.imports, ...other.imports]),
+        globals: distinct([...kept.globals, ...other.globals]),
+        errors: distinct([...kept.errors, ...other.errors]),
+    };
 }
 
 /** The examples and scenarios a build declares with the package defining their kinds. */
@@ -557,4 +573,9 @@ function enclose(symbols: readonly Enclosing[], range: SourceRange): graph.Monik
     }
 
     return found?.moniker;
+}
+
+/** Keep each value once by its canonical JSON, in first-seen order. */
+function distinct<Value>(values: readonly Value[]): Value[] {
+    return [...new Map(values.map((value) => [canonicalize(value), value])).values()];
 }

@@ -21,7 +21,7 @@ import {
 import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/transform";
-import { checkPackage, formatPackage, Toolchain } from "@destack/check";
+import { Toolchain } from "@destack/check";
 import {
     type ExampleDeclaration,
     type ProgramImports,
@@ -61,7 +61,7 @@ import { PackageBuild, type BuildOptions, type ModuleOptions } from "./build.ts"
 import { BuildDirectory } from "./directory.ts";
 import { readCatalogs } from "./catalog.ts";
 import { comparePath, stringifyInspection } from "./serialization.ts";
-import { describeGraph } from "../graph/module.ts";
+import { describeGraph, joinModules } from "../graph/module.ts";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -426,9 +426,6 @@ export class BuildCompiler implements AsyncDisposable {
             opened.set(name, { project, inspection });
         }
 
-        // reject source diagnostics and formatting before running any package code
-        await check(options, opened);
-
         // evaluate each distinct inspection's declarations once
         const evaluated = new Map<TypeScriptInspection, Evaluation>();
         const inspected = new Map<string, InspectedOutput>();
@@ -614,7 +611,7 @@ export class BuildCompiler implements AsyncDisposable {
                 resolved[key] = joinResolutions(key, resolved[key], dependency);
             }
 
-            // keep each module's first description and every evaluated declaration for the graph
+            // join each module's descriptions and keep every evaluated declaration for the graph
             retainGraphInputs(entry, modules, evaluated);
 
             // keep each test, example and scenario once across outputs
@@ -673,17 +670,16 @@ export class BuildCompiler implements AsyncDisposable {
     }
 }
 
-/** Keep each module's first description and every evaluated declaration of an output. */
+/** Join each module's descriptions across outputs and keep every evaluated declaration of an output. */
 function retainGraphInputs(
     inspected: InspectedOutput,
     modules: Map<string, ModuleDescription>,
     evaluated: Set<DeclarationDescription>,
 ): void {
-    // NOTE #Incomplete: a module checked differently per runtime keeps the first output's graph
+    // join a module each runtime inspects into one description
     for (const module of inspected.inspection.modules) {
-        if (!modules.has(module.path)) {
-            modules.set(module.path, module);
-        }
+        const kept = modules.get(module.path);
+        modules.set(module.path, kept === undefined ? module : joinModules(kept, module));
     }
     for (const declaration of inspected.evaluation.declarations) {
         evaluated.add(declaration);
@@ -854,33 +850,6 @@ function createCompilation(
         extensions,
         output.pass !== undefined,
     );
-}
-
-/** Reject source diagnostics and uncanonical formatting before compiling shipped outputs. */
-async function check(
-    options: BuildOptions,
-    inspected: ReadonlyMap<string, Pick<InspectedOutput, "inspection">>,
-): Promise<void> {
-    // reject diagnostics in every inspected source
-    const request = {
-        directory: options.directory,
-        files: [
-            ...new Set(
-                [...inspected.values()].flatMap(({ inspection }) => [...inspection.sources.keys()]),
-            ),
-        ],
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-    };
-    const checked = await checkPackage(request);
-    if (checked.diagnostics.length) {
-        throw new BuildError("BUILD_FAILED", JSON.stringify(checked));
-    }
-
-    // require canonical formatting without changing source
-    const formatted = await formatPackage(request, false);
-    if (formatted.code !== 0) {
-        throw new BuildError("BUILD_FAILED", formatted.stdout + formatted.stderr);
-    }
 }
 
 /** Retain every inspected source, template asset, authored manifest and catalog before compiling. */

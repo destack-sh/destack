@@ -1,5 +1,5 @@
 import { readFile, stat, symlink } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { BuildError, isMissing } from "../error/index.ts";
 import { DependencyName, DependencyResolution } from "@destack/package";
 import { BunLockfile, type LockedPackage } from "@destack/check/bun";
@@ -162,16 +162,13 @@ export function relativePath(directory: string, file: string): string {
     return relative(directory, file).split(sep).join("/");
 }
 
-/** Report whether a compiler file is one of the package's modules. */
+/** Report whether a compiler file is one of the package's modules: below the root, outside any node_modules. */
 export function isAuthored(root: string, file: string): boolean {
-    return contains(root, file) && !relative(root, file).split(sep).includes("node_modules");
-}
+    // compare the forward-slash paths the compiler reports by prefix
+    const prefix = `${root.replaceAll(sep, "/").replace(/\/$/u, "")}/`;
+    const path = file.replaceAll(sep, "/");
 
-/** Report whether a file lies inside a directory. */
-function contains(directory: string, file: string): boolean {
-    const path = relative(directory, file);
-
-    return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+    return path.startsWith(prefix) && !path.includes("/node_modules/", prefix.length - 1);
 }
 
 /** Read the nearest Bun lockfile used by the source package, refusing other formats. */

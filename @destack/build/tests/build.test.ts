@@ -63,7 +63,7 @@ test.concurrent.for(fixtures)(
                 const [first = 0] = bytes;
                 bytes[0] = first ^ 1;
 
-                return bytes;
+                return new Blob([bytes]).stream();
             });
             await expect(corrupt.files()).rejects.toMatchObject({
                 code: "INVALID_FILE",

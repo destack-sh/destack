@@ -177,6 +177,29 @@ class DependencyRecorder {
         }
     }
 
+    /** Report whether two modules belong to the same dependency package on disk. */
+    async isSamePackage(importer: string, imported: string): Promise<boolean> {
+        // compare the dependency packages of two files on disk
+        const [from, to] = [modulePath(importer), modulePath(imported)];
+        if (!isAbsolute(from) || !isAbsolute(to)) {
+            return false;
+        }
+        const [owner, target] = await Promise.all([
+            this.resolver.package(dirname(from)),
+            this.resolver.package(dirname(to)),
+        ]);
+
+        return owner.directory === target.directory && owner.directory !== this.project.directory;
+    }
+
+    /** Narrow the runtimes a recorded dependency module is reviewed for, as an export importing it declares. */
+    narrow(id: string, runtimes: Runtime[]): void {
+        const recorded = this.locations.get(id);
+        if (recorded?.kind === "source" && recorded.package !== undefined) {
+            this.locations.set(id, { ...recorded, runtimes });
+        }
+    }
+
     /** Record the assets a bundle emits from original files. */
     async bundled(root: string, bundle: OutputBundle): Promise<void> {
         for (const entry of Object.values(bundle)) {
@@ -375,6 +398,21 @@ export function dependencyPlugin(
                 throw new BuildError("BUILD_FAILED", `parsed module has no source: ${module.id}`);
             }
             await recorder.parsed(module.id, runtimes.get(module.id), () => this.parse(code));
+
+            // pass an export's runtimes on to the modules of its package it imports
+            const inherited = runtimes.get(module.id);
+            if (inherited !== undefined) {
+                for (const imported of [...module.importedIds, ...module.dynamicallyImportedIds]) {
+                    if (await recorder.isSamePackage(module.id, imported)) {
+                        const previous = runtimes.get(imported);
+                        const narrowed =
+                            previous?.filter((candidate) => inherited.includes(candidate)) ??
+                            inherited;
+                        runtimes.set(imported, narrowed);
+                        recorder.narrow(imported, narrowed);
+                    }
+                }
+            }
         },
         async generateBundle(_, bundle) {
             // identify retained directory assets alongside the dependency's source modules

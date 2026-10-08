@@ -202,7 +202,7 @@ export async function expectManifest(build: PackageBuild, destination: string): 
     const reader = new BuildReader(build.manifest, async (path) => {
         loaded.push(path);
 
-        return new Uint8Array(await readFile(join(destination, path)));
+        return new Blob([await readFile(join(destination, path))]).stream();
     });
 
     // read each list independently and compare its complete serialized contents

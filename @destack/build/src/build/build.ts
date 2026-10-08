@@ -8,13 +8,13 @@ import { type Commit, schema, type Version } from "@destack/schema";
 import { mkdir, readFile, writeFile, copyFile, rm } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { BuildReader, PackageManifest, type PackageDistribution } from "@destack/package/manifest";
+import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { type PackageFile, PackagePath } from "@destack/package/file";
 import { digestFile } from "./directory.ts";
 import { PackageError } from "@destack/package/error";
 
-/** A package manifest and its file-backed distribution. */
-export class PackageBuild implements PackageDistribution, AsyncDisposable {
+/** A build in a directory: its manifest, its files and their reader. */
+export class PackageBuild implements AsyncDisposable {
     /** The package build manifest. */
     readonly manifest: PackageManifest;
     /** Directory containing the complete distribution. */
@@ -25,8 +25,6 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
     readonly reader: BuildReader;
     /** The requested outputs the build reused from a cache instead of compiling them. */
     readonly reused: readonly string[];
-    /** Immutable list paths used by streamed reads. */
-    #paths?: Promise<Set<string>>;
 
     /** Associate compiler output or imported files with their manifest. */
     constructor(
@@ -43,39 +41,6 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
 
         // open the reader of the build's files
         this.reader = openReader(manifest, directory);
-    }
-
-    /** Stream a file this build's file list names. */
-    async open(path: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-        // require a path the file list names
-        PackagePath.parse(path);
-        this.#paths ??= this.reader
-            .distributed()
-            .then((files) => new Set(files.map((file) => file.path)));
-        if (!(await this.#paths).has(path)) {
-            throw new PackageError("INVALID_FILE", `unknown build file: ${path}`);
-        }
-
-        // pull the file's chunks as the web stream's reader asks for them
-        const chunks = createReadStream(resolve(this.directory, path), { signal })[
-            Symbol.asyncIterator
-        ]();
-
-        return new ReadableStream<Uint8Array>({
-            pull: async (controller) => {
-                const next = await chunks.next();
-                if (next.done === true) {
-                    controller.close();
-                } else if (next.value instanceof Uint8Array) {
-                    controller.enqueue(next.value);
-                } else {
-                    throw new TypeError(`file stream of ${path} yielded no bytes`);
-                }
-            },
-            cancel: async () => {
-                await chunks.return?.();
-            },
-        });
     }
 
     /** Remove only temporary results owned by this instance. */
@@ -147,12 +112,34 @@ async function readManifest(directory: string): Promise<PackageManifest> {
     );
 }
 
-/** Read a build's description files from its directory. */
+/** Read a build's files from its directory. */
 function openReader(manifest: PackageManifest, directory: string): BuildReader {
-    return new BuildReader(
-        manifest,
-        async (path) => new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path)))),
+    return new BuildReader(manifest, async (path, signal) =>
+        streamFile(resolve(directory, PackagePath.parse(path)), signal),
     );
+}
+
+/** Stream a file's chunks as the web stream's reader asks for them. */
+function streamFile(file: string, signal: AbortSignal | undefined): ReadableStream<Uint8Array> {
+    const chunks = createReadStream(file, signal === undefined ? {} : { signal })[
+        Symbol.asyncIterator
+    ]();
+
+    return new ReadableStream<Uint8Array>({
+        pull: async (controller) => {
+            const next = await chunks.next();
+            if (next.done === true) {
+                controller.close();
+            } else if (next.value instanceof Uint8Array) {
+                controller.enqueue(next.value);
+            } else {
+                throw new TypeError(`file stream of ${file} yielded no bytes`);
+            }
+        },
+        cancel: async () => {
+            await chunks.return?.();
+        },
+    });
 }
 
 /** Refuse a file list naming the reserved manifest path, one path twice or a file below another, returning the paths. */
