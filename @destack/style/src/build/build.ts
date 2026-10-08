@@ -4,10 +4,10 @@ import type { BuildExtension, Plugin } from "@destack/package/build";
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
 export const styleExtension = {
     transform: ({ directory }) => {
-        // read the plugin StyleX declares without a type
+        // read the plugin StyleX declares without a type, with the base layer before its own
         const plugin: unknown = unplugin.vite({
             importSources: ["@stylexjs/stylex", "@destack/style"],
-            useCSSLayers: true,
+            useCSSLayers: { before: ["base"] },
             unstable_moduleResolution: { rootDir: directory, type: "commonJS" },
             cssInjectionTarget: (path) => path.includes("entry-client"),
         });
