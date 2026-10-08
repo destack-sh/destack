@@ -31,7 +31,7 @@ export function StaticRadialGradient(properties: StaticRadialGradientProperties)
 
     return (
         <Shader
-            fragment={STATIC_RADIAL_GRADIENT_FRAGMENT}
+            fragmentShader={STATIC_RADIAL_GRADIENT_FRAGMENT}
             uniforms={staticRadialGradientUniforms(options)}
             {...rest}
         />

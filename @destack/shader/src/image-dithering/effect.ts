@@ -221,7 +221,7 @@ export interface ImageDitheringOptions extends Sizing, Pick<ShaderProperties, "s
 
 /** The properties of the image dithering, the shader's included. */
 export interface ImageDitheringProperties
-    extends ImageDitheringOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends ImageDitheringOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default image dithering. */
 export const IMAGE_DITHERING_DEFAULTS: Required<ImageDitheringOptions> = {

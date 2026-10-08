@@ -82,7 +82,7 @@ export interface WavesOptions extends Sizing, Pick<ShaderProperties, "speed" | "
 
 /** The properties of the waves, the shader's included. */
 export interface WavesProperties
-    extends WavesOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends WavesOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default waves. */
 export const WAVES_DEFAULTS: Required<WavesOptions> = {

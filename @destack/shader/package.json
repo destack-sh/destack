@@ -35,13 +35,13 @@
     },
     "dependencies": {
         "@destack/style": "workspace:*",
+        "@destack/theme": "workspace:*",
         "@destack/view": "workspace:*"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
-        "@destack/package": "workspace:*",
-        "@destack/theme": "workspace:*"
+        "@destack/package": "workspace:*"
     }
 }

@@ -317,7 +317,7 @@ export interface GrainGradientOptions extends Sizing, Pick<ShaderProperties, "sp
 
 /** The properties of the grain gradient, the shader's included. */
 export interface GrainGradientProperties
-    extends GrainGradientOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends GrainGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default grain gradient. */
 export const GRAIN_GRADIENT_DEFAULTS: Required<GrainGradientOptions> = {

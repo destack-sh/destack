@@ -41,7 +41,7 @@ export function HalftoneCmyk(properties: HalftoneCmykProperties): JSX.Element {
 
     return (
         <Shader
-            fragment={HALFTONE_CMYK_FRAGMENT}
+            fragmentShader={HALFTONE_CMYK_FRAGMENT}
             uniforms={halftoneCmykUniforms(options)}
             {...rest}
         />

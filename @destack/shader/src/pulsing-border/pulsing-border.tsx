@@ -37,7 +37,7 @@ export function PulsingBorder(properties: PulsingBorderProperties): JSX.Element 
 
     return (
         <Shader
-            fragment={PULSING_BORDER_FRAGMENT}
+            fragmentShader={PULSING_BORDER_FRAGMENT}
             uniforms={pulsingBorderUniforms(options)}
             {...rest}
         />

@@ -150,7 +150,7 @@ export interface WarpOptions extends Sizing, Pick<ShaderProperties, "speed" | "f
 
 /** The properties of the warp, the shader's included. */
 export interface WarpProperties
-    extends WarpOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends WarpOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default warp. */
 export const WARP_DEFAULTS: Required<WarpOptions> = {

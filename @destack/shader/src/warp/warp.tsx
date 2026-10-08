@@ -20,5 +20,5 @@ export function Warp(properties: WarpProperties): JSX.Element {
         "shape",
     );
 
-    return <Shader fragment={WARP_FRAGMENT} uniforms={warpUniforms(options)} {...rest} />;
+    return <Shader fragmentShader={WARP_FRAGMENT} uniforms={warpUniforms(options)} {...rest} />;
 }

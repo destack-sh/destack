@@ -20,5 +20,5 @@ export function Waves(properties: WavesProperties): JSX.Element {
         "softness",
     );
 
-    return <Shader fragment={WAVES_FRAGMENT} uniforms={wavesUniforms(options)} {...rest} />;
+    return <Shader fragmentShader={WAVES_FRAGMENT} uniforms={wavesUniforms(options)} {...rest} />;
 }

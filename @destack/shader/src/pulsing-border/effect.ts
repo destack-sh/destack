@@ -281,7 +281,7 @@ export interface PulsingBorderOptions extends Sizing, Pick<ShaderProperties, "sp
 
 /** The properties of the pulsing border, the shader's included. */
 export interface PulsingBorderProperties
-    extends PulsingBorderOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends PulsingBorderOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default pulsing border. */
 export const PULSING_BORDER_DEFAULTS: Required<PulsingBorderOptions> = {

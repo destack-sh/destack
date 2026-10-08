@@ -148,7 +148,7 @@ export interface StaticMeshGradientOptions
 
 /** The properties of the static mesh gradient, the shader's included. */
 export interface StaticMeshGradientProperties
-    extends StaticMeshGradientOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends StaticMeshGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default static mesh gradient. */
 export const STATIC_MESH_GRADIENT_DEFAULTS: Required<StaticMeshGradientOptions> = {

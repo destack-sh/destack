@@ -355,7 +355,7 @@ export interface HalftoneDotsOptions extends Sizing, Pick<ShaderProperties, "spe
 
 /** The properties of the halftone dots, the shader's included. */
 export interface HalftoneDotsProperties
-    extends HalftoneDotsOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends HalftoneDotsOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default halftone dots. */
 export const HALFTONE_DOTS_DEFAULTS: Required<HalftoneDotsOptions> = {

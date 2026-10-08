@@ -43,7 +43,7 @@ export function PaperTexture(properties: PaperTextureProperties): JSX.Element {
 
     return (
         <Shader
-            fragment={PAPER_TEXTURE_FRAGMENT}
+            fragmentShader={PAPER_TEXTURE_FRAGMENT}
             uniforms={paperTextureUniforms(options)}
             {...rest}
         />

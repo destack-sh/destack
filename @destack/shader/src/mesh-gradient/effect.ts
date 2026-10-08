@@ -139,7 +139,7 @@ export interface MeshGradientOptions extends Sizing, Pick<ShaderProperties, "spe
 
 /** The properties of the mesh gradient, the shader's included. */
 export interface MeshGradientProperties
-    extends MeshGradientOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends MeshGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default mesh gradient. */
 export const MESH_GRADIENT_DEFAULTS: Required<MeshGradientOptions> = {

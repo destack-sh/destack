@@ -140,7 +140,7 @@ export interface WaterOptions extends Sizing, Pick<ShaderProperties, "speed" | "
 
 /** The properties of the water, the shader's included. */
 export interface WaterProperties
-    extends WaterOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends WaterOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default water. */
 export const WATER_DEFAULTS: Required<WaterOptions> = {

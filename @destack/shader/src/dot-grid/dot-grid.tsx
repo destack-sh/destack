@@ -27,5 +27,7 @@ export function DotGrid(properties: DotGridProperties): JSX.Element {
         "shape",
     );
 
-    return <Shader fragment={DOT_GRID_FRAGMENT} uniforms={dotGridUniforms(options)} {...rest} />;
+    return (
+        <Shader fragmentShader={DOT_GRID_FRAGMENT} uniforms={dotGridUniforms(options)} {...rest} />
+    );
 }

@@ -280,7 +280,10 @@ export class ShaderMount {
 
     /** Stop drawing and release the program, textures and observers. */
     dispose(): void {
-        // stop the animation before releasing anything it draws with
+        // stop the animation before releasing anything it draws with, once
+        if (this.#isDisposed) {
+            return;
+        }
         this.#isDisposed = true;
         if (this.#frameRequest !== null) {
             cancelAnimationFrame(this.#frameRequest);
@@ -381,8 +384,8 @@ export class ShaderMount {
             };
         }
 
-        // approximate device pixels from the pixel ratio, adding the zoom Safari leaves out of it
-        const zoom = isSafari() ? Math.max(1, browserZoom(this.canvas.ownerDocument)) : 1;
+        // approximate device pixels from the pixel ratio and the page zoom it leaves out
+        const zoom = Math.max(1, browserZoom(this.canvas.ownerDocument));
         const scale = Math.max(pixelRatio, this.#minPixelRatio) * pinch * zoom;
 
         return {
@@ -682,13 +685,6 @@ function isSlowGraphics(): boolean {
     }
 
     return isSlow;
-}
-
-/** Report whether the browser is Safari, whose pixel ratio leaves out the page zoom. */
-function isSafari(): boolean {
-    const agent = navigator.userAgent.toLowerCase();
-
-    return agent.includes("safari") && !agent.includes("chrome") && !agent.includes("android");
 }
 
 /** Estimate the browser zoom from the window's outer width and the viewport, rounded to the browser's zoom steps. */

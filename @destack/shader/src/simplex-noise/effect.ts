@@ -97,7 +97,7 @@ export interface SimplexNoiseOptions extends Sizing, Pick<ShaderProperties, "spe
 
 /** The properties of the simplex noise, the shader's included. */
 export interface SimplexNoiseProperties
-    extends SimplexNoiseOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends SimplexNoiseOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default simplex noise. */
 export const SIMPLEX_NOISE_DEFAULTS: Required<SimplexNoiseOptions> = {

@@ -16,7 +16,7 @@ export function SimplexNoise(properties: SimplexNoiseProperties): JSX.Element {
 
     return (
         <Shader
-            fragment={SIMPLEX_NOISE_FRAGMENT}
+            fragmentShader={SIMPLEX_NOISE_FRAGMENT}
             uniforms={simplexNoiseUniforms(options)}
             {...rest}
         />

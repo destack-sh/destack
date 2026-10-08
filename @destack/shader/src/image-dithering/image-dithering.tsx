@@ -28,7 +28,7 @@ export function ImageDithering(properties: ImageDitheringProperties): JSX.Elemen
 
     return (
         <Shader
-            fragment={IMAGE_DITHERING_FRAGMENT}
+            fragmentShader={IMAGE_DITHERING_FRAGMENT}
             uniforms={imageDitheringUniforms(options)}
             {...rest}
         />

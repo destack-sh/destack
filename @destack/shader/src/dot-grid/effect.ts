@@ -134,7 +134,7 @@ export interface DotGridOptions extends Sizing, Pick<ShaderProperties, "speed" |
 
 /** The properties of the dot grid, the shader's included. */
 export interface DotGridProperties
-    extends DotGridOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends DotGridOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default dot grid. */
 export const DOT_GRID_DEFAULTS: Required<DotGridOptions> = {

@@ -41,7 +41,7 @@ export function FlutedGlass(properties: FlutedGlassProperties): JSX.Element {
 
     return (
         <Shader
-            fragment={FLUTED_GLASS_FRAGMENT}
+            fragmentShader={FLUTED_GLASS_FRAGMENT}
             uniforms={flutedGlassUniforms(options)}
             {...rest}
         />

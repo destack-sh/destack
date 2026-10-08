@@ -21,5 +21,5 @@ export function Water(properties: WaterProperties): JSX.Element {
         "size",
     );
 
-    return <Shader fragment={WATER_FRAGMENT} uniforms={waterUniforms(options)} {...rest} />;
+    return <Shader fragmentShader={WATER_FRAGMENT} uniforms={waterUniforms(options)} {...rest} />;
 }

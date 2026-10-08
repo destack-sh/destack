@@ -32,7 +32,7 @@ export function HalftoneDots(properties: HalftoneDotsProperties): JSX.Element {
 
     return (
         <Shader
-            fragment={HALFTONE_DOTS_FRAGMENT}
+            fragmentShader={HALFTONE_DOTS_FRAGMENT}
             uniforms={halftoneDotsUniforms(options)}
             {...rest}
         />

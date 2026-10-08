@@ -26,5 +26,7 @@ export function GodRays(properties: GodRaysProperties): JSX.Element {
         "bloom",
     );
 
-    return <Shader fragment={GOD_RAYS_FRAGMENT} uniforms={godRaysUniforms(options)} {...rest} />;
+    return (
+        <Shader fragmentShader={GOD_RAYS_FRAGMENT} uniforms={godRaysUniforms(options)} {...rest} />
+    );
 }

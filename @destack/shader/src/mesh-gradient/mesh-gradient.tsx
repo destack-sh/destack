@@ -24,7 +24,7 @@ export function MeshGradient(properties: MeshGradientProperties): JSX.Element {
 
     return (
         <Shader
-            fragment={MESH_GRADIENT_FRAGMENT}
+            fragmentShader={MESH_GRADIENT_FRAGMENT}
             uniforms={meshGradientUniforms(options)}
             {...rest}
         />

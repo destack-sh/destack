@@ -288,7 +288,7 @@ export interface DitheringOptions extends Sizing, Pick<ShaderProperties, "speed"
 
 /** The properties of the dithering, the shader's included. */
 export interface DitheringProperties
-    extends DitheringOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends DitheringOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default dithering. */
 export const DITHERING_DEFAULTS: Required<DitheringOptions> = {

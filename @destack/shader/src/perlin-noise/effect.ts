@@ -181,7 +181,7 @@ export interface PerlinNoiseOptions extends Sizing, Pick<ShaderProperties, "spee
 
 /** The properties of the perlin noise, the shader's included. */
 export interface PerlinNoiseProperties
-    extends PerlinNoiseOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends PerlinNoiseOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default perlin noise. */
 export const PERLIN_NOISE_DEFAULTS: Required<PerlinNoiseOptions> = {

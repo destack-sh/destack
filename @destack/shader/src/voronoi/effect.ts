@@ -153,7 +153,7 @@ export interface VoronoiOptions extends Sizing, Pick<ShaderProperties, "speed" |
 
 /** The properties of the voronoi, the shader's included. */
 export interface VoronoiProperties
-    extends VoronoiOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends VoronoiOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default voronoi. */
 export const VORONOI_DEFAULTS: Required<VoronoiOptions> = {

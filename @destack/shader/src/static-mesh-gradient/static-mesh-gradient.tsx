@@ -28,7 +28,7 @@ export function StaticMeshGradient(properties: StaticMeshGradientProperties): JS
 
     return (
         <Shader
-            fragment={STATIC_MESH_GRADIENT_FRAGMENT}
+            fragmentShader={STATIC_MESH_GRADIENT_FRAGMENT}
             uniforms={staticMeshGradientUniforms(options)}
             {...rest}
         />

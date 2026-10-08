@@ -24,5 +24,7 @@ export function Voronoi(properties: VoronoiProperties): JSX.Element {
         "glow",
     );
 
-    return <Shader fragment={VORONOI_FRAGMENT} uniforms={voronoiUniforms(options)} {...rest} />;
+    return (
+        <Shader fragmentShader={VORONOI_FRAGMENT} uniforms={voronoiUniforms(options)} {...rest} />
+    );
 }

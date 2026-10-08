@@ -1,5 +1,8 @@
 import * as style from "@destack/style";
-import { createEffect, createSignal, type JSX, omit, onCleanup, Show } from "@destack/view";
+import { MOTION_VARIABLE } from "@destack/theme";
+import { createEffect, createMemo, createSignal, type JSX, omit, Show } from "@destack/view";
+import { createMediaQuery } from "@destack/view/primitives/media";
+import { createMutationObserver } from "@destack/view/primitives/mutation-observer";
 import {
     ShaderError,
     type ShaderFailure,
@@ -8,11 +11,12 @@ import {
 } from "../mount/mount.ts";
 import { resolveValues, type ShaderValues } from "./value.ts";
 
-/** The device preferences a theme's colors follow. */
-const THEME_QUERIES = ["(prefers-color-scheme: dark)", "(prefers-contrast: more)"];
-
-/** The device preference that holds animation still. */
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+/** The device preferences a theme's colors and motion follow. */
+const THEME_QUERIES = [
+    "(prefers-color-scheme: dark)",
+    "(prefers-contrast: more)",
+    "(prefers-reduced-motion: reduce)",
+];
 
 /** The styles of a shader's surface. */
 const styles = style.create({
@@ -38,7 +42,7 @@ export interface ShaderProperties extends Omit<
     "class" | "style"
 > {
     /** The GLSL ES 3.0 fragment shader, which reads the vertex shader's coordinates and the uniforms. */
-    readonly fragment: string;
+    readonly fragmentShader: string;
     /** The uniforms by their GLSL names: numbers, vectors, CSS colors and theme tokens, or images. */
     readonly uniforms: ShaderValues;
     /** The speed of animation time, 0 to hold one frame; held still under reduced motion. */
@@ -59,18 +63,20 @@ export interface ShaderProperties extends Omit<
     readonly fallback?: JSX.Element;
     /** Handle the shader failing to draw. */
     readonly onFailure?: (failure: ShaderFailure) => void;
+    /** Receive each mount the shader builds, to read its animation time. */
+    readonly onMount?: (mount: ShaderMount) => void;
     /** The StyleX styles applied after the shader's styles. */
     readonly xstyle?: style.Styles;
     /** The inline style applied last. */
     readonly style?: JSX.CSSProperties | string;
 }
 
-/** Draw a fragment shader behind its content, colored by theme tokens and held still under reduced motion. */
+/** Draw a fragment shader behind its content, colored by theme tokens and held still under the theme's reduced motion. */
 export function Shader(properties: ShaderProperties): JSX.Element {
     // hold the canvas, the running mount, the failure and the device preferences
     const rest = omit(
         properties,
-        "fragment",
+        "fragmentShader",
         "uniforms",
         "speed",
         "frame",
@@ -81,6 +87,7 @@ export function Shader(properties: ShaderProperties): JSX.Element {
         "children",
         "fallback",
         "onFailure",
+        "onMount",
         "xstyle",
         "style",
     );
@@ -93,12 +100,31 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     const [failure, setFailure] = createSignal<ShaderFailure | undefined>(undefined, {
         ownedWrite: true,
     });
-    const [theme, setTheme] = createSignal(0, { ownedWrite: true });
-    const [isStill, setIsStill] = createSignal(false, { ownedWrite: true });
+    const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
+
+    // follow the theme: the device preferences it reads and the theme roots above the canvas
+    const preferences = THEME_QUERIES.map((query) => createMediaQuery(query));
+    createMutationObserver(
+        () => ancestorsOf(canvas()),
+        { attributes: true, attributeFilter: ["style", "class"] },
+        () => setMutations((count) => count + 1),
+    );
+    const theme = createMemo(() => [mutations(), ...preferences.map((matches) => matches())]);
+
+    // hold still where the theme's motion scale, the person's motion setting, reads zero
+    const isStill = createMemo(() => {
+        theme();
+        const element = canvas();
+
+        return (
+            element !== undefined &&
+            getComputedStyle(element).getPropertyValue(MOTION_VARIABLE).trim() === "0"
+        );
+    });
 
     // build the mount once the canvas exists, and again for a new fragment shader
     createEffect(
-        () => ({ element: canvas(), fragment: properties.fragment }),
+        () => ({ element: canvas(), fragment: properties.fragmentShader }),
         ({ element, fragment }) => {
             if (element === undefined) {
                 return undefined;
@@ -110,16 +136,16 @@ export function Shader(properties: ShaderProperties): JSX.Element {
                     return;
                 }
                 try {
-                    setMount(
-                        new ShaderMount(element, fragment, uniforms, {
-                            speed: isStill() ? 0 : (properties.speed ?? 0),
-                            frame: properties.frame ?? 0,
-                            minPixelRatio: properties.minPixelRatio,
-                            maxPixelCount: properties.maxPixelCount,
-                            resolution: properties.resolution,
-                            mipmaps: properties.mipmaps,
-                        }),
-                    );
+                    const built = new ShaderMount(element, fragment, uniforms, {
+                        speed: isStill() ? 0 : (properties.speed ?? 0),
+                        frame: properties.frame ?? 0,
+                        minPixelRatio: properties.minPixelRatio,
+                        maxPixelCount: properties.maxPixelCount,
+                        resolution: properties.resolution,
+                        mipmaps: properties.mipmaps,
+                    });
+                    setMount(built);
+                    properties.onMount?.(built);
                 } catch (error) {
                     // show the fallback where the shader cannot draw, and rethrow anything else
                     if (!(error instanceof ShaderError)) {
@@ -187,39 +213,6 @@ export function Shader(properties: ShaderProperties): JSX.Element {
             }
         },
     );
-    onCleanup(() => mount()?.dispose());
-
-    // follow reduced motion and the theme: the device's scheme and contrast, and theme roots above the canvas
-    createEffect(canvas, (element) => {
-        if (element === undefined) {
-            return undefined;
-        }
-        const still = matchMedia(REDUCED_MOTION_QUERY);
-        const followMotion = (): void => {
-            setIsStill(still.matches);
-        };
-        const followTheme = (): void => {
-            setTheme((count) => count + 1);
-        };
-        followMotion();
-        still.addEventListener("change", followMotion);
-        const queries = THEME_QUERIES.map((query) => matchMedia(query));
-        for (const query of queries) {
-            query.addEventListener("change", followTheme);
-        }
-        const observer = new MutationObserver(followTheme);
-        for (let root = element.parentElement; root !== null; root = root.parentElement) {
-            observer.observe(root, { attributes: true, attributeFilter: ["style", "class"] });
-        }
-
-        return () => {
-            observer.disconnect();
-            still.removeEventListener("change", followMotion);
-            for (const query of queries) {
-                query.removeEventListener("change", followTheme);
-            }
-        };
-    });
 
     return (
         <div
@@ -239,4 +232,14 @@ export function Shader(properties: ShaderProperties): JSX.Element {
             {properties.children}
         </div>
     );
+}
+
+/** List an element's ancestors, the theme roots that may set its colors and motion. */
+function ancestorsOf(element: Element | undefined): Element[] {
+    const ancestors: Element[] = [];
+    for (let root = element?.parentElement ?? null; root !== null; root = root.parentElement) {
+        ancestors.push(root);
+    }
+
+    return ancestors;
 }

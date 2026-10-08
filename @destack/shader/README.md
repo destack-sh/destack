@@ -1,6 +1,6 @@
 # @destack/shader
 
-Draw fragment shader effects in views on WebGL 2, colored by the theme and held still under reduced motion.
+Draw fragment shader effects in views on WebGL 2, colored by the theme and held still under its reduced motion.
 
 ## Effects
 
@@ -44,7 +44,7 @@ in vec2 v_objectUV;
 out vec4 fragColor;
 void main() { fragColor = u_color * (1. - length(v_objectUV) * (1.5 + .2 * sin(u_time))); }`;
 
-<Shader fragment={glow} uniforms={{ u_color: color.primary }} speed={1} />;
+<Shader fragmentShader={glow} uniforms={{ u_color: color.primary }} speed={1} />;
 ```
 
 ## Fallback
@@ -52,8 +52,18 @@ void main() { fragColor = u_color * (1. - length(v_objectUV) * (1.5 + .2 * sin(u
 `fallback` shows where the browser draws no WebGL 2, and `onFailure` reports why.
 
 ```tsx
-<Shader fragment={glow} uniforms={{}} fallback={<img alt="" src="/glow.png" />} onFailure={report} />;
+<Shader fragmentShader={glow} uniforms={{}} fallback={<img alt="" src="/glow.png" />} onFailure={report} />;
 // "unsupported" | "compile" | "link"
+```
+
+## Mount
+
+`onMount` receives the running mount, whose `frame` is the animation time a fragment shader reads as `u_time`, so uniforms can schedule motion on the shader's own clock.
+
+```tsx
+let mount: ShaderMount | undefined;
+<Shader fragmentShader={water} uniforms={{ u_movedAt: movedAt() }} speed={1} onMount={(built) => (mount = built)} />;
+setMovedAt((mount?.frame ?? 0) / 1000); // start a move now, in u_time seconds
 ```
 
 ## Resolution
@@ -61,12 +71,12 @@ void main() { fragColor = u_color * (1. - length(v_objectUV) * (1.5 + .2 * sin(u
 A shader renders at the canvas's device pixels, and the page's shaders lower their resolution together while frames run slow.
 
 ```tsx
-<Shader fragment={glow} uniforms={{}} minPixelRatio={1} maxPixelCount={1920 * 1080} resolution="fixed" />;
+<Shader fragmentShader={glow} uniforms={{}} minPixelRatio={1} maxPixelCount={1920 * 1080} resolution="fixed" />;
 ```
 
 ## Motion
 
-`speed` scales animation time, `frame` sets it, and a person who asked for reduced motion sees one still frame.
+`speed` scales animation time, `frame` sets it, and a person whose motion setting reduces motion, the device's preference by default, sees one still frame.
 
 ```tsx
 <Waves speed={0} frame={2400} />;

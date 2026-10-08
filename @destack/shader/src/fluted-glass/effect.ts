@@ -408,7 +408,7 @@ export interface FlutedGlassOptions extends Sizing, Pick<ShaderProperties, "spee
 
 /** The properties of the fluted glass, the shader's included. */
 export interface FlutedGlassProperties
-    extends FlutedGlassOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends FlutedGlassOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default fluted glass. */
 export const FLUTED_GLASS_DEFAULTS: Required<FlutedGlassOptions> = {

@@ -26,7 +26,7 @@ export function PerlinNoise(properties: PerlinNoiseProperties): JSX.Element {
 
     return (
         <Shader
-            fragment={PERLIN_NOISE_FRAGMENT}
+            fragmentShader={PERLIN_NOISE_FRAGMENT}
             uniforms={perlinNoiseUniforms(options)}
             {...rest}
         />

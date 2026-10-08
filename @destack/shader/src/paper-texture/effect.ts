@@ -575,7 +575,7 @@ export interface PaperTextureOptions extends Sizing, Pick<ShaderProperties, "spe
 
 /** The properties of the paper texture, the shader's included. */
 export interface PaperTextureProperties
-    extends PaperTextureOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends PaperTextureOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default paper texture. */
 export const PAPER_TEXTURE_DEFAULTS: Required<PaperTextureOptions> = {

@@ -211,7 +211,7 @@ export interface StaticRadialGradientOptions
 
 /** The properties of the static radial gradient, the shader's included. */
 export interface StaticRadialGradientProperties
-    extends StaticRadialGradientOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends StaticRadialGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default static radial gradient. */
 export const STATIC_RADIAL_GRADIENT_DEFAULTS: Required<StaticRadialGradientOptions> = {

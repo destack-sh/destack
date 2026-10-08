@@ -344,7 +344,7 @@ export interface HalftoneCmykOptions extends Sizing, Pick<ShaderProperties, "spe
 
 /** The properties of the halftone cmyk, the shader's included. */
 export interface HalftoneCmykProperties
-    extends HalftoneCmykOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends HalftoneCmykOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default halftone cmyk. */
 export const HALFTONE_CMYK_DEFAULTS: Required<HalftoneCmykOptions> = {

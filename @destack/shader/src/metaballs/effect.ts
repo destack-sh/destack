@@ -121,7 +121,7 @@ export interface MetaballsOptions extends Sizing, Pick<ShaderProperties, "speed"
 
 /** The properties of the metaballs, the shader's included. */
 export interface MetaballsProperties
-    extends MetaballsOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends MetaballsOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default metaballs. */
 export const METABALLS_DEFAULTS: Required<MetaballsOptions> = {

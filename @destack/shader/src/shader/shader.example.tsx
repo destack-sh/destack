@@ -28,7 +28,7 @@ export const shaderGlow = defineExample({
     properties: { speed: 1 },
     render: (properties) => (
         <Shader
-            fragment={GLOW}
+            fragmentShader={GLOW}
             uniforms={{ u_color: color.primary }}
             {...properties}
             xstyle={styles.canvas}

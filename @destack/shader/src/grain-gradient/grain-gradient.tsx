@@ -25,7 +25,7 @@ export function GrainGradient(properties: GrainGradientProperties): JSX.Element 
 
     return (
         <Shader
-            fragment={GRAIN_GRADIENT_FRAGMENT}
+            fragmentShader={GRAIN_GRADIENT_FRAGMENT}
             uniforms={grainGradientUniforms(options)}
             {...rest}
         />

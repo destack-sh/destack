@@ -2,5 +2,5 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a1138b-c73c-7e27-8fdb-447090a18b9a",
     "language": "typescript",
-    "runtimes": ["browser"]
+    "runtimes": ["browser", "bun", "workerd"]
 }

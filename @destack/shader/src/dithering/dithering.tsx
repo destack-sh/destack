@@ -14,5 +14,11 @@ export function Dithering(properties: DitheringProperties): JSX.Element {
     const options = merge(DITHERING_DEFAULTS, properties);
     const rest = omit(options, ...SIZING_KEYS, "colorBack", "colorFront", "shape", "type", "size");
 
-    return <Shader fragment={DITHERING_FRAGMENT} uniforms={ditheringUniforms(options)} {...rest} />;
+    return (
+        <Shader
+            fragmentShader={DITHERING_FRAGMENT}
+            uniforms={ditheringUniforms(options)}
+            {...rest}
+        />
+    );
 }

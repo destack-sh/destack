@@ -14,5 +14,11 @@ export function Metaballs(properties: MetaballsProperties): JSX.Element {
     const options = merge(METABALLS_DEFAULTS, properties);
     const rest = omit(options, ...SIZING_KEYS, "colorBack", "colors", "count", "size");
 
-    return <Shader fragment={METABALLS_FRAGMENT} uniforms={metaballsUniforms(options)} {...rest} />;
+    return (
+        <Shader
+            fragmentShader={METABALLS_FRAGMENT}
+            uniforms={metaballsUniforms(options)}
+            {...rest}
+        />
+    );
 }

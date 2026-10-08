@@ -151,7 +151,7 @@ export interface GodRaysOptions extends Sizing, Pick<ShaderProperties, "speed" |
 
 /** The properties of the god rays, the shader's included. */
 export interface GodRaysProperties
-    extends GodRaysOptions, Omit<ShaderProperties, "fragment" | "uniforms"> {}
+    extends GodRaysOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
 
 /** The default god rays. */
 export const GOD_RAYS_DEFAULTS: Required<GodRaysOptions> = {
