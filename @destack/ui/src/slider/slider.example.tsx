@@ -1,5 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { Slider } from "./slider.tsx";
+import { Slider, SliderRange, SliderThumb, SliderTrack } from "./slider.tsx";
 
 /** A slider that sets the font size of a note. */
 export const sliderFontSize = defineExample({
@@ -45,4 +45,20 @@ export const sliderVolumeVertical = defineExample({
     name: "volume-vertical",
     description: "a volume slider standing upright",
     render: () => <Slider orientation="vertical" defaultValue={[60]} aria-label="Volume" />,
+});
+
+/** A working-hours range composed from the slider's track, range and thumbs. */
+export const sliderWorkingHours = defineExample({
+    of: Slider,
+    name: "working-hours",
+    description: "a working-hours range composed from the slider's track, range and thumbs",
+    render: () => (
+        <Slider name="hours" min={0} max={24} defaultValue={[9, 17]} aria-label="Working hours">
+            <SliderTrack>
+                <SliderRange />
+            </SliderTrack>
+            <SliderThumb />
+            <SliderThumb />
+        </Slider>
+    ),
 });

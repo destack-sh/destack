@@ -28,9 +28,8 @@ import {
     type SheetSide,
 } from "../sheet/index.ts";
 import {
-    createSwipe,
     isDismissal,
-    type Swipe,
+    Swipe,
     type SwipeDirection,
     type SwipeRelease,
     swipeStyle,
@@ -230,13 +229,19 @@ export function DrawerClose(properties: DialogButtonProperties): JSX.Element {
     return <SheetClose data-slot="drawer-close" {...properties} />;
 }
 
+/** The properties of a drawer's content, the dialog content's included. */
+export interface DrawerContentProperties extends DialogContentProperties {
+    /** Whether to show a handle at the top edge, true when the drawer rises from the bottom. */
+    readonly showHandle?: boolean;
+}
+
 /** Render the drawer against its edge, with a handle when it rises from the bottom, which a drag toward its edge closes or settles at a snap point. */
-export function DrawerContent(properties: DialogContentProperties): JSX.Element {
+export function DrawerContent(properties: DrawerContentProperties): JSX.Element {
     // close the drawer on a swipe toward its edge from unscrolled content, or settle it at a snap point
     const drawer = useDrawer();
     const dialog = useDialog();
-    const rest = omit(properties, "xstyle", "style", "children");
-    const swipe = createSwipe(
+    const rest = omit(properties, "showHandle", "xstyle", "style", "children");
+    const swipe = new Swipe(
         () => SWIPES[drawer.direction()],
         (release) => drawer.settle(release, viewportOf(drawer), () => dialog.close()),
         (element) => element.scrollTop === 0,
@@ -250,10 +255,10 @@ export function DrawerContent(properties: DialogContentProperties): JSX.Element 
             side={drawer.direction()}
             showCloseButton={false}
             {...rest}
-            onPointerDown={swipe.onPointerDown}
-            onPointerMove={swipe.onPointerMove}
-            onPointerUp={swipe.onPointerUp}
-            onPointerCancel={swipe.onPointerCancel}
+            onPointerDown={(event) => swipe.start(event)}
+            onPointerMove={(event) => swipe.follow(event)}
+            onPointerUp={() => swipe.release()}
+            onPointerCancel={() => swipe.cancel()}
             xstyle={[
                 styles.drawer,
                 corners[drawer.direction()],
@@ -261,11 +266,25 @@ export function DrawerContent(properties: DialogContentProperties): JSX.Element 
                 properties.xstyle,
             ]}
         >
-            <Show when={drawer.direction() === "bottom"}>
-                <div data-slot="drawer-handle" aria-hidden="true" {...style.attrs(styles.handle)} />
+            <Show when={properties.showHandle ?? drawer.direction() === "bottom"}>
+                <DrawerHandle />
             </Show>
             {properties.children}
         </SheetContent>
+    );
+}
+
+/** Render the bar a drawer shows at its top edge as the place to drag it by. */
+export function DrawerHandle(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
+    const rest = omit(properties, "xstyle", "style");
+
+    return (
+        <div
+            data-slot="drawer-handle"
+            aria-hidden="true"
+            {...rest}
+            {...style.attributes([styles.handle, properties.xstyle], properties.style)}
+        />
     );
 }
 

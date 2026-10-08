@@ -65,3 +65,30 @@ export const navigationMenuTwoPanels = defineExample({
         </NavigationMenu>
     ),
 });
+
+/** The site's main navigation with its products panel open. */
+export const navigationMenuProductsOpen = defineExample({
+    of: NavigationMenu,
+    name: "products-open",
+    description: "the site's main navigation with its products panel open",
+    render: () => (
+        <NavigationMenu aria-label="Main" defaultValue="products">
+            <NavigationMenuList>
+                <NavigationMenuItem value="products">
+                    <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                        <NavigationMenuLink href="/notes">Notes</NavigationMenuLink>
+                        <NavigationMenuLink href="/tasks">Tasks</NavigationMenuLink>
+                    </NavigationMenuContent>
+                </NavigationMenuItem>
+                <NavigationMenuItem value="company">
+                    <NavigationMenuTrigger>Company</NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                        <NavigationMenuLink href="/about">About</NavigationMenuLink>
+                    </NavigationMenuContent>
+                </NavigationMenuItem>
+                <NavigationMenuIndicator />
+            </NavigationMenuList>
+        </NavigationMenu>
+    ),
+});

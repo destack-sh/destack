@@ -1,24 +1,44 @@
 import * as style from "@destack/style";
 import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
-import { type JSX, omit } from "@destack/view";
-import { type CheckProperties, useCheckControl } from "../checkbox/check.ts";
+import {
+    type Accessor,
+    createContext,
+    type JSX,
+    merge,
+    omit,
+    Show,
+    useContext,
+    useLocale,
+} from "@destack/view";
+import {
+    ToggleInput,
+    type ToggleFormProperties,
+    type ToggleStateProperties,
+    isSubmitted,
+    ToggleState,
+} from "../toggle-state/index.ts";
 import { useFieldControl } from "../field/control.ts";
+import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 
-/** The styles of a switch. */
+/** The distance a checked thumb travels: the track's inner width less the thumb. */
+const TRAVEL = `calc(${size[2]} - 2 * ${stroke.border} - ${space[4]})`;
+
+/** The styles of a switch and its thumb. */
 const styles = style.create({
     switch: {
-        appearance: "none",
-        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
         flexShrink: 0,
         boxSizing: "content-box",
         width: `calc(${size[2]} - 2 * ${stroke.border})`,
         height: space[4],
         margin: 0,
+        padding: 0,
         borderStyle: "solid",
         borderWidth: stroke.border,
         borderColor: "transparent",
         borderRadius: radius.full,
-        backgroundColor: { default: color.input, ":checked": color.primary },
+        backgroundColor: color.input,
         boxShadow: shadow.inset,
         cursor: { default: "pointer", ":disabled": "not-allowed" },
         opacity: { default: 1, ":disabled": 0.5 },
@@ -28,63 +48,162 @@ const styles = style.create({
         outlineStyle: { default: "none", ":focus-visible": "solid" },
         outlineWidth: stroke.ring,
         outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-        "::before": {
-            content: '""',
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: space[4],
-            height: space[4],
-            borderRadius: radius.full,
-            backgroundColor: color.background,
-            transform: {
-                default: "none",
-                ":checked": `translateX(calc(${size[2]} - 2 * ${stroke.border} - ${space[4]}))`,
-            },
-            transitionProperty: "transform",
-            transitionDuration: motion.durationShort,
-            transitionTimingFunction: motion.easingStandard,
-        },
+    },
+    checked: {
+        backgroundColor: color.primary,
+    },
+    thumb: {
+        display: "block",
+        flexShrink: 0,
+        width: space[4],
+        height: space[4],
+        borderRadius: radius.full,
+        backgroundColor: color.background,
+        pointerEvents: "none",
+        transform: "none",
+        transitionProperty: "transform",
+        transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
+    },
+    thumbChecked: {
+        transform: `translateX(${TRAVEL})`,
+    },
+    thumbCheckedReversed: {
+        transform: `translateX(calc(-1 * ${TRAVEL}))`,
     },
 });
 
-/** The properties of a switch, the native checkbox's attributes included. */
+/** The checked state and availability of the nearest switch, which its thumb reads. */
+interface SwitchControl {
+    /** Whether the switch is on. */
+    readonly isChecked: Accessor<boolean>;
+    /** Whether the switch ignores the person. */
+    readonly isDisabled: Accessor<boolean>;
+}
+
+/** The nearest switch, null outside one. */
+const SwitchContext = createContext<SwitchControl | null>(null);
+
+/** The properties of a switch, the native button's attributes included. */
 export interface SwitchProperties
     extends
         Omit<
-            JSX.InputHTMLAttributes<HTMLInputElement>,
-            "class" | "type" | "role" | "checked" | "defaultChecked" | "onChange"
+            JSX.ButtonHTMLAttributes<HTMLButtonElement>,
+            "class" | "type" | "role" | "name" | "value" | "form" | "onClick"
         >,
-        CheckProperties {
+        ToggleStateProperties,
+        ToggleFormProperties {
     /** The StyleX styles applied after the switch's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with the switch's attributes, the native button by default. */
+    readonly render?: Render;
 }
 
-/** Render a native checkbox exposed as an on and off switch, which Space toggles. */
+/** The properties of a switch's thumb, the native element's attributes included. */
+export type SwitchThumbProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> & {
+    /** The StyleX styles applied after the thumb's styles. */
+    readonly xstyle?: style.Styles;
+};
+
+/** Render a button exposed as an on and off switch around its thumb, which a click, Space or Enter flips and a form submits through a hidden checkbox. */
 export function Switch(properties: SwitchProperties): JSX.Element {
     // take the id and state of the nearest field
     const field = useFieldControl();
-    const checked = useCheckControl(properties);
+    const toggle = new ToggleState(properties);
     const rest = omit(
         properties,
         "checked",
         "defaultChecked",
         "onCheckedChange",
+        "name",
+        "value",
+        "required",
+        "form",
+        "disabled",
         "xstyle",
         "style",
+        "render",
+        "children",
+    );
+    const isDisabled = (): boolean => properties.disabled === true || field?.isDisabled() === true;
+
+    // mark the part, report its state and flip it on activation
+    const part: PartAttributes = merge(
+        {
+            role: "switch" as const,
+            get "aria-checked"() {
+                return toggle.isChecked() ? "true" : "false";
+            },
+            get "aria-required"() {
+                return properties.required === true ? "true" : undefined;
+            },
+            "data-slot": "switch",
+            get "data-state"() {
+                return toggle.isChecked() ? "checked" : "unchecked";
+            },
+            get "data-disabled"() {
+                return isDisabled() ? "" : undefined;
+            },
+            onClick: () => toggle.set(!toggle.isChecked()),
+            get children() {
+                return properties.children ?? <SwitchThumb />;
+            },
+        },
+        () => ({ ...field?.attributes(), disabled: isDisabled() ? true : undefined }),
+        () =>
+            style.attributes(
+                [styles.switch, toggle.isChecked() && styles.checked, properties.xstyle],
+                properties.style,
+            ),
     );
 
     return (
-        <input
-            type="checkbox"
-            role="switch"
-            data-slot="switch"
-            data-state={checked.isChecked() ? "checked" : "unchecked"}
-            checked={checked.isChecked()}
-            {...field?.attributes()}
+        <SwitchContext value={{ isChecked: toggle.isChecked, isDisabled }}>
+            {rendered(properties.render, part, rest, () => (
+                <button type="button" {...part} {...rest} />
+            ))}
+            <Show when={isSubmitted(properties)}>
+                <ToggleInput
+                    name={properties.name}
+                    value={properties.value}
+                    required={properties.required}
+                    form={properties.form}
+                    checked={toggle.isChecked()}
+                    disabled={isDisabled()}
+                    onReset={() => toggle.reset()}
+                />
+            </Show>
+        </SwitchContext>
+    );
+}
+
+/** Render the thumb of the nearest switch, which slides to the far end while the switch is on. */
+export function SwitchThumb(properties: SwitchThumbProperties): JSX.Element {
+    // read the switch and the text direction the thumb slides along
+    const control = useContext(SwitchContext);
+    if (control === null) {
+        throw new TypeError("a switch thumb needs a switch around it");
+    }
+    const locale = useLocale();
+    const rest = omit(properties, "xstyle", "style");
+
+    return (
+        <span
+            data-slot="switch-thumb"
+            data-state={control.isChecked() ? "checked" : "unchecked"}
+            data-disabled={control.isDisabled() ? "" : undefined}
             {...rest}
-            onChange={checked.onChange}
-            {...style.attributes([styles.switch, properties.xstyle], properties.style)}
+            {...style.attributes(
+                [
+                    styles.thumb,
+                    control.isChecked() &&
+                        (locale.direction === "rtl"
+                            ? styles.thumbCheckedReversed
+                            : styles.thumbChecked),
+                    properties.xstyle,
+                ],
+                properties.style,
+            )}
         />
     );
 }

@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { type Accessor, createSignal } from "@destack/view";
+import { type Accessor, createSignal, type Setter } from "@destack/view";
 
 /** The share of its own extent an element is swiped past to dismiss on release. */
 const DISMISS_SHARE = 0.25;
@@ -43,22 +43,6 @@ export interface SwipeRelease {
     readonly extent: number;
 }
 
-/** A swipe that moves an element toward an edge: its pointer handlers and the distance it travelled. */
-export interface Swipe {
-    /** The distance the pointer travelled toward the edge, negative away from it, undefined while no swipe runs. */
-    readonly offset: Accessor<number | undefined>;
-    /** The translation that moves the element toward the edge by the offset, as CSS `translate` takes it. */
-    readonly translate: Accessor<string | undefined>;
-    /** Start a swipe away from controls. */
-    readonly onPointerDown: (event: PointerEvent & { readonly currentTarget: HTMLElement }) => void;
-    /** Follow the pointer along the swipe's axis. */
-    readonly onPointerMove: (event: PointerEvent) => void;
-    /** Release the swipe to its handler and spring back. */
-    readonly onPointerUp: () => void;
-    /** Spring back from an interrupted swipe. */
-    readonly onPointerCancel: () => void;
-}
-
 /** Report whether a released swipe went past a share of its element or flicked fast enough to dismiss it. */
 export function isDismissal(release: SwipeRelease): boolean {
     const isFar = release.travel > Math.max(release.extent * DISMISS_SHARE, DISMISS_DISTANCE);
@@ -67,83 +51,135 @@ export function isDismissal(release: SwipeRelease): boolean {
     return isFar || isFlick;
 }
 
-/** Follow a pointer swiping an element along an edge's axis and hand the release to its handler, after drawers and toasts on touch screens. */
-export function createSwipe(
-    direction: () => SwipeDirection,
-    onRelease: (release: SwipeRelease) => void,
-    canStart: (element: HTMLElement) => boolean = () => true,
-): Swipe {
-    // keep the swipe in progress, its distance toward the edge and its last two pointer samples
-    const [offset, setOffset] = createSignal<number | undefined>(undefined, { ownedWrite: true });
-    let swipe:
-        | {
-              readonly start: number;
-              readonly extent: number;
-              last: Sample;
-              previous: Sample;
-          }
-        | undefined;
-    const isVertical = (): boolean => direction() === "up" || direction() === "down";
-    const sign = (): number => (direction() === "down" || direction() === "right" ? 1 : -1);
-    const end = (): void => {
-        swipe = undefined;
-        setOffset(undefined);
-    };
+/** A pointer swiping an element along an edge's axis, which hands its release to a handler, after drawers and toasts on touch screens. */
+export class Swipe {
+    /** The distance the pointer travelled toward the edge, negative away from it, undefined while no swipe runs. */
+    readonly offset: Accessor<number | undefined>;
+    /** The direction the swipe moves the element toward. */
+    readonly #direction: () => SwipeDirection;
+    /** Handle a released swipe. */
+    readonly #onRelease: (release: SwipeRelease) => void;
+    /** Report whether a swipe may start on the element. */
+    readonly #canStart: (element: HTMLElement) => boolean;
+    /** Replace the distance travelled. */
+    readonly #setOffset: Setter<number | undefined>;
+    /** The swipe in progress: where it started, the element's extent and the last two pointer samples. */
+    #run: SwipeRun | undefined = undefined;
 
-    return {
-        offset,
-        translate: () => {
-            // move toward the edge only
-            const distance = offset();
-            if (distance === undefined) {
-                return undefined;
-            }
-            const toward = Math.max(distance, 0) * sign();
+    /** Create a swipe toward a direction, starting wherever the element allows. */
+    constructor(
+        direction: () => SwipeDirection,
+        onRelease: (release: SwipeRelease) => void,
+        canStart: (element: HTMLElement) => boolean = () => true,
+    ) {
+        // start without a swipe in progress
+        const [offset, setOffset] = createSignal<number | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        this.offset = offset;
+        this.#direction = direction;
+        this.#onRelease = onRelease;
+        this.#canStart = canStart;
+        this.#setOffset = setOffset;
+    }
 
-            return isVertical() ? `0 ${toward}px` : `${toward}px 0`;
-        },
-        onPointerDown: (event) => {
-            // start away from controls and where the element allows
-            const target = event.target;
-            if (
-                (target instanceof Element && target.closest(INTERACTIVE) !== null) ||
-                !canStart(event.currentTarget)
-            ) {
-                return;
-            }
-            const box = event.currentTarget.getBoundingClientRect();
-            const sample = {
-                position: isVertical() ? event.clientY : event.clientX,
-                time: performance.now(),
-            };
-            swipe = {
-                start: sample.position,
-                extent: isVertical() ? box.height : box.width,
-                last: sample,
-                previous: sample,
-            };
-            event.currentTarget.setPointerCapture(event.pointerId);
-        },
-        onPointerMove: (event) => {
-            // follow the pointer along the axis, keeping the last two samples for the speed
-            if (swipe !== undefined) {
-                const position = isVertical() ? event.clientY : event.clientX;
-                swipe.previous = swipe.last;
-                swipe.last = { position, time: performance.now() };
-                setOffset((position - swipe.start) * sign());
-            }
-        },
-        onPointerUp: () => {
-            // hand over the travel and the speed of the last move as the pointer let go
-            if (swipe !== undefined) {
-                const moved = (swipe.last.position - swipe.previous.position) * sign();
-                const elapsed = Math.max(performance.now() - swipe.previous.time, 1);
-                onRelease({ travel: offset() ?? 0, speed: moved / elapsed, extent: swipe.extent });
-            }
-            end();
-        },
-        onPointerCancel: end,
-    };
+    /** The translation that moves the element toward the edge by the offset, as CSS `translate` takes it. */
+    translate(): string | undefined {
+        // move toward the edge only
+        const distance = this.offset();
+        if (distance === undefined) {
+            return undefined;
+        }
+        const toward = Math.max(distance, 0) * this.#sign();
+
+        return this.#isVertical() ? `0 ${String(toward)}px` : `${String(toward)}px 0`;
+    }
+
+    /** Start a swipe away from controls and where the element allows. */
+    start(event: PointerEvent & { readonly currentTarget: HTMLElement }): void {
+        // leave a press on a control to the control
+        const target = event.target;
+        if (
+            (target instanceof Element && target.closest(INTERACTIVE) !== null) ||
+            !this.#canStart(event.currentTarget)
+        ) {
+            return;
+        }
+
+        // sample the pointer and the element's extent along the axis
+        const box = event.currentTarget.getBoundingClientRect();
+        const sample = { position: this.#position(event), time: performance.now() };
+        this.#run = {
+            start: sample.position,
+            extent: this.#isVertical() ? box.height : box.width,
+            last: sample,
+            previous: sample,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
+    /** Follow the pointer along the axis, keeping the last two samples for the speed. */
+    follow(event: PointerEvent): void {
+        const run = this.#run;
+        if (run !== undefined) {
+            const position = this.#position(event);
+            run.previous = run.last;
+            run.last = { position, time: performance.now() };
+            this.#setOffset((position - run.start) * this.#sign());
+        }
+    }
+
+    /** Hand the travel and the speed of the last move to the handler as the pointer lets go, and spring back. */
+    release(): void {
+        const run = this.#run;
+        if (run !== undefined) {
+            const moved = (run.last.position - run.previous.position) * this.#sign();
+            const elapsed = Math.max(performance.now() - run.previous.time, 1);
+            this.#onRelease({
+                travel: this.offset() ?? 0,
+                speed: moved / elapsed,
+                extent: run.extent,
+            });
+        }
+        this.cancel();
+    }
+
+    /** Spring back from an interrupted swipe. */
+    cancel(): void {
+        this.#run = undefined;
+        this.#setOffset(undefined);
+    }
+
+    /** Report whether the swipe runs along the vertical axis. */
+    #isVertical(): boolean {
+        const direction = this.#direction();
+
+        return direction === "up" || direction === "down";
+    }
+
+    /** Read the sign that turns a move along the axis into travel toward the edge. */
+    #sign(): number {
+        const direction = this.#direction();
+
+        return direction === "down" || direction === "right" ? 1 : -1;
+    }
+
+    /** Read a pointer's position along the axis. */
+    #position(event: PointerEvent): number {
+        return this.#isVertical() ? event.clientY : event.clientX;
+    }
+}
+
+/** A swipe in progress. */
+interface SwipeRun {
+    /** The position it started at, in pixels. */
+    readonly start: number;
+    /** The element's extent along the axis, in pixels. */
+    readonly extent: number;
+    /** The latest pointer sample. */
+    last: Sample;
+    /** The pointer sample before the latest. */
+    previous: Sample;
 }
 
 /** A pointer position along the swipe's axis and when it was read. */

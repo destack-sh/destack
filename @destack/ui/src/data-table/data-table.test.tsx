@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import {
     columnFilteringFeature,
     createColumnHelper,
@@ -14,8 +14,8 @@ import {
     sortFn_basic,
     tableFeatures,
 } from "@tanstack/table-core";
-import { flush } from "@destack/view";
-import { draw } from "@destack/view/test";
+import { Errored, flush, type JSX } from "@destack/view";
+import { draw, stubPopovers } from "@destack/view/test";
 import {
     createTable,
     DataTable,
@@ -23,8 +23,13 @@ import {
     DataTableFilter,
     DataTablePagination,
     selectionColumn,
+    useDataTableState,
 } from "./index.ts";
-import { dataTableNotesGrouped, dataTableTasksNested } from "./data-table.example.tsx";
+import {
+    dataTableNotesGrouped,
+    dataTableNotesVirtual,
+    dataTableTasksNested,
+} from "./data-table.example.tsx";
 
 /** An invoice the table lists. */
 interface Invoice {
@@ -171,17 +176,17 @@ test("filter rows across their searchable cells, showing a message when none mat
 test("select rows and the whole page, the header box showing a partial selection", () => {
     const container = drawInvoices();
     flush();
-    container.querySelector<HTMLInputElement>("tbody input[type=checkbox]")?.click();
+    container.querySelector<HTMLElement>("tbody [role=checkbox]")?.click();
     flush();
-    const header = container.querySelector<HTMLInputElement>("thead input[type=checkbox]");
-    const partial = header?.indeterminate;
+    const header = container.querySelector<HTMLElement>("thead [role=checkbox]");
+    const partial = header?.getAttribute("aria-checked");
     header?.click();
     flush();
     expect([
         partial,
         container.querySelectorAll("tbody tr[data-state=selected]").length,
         container.querySelector("[data-slot=data-table-pagination] span")?.textContent,
-    ]).toEqual([true, 10, "10 of 12 rows selected"]);
+    ]).toEqual(["mixed", 10, "10 of 12 rows selected"]);
 });
 
 test("move the focus between cells with the arrow keys, keeping one tab stop", () => {
@@ -244,4 +249,83 @@ test("expand a row to its sub rows and collapse it again from its button", () =>
             ["1", null, "", "Send invoices"],
         ],
     ]);
+});
+
+test("refuse a template reading a data table's state outside a data table", () => {
+    const container = draw(() => (
+        <Errored fallback={(error) => String(error())}>
+            <StateTemplate />
+        </Errored>
+    ));
+
+    expect(container.textContent).toBe(
+        "TypeError: a data table template needs a data table around it",
+    );
+});
+
+/** Render the state of the nearest data table as a header or cell template reads it. */
+function StateTemplate(): JSX.Element {
+    return <>{String(useDataTableState()())}</>;
+}
+
+/** Press a key on the focused element, let a scrolled table render, and read the title of the focused cell's row. */
+async function pressAndRead(key: string, modifiers: KeyboardEventInit = {}): Promise<string> {
+    // press the key and wait for the rows scrolled into view
+    document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, ...modifiers }),
+    );
+    flush();
+    await new Promise((resolve) => {
+        setTimeout(resolve);
+    });
+    flush();
+
+    return (
+        document.activeElement?.closest("tr")?.querySelector("[data-column=title]")?.textContent ??
+        ""
+    );
+}
+
+test("move the focus by key onto rows a virtualized table renders only once they scroll into view", async () => {
+    // give the scrolling table a box of five rows, which the test DOM does not lay out
+    const height = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+        configurable: true,
+        get(this: HTMLElement) {
+            return this.dataset["slot"] === "data-table" ? 200 : 0;
+        },
+    });
+    onTestFinished(() => {
+        if (height !== undefined) {
+            Object.defineProperty(HTMLElement.prototype, "offsetHeight", height);
+        }
+    });
+    stubPopovers();
+    const container = draw(dataTableNotesVirtual);
+    flush();
+    const scroller = container.querySelector<HTMLElement>("[data-slot=data-table]");
+    let scrollTop = 0;
+    if (scroller !== null) {
+        Object.defineProperty(scroller, "scrollTop", { get: () => scrollTop });
+        Object.defineProperty(scroller, "scrollHeight", { value: 1000 * 40 });
+        Object.defineProperty(scroller, "clientHeight", { value: 200 });
+        scroller.scrollTo = (options?: ScrollToOptions | number) => {
+            scrollTop = typeof options === "object" ? (options.top ?? scrollTop) : scrollTop;
+            scroller.dispatchEvent(new Event("scroll"));
+        };
+    }
+
+    // move from the first note's title to the grid's last cell, a page of rows up, and to the header
+    container.querySelector<HTMLElement>("tbody tr:first-child td[data-column=title]")?.focus();
+    const steps = [
+        await pressAndRead("End", { ctrlKey: true }),
+        await pressAndRead("PageUp"),
+        await pressAndRead("Home", { ctrlKey: true }),
+    ];
+
+    // each row takes the focus once it renders, though it was out of view when the key moved there
+    expect({ steps, rendered: container.querySelectorAll("tbody tr").length < 100 }).toEqual({
+        steps: ["Note 1000", "Note 990", "Title"],
+        rendered: true,
+    });
 });

@@ -10,7 +10,7 @@ const WEEK = 7;
 /** The milliseconds of a day. */
 const DAY_MILLISECONDS = 86_400_000;
 
-/** The weekday of a week's Thursday, which names the ISO 8601 year and week. */
+/** The weekday of a week's Thursday, which sets the ISO 8601 year and week. */
 const THURSDAY = 4;
 
 /** Calendar days as plain dates without time zones, read, stepped and written in one place. */

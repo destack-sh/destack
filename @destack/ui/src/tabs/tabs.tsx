@@ -14,18 +14,15 @@ import {
     type Accessor,
     createContext,
     createControllableSignal,
-    createSignal,
     createUniqueId,
     type JSX,
     merge,
     omit,
-    onCleanup,
-    type Setter,
     useContext,
     useLocale,
 } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
-import { itemsOf, moveFocus, type Orientation } from "../focus/index.ts";
+import { ListState, type Orientation } from "../focus/index.ts";
 
 /** The orientation and activation of tabs that set neither. */
 const DEFAULTS: Required<Pick<TabsProperties, "orientation" | "activationMode">> = {
@@ -113,14 +110,12 @@ export class TabsControl {
         TabsProperties;
     /** The selected value, controlled or the root's own. */
     readonly value: Accessor<string | undefined>;
-    /** The values of the tabs in document order. */
-    readonly values: Accessor<readonly string[]>;
+    /** The tabs in document order and the one holding the tab stop. */
+    readonly list: ListState;
     /** The prefix of every id of the tabs and panels. */
     readonly #prefix: string;
     /** Replace the selected value and tell the change handler. */
     readonly #setValue: (value: string | undefined) => void;
-    /** Replace the values of the tabs. */
-    readonly #setValues: Setter<readonly string[]>;
 
     /** Create the state of a set of tabs from its root's properties. */
     constructor(
@@ -139,19 +134,18 @@ export class TabsControl {
                 }
             },
         });
-        const [values, setValues] = createSignal<readonly string[]>([], { ownedWrite: true });
         this.properties = properties;
         this.value = value;
-        this.values = values;
+        this.list = new ListState({
+            get orientation() {
+                return properties.orientation;
+            },
+            isLooping: true,
+            isTypeahead: false,
+            initial: value,
+        });
         this.#prefix = createUniqueId();
         this.#setValue = setValue;
-        this.#setValues = setValues;
-    }
-
-    /** Add a tab's value until the tab unmounts. */
-    register(value: string): void {
-        this.#setValues((values) => [...values, value]);
-        onCleanup(() => this.#setValues((values) => values.filter((entry) => entry !== value)));
     }
 
     /** Select a tab and tell the change handler. */
@@ -159,17 +153,12 @@ export class TabsControl {
         this.#setValue(value);
     }
 
-    /** Report whether a tab takes the tab stop: the selected one, else the first. */
-    isTabStop(value: string): boolean {
-        return (this.value() ?? this.values()[0]) === value;
-    }
-
-    /** Name the id of a tab. */
+    /** Build the id of a tab. */
     tabId(value: string): string {
         return `${this.#prefix}-tab-${value.replaceAll(/\s/gu, "-")}`;
     }
 
-    /** Name the id of a tab's panel. */
+    /** Build the id of a tab's panel. */
     panelId(value: string): string {
         return `${this.#prefix}-panel-${value.replaceAll(/\s/gu, "-")}`;
     }
@@ -252,13 +241,11 @@ export function TabsList(
     const control = useTabs();
     const locale = useLocale();
     const rest = omit(properties, "xstyle", "style");
-    const move = (event: KeyboardEvent & { readonly currentTarget: HTMLDivElement }) => {
-        // move among the list's tabs
-        const tabs = itemsOf(event.currentTarget, "[role=tab]");
-        const target = moveFocus(event, tabs, control.properties.orientation, locale.direction);
-        const value = target?.dataset["value"];
-        if (value !== undefined && control.properties.activationMode === "automatic") {
-            control.select(value);
+    const move = (event: KeyboardEvent) => {
+        // move among the list's tabs, selecting the one moved to when activation is automatic
+        const target = control.list.focus.move(event, locale.direction);
+        if (target !== undefined && control.properties.activationMode === "automatic") {
+            control.select(target);
         }
     };
 
@@ -266,9 +253,11 @@ export function TabsList(
         <div
             role="tablist"
             data-slot="tabs-list"
+            data-orientation={control.properties.orientation}
             aria-orientation={control.properties.orientation}
             {...rest}
             onKeyDown={move}
+            onFocusOut={(event) => control.list.focus.focusOut(event)}
             {...style.attributes(
                 [styles.list, lists[control.properties.orientation], properties.xstyle],
                 properties.style,
@@ -289,7 +278,13 @@ export type TabsTriggerProperties = TabsValueProperties<
 export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
     // join the tabs and read whether this one is selected
     const control = useTabs();
-    control.register(properties.value);
+    let element: HTMLElement | undefined;
+    control.list.add({
+        key: properties.value,
+        text: () => properties.value,
+        isDisabled: () => properties.disabled === true,
+        element: () => element,
+    });
     const rest = omit(properties, "value", "xstyle", "style", "render");
     const isSelected = (): boolean => control.value() === properties.value;
     const part: PartAttributes = merge(
@@ -305,7 +300,10 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
                 return isSelected() ? "true" : "false";
             },
             get tabindex() {
-                return control.isTabStop(properties.value) ? 0 : -1;
+                return control.list.focus.isActive(properties.value) ? 0 : -1;
+            },
+            ref: (target: HTMLElement) => {
+                element = target;
             },
             "data-slot": "tabs-trigger",
             get "data-state"() {
@@ -314,7 +312,11 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
             get "data-value"() {
                 return properties.value;
             },
+            get "data-orientation"() {
+                return control.properties.orientation;
+            },
             onClick: () => control.select(properties.value),
+            onFocus: () => control.list.focus.focusIn(properties.value),
         },
         () =>
             style.attributes(
@@ -343,6 +345,8 @@ export function TabsContent(
             tabindex={0}
             hidden={control.value() !== properties.value}
             data-slot="tabs-content"
+            data-state={control.value() === properties.value ? "active" : "inactive"}
+            data-orientation={control.properties.orientation}
             {...rest}
             {...style.attributes([styles.content, properties.xstyle], properties.style)}
         />

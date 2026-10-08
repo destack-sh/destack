@@ -189,7 +189,7 @@ export function Button(properties: ButtonProperties): JSX.Element {
         "children",
     );
 
-    // name the part and give it its styles with the caller's last
+    // mark the part and give it its styles with the caller's last
     const part: PartAttributes = merge(
         {
             get "data-slot"() {

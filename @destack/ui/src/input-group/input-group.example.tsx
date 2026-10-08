@@ -31,3 +31,25 @@ export const inputGroupNoteSearch = defineExample({
         </InputGroup>
     ),
 });
+
+/** The note search marked invalid. */
+export const inputGroupNoteSearchInvalid = defineExample({
+    of: InputGroup,
+    name: "note-search-invalid",
+    description: "the note search marked invalid",
+    render: () => (
+        <InputGroup>
+            <InputGroupInput
+                type="search"
+                placeholder="Search notes"
+                aria-label="Search notes"
+                aria-invalid="true"
+            />
+            <InputGroupAddon>
+                <InputGroupText>
+                    <Icon name="magnifying-glass" />
+                </InputGroupText>
+            </InputGroupAddon>
+        </InputGroup>
+    ),
+});

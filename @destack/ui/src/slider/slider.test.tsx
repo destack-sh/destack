@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
-import { flush } from "@destack/view";
-import { Slider } from "./index.ts";
+import { Errored, flush } from "@destack/view";
+import { Slider, SliderRange, SliderThumb, SliderTrack } from "./index.ts";
 import { draw, markup } from "@destack/view/test";
 
 /** Move a thumb of a container to a value as the person drags it. */
@@ -18,16 +18,36 @@ function thumbs(container: Element): string[] {
     return [...container.querySelectorAll("input")].map((input) => input.value);
 }
 
-test("render a native range input per thumb over a track filled up to the value", () => {
+test("render a native range input per thumb over a track whose range fills up to the value", () => {
     const container = draw(() => (
         <Slider min={0} max={100} step={5} defaultValue={[40]} aria-label="Volume" />
     ));
     expect(markup(container)).toBe(
         '<div role="group" data-slot="slider" data-orientation="horizontal" aria-label="Volume">' +
-            '<div data-slot="slider-track" style="--x-background-image: linear-gradient(to right, var(--destack-color-muted) 0%, var(--destack-color-primary) 0%, var(--destack-color-primary) 40%, var(--destack-color-muted) 40%);"></div>' +
-            '<input type="range" data-slot="slider-thumb" min="0" max="100" step="5"></div>',
+            '<div data-slot="slider-track" data-orientation="horizontal">' +
+            '<div data-slot="slider-range" data-orientation="horizontal" style="--x-insetInlineStart: 0%; --x-insetInlineEnd: 60%;"></div></div>' +
+            '<input type="range" data-slot="slider-thumb" data-orientation="horizontal" min="0" max="100" step="5"></div>',
     );
     expect(thumbs(container)).toEqual(["40"]);
+});
+
+test("compose a range from its parts, each thumb taking its value by its place", () => {
+    const container = draw(() => (
+        <Slider defaultValue={[20, 70]} aria-label="Hours">
+            <SliderTrack>
+                <SliderRange />
+            </SliderTrack>
+            <SliderThumb />
+            <SliderThumb />
+        </Slider>
+    ));
+    drag(container, 1, 90);
+    const range = container.querySelector("[data-slot=slider-range]")?.getAttribute("style");
+
+    expect([thumbs(container), range]).toEqual([
+        ["20", "90"],
+        "--x-insetInlineStart: 20%; --x-insetInlineEnd: 10%;",
+    ]);
 });
 
 test("report each value a thumb moves to, and the values it settles on", () => {
@@ -66,4 +86,17 @@ test("hold a controlled slider at its owner's values", () => {
     const container = draw(() => <Slider value={[50]} aria-label="Volume" />);
     drag(container, 0, 80);
     expect(thumbs(container)).toEqual(["50"]);
+});
+
+test("refuse a thumb the slider's values have none for", () => {
+    const container = draw(() => (
+        <Errored fallback={(error) => String(error())}>
+            <Slider defaultValue={[20]} aria-label="Volume">
+                <SliderThumb />
+                <SliderThumb />
+            </Slider>
+        </Errored>
+    ));
+
+    expect(container.textContent).toBe("RangeError: a slider has no value for thumb 1");
 });

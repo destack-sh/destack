@@ -30,9 +30,11 @@ import {
 } from "@destack/view";
 import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
+import { Input, type InputProperties } from "../input/index.ts";
 import { Sheet, SheetContent, SheetTitle } from "../sheet/index.ts";
 import { Skeleton } from "../skeleton/index.ts";
 import { Tooltip, TooltipContent, TooltipContext } from "../tooltip/index.ts";
+import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The key the open state is remembered under in the viewer's local storage. */
 const STORAGE_KEY = "destack-sidebar-open";
@@ -101,13 +103,6 @@ const styles = style.create({
     offcanvas: { width: 0, borderWidth: 0 },
     icon: { width: width.sidebarIcon },
     sheet: { width: width.sidebar, padding: 0 },
-    hidden: {
-        position: "absolute",
-        width: stroke.border,
-        height: stroke.border,
-        overflow: "hidden",
-        clipPath: "inset(50%)",
-    },
     rail: {
         position: "absolute",
         top: 0,
@@ -134,6 +129,11 @@ const styles = style.create({
         gap: space[2],
         minHeight: 0,
         overflow: "auto",
+    },
+    input: {
+        width: "100%",
+        backgroundColor: color.background,
+        boxShadow: "none",
     },
     separator: {
         height: 0,
@@ -473,7 +473,9 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                         data-mobile="true"
                         xstyle={styles.sheet}
                     >
-                        <SheetTitle xstyle={styles.hidden}>{locale.render(t`Sidebar`)}</SheetTitle>
+                        <SheetTitle xstyle={visuallyHiddenStyle()}>
+                            {locale.render(t`Sidebar`)}
+                        </SheetTitle>
                         <div {...style.attrs(styles.inner)}>{sidebar.children}</div>
                     </SheetContent>
                 </Sheet>
@@ -609,6 +611,17 @@ export function SidebarContent(
             data-slot="sidebar-content"
             {...rest}
             {...style.attributes([styles.content, properties.xstyle], properties.style)}
+        />
+    );
+}
+
+/** Render a search or filter field of the sidebar, an input sized to it. */
+export function SidebarInput(properties: InputProperties): JSX.Element {
+    return (
+        <Input
+            data-slot="sidebar-input"
+            {...properties}
+            xstyle={[styles.input, properties.xstyle]}
         />
     );
 }

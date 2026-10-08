@@ -26,3 +26,16 @@ export const collapsibleNoteTagsExpanded = defineExample({
         </Collapsible>
     ),
 });
+
+/** The tags of a note whose request for the rest is unavailable. */
+export const collapsibleNoteTagsDisabled = defineExample({
+    of: Collapsible,
+    name: "note-tags-disabled",
+    description: "the tags of a note whose request for the rest is unavailable",
+    render: () => (
+        <Collapsible disabled>
+            <CollapsibleTrigger>travel and 3 more</CollapsibleTrigger>
+            <CollapsibleContent>food, family, summer</CollapsibleContent>
+        </Collapsible>
+    ),
+});

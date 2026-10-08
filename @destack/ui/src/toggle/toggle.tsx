@@ -128,7 +128,7 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
         onChange: (isNext) => properties.onPressedChange?.(isNext),
     });
 
-    // name the part and report and flip its state
+    // mark the part, report its state and flip it
     const part: PartAttributes = merge(
         {
             "data-slot": "toggle",

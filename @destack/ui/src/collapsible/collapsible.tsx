@@ -9,8 +9,16 @@ import {
 } from "@destack/view";
 import { followToggle, refuseDisabled } from "../disclosure/index.ts";
 
-/** Whether the nearest collapsible is disabled, null outside one. */
-const CollapsibleContext = createContext<Accessor<boolean> | null>(null);
+/** The nearest collapsible, null outside one. */
+const CollapsibleContext = createContext<CollapsibleControl | null>(null);
+
+/** The open state and availability of a collapsible, which its trigger and content read. */
+interface CollapsibleControl {
+    /** Whether the content shows. */
+    readonly isOpen: Accessor<boolean>;
+    /** Whether the trigger ignores the person. */
+    readonly isDisabled: Accessor<boolean>;
+}
 
 /** The styles of a collapsible's trigger. */
 const styles = style.create({
@@ -61,7 +69,7 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
     });
 
     return (
-        <CollapsibleContext value={() => properties.disabled === true}>
+        <CollapsibleContext value={{ isOpen, isDisabled: () => properties.disabled === true }}>
             <details
                 data-slot="collapsible"
                 data-state={isOpen() ? "open" : "closed"}
@@ -81,12 +89,16 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
 export function CollapsibleTrigger(
     properties: CollapsibleElementProperties<Omit<JSX.HTMLAttributes<HTMLElement>, "ref">>,
 ): JSX.Element {
-    const isDisabled = useContext(CollapsibleContext) ?? (() => false);
+    // read the collapsible's state and availability
+    const control = useContext(CollapsibleContext);
+    const isDisabled = (): boolean => control?.isDisabled() === true;
     const rest = omit(properties, "xstyle", "style");
 
     return (
         <summary
             data-slot="collapsible-trigger"
+            data-state={control?.isOpen() === true ? "open" : "closed"}
+            data-disabled={isDisabled() ? "" : undefined}
             aria-disabled={isDisabled() ? "true" : undefined}
             {...rest}
             ref={(element) => refuseDisabled(element, isDisabled)}
@@ -99,11 +111,13 @@ export function CollapsibleTrigger(
 export function CollapsibleContent(
     properties: CollapsibleElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
+    const control = useContext(CollapsibleContext);
     const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="collapsible-content"
+            data-state={control?.isOpen() === true ? "open" : "closed"}
             {...rest}
             {...style.attributes([properties.xstyle], properties.style)}
         />

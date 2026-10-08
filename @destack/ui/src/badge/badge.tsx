@@ -71,7 +71,7 @@ export function badgeStyle(options: BadgeStyleOptions): style.Styles {
 
 /** Render a short label such as a status or count in a variant. */
 export function Badge(properties: BadgeProperties): JSX.Element {
-    // name the part and its variant over its styles
+    // mark the part and its variant over its styles
     const badge = merge(DEFAULTS, properties);
     const rest = omit(badge, "variant", "xstyle", "style", "render");
     const part: PartAttributes = merge(

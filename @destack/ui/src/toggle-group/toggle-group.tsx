@@ -1,20 +1,9 @@
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-import {
-    type Accessor,
-    createContext,
-    createSignal,
-    type JSX,
-    merge,
-    omit,
-    onCleanup,
-    type Setter,
-    useContext,
-    useLocale,
-} from "@destack/view";
+import { createContext, type JSX, merge, omit, useContext, useLocale } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
-import { type Choice, createChoice, toggled } from "../choice/index.ts";
-import { itemsOf, moveFocus, type Orientation } from "../focus/index.ts";
+import { Selection, type SelectionProperties } from "../selection/index.ts";
+import { ListState, type Orientation } from "../focus/index.ts";
 import { toggleStyle, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
 
 /** The orientation of a toggle group that sets none. */
@@ -36,61 +25,29 @@ export class ToggleGroupControl {
     /** The properties of the group root, read for its controlled state and look. */
     readonly properties: ToggleGroupProperties;
     /** The pressed values, controlled or the group's own. */
-    readonly value: Accessor<readonly string[]>;
-    /** The values of the items in document order. */
-    readonly values: Accessor<readonly string[]>;
-    /** The value of the item the focus last rested on. */
-    readonly focused: Accessor<string | undefined>;
-    /** Replace the pressed values and tell the change handler. */
-    readonly #setValue: (value: readonly string[]) => void;
-    /** Replace the values of the items. */
-    readonly #setValues: Setter<readonly string[]>;
-    /** Replace the value of the focused item. */
-    readonly #setFocused: Setter<string | undefined>;
+    readonly selection: Selection;
+    /** The items in document order and the one holding the tab stop. */
+    readonly list: ListState;
 
     /** Create the state of a toggle group from its root's properties. */
     constructor(properties: ToggleGroupProperties) {
-        // start from the default value with no items and no focus
-        const [value, setValue] = createChoice(properties);
-        const [values, setValues] = createSignal<readonly string[]>([], { ownedWrite: true });
-        const [focused, setFocused] = createSignal<string | undefined>(undefined);
+        // hold the tab stop on the focused item, else the first pressed, else the first
+        const group = merge(DEFAULTS, properties);
         this.properties = properties;
-        this.value = value;
-        this.values = values;
-        this.focused = focused;
-        this.#setValue = setValue;
-        this.#setValues = setValues;
-        this.#setFocused = setFocused;
-    }
-
-    /** Add an item's value until the item unmounts. */
-    register(value: string): void {
-        this.#setValues((values) => [...values, value]);
-        onCleanup(() => this.#setValues((values) => values.filter((entry) => entry !== value)));
-    }
-
-    /** Remember the item the focus rests on. */
-    focus(value: string): void {
-        this.#setFocused(value);
-    }
-
-    /** Turn an item on or off, turning the others off in a single group, and tell the change handler. */
-    toggle(value: string): void {
-        this.#setValue(toggled(this.properties, this.value(), value));
-    }
-
-    /** Report whether an item takes the tab stop: the focused one, else the first pressed, else the first. */
-    isTabStop(value: string): boolean {
-        const values = this.values();
-        const stop =
-            this.focused() ?? values.find((entry) => this.value().includes(entry)) ?? values[0];
-
-        return stop === value;
+        this.selection = new Selection(properties);
+        this.list = new ListState({
+            get orientation() {
+                return group.orientation;
+            },
+            isLooping: true,
+            isTypeahead: false,
+            initial: (items) => items.keys().find((key) => this.selection.isSelected(key)),
+        });
     }
 }
 
 /** The properties of a toggle group, the native element's attributes included. */
-export type ToggleGroupProperties = ToggleGroupLook & Choice;
+export type ToggleGroupProperties = ToggleGroupLook & SelectionProperties;
 
 /** The look and layout of a toggle group, the native element's attributes included. */
 export interface ToggleGroupLook extends Omit<
@@ -146,14 +103,8 @@ export function ToggleGroup(properties: ToggleGroupProperties): JSX.Element {
                 data-slot="toggle-group"
                 aria-orientation={group.orientation}
                 {...rest}
-                onKeyDown={(event) =>
-                    moveFocus(
-                        event,
-                        itemsOf(event.currentTarget, "[data-slot=toggle-group-item]"),
-                        group.orientation,
-                        locale.direction,
-                    )
-                }
+                onKeyDown={(event) => control.list.focus.move(event, locale.direction)}
+                onFocusOut={(event) => control.list.focus.focusOut(event)}
                 {...style.attributes(
                     [orientations[group.orientation], properties.xstyle],
                     properties.style,
@@ -170,11 +121,17 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
     if (control === null) {
         throw new TypeError("a toggle group item needs a toggle group around it");
     }
-    control.register(properties.value);
+    let element: HTMLElement | undefined;
+    control.list.add({
+        key: properties.value,
+        text: () => properties.value,
+        isDisabled: () => properties.disabled === true,
+        element: () => element,
+    });
 
     // report the state as a radio in a single group and as a pressed button otherwise
     const rest = omit(properties, "value", "xstyle", "style", "render");
-    const isPressed = (): boolean => control.value().includes(properties.value);
+    const isPressed = (): boolean => control.selection.isSelected(properties.value);
     const isSingle = control.properties.multiple !== true;
     const state = (): string => (isPressed() ? "true" : "false");
     const part: PartAttributes = merge(
@@ -194,10 +151,13 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
                 return properties.value;
             },
             get tabindex() {
-                return control.isTabStop(properties.value) ? 0 : -1;
+                return control.list.focus.isActive(properties.value) ? 0 : -1;
             },
-            onClick: () => control.toggle(properties.value),
-            onFocus: () => control.focus(properties.value),
+            ref: (target: HTMLElement) => {
+                element = target;
+            },
+            onClick: () => control.selection.toggle(properties.value),
+            onFocus: () => control.list.focus.focusIn(properties.value),
         },
         () =>
             style.attributes(

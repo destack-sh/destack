@@ -4,7 +4,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./index.ts
 import { draw } from "@destack/view/test";
 
 /** The custom property StyleX sets to a panel's dynamic flex grow, its share of the group. */
-const SHARE_PROPERTY = "--x-flex-grow";
+const SHARE_PROPERTY = "--x-flexGrow";
 
 /** Read the computed share of each panel. */
 function shares(container: Element): string[] {

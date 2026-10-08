@@ -3,7 +3,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, radius, shadow, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createEffect, type JSX, omit, Show } from "@destack/view";
-import { type Choice, createChoice, valuesOf } from "../choice/index.ts";
+import { Selection, type SelectionProperties, valuesOf } from "../selection/index.ts";
 import { useFieldControl } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
@@ -88,7 +88,7 @@ const styles = style.create({
 });
 
 /** The properties of a select, the native select's attributes included. */
-export type SelectProperties = SelectLook & Choice;
+export type SelectProperties = SelectLook & SelectionProperties;
 
 /** The look and prompt of a select, the native select's attributes included. */
 export interface SelectLook extends Omit<
@@ -127,11 +127,11 @@ export function Select(properties: SelectProperties): JSX.Element {
         field?.isInvalid() === true || properties["aria-invalid"] === "true";
 
     // follow the controlled values or the select's own
-    const [chosen, setChosen] = createChoice(properties);
+    const selection = new Selection(properties);
 
     // show the chosen options on the element once its options exist
     let element: HTMLSelectElement | undefined;
-    createEffect(chosen, (values) => {
+    createEffect(selection.values, (values) => {
         if (element !== undefined) {
             choose(element, values);
         }
@@ -149,7 +149,7 @@ export function Select(properties: SelectProperties): JSX.Element {
             onChange={(event) => {
                 // keep the person's choice and show the owner's until the owner takes it
                 const select = event.currentTarget;
-                setChosen(
+                selection.replace(
                     [...select.options]
                         .filter((option) => option.selected)
                         .map((option) => option.value),

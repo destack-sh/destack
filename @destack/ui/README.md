@@ -13,7 +13,7 @@ import { Button, buttonStyle } from "@destack/ui/button";
 <Button variant="destructive" size="icon" aria-label="Delete note">
     <Icon name="trash" />
 </Button>;
-<Button loading>Save</Button>; // a spinner, aria-busy and disabled while the action runs
+<Button loading>Save</Button>; // aria-busy="true" disabled, with a spinner
 <Button variant="outline" render={(part) => <a href="/notes" {...part} />}>
     Notes
 </Button>;
@@ -98,6 +98,20 @@ import { Separator } from "@destack/ui/separator";
 <Separator orientation="vertical" decorative={false} />; // role="separator" aria-orientation="vertical"
 ```
 
+## Visually hidden
+
+`VisuallyHidden` keeps content out of sight for assistive technology to read, such as an icon button's name, and `visuallyHiddenStyle` gives any element the same styles.
+
+```tsx
+import { VisuallyHidden, visuallyHiddenStyle } from "@destack/ui/visually-hidden";
+
+<Button variant="outline" size="icon">
+    <Icon name="trash" />
+    <VisuallyHidden>Delete note</VisuallyHidden>
+</Button>;
+<table {...style.attrs(visuallyHiddenStyle())}>...</table>;
+```
+
 ## Aspect ratio
 
 `AspectRatio` keeps a box at a width-to-height ratio as its width changes.
@@ -108,6 +122,21 @@ import { AspectRatio } from "@destack/ui/aspect-ratio";
 <AspectRatio ratio={16 / 9}>
     <img src="/photos/alfama.jpg" alt="Alfama at dusk" />
 </AspectRatio>;
+```
+
+## Cover image
+
+`CoverImage` shows an image as a banner centred on its position, which a drag moves while its owner listens, as do the arrow keys, Page Up, Page Down, Home and End on the vertical slider over it.
+
+```tsx
+import { CoverImage } from "@destack/ui/cover-image";
+
+<CoverImage
+    source="/covers/mountains.jpg"
+    position={cover().position}
+    onPositionChange={setPosition}
+    label="Reposition the cover"
+/>; // <input type="range" aria-orientation="vertical" value="33" aria-valuetext="33%">
 ```
 
 ## Avatar
@@ -124,6 +153,18 @@ import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@destack/ui/av
     </Avatar>
     <AvatarGroupCount>+4</AvatarGroupCount>
 </AvatarGroup>;
+```
+
+## Glyph
+
+`Glyph` draws an emoji, a named icon or an image at one of four sizes, hidden from assistive technology unless labelled.
+
+```tsx
+import { Glyph } from "@destack/ui/glyph";
+
+<Glyph glyph={{ emoji: "📘" }} />;
+<Glyph glyph={{ icon: "rocket-launch" }} size="lg" label="Launch" />;
+<Glyph glyph={{ source: "/files/cover.webp" }} size="xl" />;
 ```
 
 ## Card
@@ -194,6 +235,16 @@ import {
         <Button>Create a notebook</Button>
     </EmptyContent>
 </Empty>;
+```
+
+## Prose
+
+`Prose` styles rendered HTML, such as Markdown converted to GitHub's HTML, by its semantic elements, from theme tokens.
+
+```tsx
+import { Prose } from "@destack/ui/prose";
+
+<Prose innerHTML={post.html} />; // headings, lists, tables, code, quotes, figures, footnotes and alerts
 ```
 
 ## Item
@@ -284,7 +335,7 @@ import {
 
 ## Schema form
 
-`SchemaForm` renders a field per property of a JSON Schema, such as a method's input, starting from each property's `default`, and refuses values the schema refuses in the person's language through `useSchemaForm`.
+`SchemaForm` renders a field per property of a JSON Schema and its local references, starting from each property's `default`, refuses values the schema refuses in the person's language, and renders a property through `renderField` when it returns a control.
 
 ```tsx
 import { SchemaForm, schemaFields } from "@destack/ui/schema-form";
@@ -300,7 +351,7 @@ import { SchemaForm, schemaFields } from "@destack/ui/schema-form";
             estimate: { type: "integer", minimum: 1, default: 1 }, // a number input with min and step
             tags: { type: "array", items: { enum: ["home", "work"] } }, // a checkbox per value
             steps: { type: "array", items: { type: "string" } }, // rows to add and remove
-            place: { type: "object", properties: { city: { type: "string" } } }, // a fieldset, added and removed while optional
+            place: { type: "object", properties: { city: { type: "string" } } }, // a fieldset
             repeat: { oneOf: [daily, weekly] }, // a choice of kind, then its fields
         },
         required: ["title"],
@@ -310,7 +361,6 @@ import { SchemaForm, schemaFields } from "@destack/ui/schema-form";
 />;
 schemaFields(input).length; // 0 for a command that takes nothing
 
-// local references resolve against the root schema, recursive ones expanding only where a value exists
 <SchemaForm
     schema={{
         $defs: {
@@ -318,7 +368,7 @@ schemaFields(input).length; // 0 for a command that takes nothing
                 type: "object",
                 properties: {
                     name: { type: "string" },
-                    children: { type: "array", items: { $ref: "#/$defs/node" } }, // rows added one by one
+                    children: { type: "array", items: { $ref: "#/$defs/node" } },
                 },
                 required: ["name"],
             },
@@ -331,7 +381,6 @@ schemaFields(input).length; // 0 for a command that takes nothing
 />;
 schemaFields({ properties: { owner: { $ref: "#/$defs/person" } } }); // TypeError: schema reference #/$defs/person does not resolve
 
-// render a property's control itself, such as a picker for a reference, undefined keeping the form's
 <SchemaForm
     schema={input}
     renderField={(field, held) =>
@@ -443,10 +492,10 @@ import { Select, SelectItem, SelectTrigger, SelectValue } from "@destack/ui/sele
 
 ## Checkbox
 
-`Checkbox` renders a native checkbox with an `indeterminate` state.
+`Checkbox` renders a button exposed as a checkbox around its `CheckboxIndicator`, which a click or Space toggles, and a hidden native checkbox carries its state into a form and back from its reset.
 
 ```tsx
-import { Checkbox } from "@destack/ui/checkbox";
+import { Checkbox, CheckboxIndicator } from "@destack/ui/checkbox";
 
 <Checkbox name="terms" required defaultChecked />;
 <Checkbox
@@ -454,38 +503,62 @@ import { Checkbox } from "@destack/ui/checkbox";
     checked={isAll()}
     indeterminate={isSome()}
     onCheckedChange={selectAll}
-/>;
+>
+    <CheckboxIndicator xstyle={styles.mark} />
+</Checkbox>;
+// aria-checked="mixed" data-state="indeterminate"
 ```
 
 ## Radio group
 
-`RadioGroup` gives its native radios one name and one value.
+`RadioGroup` holds one value for its `RadioGroupItem` radios, which the arrow keys move between and check with one tab stop, each around its `RadioGroupIndicator`, and hidden native radios carry the value into a form.
 
 ```tsx
-import { RadioGroup, RadioGroupItem } from "@destack/ui/radio-group";
+import { RadioGroup, RadioGroupIndicator, RadioGroupItem } from "@destack/ui/radio-group";
 
-<RadioGroup aria-label="Density" defaultValue="regular" orientation="horizontal" required>
+<RadioGroup name="density" defaultValue="regular" orientation="horizontal" required>
     <RadioGroupItem value="compact" aria-label="Compact" />
-    <RadioGroupItem value="regular" aria-label="Regular" />
+    <RadioGroupItem value="regular" aria-label="Regular">
+        <RadioGroupIndicator xstyle={styles.dot} />
+    </RadioGroupItem>
 </RadioGroup>;
+```
+
+## Swatch picker
+
+`SwatchPicker` chooses one of the theme's accent presets, every colorful one or its `presets`, as a list box of colored `SwatchPickerItem` swatches in rows of `columns`, whose arrow keys choose as they move, and a hidden input carries the choice into a form.
+
+```tsx
+import { SwatchPicker, SwatchPickerItem } from "@destack/ui/swatch-picker";
+
+<SwatchPicker name="color" value={color()} onValueChange={setColor} aria-label="Color" />;
+<SwatchPicker defaultValue="teal" columns={2} aria-label="Label color">
+    <SwatchPickerItem value="teal" />
+    <SwatchPickerItem value="plum" />
+</SwatchPicker>;
+// role="listbox" with role="option" aria-selected="true" on the chosen swatch
 ```
 
 ## Switch
 
-`Switch` renders a native checkbox as a switch.
+`Switch` renders a button exposed as a switch around its `SwitchThumb`, and a hidden native checkbox carries its state into a form.
 
 ```tsx
-import { Switch } from "@destack/ui/switch";
+import { Switch, SwitchThumb } from "@destack/ui/switch";
 
 <Switch aria-label="Notifications" checked={isOn()} onCheckedChange={setOn} />;
+<Switch name="airplane-mode" defaultChecked>
+    <SwitchThumb xstyle={styles.thumb} />
+</Switch>;
+// role="switch" aria-checked="true" data-state="checked"
 ```
 
 ## Slider
 
-`Slider` renders a native range input per thumb over a track filled between its values: one value, or two for a range, along either orientation.
+`Slider` holds one value, or two for a range, for its `SliderTrack`, `SliderRange` and a `SliderThumb` per value, each thumb a native range input.
 
 ```tsx
-import { Slider } from "@destack/ui/slider";
+import { Slider, SliderRange, SliderThumb, SliderTrack } from "@destack/ui/slider";
 
 <Slider min={12} max={24} defaultValue={[16]} aria-label="Font size" />;
 <Slider
@@ -495,18 +568,29 @@ import { Slider } from "@destack/ui/slider";
     onValueChange={setPrice}
     marks={[0, 250, 500]}
     aria-label="Price"
-/>;
-// the thumbs of a range are named "Minimum" and "Maximum"
+>
+    <SliderTrack>
+        <SliderRange xstyle={styles.fill} />
+    </SliderTrack>
+    <SliderThumb />
+    <SliderThumb />
+</Slider>;
+// thumbs named "Minimum" and "Maximum"
 ```
 
 ## Progress
 
-`Progress` renders a native progress bar.
+`Progress` reports work done as a progress bar filled by its `ProgressIndicator`, sweeping while it has no value.
 
 ```tsx
-import { Progress } from "@destack/ui/progress";
+import { Progress, ProgressIndicator } from "@destack/ui/progress";
 
-<Progress value={30} max={100} aria-label="Upload" />;
+<Progress value={30} aria-label="Upload" />;
+// aria-valuetext="30%" data-state="loading"
+<Progress aria-label="Sync">
+    <ProgressIndicator xstyle={styles.bar} />
+</Progress>;
+// data-state="indeterminate"
 ```
 
 ## Toggle
@@ -537,13 +621,182 @@ import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 </ToggleGroup>;
 ```
 
+## Collection
+
+`Collection` holds a component's items in sections, by key and by place, waiting for a `Load` of its items and throwing a failed load to the nearest error boundary; `CollectionBuilder` collects the items child components add as they mount, in document order.
+
+```ts
+import { Collection, CollectionBuilder, Load } from "@destack/ui/collection";
+
+const notes = new Load(fetchNotes());
+const collection = new Collection({
+    load: notes,
+    sections: () => [{ key: "notes", label: "Notes", items: notes.value() }],
+    key: (note) => note.id,
+    text: (note) => note.title,
+});
+collection.state(); // "loading", "loaded" or "failed"
+collection.keys(); // every key in order
+const items = new CollectionBuilder((item: Item) => item.element()); // items.add(item) as each mounts
+```
+
+## Focus
+
+`Focus` keeps a collection's one focused key, moved by a keyboard delegate, as a roving tab stop or behind `aria-activedescendant`; `ListDelegate` and `GridDelegate` move along a list or across rows of a column count, and `ListState` joins them for components whose items mount as children.
+
+```ts
+import { Focus, GridDelegate, ListDelegate, ListState } from "@destack/ui/focus";
+
+const focus = new Focus({
+    delegate: new ListDelegate(collection, { orientation: "vertical", isLooping: true, isTypeahead: true }),
+    mode: "roving",
+});
+focus.move(event, locale.direction); // the key it lands on, undefined for a key it leaves alone
+focus.isActive(key); // reruns only for the key the focus leaves and the one it reaches
+new GridDelegate(collection, () => 9); // the arrow keys across rows of nine
+new ListState({ orientation: "horizontal", isLooping: true, isTypeahead: false }); // tabs, radio groups, menus
+```
+
+## Selection
+
+`Selection` keeps a collection's selected values, one or several, controlled by its owner or its own.
+
+```ts
+import { Selection } from "@destack/ui/selection";
+
+const tags = new Selection({ multiple: true, defaultValue: ["travel"] });
+tags.toggle("work");
+tags.values(); // ["travel", "work"]
+new Selection({ value: notebook(), onValueChange: setNotebook }); // controlled, one value
+```
+
+## Position
+
+`Position` places an overlay beside its anchor or at a point, through CSS anchor positioning where the browser has it and by measuring where it lacks it.
+
+```ts
+import { Position } from "@destack/ui/position";
+
+Position.beside("bottom", "start"); // StyleX styles placing an overlay below its anchor
+Position.at({ x: event.clientX, y: event.clientY }); // a context menu at the pointer
+const stop = Position.place(content, anchor); // follow scrolls and resizes without anchor positioning
+```
+
+## Toggle state
+
+`ToggleState` keeps a control's on or off state, controlled or its own, and `ToggleInput` carries it into the control's form, following a form reset.
+
+```tsx
+import { ToggleInput, ToggleState } from "@destack/ui/toggle-state";
+
+const state = new ToggleState({ defaultChecked: true, onCheckedChange: save });
+<ToggleInput name="notify" checked={state.isChecked()} disabled={false} onReset={() => state.reset()} />;
+```
+
+## Virtualizer
+
+`createVirtualizer` renders only the rows of a long list in and near its scrolling element, measuring each as it renders.
+
+```ts
+import { createVirtualizer } from "@destack/ui/virtualizer";
+
+const rows = createVirtualizer({ count: () => notes().length, itemHeight: 36, scrollElement: () => viewport });
+rows.items(); // the rows to render, each with its index and offset
+rows.reveal(420); // scroll a row into view
+```
+
+## List box
+
+`ListBox` offers `ListBoxItem` options in `ListBoxSection` sections, which the arrow keys, Home, End and typed letters move through in a list or a grid of `columns`, and Enter, Space or a click choose into its single or multiple `selection`.
+
+```tsx
+import {
+    ListBox,
+    ListBoxEmpty,
+    ListBoxItem,
+    ListBoxSection,
+    ListBoxSeparator,
+} from "@destack/ui/list-box";
+
+<ListBox aria-label="Notebook" selection={{ value: notebook(), onValueChange: setNotebook }}>
+    <ListBoxSection heading="Active">
+        <ListBoxItem value="trips">Trips</ListBoxItem>
+        <ListBoxItem value="work">Work</ListBoxItem>
+    </ListBoxSection>
+    <ListBoxSeparator />
+    <ListBoxItem value="taxes" disabled>
+        Taxes
+    </ListBoxItem>
+    <ListBoxEmpty>No notebooks</ListBoxEmpty>
+</ListBox>;
+<ListBox aria-label="Tags" selection={{ multiple: true, defaultValue: ["travel"] }}>
+    …
+</ListBox>;
+<ListBox aria-label="Label" layout="grid" columns={3} selectionBehavior="replace" selection={{}}>
+    …
+</ListBox>; // the arrow keys move across rows and columns, choosing as they move
+<ListBox aria-label="Actions" onAction={(option) => run(option.value())}>
+    …
+</ListBox>; // no selection: Enter and a click run the option's action
+```
+
+## Grid list
+
+`GridList` lays items out by section in rows of a column count, rendering only the rows in its `GridListViewport`, which the arrow keys, Home and End move through and Enter or a click choose, between its `GridListLoading` and `GridListEmpty` notes.
+
+```tsx
+import {
+    GridList,
+    GridListControl,
+    GridListEmpty,
+    GridListProvider,
+    GridListViewport,
+} from "@destack/ui/grid-list";
+
+const grid = new GridListControl({
+    sections: () => sections(), // [{ key: "operators", label: "Operators", items: [...] }]
+    key: (symbol) => symbol.id,
+    text: (symbol) => symbol.name,
+    columns: () => 9,
+    onAction: insert,
+});
+<GridListProvider control={grid}>
+    <GridListViewport>
+        <GridListEmpty>No symbols</GridListEmpty>
+        <GridList control={grid} aria-label="Symbols" label={(symbol) => symbol.name} />
+    </GridListViewport>
+</GridListProvider>;
+// role="grid" aria-activedescendant names the focused role="gridcell"
+```
+
+## Autocomplete
+
+`Autocomplete` holds a search whose `AutocompleteInput` filters the one list box or grid list inside by its options' values and keywords, and moves its focus from the search field with the arrow keys and Enter.
+
+```tsx
+import { Autocomplete, AutocompleteInput } from "@destack/ui/autocomplete";
+
+<Autocomplete search={query()} onSearchChange={setQuery}>
+    <AutocompleteInput aria-label="Fruit" />
+    <ListBox aria-label="Fruits" onAction={(option) => pick(option.value())}>
+        <ListBoxItem keywords={["tropical"]}>Mango</ListBoxItem>
+        <ListBoxEmpty>No fruit found</ListBoxEmpty>
+    </ListBox>
+</Autocomplete>;
+<Autocomplete shouldFilter={false}>…</Autocomplete>; // the owner filters, such as by loading matches
+<Autocomplete filter={(value, search) => value.startsWith(search)}>…</Autocomplete>;
+```
+
 ## Combobox
 
-`Combobox` filters a list of options as the person types, after the APG combobox pattern.
+`Combobox` is an input, a popover and an autocomplete over a list box, which filters its options as the person types, after the APG combobox pattern.
 
 ```tsx
 import {
     Combobox,
+    ComboboxChip,
+    ComboboxItemIndicator,
+    ComboboxChipRemove,
     ComboboxChips,
     ComboboxContent,
     ComboboxCreate,
@@ -557,7 +810,10 @@ import {
     <ComboboxInput aria-label="Notebook" />
     <ComboboxContent>
         <ComboboxEmpty>No notebook found</ComboboxEmpty>
-        <ComboboxItem value="Trips">Trips</ComboboxItem>
+        <ComboboxItem value="Trips">
+            Trips
+            <ComboboxItemIndicator />
+        </ComboboxItem>
     </ComboboxContent>
 </Combobox>;
 <Combobox multiple value={tags()} onValueChange={setTags} onCreate={addTag}>
@@ -568,7 +824,19 @@ import {
         <ComboboxCreate />
     </ComboboxContent>
 </Combobox>;
-<Combobox shouldFilter={false} onInputValueChange={search}>
+<Combobox multiple defaultValue={["travel"]}>
+    <ComboboxChips>
+        <For each={tags()}>
+            {(tag) => (
+                <ComboboxChip value={tag}>
+                    {tag} <ComboboxChipRemove />
+                </ComboboxChip>
+            )}
+        </For>
+    </ComboboxChips>
+    <ComboboxInput aria-label="Tags" />
+</Combobox>;
+<Combobox shouldFilter={false} inputValue={query()} onInputValueChange={search}>
     <ComboboxInput aria-label="Person" />
     <ComboboxContent>
         <Show
@@ -587,19 +855,20 @@ import {
 
 ## Command
 
-`Command` searches options by text and keywords, and `CommandDialog` shows it as a palette.
+`Command` is an autocomplete over a list box, which searches options by text and keywords that the arrow keys, Home and End highlight and Enter chooses, and `CommandDialog` shows it as a palette.
 
 ```tsx
 import {
     Command,
     CommandEmpty,
     CommandGroup,
+    CommandGroupHeading,
     CommandInput,
     CommandItem,
     CommandList,
 } from "@destack/ui/command";
 
-<Command aria-label="Commands" value={highlighted()} onValueChange={setHighlighted}>
+<Command aria-label="Commands" value={highlighted()} onValueChange={setHighlighted} loop>
     <CommandInput placeholder="Type a command" />
     <CommandList>
         <CommandEmpty>No results</CommandEmpty>
@@ -610,6 +879,106 @@ import {
         </CommandGroup>
     </CommandList>
 </Command>;
+
+<Command
+    search={query()}
+    onSearchChange={setQuery}
+    filter={(value, search) => value.startsWith(search)}
+>
+    …
+    <CommandGroup>
+        <CommandGroupHeading xstyle={styles.heading}>Recent</CommandGroupHeading>
+        <CommandItem forceMount>Help</CommandItem>
+    </CommandGroup>
+</Command>;
+```
+
+## Emoji picker
+
+`EmojiPicker` is an autocomplete over a grid list of every emoji by category in a skin tone, around its `EmojiPickerSearch`, `EmojiPickerContent` and `EmojiPickerFooter`, loading their names and words in the reader's locale, else English, once it renders, and showing a failed load in the nearest `Errored`.
+
+```tsx
+import {
+    EmojiPicker,
+    EmojiPickerContent,
+    EmojiPickerEmoji,
+    EmojiPickerFooter,
+    EmojiPickerSearch,
+    EmojiPickerSkinTone,
+    EmojiPickerSkinToneSelector,
+} from "@destack/ui/emoji-picker";
+
+<EmojiPicker columns={9} defaultTone={0} onPick={(entry) => react(entry.emoji)}>
+    <EmojiPickerSearch />
+    <EmojiPickerSkinTone />
+    <EmojiPickerContent />
+    <EmojiPickerFooter>
+        <EmojiPickerSkinToneSelector />
+    </EmojiPickerFooter>
+</EmojiPicker>;
+// the search takes typing while the emoji load, the content showing a status until they do
+<EmojiPicker
+    cell={(cell) => <EmojiPickerEmoji {...cell} xstyle={styles.cell} />}
+    activeCell={(entry) => entry?.label}
+    onPick={(entry) => react(entry.emoji)}
+>
+    <EmojiPickerSearch />
+    <EmojiPickerContent />
+    <EmojiPickerFooter />
+</EmojiPicker>;
+```
+
+## Icon picker
+
+`IconPicker` is an autocomplete over a grid list of the icon set's icons by category, around its `IconPickerSearch`, `IconPickerContent` and `IconPickerFooter`, finding them by name and tag.
+
+```tsx
+import {
+    IconPicker,
+    IconPickerContent,
+    IconPickerFooter,
+    IconPickerIcon,
+    IconPickerSearch,
+} from "@destack/ui/icon-picker";
+
+<IconPicker cell={(cell) => <IconPickerIcon {...cell} xstyle={styles.cell} />} onPick={setIcon}>
+    <IconPickerSearch />
+    <IconPickerContent />
+    <IconPickerFooter />
+</IconPicker>;
+// the footer shows the active icon and its name
+```
+
+## Sortable
+
+`Sortable` lets a person reorder items in lists, across a board's columns and through a tree's levels by pointer or keyboard, announcing each step and reporting each move by the items it lands between.
+
+```tsx
+import { Sortable, SortableContainer, SortableHandle, SortableItem } from "@destack/ui/sortable";
+
+<Sortable onMove={({ id, container, before, after }) => move(id, container, before, after)}>
+    <SortableContainer id="todo" label="To do">
+        <For each={todo()}>
+            {(card) => (
+                <SortableItem id={card.id} label={card.title}>
+                    <SortableHandle /> {card.title}
+                </SortableItem>
+            )}
+        </For>
+    </SortableContainer>
+    <SortableContainer id="done" label="Done">
+        …
+    </SortableContainer>
+</Sortable>;
+
+<Sortable nesting onMove={move}>
+    <SortableContainer id="pages" label="Pages">
+        <SortableItem id="guide">
+            <SortableHandle /> Guide
+            <SortableContainer id="guide">…</SortableContainer>
+        </SortableItem>
+    </SortableContainer>
+</Sortable>;
 ```
 
 ## Dialog
@@ -640,8 +1009,8 @@ import {
         </DialogFooter>
     </DialogContent>
 </Dialog>;
-// <dialog aria-labelledby aria-describedby closedby="any">, open={open()} controls it
-<Dialog modal={false}>…</Dialog>; // opens with show() beside the page, which stays usable
+// <dialog aria-labelledby aria-describedby closedby="any">
+<Dialog modal={false}>…</Dialog>; // shown with show()
 ```
 
 ## Alert dialog
@@ -687,10 +1056,16 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@destack/ui/sheet
 
 ## Drawer
 
-`Drawer` slides a dialog in from its direction, with a handle from the bottom, resting at its snap points.
+`Drawer` slides a dialog in from its direction, with a handle from the bottom, which a swipe toward its edge closes and a drag settles at its snap points.
 
 ```tsx
-import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@destack/ui/drawer";
+import {
+    Drawer,
+    DrawerContent,
+    DrawerHandle,
+    DrawerTitle,
+    DrawerTrigger,
+} from "@destack/ui/drawer";
 
 <Drawer direction="bottom">
     <DrawerTrigger>Share</DrawerTrigger>
@@ -698,14 +1073,12 @@ import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@destack/ui/d
         <DrawerTitle>Share Groceries</DrawerTitle>
     </DrawerContent>
 </Drawer>;
-// a swipe toward the drawer's edge past a quarter of it, or a flick, closes it
 
 <Drawer snapPoints={[0.5, "320px", 1]} activeSnapPoint={point()} onSnapPointChange={setPoint}>
-    …
-</Drawer>;
-// fractions of the viewport or pixel lengths, smallest first, resting at the largest by default
-// a released drag settles at the snap point nearest where its speed carries it, and closes past the smallest
-// data-snap-point="2" on the content, its height following the point with the theme's motion
+    <DrawerContent showHandle={false}>
+        <DrawerHandle xstyle={styles.handle} />…
+    </DrawerContent>
+</Drawer>; // data-snap-point="2"
 ```
 
 ## Popover
@@ -713,7 +1086,16 @@ import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@destack/ui/d
 `Popover` opens its content in the top layer through the Popover API, anchored to its trigger, or as a modal dialog.
 
 ```tsx
-import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
+import {
+    Popover,
+    PopoverAnchor,
+    PopoverClose,
+    PopoverContent,
+    PopoverDescription,
+    PopoverHeader,
+    PopoverTitle,
+    PopoverTrigger,
+} from "@destack/ui/popover";
 
 <Popover>
     <PopoverTrigger variant="outline">Size</PopoverTrigger>
@@ -721,14 +1103,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
         …
     </PopoverContent>
 </Popover>;
-// without CSS anchor positioning, placeBeside sets its place on open, scroll and resize, flipping as the browser would
 
 <Popover modal>
     <PopoverTrigger variant="outline">Rename</PopoverTrigger>
     <PopoverContent>…</PopoverContent>
-</Popover>;
-// a <dialog> shown with showModal: the focus stays inside, the page behind is inert and does not scroll,
-// and the trigger takes the focus back on close
+</Popover>; // a <dialog> shown with showModal()
+
+<Popover>
+    <PopoverAnchor>{row}</PopoverAnchor>
+    <PopoverTrigger variant="ghost">Edit</PopoverTrigger>
+    <PopoverContent>
+        <PopoverHeader>
+            <PopoverTitle>Rename</PopoverTitle>
+            <PopoverDescription>Names show in every list.</PopoverDescription>
+        </PopoverHeader>
+        <PopoverClose>Done</PopoverClose>
+    </PopoverContent>
+</Popover>; // aria-labelledby="…-title" aria-describedby="…-description"
 ```
 
 ## Hover card
@@ -759,7 +1150,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@desta
 </Tooltip>;
 <TooltipProvider delayDuration={700} skipDelayDuration={300}>
     …
-</TooltipProvider>; // the next tooltip shows at once while the last just hid
+</TooltipProvider>;
 ```
 
 ## Toast
@@ -772,7 +1163,7 @@ import { Toaster, toast } from "@destack/ui/toast";
 <Toaster position="bottom-right" duration={4000} />;
 toast("Note archived", { action: { label: "Undo", onClick: restore } });
 toast.promise(save(), { loading: "Saving", success: "Saved", error: "Saving failed" });
-<Toaster position="top-center" richColors />; // each kind colors its toast; a swipe off the toaster's side dismisses
+<Toaster position="top-center" richColors />;
 ```
 
 ## Dropdown menu
@@ -794,7 +1185,6 @@ import {
         <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
     </DropdownMenuContent>
 </DropdownMenu>;
-// also DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSub, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut
 ```
 
 ## Context menu
@@ -895,7 +1285,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@destack/ui
 
 ## Navigation menu
 
-`NavigationMenu` discloses panels of links from its triggers after the APG disclosure navigation pattern.
+`NavigationMenu` discloses panels of links from its triggers after the APG disclosure navigation pattern, its open item's `value` controlled or its own.
 
 ```tsx
 import {
@@ -909,9 +1299,9 @@ import {
     navigationMenuTriggerStyle,
 } from "@destack/ui/navigation-menu";
 
-<NavigationMenu aria-label="Main" delayDuration={200} skipDelayDuration={300}>
+<NavigationMenu aria-label="Main" value={open()} onValueChange={setOpen} delayDuration={200}>
     <NavigationMenuList>
-        <NavigationMenuItem>
+        <NavigationMenuItem value="products">
             <NavigationMenuTrigger>Products</NavigationMenuTrigger>
             <NavigationMenuContent>
                 <NavigationMenuLink href="/notes">Notes</NavigationMenuLink>
@@ -925,7 +1315,9 @@ import {
         <NavigationMenuIndicator />
     </NavigationMenuList>
 </NavigationMenu>;
-// viewport={false} frames each panel below its own item instead
+<NavigationMenu aria-label="Main" viewport={false}>
+    …
+</NavigationMenu>;
 ```
 
 ## Breadcrumb
@@ -993,7 +1385,7 @@ import {
         href={(page) => `?page=${page}`}
     />
 </Pagination>;
-// 1 … 5 6 7 … 20, links that page in place while onPageChange handles them
+// 1 … 5 6 7 … 20
 ```
 
 ## Sidebar
@@ -1006,6 +1398,7 @@ import {
     SidebarContent,
     SidebarGroup,
     SidebarGroupLabel,
+    SidebarInput,
     SidebarInset,
     SidebarMenu,
     SidebarMenuButton,
@@ -1017,6 +1410,7 @@ import {
 <SidebarProvider>
     <Sidebar collapsible="icon" side="left" variant="sidebar">
         <SidebarContent>
+            <SidebarInput type="search" aria-label="Filter notebooks" />
             <SidebarGroup>
                 <SidebarGroupLabel>Notebooks</SidebarGroupLabel>
                 <SidebarMenu>
@@ -1065,7 +1459,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@destack/u
     <ResizablePanel defaultSize={30} minSize={20} collapsible>
         Notebooks
     </ResizablePanel>
-    <ResizableHandle /> {/* Enter collapses and restores the panel before it */}
+    <ResizableHandle />
     <ResizablePanel>Note</ResizablePanel>
 </ResizablePanelGroup>;
 ```
@@ -1094,7 +1488,7 @@ import {
 </Carousel>;
 <Carousel aria-label="Photos" loop autoplay={5000}>
     <CarouselContent>…</CarouselContent>
-    <CarouselPlay /> {/* stops and starts the rotation */}
+    <CarouselPlay />
     <CarouselDots />
 </Carousel>;
 ```
@@ -1149,7 +1543,7 @@ import { tooltip } from "@destack/ui/chart/tooltip";
     onSelect={(point) => open(point?.datum)}
 />;
 
-// a donut: pie slices drawn as arcs in polar coordinates
+// a donut
 defineChart({
     marks: [
         polar({ marks: [radialArc(pie(notebooks, { value: "notes" }), { color: "notebook" })] }),
@@ -1175,12 +1569,11 @@ import { binX } from "@destack/ui/chart/transform/bin";
 import { zoomX } from "@destack/ui/chart/interaction/zoom";
 import { treemap } from "@destack/ui/chart/hierarchy/treemap";
 import { sankeyDiagram } from "@destack/ui/chart/network/sankey";
-// every entry point but the bindings of other frameworks
 ```
 
 ## Data table
 
-`createTable` runs a headless table over reactive options, and `DataTable` renders it as a grid that arrow keys move through, beside `DataTableFilter`, `DataTableViewOptions` and `DataTablePagination`; a manual table leaves sorting, filtering and paging to the query its rows come from, and grouped or nested rows expand in place.
+`createTable` runs a headless table over reactive options, manual or grouped or nested, and `DataTable` renders it as a grid that the arrow keys, Home, End, Page Up and Page Down move through, beside `DataTableFilter`, `DataTableViewOptions` and `DataTablePagination`.
 
 ```tsx
 import { createColumnHelper, rowSortingFeature, createSortedRowModel, tableFeatures } from "@tanstack/table-core";
@@ -1201,9 +1594,7 @@ const table = createTable({ features, columns, get data() { return notes(); }, g
 
 createTable({ ..., manualSorting: true, manualPagination: true, rowCount: count(), state: { sorting: sorting() }, onSortingChange: setSorting });
 
-// group by a column into rows that expand, a treegrid whose group cells count their members
 createTable({ features: tableFeatures({ columnGroupingFeature, groupedRowModel: createGroupedRowModel(), rowExpandingFeature, expandedRowModel: createExpandedRowModel(), ... }), initialState: { grouping: ["notebook"] }, ... });
-// expand rows into their sub rows from a button column
 createTable({ ..., columns: [expansionColumn(), ...], getSubRows: (task) => task.subtasks });
 ```
 
@@ -1245,14 +1636,13 @@ import { Calendar, Day } from "@destack/ui/calendar";
 
 ## Date picker
 
-`DatePicker` types a day into a `DateField`, or a range into two, beside a button that opens a `Calendar` in a popover, typing and picking keeping one value.
+`DatePicker` types a day into a `DateField`, or a range into two, beside a button that opens a `Calendar` in a popover on its focused day, typing and picking keeping one value.
 
 ```tsx
 import { DatePicker } from "@destack/ui/date-picker";
 
-<DatePicker aria-label="Due date" value={due()} onValueChange={setDue} />;
-// a group of [10]/[07]/[2026] and a calendar button: typing or picking Oct 7 reports { year: 2026, month: 10, day: 7 },
-// a cleared day undefined
+<DatePicker aria-label="Due date" value={due()} onValueChange={setDue} />; // reports { year: 2026, month: 10, day: 7 }
+<DatePicker aria-label="Due date" open={isOpen()} onOpenChange={setOpen} />;
 <DatePicker mode="range" aria-label="Trip" onValueChange={setTrip} />; // fields named Start date and End date
 <DatePicker
     mode="range"
@@ -1261,14 +1651,13 @@ import { DatePicker } from "@destack/ui/date-picker";
 />;
 <DatePicker mode="multiple" aria-label="Days off" />; // a button named "Days off 2 dates"
 
-// a date and a time of day side by side, without a combined value
 <DatePicker aria-label="Remind on" value={day()} onValueChange={setDay} />;
 <TimeField aria-label="Remind at" value={time()} onValueChange={setTime} />;
 ```
 
 ## Date field
 
-`DateField` types a `PlainDate` as one spinbutton per year, month and day, in the locale's order and with the locale's literals between them.
+`DateField` types a `PlainDate` as one spinbutton per year, month and day in the locale's order, which digits fill, the up and down arrow keys step and the side arrow keys move between.
 
 ```tsx
 import { DateField } from "@destack/ui/date-field";
@@ -1277,10 +1666,7 @@ import { DateField } from "@destack/ui/date-field";
     <FieldLabel>Birthday</FieldLabel>
     <DateField value={birthday()} onValueChange={setBirthday} />
 </Field>;
-// en-US: [mm]/[dd]/[yyyy], de-AT: [dd].[mm].[yyyy], each role="spinbutton" with aria-valuenow, min, max and text
-// 1 0 → month 10 and on to the day, ArrowUp and ArrowDown step and wrap, Backspace clears,
-// ArrowLeft and ArrowRight move along the writing direction
-// reports once every segment is filled: 2026-02-30 and a cleared segment report undefined
+// en-US: [mm]/[dd]/[yyyy], de-AT: [dd].[mm].[yyyy]
 ```
 
 ## Time field
@@ -1291,7 +1677,7 @@ import { DateField } from "@destack/ui/date-field";
 import { TimeField } from "@destack/ui/time-field";
 
 <TimeField aria-label="Reminder" value={time()} onValueChange={setTime} />;
-// en-US: [09]:[30] [PM], typing p chooses PM, reports "21:30"; de-AT: [21]:[30]
+// en-US: [09]:[30] [PM] reports "21:30", de-AT: [21]:[30]
 ```
 
 ## Styles
@@ -1315,7 +1701,6 @@ Text the components write themselves renders in the reader's locale through `use
 const locale = useLocale();
 <Button aria-label={locale.render(t`Close`)} />;
 // "Breadcrumb", "Pagination", "Previous", "Next", "More", "Loading", "Command palette", ...
-// locale/de.json ships machine-translated German drafts of each, listed under drafts
 ```
 
 ## Examples and scenarios
@@ -1348,30 +1733,6 @@ export const tabsSelectWithArrowKeys = defineScenario({
 });
 ```
 
-## License
+## Credits
 
-The components port shadcn/ui under the MIT License.
-
-```text
-MIT License
-
-Copyright (c) 2023 shadcn
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+The components follow the APIs and styles of [shadcn/ui](https://github.com/shadcn-ui/ui), MIT licensed, copyright (c) 2023 shadcn, and their collections, focus, selection and positioning follow the architecture and terms of [React Aria](https://github.com/adobe/react-spectrum), Apache 2.0 licensed, copyright 2020 Adobe.

@@ -8,6 +8,7 @@ import { color, motion, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a breadcrumb and its elements. */
 const styles = style.create({
@@ -45,14 +46,6 @@ const styles = style.create({
         justifyContent: "center",
         width: space[5],
         height: space[5],
-    },
-    hidden: {
-        position: "absolute",
-        width: stroke.border,
-        height: stroke.border,
-        overflow: "hidden",
-        clipPath: "inset(50%)",
-        whiteSpace: "nowrap",
     },
 });
 
@@ -182,7 +175,7 @@ export function BreadcrumbEllipsis(
             {...style.attributes([styles.ellipsis, properties.xstyle], properties.style)}
         >
             <Icon name="dots-three" />
-            <span {...style.attrs(styles.hidden)}>{locale.render(t`More`)}</span>
+            <span {...style.attrs(visuallyHiddenStyle())}>{locale.render(t`More`)}</span>
         </span>
     );
 }

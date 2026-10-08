@@ -1,6 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import { Label } from "../label/index.ts";
-import { RadioGroup, RadioGroupItem } from "./radio-group.tsx";
+import { RadioGroup, RadioGroupIndicator, RadioGroupItem } from "./radio-group.tsx";
 
 /** The density choices of a list. */
 export const radioGroupListDensity = defineExample({
@@ -48,6 +48,29 @@ export const radioGroupListDensityDisabled = defineExample({
             </Label>
             <Label>
                 <RadioGroupItem value="regular" /> Regular
+            </Label>
+        </RadioGroup>
+    ),
+});
+
+/** The density choices composed from each radio and its indicator. */
+export const radioGroupListDensityComposed = defineExample({
+    of: RadioGroup,
+    name: "list-density-composed",
+    description: "the density choices composed from each radio and its indicator",
+    render: () => (
+        <RadioGroup name="density" aria-label="Density" defaultValue="regular">
+            <Label>
+                <RadioGroupItem value="compact">
+                    <RadioGroupIndicator />
+                </RadioGroupItem>{" "}
+                Compact
+            </Label>
+            <Label>
+                <RadioGroupItem value="regular">
+                    <RadioGroupIndicator />
+                </RadioGroupItem>{" "}
+                Regular
             </Label>
         </RadioGroup>
     ),

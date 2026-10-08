@@ -11,7 +11,7 @@ const FRAMEWORKS = /^(alpine|angular|lit|octane|preact|react|react-native|solid|
 /** The directory of the generated modules. */
 const MODULES = new URL("module/", import.meta.url);
 
-/** The part of a package manifest naming its entry points. */
+/** The part of a package manifest listing its entry points. */
 const Manifest = schema.looseObject({ exports: schema.record(schema.string(), schema.unknown()) });
 
 /** The upstream manifest. */

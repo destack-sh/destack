@@ -26,11 +26,11 @@ test("name a single accordion's items alike so the platform keeps one open", () 
     expect(markup(container)).toBe(
         '<div data-slot="accordion" data-orientation="vertical">' +
             '<details name="id-1" data-slot="accordion-item" data-state="closed">' +
-            `<summary data-slot="accordion-trigger">Is it accessible?${chevron}</summary>` +
-            '<div data-slot="accordion-content">Yes.</div></details>' +
+            `<summary data-slot="accordion-trigger" data-state="closed">Is it accessible?${chevron}</summary>` +
+            '<div data-slot="accordion-content" data-state="closed">Yes.</div></details>' +
             '<details name="id-1" data-slot="accordion-item" data-state="open" open="">' +
-            `<summary data-slot="accordion-trigger">Is it styled?${chevron}</summary>` +
-            '<div data-slot="accordion-content">Yes.</div></details></div>',
+            `<summary data-slot="accordion-trigger" data-state="open">Is it styled?${chevron}</summary>` +
+            '<div data-slot="accordion-content" data-state="open">Yes.</div></details></div>',
     );
 });
 

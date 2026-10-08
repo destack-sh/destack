@@ -3,13 +3,8 @@ import { color, radius, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createContext, createEffect, type JSX, merge, omit, useContext } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
-import {
-    HoverPopover,
-    placementStyle,
-    type PopoverAlign,
-    type HoverPopoverProperties,
-    type PopoverSide,
-} from "../popover/index.ts";
+import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
+import { type Align, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
 /** The wait before a resting pointer shows a tooltip, in milliseconds. */
@@ -128,9 +123,9 @@ export interface TooltipContentProperties extends Omit<
     "class" | "ref" | "onToggle" | "onPointerEnter" | "onPointerLeave"
 > {
     /** The side of the trigger it shows on, top by default. */
-    readonly side?: PopoverSide;
+    readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
-    readonly align?: PopoverAlign;
+    readonly align?: Align;
     /** The StyleX styles applied after the tooltip's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -166,6 +161,7 @@ export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Elemen
     return (
         <Button
             data-slot="tooltip-trigger"
+            data-state={tooltip.isOpen() ? "open" : "closed"}
             aria-describedby={tooltip.id}
             {...properties}
             ref={(element) => tooltip.setTrigger(element)}
@@ -212,7 +208,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
                     [
                         text.caption,
                         styles.content,
-                        placementStyle(content.side, content.align),
+                        Position.beside(content.side, content.align),
                         content.xstyle,
                     ],
                     content.style,

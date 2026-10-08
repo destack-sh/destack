@@ -87,3 +87,21 @@ export const selectNoteTags = defineExample({
         </Select>
     ),
 });
+
+/** The sort order of a note list marked invalid. */
+export const selectSortOrderInvalid = defineExample({
+    of: Select,
+    name: "sort-order-invalid",
+    description: "the sort order of a note list marked invalid",
+    render: () => (
+        <Select name="sort" aria-label="Sort by" placeholder="Sort by…" aria-invalid="true">
+            <SelectTrigger>
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="updated">Last edited</SelectItem>
+                <SelectItem value="title">Title</SelectItem>
+            </SelectContent>
+        </Select>
+    ),
+});

@@ -11,12 +11,12 @@ import {
     useLocale,
 } from "@destack/view";
 import {
-    isSegment,
-    SegmentGroup,
-    type SegmentFormat,
-    type SegmentKind,
-    type SegmentValues,
-} from "../segment/index.ts";
+    isDateSegment,
+    DateSegmentGroup,
+    type DateSegmentFormat,
+    type DateSegmentKind,
+    type DateSegmentValues,
+} from "../date-segment/index.ts";
 
 /** The hours of half a day. */
 const HALF_DAY = 12;
@@ -27,7 +27,7 @@ const HOUR_MINUTES = 60;
 /** A time in the afternoon whose parts differ, which lays out a locale's time fields. */
 const SAMPLE_TIME = Date.UTC(2026, 0, 1, 13, 45);
 
-/** A time in the morning, whose day period names the morning. */
+/** A time in the morning, whose day period is the morning. */
 const MORNING = Date.UTC(2026, 0, 1, 1);
 
 /** The properties of a time field, the native element's attributes included. */
@@ -48,7 +48,7 @@ export interface TimeFieldProperties extends Omit<
 }
 
 /** The hour, minute and day period segments of a time in a locale's order, hour cycle and numerals. */
-class TimeFormat implements SegmentFormat {
+class TimeFormat implements DateSegmentFormat {
     /** The segments and the literals between them in the locale's order. */
     readonly layout: readonly Intl.DateTimeFormatPart[];
     /** Whether hours count 1 to 12 beside a day period, else 0 to 23. */
@@ -76,13 +76,13 @@ class TimeFormat implements SegmentFormat {
         // keep the segments and the literals
         this.layout = format
             .formatToParts(SAMPLE_TIME)
-            .filter((part) => isSegment(part) || part.type === "literal");
+            .filter((part) => isDateSegment(part) || part.type === "literal");
         this.#locale = locale;
         this.#format = format;
     }
 
     /** Read the bounds of a segment on the locale's hour cycle. */
-    limits(kind: SegmentKind): readonly [number, number] {
+    limits(kind: DateSegmentKind): readonly [number, number] {
         // the hours of the clock
         if (kind === "hour") {
             return this.isTwelveHour ? [1, HALF_DAY] : [0, 2 * HALF_DAY - 1];
@@ -95,14 +95,14 @@ class TimeFormat implements SegmentFormat {
         return [0, 1];
     }
 
-    /** Write an hour or minute in two digits, and a day period as the locale names it. */
-    text(kind: SegmentKind, value: number): string {
+    /** Write an hour or minute in two digits, and a day period as the locale writes it. */
+    text(kind: DateSegmentKind, value: number): string {
         // write a number
         if (kind !== "dayPeriod") {
             return this.#locale.number(value, { minimumIntegerDigits: 2, useGrouping: false });
         }
 
-        // name the morning or the afternoon
+        // label the morning or the afternoon
         const time = value === 0 ? MORNING : SAMPLE_TIME;
         const period = this.#format.formatToParts(time).find((part) => part.type === "dayPeriod");
         if (period === undefined) {
@@ -113,12 +113,12 @@ class TimeFormat implements SegmentFormat {
     }
 
     /** Write a segment's value as it shows. */
-    valueText(kind: SegmentKind, value: number): string {
+    valueText(kind: DateSegmentKind, value: number): string {
         return this.text(kind, value);
     }
 
-    /** Name a segment by the part of the time it holds. */
-    name(kind: SegmentKind): string {
+    /** Label a segment by the part of the time it holds. */
+    name(kind: DateSegmentKind): string {
         // the hour
         if (kind === "hour") {
             return this.#locale.render(t`Hour`);
@@ -132,7 +132,7 @@ class TimeFormat implements SegmentFormat {
     }
 
     /** Read the local clock's hour, minute or day period. */
-    now(kind: SegmentKind): number {
+    now(kind: DateSegmentKind): number {
         // read the clock's hour on the locale's hour cycle
         const now = new Date();
         const hours = now.getHours();
@@ -148,7 +148,7 @@ class TimeFormat implements SegmentFormat {
     }
 
     /** Read the time of the segments, undefined while one is empty. */
-    timeOf(values: SegmentValues): PlainTime | undefined {
+    timeOf(values: DateSegmentValues): PlainTime | undefined {
         // wait for every segment the locale shows
         const { hour, minute, dayPeriod } = values;
         const isPeriodMissing = this.isTwelveHour && dayPeriod === undefined;
@@ -163,7 +163,7 @@ class TimeFormat implements SegmentFormat {
     }
 
     /** Split a time into the values of its segments on the locale's hour cycle, none for no time. */
-    valuesOf(time: PlainTime | undefined): SegmentValues {
+    valuesOf(time: PlainTime | undefined): DateSegmentValues {
         // leave every segment empty without a time
         if (time === undefined) {
             return {};
@@ -210,7 +210,7 @@ export function TimeField(properties: TimeFieldProperties): JSX.Element {
     );
 
     return (
-        <SegmentGroup
+        <DateSegmentGroup
             data-slot="time-field"
             {...rest}
             format={format}

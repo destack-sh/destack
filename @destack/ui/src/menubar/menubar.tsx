@@ -11,18 +11,8 @@ import {
     weight,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import {
-    type Accessor,
-    createContext,
-    createSignal,
-    type JSX,
-    omit,
-    onCleanup,
-    type Setter,
-    useContext,
-    useLocale,
-} from "@destack/view";
-import { itemsOf, moveFocus } from "../focus/index.ts";
+import { createContext, type JSX, omit, onCleanup, useContext, useLocale } from "@destack/view";
+import { ListState } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
 import {
     Menu,
@@ -97,65 +87,58 @@ const styles = style.create({
     },
 });
 
-/** The menus of a menubar in order and the one holding the tab stop. */
+/** The menus of a menubar in order and the one whose trigger holds the tab stop. */
 export class MenubarControl {
-    /** The menus in document order. */
-    readonly menus: Accessor<readonly MenuControl[]>;
-    /** The menu whose trigger holds the tab stop, the first when none was focused. */
-    readonly focused: Accessor<MenuControl | undefined>;
-    /** Replace the menus. */
-    readonly #setMenus: Setter<readonly MenuControl[]>;
-    /** Replace the menu whose trigger holds the tab stop. */
-    readonly #setFocused: Setter<MenuControl | undefined>;
+    /** The triggers in document order, by their menu's id, which left and right move between. */
+    readonly list: ListState;
+    /** The menu of each trigger's key. */
+    readonly #menus: Map<string, MenuControl>;
 
     /** Create a menubar without menus. */
     constructor() {
-        // start without menus or focus
-        const [menus, setMenus] = createSignal<readonly MenuControl[]>([], { ownedWrite: true });
-        const [focused, setFocused] = createSignal<MenuControl | undefined>(undefined);
-        this.menus = menus;
-        this.focused = focused;
-        this.#setMenus = setMenus;
-        this.#setFocused = setFocused;
+        this.list = new ListState({
+            orientation: "horizontal",
+            isLooping: true,
+            isTypeahead: false,
+        });
+        this.#menus = new Map();
     }
 
     /** Add a menu until it unmounts, letting its open menu cross to its neighbours. */
     register(menu: MenuControl): void {
-        this.#setMenus((menus) => [...menus, menu]);
+        this.#menus.set(menu.id, menu);
         menu.onCross = (event, direction) => this.cross(menu, event, direction);
-        onCleanup(() => this.#setMenus((menus) => menus.filter((entry) => entry !== menu)));
-    }
-
-    /** Remember the menu whose trigger the focus rests on. */
-    focus(menu: MenuControl): void {
-        this.#setFocused(menu);
-    }
-
-    /** Report whether a menu's trigger holds the tab stop. */
-    isTabStop(menu: MenuControl): boolean {
-        return (this.focused() ?? this.menus()[0]) === menu;
+        onCleanup(() => this.#menus.delete(menu.id));
     }
 
     /** Report whether any menu of the bar is open. */
     isOpen(): boolean {
-        return this.menus().some((menu) => menu.isOpen());
+        return [...this.#menus.values()].some((menu) => menu.isOpen());
+    }
+
+    /** Close every menu of the bar. */
+    closeAll(): void {
+        for (const menu of this.#menus.values()) {
+            menu.close(false);
+        }
     }
 
     /** Close an open menu and open its neighbour in the arrow key's direction, wrapping around. */
     cross(menu: MenuControl, event: KeyboardEvent, direction: Direction): void {
         // pick the neighbour, mirrored in right-to-left text
-        const menus = this.menus();
         const isForward = (event.key === "ArrowRight") === (direction === "ltr");
-        const index = menus.indexOf(menu);
-        const next = menus[(index + (isForward ? 1 : -1) + menus.length) % menus.length];
+        const key = isForward
+            ? this.list.delegate.after(menu.id)
+            : this.list.delegate.before(menu.id);
+        const next = key === undefined ? undefined : this.#menus.get(key);
         if (next === undefined) {
             return;
         }
 
-        // move the open menu
+        // move the open menu and the tab stop with it
         event.preventDefault();
         menu.close(false);
-        this.#setFocused(next);
+        this.list.focus.focus(next.id);
         next.open("first");
     }
 }
@@ -186,14 +169,10 @@ export function Menubar(properties: MenuElementProperties<HTMLDivElement>): JSX.
                 onKeyDown={(event) => {
                     // move between the triggers, leaving keys from inside a menu to the menu
                     if (event.target instanceof Element && event.target.matches(TRIGGER)) {
-                        moveFocus(
-                            event,
-                            itemsOf(event.currentTarget, TRIGGER),
-                            "horizontal",
-                            locale.direction,
-                        );
+                        control.list.focus.move(event, locale.direction);
                     }
                 }}
+                onFocusOut={(event) => control.list.focus.focusOut(event)}
                 {...style.attributes([styles.menubar, properties.xstyle], properties.style)}
             />
         </MenubarContext>
@@ -221,6 +200,13 @@ export function MenubarTrigger(
     const bar = useMenubar();
     const menu = useMenu();
     const rest = omit(properties, "xstyle", "style");
+    let element: HTMLElement | undefined;
+    bar.list.add({
+        key: menu.id,
+        text: () => menu.id,
+        isDisabled: () => false,
+        element: () => element,
+    });
 
     return (
         <button
@@ -230,10 +216,13 @@ export function MenubarTrigger(
             aria-haspopup="menu"
             aria-expanded={menu.isOpen() ? "true" : "false"}
             aria-controls={menu.id}
-            tabindex={bar.isTabStop(menu) ? 0 : -1}
+            tabindex={bar.list.focus.isActive(menu.id) ? 0 : -1}
             data-slot="menubar-trigger"
             {...rest}
-            ref={(element) => menu.setTrigger(element)}
+            ref={(trigger) => {
+                element = trigger;
+                menu.setTrigger(trigger);
+            }}
             onClick={() => (menu.isOpen() ? menu.close(true) : menu.open("first"))}
             onKeyDown={(event) => {
                 // open on the down arrow key, focusing the first item
@@ -242,13 +231,11 @@ export function MenubarTrigger(
                     menu.open("first");
                 }
             }}
-            onFocus={() => bar.focus(menu)}
+            onFocus={() => bar.list.focus.focusIn(menu.id)}
             onPointerEnter={(event) => {
                 // follow the pointer to this menu while another one is open
                 if (bar.isOpen() && !menu.isOpen()) {
-                    for (const other of bar.menus()) {
-                        other.close(false);
-                    }
+                    bar.closeAll();
                     event.currentTarget.focus();
                     menu.open("none");
                 }

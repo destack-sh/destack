@@ -11,10 +11,14 @@ const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
 /** The bodies of inline icons. */
 const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 
-/** The components the package exports, its wrapped chart entry points left out. */
+/** The state units the package exports, which render nothing of their own and so show no examples. */
+const STATE = new Set(["collection", "focus", "position", "selection", "toggle-state", "virtualizer"]);
+
+/** The components the package exports, its wrapped chart entry points and state units left out. */
 const COMPONENTS = Object.keys(manifest.exports)
     .filter((path) => !path.includes("*"))
-    .map((path) => path.slice(2));
+    .map((path) => path.slice(2))
+    .filter((name) => !STATE.has(name));
 
 /** The examples module of each component, loaded once before the tests run. */
 const EXAMPLES: readonly (readonly [string, object])[] = await Promise.all(

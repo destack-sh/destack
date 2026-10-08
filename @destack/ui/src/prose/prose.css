@@ -1,0 +1,237 @@
+/* ================================================================================ */
+/* Prose: rendered HTML, styled from theme tokens through its semantic elements     */
+/* ================================================================================ */
+
+/* space blocks apart, with more room above a heading */
+:where([data-slot="prose"]) > :where(* + *) {
+    margin-block-start: var(--destack-space-4);
+}
+
+:where([data-slot="prose"]) > :where(* + h1, * + h2, * + h3, * + h4) {
+    margin-block-start: var(--destack-space-7);
+}
+
+/* set headings in the theme's title styles */
+:where([data-slot="prose"]) :where(h1, h2, h3, h4) {
+    margin-block-end: 0;
+    color: var(--destack-color-foreground);
+    text-wrap: balance;
+}
+
+:where([data-slot="prose"]) :where(h1) {
+    font-family: var(--destack-text-title1-font-family);
+    font-size: var(--destack-text-title1-font-size);
+    font-weight: var(--destack-text-title1-font-weight);
+    line-height: var(--destack-text-title1-line-height);
+    letter-spacing: var(--destack-text-title1-letter-spacing);
+}
+
+:where([data-slot="prose"]) :where(h2) {
+    font-family: var(--destack-text-title2-font-family);
+    font-size: var(--destack-text-title2-font-size);
+    font-weight: var(--destack-text-title2-font-weight);
+    line-height: var(--destack-text-title2-line-height);
+    letter-spacing: var(--destack-text-title2-letter-spacing);
+}
+
+:where([data-slot="prose"]) :where(h3) {
+    font-family: var(--destack-text-title3-font-family);
+    font-size: var(--destack-text-title3-font-size);
+    font-weight: var(--destack-text-title3-font-weight);
+    line-height: var(--destack-text-title3-line-height);
+    letter-spacing: var(--destack-text-title3-letter-spacing);
+}
+
+:where([data-slot="prose"]) :where(h4) {
+    font-family: var(--destack-text-headline-font-family);
+    font-size: var(--destack-text-headline-font-size);
+    font-weight: var(--destack-text-headline-font-weight);
+    line-height: var(--destack-text-headline-line-height);
+    letter-spacing: var(--destack-text-headline-letter-spacing);
+}
+
+/* break long words in running text rather than overflow */
+:where([data-slot="prose"]) :where(p, li, blockquote, td, th) {
+    margin-block: 0;
+    overflow-wrap: anywhere;
+}
+
+/* underline links in the accent */
+:where([data-slot="prose"]) :where(a) {
+    text-decoration-line: underline;
+    text-decoration-color: var(--destack-color-primary);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+}
+
+:where([data-slot="prose"]) :where(a:hover) {
+    color: var(--destack-color-primary);
+}
+
+/* indent lists with muted markers */
+:where([data-slot="prose"]) :where(ul, ol) {
+    display: grid;
+    gap: var(--destack-space-2);
+    margin-block-end: 0;
+    padding-inline-start: var(--destack-space-6);
+}
+
+:where([data-slot="prose"]) :where(li)::marker {
+    color: var(--destack-color-muted-foreground);
+}
+
+:where([data-slot="prose"]) :where(li > ul, li > ol) {
+    margin-block-start: var(--destack-space-2);
+}
+
+:where([data-slot="prose"]) :where(li > p + p) {
+    margin-block-start: var(--destack-space-2);
+}
+
+/* check task list items in the accent */
+:where([data-slot="prose"]) :where(li > input[type="checkbox"]) {
+    margin-inline-end: var(--destack-space-2);
+    accent-color: var(--destack-color-primary);
+}
+
+/* set inline code in the code font on a muted ground */
+:where([data-slot="prose"]) :where(:not(pre) > code) {
+    padding: 0.1em 0.35em;
+    border-radius: var(--destack-radius-1);
+    background-color: var(--destack-color-muted);
+    font-family: var(--destack-text-code-family);
+    font-size: 0.875em;
+}
+
+/* frame code blocks and scroll them sideways */
+:where([data-slot="prose"]) :where(pre) {
+    margin-block-end: 0;
+    overflow-x: auto;
+    padding: var(--destack-space-4);
+    border: var(--destack-stroke-border) solid var(--destack-color-border);
+    border-radius: var(--destack-radius-3);
+    background-color: var(--destack-color-muted);
+    font-family: var(--destack-text-code-family);
+    font-size: var(--destack-text-footnote-font-size);
+    line-height: var(--destack-text-footnote-line-height);
+}
+
+:where([data-slot="prose"]) :where(pre > code) {
+    font: inherit;
+}
+
+/* rule quotations off in the accent */
+:where([data-slot="prose"]) :where(blockquote) {
+    margin-inline: 0;
+    padding-inline-start: var(--destack-space-5);
+    border-inline-start: 2px solid var(--destack-color-primary);
+}
+
+:where([data-slot="prose"]) :where(blockquote > * + *) {
+    margin-block-start: var(--destack-space-3);
+}
+
+/* separate sections with a hairline */
+:where([data-slot="prose"]) :where(hr) {
+    border: 0;
+    border-block-start: var(--destack-stroke-border) solid var(--destack-color-border);
+}
+
+/* set tables in rows of hairlines, headed on a muted ground, and scroll wide ones */
+:where([data-slot="prose"]) :where(table) {
+    display: block;
+    max-inline-size: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: var(--destack-text-callout-font-size);
+    line-height: var(--destack-text-callout-line-height);
+}
+
+:where([data-slot="prose"]) :where(th, td) {
+    padding: var(--destack-space-2) var(--destack-space-3);
+    border-block-end: var(--destack-stroke-border) solid var(--destack-color-border);
+    text-align: start;
+    vertical-align: top;
+}
+
+:where([data-slot="prose"]) :where(th) {
+    background-color: var(--destack-color-muted);
+    font-weight: 600;
+}
+
+/* fit images to the column */
+:where([data-slot="prose"]) :where(img, video) {
+    max-inline-size: 100%;
+    block-size: auto;
+}
+
+/* caption figures and attributed quotations in muted small text */
+:where([data-slot="prose"]) :where(figure) {
+    margin-inline: 0;
+}
+
+:where([data-slot="prose"]) :where(figcaption) {
+    margin-block-start: var(--destack-space-3);
+    color: var(--destack-color-muted-foreground);
+    font-size: var(--destack-text-footnote-font-size);
+    line-height: var(--destack-text-footnote-line-height);
+}
+
+/* raise footnote references, and list the notes under a hairline, as GitHub renders them */
+:where([data-slot="prose"]) :where(sup) {
+    font-size: 0.75em;
+    line-height: 0;
+}
+
+:where([data-slot="prose"]) :where(a[data-footnote-ref]) {
+    color: var(--destack-color-primary);
+    text-decoration-line: none;
+}
+
+:where([data-slot="prose"]) :where(section[data-footnotes]) {
+    padding-block-start: var(--destack-space-4);
+    border-block-start: var(--destack-stroke-border) solid var(--destack-color-border);
+    font-size: var(--destack-text-footnote-font-size);
+    line-height: var(--destack-text-footnote-line-height);
+}
+
+:where([data-slot="prose"]) :where(section[data-footnotes] li:target) {
+    color: var(--destack-color-primary);
+}
+
+/* set GitHub alerts off by their kind's status color */
+:where([data-slot="prose"]) :where(.markdown-alert) {
+    --prose-alert: var(--destack-color-info);
+    padding: var(--destack-space-3) var(--destack-space-4);
+    border-inline-start: 3px solid var(--prose-alert);
+    border-radius: var(--destack-radius-2);
+    background-color: color-mix(in oklab, var(--prose-alert) 8%, transparent);
+}
+
+:where([data-slot="prose"]) :where(.markdown-alert > * + *) {
+    margin-block-start: var(--destack-space-2);
+}
+
+:where([data-slot="prose"]) :where(.markdown-alert-title) {
+    display: flex;
+    align-items: center;
+    gap: var(--destack-space-2);
+    color: var(--prose-alert);
+    font-weight: 600;
+}
+
+:where([data-slot="prose"]) :where(.markdown-alert-tip) {
+    --prose-alert: var(--destack-color-success);
+}
+
+:where([data-slot="prose"]) :where(.markdown-alert-important) {
+    --prose-alert: var(--destack-color-primary);
+}
+
+:where([data-slot="prose"]) :where(.markdown-alert-warning) {
+    --prose-alert: var(--destack-color-warning);
+}
+
+:where([data-slot="prose"]) :where(.markdown-alert-caution) {
+    --prose-alert: var(--destack-color-destructive);
+}

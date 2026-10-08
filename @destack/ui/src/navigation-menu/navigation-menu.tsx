@@ -15,6 +15,7 @@ import { text } from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
+    createControllableSignal,
     createSignal,
     createUniqueId,
     type JSX,
@@ -28,7 +29,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
-import { itemsOf, moveFocus } from "../focus/index.ts";
+import { ListState } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
 const TOP = "[data-navigation-top]";
@@ -52,7 +53,7 @@ const NavigationMenuContext = createContext<NavigationMenuControl | null>(null);
 /** Whether the elements around render inside a navigation menu's content. */
 const NavigationMenuContentContext = createContext(false);
 
-/** The id of the nearest navigation menu item, null outside one. */
+/** The value of the nearest navigation menu item, null outside one. */
 const NavigationMenuItemContext = createContext<string | null>(null);
 
 /** The styles of a navigation menu and its elements. */
@@ -172,14 +173,18 @@ const styles = style.create({
 
 /** The open item, hover timing and viewport of a navigation menu, which its triggers and contents share. */
 export class NavigationMenuControl {
-    /** The id of the open item, undefined when every item is closed. */
+    /** The value of the open item, undefined when every item is closed. */
     readonly open: Accessor<string | undefined>;
     /** The element open panels render into, undefined without a viewport. */
     readonly viewport: Accessor<HTMLElement | undefined>;
+    /** The top-level links and triggers in document order, which left and right move between. */
+    readonly list: ListState;
     /** The properties of the root, read for its hover delays. */
     readonly #properties: NavigationMenuProperties;
-    /** Replace the open item. */
-    readonly #setOpen: Setter<string | undefined>;
+    /** Replace the open item and tell the change handler. */
+    readonly #setOpen: (item: string | undefined) => void;
+    /** The prefix of the ids of the items' triggers and contents. */
+    readonly #prefix: string;
     /** Replace the viewport element. */
     readonly #setViewport: Setter<HTMLElement | undefined>;
     /** The pending open of a hovered trigger. */
@@ -187,18 +192,29 @@ export class NavigationMenuControl {
     /** The time the pointer last left a trigger, in milliseconds since the page loaded. */
     #leftAt: number;
 
-    /** Create a navigation menu with every item closed, cancelling a pending open when its owner disposes. */
+    /** Create a navigation menu with its open item, cancelling a pending open when its owner disposes. */
     constructor(properties: NavigationMenuProperties) {
-        // start closed without a viewport or pending open
-        const [open, setOpen] = createSignal<string | undefined>(undefined);
+        // follow the controlled open item or the menu's own
+        const [open, setOpen] = createControllableSignal<string | undefined>({
+            isControlled: () => "value" in properties,
+            value: () => properties.value,
+            defaultValue: properties.defaultValue,
+            onChange: (next) => properties.onValueChange?.(next),
+        });
         const [viewport, setViewport] = createSignal<HTMLElement | undefined>(undefined, {
             ownedWrite: true,
         });
         this.open = open;
         this.viewport = viewport;
+        this.list = new ListState({
+            orientation: "horizontal",
+            isLooping: true,
+            isTypeahead: false,
+        });
         this.#properties = properties;
         this.#setOpen = setOpen;
         this.#setViewport = setViewport;
+        this.#prefix = createUniqueId();
         this.#timer = undefined;
         this.#leftAt = Number.NEGATIVE_INFINITY;
         onCleanup(() => clearTimeout(this.#timer));
@@ -243,14 +259,32 @@ export class NavigationMenuControl {
         this.#setViewport(element);
     }
 
-    /** Name the id of an item's content. */
-    contentId(item: string): string {
-        return `${item}-content`;
+    /** Add a top-level link or trigger until it unmounts, giving its element the focus as the arrow keys reach it. */
+    join(key: string, element: () => HTMLElement | undefined): void {
+        this.list.add({ key, text: () => key, isDisabled: () => false, element });
     }
 
-    /** Name the id of an item's trigger. */
+    /** Move the focus to the top-level entry after one, none past the last. */
+    enterAfter(key: string): boolean {
+        // read the entry after the key
+        const index = this.list.collection.index(key);
+        const next = index === undefined ? undefined : this.list.collection.at(index + 1);
+        if (next === undefined) {
+            return false;
+        }
+        this.list.focus.enter(next);
+
+        return true;
+    }
+
+    /** Build the id of an item's content. */
+    contentId(item: string): string {
+        return `${this.#prefix}-${item.replaceAll(/\s/gu, "-")}-content`;
+    }
+
+    /** Build the id of an item's trigger. */
     triggerId(item: string): string {
-        return `${item}-trigger`;
+        return `${this.#prefix}-${item.replaceAll(/\s/gu, "-")}-trigger`;
     }
 }
 
@@ -264,6 +298,12 @@ export type NavigationMenuElementProperties<Attributes> = Omit<Attributes, "clas
 export type NavigationMenuProperties = NavigationMenuElementProperties<
     Omit<JSX.HTMLAttributes<HTMLElement>, "onFocusOut" | "onKeyDown" | "onPointerLeave">
 > & {
+    /** The value of the open item, which makes the open item controlled, undefined while every item is closed. */
+    readonly value?: string | undefined;
+    /** The value of the item open at first while uncontrolled, every item closed by default. */
+    readonly defaultValue?: string;
+    /** Handle an item opening, or every item closing with undefined. */
+    readonly onValueChange?: (value: string | undefined) => void;
     /** Whether open panels render into one viewport below the list, true by default. */
     readonly viewport?: boolean;
     /** The wait before a resting pointer opens a panel in milliseconds, 200 by default. */
@@ -302,6 +342,9 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
     const control = new NavigationMenuControl(properties);
     const rest = omit(
         properties,
+        "value",
+        "defaultValue",
+        "onValueChange",
         "viewport",
         "delayDuration",
         "skipDelayDuration",
@@ -351,9 +394,11 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
 /** Render the list of top-level links and triggers, which left and right arrow keys move between. */
 export function NavigationMenuList(
     properties: NavigationMenuElementProperties<
-        Omit<JSX.HTMLAttributes<HTMLUListElement>, "onKeyDown">
+        Omit<JSX.HTMLAttributes<HTMLUListElement>, "onKeyDown" | "onFocusOut">
     >,
 ): JSX.Element {
+    // move between the top-level entries in the reading direction
+    const control = useNavigationMenu();
     const locale = useLocale();
     const rest = omit(properties, "xstyle", "style");
 
@@ -364,25 +409,27 @@ export function NavigationMenuList(
             onKeyDown={(event) => {
                 // move between the top-level links and triggers
                 if (event.target instanceof Element && event.target.matches(TOP)) {
-                    moveFocus(
-                        event,
-                        itemsOf(event.currentTarget, TOP),
-                        "horizontal",
-                        locale.direction,
-                    );
+                    control.list.focus.move(event, locale.direction);
                 }
             }}
+            onFocusOut={(event) => control.list.focus.focusOut(event)}
             {...style.attributes([styles.list, properties.xstyle], properties.style)}
         />
     );
 }
 
+/** The properties of a navigation menu's item, the native element's attributes included. */
+export type NavigationMenuItemProperties = NavigationMenuElementProperties<
+    Omit<JSX.LiHTMLAttributes<HTMLLIElement>, "value">
+> & {
+    /** The value that opens the item's panel, a generated one by default. */
+    readonly value?: string;
+};
+
 /** Render one top-level entry of a navigation menu. */
-export function NavigationMenuItem(
-    properties: NavigationMenuElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
-): JSX.Element {
-    const item = createUniqueId();
-    const rest = omit(properties, "xstyle", "style");
+export function NavigationMenuItem(properties: NavigationMenuItemProperties): JSX.Element {
+    const item = properties.value ?? createUniqueId();
+    const rest = omit(properties, "value", "xstyle", "style");
 
     return (
         <NavigationMenuItemContext value={item}>
@@ -400,7 +447,7 @@ export function NavigationMenuTrigger(
     properties: NavigationMenuElementProperties<
         Omit<
             JSX.ButtonHTMLAttributes<HTMLButtonElement>,
-            "onClick" | "onPointerEnter" | "onPointerLeave" | "onKeyDown"
+            "onClick" | "onPointerEnter" | "onPointerLeave" | "onKeyDown" | "onFocus" | "ref"
         >
     >,
 ): JSX.Element {
@@ -409,6 +456,8 @@ export function NavigationMenuTrigger(
     const item = useItem();
     const rest = omit(properties, "xstyle", "style", "children");
     const isOpen = (): boolean => control.open() === item;
+    let element: HTMLButtonElement | undefined;
+    control.join(item, () => element);
 
     return (
         <button
@@ -420,6 +469,8 @@ export function NavigationMenuTrigger(
             data-slot="navigation-menu-trigger"
             data-state={isOpen() ? "open" : "closed"}
             {...rest}
+            ref={(button) => (element = button)}
+            onFocus={() => control.list.focus.focusIn(item)}
             onClick={() => (isOpen() ? control.hide() : control.show(item))}
             onPointerEnter={() => control.enter(item)}
             onPointerLeave={() => control.leave()}
@@ -476,7 +527,7 @@ export function NavigationMenuContent(
             hidden={control.open() !== item}
             data-slot="navigation-menu-content"
             {...rest}
-            onKeyDown={(event) => leavePanel(event, control.triggerId(item))}
+            onKeyDown={(event) => leavePanel(event, control, item)}
             {...style.attributes(
                 [isFramed && styles.surface, styles.content, properties.xstyle],
                 properties.style,
@@ -543,8 +594,14 @@ export type NavigationMenuLinkProperties = NavigationMenuElementProperties<
 
 /** Render a link of a navigation menu, marked as the current page when active. */
 export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JSX.Element {
-    // mark a top-level link and the current page over its styles
+    // join a top-level link to the menu's entries, and mark it and the current page over its styles
+    const menu = useContext(NavigationMenuContext);
     const isTop = !useContext(NavigationMenuContentContext);
+    const key = createUniqueId();
+    let element: HTMLElement | undefined;
+    if (isTop && menu !== null) {
+        menu.join(key, () => element);
+    }
     const rest = omit(properties, "active", "xstyle", "style", "render");
     const part: PartAttributes = merge(
         {
@@ -556,6 +613,15 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
             },
             "data-navigation-top": isTop ? "" : undefined,
             "data-slot": "navigation-menu-link",
+            ref: (link: HTMLElement) => {
+                element = link;
+            },
+            onFocus: () => {
+                // follow the focus onto a top-level link
+                if (isTop) {
+                    menu?.list.focus.focusIn(key);
+                }
+            },
         },
         () => style.attributes([text.footnote, styles.link, properties.xstyle], properties.style),
     );
@@ -566,11 +632,12 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
 /** Move Tab past a panel's ends to its trigger and to the next top-level entry, as if the panel followed its trigger. */
 function leavePanel(
     event: KeyboardEvent & { readonly currentTarget: HTMLDivElement },
-    triggerId: string,
+    control: NavigationMenuControl,
+    item: string,
 ): void {
     // read the panel's ends and the trigger it belongs to
     const tabbable = [...event.currentTarget.querySelectorAll<HTMLElement>(TABBABLE)];
-    const trigger = document.getElementById(triggerId);
+    const trigger = document.getElementById(control.triggerId(item));
     if (event.key !== "Tab" || trigger === null) {
         return;
     }
@@ -580,12 +647,8 @@ function leavePanel(
         event.preventDefault();
         trigger.focus();
     } else if (!event.shiftKey && document.activeElement === tabbable.at(-1)) {
-        const list = trigger.closest("[data-slot=navigation-menu-list]");
-        const entries = list === null ? [] : itemsOf(list, TOP);
-        const next = entries[entries.indexOf(trigger) + 1];
-        if (next !== undefined) {
+        if (control.enterAfter(item)) {
             event.preventDefault();
-            next.focus();
         }
     }
 }

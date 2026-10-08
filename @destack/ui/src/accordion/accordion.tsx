@@ -12,9 +12,9 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { type Choice, createChoice, toggled } from "../choice/index.ts";
+import { Selection, type SelectionProperties } from "../selection/index.ts";
 import { followToggle, refuseDisabled } from "../disclosure/index.ts";
-import { itemsOf, moveFocus } from "../focus/index.ts";
+import { ListState } from "../focus/index.ts";
 
 /** The open items of the nearest accordion, null outside one. */
 const AccordionContext = createContext<AccordionControl | null>(null);
@@ -73,7 +73,7 @@ const styles = style.create({
 });
 
 /** The properties of an accordion, the native element's attributes included. */
-export type AccordionProperties = AccordionLook & Choice;
+export type AccordionProperties = AccordionLook & SelectionProperties;
 
 /** The layout and availability of an accordion, the native element's attributes included. */
 export interface AccordionLook extends Omit<
@@ -104,36 +104,40 @@ export type AccordionElementProperties<Attributes> = Omit<Attributes, "class"> &
     readonly xstyle?: style.Styles;
 };
 
-/** The open items of an accordion, which its items share. */
+/** The open items of an accordion and its triggers, which its items share. */
 export class AccordionControl {
     /** The properties of the accordion root, read for its controlled state. */
     readonly properties: AccordionProperties;
     /** The name a single accordion's items share so the platform keeps one open, undefined for a multiple one. */
     readonly name: string | undefined;
     /** The open values, controlled or the accordion's own. */
-    readonly value: Accessor<readonly string[]>;
-    /** Keep the open values and tell the change handler. */
-    readonly #setValue: (value: readonly string[]) => void;
+    readonly selection: Selection;
+    /** The triggers in document order, which the arrow keys move between. */
+    readonly list: ListState;
 
     /** Create the state of an accordion from its root's properties. */
     constructor(properties: AccordionProperties) {
         // follow the controlled open values or the accordion's own
-        const [value, setValue] = createChoice(properties);
         this.properties = properties;
         this.name = properties.multiple === true ? undefined : createUniqueId();
-        this.value = value;
-        this.#setValue = setValue;
+        this.selection = new Selection(properties);
+        this.list = new ListState({
+            get orientation() {
+                return properties.orientation ?? "vertical";
+            },
+            isLooping: true,
+            isTypeahead: false,
+        });
     }
 
     /** Report whether an item is open. */
     isOpen(value: string): boolean {
-        return this.value().includes(value);
+        return this.selection.isSelected(value);
     }
 
     /** Open or close an item as its disclosure toggled, keeping another item a single accordion opened in its place. */
     toggle(value: string, isOpening: boolean, element: HTMLDetailsElement): void {
         // leave the state alone when a single accordion closes an item for another
-        const current = this.value();
         const isReplaced =
             this.name !== undefined &&
             element.parentElement?.querySelector(`details[name="${this.name}"][open]`) != null;
@@ -142,18 +146,20 @@ export class AccordionControl {
         }
 
         // open or close the item
-        const next =
-            isOpening === current.includes(value)
-                ? current
-                : toggled(this.properties, current, value);
-        this.#setValue(next);
+        if (isOpening !== this.isOpen(value)) {
+            this.selection.toggle(value);
+        }
     }
 }
 
 /** The value and availability of an accordion item, which its trigger reads. */
 interface AccordionItemControl {
+    /** The value the item stands for. */
+    readonly value: string;
     /** Whether the item's trigger ignores the person. */
     readonly isDisabled: Accessor<boolean>;
+    /** Whether the item is open. */
+    readonly isOpen: Accessor<boolean>;
 }
 
 /** Render a stack of disclosures, of which a single accordion keeps one open, that arrow keys move between. */
@@ -185,14 +191,10 @@ export function Accordion(properties: AccordionProperties): JSX.Element {
                         event.target instanceof HTMLElement &&
                         event.target.dataset["slot"] === "accordion-trigger"
                     ) {
-                        moveFocus(
-                            event,
-                            itemsOf(event.currentTarget, "[data-slot=accordion-trigger]"),
-                            properties.orientation ?? "vertical",
-                            locale.direction,
-                        );
+                        control.list.focus.move(event, locale.direction);
                     }
                 }}
+                onFocusOut={(event) => control.list.focus.focusOut(event)}
                 {...style.attributes([properties.xstyle], properties.style)}
             />
         </AccordionContext>
@@ -211,7 +213,13 @@ export function AccordionItem(properties: AccordionItemProperties): JSX.Element 
         properties.disabled === true || accordion.properties.disabled === true;
 
     return (
-        <AccordionItemContext value={{ isDisabled }}>
+        <AccordionItemContext
+            value={{
+                value: properties.value,
+                isDisabled,
+                isOpen: () => accordion.isOpen(properties.value),
+            }}
+        >
             <details
                 name={accordion.name}
                 data-slot="accordion-item"
@@ -239,19 +247,38 @@ export function AccordionItem(properties: AccordionItemProperties): JSX.Element 
 
 /** Render the summary that toggles its item, with a chevron that turns when open. */
 export function AccordionTrigger(
-    properties: AccordionElementProperties<Omit<JSX.HTMLAttributes<HTMLElement>, "ref">>,
+    properties: AccordionElementProperties<
+        Omit<JSX.HTMLAttributes<HTMLElement>, "ref" | "onFocus">
+    >,
 ): JSX.Element {
-    // read whether the item is disabled
+    // read the item, refusing a trigger outside one, and join the accordion's triggers
+    const accordion = useContext(AccordionContext);
     const item = useContext(AccordionItemContext);
-    const isDisabled = (): boolean => item?.isDisabled() === true;
+    if (accordion === null || item === null) {
+        throw new TypeError("an accordion trigger needs an accordion item around it");
+    }
+    const isDisabled = (): boolean => item.isDisabled();
     const rest = omit(properties, "xstyle", "style", "children");
+    let element: HTMLElement | undefined;
+    accordion.list.add({
+        key: item.value,
+        text: () => item.value,
+        isDisabled,
+        element: () => element,
+    });
 
     return (
         <summary
             data-slot="accordion-trigger"
+            data-state={item.isOpen() ? "open" : "closed"}
+            data-disabled={isDisabled() ? "" : undefined}
             aria-disabled={isDisabled() ? "true" : undefined}
             {...rest}
-            ref={(element) => refuseDisabled(element, isDisabled)}
+            ref={(summary) => {
+                element = summary;
+                refuseDisabled(summary, isDisabled);
+            }}
+            onFocus={() => accordion.list.focus.focusIn(item.value)}
             {...style.attributes(
                 [text.callout, styles.trigger, properties.xstyle],
                 properties.style,
@@ -268,11 +295,13 @@ export function AccordionTrigger(
 export function AccordionContent(
     properties: AccordionElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
+    const item = useContext(AccordionItemContext);
     const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="accordion-content"
+            data-state={item?.isOpen() === true ? "open" : "closed"}
             {...rest}
             {...style.attributes(
                 [text.footnote, styles.content, properties.xstyle],

@@ -39,3 +39,31 @@ export const menubarEditorMenus = defineExample({
         </Menubar>
     ),
 });
+
+/** The editor's File menu open below its trigger. */
+export const menubarEditorMenusOpen = defineExample({
+    of: Menubar,
+    name: "editor-menus-open",
+    description: "the editor's File menu open below its trigger",
+    render: () => (
+        <Menubar aria-label="Editor">
+            <MenubarMenu defaultOpen>
+                <MenubarTrigger>File</MenubarTrigger>
+                <MenubarContent>
+                    <MenubarItem>
+                        New note
+                        <MenubarShortcut>⌘N</MenubarShortcut>
+                    </MenubarItem>
+                    <MenubarSeparator />
+                    <MenubarItem>Export</MenubarItem>
+                </MenubarContent>
+            </MenubarMenu>
+            <MenubarMenu>
+                <MenubarTrigger>Edit</MenubarTrigger>
+                <MenubarContent>
+                    <MenubarItem>Undo</MenubarItem>
+                </MenubarContent>
+            </MenubarMenu>
+        </Menubar>
+    ),
+});

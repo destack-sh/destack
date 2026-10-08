@@ -12,12 +12,12 @@ import {
 } from "@destack/view";
 import { Day } from "../calendar/index.ts";
 import {
-    isSegment,
-    SegmentGroup,
-    type SegmentFormat,
-    type SegmentKind,
-    type SegmentValues,
-} from "../segment/index.ts";
+    isDateSegment,
+    DateSegmentGroup,
+    type DateSegmentFormat,
+    type DateSegmentKind,
+    type DateSegmentValues,
+} from "../date-segment/index.ts";
 
 /** The earliest and latest year a date field takes, as four digits write them. */
 const YEARS = [1, 9999] as const;
@@ -49,7 +49,7 @@ export interface DateFieldProperties extends Omit<
 }
 
 /** The year, month and day segments of a date in a locale's order, bounds and numerals. */
-class DateFormat implements SegmentFormat {
+class DateFormat implements DateSegmentFormat {
     /** The segments and the literals between them in the locale's order. */
     readonly layout: readonly Intl.DateTimeFormatPart[];
     /** The locale the segments write and name themselves in. */
@@ -66,12 +66,12 @@ class DateFormat implements SegmentFormat {
         });
         this.layout = format
             .formatToParts(SAMPLE_DATE)
-            .filter((part) => isSegment(part) || part.type === "literal");
+            .filter((part) => isDateSegment(part) || part.type === "literal");
         this.#locale = locale;
     }
 
     /** Read the bounds of a segment, a day within its month once the month is known. */
-    limits(kind: SegmentKind, values: SegmentValues): readonly [number, number] {
+    limits(kind: DateSegmentKind, values: DateSegmentValues): readonly [number, number] {
         // the four-digit years
         if (kind === "year") {
             return YEARS;
@@ -85,7 +85,7 @@ class DateFormat implements SegmentFormat {
     }
 
     /** Write a year as its digits, and a month or day in two. */
-    text(kind: SegmentKind, value: number): string {
+    text(kind: DateSegmentKind, value: number): string {
         return this.#locale.number(value, {
             minimumIntegerDigits: kind === "year" ? 1 : 2,
             useGrouping: false,
@@ -93,14 +93,14 @@ class DateFormat implements SegmentFormat {
     }
 
     /** Write a month by its name and a year or day as its number. */
-    valueText(kind: SegmentKind, value: number): string {
+    valueText(kind: DateSegmentKind, value: number): string {
         return kind === "month"
             ? this.#locale.date(Date.UTC(2000, value - 1, 1), { month: "long", timeZone: "UTC" })
             : this.#locale.number(value, { useGrouping: false });
     }
 
-    /** Name a segment by the part of the date it holds. */
-    name(kind: SegmentKind): string {
+    /** Label a segment by the part of the date it holds. */
+    name(kind: DateSegmentKind): string {
         // the year
         if (kind === "year") {
             return this.#locale.render(t`Year`);
@@ -114,7 +114,7 @@ class DateFormat implements SegmentFormat {
     }
 
     /** Read today's year, month or day. */
-    now(kind: SegmentKind): number {
+    now(kind: DateSegmentKind): number {
         // read the part of today's date
         const today = Day.today();
         if (kind === "year") {
@@ -157,7 +157,7 @@ export function DateField(properties: DateFieldProperties): JSX.Element {
     );
 
     return (
-        <SegmentGroup
+        <DateSegmentGroup
             data-slot="date-field"
             {...rest}
             format={format}
@@ -175,7 +175,7 @@ export function DateField(properties: DateFieldProperties): JSX.Element {
 }
 
 /** Read the date of the segments, undefined while one is empty or the date does not exist. */
-function dateOf(values: SegmentValues): PlainDate | undefined {
+function dateOf(values: DateSegmentValues): PlainDate | undefined {
     // wait for every segment
     const { year, month, day } = values;
     if (year === undefined || month === undefined || day === undefined) {
@@ -190,7 +190,7 @@ function dateOf(values: SegmentValues): PlainDate | undefined {
 }
 
 /** Split a date into the values of its segments, none for no date. */
-function valuesOf(date: PlainDate | undefined): SegmentValues {
+function valuesOf(date: PlainDate | undefined): DateSegmentValues {
     return date === undefined ? {} : { year: date.year, month: date.month, day: date.day };
 }
 

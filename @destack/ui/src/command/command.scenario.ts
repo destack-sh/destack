@@ -57,3 +57,26 @@ export const commandFollowControlledHighlight = defineScenario({
         ],
     },
 });
+
+/** Jump to the first and last options with Home and End. */
+export const commandJumpToEnds = defineScenario({
+    of: Command,
+    interaction: viewInteraction,
+    name: "jump-to-ends",
+    description:
+        "move the highlight to the last enabled option with End and back to the first with Home",
+    given: { examples: [commandNoteCommands] },
+    when: [
+        { action: "focus", target: { role: "combobox" } },
+        { action: "press", key: "End" },
+        { action: "press", key: "Home" },
+    ],
+    then: {
+        observe: { highlighted: { kind: "name", target: { role: "option", selected: true } } },
+        each: [
+            { highlighted: "New note" },
+            { highlighted: "Appearance" },
+            { highlighted: "New note" },
+        ],
+    },
+});

@@ -14,7 +14,7 @@ test("toggle a collapsible from its summary", () => {
     flush();
     expect(markup(container)).toBe(
         '<details data-slot="collapsible" data-state="open" open="">' +
-            '<summary data-slot="collapsible-trigger">3 more tags</summary>' +
-            '<div data-slot="collapsible-content">travel, food, family</div></details>',
+            '<summary data-slot="collapsible-trigger" data-state="open">3 more tags</summary>' +
+            '<div data-slot="collapsible-content" data-state="open">travel, food, family</div></details>',
     );
 });

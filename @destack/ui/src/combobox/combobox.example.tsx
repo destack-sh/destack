@@ -80,3 +80,23 @@ export const comboboxFindPersonLoading = defineExample({
         </Combobox>
     ),
 });
+
+/** The notebook combobox marked invalid. */
+export const comboboxMoveNoteInvalid = defineExample({
+    of: Combobox,
+    name: "move-note-invalid",
+    description: "the notebook combobox marked invalid",
+    render: () => (
+        <Combobox>
+            <ComboboxInput
+                aria-label="Notebook"
+                placeholder="Move to notebook"
+                aria-invalid="true"
+            />
+            <ComboboxContent>
+                <ComboboxItem value="Trips">Trips</ComboboxItem>
+                <ComboboxItem value="Work">Work</ComboboxItem>
+            </ComboboxContent>
+        </Combobox>
+    ),
+});

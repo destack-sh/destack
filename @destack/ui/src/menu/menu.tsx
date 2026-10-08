@@ -16,22 +16,15 @@ import {
     omit,
     type Setter,
     Show,
+    untrack,
     useContext,
     useLocale,
 } from "@destack/view";
 import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
-import { isTypeaheadKey, itemsOf, moveFocus } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
-import {
-    placeBeside,
-    placementStyle,
-    type PopoverAlign,
-    type PopoverSide,
-} from "../popover/index.ts";
+import { ListState } from "../focus/index.ts";
+import { type Align, type Point, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
-
-/** The selector of the items the focus moves between in a menu. */
-const ITEM = "[data-menu-item]";
 
 /** The side and alignment of a menu that sets neither. */
 const DEFAULTS: Required<Pick<MenuContentProperties, "side" | "align">> = {
@@ -62,11 +55,6 @@ const styles = style.create({
         backgroundColor: color.popover,
         color: color.popoverForeground,
         boxShadow: shadow.overlay,
-    },
-    at: (left: string, top: string) => ({ left, top }),
-    point: {
-        margin: 0,
-        positionArea: "none",
     },
     item: {
         position: "relative",
@@ -128,14 +116,6 @@ const styles = style.create({
 /** The item a newly opened menu focuses. */
 export type MenuFocus = "first" | "last" | "none";
 
-/** A point in the viewport a context menu opens at, in CSS pixels. */
-export interface MenuPoint {
-    /** The distance from the viewport's left edge. */
-    readonly x: number;
-    /** The distance from the viewport's top edge. */
-    readonly y: number;
-}
-
 /** The open state, elements and focus of a menu or submenu, which its trigger, items and submenus share. */
 export class MenuControl {
     /** The id of the menu element. */
@@ -147,7 +127,9 @@ export class MenuControl {
     /** Whether the menu is open. */
     readonly isOpen: Accessor<boolean>;
     /** The point a context menu opens at, undefined for a menu that opens beside its trigger. */
-    readonly point: Accessor<MenuPoint | undefined>;
+    readonly point: Accessor<Point | undefined>;
+    /** The menu's own items in document order, which the arrow keys, Home, End and typed letters move through. */
+    readonly list: ListState;
     /** Handle a horizontal arrow key a top menu leaves unused, such as a menubar moving to the next menu. */
     onCross: ((event: KeyboardEvent, direction: Direction) => void) | undefined;
     /** The element that opens the menu and anchors it. */
@@ -165,7 +147,7 @@ export class MenuControl {
     /** Replace whether the menu is open and tell the change handler. */
     readonly #setOpen: (isOpen: boolean) => void;
     /** Replace the point a context menu opens at. */
-    readonly #setPoint: Setter<MenuPoint | undefined>;
+    readonly #setPoint: Setter<Point | undefined>;
 
     /** Create a closed menu, a submenu when it has a parent. */
     constructor(parent: MenuControl | null, properties: MenuRootProperties = {}) {
@@ -176,12 +158,13 @@ export class MenuControl {
             defaultValue: properties.defaultOpen === true,
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
-        const [point, setPoint] = createSignal<MenuPoint | undefined>(undefined);
+        const [point, setPoint] = createSignal<Point | undefined>(undefined);
         this.id = createUniqueId();
         this.triggerId = `${this.id}-trigger`;
         this.parent = parent;
         this.isOpen = isOpen;
         this.point = point;
+        this.list = new ListState({ orientation: "vertical", isLooping: true, isTypeahead: true });
         this.onCross = undefined;
         this.#trigger = undefined;
         this.#content = undefined;
@@ -216,8 +199,8 @@ export class MenuControl {
             const trigger = this.#trigger;
             const isBeside = trigger !== undefined && this.point() === undefined;
             content.showPopover(isBeside ? { source: trigger } : undefined);
-            this.#unplace = isBeside ? placeBeside(content, trigger) : () => undefined;
-            this.#focusItem(content);
+            this.#unplace = isBeside ? Position.place(content, trigger) : () => undefined;
+            untrack(() => this.#focusItem(content));
         } else {
             this.#unplace();
             content.hidePopover();
@@ -230,16 +213,23 @@ export class MenuControl {
 
     /** Focus the item a newly shown menu asks for, or the menu itself when it has no items. */
     #focusItem(content: HTMLElement): void {
+        // leave the focus alone, else take the first or last available item
         if (this.#focus === "none") {
             return;
         }
-        const items = this.items();
-        const target = this.#focus === "first" ? items[0] : items.at(-1);
-        (target ?? content).focus();
+        const delegate = this.list.delegate;
+        const target = this.#focus === "first" ? delegate.first() : delegate.last();
+
+        // focus the item, or the menu itself without one
+        if (target === undefined) {
+            content.focus();
+        } else {
+            this.list.focus.enter(target);
+        }
     }
 
     /** Open the menu beside its trigger, or at a point for a context menu, focusing an item. */
-    open(focus: MenuFocus, point?: MenuPoint): void {
+    open(focus: MenuFocus, point?: Point): void {
         // remember what to focus before opening and joining the parent's open submenus
         this.#focus = focus;
         this.#setPoint(point);
@@ -277,20 +267,36 @@ export class MenuControl {
         }
     }
 
+    /** Add an item to the menu until it unmounts, returning the attributes that take its element and follow its focus. */
+    join(isDisabled: Accessor<boolean>): MenuItemJoin {
+        // read the item's text for typeahead from its element
+        const key = createUniqueId();
+        let element: HTMLElement | undefined;
+        this.list.add({
+            key,
+            text: () => element?.textContent?.trim() ?? "",
+            isDisabled,
+            element: () => element,
+        });
+
+        return {
+            ref: (target) => {
+                element = target;
+            },
+            onFocus: () => this.list.focus.focusIn(key),
+        };
+    }
+
     /** Read the top menu of a chain of submenus. */
     root(): MenuControl {
         return this.parent === null ? this : this.parent.root();
     }
+}
 
-    /** List the enabled items of this menu, without the items of its submenus. */
-    items(): HTMLElement[] {
-        const content = this.#content;
-        if (content === undefined) {
-            return [];
-        }
-
-        return itemsOf(content, ITEM).filter((item) => item.closest("[role=menu]") === content);
-    }
+/** The reference that takes a menu item's element, and the handler that follows its focus. */
+export interface MenuItemJoin extends Record<"ref", (element: HTMLElement) => void> {
+    /** Follow the focus onto the item. */
+    readonly onFocus: () => void;
 }
 
 /** The properties of a top menu's root. */
@@ -328,15 +334,15 @@ export interface MenuContentProperties extends Omit<
     "ref" | "onKeyDown" | "onToggle"
 > {
     /** The side of the trigger it opens on, bottom by default. */
-    readonly side?: PopoverSide;
+    readonly side?: Side;
     /** The edge of the trigger it lines up with, start by default. */
-    readonly align?: PopoverAlign;
+    readonly align?: Align;
 }
 
 /** The properties of a menu item. */
 export interface MenuItemProperties extends Omit<
     MenuElementProperties<HTMLDivElement>,
-    "onClick" | "onKeyDown" | "onPointerEnter"
+    "onClick" | "onKeyDown" | "onPointerEnter" | "onFocus" | "ref"
 > {
     /** Handle the item being chosen, which closes the menu unless the handler prevents the default. */
     readonly onSelect?: (event: Event) => void;
@@ -405,7 +411,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
     const position = (): style.Styles => {
         const point = control.point();
 
-        return point === undefined ? null : styles.at(`${point.x}px`, `${point.y}px`);
+        return point === undefined ? null : Position.at(point);
     };
 
     return (
@@ -423,12 +429,12 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                 ref={(element) => control.setContent(element)}
                 onToggle={(event) => control.follow(event)}
                 onKeyDown={(event) => navigate(event, control, locale.direction)}
+                onFocusOut={(event) => control.list.focus.focusOut(event)}
                 {...style.attributes(
                     [
                         text.footnote,
                         styles.content,
-                        placementStyle(content.side, content.align),
-                        control.point() !== undefined && styles.point,
+                        Position.beside(content.side, content.align),
                         position(),
                         content.xstyle,
                     ],
@@ -453,10 +459,13 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
         "style",
         "render",
     );
+    const item = control.join(() => properties.disabled === true);
     const part: PartAttributes = merge(
         {
             role: "menuitem" as const,
             tabindex: -1,
+            ref: item.ref,
+            onFocus: item.onFocus,
             "data-menu-item": "",
             "data-slot": "menu-item",
             get "data-variant"() {
@@ -490,6 +499,7 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
 
 /** Render an item that checks and unchecks, reporting its state through `aria-checked`. */
 export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.Element {
+    // join the menu, reporting the check over the item's styles
     const control = useMenu();
     const rest = omit(
         properties,
@@ -503,6 +513,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         "style",
         "children",
     );
+    const item = control.join(() => properties.disabled === true);
 
     return (
         <div
@@ -515,6 +526,8 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
             data-menu-item=""
             data-slot="menu-checkbox-item"
             {...rest}
+            ref={item.ref}
+            onFocus={item.onFocus}
             onClick={(event) => {
                 // flip the check of an enabled item and run its action
                 if (properties.disabled !== true) {
@@ -584,6 +597,7 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
         "children",
     );
     const isChecked = (): boolean => radio.value() === properties.value;
+    const item = control.join(() => properties.disabled === true);
 
     return (
         <div
@@ -596,6 +610,8 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
             data-menu-item=""
             data-slot="menu-radio-item"
             {...rest}
+            ref={item.ref}
+            onFocus={item.onFocus}
             onClick={(event) => {
                 // select the value of an enabled item and run its action
                 if (properties.disabled !== true) {
@@ -696,6 +712,11 @@ export function MenuSubTrigger(
     const locale = useLocale();
     const rest = omit(properties, "disabled", "inset", "xstyle", "style", "children");
     const isEnabled = (): boolean => properties.disabled !== true;
+    const parent = control.parent;
+    if (parent === null) {
+        throw new TypeError("a menu sub trigger needs a submenu around it");
+    }
+    const item = parent.join(() => !isEnabled());
     const opens = (key: string): boolean =>
         key === "Enter" ||
         key === " " ||
@@ -713,7 +734,8 @@ export function MenuSubTrigger(
             data-menu-item=""
             data-slot="menu-sub-trigger"
             {...rest}
-            ref={(element) => control.setTrigger(element)}
+            ref={[item.ref, (element: HTMLElement) => control.setTrigger(element)]}
+            onFocus={item.onFocus}
             onClick={() => isEnabled() && control.open("first")}
             onKeyDown={(event) => {
                 // open the submenu of an enabled trigger and focus its first item
@@ -727,7 +749,7 @@ export function MenuSubTrigger(
                 // focus an enabled trigger and open its submenu in place of any other
                 if (isEnabled()) {
                     event.currentTarget.focus();
-                    control.parent?.closeSubmenus();
+                    parent.closeSubmenus();
                     control.open("none");
                 }
             }}
@@ -776,25 +798,10 @@ function navigate(
     else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && control.parent === null) {
         control.onCross?.(event, direction);
     }
-    // move to the item starting with a typed letter
-    else if (isTypeaheadKey(event)) {
-        typeahead(event.key, control.items());
-    }
-    // move with the arrow keys, Home and End
+    // move with the arrow keys, Home, End and typed letters
     else {
-        moveFocus(event, control.items(), "vertical", direction);
+        control.list.focus.move(event, direction);
     }
-}
-
-/** Focus the next item after the focused one whose text starts with a letter, wrapping around. */
-function typeahead(letter: string, items: readonly HTMLElement[]): void {
-    // search the items after the focused one first, wrapping around
-    const start = items.findIndex((item) => item === document.activeElement) + 1;
-    const ordered = [...items.slice(start), ...items.slice(0, start)];
-    const match = ordered.find((item) =>
-        (item.textContent ?? "").trim().toLowerCase().startsWith(letter.toLowerCase()),
-    );
-    match?.focus();
 }
 
 /** Focus a hovered item and close the submenus of its menu. */

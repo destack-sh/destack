@@ -1,7 +1,15 @@
 import { defineExample } from "@destack/package/declare";
 import { Field, FieldLabel } from "../field/index.ts";
 import { Input } from "../input/index.ts";
-import { Popover, PopoverContent, PopoverTrigger } from "./popover.tsx";
+import {
+    Popover,
+    PopoverClose,
+    PopoverContent,
+    PopoverDescription,
+    PopoverHeader,
+    PopoverTitle,
+    PopoverTrigger,
+} from "./popover.tsx";
 
 /** A popover that edits the size of an image in a note. */
 export const popoverImageSize = defineExample({
@@ -52,6 +60,31 @@ export const popoverRenameModal = defineExample({
                     <FieldLabel>Title</FieldLabel>
                     <Input name="title" value="Groceries" />
                 </Field>
+                <PopoverClose size="sm">Save</PopoverClose>
+            </PopoverContent>
+        </Popover>
+    ),
+});
+
+/** A popover titled and described for assistive technology, with a button that closes it. */
+export const popoverLinkSharing = defineExample({
+    of: Popover,
+    name: "link-sharing",
+    description:
+        "a popover titled and described for assistive technology, with a button that closes it",
+    render: () => (
+        <Popover defaultOpen>
+            <PopoverTrigger variant="outline">Share</PopoverTrigger>
+            <PopoverContent align="end">
+                <PopoverHeader>
+                    <PopoverTitle>Link sharing</PopoverTitle>
+                    <PopoverDescription>
+                        Anyone with the link can view this note.
+                    </PopoverDescription>
+                </PopoverHeader>
+                <PopoverClose variant="outline" size="sm">
+                    Done
+                </PopoverClose>
             </PopoverContent>
         </Popover>
     ),

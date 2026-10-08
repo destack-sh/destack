@@ -7,6 +7,7 @@ import { createChartRendererAdapter } from "@tanstack/charts/adapter/renderer";
 import { createCanvasChartRenderer } from "@tanstack/charts/canvas";
 import { renderChartSvg } from "@tanstack/charts/svg";
 import { createSvgChartRenderer } from "@tanstack/charts/svg/renderer";
+import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The height of a chart that sets neither a height nor an aspect ratio, as the upstream host defaults it. */
 const DEFAULT_HEIGHT = 320;
@@ -40,14 +41,6 @@ const styles = style.create({
     surface: {
         width: "100%",
         height: "100%",
-    },
-    table: {
-        position: "absolute",
-        width: stroke.border,
-        height: stroke.border,
-        overflow: "hidden",
-        clipPath: "inset(50%)",
-        whiteSpace: "nowrap",
     },
 });
 
@@ -181,7 +174,7 @@ export function Chart<
             {/* Values */}
             <Show when={properties.table}>
                 {(table) => (
-                    <table data-slot="chart-table" {...style.attrs(styles.table)}>
+                    <table data-slot="chart-table" {...style.attrs(visuallyHiddenStyle())}>
                         <caption>{properties.label}</caption>
                         <thead>
                             <tr>

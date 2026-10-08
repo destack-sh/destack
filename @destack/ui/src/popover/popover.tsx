@@ -1,22 +1,33 @@
 import * as style from "@destack/style";
-import { color, motion, radius, shadow, space, stroke, width } from "@destack/theme/tokens.stylex";
+import {
+    color,
+    motion,
+    radius,
+    shadow,
+    space,
+    stroke,
+    weight,
+    width,
+} from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
     createControllableSignal,
     createEffect,
+    createSignal,
     createUniqueId,
     type JSX,
     merge,
     omit,
     onCleanup,
+    type Setter,
     Show,
     useContext,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { TopLayer } from "../layer/index.ts";
-import { anchorBeside, placeBeside } from "./placement.ts";
+import { type Align, Position, type Side } from "../position/index.ts";
 
 /** The side and alignment of a popover that sets neither. */
 const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align">> = {
@@ -57,56 +68,18 @@ const styles = style.create({
             backgroundColor: "transparent",
         },
     },
-    motion: {
-        opacity: { default: 0, ":popover-open": { default: 1, "@starting-style": 0 } },
-        transform: {
-            default: "scale(0.96)",
-            ":popover-open": { default: "none", "@starting-style": "scale(0.96)" },
-        },
-        transitionProperty: "opacity, transform, display, overlay",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
-        transitionBehavior: "allow-discrete",
+    header: {
+        display: "flex",
+        flexDirection: "column",
+        gap: space[1],
     },
-});
-
-/** The area beside the anchor each side and alignment places a popover in, flipping when it overflows. */
-const placements = style.create({
-    "top-start": {
-        positionArea: "block-start span-inline-end",
-        positionTryFallbacks: "flip-block",
+    title: {
+        margin: 0,
+        fontWeight: weight.medium,
     },
-    "top-center": { positionArea: "block-start", positionTryFallbacks: "flip-block" },
-    "top-end": {
-        positionArea: "block-start span-inline-start",
-        positionTryFallbacks: "flip-block",
-    },
-    "right-start": {
-        positionArea: "inline-end span-block-end",
-        positionTryFallbacks: "flip-inline",
-    },
-    "right-center": { positionArea: "inline-end", positionTryFallbacks: "flip-inline" },
-    "right-end": {
-        positionArea: "inline-end span-block-start",
-        positionTryFallbacks: "flip-inline",
-    },
-    "bottom-start": {
-        positionArea: "block-end span-inline-end",
-        positionTryFallbacks: "flip-block",
-    },
-    "bottom-center": { positionArea: "block-end", positionTryFallbacks: "flip-block" },
-    "bottom-end": {
-        positionArea: "block-end span-inline-start",
-        positionTryFallbacks: "flip-block",
-    },
-    "left-start": {
-        positionArea: "inline-start span-block-end",
-        positionTryFallbacks: "flip-inline",
-    },
-    "left-center": { positionArea: "inline-start", positionTryFallbacks: "flip-inline" },
-    "left-end": {
-        positionArea: "inline-start span-block-start",
-        positionTryFallbacks: "flip-inline",
+    description: {
+        margin: 0,
+        color: color.mutedForeground,
     },
 });
 
@@ -118,10 +91,20 @@ export class PopoverControl {
     readonly isOpen: Accessor<boolean>;
     /** Whether the page behind the open popover is inert. */
     readonly isModal: Accessor<boolean>;
+    /** Whether a title names the popover in place of its trigger. */
+    readonly isTitled: Accessor<boolean>;
+    /** Whether a description describes the popover. */
+    readonly isDescribed: Accessor<boolean>;
     /** Replace the open state and tell the change handler. */
     readonly #setOpen: (isOpen: boolean) => void;
-    /** The element that anchors the popover. */
+    /** Replace whether a title names the popover. */
+    readonly #setTitled: Setter<boolean>;
+    /** Replace whether a description describes the popover. */
+    readonly #setDescribed: Setter<boolean>;
+    /** The button that opens the popover and takes the focus back. */
     #trigger: HTMLElement | undefined;
+    /** The element the popover is placed beside in place of its trigger. */
+    #anchor: HTMLElement | undefined;
     /** The popover element. */
     #content: HTMLElement | undefined;
     /** Whether the popover element is in the top layer. */
@@ -138,19 +121,43 @@ export class PopoverControl {
             defaultValue: properties.defaultOpen === true,
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
+        const [isTitled, setTitled] = createSignal(false, { ownedWrite: true });
+        const [isDescribed, setDescribed] = createSignal(false, { ownedWrite: true });
         this.id = createUniqueId();
         this.isOpen = isOpen;
         this.isModal = () => properties.modal === true;
+        this.isTitled = isTitled;
+        this.isDescribed = isDescribed;
         this.#setOpen = setOpen;
+        this.#setTitled = setTitled;
+        this.#setDescribed = setDescribed;
         this.#trigger = undefined;
+        this.#anchor = undefined;
         this.#content = undefined;
         this.#isShown = false;
         this.#unplace = () => undefined;
     }
 
-    /** Set the element that anchors the popover. */
+    /** Set the button that opens the popover. */
     setTrigger(element: HTMLElement): void {
         this.#trigger = element;
+    }
+
+    /** Set the element the popover is placed beside in place of its trigger. */
+    setAnchor(element: HTMLElement): void {
+        this.#anchor = element;
+    }
+
+    /** Label the popover by its title until the title unmounts. */
+    title(): void {
+        this.#setTitled(true);
+        onCleanup(() => this.#setTitled(false));
+    }
+
+    /** Describe the popover by its description until the description unmounts. */
+    describe(): void {
+        this.#setDescribed(true);
+        onCleanup(() => this.#setDescribed(false));
     }
 
     /** Set the popover element. */
@@ -204,11 +211,12 @@ export class PopoverControl {
             content.showModal();
             this.#unplace = this.#holdModal(content);
         } else if (isOpen) {
+            const anchor = this.#anchor ?? this.#trigger;
             content.showPopover(
                 this.#trigger === undefined ? undefined : { source: this.#trigger },
             );
             this.#unplace =
-                this.#trigger === undefined ? () => undefined : placeBeside(content, this.#trigger);
+                anchor === undefined ? () => undefined : Position.place(content, anchor);
         }
         // hide it the way it shows
         else {
@@ -226,7 +234,8 @@ export class PopoverControl {
     #holdModal(content: HTMLDialogElement): () => void {
         // anchor to the trigger by name and keep the page from scrolling
         const trigger = this.#trigger;
-        const unplace = trigger === undefined ? () => undefined : anchorBeside(content, trigger);
+        const anchor = this.#anchor ?? trigger;
+        const unplace = anchor === undefined ? () => undefined : Position.anchor(content, anchor);
         const root = content.ownerDocument.documentElement;
         const overflow = root.style.overflow;
         root.style.overflow = "hidden";
@@ -288,20 +297,14 @@ export class HoverPopover extends PopoverControl {
     }
 }
 
-/** The side of its anchor a popover opens on. */
-export type PopoverSide = "top" | "right" | "bottom" | "left";
-
-/** The edge of its anchor a popover lines up with, along its side. */
-export type PopoverAlign = "start" | "center" | "end";
-
 /** The properties of a popover root. */
 export interface PopoverProperties {
     /** Whether the popover is open, which makes the open state controlled. */
-    readonly open?: boolean;
+    readonly open?: boolean | undefined;
     /** Whether the popover starts open when its state is uncontrolled. */
-    readonly defaultOpen?: boolean;
+    readonly defaultOpen?: boolean | undefined;
     /** Handle the popover opening or closing. */
-    readonly onOpenChange?: (open: boolean) => void;
+    readonly onOpenChange?: ((open: boolean) => void) | undefined;
     /** Whether the open popover traps the focus and makes the page behind it inert, false by default. */
     readonly modal?: boolean;
     /** The trigger and content. */
@@ -325,19 +328,11 @@ export interface PopoverContentProperties extends Omit<
     /** Handle a non-modal popover element opening or closing, after the popover follows it. */
     readonly onToggle?: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) => void;
     /** The side of the trigger it opens on, bottom by default. */
-    readonly side?: PopoverSide;
+    readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
-    readonly align?: PopoverAlign;
+    readonly align?: Align;
     /** The StyleX styles applied after the popover's styles. */
     readonly xstyle?: style.Styles;
-}
-
-/** Return the StyleX styles that place a popover beside its anchor and fade it in and out. */
-export function placementStyle(
-    side: PopoverSide,
-    align: PopoverAlign,
-): readonly style.CompiledStyles[] {
-    return [styles.motion, placements[`${side}-${align}`]];
 }
 
 /** Read the popover of the nearest popover root, refusing elements outside one. */
@@ -370,6 +365,7 @@ export function PopoverTrigger(properties: PopoverTriggerProperties): JSX.Elemen
                 <Button
                     id={`${popover.id}-trigger`}
                     data-slot="popover-trigger"
+                    data-state={popover.isOpen() ? "open" : "closed"}
                     popovertarget={popover.id}
                     aria-haspopup="dialog"
                     aria-controls={popover.id}
@@ -381,6 +377,7 @@ export function PopoverTrigger(properties: PopoverTriggerProperties): JSX.Elemen
             <Button
                 id={`${popover.id}-trigger`}
                 data-slot="popover-trigger"
+                data-state={popover.isOpen() ? "open" : "closed"}
                 aria-haspopup="dialog"
                 aria-expanded={popover.isOpen() ? "true" : "false"}
                 aria-controls={popover.id}
@@ -416,7 +413,10 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                         id={popover.id}
                         popover="auto"
                         role="dialog"
-                        aria-labelledby={`${popover.id}-trigger`}
+                        aria-labelledby={`${popover.id}-${popover.isTitled() ? "title" : "trigger"}`}
+                        aria-describedby={
+                            popover.isDescribed() ? `${popover.id}-description` : undefined
+                        }
                         data-slot="popover-content"
                         data-state={popover.isOpen() ? "open" : "closed"}
                         data-side={content.side}
@@ -432,7 +432,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                             [
                                 text.callout,
                                 styles.content,
-                                placementStyle(content.side, content.align),
+                                Position.beside(content.side, content.align),
                                 content.xstyle,
                             ],
                             content.style,
@@ -443,7 +443,10 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                 <dialog
                     id={popover.id}
                     closedby="any"
-                    aria-labelledby={`${popover.id}-trigger`}
+                    aria-labelledby={`${popover.id}-${popover.isTitled() ? "title" : "trigger"}`}
+                    aria-describedby={
+                        popover.isDescribed() ? `${popover.id}-description` : undefined
+                    }
                     data-slot="popover-content"
                     data-state={popover.isOpen() ? "open" : "closed"}
                     data-side={content.side}
@@ -456,7 +459,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                             text.callout,
                             styles.content,
                             styles.modal,
-                            placements[`${content.side}-${content.align}`],
+                            Position.area(content.side, content.align),
                             content.xstyle,
                         ],
                         content.style,
@@ -464,5 +467,100 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                 />
             </Show>
         </TopLayer>
+    );
+}
+
+/** The properties of an element of a popover, the native element's attributes included. */
+export type PopoverElementProperties<Target extends HTMLElement> = Omit<
+    JSX.HTMLAttributes<Target>,
+    "class"
+> & {
+    /** The StyleX styles applied after the element's styles. */
+    readonly xstyle?: style.Styles;
+};
+
+/** Render an element the popover is placed beside in place of its trigger. */
+export function PopoverAnchor(properties: PopoverElementProperties<HTMLDivElement>): JSX.Element {
+    const popover = usePopover();
+    const rest = omit(properties, "xstyle", "style");
+
+    return (
+        <div
+            data-slot="popover-anchor"
+            {...rest}
+            ref={(element) => popover.setAnchor(element)}
+            {...style.attributes([properties.xstyle], properties.style)}
+        />
+    );
+}
+
+/** Render a button that closes its popover. */
+export function PopoverClose(properties: PopoverTriggerProperties): JSX.Element {
+    const popover = usePopover();
+
+    return (
+        <Button
+            data-slot="popover-close"
+            {...properties}
+            onClick={(event) => {
+                // run the caller's handler before closing the popover
+                properties.onClick?.(event);
+                popover.close();
+            }}
+        />
+    );
+}
+
+/** Render the top of a popover that holds its title and description. */
+export function PopoverHeader(properties: PopoverElementProperties<HTMLDivElement>): JSX.Element {
+    const rest = omit(properties, "xstyle", "style");
+
+    return (
+        <div
+            data-slot="popover-header"
+            {...rest}
+            {...style.attributes([styles.header, properties.xstyle], properties.style)}
+        />
+    );
+}
+
+/** Render the title that names its popover. */
+export function PopoverTitle(
+    properties: PopoverElementProperties<HTMLHeadingElement>,
+): JSX.Element {
+    // label the popover for as long as the title renders
+    const popover = usePopover();
+    const rest = omit(properties, "xstyle", "style");
+    popover.title();
+
+    return (
+        <h2
+            id={`${popover.id}-title`}
+            data-slot="popover-title"
+            {...rest}
+            {...style.attributes([text.callout, styles.title, properties.xstyle], properties.style)}
+        />
+    );
+}
+
+/** Render the description that describes its popover. */
+export function PopoverDescription(
+    properties: PopoverElementProperties<HTMLParagraphElement>,
+): JSX.Element {
+    // describe the popover for as long as the description renders
+    const popover = usePopover();
+    const rest = omit(properties, "xstyle", "style");
+    popover.describe();
+
+    return (
+        <p
+            id={`${popover.id}-description`}
+            data-slot="popover-description"
+            {...rest}
+            {...style.attributes(
+                [text.footnote, styles.description, properties.xstyle],
+                properties.style,
+            )}
+        />
     );
 }

@@ -1,21 +1,15 @@
 import { Icon } from "@destack/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
+import { type JSX, omit, Show, useLocale } from "@destack/view";
 import {
-    type Accessor,
-    createContext,
-    createSignal,
-    createUniqueId,
-    type JSX,
-    omit,
-    onCleanup,
-    type Setter,
-    Show,
-    useContext,
-    useLocale,
-} from "@destack/view";
+    AutocompleteContext,
+    AutocompleteControl,
+    type AutocompleteProperties,
+    useAutocomplete,
+} from "../autocomplete/index.ts";
 import {
     Dialog,
     DialogContent,
@@ -23,12 +17,20 @@ import {
     DialogTitle,
     type DialogProperties,
 } from "../dialog/index.ts";
-
-/** The command list of the nearest command, null outside one. */
-const CommandContext = createContext<CommandControl | null>(null);
-
-/** The id of the nearest command group, null outside one. */
-const CommandGroupContext = createContext<string | null>(null);
+import {
+    ListBox,
+    ListBoxContext,
+    ListBoxControl,
+    ListBoxEmpty,
+    ListBoxItem,
+    type ListBoxItemProperties,
+    ListBoxLoading,
+    ListBoxSection,
+    ListBoxSectionHeading,
+    ListBoxSeparator,
+    useListBox,
+} from "../list-box/index.ts";
+import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a command and its elements. */
 const styles = style.create({
@@ -68,197 +70,24 @@ const styles = style.create({
         overflowY: "auto",
         padding: space[1],
     },
-    empty: {
-        paddingBlock: space[5],
-        textAlign: "center",
-    },
-    heading: {
-        paddingBlock: space[1],
-        paddingInline: space[2],
-        color: color.mutedForeground,
-        fontWeight: weight.medium,
-    },
-    item: {
-        display: "flex",
-        alignItems: "center",
-        gap: space[2],
-        paddingBlock: space[2],
-        paddingInline: space[2],
-        borderRadius: radius[2],
-        cursor: "default",
-        userSelect: "none",
-    },
-    active: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
-    },
-    disabled: {
-        opacity: 0.5,
-        pointerEvents: "none",
-    },
-    separator: {
-        height: 0,
-        marginInline: `calc(-1 * ${space[1]})`,
-        borderTopStyle: "solid",
-        borderTopWidth: stroke.border,
-        borderTopColor: color.border,
-    },
     shortcut: {
         marginInlineStart: "auto",
         color: color.mutedForeground,
         letterSpacing: "0.1em",
     },
-    hidden: {
-        position: "absolute",
-        width: stroke.border,
-        height: stroke.border,
-        overflow: "hidden",
-        clipPath: "inset(50%)",
-        whiteSpace: "nowrap",
-    },
 });
 
-/** An option of a command list, which the list filters and highlights. */
-export interface CommandOption {
-    /** The id of the option element. */
-    readonly id: string;
-    /** The id of the option's group, null outside a group. */
-    readonly group: string | null;
-    /** The text the search matches, the option's value or its text. */
-    readonly value: () => string;
-    /** Further words the search matches. */
-    readonly keywords: readonly string[];
-    /** Whether the option is unavailable. */
-    readonly isDisabled: () => boolean;
-    /** Choose the option. */
-    readonly choose: () => void;
-}
-
-/** The search, options and highlighted option of a command list, which its input, list and options share. */
-export class CommandControl {
-    /** The id of the list element. */
-    readonly listId: string;
-    /** The text typed into the search. */
-    readonly search: Accessor<string>;
-    /** The options in document order. */
-    readonly options: Accessor<readonly CommandOption[]>;
-    /** The properties of the list's owner, read for filtering and the controlled highlight. */
-    readonly #properties: CommandListProperties;
-    /** Handle an option being chosen with its value and text, such as a combobox taking it. */
-    onChoose: ((value: string, text: string) => void) | undefined;
-    /** The value of the option the person last highlighted, when uncontrolled. */
-    readonly #highlighted: Accessor<string | undefined>;
-    /** Replace the search. */
-    readonly #setSearch: Setter<string>;
-    /** Replace the options. */
-    readonly #setOptions: Setter<readonly CommandOption[]>;
-    /** Replace the highlighted option. */
-    readonly #setHighlighted: Setter<string | undefined>;
-
-    /** Create an empty command list, filtering by its search unless its owner asks not to. */
-    constructor(properties: CommandListProperties) {
-        // start with an empty search and no options
-        const [search, setSearch] = createSignal("");
-        const [options, setOptions] = createSignal<readonly CommandOption[]>([], {
-            ownedWrite: true,
-        });
-        const [highlighted, setHighlighted] = createSignal<string | undefined>(undefined);
-        this.listId = createUniqueId();
-        this.search = search;
-        this.options = options;
-        this.#properties = properties;
-        this.onChoose = undefined;
-        this.#highlighted = highlighted;
-        this.#setSearch = setSearch;
-        this.#setOptions = setOptions;
-        this.#setHighlighted = setHighlighted;
-    }
-
-    /** Add an option until it unmounts. */
-    register(option: CommandOption): void {
-        this.#setOptions((options) => [...options, option]);
-        onCleanup(() => this.#setOptions((options) => options.filter((entry) => entry !== option)));
-    }
-
-    /** Replace the search, highlighting the first match again. */
-    type(search: string): void {
-        this.#setSearch(search);
-        this.#setHighlighted(undefined);
-    }
-
-    /** Report whether an option matches the search, ignoring case. */
-    matches(option: CommandOption): boolean {
-        const search = this.search().trim().toLowerCase();
-        if (this.#properties.shouldFilter === false || search === "") {
-            return true;
-        }
-
-        return [option.value(), ...option.keywords].some((word) =>
-            word.toLowerCase().includes(search),
-        );
-    }
-
-    /** List the options the search shows, in document order. */
-    shown(): CommandOption[] {
-        return this.options().filter((option) => this.matches(option));
-    }
-
-    /** Read the highlighted option's id: the last one highlighted while shown, else the first enabled one. */
-    highlighted(): string | undefined {
-        const enabled = this.shown().filter((option) => !option.isDisabled());
-        const value = this.#properties.value ?? this.#highlighted();
-
-        return (enabled.find((option) => option.value() === value) ?? enabled[0])?.id;
-    }
-
-    /** Highlight an option and tell the owner's change handler its value. */
-    highlight(option: CommandOption): void {
-        // skip the option already highlighted
-        const value = option.value();
-        if (option.id === this.highlighted()) {
-            return;
-        }
-        this.#setHighlighted(value);
-        this.#properties.onValueChange?.(value);
-    }
-
-    /** Highlight the next or previous enabled option, stopping at the ends, and scroll it into view. */
-    move(offset: 1 | -1): void {
-        // step from the highlighted option, staying within the list
-        const enabled = this.shown().filter((option) => !option.isDisabled());
-        const index = enabled.findIndex((option) => option.id === this.highlighted());
-        const next = enabled[Math.min(Math.max(index + offset, 0), enabled.length - 1)];
-        if (next === undefined) {
-            return;
-        }
-
-        // highlight it and bring it into view
-        this.highlight(next);
-        document.getElementById(next.id)?.scrollIntoView?.({ block: "nearest" });
-    }
-
-    /** Choose the highlighted option, if any. */
-    chooseHighlighted(): void {
-        const id = this.highlighted();
-        this.options()
-            .find((option) => option.id === id)
-            ?.choose();
-    }
-}
-
-/** The filtering and highlight of a command list, which its owner controls. */
-export interface CommandListProperties {
-    /** Whether the list filters its options by the search, true by default. */
-    readonly shouldFilter?: boolean;
+/** The properties of a command: its search, filtering and highlight, the native element's attributes included. */
+export interface CommandProperties
+    extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class">, AutocompleteProperties {
     /** The highlighted option's value, which makes the highlight controlled. */
     readonly value?: string;
+    /** The highlighted option's value at first while uncontrolled, the first option by default. */
+    readonly defaultValue?: string;
     /** Handle another option being highlighted. */
     readonly onValueChange?: (value: string) => void;
-}
-
-/** The properties of a command, the native element's attributes included. */
-export interface CommandProperties
-    extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class">, CommandListProperties {
+    /** Whether the arrow keys wrap from the last option to the first and back, false by default. */
+    readonly loop?: boolean;
     /** The StyleX styles applied after the command's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -270,20 +99,7 @@ export type CommandElementProperties<Attributes> = Omit<Attributes, "class"> & {
 };
 
 /** The properties of a command option. */
-export interface CommandItemProperties extends CommandElementProperties<
-    Omit<JSX.HTMLAttributes<HTMLDivElement>, "onSelect" | "onClick" | "onPointerMove" | "ref">
-> {
-    /** The text the option stands for once chosen, its content by default. */
-    readonly textValue?: string;
-    /** The text the search matches and the value chosen, the option's text by default. */
-    readonly value?: string;
-    /** Further words the search matches, such as synonyms. */
-    readonly keywords?: readonly string[];
-    /** Whether the option is unavailable. */
-    readonly disabled?: boolean;
-    /** Handle the option being chosen with a click or Enter. */
-    readonly onSelect?: (value: string) => void;
-}
+export type CommandItemProperties = ListBoxItemProperties;
 
 /** The properties of a command dialog. */
 export interface CommandDialogProperties extends DialogProperties {
@@ -293,68 +109,87 @@ export interface CommandDialogProperties extends DialogProperties {
     readonly description?: string;
 }
 
-/** Read the command list of the nearest command, refusing elements outside one. */
-export function useCommand(): CommandControl {
-    const control = useContext(CommandContext);
-    if (control === null) {
-        throw new TypeError("command elements need a command around them");
-    }
-
-    return control;
+/** The properties of a command group, the native element's attributes included. */
+export interface CommandGroupProperties extends CommandElementProperties<
+    JSX.HTMLAttributes<HTMLDivElement>
+> {
+    /** The heading that names the group, rendered as its heading part. */
+    readonly heading?: JSX.Element;
+    /** Whether the group shows whatever the search. */
+    readonly forceMount?: boolean;
 }
 
-/** Provide a command list to elements that build one, such as a combobox. */
-export function CommandProvider(properties: {
-    readonly control: CommandControl;
-    readonly children?: JSX.Element;
-}): JSX.Element {
-    return <CommandContext value={properties.control}>{properties.children}</CommandContext>;
+/** Read the search of the nearest command, refusing elements outside one. */
+export function useCommand(): AutocompleteControl {
+    return useAutocomplete();
 }
 
-/** Render a searchable list of commands, its search filtering them as the person types. */
+/** Render a searchable list of commands, an autocomplete over a list box whose search filters the options as the person types. */
 export function Command(properties: CommandProperties): JSX.Element {
-    const control = new CommandControl(properties);
-    const rest = omit(properties, "shouldFilter", "value", "onValueChange", "xstyle", "style");
+    // drive one list box of options from the search
+    const autocomplete = new AutocompleteControl(properties);
+    const list = new ListBoxControl({
+        autocomplete,
+        get activeValue() {
+            return properties.value;
+        },
+        get defaultActiveValue() {
+            return properties.defaultValue;
+        },
+        onActiveChange: (value) => properties.onValueChange?.(value),
+        get isLooping() {
+            return properties.loop === true;
+        },
+    });
+    const rest = omit(
+        properties,
+        "search",
+        "defaultSearch",
+        "onSearchChange",
+        "shouldFilter",
+        "filter",
+        "value",
+        "defaultValue",
+        "onValueChange",
+        "loop",
+        "xstyle",
+        "style",
+    );
 
     return (
-        <CommandProvider control={control}>
-            <div
-                data-slot="command"
-                {...rest}
-                {...style.attributes(
-                    [text.footnote, styles.command, properties.xstyle],
-                    properties.style,
-                )}
-            />
-        </CommandProvider>
+        <AutocompleteContext value={autocomplete}>
+            <ListBoxContext value={list}>
+                <div
+                    data-slot="command"
+                    {...rest}
+                    {...style.attributes(
+                        [text.footnote, styles.command, properties.xstyle],
+                        properties.style,
+                    )}
+                />
+            </ListBoxContext>
+        </AutocompleteContext>
     );
 }
 
-/** Render the search of a command, which the arrow keys and Enter steer through the list. */
+/** Render the search of a command, which the arrow keys, Home and End move the highlight from and Enter chooses. */
 export function CommandInput(
     properties: CommandElementProperties<
         Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "value" | "onInput" | "onKeyDown">
     >,
 ): JSX.Element {
-    const control = useCommand();
+    // take the search field's attributes from the command's search
+    const autocomplete = useAutocomplete();
+    const locale = useLocale();
     const rest = omit(properties, "xstyle", "style");
 
     return (
         <div data-slot="command-input-wrapper" {...style.attrs(styles.search)}>
             <Icon name="magnifying-glass" />
             <input
-                role="combobox"
-                aria-expanded="true"
-                aria-controls={control.listId}
-                aria-autocomplete="list"
-                aria-activedescendant={control.highlighted()}
-                autocomplete="off"
-                spellcheck={false}
                 data-slot="command-input"
+                {...autocomplete.input(() => locale.direction)}
                 {...rest}
-                value={control.search()}
-                onInput={(event) => control.type(event.currentTarget.value)}
-                onKeyDown={(event) => steer(event, control)}
                 {...style.attributes(
                     [text.callout, styles.input, properties.xstyle],
                     properties.style,
@@ -366,18 +201,16 @@ export function CommandInput(
 
 /** Render the list box of a command's options. */
 export function CommandList(
-    properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
+    properties: CommandElementProperties<
+        Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "onFocusOut">
+    >,
 ): JSX.Element {
-    const control = useCommand();
-    const rest = omit(properties, "xstyle", "style");
-
     return (
-        <div
-            id={control.listId}
-            role="listbox"
+        <ListBox
+            control={useListBox()}
             data-slot="command-list"
-            {...rest}
-            {...style.attributes([styles.list, properties.xstyle], properties.style)}
+            {...properties}
+            xstyle={[styles.list, properties.xstyle]}
         />
     );
 }
@@ -386,163 +219,47 @@ export function CommandList(
 export function CommandEmpty(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const control = useCommand();
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <Show when={control.shown().length === 0}>
-            <div
-                role="presentation"
-                data-slot="command-empty"
-                {...rest}
-                {...style.attributes([styles.empty, properties.xstyle], properties.style)}
-            />
-        </Show>
-    );
+    return <ListBoxEmpty data-slot="command-empty" {...properties} />;
 }
 
 /** Render the state of options the owner loads, announced as it changes. */
 export function CommandLoading(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            role="status"
-            data-slot="command-loading"
-            {...rest}
-            {...style.attributes([styles.empty, properties.xstyle], properties.style)}
-        />
-    );
+    return <ListBoxLoading data-slot="command-loading" {...properties} />;
 }
 
 /** Render a group of options under a heading, hidden while the search matches none of them. */
-export function CommandGroup(
-    properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>> & {
-        readonly heading?: JSX.Element;
-    },
-): JSX.Element {
-    // name the group and hide it once none of its options match
-    const control = useCommand();
-    const id = createUniqueId();
-    const rest = omit(properties, "heading", "xstyle", "style", "children");
-    const isEmpty = (): boolean => !control.shown().some((option) => option.group === id);
+export function CommandGroup(properties: CommandGroupProperties): JSX.Element {
+    const rest = omit(properties, "heading", "children");
 
     return (
-        <CommandGroupContext value={id}>
-            <div
-                role="group"
-                aria-labelledby={"heading" in properties ? `${id}-heading` : undefined}
-                hidden={isEmpty()}
-                data-slot="command-group"
-                {...rest}
-                {...style.attributes([properties.xstyle], properties.style)}
-            >
-                <Show when={"heading" in properties}>
-                    <div
-                        id={`${id}-heading`}
-                        aria-hidden="true"
-                        {...style.attrs(text.caption, styles.heading)}
-                    >
-                        {properties.heading}
-                    </div>
-                </Show>
-                {properties.children}
-            </div>
-        </CommandGroupContext>
+        <ListBoxSection data-slot="command-group" {...rest}>
+            <Show when={"heading" in properties}>
+                <CommandGroupHeading>{properties.heading}</CommandGroupHeading>
+            </Show>
+            {properties.children}
+        </ListBoxSection>
     );
+}
+
+/** Render the heading that labels the nearest command group. */
+export function CommandGroupHeading(
+    properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
+): JSX.Element {
+    return <ListBoxSectionHeading data-slot="command-group-heading" {...properties} />;
 }
 
 /** Render an option that the search filters and a click or Enter chooses. */
 export function CommandItem(properties: CommandItemProperties): JSX.Element {
-    // join the list with the option's value, its text unless one is passed
-    const control = useCommand();
-    const rest = omit(
-        properties,
-        "value",
-        "textValue",
-        "keywords",
-        "disabled",
-        "onSelect",
-        "xstyle",
-        "style",
-    );
-    let element: HTMLDivElement | undefined;
-    const option: CommandOption = {
-        id: createUniqueId(),
-        group: useContext(CommandGroupContext),
-        value: () => properties.value ?? element?.textContent?.trim() ?? "",
-        get keywords() {
-            return properties.keywords ?? [];
-        },
-        isDisabled: () => properties.disabled === true,
-        choose: () => {
-            properties.onSelect?.(option.value());
-            control.onChoose?.(
-                option.value(),
-                properties.textValue ?? element?.textContent?.trim() ?? option.value(),
-            );
-        },
-    };
-    control.register(option);
-    const isHighlighted = (): boolean => control.highlighted() === option.id;
-
-    return (
-        <div
-            id={option.id}
-            role="option"
-            aria-selected={isHighlighted() ? "true" : "false"}
-            aria-disabled={properties.disabled === true ? "true" : undefined}
-            hidden={!control.matches(option)}
-            data-slot="command-item"
-            data-highlighted={isHighlighted() ? "" : undefined}
-            data-disabled={properties.disabled === true ? "" : undefined}
-            {...rest}
-            ref={(item) => (element = item)}
-            onPointerDown={(event) => event.preventDefault()}
-            onPointerMove={() => {
-                // highlight an enabled option under the pointer
-                if (!option.isDisabled()) {
-                    control.highlight(option);
-                }
-            }}
-            onClick={() => {
-                // choose an enabled option
-                if (!option.isDisabled()) {
-                    option.choose();
-                }
-            }}
-            {...style.attributes(
-                [
-                    styles.item,
-                    isHighlighted() && styles.active,
-                    properties.disabled === true && styles.disabled,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
-    );
+    return <ListBoxItem data-slot="command-item" {...properties} />;
 }
 
-/** Render a line between groups of options. */
+/** Render a line between groups of options while the search is empty. */
 export function CommandSeparator(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const control = useCommand();
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <Show when={control.search() === ""}>
-            <div
-                role="separator"
-                data-slot="command-separator"
-                {...rest}
-                {...style.attributes([styles.separator, properties.xstyle], properties.style)}
-            />
-        </Show>
-    );
+    return <ListBoxSeparator data-slot="command-separator" {...properties} />;
 }
 
 /** Render the keyboard shortcut of an option at its end. */
@@ -571,25 +288,14 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
     return (
         <Dialog {...rest}>
             <DialogContent showCloseButton={false}>
-                <DialogTitle xstyle={styles.hidden}>
+                <DialogTitle xstyle={visuallyHiddenStyle()}>
                     {properties.title ?? locale.render(t`Command palette`)}
                 </DialogTitle>
-                <DialogDescription xstyle={styles.hidden}>
+                <DialogDescription xstyle={visuallyHiddenStyle()}>
                     {properties.description ?? locale.render(t`Search for a command to run`)}
                 </DialogDescription>
                 <Command>{properties.children}</Command>
             </DialogContent>
         </Dialog>
     );
-}
-
-/** Move the highlight with the up and down arrow keys and choose it with Enter. */
-function steer(event: KeyboardEvent, control: CommandControl): void {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        control.move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === "Enter") {
-        event.preventDefault();
-        control.chooseHighlighted();
-    }
 }

@@ -1,6 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import { Label } from "../label/index.ts";
-import { Checkbox } from "./checkbox.tsx";
+import { Checkbox, CheckboxIndicator } from "./checkbox.tsx";
 
 /** A checkbox that accepts the terms. */
 export const checkboxAcceptTerms = defineExample({
@@ -34,6 +34,35 @@ export const checkboxAcceptTermsDisabled = defineExample({
     render: () => (
         <Label>
             <Checkbox name="terms" required disabled /> Accept the terms
+        </Label>
+    ),
+});
+
+/** A select-all box composed from its root and indicator, showing a partial selection. */
+export const checkboxSelectAll = defineExample({
+    of: Checkbox,
+    name: "select-all",
+    description:
+        "a select-all box composed from its root and indicator, showing a partial selection",
+    render: () => (
+        <Label>
+            <Checkbox indeterminate>
+                <CheckboxIndicator />
+            </Checkbox>{" "}
+            Select all
+        </Label>
+    ),
+});
+
+/** The terms checkbox marked invalid, as a form shows it before the terms are accepted. */
+export const checkboxAcceptTermsInvalid = defineExample({
+    of: Checkbox,
+    name: "accept-terms-invalid",
+    description:
+        "the terms checkbox marked invalid, as a form shows it before the terms are accepted",
+    render: () => (
+        <Label>
+            <Checkbox name="terms" required aria-invalid="true" /> Accept the terms
         </Label>
     ),
 });

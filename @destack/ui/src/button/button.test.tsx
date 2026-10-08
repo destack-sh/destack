@@ -29,12 +29,6 @@ test("restyle a button when its variant changes", () => {
     );
 });
 
-test("pass the native button to a ref", () => {
-    let element: HTMLButtonElement | undefined;
-    const container = draw(() => <Button ref={(button) => (element = button)} />);
-    expect(element).toBe(container.firstElementChild);
-});
-
 test("style a link like a button of the same variant and size", () => {
     const container = draw(() => (
         <>

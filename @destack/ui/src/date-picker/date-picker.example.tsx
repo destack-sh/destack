@@ -67,3 +67,13 @@ export const datePickerDaysOff = defineExample({
         />
     ),
 });
+
+/** The due day picker with its calendar open below its fields. */
+export const datePickerDueDayOpen = defineExample({
+    of: DatePicker,
+    name: "due-day-open",
+    description: "the due day picker with its calendar open below its fields",
+    render: () => (
+        <DatePicker aria-label="Due date" defaultValue={Day.parse("2026-10-12")} defaultOpen />
+    ),
+});

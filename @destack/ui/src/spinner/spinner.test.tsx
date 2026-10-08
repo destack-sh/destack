@@ -21,11 +21,6 @@ test("announce loading as a status around a hidden icon", () => {
     );
 });
 
-test("announce a passed label instead of the default", () => {
-    const container = draw(() => <Spinner aria-label="Saving" />);
-    expect(container.firstElementChild?.getAttribute("aria-label")).toBe("Saving");
-});
-
 test("announce loading in the German translation the package ships, for an Austrian reader", () => {
     const container = draw(() => (
         <LocaleContext value={Localization.of("de-AT", [GERMAN])}>

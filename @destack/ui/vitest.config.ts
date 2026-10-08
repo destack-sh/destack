@@ -15,7 +15,7 @@ export default defineConfiguration({
                     root: ROOT,
                     test: {
                         name: "dom",
-                        include: ["src/**/*.test.tsx"],
+                        include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
                         testTimeout: 2000,
                     },
                 }),

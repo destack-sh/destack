@@ -9,21 +9,18 @@ import {
     type Accessor,
     createContext,
     createControllableSignal,
-    createSignal,
+    createMemo,
     createUniqueId,
     type JSX,
     omit,
-    onCleanup,
-    type Setter,
     Show,
     useContext,
     useLocale,
 } from "@destack/view";
-import { isTypeaheadKey } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
-
-/** The selector of a tree's items. */
-const ITEM = "[role=treeitem]";
+import { Collection, CollectionBuilder } from "../collection/index.ts";
+import { Focus, ListDelegate } from "../focus/index.ts";
+import { Selection, type SingleSelection } from "../selection/index.ts";
 
 /** The tree of the nearest tree, null outside one. */
 const TreeContext = createContext<TreeControl | null>(null);
@@ -95,114 +92,130 @@ const styles = style.create({
     },
 });
 
-/** The selected and focused items of a tree, which its items share. */
+/** The items, selection and focused item of a tree, which its items share. */
 export class TreeControl {
-    /** The value of the item that holds the tab stop, the first item when none was focused. */
-    readonly focused: Accessor<string | undefined>;
-    /** The selected value, controlled or the tree's own. */
-    readonly value: Accessor<string | undefined>;
-    /** Replace the selected value and tell the change handler. */
-    readonly #setValue: (value: string | undefined) => void;
-    /** Replace the item that holds the tab stop. */
-    readonly #setFocused: Setter<string | undefined>;
-    /** The values of the top-level items in document order. */
-    readonly #roots: Accessor<readonly string[]>;
-    /** Replace the values of the top-level items. */
-    readonly #setRoots: Setter<readonly string[]>;
-    /** The parent and expansion of each item, by value. */
-    readonly #nodes: Accessor<ReadonlyMap<string, TreeNode>>;
-    /** Replace the items' parents and expansions. */
-    readonly #setNodes: Setter<ReadonlyMap<string, TreeNode>>;
+    /** The selected value, one at most, controlled or the tree's own. */
+    readonly selection: Selection;
+    /** The items in the order of their elements. */
+    readonly nodes: CollectionBuilder<TreeNode>;
+    /** The items outside collapsed parents, in order. */
+    readonly visible: Collection<TreeNode>;
+    /** The visible items the arrow keys, Home, End and typed letters move through. */
+    readonly delegate: ListDelegate<TreeNode>;
+    /** The focused item, which holds the tab stop. */
+    readonly focus: Focus<string>;
+    /** The item of each value. */
+    readonly #byValue: Accessor<ReadonlyMap<string, TreeNode>>;
 
     /** Create the state of a tree from its root's properties. */
     constructor(properties: TreeProperties) {
-        // start from the default value without a focused item or top-level items
-        const [value, setValue] = createControllableSignal({
-            isControlled: () => "value" in properties,
-            value: () => properties.value,
-            defaultValue: properties.defaultValue,
-            onChange: (next) => {
-                // tell the change handler of each selected item
-                if (next !== undefined) {
-                    properties.onValueChange?.(next);
-                }
-            },
+        // follow the controlled value or the tree's own, reporting each selected item
+        const onValueChange = (next: string | undefined): void => {
+            if (next !== undefined) {
+                properties.onValueChange?.(next);
+            }
+        };
+        this.selection = new Selection(
+            "value" in properties
+                ? {
+                      get value() {
+                          return properties.value;
+                      },
+                      onValueChange,
+                  }
+                : { ...defaultOf(properties.defaultValue), onValueChange },
+        );
+
+        // keep the items outside collapsed parents, found by value
+        this.nodes = new CollectionBuilder((node) => node.element());
+        this.#byValue = createMemo(
+            () => new Map(this.nodes.items().map((node) => [node.value, node])),
+        );
+        this.visible = new Collection({
+            sections: () => [
+                { key: "visible", items: this.nodes.items().filter((node) => this.isShown(node)) },
+            ],
+            key: (node) => node.value,
+            text: (node) =>
+                node.element()?.querySelector("[data-slot=tree-item-row]")?.textContent ?? "",
         });
-        const [focused, setFocused] = createSignal<string | undefined>(undefined);
-        const [roots, setRoots] = createSignal<readonly string[]>([], { ownedWrite: true });
-        const [nodes, setNodes] = createSignal<ReadonlyMap<string, TreeNode>>(new Map(), {
-            ownedWrite: true,
+
+        // move through the visible items, the selected one or its outermost collapsed ancestor holding the tab stop
+        this.delegate = new ListDelegate(this.visible, {
+            orientation: "vertical",
+            isLooping: false,
+            isTypeahead: true,
         });
-        this.#roots = roots;
-        this.#setRoots = setRoots;
-        this.#nodes = nodes;
-        this.#setNodes = setNodes;
-        this.focused = focused;
-        this.value = value;
-        this.#setValue = setValue;
-        this.#setFocused = setFocused;
+        this.focus = new Focus({
+            delegate: this.delegate,
+            mode: "roving",
+            initial: () => this.lift(this.selection.values()[0] ?? this.visible.at(0)),
+        });
+    }
+
+    /** Read the item of a value, undefined for no such item. */
+    node(value: string): TreeNode | undefined {
+        return this.#byValue().get(value);
+    }
+
+    /** Report whether an item shows: every parent above it expanded. */
+    isShown(node: TreeNode): boolean {
+        for (let parent = this.#parentOf(node); parent !== undefined;) {
+            if (!parent.isExpanded()) {
+                return false;
+            }
+            parent = this.#parentOf(parent);
+        }
+
+        return true;
+    }
+
+    /** Read the outermost collapsed parent above an item, else the item itself. */
+    lift(value: string | undefined): string | undefined {
+        // walk up from the item, stopping at each collapsed parent that hides it
+        const node = value === undefined ? undefined : this.node(value);
+        let stop = value;
+        for (
+            let parent = node === undefined ? undefined : this.#parentOf(node);
+            parent !== undefined;
+        ) {
+            if (!parent.isExpanded()) {
+                stop = parent.value;
+            }
+            parent = this.#parentOf(parent);
+        }
+
+        return stop;
     }
 
     /** Select an item and tell the change handler. */
     select(value: string): void {
-        this.#setValue(value);
+        this.selection.select(value);
     }
 
-    /** Add an item with its parent and expansion until the item unmounts, a top-level one among the roots. */
-    register(value: string, node: TreeNode): void {
-        // keep the item's place in the tree
-        this.#setNodes((nodes) => new Map(nodes).set(value, node));
-        onCleanup(() =>
-            this.#setNodes((nodes) => {
-                const remaining = new Map(nodes);
-                remaining.delete(value);
-
-                return remaining;
-            }),
-        );
-
-        // keep a top-level item among the roots in document order
-        if (node.parent === null) {
-            this.#setRoots((roots) => [...roots, value]);
-            onCleanup(() => this.#setRoots((roots) => roots.filter((entry) => entry !== value)));
-        }
-    }
-
-    /** Report whether an item holds the tab stop: the focused, else the selected, else the first, or its outermost collapsed ancestor. */
-    isTabStop(value: string): boolean {
-        // walk up from the item asked for, stopping at each collapsed ancestor that hides it
-        const nodes = this.#nodes();
-        let stop = this.focused() ?? this.value() ?? this.#roots()[0];
-        for (let parent = nodeParent(nodes, stop); parent !== null;) {
-            if (nodes.get(parent)?.isExpanded() === false) {
-                stop = parent;
-            }
-            parent = nodeParent(nodes, parent);
-        }
-
-        return stop === value;
-    }
-
-    /** Remember the item the focus rests on. */
-    focus(value: string): void {
-        this.#setFocused(value);
+    /** Read the parent of an item, undefined for a top-level one. */
+    #parentOf(node: TreeNode): TreeNode | undefined {
+        return node.parent === null ? undefined : this.node(node.parent);
     }
 }
 
-/** An item's place in its tree: its parent and whether its children show. */
+/** An item's place in its tree: its value, parent, expansion and element. */
 interface TreeNode {
+    /** The value the item stands for. */
+    readonly value: string;
     /** The value of the parent item, null for a top-level item. */
     readonly parent: string | null;
     /** Whether the item's children show. */
     readonly isExpanded: Accessor<boolean>;
+    /** The item's element, undefined until it renders. */
+    readonly element: Accessor<HTMLElement | undefined>;
+    /** Select the item and toggle a parent, as a click does. */
+    readonly activate: () => void;
 }
 
-/** Read the parent of an item, null for a top-level, unknown or absent one. */
-function nodeParent(
-    nodes: ReadonlyMap<string, TreeNode>,
-    value: string | undefined,
-): string | null {
-    return value === undefined ? null : (nodes.get(value)?.parent ?? null);
+/** Read the default of a single selection, none when absent. */
+function defaultOf(value: string | undefined): Pick<SingleSelection, "defaultValue"> {
+    return value === undefined ? {} : { defaultValue: value };
 }
 
 /** The properties of a tree, the native list's attributes included. */
@@ -262,7 +275,8 @@ export function Tree(properties: TreeProperties): JSX.Element {
                 role="tree"
                 data-slot="tree"
                 {...rest}
-                onKeyDown={(event) => navigate(event, locale.direction)}
+                onKeyDown={(event) => navigate(event, control, locale.direction)}
+                onFocusOut={(event) => control.focus.focusOut(event)}
                 {...style.attributes(
                     [text.footnote, styles.tree, properties.xstyle],
                     properties.style,
@@ -297,10 +311,28 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
         onChange: (expanded) => properties.onExpandedChange?.(expanded),
     });
     const isParent = (): boolean => "children" in properties;
-    const isSelected = (): boolean => control.value() === properties.value;
-    control.register(properties.value, { parent, isExpanded });
+    const isSelected = (): boolean => control.selection.isSelected(properties.value);
+    const activate = (): void => {
+        // select the item and toggle a parent
+        control.select(properties.value);
+        if (isParent()) {
+            setExpanded(!isExpanded());
+        }
+    };
+    let element: HTMLLIElement | undefined;
+    control.nodes.add({
+        value: properties.value,
+        parent,
+        isExpanded,
+        element: () => element,
+        activate,
+    });
+    control.focus.bind(
+        () => properties.value,
+        () => element,
+    );
 
-    // name the item by its own row
+    // label the item by its own row
     const rowId = createUniqueId();
 
     return (
@@ -310,26 +342,34 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
             aria-level={level}
             aria-expanded={isParent() ? (isExpanded() ? "true" : "false") : undefined}
             aria-selected={isSelected() ? "true" : "false"}
-            tabindex={control.isTabStop(properties.value) ? 0 : -1}
+            tabindex={control.focus.isActive(properties.value) ? 0 : -1}
             data-slot="tree-item"
             data-state={isParent() ? (isExpanded() ? "open" : "closed") : undefined}
             data-value={properties.value}
             {...rest}
+            ref={(item) => (element = item)}
             onClick={(event) => {
                 // select the clicked row's own item and toggle a parent
                 event.stopPropagation();
-                control.select(properties.value);
-                if (isParent()) {
-                    setExpanded(!isExpanded());
+                activate();
+            }}
+            onFocus={(event) => {
+                // follow the focus onto the item's own element
+                if (event.target === event.currentTarget) {
+                    control.focus.focusIn(properties.value);
                 }
             }}
-            onFocus={(event) =>
-                event.target === event.currentTarget && control.focus(properties.value)
-            }
             onKeyDown={(event) => {
-                // expand and collapse with the arrow keys along the reading direction
+                // expand, enter and collapse with the arrow keys along the reading direction
                 if (event.target === event.currentTarget && isParent()) {
-                    expandOrCollapse(event, isExpanded(), setExpanded, locale.direction);
+                    expandOrCollapse(
+                        event,
+                        control,
+                        properties.value,
+                        isExpanded(),
+                        setExpanded,
+                        locale.direction,
+                    );
                 }
             }}
             {...style.attrs(styles.item)}
@@ -339,7 +379,7 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
                 level={level}
                 isParent={isParent()}
                 isExpanded={isExpanded()}
-                isFocused={control.focused() === properties.value}
+                isFocused={control.focus.isFocused() && control.focus.isActive(properties.value)}
                 isSelected={isSelected()}
                 xstyle={properties.xstyle}
             >
@@ -420,7 +460,9 @@ function TreeItemRow(properties: {
 
 /** Expand a closed parent or enter an open one, and collapse an open one, on the arrow keys along the reading direction. */
 function expandOrCollapse(
-    event: KeyboardEvent & { readonly currentTarget: HTMLLIElement },
+    event: KeyboardEvent,
+    control: TreeControl,
+    value: string,
     isExpanded: boolean,
     setExpanded: (isExpanded: boolean) => void,
     direction: Direction,
@@ -428,16 +470,17 @@ function expandOrCollapse(
     // read the key that opens and the key that closes
     const opens = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
     const closes = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
+    const child = control.delegate.after(value);
 
     // expand, enter or collapse, leaving other cases to the tree
     if (event.key === opens && !isExpanded) {
         event.preventDefault();
         event.stopPropagation();
         setExpanded(true);
-    } else if (event.key === opens && isExpanded) {
+    } else if (event.key === opens && isExpanded && child !== undefined) {
         event.preventDefault();
         event.stopPropagation();
-        event.currentTarget.querySelector<HTMLElement>(ITEM)?.focus();
+        control.focus.focus(child);
     } else if (event.key === closes && isExpanded) {
         event.preventDefault();
         event.stopPropagation();
@@ -445,63 +488,21 @@ function expandOrCollapse(
     }
 }
 
-/** Move the focus among a tree's visible items, to a parent, or select with Enter and Space. */
-function navigate(
-    event: KeyboardEvent & { readonly currentTarget: HTMLUListElement },
-    direction: Direction,
-): void {
-    // read the visible items and the focused one
-    const items = visibleItems(event.currentTarget);
-    const current =
-        event.target instanceof HTMLElement ? event.target.closest<HTMLElement>(ITEM) : null;
-    const index = current === null ? -1 : items.indexOf(current);
+/** Move the focus among a tree's visible items, to a parent, or choose the focused item with Enter and Space. */
+function navigate(event: KeyboardEvent, control: TreeControl, direction: Direction): void {
+    // read the focused item and the key that closes toward its parent
+    const active = control.focus.current();
+    const node = active === undefined ? undefined : control.node(active);
     const closes = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
 
-    // pick the target of the key
-    const target =
-        event.key === "ArrowDown"
-            ? items[index + 1]
-            : event.key === "ArrowUp"
-              ? items[index - 1]
-              : event.key === "Home"
-                ? items[0]
-                : event.key === "End"
-                  ? items.at(-1)
-                  : event.key === closes
-                    ? (current?.parentElement?.closest<HTMLElement>(ITEM) ?? undefined)
-                    : isTypeaheadKey(event)
-                      ? typeahead(event.key, items, index)
-                      : undefined;
-
-    // select on Enter and Space, else focus the target
-    if (event.key === "Enter" || event.key === " ") {
+    // choose the focused item, step out to its parent, or move along the visible items
+    if ((event.key === "Enter" || event.key === " ") && node !== undefined) {
         event.preventDefault();
-        current?.click();
-    } else if (target !== undefined) {
+        node.activate();
+    } else if (event.key === closes && node?.parent !== undefined && node.parent !== null) {
         event.preventDefault();
-        target.focus();
+        control.focus.focus(node.parent);
+    } else {
+        control.focus.move(event, direction);
     }
-}
-
-/** List a tree's items outside collapsed groups, in document order. */
-function visibleItems(tree: Element): HTMLElement[] {
-    return [...tree.querySelectorAll<HTMLElement>(ITEM)].filter(
-        (item) => item.parentElement?.closest("[role=group][hidden]") === null,
-    );
-}
-
-/** Find the next item after an index whose text starts with a letter, wrapping around. */
-function typeahead(
-    letter: string,
-    items: readonly HTMLElement[],
-    index: number,
-): HTMLElement | undefined {
-    const ordered = [...items.slice(index + 1), ...items.slice(0, index + 1)];
-
-    return ordered.find((item) =>
-        (item.querySelector("[data-slot=tree-item-row]")?.textContent ?? "")
-            .trim()
-            .toLowerCase()
-            .startsWith(letter.toLowerCase()),
-    );
 }

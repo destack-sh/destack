@@ -22,7 +22,7 @@ import {
 } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Spinner } from "../spinner/index.ts";
-import { createSwipe, isDismissal, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
+import { isDismissal, Swipe, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
 
 /** The time a toast shows before it leaves on its own, in milliseconds. */
 const DURATION = 4000;
@@ -208,7 +208,7 @@ export class ToastStore {
     readonly toasts: Accessor<readonly Toast[]>;
     /** Replace the toasts. */
     readonly #setToasts: Setter<readonly Toast[]>;
-    /** The number of toasts shown so far, which names the next toast without an id. */
+    /** The number of toasts shown so far, which numbers the next toast without an id. */
     #count: number;
 
     /** Create an empty store. */
@@ -222,7 +222,7 @@ export class ToastStore {
 
     /** Show a toast, replacing the one with the same id in place, and return its id. */
     show(title: string, type: ToastType, options: ToastOptions = {}): string {
-        // name the toast and put it in place of its namesake or first
+        // replace the toast with the same id, else put it first
         this.#count += 1;
         const id = options.id ?? `toast-${this.#count}`;
         const shown: Toast = { ...options, id, type, title };
@@ -384,6 +384,54 @@ function focusOnShortcut(target: () => HTMLElement | undefined): void {
     });
 }
 
+/** The time a toast has left to show, counted down while neither the pointer nor the focus rests on it. */
+class ToastTimer {
+    /** The time left, in milliseconds, infinite for a toast that stays. */
+    #remaining: number;
+    /** The time the countdown last started, in milliseconds since the page loaded. */
+    #started = 0;
+    /** The pending end of the countdown. */
+    #timer: ReturnType<typeof setTimeout> | undefined = undefined;
+    /** The pointer and the focus resting on the toast, each holding the countdown. */
+    #holds = 0;
+    /** End the toast once its time runs out. */
+    readonly #onEnd: () => void;
+
+    /** Start counting down a time, cancelling the countdown when its owner disposes. */
+    constructor(duration: number, onEnd: () => void) {
+        // start the countdown, stopping it as the toast leaves
+        this.#remaining = duration;
+        this.#onEnd = onEnd;
+        this.#run();
+        onCleanup(() => clearTimeout(this.#timer));
+    }
+
+    /** Hold the countdown while the pointer or the focus rests on the toast, keeping the time left. */
+    pause(): void {
+        this.#holds += 1;
+        if (this.#holds === 1) {
+            clearTimeout(this.#timer);
+            this.#remaining -= performance.now() - this.#started;
+        }
+    }
+
+    /** Release a hold, counting down again once neither the pointer nor the focus rests on the toast. */
+    resume(): void {
+        this.#holds -= 1;
+        if (this.#holds === 0) {
+            this.#run();
+        }
+    }
+
+    /** Count down the time left, unless the toast stays. */
+    #run(): void {
+        if (Number.isFinite(this.#remaining)) {
+            this.#started = performance.now();
+            this.#timer = setTimeout(this.#onEnd, this.#remaining);
+        }
+    }
+}
+
 /** Render one toast, leaving after its duration unless the pointer or focus rests on it. */
 function ToastItem(properties: {
     /** The toast. */
@@ -395,25 +443,14 @@ function ToastItem(properties: {
     /** Whether its kind colors its surface. */
     readonly isRich: boolean;
 }): JSX.Element {
-    // count down the toast's time, pausing while the pointer or focus is on it
+    // count down the toast's time, a loading toast staying
     const locale = useLocale();
     const entry = properties.toast;
-    let remaining = entry.type === "loading" ? Number.POSITIVE_INFINITY : properties.duration;
-    let started = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const resume = () => {
-        if (Number.isFinite(remaining)) {
-            started = performance.now();
-            timer = setTimeout(() => store.dismiss(entry.id), remaining);
-        }
-    };
-    const pause = () => {
-        clearTimeout(timer);
-        remaining -= performance.now() - started;
-    };
-    resume();
-    onCleanup(() => clearTimeout(timer));
-    const swipe = createSwipe(
+    const timer = new ToastTimer(
+        entry.type === "loading" ? Number.POSITIVE_INFINITY : properties.duration,
+        () => store.dismiss(entry.id),
+    );
+    const swipe = new Swipe(
         () => properties.swipe,
         (release) => {
             // dismiss on a far swipe or a flick
@@ -428,14 +465,14 @@ function ToastItem(properties: {
             data-slot="toast"
             data-type={entry.type}
             data-swiping={swipe.offset() === undefined ? undefined : ""}
-            onPointerEnter={pause}
-            onPointerLeave={resume}
-            onFocusIn={pause}
-            onFocusOut={resume}
-            onPointerDown={swipe.onPointerDown}
-            onPointerMove={swipe.onPointerMove}
-            onPointerUp={swipe.onPointerUp}
-            onPointerCancel={swipe.onPointerCancel}
+            onPointerEnter={() => timer.pause()}
+            onPointerLeave={() => timer.resume()}
+            onFocusIn={() => timer.pause()}
+            onFocusOut={() => timer.resume()}
+            onPointerDown={(event) => swipe.start(event)}
+            onPointerMove={(event) => swipe.follow(event)}
+            onPointerUp={() => swipe.release()}
+            onPointerCancel={() => swipe.cancel()}
             {...style.attrs(
                 text.footnote,
                 styles.toast,

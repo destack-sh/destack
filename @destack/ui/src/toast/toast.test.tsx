@@ -58,6 +58,23 @@ test("dismiss a toast after its duration, or at once from its close button", asy
     ]);
 });
 
+test("keep a toast while the focus rests on it after the pointer left, dismissing it once both left", async () => {
+    const container = drawToaster(30);
+    toast("Archived");
+    flush();
+    const item = container.querySelector("[data-slot=toast]");
+    item?.dispatchEvent(new PointerEvent("pointerenter"));
+    item?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    item?.dispatchEvent(new PointerEvent("pointerleave"));
+    await wait(60);
+    flush();
+    const held = shown(container);
+    item?.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    await wait(60);
+    flush();
+    expect([held, shown(container)]).toEqual([["default: Archived"], []]);
+});
+
 test("run a toast's action and dismiss it, and replace a toast by its id", () => {
     const undone: string[] = [];
     const container = drawToaster(1000);

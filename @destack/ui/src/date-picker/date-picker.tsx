@@ -27,7 +27,7 @@ import {
 import { DateField } from "../date-field/index.ts";
 import { FieldContext, useFieldControl } from "../field/control.ts";
 import { Popover, PopoverContent, PopoverTrigger, usePopover } from "../popover/index.ts";
-import { bareSegmentStyle, segmentBoxStyle } from "../segment/index.ts";
+import { bareDateSegmentStyle, dateSegmentBoxStyle } from "../date-segment/index.ts";
 
 /** The styles of a date picker's fields, trigger and panel. */
 const styles = style.create({
@@ -80,6 +80,12 @@ export interface DatePickerLook {
     readonly "aria-label"?: string;
     /** The choices offered beside the calendar, such as today or the next seven days. */
     readonly presets?: readonly DatePickerPreset[];
+    /** Whether the calendar is open, which makes the open state controlled. */
+    readonly open?: boolean | undefined;
+    /** Whether the calendar starts open while the open state is uncontrolled. */
+    readonly defaultOpen?: boolean | undefined;
+    /** Handle the calendar opening or closing. */
+    readonly onOpenChange?: ((open: boolean) => void) | undefined;
 }
 
 /** A choice a date picker offers beside its calendar. */
@@ -115,7 +121,11 @@ export type DatePickerProperties = DatePickerLook & DatePickerSelection;
  */
 export function DatePicker(properties: DatePickerProperties): JSX.Element {
     return (
-        <Popover>
+        <Popover
+            open={properties.open}
+            defaultOpen={properties.defaultOpen}
+            onOpenChange={properties.onOpenChange}
+        >
             <DatePickerPanel {...properties} />
         </Popover>
     );
@@ -207,7 +217,7 @@ function DatePickerFields(properties: {
     /** Handle a typed day or range. */
     readonly onValueChange: (value: CalendarValue) => void;
 }): JSX.Element {
-    // name the group by its field's label, else by the picker's name
+    // label the group by its field's label, else by the picker's name
     const locale = useLocale();
     const field = useFieldControl();
     const picker = properties.properties;
@@ -225,7 +235,7 @@ function DatePickerFields(properties: {
             aria-label={picker["aria-label"]}
             {...field?.groupAttributes()}
             {...style.attrs(
-                segmentBoxStyle({
+                dateSegmentBoxStyle({
                     invalid: field?.isInvalid() === true,
                     disabled: field?.isDisabled() === true,
                 }),
@@ -240,7 +250,7 @@ function DatePickerFields(properties: {
                         <DateField
                             value={singleOf(properties.value)}
                             onValueChange={(day) => properties.onValueChange(day)}
-                            xstyle={bareSegmentStyle()}
+                            xstyle={bareDateSegmentStyle()}
                         />
                     }
                 >
@@ -250,7 +260,7 @@ function DatePickerFields(properties: {
                         onValueChange={(from) =>
                             properties.onValueChange(rangeOf(from, range()?.to ?? end))
                         }
-                        xstyle={bareSegmentStyle()}
+                        xstyle={bareDateSegmentStyle()}
                     />
                     <span aria-hidden="true" {...style.attrs(styles.separator)}>
                         –
@@ -266,7 +276,7 @@ function DatePickerFields(properties: {
                                 properties.onValueChange(rangeOf(from, to));
                             }
                         }}
-                        xstyle={bareSegmentStyle()}
+                        xstyle={bareDateSegmentStyle()}
                     />
                 </Show>
             </FieldContext>

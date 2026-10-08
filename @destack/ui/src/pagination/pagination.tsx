@@ -3,10 +3,11 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { space, stroke } from "@destack/theme/tokens.stylex";
+import { space } from "@destack/theme/tokens.stylex";
 import { createControllableSignal, For, type JSX, merge, omit, useLocale } from "@destack/view";
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { buttonStyle, type ButtonSize } from "../button/index.ts";
+import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a pagination and its elements. */
 const styles = style.create({
@@ -32,14 +33,6 @@ const styles = style.create({
         justifyContent: "center",
         width: space[6],
         height: space[6],
-    },
-    hidden: {
-        position: "absolute",
-        width: stroke.border,
-        height: stroke.border,
-        overflow: "hidden",
-        clipPath: "inset(50%)",
-        whiteSpace: "nowrap",
     },
 });
 
@@ -193,7 +186,7 @@ export function PaginationEllipsis(
             {...style.attributes([styles.ellipsis, properties.xstyle], properties.style)}
         >
             <Icon name="dots-three" />
-            <span {...style.attrs(styles.hidden)}>{locale.render(t`More pages`)}</span>
+            <span {...style.attrs(visuallyHiddenStyle())}>{locale.render(t`More pages`)}</span>
         </span>
     );
 }

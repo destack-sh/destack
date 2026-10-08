@@ -1,13 +1,8 @@
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, width } from "@destack/theme/tokens.stylex";
 import { createContext, createEffect, type JSX, merge, omit, useContext } from "@destack/view";
-import {
-    HoverPopover,
-    placementStyle,
-    type PopoverAlign,
-    type HoverPopoverProperties,
-    type PopoverSide,
-} from "../popover/index.ts";
+import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
+import { type Align, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
 /** The wait before a resting pointer opens a hover card, in milliseconds. */
@@ -63,9 +58,9 @@ export interface HoverCardContentProperties extends Omit<
     "class" | "ref" | "onToggle" | "onPointerEnter" | "onPointerLeave"
 > {
     /** The side of the trigger it opens on, bottom by default. */
-    readonly side?: PopoverSide;
+    readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
-    readonly align?: PopoverAlign;
+    readonly align?: Align;
     /** The StyleX styles applied after the hover card's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -98,6 +93,7 @@ export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.El
     return (
         <a
             data-slot="hover-card-trigger"
+            data-state={card.isOpen() ? "open" : "closed"}
             {...properties}
             ref={(element) => card.setTrigger(element)}
             onPointerEnter={() => card.openLater()}
@@ -133,7 +129,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                 onPointerEnter={() => card.open()}
                 onPointerLeave={() => card.closeLater()}
                 {...style.attributes(
-                    [styles.content, placementStyle(content.side, content.align), content.xstyle],
+                    [styles.content, Position.beside(content.side, content.align), content.xstyle],
                     content.style,
                 )}
             />

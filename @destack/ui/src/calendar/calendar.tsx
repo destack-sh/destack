@@ -3,9 +3,10 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, size, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
+    type Accessor,
     createControllableSignal,
     createEffect,
     createSignal,
@@ -13,10 +14,12 @@ import {
     For,
     type JSX,
     omit,
+    type Setter,
     Show,
     untrack,
     useLocale,
 } from "@destack/view";
+import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 import { buttonStyle } from "../button/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import type { Direction } from "@destack/locale";
@@ -31,6 +34,7 @@ import {
     type CalendarValue,
     type DayState,
 } from "./selection.ts";
+import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a calendar and its days. */
 const styles = style.create({
@@ -103,14 +107,6 @@ const styles = style.create({
     selected: {
         backgroundColor: color.primary,
         color: color.primaryForeground,
-    },
-    hidden: {
-        position: "absolute",
-        width: stroke.border,
-        height: stroke.border,
-        overflow: "hidden",
-        clipPath: "inset(50%)",
-        whiteSpace: "nowrap",
     },
     middle: {
         borderRadius: 0,
@@ -187,99 +183,187 @@ export interface CalendarLook extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "
 /** The properties of a calendar: its look and the selection of its mode. */
 export type CalendarProperties = CalendarLook & CalendarSelection;
 
+/** The selection, focused day and months shown of a calendar, which its months and grids share. */
+class CalendarControl {
+    /** The calendar's properties, read for its mode, limits and change handler. */
+    readonly properties: CalendarProperties;
+    /** The selection. */
+    readonly value: Accessor<CalendarValue>;
+    /** The focused day, which holds the tab stop and the keys move by days, weeks, months and years. */
+    readonly focus: Focus<PlainDate>;
+    /** The first month shown. */
+    readonly first: Accessor<PlainDate>;
+    /** Replace the selection and tell the change handler. */
+    readonly #setValue: (value: CalendarValue) => void;
+    /** Replace the first month shown. */
+    readonly #setFirst: Setter<PlainDate>;
+    /** The selection the person last made, which a selection from outside differs from. */
+    #selected: CalendarValue = undefined;
+
+    /** Create the state of a calendar from its properties, focusing its first month's day or today. */
+    constructor(properties: CalendarProperties, firstDay: Accessor<number>) {
+        // follow the controlled selection or the calendar's own
+        const [value, setValue] = createControllableSignal<CalendarValue>({
+            isControlled: () => "value" in properties,
+            value: () => properties.value,
+            defaultValue: properties.defaultValue,
+            onChange: (next) => report(properties, next),
+        });
+        const start = untrack(() =>
+            Day.clamp(
+                properties.defaultMonth ?? firstOf(value()) ?? properties.today ?? Day.today(),
+                properties.min,
+                properties.max,
+            ),
+        );
+        const [first, setFirst] = createSignal<PlainDate>(Day.monthOf(start), SAME_DAY);
+        this.properties = properties;
+        this.value = value;
+        this.first = first;
+        this.#setValue = setValue;
+        this.#setFirst = setFirst;
+
+        // focus the start day, bringing the month of each focused day into view
+        this.focus = new Focus({
+            delegate: new CalendarDelegate(properties, firstDay, () => start),
+            mode: "roving",
+            keyText: (day) => Day.key(day),
+            onChange: (day) => this.#show(day),
+        });
+
+        // bring a selection set from outside into view, such as a day typed into a date picker
+        createEffect(
+            value,
+            (next) => {
+                const day = firstOf(next);
+                if (next !== this.#selected && day !== undefined) {
+                    this.moveTo(day);
+                }
+            },
+            { defer: true },
+        );
+    }
+
+    /** The focused day. */
+    focused(): PlainDate {
+        return this.focus.active() ?? Day.monthOf(this.first());
+    }
+
+    /** The number of months shown side by side. */
+    count(): number {
+        return Math.max(this.properties.months ?? 1, 1);
+    }
+
+    /** The months shown, from the first. */
+    shown(): PlainDate[] {
+        return Array.from({ length: this.count() }, (_, index) =>
+            Day.addMonths(this.first(), index),
+        );
+    }
+
+    /** Report whether a day cannot be selected: outside the limits or disabled by the owner. */
+    isUnavailable(day: PlainDate): boolean {
+        return (
+            Day.isOutside(day, this.properties.min, this.properties.max) ||
+            this.properties.isDisabled?.(day) === true
+        );
+    }
+
+    /** Report whether moving the months shown by a step still shows an allowed day. */
+    canShift(step: number): boolean {
+        // read the first and last day the moved months show
+        const { min, max } = this.properties;
+        const target = Day.addMonths(this.first(), step);
+        const end = PlainDate.add(Day.addMonths(target, this.count()), -1);
+
+        return (
+            (min === undefined || PlainDate.compare(end, min) >= 0) &&
+            (max === undefined || PlainDate.compare(target, max) <= 0)
+        );
+    }
+
+    /** Focus a day within the allowed days, bringing its month into view. */
+    moveTo(day: PlainDate): void {
+        this.focus.focus(Day.clamp(day, this.properties.min, this.properties.max));
+    }
+
+    /** Move the months shown and the focus with them. */
+    shift(step: number): void {
+        this.#setFirst(Day.addMonths(this.first(), step));
+        this.moveTo(Day.addMonths(this.focused(), step));
+    }
+
+    /** Select a day in the calendar's mode, focusing it and telling the change handler. */
+    select(day: PlainDate): void {
+        this.moveTo(day);
+        this.#selected = nextValue(this.properties, this.value(), day);
+        this.#setValue(this.#selected);
+    }
+
+    /** Move the months shown when a focused day leaves them. */
+    #show(day: PlainDate): void {
+        const month = Day.monthOf(day);
+        if (PlainDate.compare(month, this.first()) < 0) {
+            this.#setFirst(month);
+        } else if (PlainDate.compare(month, Day.addMonths(this.first(), this.count() - 1)) > 0) {
+            this.#setFirst(Day.addMonths(month, 1 - this.count()));
+        }
+    }
+}
+
+/** The days a calendar's keys move the focus through: days, weeks, months and years within the allowed days. */
+class CalendarDelegate implements KeyboardDelegate<PlainDate> {
+    /** The calendar's properties, read for its limits. */
+    readonly #properties: CalendarProperties;
+    /** The weekday weeks start on. */
+    readonly #firstDay: Accessor<number>;
+    /** The day the focus starts on. */
+    readonly #start: Accessor<PlainDate>;
+
+    /** Move through a calendar's days within its limits. */
+    constructor(
+        properties: CalendarProperties,
+        firstDay: Accessor<number>,
+        start: Accessor<PlainDate>,
+    ) {
+        this.#properties = properties;
+        this.#firstDay = firstDay;
+        this.#start = start;
+    }
+
+    /** Read the day a key moves the focus to, kept within the allowed days. */
+    target(event: KeyboardEvent, from: PlainDate, direction: Direction): PlainDate | undefined {
+        const next = moveOf(event, from, this.#firstDay(), direction);
+
+        return next === undefined
+            ? undefined
+            : Day.clamp(next, this.#properties.min, this.#properties.max);
+    }
+
+    /** Read the day the focus starts on. */
+    first(): PlainDate {
+        return this.#start();
+    }
+
+    /** Report whether a day lies within the allowed days. */
+    has(day: PlainDate): boolean {
+        return !Day.isOutside(day, this.#properties.min, this.#properties.max);
+    }
+}
+
 /** Render a month grid of days, which arrow keys, Page Up, Page Down, Home and End move through. */
 export function Calendar(properties: CalendarProperties): JSX.Element {
-    // read the locale's direction and week, and the selected and focused day
+    // read the locale's direction and week, and the calendar's state
     const locale = useLocale();
-    const today = (): PlainDate => properties.today ?? Day.today();
     const firstDay = (): number => properties.weekStartsOn ?? Day.firstDayOf(locale.tag);
-    const [value, setValue] = createControllableSignal<CalendarValue>({
-        isControlled: () => "value" in properties,
-        value: () => properties.value,
-        defaultValue: properties.defaultValue,
-        onChange: (next) => report(properties, next),
-    });
-    const [focused, setFocused] = createSignal<PlainDate>(
-        Day.clamp(
-            properties.defaultMonth ?? firstOf(value()) ?? today(),
-            properties.min,
-            properties.max,
-        ),
-        SAME_DAY,
-    );
-    const count = (): number => Math.max(properties.months ?? 1, 1);
-
-    // keep the first month shown
-    const [first, setFirst] = createSignal<PlainDate>(Day.monthOf(untrack(focused)), SAME_DAY);
-    const shown = (): PlainDate[] =>
-        Array.from({ length: count() }, (_, index) => Day.addMonths(first(), index));
-    const isUnavailable = (day: PlainDate): boolean =>
-        Day.isOutside(day, properties.min, properties.max) || properties.isDisabled?.(day) === true;
-
-    // move the focus within the allowed days and bring its month into view
-    const focus = (day: PlainDate): void => {
-        // focus the day within the allowed days
-        const next = Day.clamp(day, properties.min, properties.max);
-        const month = Day.monthOf(next);
-        setFocused(next);
-
-        // move the months shown when the focus leaves them
-        if (PlainDate.compare(month, first()) < 0) {
-            setFirst(month);
-        } else if (PlainDate.compare(month, Day.addMonths(first(), count() - 1)) > 0) {
-            setFirst(Day.addMonths(month, 1 - count()));
-        }
-    };
-
-    // move the months shown and the focus with them
-    const shift = (step: number): void => {
-        setFirst(Day.addMonths(first(), step));
-        setFocused(Day.clamp(Day.addMonths(focused(), step), properties.min, properties.max));
-    };
-
-    // focus the day a key moved to once its month shows it
-    let root: HTMLDivElement | undefined;
-    let isMoving = false;
-    const move = (day: PlainDate): void => {
-        isMoving = true;
-        focus(day);
-    };
-    createEffect(focused, (day) => {
-        // focus the moved-to day once
-        if (isMoving) {
-            root?.querySelector<HTMLElement>(`[data-day="${Day.key(day)}"]`)?.focus();
-            isMoving = false;
-        }
-    });
-
-    // select a day in the calendar's mode and tell the change handler
-    let selected: CalendarValue;
-    const select = (day: PlainDate) => {
-        // focus the day and keep and report the selection after the click
-        focus(day);
-        selected = nextValue(properties, value(), day);
-        setValue(selected);
-    };
-
-    // bring a selection set from outside into view, such as a day typed into a date picker
-    createEffect(
-        value,
-        (next) => {
-            const day = firstOf(next);
-            if (next !== selected && day !== undefined) {
-                focus(day);
-            }
-        },
-        { defer: true },
-    );
+    const control = new CalendarControl(properties, firstDay);
+    const today = (): PlainDate => properties.today ?? Day.today();
 
     return (
         <div
             data-slot="calendar"
             {...omit(properties, ...CALENDAR_OPTIONS)}
-            ref={(element) => {
-                root = element;
-            }}
+            onFocusOut={(event) => control.focus.focusOut(event)}
             {...style.attributes(
                 [text.footnote, styles.calendar, properties.xstyle],
                 properties.style,
@@ -287,21 +371,10 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
         >
             <CalendarHeader
                 direction={locale.direction}
-                canMove={(step) => {
-                    // allow a move whose months still hold an allowed day
-                    const target = Day.addMonths(first(), step);
-                    const end = PlainDate.add(Day.addMonths(target, count()), -1);
-
-                    return (
-                        (properties.min === undefined ||
-                            PlainDate.compare(end, properties.min) >= 0) &&
-                        (properties.max === undefined ||
-                            PlainDate.compare(target, properties.max) <= 0)
-                    );
-                }}
-                onMove={shift}
+                canMove={(step) => control.canShift(step)}
+                onMove={(step) => control.shift(step)}
             />
-            <For each={shown()}>
+            <For each={control.shown()}>
                 {(month) => (
                     <CalendarMonth
                         month={month}
@@ -310,7 +383,9 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
                         max={properties.max}
                         today={today()}
                         onPick={(picked) =>
-                            focus(Day.addMonths(focused(), monthsBetween(month, picked)))
+                            control.moveTo(
+                                Day.addMonths(control.focused(), monthsBetween(month, picked)),
+                            )
                         }
                     >
                         {(captionId) => (
@@ -318,15 +393,13 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
                                 captionId={captionId}
                                 weeks={Day.weeks(month, firstDay())}
                                 month={month}
-                                focused={focused()}
-                                stateOf={(day) => stateOf(properties, value(), day)}
+                                focus={control.focus}
+                                stateOf={(day) => stateOf(properties, control.value(), day)}
                                 today={today()}
-                                firstDay={firstDay()}
                                 weekNumbers={properties.weekNumbers === true}
                                 outsideDays={properties.outsideDays !== false}
-                                isDisabled={isUnavailable}
-                                onSelect={select}
-                                onMove={move}
+                                isDisabled={(day) => control.isUnavailable(day)}
+                                onSelect={(day) => control.select(day)}
                             />
                         )}
                     </CalendarMonth>
@@ -358,7 +431,7 @@ function CalendarMonth(properties: {
     /** Render the month's grid, named by the caption's id. */
     readonly children: (captionId: string) => JSX.Element;
 }): JSX.Element {
-    // name the month and list the months and years its pickers offer
+    // label the month and list the months and years its pickers offer
     const locale = useLocale();
     const captionId = createUniqueId();
     const name = (month: PlainDate, options: Intl.DateTimeFormatOptions): string =>
@@ -384,7 +457,7 @@ function CalendarMonth(properties: {
                     when={properties.layout === "dropdown"}
                     fallback={name(properties.month, { month: "long", year: "numeric" })}
                 >
-                    <span {...style.attrs(styles.hidden)}>
+                    <span {...style.attrs(visuallyHiddenStyle())}>
                         {name(properties.month, { month: "long", year: "numeric" })}
                     </span>
                     <Select
@@ -429,16 +502,12 @@ function CalendarMonth(properties: {
 interface CalendarGridProperties {
     /** The id of the caption naming the month. */
     readonly captionId: string;
-    /** The day weeks start on, 1 for Monday through 7 for Sunday. */
-    readonly firstDay: number;
-    /** Handle a key moving the focus to a day. */
-    readonly onMove: (day: PlainDate) => void;
     /** The weeks shown, each of seven days. */
     readonly weeks: readonly (readonly PlainDate[])[];
     /** A day of the month shown. */
     readonly month: PlainDate;
-    /** The day holding the focus. */
-    readonly focused: PlainDate;
+    /** The focused day, which the keys move. */
+    readonly focus: Focus<PlainDate>;
     /** Read how a day stands in the selection. */
     readonly stateOf: (day: PlainDate) => DayState;
     /** The day it is. */
@@ -461,14 +530,7 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
         <table
             role="grid"
             aria-labelledby={properties.captionId}
-            onKeyDown={(event) => {
-                // move the focused day with the arrow keys, Home, End, Page Up and Page Down
-                const next = moveOf(event, properties, locale.direction);
-                if (next !== undefined) {
-                    event.preventDefault();
-                    properties.onMove(next);
-                }
-            }}
+            onKeyDown={(event) => properties.focus.move(event, locale.direction)}
             {...style.attrs(styles.grid)}
         >
             <CalendarWeekdays
@@ -496,7 +558,7 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
                                         <CalendarCell
                                             day={day}
                                             month={properties.month}
-                                            isFocused={PlainDate.equals(day, properties.focused)}
+                                            focus={properties.focus}
                                             state={properties.stateOf(day)}
                                             isToday={PlainDate.equals(day, properties.today)}
                                             isDisabled={properties.isDisabled(day)}
@@ -596,14 +658,19 @@ function CalendarHeader(properties: {
 function CalendarCell(properties: {
     readonly day: PlainDate;
     readonly month: PlainDate;
-    readonly isFocused: boolean;
+    readonly focus: Focus<PlainDate>;
     readonly state: DayState;
     readonly isToday: boolean;
     readonly isDisabled: boolean;
     readonly onSelect: (day: PlainDate) => void;
 }): JSX.Element {
-    // read how the day stands in the month and the selection
+    // read how the day stands in the month and the selection, taking the focus as the keys reach it
     const locale = useLocale();
+    let element: HTMLButtonElement | undefined;
+    properties.focus.bind(
+        () => properties.day,
+        () => element,
+    );
     const isOutside = (): boolean => properties.day.month !== properties.month.month;
     const isSelected = (): boolean => properties.state !== "none";
     const isMiddle = (): boolean => properties.state === "middle";
@@ -613,7 +680,7 @@ function CalendarCell(properties: {
         <td aria-selected={isSelected() ? "true" : undefined} {...style.attrs(styles.cell)}>
             <button
                 type="button"
-                tabindex={properties.isFocused ? 0 : -1}
+                tabindex={properties.focus.isActive(properties.day) ? 0 : -1}
                 aria-label={locale.date(Day.time(properties.day), {
                     dateStyle: "full",
                     timeZone: "UTC",
@@ -625,6 +692,8 @@ function CalendarCell(properties: {
                     isSelected() && properties.state !== "selected" ? properties.state : undefined
                 }
                 data-outside={isOutside() ? "true" : undefined}
+                ref={(button) => (element = button)}
+                onFocus={() => properties.focus.focusIn(properties.day)}
                 onClick={() => properties.onSelect(properties.day)}
                 {...style.attrs(
                     buttonStyle({ variant: "ghost", size: "icon" }),
@@ -647,11 +716,11 @@ function CalendarCell(properties: {
 /** Read the day a key moves the focus to, mirroring left and right in right-to-left text. */
 function moveOf(
     event: KeyboardEvent,
-    grid: Pick<CalendarGridProperties, "focused" | "firstDay">,
+    focused: PlainDate,
+    firstDay: number,
     direction: Direction,
 ): PlainDate | undefined {
     // step a day along the reading direction
-    const { focused, firstDay } = grid;
     const step = direction === "rtl" ? -1 : 1;
     if (event.key === "ArrowRight") {
         return PlainDate.add(focused, step);

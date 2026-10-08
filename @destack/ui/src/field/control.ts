@@ -63,7 +63,7 @@ export class FieldControl {
         });
     }
 
-    /** Name a group of controls by the field's label until the group unmounts. */
+    /** Label a group of controls by the field's label until the group unmounts. */
     group(): void {
         this.#setGrouped(true);
         onCleanup(() => this.#setGrouped(false));

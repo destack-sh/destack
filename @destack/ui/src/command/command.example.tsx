@@ -9,6 +9,7 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
+    CommandLoading,
     CommandSeparator,
     CommandShortcut,
 } from "./command.tsx";
@@ -118,4 +119,38 @@ export const commandControlledHighlight = defineExample({
             </>
         );
     },
+});
+
+/** The note and settings commands whose search finds none, showing the empty note. */
+export const commandNoteCommandsNoResults = defineExample({
+    of: Command,
+    name: "note-commands-no-results",
+    description: "the note and settings commands whose search finds none, showing the empty note",
+    render: () => (
+        <Command aria-label="Commands" defaultSearch="export">
+            <CommandInput placeholder="Type a command" />
+            <CommandList>
+                <CommandEmpty>No results</CommandEmpty>
+                <CommandGroup heading="Notes">
+                    <CommandItem>New note</CommandItem>
+                    <CommandItem>Delete note</CommandItem>
+                </CommandGroup>
+            </CommandList>
+        </Command>
+    ),
+});
+
+/** A command list whose owner loads the matching commands, showing their loading. */
+export const commandPeopleLoading = defineExample({
+    of: Command,
+    name: "people-loading",
+    description: "a command list whose owner loads the matching commands, showing their loading",
+    render: () => (
+        <Command aria-label="People" shouldFilter={false} defaultSearch="ada">
+            <CommandInput placeholder="Find a person" />
+            <CommandList>
+                <CommandLoading>Searching…</CommandLoading>
+            </CommandList>
+        </Command>
+    ),
 });

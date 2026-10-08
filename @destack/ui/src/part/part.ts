@@ -1,7 +1,7 @@
 import { type JSX, merge } from "@destack/view";
 
-/** The attributes a part gives the element it renders, which a caller's `render` spreads onto an element of its own. */
-export interface PartAttributes {
+/** The attributes a part gives the element it renders, which a caller's `render` spreads onto an element of its own, and the reference that takes the element. */
+export interface PartAttributes extends Partial<Record<"ref", (element: HTMLElement) => void>> {
     /** The atomic class names of the part's styles. */
     readonly class?: string | undefined;
     /** The inline style: the part's dynamic values, then the caller's. */
