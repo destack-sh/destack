@@ -28,6 +28,9 @@ const meters = {
     version: "2026.9.0",
 };
 
+/** The name of the host routing copies, which authenticates as a machine. */
+const HOST = "host";
+
 /** The accounts whose readings the test reads, each the scope of its own. */
 const account = new Policy(meters, {
     name: "account",
@@ -144,8 +147,12 @@ async function serve(admit?: (context: ServiceContext, kind: EventKind) => Promi
         resources: new ResourceContext(),
         health: new Health("event"),
         authenticate: async (request) => {
+            // authenticate the host routing copies as a machine, and anyone else as a person
             const name = (request.headers.get("authorization") ?? "").slice("Bearer ".length);
-            const subject = principal.user.reference("universe", name);
+            const subject =
+                name === HOST
+                    ? principal.machine.reference("universe", name)
+                    : principal.user.reference("universe", name);
 
             return new Authentication({
                 credential: { kind: "fixture", id: name },
@@ -235,14 +242,14 @@ test("receive routed copies only from a host the admission takes, keeping each o
     const copy = { ...taken("a", 1_000), source: "account-01995da9-7223-7000-8000-000000000009" };
     const delivery = { kind: "reading", events: [copy] };
     const refused = await refusing
-        .client("reader")
+        .client(HOST)
         .receive(delivery)
         .then(
             () => "received",
             (error: unknown) => (isServiceError(error) ? error.code : String(error)),
         );
-    await taking.client("reader").receive(delivery);
-    await taking.client("reader").receive(delivery);
+    await taking.client(HOST).receive(delivery);
+    await taking.client(HOST).receive(delivery);
 
     expect({
         refused,

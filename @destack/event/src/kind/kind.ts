@@ -283,8 +283,8 @@ export class EventKind<
         };
     }
 
-    /** Read a row of the kind's table as the event it keeps. */
-    event(row: Readonly<Record<string, unknown>>): Event {
+    /** Read a row of the kind's table as the event it keeps, its query keys typed by the kind. */
+    event(row: Readonly<Record<string, unknown>>): Event<Shape> {
         // require the columns every event has
         const { scope, id, source, time, data } = row;
         if (
@@ -302,7 +302,7 @@ export class EventKind<
             id,
             source,
             time,
-            keys: this.keyValues(row),
+            keys: this.parseKeys(this.keyValues(row)),
             data: schema.json().parse(data),
         };
     }

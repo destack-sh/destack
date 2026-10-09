@@ -1,3 +1,4 @@
+import { principal, universe } from "@destack/access";
 import { Filter, type JsonCondition } from "@destack/db";
 import { defineSchema, schema } from "@destack/schema";
 import { defineProcedure, defineService, eventIterator } from "@destack/service";
@@ -128,8 +129,8 @@ export const EventDelivery = defineSchema(
 /** Copies of a kind's events another host routed here. */
 export type EventDelivery = schema.Infer<typeof EventDelivery>;
 
-/** A procedure that checks the read permission of the kind it reads in its handler. */
-const procedure = defineProcedure({ authentication: "identity", permission: null, audit: false });
+/** A procedure reading events, each kind's declared read decided on the scope its events live in. */
+const procedure = defineProcedure({ authentication: "identity", permission: "rows", audit: false });
 
 /** The event service: a scope's readable events, and routed copies received. */
 export const eventService = defineService("event", {
@@ -149,7 +150,13 @@ export const eventService = defineService("event", {
         .route({ method: "POST", path: "/events/export" })
         .input(EventQuery.omit({ cursor: true, limit: true, order: true }))
         .output(eventIterator(Event)),
-    receive: procedure
+    receive: defineProcedure({
+        authentication: "identity",
+        permission: {
+            principals: [universe, principal.machine, principal.space, principal.installation],
+        },
+        audit: false,
+    })
         .route({ method: "POST", path: "/events/receive" })
         .input(EventDelivery)
         .output(schema.object({ /** The events received. */ received: schema.int().min(0) })),

@@ -645,6 +645,25 @@ test.for(TEST_DIALECTS)("refuse a %s condition naming a key the kind lacks", asy
     ).rejects.toThrow("condition names no field owner");
 });
 
+test("read a row of a kind's table as its event with the kind's keys, refusing a key outside them", () => {
+    const event = {
+        scope: "space-1",
+        id: "reading-1",
+        source: "space-1",
+        time: START * 1000,
+        keys: { meter: "power", resource: "machine-1", value: 42 },
+        data: { unit: "W" },
+    };
+    const row = { ...reading.row(event), sequence: 1 };
+
+    // read the row back with its keys typed by the kind
+    const read = reading.event(row);
+    expect([read, read.keys.value + 1]).toEqual([event, 43]);
+
+    // refuse a key value the kind does not accept
+    expect(() => reading.event({ ...row, value: null })).toThrow(schema.Error);
+});
+
 test("refuse an event kind with an invalid name, a reserved key or a subject that is not a text key", () => {
     const declare =
         (
