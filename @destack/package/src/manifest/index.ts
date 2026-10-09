@@ -5,3 +5,4 @@ export * from "./reader.ts";
 export * from "./view.ts";
 export * from "./workload.ts";
 export * from "./writer.ts";
+export * from "./compilation.ts";
