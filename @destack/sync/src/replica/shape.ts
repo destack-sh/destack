@@ -46,6 +46,8 @@ export interface Shape {
     readonly name: string;
     /** Whose access decides the rows. */
     readonly audience: ShapeAudience;
+    /** Whether the copy must hold a complete snapshot before its follower serves. */
+    readonly isReadinessGate: boolean;
     /** Build the copy a subscription follows. */
     replica(subscription: Subscription): Replica;
 }
@@ -68,6 +70,8 @@ export function defineShape<Parameters extends object>(definition: {
     readonly parameters: schema.Schema<Parameters>;
     /** Whose access decides the rows. */
     readonly audience: ShapeAudience;
+    /** Whether the copy must hold a complete snapshot before its follower serves. */
+    readonly isReadinessGate: boolean;
     /** Build the copy of a scope for parsed parameters. */
     readonly replica: (request: {
         readonly name: string;
@@ -78,6 +82,7 @@ export function defineShape<Parameters extends object>(definition: {
     return {
         name: definition.name,
         audience: definition.audience,
+        isReadinessGate: definition.isReadinessGate,
         replica: (request) =>
             definition.replica({
                 name: request.name,

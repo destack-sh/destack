@@ -1142,7 +1142,7 @@ export class Replica {
                     `page names a table outside copy ${this.name}: ${change.table}`,
                 );
             }
-            // stage a copied row's change with its host-bound values opened
+            // stage a copied row's change with its machine-bound values opened
             else {
                 await collectBatched(batches, table, change, delivered, open);
             }
@@ -1713,7 +1713,7 @@ export interface ApplyOptions {
     readonly prediction?: Prediction;
     /** The subscription the copy follows, recorded as it completes a run. */
     readonly subscription?: Subscription;
-    /** Open the host-bound values a fenced source sealed to this copy. */
+    /** Open the machine-bound values a fenced source sealed to this copy. */
     readonly open?: (table: Table, row: Row) => Promise<Row>;
 }
 

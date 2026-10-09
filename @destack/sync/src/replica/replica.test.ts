@@ -254,8 +254,8 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "copy a whole database: follow its logged rows, then capture every column once its source stops writing, on %s",
     async (dialect) => {
-        // keep entries of several scopes with sensitive and binary columns, an unlogged cache and a host-bound key
-        const tables = [entry, cache, hostKey, ...replicaTables];
+        // keep entries of several scopes with sensitive and binary columns, an unlogged cache and a machine-bound key
+        const tables = [entry, cache, machineKey, ...replicaTables];
         const source = (await TestDatabase.create(dialect, tables, { isMigrated: true })).database;
         const target = (
             await TestDatabase.create(dialect, tables, { isMigrated: true, isReplica: true })
@@ -264,14 +264,14 @@ test.for(TEST_DIALECTS)(
             await source.close();
             await target.close();
         });
-        const copied = [entry, cache, hostKey];
+        const copied = [entry, cache, machineKey];
         const copy = new Replica({
             name: "database",
             scope: "database",
             tables: copied,
             everywhere: new Set(copied),
         });
-        const feed = new Feed(source, [entry, hostKey, replica]);
+        const feed = new Feed(source, [entry, machineKey, replica]);
         const data = new Uint8Array([1, 2, 3]);
         await source
             .insert(entry)
@@ -292,7 +292,7 @@ test.for(TEST_DIALECTS)(
             .insert(entry)
             .values({ id: "b", scope: "archive", title: "Second", secret: "s2", data });
         await source.insert(cache).values({ id: "c", value: "cached" });
-        await source.insert(hostKey).values({ id: "k", scope: "inbox", wrapped: "source:k" });
+        await source.insert(machineKey).values({ id: "k", scope: "inbox", wrapped: "source:k" });
         expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(
             true,
         );
@@ -315,7 +315,7 @@ test.for(TEST_DIALECTS)(
         const read = async (database: typeof source) => [
             await database.select().from(entry).orderBy(asc(entry.id)),
             await database.select().from(cache),
-            await database.select().from(hostKey),
+            await database.select().from(machineKey),
         ];
         expect(await read(target)).toEqual([
             (await read(source))[0],
@@ -942,9 +942,9 @@ const cache = defineTable("cache", {
     value: text("value").notNull(),
 });
 
-/** A key wrapped under the root key of the host that keeps it. */
-const hostKey = defineTable(
-    "host_key",
+/** A key wrapped under the root key of the machine that keeps it. */
+const machineKey = defineTable(
+    "machine_key",
     {
         id: text("id").primaryKey(),
         scope: text("scope").notNull(),
@@ -953,17 +953,17 @@ const hostKey = defineTable(
     { log: {} },
 );
 
-/** Rewrap a host key row's wrapped value from one host to another. */
+/** Rewrap a machine key row's wrapped value from one machine to another. */
 function rewrapped(table: Table, row: Row, from: string, to: string): Row {
     // leave rows of other tables
-    if (table !== hostKey) {
+    if (table !== machineKey) {
         return row;
     }
 
-    // replace the host prefix of the wrapped value
+    // replace the machine prefix of the wrapped value
     const wrapped = row["wrapped"];
     if (typeof wrapped !== "string") {
-        throw new TypeError("a host key row has no wrapped value");
+        throw new TypeError("a machine key row has no wrapped value");
     }
 
     return { ...row, wrapped: wrapped.replace(from, to) };

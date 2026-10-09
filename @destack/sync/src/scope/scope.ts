@@ -22,19 +22,24 @@ const universe: ObjectReference & {
     id: UNIVERSE_ID,
 };
 
-/** The universe's link, the last of every chain. */
-const UNIVERSE_LINK: ScopeLink = {
-    object: universe,
+/** The universe's scope row, which every chain ends at and no database stores. */
+const UNIVERSE_ROW: RowImage<typeof scopeTable> = {
+    scope: UNIVERSE_ID,
     parent: UNIVERSE_ID,
-    isSuspended: false,
-    isCapped: false,
-    movedTo: undefined,
+    ancestors: [],
+    packageId: universe.packageId,
+    type: universe.type,
+    suspendedAt: null,
+    cappedAt: null,
+    fencedAt: null,
+    movedTo: null,
 };
 
 /** A scope's chain, storage cap and transfer fence, read from and written to its own row. */
 export const Scope = {
     table: scopeTable,
     universe,
+    read,
     chain,
     chains,
     object,
@@ -75,6 +80,21 @@ const LockedScope = schema.object({
 /** A scope row's parent and fence state as a write locks it. */
 type LockedScope = schema.Infer<typeof LockedScope>;
 
+/** Read the rows of some scopes by identifier, the universe's among them when asked, which no database stores. */
+async function read(
+    snapshot: Snapshot,
+    ids: readonly string[],
+): Promise<RowImage<typeof scopeTable>[]> {
+    // read the stored rows, and the universe's when asked
+    const rows = await snapshot.select(
+        scopeTable,
+        ["scope"],
+        ids.map((id) => [id]),
+    );
+
+    return ids.includes(UNIVERSE_ID) ? [...rows, UNIVERSE_ROW] : rows;
+}
+
 /** Read a scope and the scopes enclosing it, nearest first. */
 async function chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
     const chained = await chains(snapshot, [scope]);
@@ -90,15 +110,11 @@ async function chains(
     // read the scopes' rows and their ancestors' rows by key
     const rows = new Map<string, RowImage<typeof scopeTable>>();
     for (let wanted = [...new Set(scopes)]; wanted.length > 0;) {
-        const read = await snapshot.select(
-            scopeTable,
-            ["scope"],
-            wanted.map((id) => [id]),
-        );
-        for (const row of read) {
+        const stored = await read(snapshot, wanted);
+        for (const row of stored) {
             rows.set(row.scope, row);
         }
-        wanted = [...new Set(read.flatMap((row) => row.ancestors))].filter(
+        wanted = [...new Set(stored.flatMap((row) => row.ancestors))].filter(
             (id) => !rows.has(id) && !wanted.includes(id),
         );
     }
@@ -113,30 +129,30 @@ function linked(
 ): ScopeLink[] {
     // order the rows from the scope up
     const links: ScopeLink[] = [];
-    for (let current = rows.get(scope); current !== undefined;) {
+    for (let current = rows.get(scope); current !== undefined && current.scope !== UNIVERSE_ID;) {
         const id = current.scope;
         if (links.some((link) => link.object.id === id)) {
             throw new SyncError("INVALID_SCOPE", `cyclic scope: ${id}`);
         }
-        links.push({
-            object: {
-                packageId: current.packageId,
-                type: current.type,
-                scope: current.parent,
-                id: current.scope,
-            },
-            parent: current.parent,
-            isSuspended: current.suspendedAt !== null,
-            isCapped: current.cappedAt !== null,
-            movedTo: current.movedTo ?? undefined,
-        });
+        links.push(linkOf(current));
         current = current.parent === UNIVERSE_ID ? undefined : rows.get(current.parent);
     }
 
     // end a chain reaching the top at the universe
     const isRooted = scope === UNIVERSE_ID || links.at(-1)?.parent === UNIVERSE_ID;
 
-    return isRooted ? [...links, UNIVERSE_LINK] : links;
+    return isRooted ? [...links, linkOf(UNIVERSE_ROW)] : links;
+}
+
+/** Link a scope's object to its parent from its row. */
+function linkOf(row: RowImage<typeof scopeTable>): ScopeLink {
+    return {
+        object: { packageId: row.packageId, type: row.type, scope: row.parent, id: row.scope },
+        parent: row.parent,
+        isSuspended: row.suspendedAt !== null,
+        isCapped: row.cappedAt !== null,
+        movedTo: row.movedTo ?? undefined,
+    };
 }
 
 /** Read a scope's own object and refuse an unknown scope. */

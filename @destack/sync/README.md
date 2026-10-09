@@ -1,358 +1,87 @@
 # @destack/sync
 
-Keep query results current in subscribers, copies and local views.
-
-## Queries
-
-`Query` selects rows of one logged table in one or more scopes.
+`@destack/sync` is ElectricSQL's shapes over the `@destack/db` log, with Zero's queries and incremental pipelines in `Query` and `Dataflow`, and Replicache's pending mutations, rebased over each server page, in `Prediction`.
 
 ```ts
-const relations = defineRelations({ project, task }, (r) => ({
-    project: { tasks: r.many.task({ from: r.project.id, to: r.task.projectId }) },
-}));
-const board: Query = {
-    table: project,
-    scopes: [spaceId],
-    relations,
-    where: { archived: false },
-    orderBy: { name: "asc" },
-    limit: 50,
-    with: { tasks: { limit: 5 } },
-};
-const size: Query = {
-    table: project,
-    scopes: [spaceId],
-    relations,
-    with: { tasks: { aggregate: { values: { tasks: { function: "count" } } } } },
-};
-```
-
-## Includes
-
-`included(query, name)` resolves an include of a query as a query of the related table.
-
-```ts
-const tasks = included(board, "tasks"); // a Query over task, limited to 5 per project
-```
-
-## Query fields
-
-`aggregate` returns measures per group in place of a query's rows.
-
-```ts
-const query: Query = {
-    table: task,
-    scopes: [spaceId],
-    where: { isDone: false }, // a db Condition over logged columns and computed values
-    extras: { comments: { kind: "rollup", function: "count", via: "comments", where: {} } }, // values computed per row over relations
-    orderBy: { createdAt: "desc" }, // the first rows, completed by the primary key, per selected row
-    limit: 50,
-    with: { comments: { limit: 3 } }, // the rows each named relation joins: a key, junction or tree path
-    relations, // the schema's relations, which with, conditions, lookups and rollups name
-};
-const counts: Query = {
-    table: task,
-    scopes: [spaceId],
-    aggregate: { groupBy: ["state"], values: { tasks: { function: "count" } } }, // kept instead of the rows
-};
-```
-
-## Feeds
-
-A `Feed` reads a database's log once per commit and serves every subscriber from memory.
-
-```ts
-const feed = new Feed(database, [project, task]);
-for await (const page of feed.subscribe({ board }, after, signal, { audience })) {
-    send(page);
-}
-for await (const rows of feed.watch("board", board, signal)) {
-    render(rows);
-}
-```
-
-## Pages
-
-`Page` moves a subscriber from one log position to the next.
-
-```ts
-interface Page {
-    readonly reset: boolean; // a snapshot starts, so the subscriber drops what it has
-    readonly complete: boolean; // the subscriber has its queries at position
-    readonly position: LogPosition; // the log position to continue after
-    readonly changes: readonly RowChange[]; // rows entering, changing or leaving, concealed columns named
-    readonly results?: readonly ResultChange[]; // aggregate groups changing
-    readonly broadcasts?: readonly Broadcast[]; // events sent to what the subscriber follows
-    readonly scopes?: readonly string[]; // the scopes the subscription reads, nearest first
-}
-```
-
-## Audiences
-
-An `Audience` decides which rows and columns a subscriber may read.
-
-```ts
-feed.subscribe({ board }, after, signal, { audience: EVERYONE });
-const isDeciding = Watch.matches(audience.watches, change);
-```
-
-## Dataflows
-
-A `Dataflow` compiles queries to pipelines and keeps their results current as of a log position.
-
-```ts
-const dataflow = new Dataflow(
-    { board },
-    { audience, database, changesThrough: changesThroughLog(database), isMaterialized: true },
-);
-await dataflow.load(await View.latest(database));
-const rows = await dataflow.read("board");
-```
-
-## Replicas
-
-A `Replica` copies one scope's query results into another database.
-
-```ts
-const copy = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await copy.follow(local, ({ after }, signal) => feed.subscribe({ board }, after, signal), signal, {
-    prediction,
-});
-const projects = await copy.rows(local, "board", board, prediction);
-```
-
-## Uplinks
-
-An `Uplink` streams copies to its followers and receives the changes their server sends to the rows' home, signed as the follower's space or one of its installations, and `Uplink.of` builds one from a client's replica procedures.
-
-```ts
-const uplink = Uplink.of((signer) => client(signer).replica); // the follower, or the signer of a forwarded change
-await uplink.receive(mutation, installation); // runs once at the rows' home however often it arrives
-```
-
-## Copy topology
-
-`requireAcyclic` refuses a copy back into the database a table is copied from.
-
-```ts
-await copy.requireAcyclic(database, origin); // fails with CYCLE on a copy back to its source
-const follow = ({ after, origin }: Resumption, signal: AbortSignal) =>
-    feed.subscribe({ board }, after, signal, origin === undefined ? {} : { origin });
-await copy.follow(local, follow, signal);
-const head = await source.log.position(await local.log.epoch());
-```
-
-## Copies across scopes
-
-`within` copies a table into the scopes where another copied table's rows live.
-
-```ts
-const copy = new Replica({
-    name: "work",
-    scope: spaceId,
-    tables: [project, note],
-    within: new Map([[note, [project]]]),
-});
-```
-
-## Copies of several scopes
-
-`scopes` copies a table from several scopes.
-
-```ts
-const folders = new Replica({
-    name: "folders",
-    scope: Scope.universe.id,
-    tables: [Scope.table, note],
-    scopes: new Map([
-        [Scope.table, [inboxId, archiveId]],
-        [note, [inboxId, archiveId]],
-    ]),
-});
-await Replica.wait(local, inboxId, position, signal); // the folders copy keeps the inbox
-```
-
-## Shared rows
-
-A row stays in a copy until no replica includes it.
-
-```ts
-const tasks = await local.select().from(task).where(Replica.includes("board", task));
-```
-
-## Copy state
-
-`Replica.scopes`, `Replica.isCopied` and `Replica.isSynced` report which scopes' rows of a table a database copies and whether a copy holds a complete snapshot.
-
-```ts
-await Replica.scopes(local, note); // ["inbox"]
-await Replica.isCopied(local, inboxId, note); // true while a copy of the inbox keeps notes
-await Replica.isSynced(local, "notes", inboxId); // true once the copy took its first snapshot
-```
-
-## Dropping copies
-
-`drop` deletes a copy and the rows only it includes.
-
-```ts
-const kept = await Replica.subscriptions(local);
-await copy.drop(local);
-```
-
-## Projections
-
-`projectors` upsert one target row per source row and retract it when the source row leaves.
-
-```ts
-const inbox = new Replica({ name: "inbox", scope: spaceId, tables: [], projectors: [entries] });
+const board = defineShape({ name: "board", parameters, audience: "reader", isReadinessGate: true, replica }); // ElectricSQL's shape
+const query: Query = { table: project, scopes: [spaceId], relations, with: { tasks: { limit: 5 } } }; // Zero's related()
+for await (const page of feed.subscribe({ board: query }, after, signal, { audience })) send(page); // ElectricSQL's shape log
+await copy.follow(local, follow, signal, { prediction }); // Replicache's pull into a local database
+await prediction.add(local, mutationId, origin, mutate); // Replicache's pending mutation
+await prediction.acknowledge(local, mutationId, position); // Replicache's lastMutationID
 ```
 
 ## Shapes
 
-`defineShape` declares a shape that machines and clients subscribe to.
+`defineShape` declares a shape that machines and clients subscribe to, and its `replica` copies the shape's rows into a local database.
 
 ```ts
 const board = defineShape({
     name: "board",
     parameters: schema.object({ board: schema.string() }),
     audience: "reader",
+    isReadinessGate: true, // the follower serves once the copy holds a snapshot
     replica: ({ name, scope, parameters }) =>
-        new Replica({
-            name,
-            scope,
-            tables: [task],
-            where: new Map([[task, { boardId: parameters.board }]]),
-        }),
+        new Replica({ name, scope, tables: [task], where: new Map([[task, { boardId: parameters.board }]]) }),
 });
-const subscription = board.subscription({
-    name: "board",
-    scope,
-    below: spaceId,
-    parameters: { board: boardId },
-});
+const subscription = board.subscription({ name: "board", scope, below: spaceId, parameters: { board: boardId } });
 await board
     .replica(subscription)
-    .follow(local, (from, signal) => source.stream({ ...subscription, ...from }, signal), signal, {
-        subscription,
-    });
+    .follow(local, (from, signal) => source.stream({ ...subscription, ...from }, signal), signal, { subscription });
 ```
 
-## Shape audiences
+## Queries
 
-`audience` sets who may follow a shape and which rows they get.
+A `Query` selects rows of one logged table in one or more scopes, with relations, extras and aggregates as in `@destack/db`'s relational queries.
 
 ```ts
-type ShapeAudience =
-    | "contained" // the scope below, by containment, as a chain's access rows are
-    | "reader" // the principal of the scope below where the rows live, or the caller relaying them
-    | "caller" // the calling follower in the copied scope
-    | "recipient"; // each row's recipient, followed only by the home they live in
+const counts: Query = {
+    table: task,
+    scopes: [spaceId],
+    where: { isDone: false },
+    aggregate: { groupBy: ["state"], values: { tasks: { function: "count" } } },
+};
 ```
 
-## Resuming
+## Feeds
 
-`follow` resumes a subscription from its last position.
+A `Feed` reads a database's log once per commit and serves every subscriber from memory, filtered by the subscriber's `Audience`.
 
 ```ts
-const next = board.subscription({
-    name: "board",
-    scope,
-    below: spaceId,
-    parameters: { board: otherBoardId },
-});
-await board
-    .replica(next)
-    .follow(local, (from, signal) => source.stream({ ...next, ...from }, signal), signal, {
-        subscription: next,
-    });
+const feed = new Feed(database, [project, task]);
+for await (const rows of feed.watch("board", board, signal)) {
+    render(rows);
+}
+```
+
+## Copies
+
+A `Replica` copies one scope's query results into another database, and keeps a row until no replica includes it.
+
+```ts
+const copy = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
+await Replica.isSynced(local, "board", spaceId); // true once the copy took its first snapshot
+await local.select().from(task).where(Replica.includes("board", task));
+await copy.drop(local);
 ```
 
 ## Predictions
 
-`Prediction` shows a client's queued mutations over its copy.
+A `Prediction` shows a client's queued mutations and checked-out branch over its copy.
 
 ```ts
 const prediction = new Prediction({ tables: [project, task], predict, reads, branches });
-const result = await prediction.add(local, mutationId, origin, async (transaction) => ({
-    calls,
-    result: await rename(transaction),
-}));
-await prediction.checkout(local, branchId); // edits now queue for the branch
-```
-
-## Acknowledgements
-
-`acknowledge` marks a mutation executed at the source's watermark.
-
-```ts
 const next = await prediction.pending(local, { limit: 100 }); // the mutations the next push sends
-await prediction.acknowledge(local, next[0].id, watermark);
-await prediction.reject(local, next[1].id, failure);
-const { pending, executed, rejected } = await prediction.inspect(local);
-```
-
-## Trackers
-
-`Tracker` keeps a memory database equal on every instance of a service.
-
-```ts
-const tracker = new Tracker(memory, [cursor], relay);
-const rows = await memory.transaction(async (transaction) => {
-    await transaction.insert(cursor).values({ id, scope, position: 12 });
-    return tracker.record(transaction, () => owner);
-});
-tracker.publish(rows);
-tracker.broadcast(topic, event);
-```
-
-## Storage
-
-`replicaTables` lists the tables of a database with copies.
-
-```ts
-export const local = defineDatabase({
-    name: "local",
-    tables: [...replicaTables, ...predictionTables, project, task],
-});
+await prediction.reject(local, next[0].id, failure);
+await prediction.checkout(local, branchId); // edits now queue for the branch
 ```
 
 ## Scopes
 
-`Scope` reads a scope's chain of enclosing scopes, nearest first.
+`Scope` reads a scope's chain of enclosing scopes, and fences or caps the writes to it.
 
 ```ts
-import { Scope } from "@destack/sync";
-
-const links = await Scope.chain(snapshot, spaceId); // each { object, parent, isSuspended, isCapped, movedTo }
-const chains = await Scope.chains(snapshot, [spaceId, otherSpaceId]); // one read per level for all of them
-const owner = await Scope.object(snapshot, spaceId);
-```
-
-### Fences
-
-`Scope.fence` stops the writes to a scope while a transfer moves it to another machine.
-
-```ts
-await Scope.fence(database, spaceId, targetCell, Date.now()); // writes to the scope now refuse
-await Scope.guard(transaction, spaceId); // keeps a write's scope unfenced until it commits
-await Scope.unfence(database, spaceId);
-```
-
-### Caps
-
-`Scope.cap` caps a scope's storage from a time, refusing writes but deletes, and `null` lifts the cap.
-
-```ts
-await Scope.cap(database, spaceId, Date.now());
-await Scope.cap(database, spaceId, null);
-```
-
-## Errors
-
-A copy, subscription or scope the source cannot serve throws a `SyncError`.
-
-```ts
-import { SyncError } from "@destack/sync";
-
-new SyncError("NOT_FOUND", "unknown scope: space-…").toServiceError(); // { code: "NOT_FOUND", … }
+const links = await Scope.chain(snapshot, spaceId); // nearest first
+await Scope.fence(database, spaceId, targetMachine, Date.now()); // writes refuse while a transfer moves the scope
+await Scope.cap(database, spaceId, Date.now()); // writes but deletes refuse
 ```

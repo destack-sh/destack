@@ -196,7 +196,7 @@ export class Feed implements Cache {
      * Read every column of the queries' rows as one consistent snapshot run, in one read transaction.
      *
      * The run includes what the log leaves out: unlogged tables and sensitive columns.
-     * Sealing turns a row's host-bound values into values only the target opens.
+     * Sealing turns a row's machine-bound values into values only the target opens.
      */
     async *capture(
         queries: Readonly<Record<string, Query>>,
