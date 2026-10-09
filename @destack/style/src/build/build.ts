@@ -1,4 +1,5 @@
 import { unplugin } from "@stylexjs/unplugin";
+import { Features } from "lightningcss";
 import type { ViteDevServer } from "vite";
 import type { BuildExtension, Plugin } from "@destack/package/build";
 
@@ -24,6 +25,8 @@ export const styleExtension = {
         const plugin: unknown = unplugin.vite({
             importSources: ["@stylexjs/stylex", "@destack/style"],
             useCSSLayers: { before: ["base"] },
+            // keep light-dark() native, as the theme's own tokens need it and lowering it needs CSS-declared color schemes
+            lightningcssOptions: { exclude: Features.LightDark },
             unstable_moduleResolution: { rootDir: directory, type: "commonJS" },
             cssInjectionTarget: (path) => path === sheet.file,
             // NOTE #Performance: the plugin still polls its rule version every 150ms in this mode

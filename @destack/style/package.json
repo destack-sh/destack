@@ -19,7 +19,8 @@
     "dependencies": {
         "@destack/package": "workspace:*",
         "@stylexjs/stylex": "0.19.1",
-        "@stylexjs/unplugin": "0.19.1"
+        "@stylexjs/unplugin": "0.19.1",
+        "lightningcss": "1.33.0"
     },
     "peerDependencies": {
         "vite": "8.3.0"
