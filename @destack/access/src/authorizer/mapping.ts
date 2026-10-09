@@ -268,12 +268,16 @@ async function read(
     within: string,
     ids: readonly string[],
 ): Promise<Row[]> {
+    // read the rows by identifier, scopes through their own reader, which knows the universe
     const definition = mapping.policy.definition;
-    const rows = await snapshot.select(
-        mapping.table,
-        [mapping.id],
-        ids.map((id) => [id]),
-    );
+    const rows: Row[] =
+        mapping.table === Scope.table
+            ? await Scope.read(snapshot, ids)
+            : await snapshot.select(
+                  mapping.table,
+                  [mapping.id],
+                  ids.map((id) => [id]),
+              );
 
     return rows.filter(
         (row) =>

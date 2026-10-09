@@ -1,6 +1,6 @@
 import { eq, type DatabaseConnection } from "@destack/db";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
-import { schema } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -78,6 +78,32 @@ export class AccessFixture {
                     expiresAt: null,
                 },
                 scope.id,
+            ),
+        );
+
+        return id;
+    }
+
+    /** Relate a subject to an object through a relation in the scope governing it, as a copy of the object's home access keeps it, returning the relationship. */
+    async copyRelationship(
+        governing: string,
+        object: ObjectReference,
+        relation: string,
+        subject: Subject,
+        now = Date.now(),
+    ): Promise<Identifier<"relationship">> {
+        const id = schema.identifier("relationship").parse(`relationship-${v7()}`);
+        await this.database.insert(accessRelationship).values(
+            Relationship.encode(
+                {
+                    id,
+                    object,
+                    relation,
+                    subject,
+                    createdAt: now,
+                    expiresAt: null,
+                },
+                governing,
             ),
         );
 

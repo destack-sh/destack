@@ -494,16 +494,16 @@ export class Access {
         return added;
     }
 
-    /** Report whether a permission is reserved, which no role grants. */
+    /** Report whether a permission is reserved, which owners' roles leave out. */
     isReserved(permission: PermissionReference): boolean {
         return this.#authorizer.reserved.has(PermissionReference.key(permission));
     }
 
-    /** List the roles along the scope chain that grant a permission, none for a reserved one. */
+    /** List the roles along the scope chain that grant a permission, only the roles naming a reserved one. */
     granting(permission: PermissionReference): readonly string[] {
-        return this.isReserved(permission)
-            ? []
-            : [...(this.#roles.get(PermissionReference.key(permission)) ?? []), ...this.#universal];
+        const naming = this.#roles.get(PermissionReference.key(permission)) ?? [];
+
+        return this.isReserved(permission) ? naming : [...naming, ...this.#universal];
     }
 
     /** List the roles along the scope chain granting every permission but reserved ones, as owners' do. */

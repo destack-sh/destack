@@ -60,6 +60,8 @@ export const Role = {
     permissions,
     describe,
     close,
+    keepOwner,
+    keepInherent,
 };
 
 /** Read one role of a scope. */
@@ -108,7 +110,7 @@ export async function define(
     scope: string,
     request: RoleRequest,
     now: number,
-    manager?: Manager,
+    manager: Manager | null,
 ): Promise<Select<typeof accessRole> | undefined> {
     // insert the role under a name free in the scope
     const [record] = await database
@@ -120,7 +122,7 @@ export async function define(
             scope,
             name: request.name,
             description: request.description,
-            ...Manager.values(manager ?? null),
+            ...Manager.values(manager),
         })
         .onConflictDoNothing()
         .returning();
@@ -215,6 +217,96 @@ export async function own(
     );
 
     return role;
+}
+
+/** Bind a scope's owner role to an owner once, as the scope's creation binds it, defining the role when the scope has none, and return the role. */
+async function keepOwner(
+    database: DatabaseConnection,
+    scope: ObjectReference,
+    owner: Subject,
+    now: number,
+): Promise<string> {
+    // define the owner role with its binding when the scope has none
+    const [defined] = await database
+        .select({ id: accessRole.id })
+        .from(accessRole)
+        .where(and(eq(accessRole.scope, scope.id), eq(accessRole.name, OWNER_ROLE.name)));
+    if (defined === undefined) {
+        return own(database, scope, owner, now);
+    }
+
+    // bind the defined role to the owner unless bound already
+    await bindOnce(database, scope, defined.id, owner, now);
+
+    return defined.id;
+}
+
+/** Keep a role a scope's creation defines with exactly some permissions, bound to one subject on the scope, as the owner role is, and return the role. */
+async function keepInherent(
+    database: DatabaseConnection,
+    scope: ObjectReference,
+    request: RoleRequest,
+    subject: Subject,
+    now: number,
+): Promise<string> {
+    // define the role, or replace the permissions of the one defined
+    const [defined] = await database
+        .select({ id: accessRole.id })
+        .from(accessRole)
+        .where(and(eq(accessRole.scope, scope.id), eq(accessRole.name, request.name)));
+    const role = defined?.id ?? (await define(database, scope.id, request, now, null))?.id;
+    if (role === undefined) {
+        throw new AccessError("CONFLICT", "role name is already in use");
+    }
+    if (defined !== undefined) {
+        await replace(database, role, scope.id, request.permissions);
+    }
+
+    // bind it to the subject unless bound already
+    await bindOnce(database, scope, role, subject, now);
+
+    return role;
+}
+
+/** Bind a role on a scope's object to a subject unless bound already. */
+async function bindOnce(
+    database: DatabaseConnection,
+    scope: ObjectReference,
+    role: Select<typeof accessRole>["id"],
+    subject: Subject,
+    now: number,
+): Promise<void> {
+    // read the subject's binding of the role
+    const bound = await database
+        .select({ id: accessRelationship.id })
+        .from(accessRelationship)
+        .where(
+            and(
+                eq(accessRelationship.roleId, role),
+                eq(accessRelationship.subjectPackageId, subject.packageId),
+                eq(accessRelationship.subjectType, subject.type),
+                eq(accessRelationship.subjectScope, subject.scope),
+                eq(accessRelationship.subjectId, subject.id),
+            ),
+        );
+    if (bound.length > 0) {
+        return;
+    }
+
+    // bind it on the scope's object
+    await database.insert(accessRelationship).values(
+        Relationship.encode(
+            {
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                object: scope,
+                role,
+                subject,
+                createdAt: now,
+                expiresAt: null,
+            },
+            scope.id,
+        ),
+    );
 }
 
 /** Read a permission reference from a role permission row. */

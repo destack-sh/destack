@@ -93,7 +93,7 @@ export const PolicyDescription = defineSchema(
         permissions: schema.record(AccessName, AccessExpressionDescription),
         /** The permission required to bind roles on an object. */
         grantedBy: AccessName.exactOptional(),
-        /** The permissions only their expressions grant. */
+        /** The permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
         reserved: schema.array(AccessName).exactOptional(),
         /** The permissions that apply only after the authentication each names. */
         elevated: schema.record(AccessName, Elevation.schema).exactOptional(),

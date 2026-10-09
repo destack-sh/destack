@@ -211,7 +211,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "keep the relationships a declaration manages under stable identifiers, and refuse a caller changing or revoking them, on %s",
+    "keep the relationships a declaration manages under stable identifiers, change them through it, and refuse a caller revoking them outside it, on %s",
     async (dialect) => {
         // open the fixture, where alice owns every node
         const fixture = await openFixture(dialect);
@@ -222,7 +222,8 @@ test.for(TEST_DIALECTS)(
             packageId: "package-01996ab0-0000-7000-8000-000000000002",
             name: "editor",
         });
-        const selection = { scope: "personal", manager };
+        const declaring = owner.applying(manager);
+        const selection = { scope: "personal" };
         const managed = async () =>
             (
                 await fixture.database
@@ -232,23 +233,22 @@ test.for(TEST_DIALECTS)(
             ).map((row) => [row.objectId, row.id]);
 
         // keep carol's managed grant on a twice under the same identifier
-        await owner.keepRelationships(selection, [carolEditing("a")]);
+        await declaring.keepRelationships(selection, [carolEditing("a")]);
         const first = await managed();
-        await owner.keepRelationships(selection, [carolEditing("a")]);
+        await declaring.keepRelationships(selection, [carolEditing("a")]);
         expect([first.length, aligned(first, 0)[0], await managed()]).toEqual([1, "a", first]);
 
-        // refuse alice moving or revoking the managed grant herself
+        // refuse alice revoking the managed grant herself, and move it through its declaration
         const refusal = {
             code: "CONFLICT",
             message: "record is managed by its source declaration",
         };
         const id = aligned(aligned(first, 0), 1);
-        await expect(owner.keepRelationships(selection, [carolEditing("c")])).rejects.toMatchObject(
-            refusal,
-        );
         await expect(owner.revoke(node.reference("personal", "a"), id)).rejects.toMatchObject(
             refusal,
         );
+        await declaring.keepRelationships(selection, [carolEditing("c")]);
+        expect((await managed()).map(([objectId]) => objectId)).toEqual(["c"]);
     },
 );
 

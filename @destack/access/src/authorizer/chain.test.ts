@@ -122,7 +122,12 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     ).toEqual({
         NOT: { OR: types.map((type) => ({ packageId: type.packageId, type: type.type })) },
     });
-    expect(authorizer.global.map((type) => type.type)).toEqual(["machine", "space", "user"]);
+    expect(authorizer.global.map((type) => type.type)).toEqual([
+        "machine",
+        "client",
+        "space",
+        "user",
+    ]);
 
     // follow a grant on the account into the copy
     await owner.grant({

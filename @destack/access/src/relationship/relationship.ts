@@ -12,6 +12,7 @@ import {
     type Snapshot,
 } from "@destack/db";
 import { defineSchema, Instant, schema } from "@destack/schema";
+import { AccessError } from "../error/index.ts";
 import type { Manager } from "../manager/manager.ts";
 import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
 
@@ -97,7 +98,7 @@ export const Relationship = {
     viaColumns,
 };
 
-/** The relationships of a scope a keep covers: one subject's through one relation on objects of some types, or those one declaration manages. */
+/** The relationships of a scope a keep covers: one subject's through one relation on objects of some types, or, given the scope alone, those the declaration being applied manages. */
 export type RelationshipSelection = {
     /** The scope the relationships live in. */
     readonly scope: string;
@@ -110,10 +111,7 @@ export type RelationshipSelection = {
           /** The subject of the relationships. */
           readonly subject: Subject;
       }
-    | {
-          /** The declaration managing the relationships. */
-          readonly manager: Manager;
-      }
+    | Record<never, never>
 );
 
 /** Write a relationship as a row in the scope it decides access for. */
@@ -274,17 +272,33 @@ function on(
     )`;
 }
 
-/** Read the relationships a selection's subject has through its relation on the selected types. */
-export function readSelected(database: DatabaseConnection, selection: RelationshipSelection) {
+/** Read the relationships a selection covers: a subject's through a relation on the selected types, or those the declaration being applied manages. */
+export function readSelected(
+    database: DatabaseConnection,
+    selection: RelationshipSelection,
+    manager: Manager | null,
+) {
+    let covered: SQL | undefined;
+    // select a subject's relationships through a relation
+    if ("objects" in selection) {
+        covered = heldThrough(selection);
+    }
+    // select the relationships the declaration being applied manages
+    else if (manager !== null) {
+        covered = managedBy(manager);
+    }
+    // refuse a caller applying no declaration
+    else {
+        throw new AccessError(
+            "INVALID_CONTEXT",
+            "only a declaration keeps the relationships it manages",
+        );
+    }
+
     return database
         .select()
         .from(accessRelationship)
-        .where(
-            and(
-                eq(accessRelationship.scope, selection.scope),
-                "manager" in selection ? managedBy(selection.manager) : heldThrough(selection),
-            ),
-        );
+        .where(and(eq(accessRelationship.scope, selection.scope), covered));
 }
 
 /** Match the relationships one declaration manages. */

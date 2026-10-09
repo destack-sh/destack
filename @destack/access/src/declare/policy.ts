@@ -30,7 +30,7 @@ export interface PolicyDefinition {
     readonly grantedBy?: string;
     /** The permission whose holders see the objects' relationships, `read` by default. */
     readonly relationships?: { readonly read: string };
-    /** Permissions only their expressions grant, never roles, not even owners'. */
+    /** Permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
     readonly reserved?: readonly string[];
     /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
     readonly elevated?: Readonly<Record<string, Elevation>>;
@@ -274,7 +274,7 @@ export interface PolicyInput<Name extends string> {
     readonly grantedBy?: NoInfer<Name>;
     /** The permission whose holders see the objects' relationships, `read` by default. */
     readonly relationships?: { readonly read: NoInfer<Name> };
-    /** Permissions only their expressions grant, never roles, not even owners'. */
+    /** Permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
     readonly reserved?: readonly NoInfer<Name>[];
     /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
     readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;

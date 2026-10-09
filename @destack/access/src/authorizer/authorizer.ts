@@ -118,7 +118,7 @@ export interface ChainStep {
 
 /** Decide policies over their objects' tables, in SQL or in memory from grants. */
 export class Authorizer {
-    /** The keys of permissions that only their expressions grant. */
+    /** The keys of permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
     readonly reserved: ReadonlySet<string>;
     /** The authentication each elevated permission asks for, by permission key. */
     readonly elevated: ReadonlyMap<string, Elevation>;
@@ -725,13 +725,20 @@ export class Authorizer {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
 
-    /** Decide whether this database keeps an object's access rows, those of the types it maps a table of. */
+    /** Decide whether this database keeps an object's access rows: those of the types it maps a table of, and the universe's where it keeps no copy of them. */
     async isLocal(database: DatabaseConnection, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mappingOf(object)?.table === accessRole) {
             const scope = await Scope.object(Snapshot.live(database), object.scope);
 
             return this.isLocal(database, scope);
+        }
+        // keep the universe's access at its home, the database copying none of it
+        else if (
+            object.packageId === Scope.universe.packageId &&
+            object.type === Scope.universe.type
+        ) {
+            return !(await Replica.isCopied(database, Scope.universe.id, accessRelationship));
         }
 
         return this.local.some(
@@ -837,6 +844,7 @@ export class Authorizer {
         name: CHAIN_SHAPE,
         parameters: ChainParameters,
         audience: "contained",
+        isReadinessGate: true,
         replica: ({ name, scope, parameters }) => this.#chainReplica(name, scope, parameters),
     });
 
@@ -845,6 +853,7 @@ export class Authorizer {
         name: UNIVERSE_SHAPE,
         parameters: UniverseParameters,
         audience: "reader",
+        isReadinessGate: true,
         replica: ({ name, scope, parameters }) => this.#universeReplica(name, scope, parameters),
     });
 
@@ -1223,9 +1232,15 @@ export class Authorizer {
         access: Access,
         reader?: GrantReader,
     ): Promise<void> {
-        // decide in memory where reads are cheap or the database is past
+        // decide in memory where reads are cheap, the database is past, or the target is the universe no table keeps
         const database = snapshot.database;
-        if (snapshot.position !== undefined || database.state.locality === "embedded") {
+        const isUniverse =
+            target.packageId === Scope.universe.packageId && target.type === Scope.universe.type;
+        if (
+            snapshot.position !== undefined ||
+            database.state.locality === "embedded" ||
+            isUniverse
+        ) {
             const read = reader ?? this.reader(snapshot, access.scopes);
             for (const permission of permissions) {
                 const decision = await this.check(snapshot, permission, target, access, read);

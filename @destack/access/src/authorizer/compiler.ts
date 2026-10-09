@@ -841,22 +841,20 @@ function followAncestors(
     )`;
 }
 
-/** Match a current binding of a role granting the permission to the compiled authority on a covered object, the access's roles bound as one list; none for a reserved permission. */
+/** Match a current binding of a role granting the permission to the compiled authority on a covered object, the access's roles bound as one list; only roles naming a reserved permission. */
 function matchBinding(
     permission: PermissionReference,
     compilation: Compilation,
     covers: (relationship: RelationshipColumnMap) => SQL,
 ): SQL {
-    // grant a reserved permission through no role
-    if (compilation.access.isReserved(permission)) {
-        return sql`false`;
-    }
-
-    // list the roles granting the permission or every one
+    // list the roles naming the permission, or granting every one but reserved ones
     const relationship = alias(accessRelationship, `access_binding_${compilation.aliases.next++}`);
     const granted = sql.identifier(GRANTED);
     const key = sql`${granted}.value ->> 0`;
-    const isGranting = sql`(${key} = ${PermissionReference.key(permission)} OR ${key} = ${UNIVERSAL})`;
+    const isNaming = sql`${key} = ${PermissionReference.key(permission)}`;
+    const isGranting = compilation.access.isReserved(permission)
+        ? isNaming
+        : sql`(${isNaming} OR ${key} = ${UNIVERSAL})`;
 
     return sql`EXISTS (
         SELECT 1 FROM ${current(compilation)} AS ${relationship}

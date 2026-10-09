@@ -76,6 +76,8 @@ export class Authorization {
     readonly #resolved = new Map<string, Promise<Access>>();
     /** The caller's access in the scopes below each scope, absent for a scope it does not enclose, until renewed. */
     readonly #below = new Map<string, Map<string, Access | undefined>>();
+    /** The declaration this authorization applies, whose rows it alone changes, null for a caller changing access itself. */
+    #manager: Manager | null = null;
 
     /** Authorize one caller, bound to each scope it acts in, with its access already resolved in some scope. */
     constructor(
@@ -96,7 +98,18 @@ export class Authorization {
 
     /** Authorize the same caller within a transaction, resolving afresh there. */
     within(transaction: DatabaseConnection): Authorization {
-        return new Authorization(this.authorizer, transaction, this.#bind);
+        const within = new Authorization(this.authorizer, transaction, this.#bind);
+        within.#manager = this.#manager;
+
+        return within;
+    }
+
+    /** Authorize the same caller applying a declaration: its writes are managed by it, and it changes the rows the declaration manages. */
+    applying(manager: Manager): Authorization {
+        const applying = new Authorization(this.authorizer, this.database, this.#bind);
+        applying.#manager = manager;
+
+        return applying;
     }
 
     /** Bind the verified caller to a scope it acts in. */
@@ -199,6 +212,30 @@ export class Authorization {
 
     /** Record a new object's access: a scope's containing scopes, its first relationships and a scope's owner role. */
     async create(object: ObjectReference, creation: Creation): Promise<void> {
+        // read the containing scopes of a new scope, none below the universe
+        const isScope = this.authorizer.policy(object).definition.scope === true;
+        let ancestors: string[] = [];
+        if (isScope && object.scope !== Scope.universe.id) {
+            const [parent] = await this.database
+                .select({ ancestors: Scope.table.ancestors })
+                .from(Scope.table)
+                .where(eq(Scope.table.scope, object.scope));
+            if (parent === undefined) {
+                throw new AccessError("NOT_FOUND", `unknown scope: ${object.scope}`);
+            }
+            ancestors = [object.scope, ...parent.ancestors];
+        }
+
+        // record its access below them
+        await this.receive(object, ancestors, creation);
+    }
+
+    /** Record the access of an object created at its home, below the containing scopes its home lists. */
+    async receive(
+        object: ObjectReference,
+        ancestors: readonly string[],
+        creation: Creation,
+    ): Promise<void> {
         // write the access of an object this database keeps
         await this.authorizer.requireLocal(this.database, object);
         const [existing] = await this.database
@@ -221,26 +258,12 @@ export class Authorization {
 
         // record a scope below the scopes containing it
         if (isScope) {
-            // read the containing scopes, none below the universe
-            let ancestors: string[] = [];
-            if (object.scope !== Scope.universe.id) {
-                const [parent] = await this.database
-                    .select({ ancestors: Scope.table.ancestors })
-                    .from(Scope.table)
-                    .where(eq(Scope.table.scope, object.scope));
-                if (parent === undefined) {
-                    throw new AccessError("NOT_FOUND", `unknown scope: ${object.scope}`);
-                }
-                ancestors = [object.scope, ...parent.ancestors];
-            }
-
-            // record the scope with its chain
             await this.database.insert(Scope.table).values({
                 scope: object.id,
                 parent: object.scope,
                 packageId: object.packageId,
                 type: object.type,
-                ancestors,
+                ancestors: [...ancestors],
             });
         }
 
@@ -267,13 +290,13 @@ export class Authorization {
         await this.#suspension(object, null);
     }
 
-    /** Relate a subject to an object through a relation or a bound role, under its manager if any, as the caller may grant. */
-    async grant(request: RelationshipRequest, manager?: Manager): Promise<Relationship> {
+    /** Relate a subject to an object through a relation or a bound role, as the caller may grant. */
+    async grant(request: RelationshipRequest): Promise<Relationship> {
         const relationship = await this.database.transaction(async (transaction) => {
             const authorization = this.within(transaction);
             await authorization.authorizeGrant(request);
 
-            return authorization.#insert(request, manager);
+            return authorization.#insert(request);
         });
         this.renew();
 
@@ -530,7 +553,7 @@ export class Authorization {
     /** Define a role in a scope, granting only permissions the caller has there. */
     async createRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
         return this.database.transaction(async (transaction) =>
-            this.#defineRole(transaction, scope, request, undefined),
+            this.#defineRole(transaction, scope, request),
         );
     }
 
@@ -582,7 +605,7 @@ export class Authorization {
         });
     }
 
-    /** Delete an unbound, editable role at a revision. */
+    /** Delete an unbound role at a revision, editable or deleted through the declaration managing it. */
     async deleteRole(scope: ObjectReference, id: string, revision: number): Promise<Role> {
         return this.database.transaction(async (transaction) => {
             // require an editable role at the revision and permission to delete roles
@@ -626,8 +649,8 @@ export class Authorization {
         });
     }
 
-    /** Keep a role by name in a scope with exactly the requested purpose and permissions, under its manager if any, writing only a difference, and return it. */
-    async keepRole(scope: ObjectReference, request: RoleRequest, manager?: Manager): Promise<Role> {
+    /** Keep a role by name in a scope with exactly the requested purpose and permissions, under the declaration applied if any, writing only a difference, and return it. */
+    async keepRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
         return this.database.transaction(async (transaction) => {
             // read the role holding the name, defining it when none does
             const now = this.context(scope.id).now;
@@ -636,7 +659,7 @@ export class Authorization {
                 .from(accessRole)
                 .where(and(eq(accessRole.scope, scope.id), eq(accessRole.name, request.name)));
             if (kept === undefined) {
-                return this.#defineRole(transaction, scope, request, manager);
+                return this.#defineRole(transaction, scope, request);
             }
 
             // keep only a role under the same manager, leaving one granting exactly the request as it is
@@ -646,7 +669,7 @@ export class Authorization {
                 [policies.role.permission("update"), ...request.permissions],
                 kept,
             );
-            if (!isManagedBy(kept, manager)) {
+            if (!isManagedBy(kept, this.#manager)) {
                 throw new AccessError("CONFLICT", "role name is already in use");
             }
             const granted = await Role.permissions(transaction, kept.id);
@@ -677,12 +700,11 @@ export class Authorization {
         });
     }
 
-    /** Define a role under a free name and its manager if any, as the caller may. */
+    /** Define a role under a free name and the declaration applied if any, as the caller may. */
     async #defineRole(
         transaction: DatabaseConnection,
         scope: ObjectReference,
         request: RoleRequest,
-        manager: Manager | undefined,
     ): Promise<Role> {
         // require permission to define roles and every permission the role grants
         await this.authorizeRole(transaction, scope, [
@@ -692,7 +714,7 @@ export class Authorization {
 
         // define the role under a name free in the scope
         const now = this.context(scope.id).now;
-        const record = await define(transaction, scope.id, request, now, manager);
+        const record = await define(transaction, scope.id, request, now, this.#manager);
         if (record === undefined) {
             throw new AccessError("CONFLICT", "role name is already in use");
         }
@@ -734,7 +756,7 @@ export class Authorization {
         return relationship;
     }
 
-    /** Keep exactly the wanted relationships among those a selection covers as the caller may, leaving the ones still wanted and granting new ones under the selection's manager if any. */
+    /** Keep exactly the wanted relationships among those a selection covers as the caller may, leaving the ones still wanted and granting new ones under the declaration applied if any. */
     async keepRelationships(
         selection: RelationshipSelection,
         wanted: readonly RelationshipRequest[],
@@ -742,10 +764,12 @@ export class Authorization {
         await this.database.transaction(async (transaction) => {
             // read the relationships the selection covers
             const authorization = this.within(transaction);
-            const related = (await readSelected(transaction, selection)).map((row) => ({
-                row,
-                relationship: Relationship.decode(row),
-            }));
+            const related = (await readSelected(transaction, selection, this.#manager)).map(
+                (row) => ({
+                    row,
+                    relationship: Relationship.decode(row),
+                }),
+            );
 
             // revoke the relationships no longer wanted
             const missing = new Map(wanted.map((request) => [identityOf(request), request]));
@@ -760,16 +784,15 @@ export class Authorization {
             }
 
             // grant the wanted relationships missing
-            const manager = "manager" in selection ? selection.manager : undefined;
             for (const request of missing.values()) {
                 await authorization.authorizeGrant(request);
-                await authorization.#insert(request, manager);
+                await authorization.#insert(request);
             }
         });
         this.renew();
     }
 
-    /** Keep one role by name in a scope granting exactly some permissions, bound to one subject on the scope or an object in it under a manager and the binding's conditions, dropping both when it grants none. */
+    /** Keep one role by name in a scope granting exactly some permissions, bound to one subject on the scope or an object in it under the binding's conditions, as the declaration applied, dropping both when it grants none. */
     async keepGrant(
         scope: ObjectReference,
         grant: Omit<RoleRequest, "permissions"> & {
@@ -782,12 +805,11 @@ export class Authorization {
             /** What a request must satisfy for the binding to apply, such as the principal a delegate acts for. */
             readonly conditions?: RelationshipCondition;
         },
-        manager: Manager,
     ): Promise<void> {
         // drop the binding and the role of a grant of nothing
         const { subject, object, conditions, ...request } = grant;
         if (request.permissions.length === 0) {
-            await this.keepRelationships({ scope: scope.id, manager }, []);
+            await this.keepRelationships({ scope: scope.id }, []);
             const [kept] = await this.database
                 .select({ id: accessRole.id, revision: accessRole.revision })
                 .from(accessRole)
@@ -800,8 +822,8 @@ export class Authorization {
         }
 
         // keep the role with exactly the permissions, bound to the subject alone
-        const role = await this.keepRole(scope, request, manager);
-        await this.keepRelationships({ scope: scope.id, manager }, [
+        const role = await this.keepRole(scope, request);
+        await this.keepRelationships({ scope: scope.id }, [
             {
                 object: object ?? scope,
                 role: role.id,
@@ -811,17 +833,17 @@ export class Authorization {
         ]);
     }
 
-    /** Require permissions to change roles in a scope this database keeps as a transaction shows the caller's access afresh, refusing a role a declaration manages. */
+    /** Require permissions to change roles in a scope this database keeps as a transaction shows the caller's access afresh, refusing a managed role outside its declaration. */
     protected async authorizeRole(
         transaction: DatabaseConnection,
         scope: ObjectReference,
         permissions: readonly PermissionReference[],
         record?: Select<typeof accessRole>,
     ): Promise<void> {
-        // write only the roles of a scope this database keeps, refusing a managed role until it is detached
+        // write only the roles of a scope this database keeps, refusing a managed role outside its declaration until it is detached
         await this.authorizer.requireLocal(transaction, scope);
         if (record !== undefined) {
-            requireUnmanaged(record);
+            requireChangeable(record, this.#manager);
         }
 
         // require every permission in the scope
@@ -879,15 +901,15 @@ export class Authorization {
         }
     }
 
-    /** Require an object this database keeps and the permission granting what a relationship grants, unless the caller lent it, refusing a relationship a declaration manages. */
+    /** Require an object this database keeps and the permission granting what a relationship grants, unless the caller lent it, refusing a managed relationship outside its declaration. */
     protected async authorizeRevoke(
         request: RelationshipFields,
         record?: Select<typeof accessRelationship>,
     ): Promise<void> {
-        // write only the access of an object this database keeps, refusing a managed relationship until it is detached
+        // write only the access of an object this database keeps, refusing a managed relationship outside its declaration until it is detached
         await this.authorizer.requireLocal(this.database, request.object);
         if (record !== undefined) {
-            requireUnmanaged(record);
+            requireChangeable(record, this.#manager);
         }
 
         // let a lender manage its own delegations
@@ -908,8 +930,8 @@ export class Authorization {
         );
     }
 
-    /** Insert a valid relationship under a new identifier and its manager if any, and refuse a duplicate. */
-    async #insert(request: RelationshipRequest, manager?: Manager): Promise<Relationship> {
+    /** Insert a valid relationship under a new identifier and the declaration applied if any, and refuse a duplicate. */
+    async #insert(request: RelationshipRequest): Promise<Relationship> {
         // build the relationship
         const scope = this.authorizer.governingScope(request.object);
         const context = this.context(scope);
@@ -929,7 +951,7 @@ export class Authorization {
             .insert(accessRelationship)
             .values({
                 ...Relationship.encode(relationship, scope),
-                ...Manager.values(manager ?? null),
+                ...Manager.values(this.#manager),
             })
             .onConflictDoNothing()
             .returning({ id: accessRelationship.id });
@@ -986,12 +1008,21 @@ export class Authorization {
     }
 }
 
-/** Refuse changing a row that a declaration manages until it is detached. */
-function requireUnmanaged(record: {
-    readonly managerInstallationId: string | null;
-    readonly detachedAt: number | null;
-}): void {
-    if (record.managerInstallationId !== null && record.detachedAt === null) {
+/** Refuse changing a row that a declaration manages until it is detached, unless the change applies that declaration's installation and package. */
+function requireChangeable(
+    record: {
+        readonly managerInstallationId: string | null;
+        readonly managerPackageId: string | null;
+        readonly detachedAt: number | null;
+    },
+    manager: Manager | null,
+): void {
+    const isManaged = record.managerInstallationId !== null && record.detachedAt === null;
+    const isDeclaring =
+        manager !== null &&
+        record.managerInstallationId === manager.installationId &&
+        record.managerPackageId === manager.packageId;
+    if (isManaged && !isDeclaring) {
         throw new AccessError("CONFLICT", "record is managed by its source declaration");
     }
 }
@@ -1036,9 +1067,9 @@ function isBinding(
     );
 }
 
-/** Report whether a role is under a manager, or under none when absent. */
-function isManagedBy(record: Select<typeof accessRole>, manager: Manager | undefined): boolean {
-    const columns = Manager.values(manager ?? null);
+/** Report whether a role is under a manager, or under none for null. */
+function isManagedBy(record: Select<typeof accessRole>, manager: Manager | null): boolean {
+    const columns = Manager.values(manager);
 
     return (
         record.managerInstallationId === columns.managerInstallationId &&
