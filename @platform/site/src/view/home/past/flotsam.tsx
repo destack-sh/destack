@@ -5,6 +5,7 @@ import { stir, waveAt } from "../../effect/wave";
 import { font, shadow } from "@destack/theme/tokens.stylex";
 import { flotsam } from "./flotsam.stylex";
 import { palette } from "../../palette.stylex";
+import { media } from "@destack/style/media.stylex";
 
 /** How far in from each edge of the water the surface starts to dip away, in CSS pixels. */
 const edgeReach = 110;
@@ -17,8 +18,6 @@ const slowest = 9;
 const fastest = 17;
 /** The longest calm before a piece drifts in again, in seconds. */
 const longestCalm = 30;
-/** The chance each second that a piece on the water splashes. */
-const splashChance = 0.12;
 /** The least room between two pieces on the water, as a share of its width, so at most two show at once. */
 const leastGap = 0.6;
 /** The length of the wire between a piece and its tag, in CSS pixels. */
@@ -452,11 +451,6 @@ export function Flotsam(properties: {
                 }
                 const tether = float.drift;
 
-                // splash now and then while on the water
-                const isAfloat = tether.x > -piece.width && tether.x < width();
-                if (isAfloat && Math.random() < splashChance * elapsed) {
-                }
-
                 // sit on the wave under the piece's middle, leaning with its slope
                 const x = tether.x;
                 const middle = x + piece.width / 2;
@@ -768,7 +762,7 @@ const styles = style.create({
         right: 0,
         transition: "opacity 1200ms ease",
         zIndex: 2,
-        "@media (prefers-reduced-motion: reduce)": { display: "none" },
+        display: { default: null, [media.motionReduce]: "none" },
     },
     adrift: {
         opacity: 1,

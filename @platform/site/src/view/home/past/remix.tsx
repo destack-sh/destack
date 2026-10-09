@@ -15,6 +15,10 @@ import {
 } from "./board";
 import { Card, type Entity } from "./card";
 import { palette } from "../../palette.stylex";
+import { isMotionReduced } from "@destack/view/motion";
+import { makeEventListener } from "@destack/view/primitives/event-listener";
+import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
+import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
 /** The milliseconds each open scene holds before the next one begins. */
 const sceneTime = 5200;
@@ -626,20 +630,31 @@ export function Remix(properties: {
         event.preventDefault();
         setDrag({ id, x: 0, y: 0 });
 
-        // follow the pointer until it lifts, then let go of the card
-        const move = (moving: PointerEvent) =>
-            setDrag({ id, x: moving.clientX - startX, y: moving.clientY - startY });
+        // follow the pointer until it lifts, then let go of the card and stop following it
         const drop = () => {
-            // let go of the card and stop following the pointer
             setDrag(undefined);
-            window.removeEventListener("pointermove", move);
-            window.removeEventListener("pointerup", drop);
-            window.removeEventListener("pointercancel", drop);
+            stops.forEach((stop) => stop());
         };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", drop);
-        window.addEventListener("pointercancel", drop);
+        const stops = [
+            makeEventListener(window, "pointermove", (moving) =>
+                setDrag({ id, x: moving.clientX - startX, y: moving.clientY - startY }),
+            ),
+            makeEventListener(window, "pointerup", drop),
+            makeEventListener(window, "pointercancel", drop),
+        ];
     };
+
+    // wake the cables after the layout changes or the layer comes into view, and rest them while off screen
+    const wake = { until: 0, isVisible: true };
+    const resizes = makeResizeObserver(() => {
+        wake.until = performance.now() + 300;
+    });
+    const sight = makeIntersectionObserver([], (entries) => {
+        for (const entry of entries) {
+            wake.isVisible = entry.isIntersecting;
+            wake.until = performance.now() + 300;
+        }
+    });
 
     // trace the cables every frame once the cards are in the page
     onSettled(() => {
@@ -649,7 +664,7 @@ export function Remix(properties: {
         }
 
         // hold the cables, the animation frame, the scene timing, and the motion state
-        const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const isStill = isMotionReduced(layer);
         const cables = new Map<string, Cable>();
         let animationFrame: number | undefined;
         let nextScene: number | undefined;
@@ -658,9 +673,7 @@ export function Remix(properties: {
         let wasToday = properties.today;
         let changedAt = -Infinity;
         let delay = 0;
-        let wakeUntil = 0;
         let isStirring = false;
-        let isVisible = true;
         const narrowScreen = window.matchMedia("(max-width: 1099px)");
 
         // measure the boxes of the given cards within the layer, all before any cable is drawn
@@ -1058,33 +1071,22 @@ export function Remix(properties: {
 
             // trace only while something moves: travelling cards, a drag, or a settling cable
             const isBusy =
-                drag() !== undefined || now - changedAt < 1500 || now < wakeUntil || isStirring;
-            if (isVisible && isBusy) {
+                drag() !== undefined || now - changedAt < 1500 || now < wake.until || isStirring;
+            if (wake.isVisible && isBusy) {
                 trace(now);
             }
             if (drag()) {
-                wakeUntil = now + 1500;
+                wake.until = now + 1500;
             }
             animationFrame = requestAnimationFrame(loop);
         };
         animationFrame = requestAnimationFrame(loop);
 
         // retrace after the layout changes or the layer comes into view, and rest while off screen
-        const sizes = new ResizeObserver(() => {
-            wakeUntil = performance.now() + 300;
-        });
-        sizes.observe(layer);
-        const sight = new IntersectionObserver((entries) => {
-            for (const entry of entries) {
-                isVisible = entry.isIntersecting;
-                wakeUntil = performance.now() + 300;
-            }
-        });
-        sight.observe(layer);
+        resizes.observe(layer);
+        sight.add(layer);
 
         return () => {
-            sizes.disconnect();
-            sight.disconnect();
             if (animationFrame !== undefined) {
                 cancelAnimationFrame(animationFrame);
             }

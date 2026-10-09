@@ -6,6 +6,7 @@ import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label } from "../entry/label";
 import { StackFigure } from "./stack";
 import { StackSwitch } from "../entry/switch";
+import { screen } from "../../layout/screen.stylex";
 
 /** The past participle, the state of having destacked. */
 const destacked: Form = {
@@ -58,10 +59,10 @@ const styles = style.create({
         paddingInline: frame.inset,
     },
     drawingLabel: {
-        gridColumn: { default: "1 / 9", "@media (max-width: 1099px)": "1 / -1" },
+        gridColumn: { default: "1 / 9", [screen.belowDesktop]: "1 / -1" },
     },
     layersLabel: {
         gridColumn: "9 / -1",
-        "@media (max-width: 1099px)": { display: "none" },
+        display: { default: null, [screen.belowDesktop]: "none" },
     },
 });

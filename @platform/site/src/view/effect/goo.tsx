@@ -6,6 +6,9 @@ import { createSignal, type JSX, onCleanup } from "@destack/view";
 
 import { night } from "../theme.ts";
 import { captureException } from "../telemetry.ts";
+import { isMotionReduced } from "@destack/view/motion";
+import { makeEventListener } from "@destack/view/primitives/event-listener";
+import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
 /** The distance the goo field reaches past the site frame, in CSS pixels, so its rim can wobble across the frame rules. */
 const spill = 8;
@@ -207,7 +210,7 @@ export function GooField() {
     // drive the mount frame by frame: ease the pointer, the swell and the charge, and follow the cells as the page scrolls
     const start = (mount: ShaderMount) => {
         // hold the motion preference, the pointer, the eased motion and the measured cells
-        const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const isStill = isMotionReduced(mount.canvas);
         const pointer = { x: 0, y: 0, isKnown: false };
         const eased = { x: 0, y: 0, pull: 0, charge: 0 };
         let cells: HTMLElement[] = [];
@@ -220,9 +223,9 @@ export function GooField() {
         const remeasure = () => {
             measuredAt = Number.NEGATIVE_INFINITY;
         };
-        const pageSize = new ResizeObserver(remeasure);
+        const pageSize = makeResizeObserver(remeasure);
         pageSize.observe(document.body);
-        window.addEventListener("resize", remeasure);
+        const stopResizing = makeEventListener(window, "resize", remeasure);
 
         // follow the pointer across the page
         const point = (event: PointerEvent) => {
@@ -230,7 +233,7 @@ export function GooField() {
             pointer.y = event.clientY;
             pointer.isKnown = true;
         };
-        window.addEventListener("pointermove", point, { passive: true });
+        const stopPointing = makeEventListener(window, "pointermove", point, { passive: true });
 
         // draw one frame, and keep going while the goo moves
         const draw = (now: number) => {
@@ -318,9 +321,9 @@ export function GooField() {
         stop = () => {
             // stop the frames, the pointer and the page observers
             cancelAnimationFrame(frameRequest);
-            window.removeEventListener("pointermove", point);
-            window.removeEventListener("resize", remeasure);
-            pageSize.disconnect();
+            stopPointing();
+            stopResizing();
+            pageSize.unobserve(document.body);
         };
     };
 

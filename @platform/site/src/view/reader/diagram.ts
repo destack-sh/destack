@@ -1,5 +1,8 @@
 import { captureException } from "../telemetry.ts";
 
+/** The media query for a system that prefers dark colors. */
+const PREFERS_DARK = "(prefers-color-scheme: dark)";
+
 /** The smallest a diagram shrinks to fit its column before it scrolls sideways instead, so its labels stay legible. */
 const leastScale = 0.75;
 
@@ -23,7 +26,7 @@ export function renderDiagrams(article: HTMLElement): () => void {
     }
 
     // serialize updates and discard results from an unmounted reader
-    const preference = window.matchMedia("(prefers-color-scheme: dark)");
+    const preference = window.matchMedia(PREFERS_DARK);
     let isDisposed = false;
     let pending = Promise.resolve();
     const update = () => {

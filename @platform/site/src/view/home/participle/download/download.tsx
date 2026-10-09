@@ -176,9 +176,11 @@ const styles = style.create({
     system: {
         flexShrink: 0,
         height: "1.125rem",
-        transition: "translate 160ms cubic-bezier(0.3, 1.6, 0.5, 1)",
+        transition: {
+            default: "translate 160ms cubic-bezier(0.3, 1.6, 0.5, 1)",
+            [media.motionReduce]: "none",
+        },
         width: "1.125rem",
-        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
     },
     toggle: {
         alignSelf: "stretch",

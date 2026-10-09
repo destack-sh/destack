@@ -7,16 +7,19 @@ export const tagline =
 /** The site's origin, which absolute links and metadata start from. */
 export const origin = "https://destack.sh";
 
+/** The setup guide a coding agent follows, as Markdown. */
+export const setupGuide = `${origin}/docs/setup.md`;
+
 /** The public installation command. */
-export const installCommand = "curl -fsSL https://destack.sh/install | sh";
+export const installCommand = `curl -fsSL ${origin}/install | sh`;
 
 /** The prompt that has a coding agent install Destack. */
-export const agentPrompt = "Set up Destack for me by following https://destack.sh/docs/setup.md";
+export const agentPrompt = `Set up Destack for me by following ${setupGuide}`;
 
 /** Searchable content outside the generated documentation and blog collections. */
 export const siteSearchEntries: readonly SearchEntry[] = [
     {
-        context: "destack.sh",
+        context: new URL(origin).host,
         kind: "page",
         route: "/",
         text: tagline,

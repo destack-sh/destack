@@ -13,6 +13,8 @@ import { sectionOf } from "./apps";
 import { AppRail, appStyles, appText } from "../figure/app";
 import { rentedPageOf } from "./vendor";
 import { palette } from "../../palette.stylex";
+import { media } from "@destack/style/media.stylex";
+import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
 /** Who looks at your space. */
 export type Viewer = "Me" | "Agent" | "Public";
@@ -423,10 +425,10 @@ export function Presence(properties: { row: number; isShown: boolean }) {
     const page = () => present(pages[properties.row - 1], "row page");
 
     // move to the slot of the row on show, on each turn of the page and as the ledger resizes
-    const measure = () => {
+    const measure = (row: number) => {
         // find the row's slot, waiting until the presence and its ledger are laid out
         const host = element?.offsetParent;
-        const slot = host?.querySelector(`[data-presence-row="${String(properties.row)}"]`);
+        const slot = host?.querySelector(`[data-presence-row="${String(row)}"]`);
         if (!element || !host || !slot) {
             return;
         }
@@ -439,20 +441,15 @@ export function Presence(properties: { row: number; isShown: boolean }) {
             y: target.top - bounds.top + (target.height - element.offsetHeight) / 2,
         });
     };
-    createEffect(
-        () => properties.row,
-        () => measure(),
-    );
+    createEffect(() => properties.row, measure);
+    const resizes = makeResizeObserver(() => measure(properties.row));
     onSettled(() => {
         // measure again as the ledger resizes
         const host = element?.offsetParent;
-        const resize = new ResizeObserver(measure);
         if (host) {
-            resize.observe(host);
+            resizes.observe(host);
         }
-        measure();
-
-        return () => resize.disconnect();
+        measure(properties.row);
     });
 
     return (
@@ -539,9 +536,11 @@ const styles = style.create({
         insetInlineStart: 0,
         pointerEvents: "none",
         position: "absolute",
-        transition: `translate 520ms cubic-bezier(0.3, 0.8, 0.3, 1), opacity 300ms ease`,
+        transition: {
+            default: `translate 520ms cubic-bezier(0.3, 0.8, 0.3, 1), opacity 300ms ease`,
+            [media.motionReduce]: "none",
+        },
         zIndex: 1,
-        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
     },
     browser: {
         backgroundColor: color.card,
@@ -600,9 +599,11 @@ const styles = style.create({
         flexShrink: 1,
         justifyContent: "flex-start",
         maxWidth: "12rem",
-        transition:
-            "flex-grow 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease",
-        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+        transition: {
+            default:
+                "flex-grow 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease",
+            [media.motionReduce]: "none",
+        },
     },
     tabOn: {
         flexGrow: 5,

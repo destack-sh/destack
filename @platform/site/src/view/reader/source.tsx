@@ -1,7 +1,7 @@
 import { Icon } from "@destack/icon";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { ButtonGroup } from "@destack/ui/button-group";
-import { CopyButton } from "@destack/ui/copy-button";
+import { CopyButton } from "../layout/copy";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -15,6 +15,7 @@ import { commandEvents } from "../layout/command";
 import { origin } from "../content/site";
 import type { PageSource } from "../content/source";
 import { captureException } from "../telemetry.ts";
+import { createEventListener } from "@destack/view/primitives/event-listener";
 
 /** Properties for the page source controls. */
 type SourceActionsProperties = {
@@ -60,21 +61,16 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
     };
 
     // bind the palette copy commands while the page shows
-    onSettled(() => {
-        // bind command palette copy actions to this page
-        const copyMarkdown = () => copy("md");
-        const copyText = () => copy("txt");
-
-        // listen for the palette commands
-        document.addEventListener(commandEvents.copyMarkdown, copyMarkdown);
-        document.addEventListener(commandEvents.copyText, copyText);
-
-        return () => {
-            // unbind page actions when the reader is replaced
-            document.removeEventListener(commandEvents.copyMarkdown, copyMarkdown);
-            document.removeEventListener(commandEvents.copyText, copyText);
-        };
-    });
+    createEventListener(
+        () => document,
+        commandEvents.copyMarkdown,
+        () => copy("md"),
+    );
+    createEventListener(
+        () => document,
+        commandEvents.copyText,
+        () => copy("txt"),
+    );
 
     return { copy, source };
 }

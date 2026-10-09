@@ -1,9 +1,8 @@
 import { frame } from "./frame.stylex";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-
-/** The media query for phone-width screens. */
-const mobile = "@media (max-width: 767px)";
+import { media } from "@destack/style/media.stylex";
+import { screen } from "./screen.stylex";
 
 /** The twelve-column frame and the rules drawn between its cells. */
 export const lattice = style.create({
@@ -11,22 +10,21 @@ export const lattice = style.create({
     frame: {
         borderInlineColor: color.border,
         borderInlineStyle: "solid",
-        borderInlineWidth: stroke.border,
+        borderInlineWidth: { default: stroke.border, [media.maxMd]: 0 },
         display: "grid",
-        gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+        gridTemplateColumns: {
+            default: "repeat(12, minmax(0, 1fr))",
+            [media.maxMd]: "repeat(4, minmax(0, 1fr))",
+        },
         marginInline: "auto",
         maxWidth: frame.width,
         minWidth: 0,
         width: "100%",
-        [mobile]: {
-            borderInlineWidth: 0,
-            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-        },
     },
 
     /** A homepage section one screen tall on desktop, so every section shares one height. */
     section: {
-        height: { default: frame.section, "@media (max-width: 1099px)": "auto" },
+        height: { default: frame.section, [screen.belowDesktop]: "auto" },
     },
 
     /** A band whose cells sit on the rule colour a hairline apart, so every rule between them is drawn once and meets its neighbours, the colour kept inside the band's own edge rules so those are drawn once too. */
@@ -53,7 +51,7 @@ export const lattice = style.create({
 
     /** An empty band between two sections, closed by the frame edges so the frame runs unbroken down the page. */
     interval: {
-        height: { default: "6rem", [mobile]: "3rem" },
+        height: { default: "6rem", [media.maxMd]: "3rem" },
     },
 
     /** A rule along the right edge of a cell. */

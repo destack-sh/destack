@@ -14,6 +14,8 @@ import { lattice } from "../layout/lattice.stylex";
 import { playVideo } from "./media";
 import { renderDiagrams } from "./diagram";
 import { publicationStyles } from "./publication.stylex";
+import { screen } from "../layout/screen.stylex";
+import { createEventListener } from "@destack/view/primitives/event-listener";
 
 /** Properties for the shared reading frame. */
 type ReaderProperties = {
@@ -69,17 +71,11 @@ export function Reader(properties: ReaderProperties) {
         return renderDiagrams(article);
     });
 
-    // align direct links after responsive layout and webfonts settle
+    // align direct links once the webfonts load and on each hash change
     onSettled(() => {
-        // scroll once the fonts load and on each hash change
         void document.fonts.ready.then(scrollAfterLayout);
-        window.addEventListener("hashchange", scrollAfterLayout);
-
-        return () => {
-            // detach the route listener with the reader
-            window.removeEventListener("hashchange", scrollAfterLayout);
-        };
     });
+    createEventListener(() => window, "hashchange", scrollAfterLayout);
 
     return (
         <div
@@ -190,8 +186,6 @@ function formatTokenCount(tokenCount: number) {
     return `${thousands}k tokens`;
 }
 
-/** The media query for narrow screens that stack the sidebar. */
-const narrow = "@media (width < 60rem)";
 /** The media query for compact screens that hide the toolbar labels. */
 const compact = "@media (width < 52rem)";
 /** The media query for the smallest phones, which keep only the location and the source actions. */
@@ -205,7 +199,7 @@ const styles = style.create({
     },
     menu: {
         minWidth: 0,
-        "@media (min-width: 60rem)": { display: "none" },
+        display: { default: "inline-flex", [screen.reader]: "none" },
     },
     menuBody: {
         display: "grid",
@@ -224,11 +218,13 @@ const styles = style.create({
         display: "grid",
         fontFamily: font.text,
         gap: "0.75rem",
-        gridTemplateColumns: "minmax(0, 1fr) auto",
+        gridTemplateColumns: {
+            default: "minmax(0, 1fr) auto",
+            [screen.belowReader]: "auto minmax(0, 1fr) auto",
+        },
         height: frame.bar,
         paddingInline: frame.inset,
         position: "relative",
-        [narrow]: { gridTemplateColumns: "auto minmax(0, 1fr) auto" },
     },
     toolbarTools: {
         gridColumn: "-2 / -1",

@@ -5,6 +5,7 @@ import type { JSX } from "@destack/view";
 import { plate } from "./plate.stylex";
 import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
+import { media } from "@destack/style/media.stylex";
 
 /** What marks an item: a vendor's logo under `/logos`, or an icon under `/diagram` on a tinted tile. */
 type ItemMark = { logo: string } | { icon: string; tint: string };
@@ -172,11 +173,13 @@ const styles = style.create({
         display: "grid",
         marginInline: "-0.75rem",
         gridAutoRows: "minmax(0, 1fr)",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gridTemplateColumns: {
+            default: "repeat(2, minmax(0, 1fr))",
+            [media.maxMd]: "minmax(0, 1fr)",
+        },
         listStyle: "none",
         margin: 0,
         padding: 0,
-        "@media (max-width: 767px)": { gridTemplateColumns: "minmax(0, 1fr)" },
     },
     rowsSingle: {
         gridTemplateColumns: "minmax(0, 1fr)",

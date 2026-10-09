@@ -3,11 +3,12 @@ import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import type { JSX } from "@destack/view";
 
 import { palette } from "../../palette.stylex";
+import { media } from "@destack/style/media.stylex";
 
 /** The type sizes of a drawn app of your space: its page title, its body, its meta and its smallest labels. */
 export const appText = style.create({
     title: {
-        fontSize: { default: "1.75rem", "@media (max-width: 767px)": "1.375rem" },
+        fontSize: { default: "1.75rem", [media.maxMd]: "1.375rem" },
         fontWeight: 700,
         letterSpacing: "-0.02em",
         lineHeight: 1.15,
@@ -36,11 +37,10 @@ export const appStyles = style.create({
     app: {
         display: "grid",
         fontSize: "0.8125rem",
-        gridTemplateColumns: "3rem minmax(0, 1fr)",
+        gridTemplateColumns: { default: "3rem minmax(0, 1fr)", [media.maxMd]: "minmax(0, 1fr)" },
         gridTemplateRows: "minmax(0, 1fr) auto",
         height: "100%",
         minHeight: 0,
-        "@media (max-width: 767px)": { gridTemplateColumns: "minmax(0, 1fr)" },
     },
     rail: {
         alignItems: "center",
@@ -48,11 +48,10 @@ export const appStyles = style.create({
         borderRightColor: color.border,
         borderRightStyle: "solid",
         borderRightWidth: stroke.border,
-        display: "flex",
+        display: { default: "flex", [media.maxMd]: "none" },
         flexDirection: "column",
         gap: "0.5rem",
         paddingBlock: "0.75rem",
-        "@media (max-width: 767px)": { display: "none" },
     },
     railAvatar: {
         height: "1.625rem",
@@ -134,7 +133,7 @@ export const appStyles = style.create({
         minWidth: 0,
         overflow: "hidden",
         paddingBlock: "1.5rem",
-        paddingInline: { default: "2rem", "@media (max-width: 767px)": "1rem" },
+        paddingInline: { default: "2rem", [media.maxMd]: "1rem" },
     },
     toolbar: {
         alignItems: "center",

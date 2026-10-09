@@ -1,7 +1,7 @@
 import { frame } from "../layout/frame.stylex";
 import { media } from "@destack/style/media.stylex";
 import { text } from "@destack/theme/text";
-import { color, font, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 
 import { httpStatus } from "@destack/view";
 import * as style from "@destack/style";
@@ -63,9 +63,6 @@ export function Missing() {
     );
 }
 
-/** The media query for phone-width screens. */
-const mobile = "@media (max-width: 767px)";
-
 /** The missing page styles. */
 const styles = style.create({
     page: {
@@ -77,20 +74,19 @@ const styles = style.create({
         color: color.mutedForeground,
         fontFamily: font.code,
         fontSize: "0.75rem",
-        gridColumn: "1 / span 3",
+        gridColumn: { default: "1 / span 3", [media.maxMd]: "1 / -1" },
         letterSpacing: "0.12em",
         margin: 0,
         padding: frame.inset,
         textTransform: "uppercase",
-        [mobile]: { borderRightWidth: 0, gridColumn: "1 / -1" },
+        borderRightWidth: { default: stroke.border, [media.maxMd]: 0 },
     },
     message: {
         alignContent: "end",
         display: "grid",
         gap: "1.25rem",
-        gridColumn: "4 / span 9",
+        gridColumn: { default: "4 / span 9", [media.maxMd]: "1 / -1" },
         padding: frame.inset,
-        [mobile]: { gridColumn: "1 / -1" },
     },
     shallows: {
         gridColumn: "1 / -1",

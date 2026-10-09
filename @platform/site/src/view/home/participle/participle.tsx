@@ -7,6 +7,7 @@ import { InstallWays } from "./install";
 import { Label } from "../entry/label";
 import { StackSwitch } from "../entry/switch";
 import { countOf, firstPicks, promptOf, ToolWall } from "./wall";
+import { screen } from "../../layout/screen.stylex";
 
 /** The participle, which closes the page as the verb opens it. */
 const participle: Form = {
@@ -67,8 +68,10 @@ export function Participle(properties: { isOpen: boolean }) {
 /** The closing styles. */
 const styles = style.create({
     section: {
-        gridTemplateRows: "auto auto minmax(0, 1fr) auto",
-        "@media (max-width: 1099px)": { gridTemplateRows: "auto" },
+        gridTemplateRows: {
+            default: "auto auto minmax(0, 1fr) auto",
+            [screen.belowDesktop]: "auto",
+        },
     },
     wall: {
         gridColumn: "1 / -1",

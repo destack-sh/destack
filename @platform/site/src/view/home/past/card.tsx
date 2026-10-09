@@ -5,14 +5,11 @@ import { createMemo, For } from "@destack/view";
 
 import { cardVariables, tape } from "./card.stylex";
 import { palette } from "../../palette.stylex";
+import { media } from "@destack/style/media.stylex";
+import { screen } from "../../layout/screen.stylex";
 
 /** The height of a card: five hole rows, kept between a readable least and a most, so taller rows gain room around the cards. */
 const cardHeight = `clamp(2.75rem, calc(${frame.cellRow} * 5), 4rem)`;
-/** The media query for tablet-width screens. */
-const tablet = "@media (min-width: 768px) and (max-width: 1099px)";
-/** The media query for phone-width screens. */
-const mobile = "@media (max-width: 767px)";
-
 /** The orange corner marks around a card on the open stack: two strokes at each corner. */
 const cornerMarks = ["0 0", "100% 0", "0 100%", "100% 100%"]
     .flatMap((corner) => [
@@ -220,13 +217,13 @@ const styles = style.create({
         color: palette.ink,
         display: "flex",
         fontFamily: font.text,
-        gap: "0.5rem",
-        height: cardHeight,
+        gap: { default: "0.5rem", [media.maxMd]: "0.25rem" },
+        height: { default: cardHeight, [screen.tablet]: "3.25rem", [media.maxMd]: "auto" },
         paddingInlineStart: "0.375rem",
         paddingInlineEnd: "0.625rem",
         position: "relative",
-        whiteSpace: "nowrap",
-        width: "max-content",
+        whiteSpace: { default: "nowrap", [media.maxMd]: "normal" },
+        width: { default: "max-content", [media.maxMd]: "100%" },
         zIndex: 1,
         "::before": {
             backgroundImage: cornerMarks,
@@ -238,18 +235,10 @@ const styles = style.create({
             position: "absolute",
             transition: "opacity 600ms ease",
         },
-        [tablet]: { height: "3.25rem" },
-        [mobile]: {
-            flexDirection: "column",
-            gap: "0.25rem",
-            height: "auto",
-            justifyContent: "center",
-            paddingBlock: "0.375rem",
-            paddingInline: "0.25rem",
-            textAlign: "center",
-            whiteSpace: "normal",
-            width: "100%",
-        },
+        flexDirection: { default: null, [media.maxMd]: "column" },
+        justifyContent: { default: null, [media.maxMd]: "center" },
+        paddingBlock: { default: null, [media.maxMd]: "0.375rem" },
+        textAlign: { default: null, [media.maxMd]: "center" },
     },
     vendorCard: {
         color: palette.ink,
@@ -264,28 +253,24 @@ const styles = style.create({
     },
     band: {
         boxShadow: "none",
-        height: cardHeight,
+        height: { default: cardHeight, [screen.tablet]: "3.25rem", [media.maxMd]: "auto" },
         width: "100%",
-        paddingBlock: 0,
+        paddingBlock: { default: 0, [media.maxMd]: 0 },
         paddingInlineEnd: 0,
-        [tablet]: { height: "3.25rem" },
-        [mobile]: {
-            alignItems: "stretch",
-            columnGap: 0,
-            display: "grid",
-            gridTemplateColumns: "22% minmax(0, 1fr)",
-            gridTemplateRows: "auto auto",
-            height: "auto",
-            justifyItems: "center",
-            paddingBlock: 0,
-            paddingInline: 0,
-            rowGap: "0.25rem",
-        },
+        alignItems: { default: "center", [media.maxMd]: "stretch" },
+        columnGap: { default: null, [media.maxMd]: 0 },
+        display: { default: "flex", [media.maxMd]: "grid" },
+        gridTemplateColumns: { default: null, [media.maxMd]: "22% minmax(0, 1fr)" },
+        gridTemplateRows: { default: null, [media.maxMd]: "auto auto" },
+        justifyItems: { default: null, [media.maxMd]: "center" },
+        rowGap: { default: null, [media.maxMd]: "0.25rem" },
     },
     bandText: {
         flexShrink: 0,
-        width: "8.25rem",
-        [mobile]: { gridColumn: 1, gridRow: 2, paddingBottom: "0.375rem", width: "auto" },
+        width: { default: "8.25rem", [media.maxMd]: "auto" },
+        gridColumn: { default: null, [media.maxMd]: 1 },
+        gridRow: { default: null, [media.maxMd]: 2 },
+        paddingBottom: { default: null, [media.maxMd]: "0.375rem" },
     },
     items: {
         alignSelf: "stretch",
@@ -293,8 +278,10 @@ const styles = style.create({
         flexGrow: 1,
         gridAutoColumns: "minmax(0, 1fr)",
         gridAutoFlow: "column",
-        marginLeft: "0.75rem",
-        [mobile]: { gridColumn: 2, gridRow: "1 / span 2", justifySelf: "stretch", marginLeft: 0 },
+        marginLeft: { default: "0.75rem", [media.maxMd]: 0 },
+        gridColumn: { default: null, [media.maxMd]: 2 },
+        gridRow: { default: null, [media.maxMd]: "1 / span 2" },
+        justifySelf: { default: null, [media.maxMd]: "stretch" },
     },
     item: {
         position: "relative",
@@ -307,25 +294,19 @@ const styles = style.create({
         display: "flex",
         fontSize: "0.75rem",
         fontWeight: 600,
-        gap: "0.5rem",
+        gap: { default: "0.5rem", [media.maxMd]: "0.25rem" },
         minWidth: 0,
-        paddingInline: "0.75rem",
+        paddingInline: { default: "0.75rem", [media.maxMd]: "0.125rem" },
         transition: "box-shadow 500ms ease, opacity 500ms ease, filter 500ms ease",
         transitionDelay: cardVariables.cascade,
         opacity: `clamp(0, ${itemEntry}, 1)`,
         translate: `0 calc((1 - clamp(0, ${itemEntry}, 1)) * 0.75rem)`,
         whiteSpace: "nowrap",
-        [mobile]: {
-            flexDirection: "column",
-            gap: "0.25rem",
-            justifyContent: "center",
-            paddingBlock: "0.375rem",
-            paddingInline: "0.125rem",
-        },
+        flexDirection: { default: null, [media.maxMd]: "column" },
+        justifyContent: { default: null, [media.maxMd]: "center" },
+        paddingBlock: { default: null, [media.maxMd]: "0.375rem" },
     },
-    itemRole: {
-        [mobile]: { display: "none" },
-    },
+    itemRole: { display: { default: null, [media.maxMd]: "none" } },
     itemActive: {
         boxShadow: `inset 0 -1px 0 color-mix(in srgb, ${palette.signal} 55%, transparent)`,
     },
@@ -340,7 +321,9 @@ const styles = style.create({
         height: "1.625rem",
         justifyContent: "center",
         width: "1.625rem",
-        [mobile]: { gridColumn: 1, gridRow: 1, marginTop: "0.375rem" },
+        gridColumn: { default: null, [media.maxMd]: 1 },
+        gridRow: { default: null, [media.maxMd]: 1 },
+        marginTop: { default: null, [media.maxMd]: "0.375rem" },
     },
     logos: {
         display: "flex",
@@ -376,21 +359,19 @@ const styles = style.create({
         flexDirection: "column",
         gap: "0.0625rem",
         lineHeight: 1.15,
-        [mobile]: { alignItems: "center" },
+        alignItems: { default: null, [media.maxMd]: "center" },
     },
     role: {
         fontFamily: font.code,
-        fontSize: "0.625rem",
+        fontSize: { default: "0.625rem", [media.maxMd]: "0.5625rem" },
         fontWeight: 500,
-        letterSpacing: "0.06em",
+        letterSpacing: { default: "0.06em", [media.maxMd]: "0.02em" },
         opacity: 0.78,
         textTransform: "uppercase",
-        [mobile]: { fontSize: "0.5625rem", letterSpacing: "0.02em" },
     },
     label: {
-        fontSize: "0.875rem",
+        fontSize: { default: "0.875rem", [media.maxMd]: "0.6875rem" },
         fontWeight: 700,
-        [mobile]: { fontSize: "0.6875rem" },
     },
     tape: {
         height: "26px",
@@ -421,18 +402,17 @@ const styles = style.create({
         animationDelay: "400ms",
         animationDuration: "240ms",
         animationFillMode: "backwards",
-        animationName: slap,
+        animationName: { default: slap, [media.motionReduce]: "none" },
         animationTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
         transformBox: "fill-box",
         transformOrigin: "center",
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     tapeWorn: {
         animationDuration: "240ms",
         animationFillMode: "forwards",
-        animationName: peel,
+        animationName: { default: peel, [media.motionReduce]: "none" },
         animationTimingFunction: "ease",
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none", opacity: 0 },
+        opacity: { default: null, [media.motionReduce]: 0 },
     },
     tapeText: {
         fill: tape.ink,

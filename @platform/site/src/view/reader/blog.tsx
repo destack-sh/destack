@@ -2,7 +2,7 @@ import { text } from "@destack/theme/text";
 import { color, font } from "@destack/theme/tokens.stylex";
 import { Content } from "@destack/ui/content";
 import { Prose } from "@destack/ui/prose";
-import { type Heading, TableOfContents } from "@destack/ui/table-of-contents";
+import { type Heading, TableOfContents } from "./table-of-contents";
 import { Show } from "@destack/view";
 import * as style from "@destack/style";
 

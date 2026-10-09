@@ -16,13 +16,11 @@ import {
     type ContentComponents,
     type ContentElementProperties,
 } from "@destack/ui/content";
-import { CopyButton } from "@destack/ui/copy-button";
+import { CopyButton } from "../layout/copy";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@destack/ui/table";
 
 import { palette } from "../palette.stylex";
-
-/** The media query for phone-width screens, where table rows stack into labelled cells. */
-const phone = "@media (max-width: 767px)";
+import { media } from "@destack/style/media.stylex";
 
 /** The components that stand in for the elements of the site's articles: listings, figures and tables. */
 export const blocks: ContentComponents = {
@@ -355,32 +353,29 @@ const styles = style.create({
         transform: "translate(-50%, -50%)",
         width: "3.5rem",
     },
-    head: {
-        [phone]: { display: "none" },
-    },
+    head: { display: { default: null, [media.maxMd]: "none" } },
     row: {
-        [phone]: {
-            borderBottomColor: color.border,
-            borderBottomStyle: "solid",
-            borderBottomWidth: stroke.border,
-            display: "block",
-            paddingBlock: space[2],
-        },
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: stroke.border,
+        display: { default: null, [media.maxMd]: "block" },
+        paddingBlock: { default: null, [media.maxMd]: space[2] },
     },
     cell: {
-        [phone]: {
-            borderBottomWidth: 0,
-            display: "grid",
-            gap: space[3],
-            gridTemplateColumns: "minmax(6.5rem, 0.4fr) minmax(0, 1fr)",
-            overflowWrap: "anywhere",
-            paddingBlock: space[1],
-            paddingInline: space[3],
-        },
         "::before": {
             color: color.foreground,
-            content: { default: null, [phone]: "attr(data-label)" },
+            content: { default: null, [media.maxMd]: "attr(data-label)" },
             fontWeight: weight.semibold,
         },
+        borderBottomWidth: { default: null, [media.maxMd]: 0 },
+        display: { default: null, [media.maxMd]: "grid" },
+        gap: { default: null, [media.maxMd]: space[3] },
+        gridTemplateColumns: {
+            default: null,
+            [media.maxMd]: "minmax(6.5rem, 0.4fr) minmax(0, 1fr)",
+        },
+        overflowWrap: { default: null, [media.maxMd]: "anywhere" },
+        paddingBlock: { default: null, [media.maxMd]: space[1] },
+        paddingInline: { default: null, [media.maxMd]: space[3] },
     },
 });

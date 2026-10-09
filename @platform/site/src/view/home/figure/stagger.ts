@@ -1,4 +1,5 @@
 import { createEffect, createSignal } from "@destack/view";
+import { makeTimer } from "@destack/view/primitives/timer";
 
 /** Whether the stack is open at a numbered step of a figure's switch. */
 export type Stagger = (step: number) => boolean;
@@ -13,7 +14,12 @@ type Steps = { isOpenAt: Stagger; toggle: (step: number) => void };
  * Any step also switches alone on request, until the stack switches again.
  * With reduced motion, every step switches at once.
  */
-export function createSteps(isOpen: () => boolean, last: number, interval: number): Steps {
+export function createSteps(
+    isOpen: () => boolean,
+    last: number,
+    interval: number,
+    isReduced: () => boolean,
+): Steps {
     // hold whether each step is open, mirrored for the walk to read
     let current: readonly boolean[] = Array.from({ length: last + 1 }, () => isOpen());
     const [states, setStates] = createSignal(current);
@@ -23,30 +29,37 @@ export function createSteps(isOpen: () => boolean, last: number, interval: numbe
     };
 
     // walk the steps to every new state one interval apart
-    createEffect(isOpen, (open) => {
-        // keep the steps when every one already holds the state
-        if (current.every((state) => state === open)) {
-            return undefined;
-        }
-        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            set(current.map(() => open));
-            return undefined;
-        }
-
-        // reach the next step on every interval until the last
-        let step = 0;
-        const reach = () => set(current.map((state, index) => (index === step ? open : state)));
-        reach();
-        const timer = setInterval(() => {
-            step += 1;
-            reach();
-            if (step >= last) {
-                clearInterval(timer);
+    createEffect(
+        () => ({ open: isOpen(), isStill: isReduced() }),
+        ({ open, isStill }) => {
+            // keep the steps when every one already holds the state, and switch them all at once while motion is reduced
+            if (current.every((state) => state === open)) {
+                return undefined;
             }
-        }, interval);
+            if (isStill) {
+                set(current.map(() => open));
+                return undefined;
+            }
 
-        return () => clearInterval(timer);
-    });
+            // reach the next step on every interval until the last
+            let step = 0;
+            const reach = () => set(current.map((state, index) => (index === step ? open : state)));
+            reach();
+            const clear = makeTimer(
+                () => {
+                    step += 1;
+                    reach();
+                    if (step >= last) {
+                        clear();
+                    }
+                },
+                interval,
+                setInterval,
+            );
+
+            return clear;
+        },
+    );
 
     return {
         isOpenAt: (step) => states()[step] ?? false,

@@ -13,9 +13,8 @@ import { PagesApp, services } from "./pages";
 import { createSteps } from "../figure/stagger";
 import { StackSwitch } from "../entry/switch";
 import { Window } from "../figure/window";
-
-/** The media query for screens narrower than the desktop frame, where the cells stack. */
-const narrow = "@media (max-width: 1099px)";
+import { screen } from "../../layout/screen.stylex";
+import { createReducedMotion } from "@destack/view/motion";
 
 /** The milliseconds between the steps of the figure's switch, one per service. */
 const stepTime = 40;
@@ -44,8 +43,12 @@ export function Noun(properties: { isOpen: boolean }) {
         onLight: setLit,
     };
 
+    // follow the motion the section shows
+    const [section, setSection] = createSignal<HTMLElement>();
+    const isReduced = createReducedMotion(section);
+
     // switch the app's parts and the ledger's rows in service order before the rest
-    const steps = createSteps(() => properties.isOpen, services.length + 1, stepTime);
+    const steps = createSteps(() => properties.isOpen, services.length + 1, stepTime, isReduced);
     const isOpenAt = steps.isOpenAt;
 
     // count the services still rented, which a row's switch changes one at a time
@@ -59,6 +62,7 @@ export function Noun(properties: { isOpen: boolean }) {
 
     return (
         <section
+            ref={setSection}
             {...style.attrs(
                 lattice.frame,
                 lattice.ruled,
@@ -157,25 +161,22 @@ const styles = style.create({
         letterSpacing: "0.04em",
         opacity: 0.7,
         whiteSpace: "nowrap",
-        [narrow]: { display: "none" },
+        display: { default: null, [screen.belowDesktop]: "none" },
     },
     section: {
-        gridTemplateRows: "auto auto minmax(0, 1fr)",
-        [narrow]: { gridTemplateRows: "auto" },
+        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
     stage: {
-        gridColumn: "1 / 8",
+        gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
-        [narrow]: { gridColumn: "1 / -1" },
     },
     key: {
-        gridColumn: "8 / -1",
+        gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
-        [narrow]: { gridColumn: "1 / -1" },
     },
     window: {
         minHeight: 0,
-        [narrow]: { height: "30rem" },
+        height: { default: null, [screen.belowDesktop]: "30rem" },
     },
     title: {
         alignItems: "center",

@@ -1,6 +1,8 @@
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createSignal, onSettled } from "@destack/view";
+import { createSignal } from "@destack/view";
+import { createTimer } from "@destack/view/primitives/timer";
+import { createReducedMotion } from "@destack/view/motion";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
@@ -11,9 +13,7 @@ import { Ledger } from "../figure/ledger";
 import { holdings, pages, Presence, PresenceSlot, SpaceBrowser, type Viewer } from "./space";
 import { createSteps } from "../figure/stagger";
 import { StackSwitch } from "../entry/switch";
-
-/** The media query for screens narrower than the desktop frame, where the cells stack. */
-const narrow = "@media (max-width: 1099px)";
+import { screen } from "../../layout/screen.stylex";
 
 /** The milliseconds between the steps of the figure's switch, one per holding. */
 const stepTime = 60;
@@ -57,8 +57,17 @@ export function Verb(properties: { isOpen: boolean }) {
         },
     };
 
+    // follow the motion the section shows
+    const [section, setSection] = createSignal<HTMLElement>();
+    const isReduced = createReducedMotion(section);
+
     // switch the browser first and then each holding in order
-    const { isOpenAt } = createSteps(() => properties.isOpen, holdings.length + 1, stepTime);
+    const { isOpenAt } = createSteps(
+        () => properties.isOpen,
+        holdings.length + 1,
+        stepTime,
+        isReduced,
+    );
 
     // hold who is looking, whether the reader chose them, and the page the window turns to on its own
     const [viewer, setViewer] = createSignal<Viewer>("Me");
@@ -77,12 +86,9 @@ export function Verb(properties: { isOpen: boolean }) {
             "shown page",
         );
 
-    // turn to the next page the viewer may see, unless motion is reduced
-    onSettled(() => {
-        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            return undefined;
-        }
-        const timer = setInterval(() => {
+    // turn to the next page the viewer may see every page time, held while motion is reduced
+    createTimer(
+        () => {
             // look as your agent every other round once owned, until the reader picks a viewer
             const round = Math.floor((turned() + 1) / pages.length);
             if (isOpenAt(1) && !isViewerChosen()) {
@@ -99,13 +105,14 @@ export function Verb(properties: { isOpen: boolean }) {
                 next += 1;
             }
             setTurned(next);
-        }, pageTime);
-
-        return () => clearInterval(timer);
-    });
+        },
+        () => (isReduced() ? false : pageTime),
+        setInterval,
+    );
 
     return (
         <section
+            ref={setSection}
             {...style.attrs(
                 lattice.frame,
                 lattice.ruled,
@@ -167,18 +174,15 @@ export function Verb(properties: { isOpen: boolean }) {
 /** The verb section styles. */
 const styles = style.create({
     section: {
-        gridTemplateRows: "auto auto minmax(0, 1fr)",
-        [narrow]: { gridTemplateRows: "auto" },
+        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
     stage: {
-        gridColumn: "1 / 8",
-        gridTemplateRows: { default: "auto minmax(0, 1fr)", [narrow]: "auto 30rem" },
-        [narrow]: { gridColumn: "1 / -1" },
+        gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
+        gridTemplateRows: { default: "auto minmax(0, 1fr)", [screen.belowDesktop]: "auto 30rem" },
     },
     key: {
-        gridColumn: "8 / -1",
+        gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
         position: "relative",
         gridTemplateRows: "auto minmax(0, 1fr)",
-        [narrow]: { gridColumn: "1 / -1" },
     },
 });

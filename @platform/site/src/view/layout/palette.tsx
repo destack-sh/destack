@@ -36,6 +36,7 @@ import {
 import { loadSearchEntries, type SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
 import type { PageFormats } from "../content/source";
+import { createEventListener } from "@destack/view/primitives/event-listener";
 
 /** The most results the palette shows at once. */
 const RESULT_LIMIT = 8;
@@ -81,13 +82,15 @@ export function CommandPalette() {
     const shortcut = { preventDefault: true, ignoreWithinInputs: true, anyOrder: true };
     createShortcut(Accelerator.keys("mod+k", isCommandPlatform()), () => void open(), shortcut);
     createShortcut(Accelerator.keys("/", isCommandPlatform()), () => void open(), shortcut);
-    onSettled(() => {
-        // read the platform for shortcut labels and open on the site's search event
-        setIsMac(isCommandPlatform());
-        const handleOpen = (): void => void open();
-        document.addEventListener(commandEvents.open, handleOpen);
+    createEventListener(
+        () => document,
+        commandEvents.open,
+        () => void open(),
+    );
 
-        return () => document.removeEventListener(commandEvents.open, handleOpen);
+    // read the platform for shortcut labels
+    onSettled(() => {
+        setIsMac(isCommandPlatform());
     });
 
     // close the palette and run the chosen command

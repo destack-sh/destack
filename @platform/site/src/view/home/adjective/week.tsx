@@ -9,6 +9,7 @@ import type { Stagger } from "../figure/stagger";
 import { Tile } from "../figure/tile";
 import { palette } from "../../palette.stylex";
 import { day } from "../../theme";
+import { media } from "@destack/style/media.stylex";
 
 /** The easing every part of the pane changes between its two looks with. */
 const MORPH = "480ms cubic-bezier(0.23, 1, 0.32, 1)";
@@ -619,6 +620,9 @@ export function WeekApp(properties: { isOpenAt: Stagger }) {
     );
 }
 
+/** The media query for phones, where wide-only parts hide over whichever display their base sets. */
+const phone = "@media (max-width: 767px)";
+
 /** The week app styles. */
 const styles = style.create({
     morph: {
@@ -629,7 +633,7 @@ const styles = style.create({
         fontSize: "0.8125rem",
         gridTemplateColumns: {
             default: "minmax(0, 1fr) minmax(0, 1.75fr)",
-            "@media (max-width: 767px)": "minmax(0, 1fr)",
+            [media.maxMd]: "minmax(0, 1fr)",
         },
         height: "100%",
         minHeight: 0,
@@ -876,7 +880,7 @@ const styles = style.create({
         maskImage: "linear-gradient(to bottom, black calc(100% - 1.5rem), transparent)",
         minHeight: 0,
         overflow: "hidden",
-        padding: { default: "1.25rem 1.5rem", "@media (max-width: 767px)": "1rem" },
+        padding: { default: "1.25rem 1.5rem", [media.maxMd]: "1rem" },
     },
     toolbar: {
         alignItems: "center",
@@ -893,7 +897,7 @@ const styles = style.create({
     },
     sources: {
         alignItems: "center",
-        display: { default: "flex", "@media (max-width: 767px)": "none" },
+        display: { default: "flex", [media.maxMd]: "none" },
         height: "1.375rem",
         marginLeft: "auto",
         minWidth: 0,
@@ -923,7 +927,7 @@ const styles = style.create({
         display: "grid",
         gridTemplateColumns: {
             default: "repeat(5, minmax(0, 1fr))",
-            "@media (max-width: 767px)": "repeat(3, minmax(0, 1fr))",
+            [media.maxMd]: "repeat(3, minmax(0, 1fr))",
         },
         gridTemplateRows: "auto minmax(0, 1fr)",
         listStyle: "none",
@@ -999,7 +1003,7 @@ const styles = style.create({
         gap: "0.75rem",
         gridTemplateColumns: {
             default: "minmax(0, 1.1fr) minmax(0, 1.15fr) minmax(0, 0.95fr)",
-            "@media (max-width: 767px)": "minmax(0, 1fr)",
+            [media.maxMd]: "minmax(0, 1fr)",
         },
     },
     links: {
@@ -1027,9 +1031,7 @@ const styles = style.create({
         fontSize: "0.72rem",
         gap: "0.125rem",
     },
-    wide: {
-        "@media (max-width: 767px)": { display: "none" },
-    },
+    wide: { [phone]: { display: "none" } },
     sourcesNote: {
         color: color.mutedForeground,
         fontSize: "0.75rem",
@@ -1037,7 +1039,7 @@ const styles = style.create({
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-        "@media (max-width: 1279px)": { display: "none" },
+        display: { default: null, [media.maxXl]: "none" },
     },
     panel: {
         alignContent: "start",

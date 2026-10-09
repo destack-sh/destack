@@ -31,13 +31,13 @@ import {
 import { Remix, sceneSources, scenes, slotApps, todayScenes, usesOf } from "./remix";
 import { palette } from "../../palette.stylex";
 import { captureException } from "../../telemetry.ts";
-
-/** The media query for screens narrower than the desktop frame, where the drawing spans the whole frame. */
-const narrow = "@media (max-width: 1099px)";
-/** The media query for phone-width screens. */
-const mobile = "@media (max-width: 767px)";
-/** The media query for readers who prefer reduced motion. */
-const still = "@media (prefers-reduced-motion: reduce)";
+import { media } from "@destack/style/media.stylex";
+import { screen } from "../../layout/screen.stylex";
+import { isMotionReduced } from "@destack/view/motion";
+import { createEventListener } from "@destack/view/primitives/event-listener";
+import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
+import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
+import { makeTimer } from "@destack/view/primitives/timer";
 
 /** The rows above the waterline today. */
 const dryRows = 2;
@@ -490,54 +490,53 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         step();
     };
 
+    // flip the stack whenever the page's switch asks for it
+    createEventListener(
+        () => document,
+        commandEvents.switchStack,
+        () => select(isOpen() ? "today" : "destack"),
+    );
+
+    // rest the water on its line, and again through resizes
+    const rest = () => {
+        // place the bergs and the waterline, and reveal the rows above it
+        measure();
+        waterline.place(waterlineOf(stack()));
+        setMoves(moves() + 1);
+        follow(waterline.level());
+    };
+    const resizes = makeResizeObserver(rest);
+
+    // pause the water and every animation while the figure is off screen
+    const sight = makeIntersectionObserver([], (entries) => {
+        for (const entry of entries) {
+            entry.target.toggleAttribute("data-asleep", !entry.isIntersecting);
+        }
+    });
+
+    // swap one silo at a time while the stack is locked
+    const swap = () => {
+        if (!isOpen()) {
+            setToday((today() + 1) % todayScenes.length);
+        }
+    };
+
     // start the water once the figure is in the page
     onSettled(() => {
-        // require the rendered drawing and water
+        // require the rendered drawing and water, and read the motion preference
         const { figure, drawing } = elements();
+        isStill = isMotionReduced(figure);
 
-        // flip the stack whenever the page's switch asks for it
-        const flip = () => select(isOpen() ? "today" : "destack");
-        document.addEventListener(commandEvents.switchStack, flip);
-
-        // read the motion preference
-        isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-        // swap one silo at a time while the stack is locked
-        const swapping = isStill
-            ? undefined
-            : setInterval(() => {
-                  if (!isOpen()) {
-                      setToday((today() + 1) % todayScenes.length);
-                  }
-              }, swapTime);
-
-        // rest the water on its line, and again through resizes
-        const rest = () => {
-            // place the bergs and the waterline, and reveal the rows above it
-            measure();
-            waterline.place(waterlineOf(stack()));
-            setMoves(moves() + 1);
-            follow(waterline.level());
-        };
+        // swap the silos unless motion is reduced, rest the water, and watch the figure
+        const stopSwapping = isStill ? undefined : makeTimer(swap, swapTime, setInterval);
         rest();
-        const resize = new ResizeObserver(rest);
-        resize.observe(drawing);
-
-        // pause the water and every animation while the figure is off screen
-        const sight = new IntersectionObserver((entries) => {
-            for (const entry of entries) {
-                figure.toggleAttribute("data-asleep", !entry.isIntersecting);
-            }
-        });
-        sight.observe(figure);
+        resizes.observe(drawing);
+        sight.add(figure);
 
         return () => {
-            // stop listening, and stop the observers, timers, and frames
-            document.removeEventListener(commandEvents.switchStack, flip);
-            sight.disconnect();
-            resize.disconnect();
+            // stop the swapping, the settling timer and the frames
+            stopSwapping?.();
             clearTimeout(settle);
-            clearInterval(swapping);
             cancelAnimationFrame(tracing);
         };
     });
@@ -983,22 +982,17 @@ const styles = style.create({
     },
     claim: {
         display: "flex",
-        flexDirection: "column",
+        flexDirection: { default: "column", [screen.belowDesktop]: "row" },
         gap: "0.25rem",
-        gridColumn: "9 / span 4",
+        gridColumn: { default: "9 / span 4", [screen.belowDesktop]: "1 / -1" },
         justifyContent: "center",
-        paddingInline: frame.inset,
+        paddingInline: { default: frame.inset, [media.maxMd]: "0.75rem" },
         position: "relative",
         zIndex: 3,
-        [narrow]: {
-            alignItems: "baseline",
-            alignSelf: "start",
-            columnGap: "1rem",
-            flexDirection: "row",
-            gridColumn: "1 / -1",
-            paddingTop: "0.625rem",
-        },
-        [mobile]: { columnGap: "0.625rem", paddingInline: "0.75rem" },
+        alignItems: { default: null, [screen.belowDesktop]: "baseline" },
+        alignSelf: { default: null, [screen.belowDesktop]: "start" },
+        columnGap: { default: null, [screen.belowDesktop]: "1rem", [media.maxMd]: "0.625rem" },
+        paddingTop: { default: null, [screen.belowDesktop]: "0.625rem" },
     },
     claimLine: {
         alignItems: "baseline",
@@ -1007,7 +1001,7 @@ const styles = style.create({
         flexWrap: "wrap",
         justifyContent: "space-between",
         rowGap: "0.375rem",
-        [narrow]: { flexGrow: 1 },
+        flexGrow: { default: null, [screen.belowDesktop]: 1 },
     },
     number: {
         color: color.mutedForeground,
@@ -1029,22 +1023,18 @@ const styles = style.create({
         gridArea: "1 / 1",
     },
     swapIn: {
-        transition: `opacity 300ms ${easing} 250ms`,
-        [still]: { transition: "none" },
+        transition: { default: `opacity 300ms ${easing} 250ms`, [media.motionReduce]: "none" },
     },
     swapOut: {
         opacity: 0,
-        transition: `opacity 250ms ${easing}`,
-        [still]: { transition: "none" },
+        transition: { default: `opacity 250ms ${easing}`, [media.motionReduce]: "none" },
     },
     swapReturn: {
-        transition: `opacity 300ms ${easing} 600ms`,
-        [still]: { transition: "none" },
+        transition: { default: `opacity 300ms ${easing} 600ms`, [media.motionReduce]: "none" },
     },
     swapLeave: {
         opacity: 0,
-        transition: `opacity 250ms ${easing} 500ms`,
-        [still]: { transition: "none" },
+        transition: { default: `opacity 250ms ${easing} 500ms`, [media.motionReduce]: "none" },
     },
     claimText: {
         fontSize: "1rem",
@@ -1058,7 +1048,7 @@ const styles = style.create({
         pointerEvents: "none",
         transition: `opacity 300ms ${easing}`,
         zIndex: 3,
-        [narrow]: { display: "none" },
+        display: { default: null, [screen.belowDesktop]: "none" },
     },
     litGone: {
         opacity: 0,
@@ -1071,7 +1061,7 @@ const styles = style.create({
         pointerEvents: "none",
         position: "absolute",
         zIndex: 6,
-        [mobile]: { borderInlineWidth: 0 },
+        borderInlineWidth: { default: null, [media.maxMd]: 0 },
     },
     columnRule: {
         borderRightColor: color.border,
@@ -1082,29 +1072,25 @@ const styles = style.create({
         pointerEvents: "none",
         position: "relative",
         zIndex: 6,
-        [narrow]: { display: "none" },
+        display: { default: null, [screen.belowDesktop]: "none" },
     },
     drawing: {
         display: "grid",
-        gridColumn: "1 / span 8",
+        gridColumn: { default: "1 / span 8", [screen.belowDesktop]: "1 / -1" },
         gridRow: "1 / span 6",
         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
         gridTemplateRows: "repeat(6, minmax(0, 1fr))",
         minWidth: 0,
         position: "relative",
-        [narrow]: {
-            borderRightWidth: 0,
-            gridColumn: "1 / -1",
-        },
+        borderRightWidth: { default: stroke.border, [screen.belowDesktop]: 0 },
     },
     fill: {
         width: "100%",
     },
     sunkCard: {
         gridArea: "1 / 1",
-        transition: `translate 500ms ${easing} 200ms`,
+        transition: { default: `translate 500ms ${easing} 200ms`, [media.motionReduce]: "none" },
         width: "100%",
-        [still]: { transition: "none" },
     },
     sunkSlot: {
         overflow: "clip",
@@ -1130,7 +1116,7 @@ const styles = style.create({
     },
     tape: {
         top: `calc(${frame.cellRow} * 13.5)`,
-        [mobile]: { display: "none" },
+        display: { default: null, [media.maxMd]: "none" },
     },
     plates: {
         display: "flex",
@@ -1150,7 +1136,7 @@ const styles = style.create({
         letterSpacing: "0.02em",
         lineHeight: "1.125rem",
         opacity: 0.8,
-        [narrow]: { display: "none" },
+        display: { default: "grid", [screen.belowDesktop]: "none" },
     },
     detailText: {
         marginLeft: "auto",
@@ -1161,7 +1147,7 @@ const styles = style.create({
         letterSpacing: "0.02em",
         lineHeight: "1.375rem",
         translate: "0 0.125rem",
-        [mobile]: { display: "none" },
+        display: { default: "grid", [media.maxMd]: "none" },
     },
     pool: {
         backgroundColor: palette.water,

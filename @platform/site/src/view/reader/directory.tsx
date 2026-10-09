@@ -13,7 +13,7 @@ import {
     ItemHeader,
     ItemSeparator,
     ItemTitle,
-    itemStyle,
+    itemVariants,
 } from "@destack/ui/item";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@destack/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
@@ -23,6 +23,7 @@ import { parseAsInteger, useQueryState } from "@destack/view/router";
 import { type ContentEntry, formatDate } from "../content/presentation";
 import { PageHeader } from "./header";
 import { publicationStyles } from "./publication.stylex";
+import { screen } from "../layout/screen.stylex";
 
 /** The archive value that stands for every year. */
 const ALL_YEARS = "all";
@@ -179,7 +180,7 @@ function DirectoryList(properties: { label: string; entries: readonly ContentEnt
                         <a
                             href={entry.href}
                             role="listitem"
-                            {...style.attrs(style.defaultMarker(), itemStyle({}), styles.entry)}
+                            {...style.attrs(style.defaultMarker(), itemVariants({}), styles.entry)}
                         >
                             <Show when={entry.image}>
                                 {(image) => (
@@ -243,6 +244,9 @@ function yearOf(option: string | undefined): number | null {
     return option === undefined || option === ALL_YEARS ? null : Number(option);
 }
 
+/** The media query for windows too narrow for the directory's full padding. */
+const compact = "@media (max-width: 600px)";
+
 /** The directory styles. */
 const styles = style.create({
     section: {
@@ -268,7 +272,7 @@ const styles = style.create({
     filter: {
         justifySelf: "start",
         marginBottom: "1.5rem",
-        "@media (width >= 60rem)": { display: "none" },
+        display: { default: "inline-flex", [screen.reader]: "none" },
     },
     list: {
         borderBlockWidth: stroke.border,
@@ -277,9 +281,9 @@ const styles = style.create({
     },
     entry: {
         alignItems: "flex-start",
-        paddingBlock: { default: "1.5rem", "@media (max-width: 600px)": "1.25rem" },
+        paddingBlock: { default: "1.5rem", [compact]: "1.25rem" },
         paddingInlineStart: 0,
-        paddingInlineEnd: { default: "1.5rem", "@media (max-width: 600px)": "1.25rem" },
+        paddingInlineEnd: { default: "1.5rem", [compact]: "1.25rem" },
         borderRadius: 0,
         backgroundColor: "transparent",
         color: color.foreground,

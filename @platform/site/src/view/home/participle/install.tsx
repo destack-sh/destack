@@ -2,19 +2,15 @@ import { frame } from "../../layout/frame.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { createSignal, type JSX } from "@destack/view";
+import type { JSX } from "@destack/view";
 
 import { installCommand } from "../../content/site";
 import { lattice } from "../../layout/lattice.stylex";
 import { systemOf, systems } from "./download/catalog";
 import { createDownloads } from "./download/download";
 import { Glyph } from "../figure/glyph";
-
-/** The media query for screens narrower than the desktop frame, where the ways stack. */
-const narrow = "@media (max-width: 1099px)";
-
-/** How long a copy key says it copied, in milliseconds. */
-const copiedTime = 1600;
+import { screen } from "../../layout/screen.stylex";
+import { createCopy } from "../../layout/copy";
 
 /** A way to install: its name, and its field drawn as the one control that installs. */
 type Way = { name: string; field: () => JSX.Element };
@@ -67,25 +63,20 @@ function CopyField(properties: {
     isDark?: boolean;
     children: JSX.Element;
 }) {
-    // hold whether the text was just copied
-    const [isCopied, setIsCopied] = createSignal(false);
+    // copy the text and show it as copied for a moment
+    const copied = createCopy();
 
     return (
         <button
             type="button"
             aria-label={`Copy ${properties.name}`}
-            title={isCopied() ? "Copied" : properties.text}
-            onClick={() =>
-                void navigator.clipboard.writeText(properties.text).then(() => {
-                    setIsCopied(true);
-                    setTimeout(() => setIsCopied(false), copiedTime);
-                })
-            }
+            title={copied.isCopied() ? "Copied" : properties.text}
+            onClick={() => void copied.copy(properties.text)}
             {...style.attrs(styles.field, properties.isDark === true && styles.dark)}
         >
             {properties.children}
             <Key>
-                <Glyph name={isCopied() ? "check" : "copy"} size={16} />
+                <Glyph name={copied.isCopied() ? "check" : "copy"} size={16} />
             </Key>
         </button>
     );
@@ -145,7 +136,7 @@ const styles = style.create({
         gridColumn: "1 / -1",
         gridTemplateColumns: {
             default: "repeat(3, minmax(0, 1fr))",
-            [narrow]: "minmax(0, 1fr)",
+            [screen.belowDesktop]: "minmax(0, 1fr)",
         },
         listStyle: "none",
         margin: 0,

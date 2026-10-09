@@ -10,7 +10,7 @@ import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Button } from "@destack/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet";
-import { createMemo, createSignal, onSettled } from "@destack/view";
+import { createEffect, createMemo, createSignal } from "@destack/view";
 import { Link, useLocation } from "@destack/view/router";
 
 import { CommandPalette } from "./palette";
@@ -21,6 +21,8 @@ import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
 import { home, pendingDestinations, primaryDestinations, socialDestinations } from "./navigation";
 import { AppearanceToggle } from "./appearance";
+import { screen } from "./screen.stylex";
+import { createMediaQuery } from "@destack/view/primitives/media";
 
 /** The source repository, from the community destinations. */
 const github = (() => {
@@ -33,11 +35,6 @@ const github = (() => {
     return destination;
 })();
 
-/** The media query for screens too narrow for navigation labels, which show only their icons. */
-const narrow = "@media (max-width: 1099px)";
-/** The media query for phone-width screens. */
-const mobile = "@media (max-width: 767px)";
-
 /** Render the global site navigation. */
 export function TopBar() {
     // hold the route and the phone menu
@@ -45,17 +42,11 @@ export function TopBar() {
     const [isMenuOpen, setIsMenuOpen] = createSignal(false);
 
     // dismiss the phone menu when the desktop navigation becomes available
-    onSettled(() => {
-        // close the menu once the desktop layout applies
-        const desktop = window.matchMedia("(min-width: 768px)");
-        const closeMenu = () => {
-            if (desktop.matches) {
-                setIsMenuOpen(false);
-            }
-        };
-        desktop.addEventListener("change", closeMenu);
-
-        return () => desktop.removeEventListener("change", closeMenu);
+    const isDesktop = createMediaQuery("(min-width: 768px)");
+    createEffect(isDesktop, (desktop) => {
+        if (desktop) {
+            setIsMenuOpen(false);
+        }
     });
 
     // select the most specific destination for the current route
@@ -217,8 +208,7 @@ const styles = style.create({
         height: frame.bar,
     },
     brandCell: {
-        gridColumn: "span 2",
-        [mobile]: { gridColumn: "span 2" },
+        gridColumn: { default: "span 2", [media.maxMd]: "span 2" },
     },
     brand: {
         alignItems: "center",
@@ -237,10 +227,9 @@ const styles = style.create({
         borderLeftColor: color.border,
         borderLeftStyle: "solid",
         borderLeftWidth: stroke.border,
-        display: "grid",
+        display: { default: "grid", [media.maxMd]: "none" },
         gridColumn: "span 6",
         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-        [mobile]: { display: "none" },
     },
     link: {
         alignItems: "center",
@@ -259,14 +248,12 @@ const styles = style.create({
         width: "18px",
     },
     label: {
-        [narrow]: {
-            clipPath: "inset(50%)",
-            height: "1px",
-            overflow: "hidden",
-            position: "absolute",
-            whiteSpace: "nowrap",
-            width: "1px",
-        },
+        clipPath: { default: null, [screen.belowDesktop]: "inset(50%)" },
+        height: { default: null, [screen.belowDesktop]: "1px" },
+        overflow: { default: null, [screen.belowDesktop]: "hidden" },
+        position: { default: null, [screen.belowDesktop]: "absolute" },
+        whiteSpace: { default: null, [screen.belowDesktop]: "nowrap" },
+        width: { default: null, [screen.belowDesktop]: "1px" },
     },
     active: {
         fontWeight: weight.semibold,
@@ -278,15 +265,17 @@ const styles = style.create({
     tools: {
         alignItems: "center",
         display: "flex",
-        gridColumn: "11 / span 2",
-        justifyContent: "flex-end",
-        paddingInline: "0.75rem",
-        [narrow]: { paddingInline: "0.25rem" },
-        [mobile]: { gridColumn: "span 2", justifyContent: "flex-end", paddingInline: "0.25rem" },
+        gridColumn: { default: "11 / span 2", [media.maxMd]: "span 2" },
+        justifyContent: { default: "flex-end", [media.maxMd]: "flex-end" },
+        paddingInline: {
+            default: "0.75rem",
+            [screen.belowDesktop]: "0.25rem",
+            [media.maxMd]: "0.25rem",
+        },
     },
     download: {
         gridColumn: "9 / span 2",
-        [mobile]: { display: "none" },
+        display: { default: "flex", [media.maxMd]: "none" },
     },
     pending: {
         backgroundColor: "transparent",
@@ -301,12 +290,11 @@ const styles = style.create({
         borderWidth: 0,
         color: color.foreground,
         cursor: "pointer",
-        display: "none",
+        display: { default: "none", [media.maxMd]: "inline-flex" },
         height: "2.75rem",
         justifyContent: "center",
         padding: 0,
         width: "2.75rem",
-        [mobile]: { display: "inline-flex" },
     },
     menu: {
         backgroundColor: color.background,

@@ -5,6 +5,8 @@ import type { JSX } from "@destack/view";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Fade } from "../figure/fade";
+import { media } from "@destack/style/media.stylex";
+import { screen } from "../../layout/screen.stylex";
 
 /** One sense of a form: its definition, the passages underlined in it, and the phrase under it. */
 type Sense = {
@@ -127,12 +129,11 @@ const styles = style.create({
         display: "grid",
         alignContent: "start",
         gridColumn: "1 / -1",
-        minHeight: { default: frame.entry, "@media (max-width: 1099px)": "auto" },
-        paddingBlockStart: "3rem",
-        paddingBlockEnd: "2rem",
+        minHeight: { default: frame.entry, [screen.belowDesktop]: "auto" },
+        paddingBlockStart: { default: "3rem", [media.maxMd]: "2.5rem" },
+        paddingBlockEnd: { default: "2rem", [media.maxMd]: "1.75rem" },
         paddingInline: frame.inset,
         rowGap: "0.75rem",
-        "@media (max-width: 767px)": { paddingBlockStart: "2.5rem", paddingBlockEnd: "1.75rem" },
     },
     title: {
         display: "inline-block",

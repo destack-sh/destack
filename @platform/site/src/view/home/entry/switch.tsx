@@ -5,6 +5,8 @@ import { palette } from "../../palette.stylex";
 import { commandEvents } from "../../layout/command";
 import { charge } from "../../effect/goo";
 import { Syllables } from "./entry";
+import { media } from "@destack/style/media.stylex";
+import { screen } from "../../layout/screen.stylex";
 
 /** How hard the goo charges while the switch is hovered. */
 const hoverCharge = 0.5;
@@ -143,9 +145,11 @@ const styles = style.create({
         backgroundColor: color.primary,
         borderRadius: "50%",
         height: "0.8125rem",
-        transition: "translate 450ms cubic-bezier(0.4, 0, 0.2, 1.3)",
+        transition: {
+            default: "translate 450ms cubic-bezier(0.4, 0, 0.2, 1.3)",
+            [media.motionReduce]: "none",
+        },
         width: "0.8125rem",
-        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
     },
     knobOn: {
         backgroundColor: palette.space,
@@ -160,13 +164,12 @@ const styles = style.create({
         alignItems: "flex-start",
         bottom: "100%",
         color: color.primary,
-        display: "flex",
+        display: { default: "flex", [screen.belowDesktop]: "none" },
         gap: "0.625rem",
         marginBottom: "0.125rem",
         pointerEvents: "none",
         position: "absolute",
         right: "6.07rem",
-        "@media (max-width: 1099px)": { display: "none" },
     },
     hintWords: {
         fontFamily: font.code,
@@ -187,22 +190,19 @@ const styles = style.create({
         animationDelay: "600ms",
         animationDuration: "900ms",
         animationFillMode: "both",
-        animationName: draw,
+        animationName: { default: draw, [media.motionReduce]: "none" },
         animationTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
         strokeDasharray: 1,
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     head: {
         animationDelay: "1300ms",
         animationDuration: "300ms",
         animationFillMode: "both",
-        animationName: appear,
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
+        animationName: { default: appear, [media.motionReduce]: "none" },
     },
     knobNudge: {
         animationDuration: "4s",
         animationIterationCount: "infinite",
-        animationName: nudge,
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
+        animationName: { default: nudge, [media.motionReduce]: "none" },
     },
 });

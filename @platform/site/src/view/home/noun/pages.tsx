@@ -7,6 +7,7 @@ import type { Stagger } from "../figure/stagger";
 import { Tile } from "../figure/tile";
 import { palette } from "../../palette.stylex";
 import { appStyles, appText } from "../figure/app";
+import { media } from "@destack/style/media.stylex";
 
 /** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
@@ -772,6 +773,9 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
     );
 }
 
+/** The media query for phones, where wide-only parts hide over whichever display their base sets. */
+const phone = "@media (max-width: 767px)";
+
 /** The Pages app styles. */
 const styles = style.create({
     agentNote: {
@@ -860,7 +864,7 @@ const styles = style.create({
         textTransform: "uppercase",
     },
     roomy: {
-        display: { default: "block", "@media (max-width: 767px)": "none" },
+        display: { default: "block", [media.maxMd]: "none" },
     },
     slot: {
         display: "flex",
@@ -876,7 +880,7 @@ const styles = style.create({
     access: {
         alignItems: "center",
         color: color.mutedForeground,
-        display: { default: "flex", "@media (max-width: 767px)": "none" },
+        display: { default: "flex", [media.maxMd]: "none" },
         gap: "0.375rem",
     },
     change: {
@@ -1076,9 +1080,7 @@ const styles = style.create({
     quiet: {
         color: color.mutedForeground,
     },
-    wide: {
-        "@media (max-width: 767px)": { display: "none" },
-    },
+    wide: { [phone]: { display: "none" } },
     small: {
         fontSize: "0.5rem",
         height: "0.9375rem",

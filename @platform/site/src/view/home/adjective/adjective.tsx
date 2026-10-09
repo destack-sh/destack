@@ -8,12 +8,12 @@ import { Label } from "../entry/label";
 import { createSteps } from "../figure/stagger";
 import { StackSwitch } from "../entry/switch";
 import { Window } from "../figure/window";
+import { screen } from "../../layout/screen.stylex";
+import { createSignal } from "@destack/view";
+import { createReducedMotion } from "@destack/view/motion";
 
 /** The milliseconds between the steps of the figure's switch, one per service. */
 const stepTime = 80;
-
-/** The media query for screens narrower than the desktop frame, where the cells stack. */
-const narrow = "@media (max-width: 1099px)";
 
 /** The adjective every app answers to. */
 const destackable: Form = {
@@ -29,11 +29,21 @@ const destackable: Form = {
 
 /** Show the adjective at work: the same request answered as a chat artifact kept up by hand, or as an app in your space that works with the rest of it. */
 export function Adjective(properties: { isOpen: boolean }) {
+    // follow the motion the section shows
+    const [section, setSection] = createSignal<HTMLElement>();
+    const isReduced = createReducedMotion(section);
+
     // switch the chat first and then the app's parts in service order
-    const { isOpenAt } = createSteps(() => properties.isOpen, services.length + 1, stepTime);
+    const { isOpenAt } = createSteps(
+        () => properties.isOpen,
+        services.length + 1,
+        stepTime,
+        isReduced,
+    );
 
     return (
         <section
+            ref={setSection}
             {...style.attrs(
                 lattice.frame,
                 lattice.ruled,
@@ -71,8 +81,7 @@ export function Adjective(properties: { isOpen: boolean }) {
 /** The adjective section styles. */
 const styles = style.create({
     section: {
-        gridTemplateRows: "auto auto minmax(0, 1fr)",
-        [narrow]: { gridTemplateRows: "auto" },
+        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
     stage: {
         gridColumn: "1 / -1",
@@ -80,7 +89,7 @@ const styles = style.create({
     },
     window: {
         minHeight: 0,
-        [narrow]: { height: "32rem" },
+        height: { default: null, [screen.belowDesktop]: "32rem" },
     },
     title: {
         alignItems: "center",

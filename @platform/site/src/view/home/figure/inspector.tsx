@@ -1,11 +1,12 @@
 import { color, font } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createEffect, createMemo, createSignal, type JSX } from "@destack/view";
+import { createMemo, createSignal, type JSX } from "@destack/view";
 
 import type { Lighting } from "./ledger";
 import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
+import { createResizeObserver } from "@destack/view/primitives/resize-observer";
 
 /**
  * Show which service each part of an app figure runs on: point at a part to outline it, name its service, and light that service in the ledger.
@@ -78,15 +79,7 @@ export function Inspector(properties: {
 
     // count the shown part's resizes so the box follows a part that eases to a new size
     const [resizes, setResizes] = createSignal(0);
-    createEffect(shown, (part) => {
-        if (part === undefined) {
-            return undefined;
-        }
-        const observer = new ResizeObserver(() => setResizes((count) => count + 1));
-        observer.observe(part);
-
-        return () => observer.disconnect();
-    });
+    createResizeObserver(shown, () => setResizes((count) => count + 1));
 
     // measure the shown part against the frame with its label
     const box = createMemo(() => {

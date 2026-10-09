@@ -10,11 +10,7 @@ import { Goo } from "../effect/goo";
 import { lattice } from "./lattice.stylex";
 import { caret } from "./footer.stylex";
 import { socialDestinations } from "./navigation";
-
-/** The media query for screens where the top bar's tools take four columns. */
-const narrow = "@media (max-width: 1099px)";
-/** The media query for phone-width screens. */
-const mobile = "@media (max-width: 767px)";
+import { screen } from "./screen.stylex";
 
 /** Close every page with a band of starry space holding the install command and the community links. */
 export function Footer() {
@@ -174,7 +170,7 @@ const styles = style.create({
         borderWidth: "1px",
         color: "inherit",
         cursor: "pointer",
-        display: "flex",
+        display: { default: "flex", [media.maxMd]: "none" },
         gap: "0.75rem",
         gridColumn: "1 / span 4",
         gridRow: 1,
@@ -191,31 +187,29 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: "1" },
             ":focus-visible": "1",
         },
-        [mobile]: { display: "none" },
     },
     sweep: {
         animationDuration: "700ms",
         animationFillMode: "forwards",
-        animationName: sweepAcross,
+        animationName: { default: sweepAcross, [media.motionReduce]: "none" },
         animationTimingFunction: "cubic-bezier(0.3, 0.7, 0.4, 1)",
         backgroundColor: `color-mix(in srgb, ${color.primary} 28%, transparent)`,
         inset: 0,
         pointerEvents: "none",
         position: "absolute",
         transformOrigin: "left",
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none", opacity: 0 },
+        opacity: { default: null, [media.motionReduce]: 0 },
     },
     caret: {
         animationDuration: "1.1s",
         animationIterationCount: "infinite",
-        animationName: blink,
-        opacity: caret.opacity,
+        animationName: { default: blink, [media.motionReduce]: "none" },
+        opacity: { default: caret.opacity, [media.motionReduce]: 0 },
         display: "inline-block",
         height: "0.95em",
         marginInlineStart: "0.35em",
         verticalAlign: "-0.12em",
         width: "0.5em",
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none", opacity: 0 },
     },
     copyIcon: {
         color: `color-mix(in srgb, ${color.foreground} 60%, transparent)`,
@@ -226,16 +220,15 @@ const styles = style.create({
     check: {
         animationDuration: "320ms",
         animationFillMode: "both",
-        animationName: draw,
+        animationName: { default: draw, [media.motionReduce]: "none" },
         animationTimingFunction: "ease-out",
         color: color.primary,
         strokeDasharray: 1,
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     note: {
         animationDuration: "1100ms",
         animationFillMode: "forwards",
-        animationName: rise,
+        animationName: { default: rise, [media.motionReduce]: "none" },
         animationTimingFunction: "ease-out",
         bottom: "100%",
         color: color.primary,
@@ -246,7 +239,7 @@ const styles = style.create({
         pointerEvents: "none",
         position: "absolute",
         whiteSpace: "nowrap",
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none", opacity: 0 },
+        opacity: { default: null, [media.motionReduce]: 0 },
     },
     code: {
         fontFamily: font.code,
@@ -260,12 +253,14 @@ const styles = style.create({
     navigation: {
         alignItems: "center",
         display: "flex",
-        gridColumn: "11 / span 2",
+        gridColumn: {
+            default: "11 / span 2",
+            [screen.belowDesktop]: "9 / span 4",
+            [media.maxMd]: "1 / -1",
+        },
         gridRow: 1,
         justifyContent: "flex-end",
-        paddingInline: "0.75rem",
-        [narrow]: { gridColumn: "9 / span 4" },
-        [mobile]: { gridColumn: "1 / -1", paddingInline: "0.25rem" },
+        paddingInline: { default: "0.75rem", [media.maxMd]: "0.25rem" },
     },
     link: {
         alignItems: "center",

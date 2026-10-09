@@ -8,10 +8,7 @@ import { watchContent } from "./content.ts";
 import { prerenderRoutes } from "../src/view/content/generated/prerender-routes.ts";
 import { posts } from "../src/view/content/generated/posts.ts";
 import { Document } from "../src/view/content/document.ts";
-import { tagline } from "../src/view/content/site.ts";
-
-/** The site's public origin. */
-const ORIGIN = "https://destack.sh";
+import { origin, tagline } from "../src/view/content/site.ts";
 
 /** The address security reports go to. */
 const SECURITY_CONTACT = "mailto:florian@symbol.industries";
@@ -33,7 +30,7 @@ export async function run(command: string | undefined): Promise<void> {
         entryServer: "src/view/entry-server.tsx",
         entryClient: "src/view/entry-client.tsx",
         renderMode: "async" as const,
-        site: ORIGIN,
+        site: origin,
         prerender: { routes: prerenderRoutes, notFound: "/404" },
         metadata: await metadataOptions(),
     };

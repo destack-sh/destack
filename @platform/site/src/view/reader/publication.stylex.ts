@@ -2,15 +2,13 @@ import { frame } from "../layout/frame.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
+import { screen } from "../layout/screen.stylex";
 
 /** The site's reading size, 17px, a step above the theme's 16px body for long articles. */
 const READING_SIZE = "1.0625rem";
 
 /** The leading of the site's articles. */
 const READING_LEADING = 1.7;
-
-/** The media query for narrow screens that stack the sidebar. */
-const narrow = "@media (width < 60rem)";
 
 /** Shared layout and navigation styles for articles, chapters, and directories. */
 export const publicationStyles = style.create({
@@ -20,7 +18,7 @@ export const publicationStyles = style.create({
     },
     sidebar: {
         gridColumn: "1 / span 3",
-        [narrow]: { display: "none" },
+        display: { default: null, [screen.belowReader]: "none" },
     },
     sidebarContent: {
         maxHeight: "100svh",
@@ -34,9 +32,8 @@ export const publicationStyles = style.create({
         alignContent: "start",
         color: color.foreground,
         display: "grid",
-        gridColumn: "4 / span 9",
+        gridColumn: { default: "4 / span 9", [screen.belowReader]: "1 / -1" },
         minWidth: 0,
-        [narrow]: { gridColumn: "1 / -1" },
     },
     body: {
         display: "grid",

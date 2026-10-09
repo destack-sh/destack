@@ -4,9 +4,10 @@ import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { createEffect } from "@destack/view";
 
-import { agentPrompt } from "../../content/site";
+import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
 import { palette } from "../../palette.stylex";
+import { isMotionReduced } from "@destack/view/motion";
 
 /** An app every space comes with: its name, its icon, and its tint. */
 type App = { name: string; icon: string; tint: string };
@@ -255,9 +256,6 @@ type Cell =
     | { kind: "app"; key: string; job: Job; sources: readonly Tool[] }
     | { kind: "link"; key: string; tool: Tool };
 
-/** The media query for phone screens, where the wall sets fewer cells to a row. */
-const mobile = "@media (max-width: 767px)";
-
 /** The cells to a row of the wall. */
 const perRow = 8;
 
@@ -458,7 +456,7 @@ function move(grid: HTMLUListElement, last: ReadonlyMap<string, DOMRect>) {
     // measure the new places against the grid
     const origin = grid.getBoundingClientRect();
     const places = new Map<string, DOMRect>();
-    const isStill = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const isStill = isMotionReduced(grid);
     const cells = [...grid.querySelectorAll<HTMLElement>("[data-key]")];
 
     // slide each cell in from where it, or the tool it grew out of, sat before
@@ -606,7 +604,7 @@ export function promptOf(picks: readonly string[]) {
 
     return asks.length === 0
         ? agentPrompt
-        : `Set up my Destack, ${asks.join(" and ")}, following https://destack.sh/docs/setup.md`;
+        : `Set up my Destack, ${asks.join(" and ")}, following ${setupGuide}`;
 }
 
 /** Name tools in a list a person would write. */
@@ -718,13 +716,15 @@ const styles = style.create({
         display: "grid",
         gap: stroke.border,
         gridAutoFlow: "row dense",
-        gridAutoRows: "minmax(0, 1fr)",
-        gridTemplateColumns: `repeat(${perRow}, minmax(0, 1fr))`,
+        gridAutoRows: { default: "minmax(0, 1fr)", [media.maxMd]: "5rem" },
+        gridTemplateColumns: {
+            default: `repeat(${perRow}, minmax(0, 1fr))`,
+            [media.maxMd]: "repeat(4, minmax(0, 1fr))",
+        },
         listStyle: "none",
         margin: 0,
         minHeight: 0,
         padding: 0,
-        [mobile]: { gridAutoRows: "5rem", gridTemplateColumns: "repeat(4, minmax(0, 1fr))" },
     },
     cell: {
         backgroundColor: color.background,
@@ -758,8 +758,10 @@ const styles = style.create({
         display: "grid",
         rowGap: "1.125rem",
         columnGap: "2rem",
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-        [mobile]: { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
+        gridTemplateColumns: {
+            default: "repeat(4, minmax(0, 1fr))",
+            [media.maxMd]: "repeat(2, minmax(0, 1fr))",
+        },
         listStyle: "none",
         margin: 0,
         padding: 0,
@@ -771,11 +773,10 @@ const styles = style.create({
         alignItems: "flex-start",
         animationDuration: "420ms",
         animationFillMode: "both",
-        animationName: rise,
+        animationName: { default: rise, [media.motionReduce]: "none" },
         animationTimingFunction: landing,
         display: "flex",
         gap: "0.625rem",
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     includedWords: {
         display: "grid",
@@ -848,11 +849,10 @@ const styles = style.create({
     sources: {
         alignItems: "center",
         bottom: "0.5rem",
-        display: "flex",
+        display: { default: "flex", [media.maxMd]: "none" },
         gap: "0.25rem",
         position: "absolute",
         right: "0.5rem",
-        [mobile]: { display: "none" },
     },
     dot: {
         backgroundColor: palette.green,
