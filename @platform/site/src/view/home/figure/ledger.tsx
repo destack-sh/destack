@@ -7,14 +7,15 @@ import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
 
-/** What marks an item: a vendor's logo under `/logos`, or an icon under `/diagram` on a tinted tile. */
-type ItemMark = { logo: string } | { icon: string; tint: string };
+/** What marks an item: a vendor's logo under `/logos`, an icon under `/diagram` on a tinted tile, or an icon's empty outline where nothing does the job yet. */
+type ItemMark = { logo: string } | { icon: string; tint: string } | { placeholder: string };
 
 /** One item of a ledger, set as the stack figure sets its legend: a numbered label, a claim with its plates, and a line under it. */
 export type Item = {
     /** The job the item does, set as the mono label. */
     label: string;
-    mark: ItemMark;
+    /** The mark, or the marks side by side of every product that does the job. */
+    mark: ItemMark | readonly ItemMark[];
     /** The claim: the product rented for the job, or what the job lets you do. */
     name: string;
     /** The plates beside the claim while rented, which owning drops. */
@@ -31,13 +32,30 @@ export function numberOf(number: number) {
     return String(number).padStart(2, "0");
 }
 
-/** Draw an item's mark: a vendor's logo, or an icon on its tinted tile. */
+/** Return an item's marks as a list, one mark or several. */
+function marksOf(mark: ItemMark | readonly ItemMark[]): readonly ItemMark[] {
+    return "logo" in mark || "icon" in mark || "placeholder" in mark ? [mark] : mark;
+}
+
+/** Report whether every mark of an item is an empty outline, so nothing does its job yet. */
+function isEmptyOf(mark: ItemMark | readonly ItemMark[]) {
+    return marksOf(mark).every((each) => "placeholder" in each);
+}
+
+/** Draw an item's mark: a vendor's logo, an icon on its tinted tile, or an icon's empty outline. */
 function ItemBadge(properties: { mark: ItemMark }) {
-    // choose the logo or the tile inside an expression, so the badge follows its mark as the stack switches
+    // choose the logo, the outline or the tile inside an expression, so the badge follows its mark as the stack switches
     return (
         <>
             {"logo" in properties.mark ? (
                 <img alt="" src={`/logos/${properties.mark.logo}`} {...style.attrs(styles.logo)} />
+            ) : "placeholder" in properties.mark ? (
+                <span {...style.attrs(styles.tile, styles.placeholder)}>
+                    <span
+                        style={{ "mask-image": `url(/diagram/${properties.mark.placeholder}.svg)` }}
+                        {...style.attrs(styles.glyph, styles.placeholderGlyph)}
+                    />
+                </span>
             ) : (
                 <span
                     style={{ "background-color": properties.mark.tint }}
@@ -78,11 +96,16 @@ export function Ledger(properties: {
             aria-hidden={properties.isOpenAt(step) === isRented ? "true" : undefined}
             {...style.attrs(
                 styles.face,
+                isEmptyOf(item.mark) && styles.faceEmpty,
                 properties.isOpenAt(step) === isRented && styles.faceHidden,
             )}
         >
             <span {...style.attrs(styles.claim)}>
-                <ItemBadge mark={item.mark} />
+                <span {...style.attrs(styles.marks)}>
+                    {marksOf(item.mark).map((mark) => (
+                        <ItemBadge mark={mark} />
+                    ))}
+                </span>
                 <b {...style.attrs(styles.name)}>{item.name}</b>
                 {isRented ? (
                     <span {...style.attrs(styles.plates)}>
@@ -246,7 +269,28 @@ const styles = style.create({
         gap: "0.25rem",
         marginLeft: "auto",
     },
+    placeholder: {
+        borderColor: color.border,
+        borderStyle: "dashed",
+        borderWidth: "1.5px",
+        boxShadow: "none",
+        boxSizing: "border-box",
+    },
+    placeholderGlyph: {
+        backgroundColor: color.mutedForeground,
+        opacity: 0.5,
+    },
+    faceEmpty: {
+        color: color.mutedForeground,
+        opacity: 0.45,
+    },
+    marks: {
+        display: "flex",
+        flexShrink: 0,
+        gap: "0.1875rem",
+    },
     logo: {
+        backgroundColor: palette.logoGround,
         borderRadius: "5px",
         flexShrink: 0,
         height: "1.375rem",

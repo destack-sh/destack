@@ -80,6 +80,7 @@ uniform vec4 u_page;
 out vec4 fragColor;
 
 const vec3 space = vec3(0.031, 0.09, 0.137);
+const vec3 deepSpace = vec3(0.008, 0.027, 0.047);
 const vec3 starColor = vec3(0.945, 0.918, 0.859);
 const vec3 inkColor = vec3(0.071, 0.192, 0.235);
 
@@ -155,18 +156,21 @@ void main() {
     }
     vec2 sky = frag;
 
+    // sink the goo deeper than a dark page, so it reads as a hole in it
+    vec3 ground = mix(deepSpace, space, outline);
+
     // glow in slow page-wide clouds under two depths of sparse flat stars placed across the page
     float falloff = smoothstep(0.25, 0.85, noise(page * 0.0012 + vec2(u_clock * 0.004, 0.0)));
-    vec3 nebula = (vec3(0.09, 0.2, 0.27) - space) * falloff * 0.45;
+    vec3 nebula = (vec3(0.09, 0.2, 0.27) - ground) * falloff * 0.45;
     vec3 distant = starLayer(sky + u_far + vec2(u_clock * 1.2, u_clock * 0.3), 26.0, ${distantStars}, u_clock);
     vec3 close = starLayer(sky + u_near + 71.0 + vec2(u_clock * 2.4, u_clock * 0.6), 58.0, ${closeStars}, u_clock * 1.3) * 1.25;
 
-    // glow faintly inside the rim so the edge reads as a surface
-    float sheen = (1.0 - smoothstep(0.0, 14.0, -d)) * 0.05;
-    vec3 color = space + nebula * (1.0 + u_charge) + sheen + (distant * 0.6 + close * 0.8) * (1.0 + u_charge * 0.6);
+    // glow inside the rim so the edge reads as a surface, more on a dark page
+    float sheen = (1.0 - smoothstep(0.0, 14.0, -d)) * mix(0.1, 0.05, outline);
+    vec3 color = ground + nebula * (1.0 + u_charge) + sheen + (distant * 0.6 + close * 0.8) * (1.0 + u_charge * 0.6);
 
     vec3 tone = mix(starColor, inkColor, outline);
-    float stroke = line * (1.0 - inside) * mix(0.28, 0.4, outline);
+    float stroke = line * (1.0 - inside) * mix(0.5, 0.4, outline);
     color = mix(color, tone, stroke / max(inside + stroke, 0.001));
 
     float alpha = max(inside, stroke);
@@ -200,7 +204,7 @@ export function Goo(properties: { children?: JSX.Element; xstyle?: style.Styles 
     );
 }
 
-/** Draw the site's one goo field behind its content, filling every island cell. */
+/** Draw the site's one goo field over the page and under its bars, filling every island cell. */
 export function GooField() {
     // hold the frame loop, ending it with the field
     let frameRequest = 0;
@@ -403,7 +407,7 @@ const styles = style.create({
         position: "absolute",
         top: 0,
         width: frame.width,
-        zIndex: -1,
+        zIndex: 0,
     },
     canvas: {
         height: `calc(100svh + ${spill * 2}px)`,

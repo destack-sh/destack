@@ -57,12 +57,7 @@ function DownloadField() {
 }
 
 /** Copy a text from the whole field, and show a check on its key for a moment. */
-function CopyField(properties: {
-    name: string;
-    text: string;
-    isDark?: boolean;
-    children: JSX.Element;
-}) {
+function CopyField(properties: { name: string; text: string; children: JSX.Element }) {
     // copy the text and show it as copied for a moment
     const copied = createCopy();
 
@@ -72,7 +67,7 @@ function CopyField(properties: {
             aria-label={`Copy ${properties.name}`}
             title={copied.isCopied() ? "Copied" : properties.text}
             onClick={() => void copied.copy(properties.text)}
-            {...style.attrs(styles.field, properties.isDark === true && styles.dark)}
+            {...style.attrs(styles.field)}
         >
             {properties.children}
             <Key>
@@ -89,7 +84,7 @@ function waysOf(prompt: string): readonly Way[] {
         {
             name: "Install via Terminal",
             field: () => (
-                <CopyField name="command" text={installCommand} isDark>
+                <CopyField name="command" text={installCommand}>
                     <code {...style.attrs(styles.text)}>
                         <span {...style.attrs(styles.prompt)}>$ </span>
                         curl destack.sh/install | sh
@@ -112,14 +107,17 @@ function waysOf(prompt: string): readonly Way[] {
     ];
 }
 
-/** Show the three ways to install side by side, each a name over the field that installs. */
+/** Show the three ways to install side by side in ruled cells, each a numbered name over the field that installs. */
 export function InstallWays(properties: { prompt: string }) {
     return (
         <ol {...style.attrs(lattice.cell, styles.column)}>
             {waysOf(properties.prompt).map((way, index) => (
                 <li {...style.attrs(styles.way)}>
                     <span {...style.attrs(styles.title)}>
-                        {String(index + 1).padStart(2, "0")} {way.name}
+                        <span {...style.attrs(styles.number)}>
+                            {String(index + 1).padStart(2, "0")}
+                        </span>
+                        {way.name}
                     </span>
                     {way.field()}
                 </li>
@@ -131,7 +129,6 @@ export function InstallWays(properties: { prompt: string }) {
 /** The install styles. */
 const styles = style.create({
     column: {
-        columnGap: "1.5rem",
         display: "grid",
         gridColumn: "1 / -1",
         gridTemplateColumns: {
@@ -140,32 +137,48 @@ const styles = style.create({
         },
         listStyle: "none",
         margin: 0,
-        padding: `1.5rem ${frame.inset}`,
-        rowGap: "1rem",
+        padding: 0,
     },
     way: {
+        borderColor: color.border,
+        borderStyle: "solid",
+        borderWidth: 0,
+        borderInlineStartWidth: {
+            default: 0,
+            ":not(:first-child)": { default: stroke.border, [screen.belowDesktop]: 0 },
+        },
+        borderTopWidth: {
+            default: 0,
+            ":not(:first-child)": { default: 0, [screen.belowDesktop]: stroke.border },
+        },
         display: "grid",
-        gap: "0.5rem",
+        gap: "0.75rem",
         minWidth: 0,
+        paddingBottom: "1.5rem",
+        paddingInline: frame.inset,
+        paddingTop: "1.25rem",
     },
     title: {
+        alignItems: "baseline",
+        display: "flex",
+        fontSize: "0.875rem",
+        fontWeight: 600,
+    },
+    number: {
         color: color.primary,
         fontFamily: font.code,
         fontSize: "0.6875rem",
         letterSpacing: "0.1em",
-        textTransform: "uppercase",
+        marginRight: "1rem",
     },
     field: {
         alignItems: "center",
         backgroundColor: {
-            default: color.card,
-            ":hover": {
-                default: null,
-                [media.hover]: `color-mix(in srgb, ${color.card} 92%, ${color.foreground})`,
-            },
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.muted },
         },
         borderColor: color.border,
-        borderRadius: "8px",
+        borderRadius: "6px",
         borderStyle: "solid",
         borderWidth: stroke.border,
         boxSizing: "border-box",
@@ -183,17 +196,6 @@ const styles = style.create({
         transition: "background-color 160ms ease, color 160ms ease, transform 120ms ease",
         width: "100%",
         ":active": { transform: "scale(0.99)" },
-    },
-    dark: {
-        backgroundColor: {
-            default: color.foreground,
-            ":hover": {
-                default: null,
-                [media.hover]: `color-mix(in srgb, ${color.foreground} 88%, ${color.background})`,
-            },
-        },
-        borderColor: color.foreground,
-        color: color.background,
     },
     product: {
         alignItems: "center",

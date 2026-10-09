@@ -1,4 +1,3 @@
-import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 
@@ -32,7 +31,7 @@ const noun: Form = {
     },
 };
 
-/** Show the noun at work: a docs app taken apart into the twelve services it runs on, rented one by one or built into one engine. */
+/** Show the noun at work: a docs app taken apart into the eleven services it runs on, rented one by one or built into one engine. */
 export function Noun(properties: { isOpen: boolean }) {
     // hold the service pointed at, in the app or in the ledger
     const [lit, setLit] = createSignal<number | undefined>(undefined);
@@ -77,13 +76,13 @@ export function Noun(properties: { isOpen: boolean }) {
                 title={
                     properties.isOpen
                         ? "one app, built on one engine"
-                        : "one app, wired to twelve vendors"
+                        : "one app, wired to eleven vendors"
                 }
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>Pages, the launch plan</Label>
+                <Label>Pages, a docs app</Label>
                 <Window
                     title={
                         <span {...style.attrs(styles.title)}>
@@ -107,7 +106,6 @@ export function Noun(properties: { isOpen: boolean }) {
                     <Fade isOpen={rented() === 0}>
                         <Label>{keyOf(rented())}</Label>
                     </Fade>
-                    <span {...style.attrs(styles.hint)}>Click a row to destack it</span>
                 </div>
                 <Ledger
                     entries={services}
@@ -124,9 +122,9 @@ export function Noun(properties: { isOpen: boolean }) {
 /** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
 function keyOf(rented: number) {
     if (rented === services.length) {
-        return "Twelve vendors, wired together";
+        return "Eleven vendors, glued together";
     } else if (rented === 0) {
-        return "One engine, built in";
+        return "One unified software engine";
     }
 
     return "Some vendors, some engine";
@@ -153,15 +151,6 @@ const styles = style.create({
         display: "flex",
         gap: "1rem",
         justifyContent: "space-between",
-    },
-    hint: {
-        color: color.mutedForeground,
-        fontFamily: font.code,
-        fontSize: "0.6875rem",
-        letterSpacing: "0.04em",
-        opacity: 0.7,
-        whiteSpace: "nowrap",
-        display: { default: null, [screen.belowDesktop]: "none" },
     },
     section: {
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },

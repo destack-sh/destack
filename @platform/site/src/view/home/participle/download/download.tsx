@@ -1,7 +1,7 @@
 import { media } from "@destack/style/media.stylex";
 import { createSignal, For, onSettled, Show } from "@destack/view";
 import * as style from "@destack/style";
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import { Icon } from "@destack/icon";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import {
@@ -167,7 +167,7 @@ const styles = style.create({
         gap: "0.5rem",
         justifyContent: "center",
         paddingInlineEnd: 0,
-        paddingInlineStart: "1.75rem",
+        paddingInlineStart: "2.5rem",
         position: "relative",
         zIndex: 1,
         ":hover > svg": { translate: "0 2px" },
@@ -184,11 +184,14 @@ const styles = style.create({
     },
     toggle: {
         alignSelf: "stretch",
+        borderInlineStartColor: `color-mix(in srgb, ${color.primaryForeground} 30%, transparent)`,
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: stroke.border,
         borderRadius: 0,
         color: "inherit",
         height: "auto",
         paddingInline: 0,
-        width: "1.75rem",
+        width: "2.5rem",
         backgroundColor: {
             default: "transparent",
             ":hover": {

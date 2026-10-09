@@ -6,7 +6,8 @@ import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { InstallWays } from "./install";
 import { Label } from "../entry/label";
 import { StackSwitch } from "../entry/switch";
-import { countOf, firstPicks, promptOf, ToolWall } from "./wall";
+import { firstPicks, promptOf, tallyOf, ToolWall, totalOf } from "./wall";
+import { Ledger } from "../figure/ledger";
 import { screen } from "../../layout/screen.stylex";
 
 /** The participle, which closes the page as the verb opens it. */
@@ -53,12 +54,19 @@ export function Participle(properties: { isOpen: boolean }) {
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
-            <div {...style.attrs(lattice.cell, lattice.figureCell, styles.wall)}>
+            <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
-                    {properties.isOpen ? "Your space" : "Pick your stack"} ·{" "}
-                    {countOf(picks(), properties.isOpen)}
+                    {properties.isOpen ? "Your own corner of the cloud" : "Pick your current stack"}
                 </Label>
                 <ToolWall picks={picks()} isOpen={properties.isOpen} onPick={pick} />
+            </div>
+            <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
+                <Label>{properties.isOpen ? "Your space" : "Your current stack"}</Label>
+                <Ledger
+                    entries={tallyOf(picks())}
+                    total={totalOf(picks(), properties.isOpen)}
+                    isOpenAt={() => properties.isOpen}
+                />
             </div>
             <InstallWays prompt={promptOf(picks())} />
         </section>
@@ -68,13 +76,18 @@ export function Participle(properties: { isOpen: boolean }) {
 /** The closing styles. */
 const styles = style.create({
     section: {
+        height: "auto",
         gridTemplateRows: {
             default: "auto auto minmax(0, 1fr) auto",
             [screen.belowDesktop]: "auto",
         },
     },
-    wall: {
-        gridColumn: "1 / -1",
+    stage: {
+        gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
+        gridTemplateRows: "auto minmax(0, 1fr)",
+    },
+    key: {
+        gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
     },
 });

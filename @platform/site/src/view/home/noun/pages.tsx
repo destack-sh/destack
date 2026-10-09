@@ -9,7 +9,7 @@ import { palette } from "../../palette.stylex";
 import { appStyles, appText } from "../figure/app";
 import { media } from "@destack/style/media.stylex";
 
-/** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
+/** The eleven services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
     {
         stacked: {
@@ -151,24 +151,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Analytics",
             mark: { icon: "telemetry", tint: "#6d7f86" },
             name: "Telemetry",
-            chips: ["events"],
-            note: "events kept in your own space",
-        },
-    },
-    {
-        stacked: {
-            label: "Errors",
-            mark: { logo: "sentry.png" },
-            name: "Sentry",
-            chips: ["SDK"],
-            note: "errors seen one SDK at a time",
-        },
-        destacked: {
-            label: "Errors",
-            mark: { icon: "telemetry", tint: "#6d7f86" },
-            name: "Telemetry",
-            chips: ["traces"],
-            note: "errors traced across all apps",
+            chips: ["events", "traces"],
+            note: "events and errors kept in your own space",
         },
     },
     {
@@ -225,14 +209,14 @@ const railApps: Record<
     ],
     destacked: [
         ["tasks", "Tasks"],
-        ["calendar", "My week"],
+        ["calendar", "Calendar"],
         ["mail", "Mail"],
         ["bucket", "Files"],
     ],
 };
 
 /** The tasks blocked by another once owned, in the column you added: the task and its blocker. */
-const blockers: Readonly<Record<string, string>> = { "LCH-13": "LCH-15", "LCH-16": "LCH-14" };
+const blockers: Readonly<Record<string, string>> = { "DST-13": "DST-15", "DST-16": "DST-14" };
 
 /** How far a task has come. */
 type Status = "todo" | "started" | "done";
@@ -250,9 +234,9 @@ const tasks: readonly (readonly [
     due: string,
     change?: Change,
 ])[] = [
-    ["LCH-12", "Pricing page", "done", "Me", "#2f7d8c", "Mon 20", ["#408", "pricing-page", true]],
+    ["DST-12", "Pricing page", "done", "Me", "#2f7d8c", "Mon 20", ["#408", "pricing-page", true]],
     [
-        "LCH-13",
+        "DST-13",
         "Turn on the new prices",
         "todo",
         "Me",
@@ -260,9 +244,9 @@ const tasks: readonly (readonly [
         "Fri 24",
         ["#412", "new-prices", false],
     ],
-    ["LCH-14", "Record the demo", "started", "Me", "#2f7d8c", "Thu 23"],
-    ["LCH-15", "Draft the launch post", "todo", "Agent", "#b8862b", "Thu 23"],
-    ["LCH-16", "Email the waitlist", "todo", "Agent", "#6b5ca5", "Fri 24"],
+    ["DST-14", "Record the demo", "started", "Me", "#2f7d8c", "Thu 23"],
+    ["DST-15", "Draft the launch post", "todo", "Agent", "#b8862b", "Thu 23"],
+    ["DST-16", "Email the waitlist", "todo", "Agent", "#6b5ca5", "Fri 24"],
 ];
 
 /** Say who can see the task table: everyone by one access rule, or not your agent without a seat. */
@@ -290,11 +274,11 @@ function checksOf(change: Change, isOpen: boolean) {
         return change[2] ? "passed" : "running";
     }
 
-    return change[2] ? "merged" : "CI failing";
+    return change[2] ? "merged" : "open";
 }
 
 /**
- * Draw the Pages app with the launch plan open, every part named for the inspector, and the twelve services marked where they show.
+ * Draw the Pages app with the launch plan open, every part named for the inspector, and the eleven services marked where they show.
  *
  * While rented, the page shows where its vendors meet: vendor apps in its rail, an edit conflict, a key to paste, a failed automation, an embed behind seats, and a preview on another site.
  * Once owned, the same page sits among your other apps and holds its tasks, prices, agent, code and previews natively, with a column you added, each switching on the step of its service.
@@ -383,36 +367,34 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 <article data-component="Page" {...style.attrs(appStyles.page)}>
                     <div data-component="PageHeader" {...style.attrs(appStyles.toolbar)}>
                         <b data-component="PageTitle" {...style.attrs(appText.title)}>
-                            Launch plan
+                            Destack launch
                         </b>
                         <div {...style.attrs(appStyles.tools)}>
                             <Fade
-                                isOpen={properties.isOpenAt(11)}
+                                isOpen={properties.isOpenAt(10)}
                                 xstyle={styles.roomy}
                                 component={
-                                    properties.isOpenAt(11) ? "PreviewButton" : "VercelPreviewLink"
+                                    properties.isOpenAt(10) ? "PreviewButton" : "VercelPreviewLink"
                                 }
                             >
-                                <span data-service="11" {...style.attrs(appStyles.action)}>
-                                    {properties.isOpenAt(11)
-                                        ? "Preview branch"
-                                        : "Preview on Vercel ↗"}
+                                <span data-service="10" {...style.attrs(appStyles.action)}>
+                                    {properties.isOpenAt(10) ? "Preview branch" : "Preview"}
                                 </span>
                             </Fade>
                             <Fade
-                                isOpen={properties.isOpenAt(12)}
+                                isOpen={properties.isOpenAt(11)}
                                 component={
-                                    properties.isOpenAt(12) ? "EditAppButton" : "FeedbackLink"
+                                    properties.isOpenAt(11) ? "EditAppButton" : "FeedbackLink"
                                 }
                             >
                                 <span
-                                    data-service="12"
+                                    data-service="11"
                                     {...style.attrs(
                                         appStyles.action,
-                                        properties.isOpenAt(12) && appStyles.actionStrong,
+                                        properties.isOpenAt(11) && appStyles.actionStrong,
                                     )}
                                 >
-                                    {properties.isOpenAt(12) ? "Edit app" : "Send feedback"}
+                                    {properties.isOpenAt(11) ? "Edit app" : "Send feedback"}
                                 </span>
                             </Fade>
                             <span
@@ -487,7 +469,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                     <span>
                                         <b {...style.attrs(styles.strong)}>Agent</b>{" "}
                                         <span {...style.attrs(styles.quiet)}>
-                                            drafted LCH-15 for you to review
+                                            drafted DST-15 for you to review
                                         </span>
                                     </span>
                                 </>
@@ -517,8 +499,10 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                 <>
                                     <Tile name="tasks" />
                                     <b {...style.attrs(styles.strong)}>Launch tasks</b>
-                                    <span {...style.attrs(styles.quiet, styles.wide)}>
-                                        from Tasks, also in My week
+                                    <span
+                                        {...style.attrs(styles.quiet, styles.wide, styles.shrink)}
+                                    >
+                                        from Tasks, also on the launch board
                                     </span>
                                     <span {...style.attrs(appStyles.tools)}>
                                         <Access isOpen={true} />
@@ -529,7 +513,9 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                 <>
                                     <Tile name="linear" />
                                     <b {...style.attrs(styles.strong)}>Linear embed</b>
-                                    <span {...style.attrs(styles.quiet, styles.wide)}>
+                                    <span
+                                        {...style.attrs(styles.quiet, styles.wide, styles.shrink)}
+                                    >
                                         Read-only · synced 3 h ago
                                     </span>
                                     <span {...style.attrs(appStyles.tools)}>
@@ -550,12 +536,12 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                     <th {...style.attrs(styles.head, styles.wide)}>Owner</th>
                                     <th {...style.attrs(styles.head, styles.wide)}>Due</th>
                                     <th {...style.attrs(styles.head, styles.wide)}>
-                                        {properties.isOpenAt(12) ? "Checks" : "Pull request"}
+                                        {properties.isOpenAt(11) ? "Checks" : "Pull request"}
                                     </th>
-                                    {properties.isOpenAt(4) && properties.isOpenAt(12) ? (
+                                    {properties.isOpenAt(4) && properties.isOpenAt(11) ? (
                                         <th
                                             data-component="AddedColumn"
-                                            data-service="12"
+                                            data-service="11"
                                             {...style.attrs(styles.head, styles.added, styles.wide)}
                                         >
                                             Blocked by
@@ -590,11 +576,11 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                         </td>
                                         <td
                                             data-component={
-                                                properties.isOpenAt(12)
+                                                properties.isOpenAt(11)
                                                     ? "BranchCell"
                                                     : "PullRequestCell"
                                             }
-                                            data-service="12"
+                                            data-service="11"
                                             {...style.attrs(
                                                 styles.cell,
                                                 styles.change,
@@ -605,34 +591,31 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                                 <span {...style.attrs(styles.row)}>
                                                     <span
                                                         style={{
-                                                            "mask-image": `url(/diagram/${properties.isOpenAt(12) ? "source" : "github"}.svg)`,
+                                                            "mask-image": `url(/diagram/${properties.isOpenAt(11) ? "source" : "github"}.svg)`,
                                                         }}
                                                         {...style.attrs(appStyles.glyph)}
                                                     />
-                                                    {properties.isOpenAt(12)
+                                                    {properties.isOpenAt(11)
                                                         ? undefined
                                                         : `${change[0]} ↗`}
                                                     <span
                                                         {...style.attrs(
-                                                            change[2]
-                                                                ? styles.passing
-                                                                : properties.isOpenAt(12)
-                                                                  ? styles.running
-                                                                  : styles.failing,
-                                                            !properties.isOpenAt(12) &&
-                                                                change[2] &&
-                                                                styles.quiet,
+                                                            properties.isOpenAt(11)
+                                                                ? change[2]
+                                                                    ? styles.passing
+                                                                    : styles.running
+                                                                : styles.quiet,
                                                         )}
                                                     >
-                                                        {checksOf(change, properties.isOpenAt(12))}
+                                                        {checksOf(change, properties.isOpenAt(11))}
                                                     </span>
                                                 </span>
                                             )}
                                         </td>
-                                        {properties.isOpenAt(4) && properties.isOpenAt(12) ? (
+                                        {properties.isOpenAt(4) && properties.isOpenAt(11) ? (
                                             <td
                                                 data-component="BlockerCell"
-                                                data-service="12"
+                                                data-service="11"
                                                 {...style.attrs(
                                                     styles.cell,
                                                     styles.id,
@@ -660,7 +643,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             style={{ "mask-image": "url(/diagram/file.svg)" }}
                             {...style.attrs(appStyles.glyph)}
                         />
-                        pricing-v4.pdf
+                        destack-pricing.pdf
                         <span {...style.attrs(styles.quiet)}>
                             {properties.isOpenAt(5)
                                 ? "1.2 MB · added by you"
@@ -702,13 +685,11 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
             <div data-component="StatusBar" {...style.attrs(appStyles.statusBar)}>
                 <span
                     data-component="SyncStatus"
-                    data-service="11"
+                    data-service="10"
                     {...style.attrs(appStyles.status)}
                 >
-                    <span
-                        {...style.attrs(appStyles.dot, !properties.isOpenAt(11) && styles.dotCloud)}
-                    />
-                    {properties.isOpenAt(11) ? "Yours · on your laptop" : "Saved to their cloud"}
+                    <span {...style.attrs(appStyles.dot)} />
+                    {properties.isOpenAt(10) ? "Yours · on your laptop" : "Saved"}
                 </span>
                 <span
                     data-component={properties.isOpenAt(4) ? "PresenceList" : "ConflictNotice"}
@@ -732,33 +713,20 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             You and your agent editing
                         </span>
                     ) : (
-                        <span {...style.attrs(styles.presenceText)}>
-                            Agent's edits
-                            <span {...style.attrs(styles.reload)}>Reload</span>
-                        </span>
+                        <span {...style.attrs(styles.presenceText)}>Edited by you</span>
                     )}
                 </span>
                 <span {...style.attrs(appStyles.statusEnd)}>
                     <span
-                        data-component={properties.isOpenAt(9) ? "ViewCount" : "AnalyticsSnippet"}
+                        data-component="ViewCount"
                         data-service="9"
                         {...style.attrs(appStyles.status, styles.wide)}
                     >
-                        {properties.isOpenAt(9) ? "182 views" : "PostHog ↗"}
-                    </span>
-                    <span
-                        data-component="ErrorCount"
-                        data-service="10"
-                        {...style.attrs(
-                            appStyles.status,
-                            !properties.isOpenAt(10) && styles.failing,
-                        )}
-                    >
-                        {properties.isOpenAt(10) ? "0 errors" : "3 integrations failing"}
+                        182 views
                     </span>
                     <span
                         data-component="BranchMenu"
-                        data-service="12"
+                        data-service="11"
                         {...style.attrs(appStyles.status, styles.wide)}
                     >
                         <span
@@ -772,9 +740,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
         </div>
     );
 }
-
-/** The media query for phones, where wide-only parts hide over whichever display their base sets. */
-const phone = "@media (max-width: 767px)";
 
 /** The Pages app styles. */
 const styles = style.create({
@@ -872,11 +837,6 @@ const styles = style.create({
     presenceText: {
         marginLeft: "0.375rem",
     },
-    reload: {
-        color: color.foreground,
-        fontWeight: 600,
-        marginLeft: "0.5rem",
-    },
     access: {
         alignItems: "center",
         color: color.mutedForeground,
@@ -926,9 +886,6 @@ const styles = style.create({
         borderColor: color.mutedForeground,
         borderStyle: "dashed",
         borderWidth: stroke.border,
-    },
-    dotCloud: {
-        backgroundColor: color.mutedForeground,
     },
     row: {
         alignItems: "center",
@@ -1080,7 +1037,12 @@ const styles = style.create({
     quiet: {
         color: color.mutedForeground,
     },
-    wide: { [phone]: { display: "none" } },
+    wide: { display: { default: null, [media.maxMd]: "none" } },
+    shrink: {
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
     small: {
         fontSize: "0.5rem",
         height: "0.9375rem",

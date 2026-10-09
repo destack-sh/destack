@@ -120,7 +120,6 @@ destack-infra/.*
 @platform/site/public/docs/
 @platform/site/public/_content/
 @platform/site/public/search.json
-@platform/site/.generated/
 @destack/daemon/.generated/
 .DS_Store
 

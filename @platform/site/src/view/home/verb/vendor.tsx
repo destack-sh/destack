@@ -58,7 +58,7 @@ function Replit() {
             <nav {...style.attrs(styles.replitNav)}>
                 <b {...style.attrs(styles.replitBrand)}>
                     <span {...style.attrs(styles.replitLogo)}>✦</span>
-                    LaunchKit
+                    Destack
                 </b>
                 <span {...style.attrs(styles.replitLinks)}>
                     <span>Features</span>
@@ -69,11 +69,11 @@ function Replit() {
             <div {...style.attrs(styles.replitHero)}>
                 <span {...style.attrs(styles.replitPill)}>🚀 Launching Friday</span>
                 <b {...style.attrs(styles.replitTitle)}>
-                    The launch tool{" "}
-                    <span {...style.attrs(styles.replitGlow)}>you'll actually use</span>
+                    The software{" "}
+                    <span {...style.attrs(styles.replitGlow)}>you'll actually own</span>
                 </b>
                 <span {...style.attrs(styles.replitLine)}>
-                    Pricing v4 opens on Friday. Leave your email and we'll send you an invite.
+                    Destack opens on Friday. Leave your email and we'll send you an invite.
                 </span>
                 <span {...style.attrs(styles.replitForm)}>
                     <span {...style.attrs(styles.replitInput)}>you@company.com</span>
@@ -109,32 +109,30 @@ function Replit() {
     );
 }
 
-/** Draw your website as a builder's portfolio template: a big statement, selected work, and the people you have worked with. */
+/** Draw your website as a builder's landing template: a big statement and the latest posts. */
 function Framer() {
     return (
         <div data-component="FramerPage" {...style.attrs(styles.framer)}>
             <nav {...style.attrs(styles.framerNav)}>
-                <b {...style.attrs(styles.framerMark)}>florian</b>
+                <b {...style.attrs(styles.framerMark)}>destack</b>
                 <span {...style.attrs(styles.framerLinks)}>
-                    <span>Work</span>
-                    <span>Writing</span>
-                    <span>About</span>
+                    <span>Docs</span>
+                    <span>Blog</span>
+                    <span>Pricing</span>
                 </span>
-                <span {...style.attrs(styles.framerButton)}>Get in touch</span>
+                <span {...style.attrs(styles.framerButton)}>Join the waitlist</span>
             </nav>
             <header {...style.attrs(styles.framerHero)}>
                 <span {...style.attrs(styles.framerKicker)}>
                     <span {...style.attrs(styles.framerDot)} />
-                    Available from November
+                    Launching Friday
                 </span>
-                <b {...style.attrs(styles.framerTitle)}>
-                    I design and build small software for small teams.
-                </b>
+                <b {...style.attrs(styles.framerTitle)}>Take back your software.</b>
             </header>
             <section {...style.attrs(styles.framerSection)}>
                 <span {...style.attrs(styles.framerHead)}>
-                    <b>Selected work</b>
-                    <span {...style.attrs(styles.framerMuted)}>2023 – 2025</span>
+                    <b>From the blog</b>
+                    <span {...style.attrs(styles.framerMuted)}>2025</span>
                 </span>
                 <ol {...style.attrs(styles.framerGrid)}>
                     {posts.map(([title, topic, date, from, to], index) => (
@@ -169,7 +167,7 @@ function Calendly() {
                 <div {...style.attrs(styles.calHost)}>
                     <span {...style.attrs(styles.calAvatar)}>F</span>
                     <b {...style.attrs(styles.calName)}>Florian</b>
-                    <b {...style.attrs(styles.calEvent)}>30 Minute Meeting</b>
+                    <b {...style.attrs(styles.calEvent)}>Destack demo</b>
                     <span {...style.attrs(styles.calDetail)}>
                         <Glyph name="clock" size={20} />
                         30 min
@@ -236,14 +234,14 @@ function Calendly() {
     );
 }
 
-/** Draw the launch plan as a published page behind a public link. */
+/** Draw the Destack launch plan as a published page behind a public link. */
 function Notion() {
     return (
         <div data-component="NotionPage" {...style.attrs(styles.notion)}>
             <nav {...style.attrs(styles.notionBar)}>
                 <span {...style.attrs(styles.notionCrumb)}>
                     <span aria-hidden="true">🚀</span>
-                    Launch plan
+                    Destack launch
                 </span>
                 <span {...style.attrs(styles.notionTools)}>
                     <Glyph name="search" size={18} weight={1.75} />
@@ -257,7 +255,7 @@ function Notion() {
                 <span aria-hidden="true" {...style.attrs(styles.notionIcon)}>
                     🚀
                 </span>
-                <b {...style.attrs(styles.notionTitle)}>Launch plan</b>
+                <b {...style.attrs(styles.notionTitle)}>Destack launch</b>
                 <dl {...style.attrs(styles.notionProperties)}>
                     <dt {...style.attrs(styles.notionKey)}>
                         <Glyph name="status" size={16} weight={1.75} />
@@ -315,7 +313,7 @@ function Slack() {
             <div {...style.attrs(styles.slackTop)}>
                 <span {...style.attrs(styles.slackSearch)}>
                     <Glyph name="search" size={14} />
-                    Search LaunchKit
+                    Search Symbol
                 </span>
             </div>
             <div {...style.attrs(styles.slackFrame)}>
@@ -327,7 +325,7 @@ function Slack() {
                 </nav>
                 <nav {...style.attrs(styles.slackSide)}>
                     <b {...style.attrs(styles.slackTeam)}>
-                        LaunchKit <Glyph name="caret" size={12} />
+                        Symbol <Glyph name="caret" size={12} />
                     </b>
                     <span {...style.attrs(styles.slackGroup)}>▾ Channels</span>
                     {["general", "launch", "design", "pricing", "random"].map((name) => (
@@ -416,7 +414,7 @@ function Slack() {
                         </span>
                     </span>
                     <p {...style.attrs(styles.slackGuest)}>
-                        You're a guest in LaunchKit. Ask an admin to see more channels.
+                        You're a guest in Symbol. Ask an admin to see more channels.
                     </p>
                 </div>
             </div>
@@ -429,9 +427,9 @@ function GitHub() {
     return (
         <div data-component="GitHubPage" {...style.attrs(styles.github)}>
             <nav {...style.attrs(styles.ghBar)}>
-                <Favicon icon="github" tint="#f0f6fc" size={30} />
+                <Favicon icon="github" tint="#1f2328" size={30} />
                 <span {...style.attrs(styles.ghPath)}>
-                    florian / <b>launchkit</b>
+                    destack-sh / <b>destack</b>
                 </span>
                 <span {...style.attrs(styles.ghSearch)}>
                     <Glyph name="search" size={14} />
@@ -457,7 +455,7 @@ function GitHub() {
             </span>
             <div {...style.attrs(styles.ghPage)}>
                 <span {...style.attrs(styles.ghRepo)}>
-                    <b {...style.attrs(styles.ghRepoName)}>launchkit</b>
+                    <b {...style.attrs(styles.ghRepoName)}>destack</b>
                     <span {...style.attrs(styles.ghPill)}>Private</span>
                     <span {...style.attrs(styles.ghActions)}>
                         <span {...style.attrs(styles.ghButton)}>Watch 4</span>
@@ -503,7 +501,7 @@ function GitHub() {
                     <aside {...style.attrs(styles.ghAbout)}>
                         <b>About</b>
                         <span {...style.attrs(styles.ghMuted)}>
-                            The launch site, waitlist and weekly view for pricing v4.
+                            Own your apps and agents in one unified personal software platform.
                         </span>
                         <span {...style.attrs(styles.ghTopics)}>
                             {["launch", "waitlist", "typescript"].map((topic) => (
@@ -531,8 +529,8 @@ function Linear() {
         <div data-component="LinearPage" {...style.attrs(styles.linear)}>
             <nav {...style.attrs(styles.linSide)}>
                 <span {...style.attrs(styles.linSpace)}>
-                    <span {...style.attrs(styles.linSpaceMark)}>L</span>
-                    <b>Launch</b>
+                    <span {...style.attrs(styles.linSpaceMark)}>S</span>
+                    <b>Symbol</b>
                     <Glyph name="caret" size={12} />
                     <span {...style.attrs(styles.linSpaceTools)}>
                         <Glyph name="search" size={15} weight={1.75} />
@@ -560,8 +558,8 @@ function Linear() {
                 </span>
                 <span {...style.attrs(styles.linGroup)}>Your teams</span>
                 <span {...style.attrs(styles.linItem)}>
-                    <span {...style.attrs(styles.linTeam)}>L</span>
-                    Launch
+                    <span {...style.attrs(styles.linTeam)}>D</span>
+                    Destack
                 </span>
                 <span {...style.attrs(styles.linItem, styles.linSub, styles.linOn)}>
                     <Glyph name="target" size={15} weight={1.75} />
@@ -683,7 +681,7 @@ function StateMark(properties: { state: TaskState }) {
 const styles = style.create({
     replit: {
         backgroundColor: replit.night,
-        backgroundImage: `radial-gradient(ellipse 60% 45% at 50% 0%, color-mix(in srgb, ${replit.violet} 35%, transparent), transparent), radial-gradient(color-mix(in srgb, white 7%, transparent) 1px, transparent 1px)`,
+        backgroundImage: `radial-gradient(ellipse 60% 45% at 50% 0%, color-mix(in srgb, ${replit.violet} 35%, transparent), transparent), radial-gradient(color-mix(in srgb, ${replit.snow} 7%, transparent) 1px, transparent 1px)`,
         backgroundSize: "auto, 22px 22px",
         color: replit.snow,
         display: "grid",
@@ -727,8 +725,8 @@ const styles = style.create({
         textAlign: "center",
     },
     replitPill: {
-        backgroundColor: `color-mix(in srgb, white 6%, transparent)`,
-        borderColor: `color-mix(in srgb, white 14%, transparent)`,
+        backgroundColor: `color-mix(in srgb, ${replit.snow} 6%, transparent)`,
+        borderColor: `color-mix(in srgb, ${replit.snow} 14%, transparent)`,
         borderRadius: "999px",
         borderStyle: "solid",
         borderWidth: "1px",
@@ -778,8 +776,8 @@ const styles = style.create({
         width: "100%",
     },
     replitPerk: {
-        backgroundColor: `color-mix(in srgb, white 4%, transparent)`,
-        borderColor: `color-mix(in srgb, white 10%, transparent)`,
+        backgroundColor: `color-mix(in srgb, ${replit.snow} 4%, transparent)`,
+        borderColor: `color-mix(in srgb, ${replit.snow} 10%, transparent)`,
         borderRadius: "14px",
         borderStyle: "solid",
         borderWidth: "1px",
@@ -812,8 +810,8 @@ const styles = style.create({
         width: "100%",
     },
     replitInput: {
-        backgroundColor: "color-mix(in srgb, black 30%, transparent)",
-        borderColor: `color-mix(in srgb, white 15%, transparent)`,
+        backgroundColor: `color-mix(in srgb, ${replit.night} 70%, transparent)`,
+        borderColor: `color-mix(in srgb, ${replit.snow} 15%, transparent)`,
         borderRadius: "10px",
         borderStyle: "solid",
         borderWidth: "1px",
@@ -836,7 +834,7 @@ const styles = style.create({
     replitBadge: {
         alignItems: "center",
         backgroundColor: replit.navy,
-        borderColor: `color-mix(in srgb, white 15%, transparent)`,
+        borderColor: "transparent",
         borderRadius: "8px",
         borderStyle: "solid",
         borderWidth: "1px",
@@ -849,9 +847,10 @@ const styles = style.create({
         paddingInline: "12px",
         position: "absolute",
         right: "20px",
+        color: "white",
     },
     slack: {
-        backgroundColor: "white",
+        backgroundColor: slack.surface,
         color: slack.ink,
         display: "grid",
         fontFamily: faces.slack,
@@ -1312,15 +1311,15 @@ const styles = style.create({
         paddingInline: "10px",
     },
     framer: {
-        backgroundColor: framer.ink,
-        color: "white",
+        backgroundColor: framer.page,
+        color: framer.ink,
         fontFamily: faces.framer,
         minHeight: "100%",
         position: "relative",
     },
     framerKicker: {
         alignItems: "center",
-        color: `color-mix(in srgb, white 70%, transparent)`,
+        color: `color-mix(in srgb, ${framer.ink} 70%, transparent)`,
         display: "flex",
         fontSize: "14px",
         gap: "8px",
@@ -1333,7 +1332,7 @@ const styles = style.create({
         width: "8px",
     },
     framerMuted: {
-        color: `color-mix(in srgb, white 50%, transparent)`,
+        color: `color-mix(in srgb, ${framer.ink} 50%, transparent)`,
         fontSize: "14px",
     },
     framerNav: {
@@ -1350,15 +1349,15 @@ const styles = style.create({
         marginRight: "auto",
     },
     framerLinks: {
-        color: `color-mix(in srgb, white 60%, transparent)`,
+        color: `color-mix(in srgb, ${framer.ink} 60%, transparent)`,
         display: "flex",
         fontSize: "15px",
         gap: "32px",
     },
     framerButton: {
-        backgroundColor: "white",
+        backgroundColor: framer.ink,
         borderRadius: "999px",
-        color: framer.ink,
+        color: framer.page,
         fontSize: "14px",
         fontWeight: 600,
         paddingBlock: "10px",
@@ -1385,7 +1384,7 @@ const styles = style.create({
     },
     framerHead: {
         alignItems: "baseline",
-        borderTopColor: `color-mix(in srgb, white 12%, transparent)`,
+        borderTopColor: `color-mix(in srgb, ${framer.ink} 12%, transparent)`,
         borderTopStyle: "solid",
         borderTopWidth: "1px",
         display: "flex",
@@ -1421,11 +1420,11 @@ const styles = style.create({
     },
     framerBadge: {
         alignItems: "center",
-        backgroundColor: "white",
+        backgroundColor: framer.ink,
         borderRadius: "10px",
         bottom: "20px",
         boxShadow: "0 4px 16px color-mix(in srgb, black 30%, transparent)",
-        color: framer.ink,
+        color: framer.page,
         display: "flex",
         fontSize: "13px",
         fontWeight: 600,
@@ -1447,7 +1446,7 @@ const styles = style.create({
     },
     calCard: {
         alignSelf: "start",
-        backgroundColor: "white",
+        backgroundColor: calendly.surface,
         borderColor: `color-mix(in srgb, ${calendly.ink} 10%, transparent)`,
         borderRadius: "8px",
         borderStyle: "solid",
@@ -1641,7 +1640,7 @@ const styles = style.create({
         textTransform: "uppercase",
     },
     notion: {
-        backgroundColor: "white",
+        backgroundColor: notion.surface,
         color: notion.ink,
         fontFamily: faces.notion,
         minHeight: "100%",
@@ -1670,7 +1669,7 @@ const styles = style.create({
     notionButton: {
         backgroundColor: notion.charcoal,
         borderRadius: "6px",
-        color: "white",
+        color: notion.surface,
         fontSize: "14px",
         fontWeight: 500,
         paddingBlock: "6px",
@@ -1816,7 +1815,7 @@ const styles = style.create({
         textDecorationLine: "line-through",
     },
     linear: {
-        backgroundColor: "white",
+        backgroundColor: linear.surface,
         color: linear.ink,
         display: "grid",
         fontFamily: faces.linear,
@@ -1863,7 +1862,7 @@ const styles = style.create({
     },
     linCompose: {
         alignItems: "center",
-        backgroundColor: "white",
+        backgroundColor: linear.surface,
         borderRadius: "50%",
         boxShadow: `0 0 0 1px ${linear.ring}`,
         display: "flex",

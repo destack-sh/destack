@@ -202,6 +202,8 @@ export function TopBar() {
 const styles = style.create({
     root: {
         color: color.foreground,
+        position: "relative",
+        zIndex: 1,
     },
     bar: {
         fontFamily: font.text,

@@ -243,13 +243,9 @@ const styles = style.create({
             content: "·",
             marginInlineEnd: "0.75rem",
         },
-        [compact]: {
-            display: "none",
-        },
+        display: { default: null, [compact]: "none" },
     },
     readTime: {
-        [tiny]: {
-            display: "none",
-        },
+        display: { default: null, [tiny]: "none" },
     },
 });

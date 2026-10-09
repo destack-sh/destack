@@ -143,7 +143,9 @@ const styles = style.create({
     root: {
         marginInline: "auto",
         maxWidth: frame.width,
+        position: "relative",
         width: "100%",
+        zIndex: 1,
     },
     band: {
         height: frame.bar,

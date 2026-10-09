@@ -157,7 +157,7 @@ function Launch() {
     return (
         <Paned>
             <Toolbar
-                title="Launch plan"
+                title="Destack launch"
                 actions={
                     <>
                         <Present />
@@ -180,8 +180,8 @@ function Launch() {
                     <span {...style.attrs(appStyles.property)}>Reminder Thu</span>
                 </div>
                 <p {...style.attrs(appText.body)}>
-                    Ship to the waitlist on Thursday, then open signups on Friday. Pricing v4 goes
-                    live with the launch post.
+                    Ship to the waitlist on Thursday, then open signups on Friday. Pricing goes live
+                    with the launch post.
                 </p>
                 <ul {...style.attrs(styles.checklist)}>
                     {launch.map(([item, isDone]) => (
@@ -192,7 +192,7 @@ function Launch() {
                                 <>
                                     <span {...style.attrs(appStyles.property)}>
                                         <StateMark state="started" />
-                                        LCH-14 · Wed 11:00
+                                        DST-14 · Wed 11:00
                                     </span>
                                     <span {...style.attrs(styles.cursor)}>
                                         <span {...style.attrs(appText.meta, styles.cursorName)}>
@@ -267,7 +267,7 @@ function Tasks() {
                                     >
                                         {title}
                                     </span>
-                                    {id === "LCH-15" ? (
+                                    {id === "DST-15" ? (
                                         <span {...style.attrs(styles.inline, styles.agentNote)}>
                                             <Spinner aria-label="Agent is writing" />
                                             writing…
@@ -326,7 +326,7 @@ function Chat() {
                                     </ItemMedia>
                                     <ItemContent>
                                         <ItemTitle xstyle={appText.body}>
-                                            LCH-14 Record the demo
+                                            DST-14 Record the demo
                                         </ItemTitle>
                                         <ItemDescription xstyle={appText.meta}>
                                             Tasks · due moved to Wed 11:00
@@ -374,7 +374,7 @@ function Code() {
     return (
         <Paned>
             <Toolbar
-                title="launchkit"
+                title="destack"
                 actions={
                     <>
                         <span {...style.attrs(appStyles.action)}>Preview branch</span>
@@ -479,7 +479,7 @@ function Website() {
                 </div>
                 <h3 {...style.attrs(appText.heading, styles.title)}>Notes</h3>
                 <p {...style.attrs(appText.body, styles.quiet)}>
-                    On building small software: product, pricing and the tools I run it on.
+                    On building Destack: the product, the pricing and the tools I run it on.
                 </p>
                 <ol {...style.attrs(styles.postGrid)}>
                     {posts.map(([title, topic, date, from, to], index) => (

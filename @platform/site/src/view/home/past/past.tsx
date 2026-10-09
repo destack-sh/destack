@@ -40,10 +40,10 @@ export function PastParticiple(properties: {
                     <StackSwitch isOpen={properties.isOpen} />
                 </FigureLabel>
                 <div {...style.attrs(lattice.cell, styles.labelCell, styles.drawingLabel)}>
-                    <Label>Your apps, and everything under them</Label>
+                    <Label>Your apps, and what's really under them</Label>
                 </div>
                 <div {...style.attrs(lattice.cell, styles.labelCell, styles.layersLabel)}>
-                    <Label>Six layers of a stack</Label>
+                    <Label>The true depth of the stack</Label>
                 </div>
             </section>
             <StackFigure onChange={properties.onChange} />

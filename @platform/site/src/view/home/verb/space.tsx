@@ -26,14 +26,14 @@ export const viewers: readonly Viewer[] = ["Me", "Agent", "Public"];
 export const holdings: readonly Entry[] = [
     {
         stacked: {
-            label: "Launch plan",
+            label: "Pages",
             mark: { icon: "notion", tint: "#191919" },
             name: "Notion",
             chips: ["public link"],
             note: "anyone with the link can read it",
         },
         destacked: {
-            label: "Launch plan",
+            label: "Pages",
             mark: { icon: "pages", tint: "#3d6fb0" },
             name: "Pages",
             chips: ["agent"],
@@ -154,54 +154,54 @@ export const pages: readonly Page[] = [
         app: 1,
         path: "/launch",
         viewers: ["Me", "Agent"],
-        site: "florian.notion.site/Launch-plan",
+        site: "florian.notion.site/Destack-launch",
     },
-    { row: 2, app: 2, path: "/tasks", viewers: ["Me"], site: "linear.app/launch/team/LCH/all" },
+    { row: 2, app: 2, path: "/tasks", viewers: ["Me"], site: "linear.app/symbol/team/DST/all" },
     {
         row: 3,
         app: 3,
         path: "/chat",
         viewers: ["Me", "Agent"],
-        site: "launchkit.slack.com/archives/launch",
+        site: "symbol.slack.com/archives/launch",
     },
     {
         row: 4,
         app: 4,
         path: "/code",
         viewers: ["Me", "Agent"],
-        site: "github.com/florian/launchkit",
+        site: "github.com/destack-sh/destack",
     },
     {
         row: 5,
         app: 1,
         path: "/",
         viewers: ["Me", "Agent", "Public"],
-        site: "florian.framer.website",
+        site: "destack.framer.website",
     },
     {
         row: 6,
         app: 6,
         path: "/book",
         viewers: ["Me", "Agent", "Public"],
-        site: "calendly.com/florian/30min",
+        site: "calendly.com/florian/destack-demo",
     },
     {
         row: 7,
         app: 7,
         path: "/waitlist",
         viewers: ["Me", "Agent", "Public"],
-        site: "florian-waitlist.replit.app",
+        site: "destack-waitlist.replit.app",
     },
 ];
 
 /** The sites you rent, as the browser's tabs while rented: the ledger row, the icon and its tint, and the tab's title. */
 const tabs: readonly (readonly [row: number, icon: string, tint: string, title: string])[] = [
-    [1, "notion", "#191919", "Launch plan"],
-    [2, "linear", "#5e6ad2", "Launch › All issues"],
-    [3, "slack", "#4a154b", "launch (Channel) - LaunchKit - Slack"],
-    [4, "github", "#181717", "florian/launchkit"],
-    [5, "framer", "#0a0a0a", "Florian · Portfolio"],
-    [6, "calendly", "#006bff", "30 Minute Meeting | Florian | Calendly"],
+    [1, "notion", "#191919", "Destack launch"],
+    [2, "linear", "#5e6ad2", "Destack › All issues"],
+    [3, "slack", "#4a154b", "launch (Channel) - Symbol - Slack"],
+    [4, "github", "#181717", "destack-sh/destack"],
+    [5, "framer", "#0a0a0a", "Destack · Take back your software"],
+    [6, "calendly", "#006bff", "Destack demo | Florian | Calendly"],
     [7, "replit", "#f26207", "Join the waitlist"],
 ];
 
@@ -714,10 +714,6 @@ const styles = style.create({
         transform: "scale(0.8)",
         transformOrigin: "0 0",
         width: "125%",
-    },
-    stack: {
-        display: "flex",
-        paddingLeft: "4px",
     },
     facePublic: {
         backgroundColor: color.muted,

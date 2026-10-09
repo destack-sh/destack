@@ -3,7 +3,6 @@ import { DEFAULT_PREFERENCES } from "@destack/theme";
 import type { ParentProps } from "@destack/view";
 import { AppearanceScript, Font, Viewport } from "@destack/view/document";
 import { HydrationScript } from "@destack/web/render";
-import "@destack/view/styles";
 import { mono, sans, sansItalics } from "./font.ts";
 import { theme } from "./theme.ts";
 

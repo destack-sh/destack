@@ -6,16 +6,16 @@ export const posts: readonly (readonly [
     from: string,
     to: string,
 ])[] = [
-    ["What we learned shipping pricing v4", "Product", "Oct 18, 2025", "#e9b384", "#c4683a"],
+    ["Introducing Destack", "Product", "Oct 18, 2025", "#e9b384", "#c4683a"],
     ["Notes from demo day", "Events", "Oct 9, 2025", "#9fc3c9", "#3f7d88"],
     ["Why I moved my tools home", "Tools", "Sep 30, 2025", "#c9c39f", "#6f7a3f"],
 ];
 
 /** What the waitlist promises: a short title and its line. */
 export const perks: readonly (readonly [title: string, line: string])[] = [
-    ["Early pricing", "Lock in v4 at the launch rate"],
+    ["Early pricing", "Lock in the launch rate"],
     ["First invites", "1,840 people, in batches from Thursday"],
-    ["A direct line", "Book a call with the founders"],
+    ["A direct line", "Book a call with Florian"],
 ];
 
 /** The faces of the latest people to join the waitlist: an initial and a tint. */
@@ -50,7 +50,7 @@ export const month = {
 /** The free times on the chosen day. */
 export const times: readonly string[] = ["09:30", "10:00", "11:30", "15:00", "16:30"];
 
-/** The launch plan's checklist: the item and whether it is done. */
+/** The Destack launch plan's checklist: the item and whether it is done. */
 export const launch: readonly (readonly [item: string, isDone: boolean])[] = [
     ["Freeze the pricing page", true],
     ["Record the demo", false],
@@ -70,12 +70,12 @@ export const tasks: readonly (readonly [
     tint: string,
     due: string,
 ])[] = [
-    ["LCH-12", "Pricing page", "done", "F", "#2f7d8c", "Oct 20"],
-    ["LCH-14", "Record the demo", "started", "F", "#2f7d8c", "Oct 23"],
-    ["LCH-16", "Waitlist email", "review", "A", "#6b5ca5", "Oct 23"],
-    ["LCH-13", "Turn on the new prices", "todo", "F", "#2f7d8c", "Oct 24"],
-    ["LCH-15", "Draft the launch post", "todo", "A", "#6b5ca5", "Oct 24"],
-    ["LCH-17", "Open signups", "todo", "F", "#2f7d8c", "Oct 24"],
+    ["DST-12", "Pricing page", "done", "F", "#2f7d8c", "Oct 20"],
+    ["DST-14", "Record the demo", "started", "F", "#2f7d8c", "Oct 23"],
+    ["DST-16", "Waitlist email", "review", "A", "#6b5ca5", "Oct 23"],
+    ["DST-13", "Turn on pricing", "todo", "F", "#2f7d8c", "Oct 24"],
+    ["DST-15", "Draft the launch post", "todo", "A", "#6b5ca5", "Oct 24"],
+    ["DST-17", "Open signups", "todo", "F", "#2f7d8c", "Oct 24"],
 ];
 
 /** The launch channel's messages: who wrote it, when, and what they said. */
@@ -85,7 +85,7 @@ export const messages: readonly (readonly [
     text: string,
 ])[] = [
     ["Florian", "09:12", "Can we move the demo to Wednesday? Thursday is the waitlist send."],
-    ["Agent", "09:13", "Moved it to Wed 11:00 and updated LCH-14 and the launch plan."],
+    ["Agent", "09:13", "Moved it to Wed 11:00 and updated DST-14 and the launch plan."],
     [
         "Agent",
         "09:40",
@@ -96,9 +96,9 @@ export const messages: readonly (readonly [
 
 /** The source of your apps: the path, its last change, and when. */
 export const sources: readonly (readonly [name: string, change: string, when: string])[] = [
-    ["apps/waitlist", "Mail the first batch on Thursday", "2h ago"],
-    ["apps/site", "Add the Waitlist section", "yesterday"],
-    ["apps/my-week", "Show a friend's free slots", "Oct 20"],
+    ["@platform/waitlist", "Mail the first batch on Thursday", "2h ago"],
+    ["@platform/site", "Add the waitlist section", "yesterday"],
+    ["@app/tasks", "Add the launch board", "Oct 22"],
     ["destack.json", "Share Code with the agent", "Oct 18"],
     ["README.md", "Launch checklist", "Oct 14"],
 ];
@@ -118,7 +118,7 @@ export const week: readonly WeekBlock[] = [
     [0, 14, 15, "Pricing review", false],
     [1, 10, 11, "Bookable", true],
     [1, 15, 16.5, "Bookable", true],
-    [2, 11, 12, "Demo · LCH-14", false],
+    [2, 11, 12, "Demo · DST-14", false],
     [2, 13, 14, "Bookable", true],
     [3, 9, 10, "Invites · 400", false],
     [3, 16, 17, "Bookable", true],

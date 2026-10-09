@@ -18,7 +18,7 @@ const metadata = defineMetadata({
     title: { template: "%s | Destack", default: "Destack" },
     description: tagline,
     applicationName: "Destack",
-    openGraph: { type: "website", siteName: "Destack", images: ["/og.png"] },
+    openGraph: { type: "website", siteName: "Destack", images: ["/brand/banner/og.png"] },
     twitter: { card: "summary_large_image" },
     icons: {
         icon: [
@@ -30,7 +30,7 @@ const metadata = defineMetadata({
     manifest: "/manifest.webmanifest",
 });
 
-/** Lay out every page in the site frame, with the site's one goo field behind its goo cells. */
+/** Lay out every page in the site frame, with the site's one goo field under the bars that hold its goo cells. */
 export function Layout(properties: RouteSectionProps) {
     // open each destination on its key combination, leaving the site in a new tab
     const navigate = useNavigate();

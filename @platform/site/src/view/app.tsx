@@ -1,3 +1,4 @@
+import "@destack/view/styles";
 import { createRouter, defineRoutes } from "@destack/view/router";
 
 import { Layout } from "./layout/layout";

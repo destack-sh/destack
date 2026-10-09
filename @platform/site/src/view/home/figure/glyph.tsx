@@ -1,5 +1,8 @@
 import * as style from "@destack/style";
 
+/** The lightest a mark's tint gets on dark fields, an OKLCH lightness that reads on the night water. */
+const DARK_LIGHTNESS = 0.8;
+
 /** A glyph the browser and its pages draw. */
 type GlyphName =
     | "back"
@@ -135,7 +138,7 @@ export function Glyph(properties: { name: GlyphName; size?: number; weight?: num
     );
 }
 
-/** Draw a brand or app icon from the diagram set in its colour, at a size in pixels. */
+/** Draw a brand or app icon from the diagram set in its colour, lifted on dark fields, at a size in pixels. */
 export function Favicon(properties: { icon: string; tint: string; size?: number }) {
     const size = () => `${properties.size ?? 14}px`;
 
@@ -144,7 +147,7 @@ export function Favicon(properties: { icon: string; tint: string; size?: number 
             aria-hidden="true"
             style={{
                 "mask-image": `url(/diagram/${properties.icon}.svg)`,
-                "background-color": properties.tint,
+                "background-color": `light-dark(${properties.tint}, oklch(from ${properties.tint} max(l, ${DARK_LIGHTNESS}) c h))`,
                 height: size(),
                 width: size(),
             }}

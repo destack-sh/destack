@@ -2,10 +2,11 @@ import { media } from "@destack/style/media.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createEffect } from "@destack/view";
+import { createEffect, createMemo, For } from "@destack/view";
 
 import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
+import type { Entry } from "../figure/ledger";
 import { palette } from "../../palette.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 
@@ -14,23 +15,72 @@ type App = { name: string; icon: string; tint: string };
 
 /** The apps a space comes with, by the job they do. */
 const apps = {
-    home: { name: "Home", icon: "user", tint: "#2f7d8c" },
     pages: { name: "Pages", icon: "pages", tint: "#3d6fb0" },
     tasks: { name: "Tasks", icon: "tasks", tint: "#c64a17" },
     calendar: { name: "Calendar", icon: "calendar", tint: "#c64a17" },
     files: { name: "Files", icon: "bucket", tint: "#2f7d8c" },
     tables: { name: "Tables", icon: "table", tint: "#4f8a5b" },
-    forms: { name: "Forms", icon: "template", tint: "#b8862b" },
     canvas: { name: "Canvas", icon: "vector", tint: "#a0485f" },
     workflows: { name: "Workflows", icon: "sync", tint: "#4f8a5b" },
     vault: { name: "Vault", icon: "vault", tint: "#12313c" },
     chat: { name: "Chat", icon: "chat", tint: "#4f8a5b" },
     mail: { name: "Mail", icon: "mail", tint: "#3d6fb0" },
-    forge: { name: "Forge", icon: "source", tint: "#c64a17" },
 } satisfies Record<string, App>;
+
+/** The job each app does, as the tally labels its row. */
+const jobLabels: Record<Job, string> = {
+    pages: "Docs and sites",
+    tasks: "Tasks",
+    calendar: "Booking",
+    files: "Files",
+    tables: "Tables",
+    canvas: "Design",
+    workflows: "Automation",
+    vault: "Passwords",
+    chat: "Chat",
+    mail: "Mail",
+};
 
 /** A job a space's app does. */
 type Job = keyof typeof apps;
+
+/** The apps every space holds, in the order the space sets them. */
+const spaceJobs: readonly Job[] = [
+    "pages",
+    "tasks",
+    "calendar",
+    "files",
+    "tables",
+    "canvas",
+    "workflows",
+    "vault",
+    "chat",
+    "mail",
+];
+
+/** The tally's rows for the services your space connects to: the label, the services, what your space does in their place, and its note with and without them. */
+const connections: readonly (readonly [
+    label: string,
+    names: readonly string[],
+    app: App,
+    note: (list: string) => string,
+    idle: string,
+])[] = [
+    [
+        "Agents",
+        ["ChatGPT", "Claude"],
+        { name: "Agents", icon: "agent", tint: "#6b5ca5" },
+        (list) => `run with ${list}`,
+        "bring your own",
+    ],
+    [
+        "Code and cloud",
+        ["GitHub", "AWS"],
+        { name: "Forge + Hosting", icon: "source", tint: "#c64a17" },
+        (list) => `connects ${list}`,
+        "included",
+    ],
+];
 
 /** A tool's face on the wall: its icon, its name, and its tint. */
 type Face = { icon: string; name: string; tint: string };
@@ -39,33 +89,20 @@ type Face = { icon: string; name: string; tint: string };
 type Tool =
     | (Face & { kind: "replace"; job: Job })
     | (Face & { kind: "both"; job: Job; status: string })
-    | (Face & { kind: "connect"; status: string });
+    | (Face & { kind: "connect"; role: string; status: string });
 
 /** The tools your space replaces with its own apps. */
 const replaced: readonly Tool[] = [
     { icon: "notion", name: "Notion", tint: "#000000", kind: "replace", job: "pages" },
     { icon: "googledocs", name: "Google Docs", tint: "#4285f4", kind: "replace", job: "pages" },
-    { icon: "confluence", name: "Confluence", tint: "#172b4d", kind: "replace", job: "pages" },
-    { icon: "coda", name: "Coda", tint: "#f46a54", kind: "replace", job: "pages" },
-    { icon: "gamma", name: "Gamma", tint: "#000000", kind: "replace", job: "pages" },
-    {
-        icon: "googleslides",
-        name: "Google Slides",
-        tint: "#fbbc04",
-        kind: "replace",
-        job: "pages",
-    },
     { icon: "framer", name: "Framer", tint: "#0a0a0a", kind: "replace", job: "pages" },
     { icon: "webflow", name: "Webflow", tint: "#146ef5", kind: "replace", job: "pages" },
-    { icon: "squarespace", name: "Squarespace", tint: "#000000", kind: "replace", job: "pages" },
     { icon: "linear", name: "Linear", tint: "#5e6ad2", kind: "replace", job: "tasks" },
     { icon: "jira", name: "Jira", tint: "#0052cc", kind: "replace", job: "tasks" },
     { icon: "asana", name: "Asana", tint: "#f06a6a", kind: "replace", job: "tasks" },
     { icon: "trello", name: "Trello", tint: "#0052cc", kind: "replace", job: "tasks" },
-    { icon: "monday", name: "Monday", tint: "#6161ff", kind: "replace", job: "tasks" },
     { icon: "calendly", name: "Calendly", tint: "#006bff", kind: "replace", job: "calendar" },
     { icon: "dropbox", name: "Dropbox", tint: "#0061ff", kind: "replace", job: "files" },
-    { icon: "box", name: "Box", tint: "#0061d5", kind: "replace", job: "files" },
     { icon: "airtable", name: "Airtable", tint: "#18bfff", kind: "replace", job: "tables" },
     {
         icon: "googlesheets",
@@ -75,11 +112,8 @@ const replaced: readonly Tool[] = [
         job: "tables",
     },
     { icon: "hubspot", name: "HubSpot", tint: "#ff7a59", kind: "replace", job: "tables" },
-    { icon: "googleforms", name: "Google Forms", tint: "#7248b9", kind: "replace", job: "forms" },
     { icon: "slack", name: "Slack", tint: "#4a154b", kind: "replace", job: "chat" },
     { icon: "superhuman", name: "Superhuman", tint: "#000000", kind: "replace", job: "mail" },
-    { icon: "intercom", name: "Intercom", tint: "#1f8ded", kind: "replace", job: "chat" },
-    { icon: "zendesk", name: "Zendesk", tint: "#03363d", kind: "replace", job: "mail" },
     { icon: "mailchimp", name: "Mailchimp", tint: "#241c15", kind: "replace", job: "mail" },
     { icon: "figma", name: "Figma", tint: "#f24e1e", kind: "replace", job: "canvas" },
     { icon: "miro", name: "Miro", tint: "#050038", kind: "replace", job: "canvas" },
@@ -118,18 +152,40 @@ const either: readonly Tool[] = [
     },
 ];
 
-/** The services your space runs alongside and connects to. */
+/** The services your space connects to: the agents that work in it, the cloud it runs on, and mirrors. */
 const foundations: readonly Tool[] = [
-    { icon: "openai", name: "ChatGPT", tint: "#000000", kind: "connect", status: "signed in" },
-    { icon: "claude", name: "Claude", tint: "#d97757", kind: "connect", status: "signed in" },
+    {
+        icon: "openai",
+        name: "ChatGPT",
+        tint: "#000000",
+        kind: "connect",
+        role: "Agent",
+        status: "your agent",
+    },
+    {
+        icon: "claude",
+        name: "Claude",
+        tint: "#d97757",
+        kind: "connect",
+        role: "Agent",
+        status: "your agent",
+    },
     {
         icon: "github",
         name: "GitHub",
         tint: "#181717",
         kind: "connect",
-        status: "florian/site mirrored",
+        role: "Code",
+        status: "mirrored",
     },
-    { icon: "aws", name: "AWS", tint: "#ff9900", kind: "connect", status: "eu-central-1" },
+    {
+        icon: "aws",
+        name: "AWS",
+        tint: "#ff9900",
+        kind: "connect",
+        role: "Cloud",
+        status: "where it runs",
+    },
 ];
 
 /** The order the wall sets its tools in, a row to each family: the startup stack, the work trackers, Google, the customer-facing sites, and the rest with the services your space connects to. */
@@ -143,10 +199,8 @@ const order: readonly string[] = [
     "Granola",
     "Loom",
     "Jira",
-    "Confluence",
     "Trello",
     "Asana",
-    "Monday",
     "Airtable",
     "Miro",
     "Zapier",
@@ -155,20 +209,12 @@ const order: readonly string[] = [
     "Google Drive",
     "Google Docs",
     "Google Sheets",
-    "Google Slides",
-    "Google Forms",
     "Calendly",
     "Framer",
     "Webflow",
-    "Squarespace",
     "HubSpot",
     "Mailchimp",
-    "Intercom",
-    "Zendesk",
-    "Gamma",
     "Dropbox",
-    "Box",
-    "Coda",
     "n8n",
     "1Password",
     "ChatGPT",
@@ -201,13 +247,10 @@ export const firstPicks: readonly string[] = [
 const accounts: Record<string, string> = {
     "Google Docs": "Google",
     "Google Sheets": "Google",
-    "Google Forms": "Google",
-    "Google Slides": "Google",
     "Google Calendar": "Google",
     "Google Drive": "Google",
     Gmail: "Google",
     Jira: "Atlassian",
-    Confluence: "Atlassian",
     Trello: "Atlassian",
 };
 
@@ -215,8 +258,6 @@ const accounts: Record<string, string> = {
 const pictures: Record<string, string> = {
     Superhuman: "/logos/superhuman.png",
     Granola: "/logos/granola.png",
-    Gamma: "/logos/gamma.svg",
-    Monday: "/logos/monday.png",
 };
 
 /** Count the logins a set of tools needs, one per account they sign in with. */
@@ -254,12 +295,12 @@ function statusOf(tool: Tool): string | undefined {
 type Cell =
     | { kind: "tool"; key: string; tool: Tool; isPicked: boolean }
     | { kind: "app"; key: string; job: Job; sources: readonly Tool[] }
-    | { kind: "link"; key: string; tool: Tool };
+    | { kind: "link"; key: string; tool: Tool; isPicked: boolean };
 
 /** The cells to a row of the wall. */
-const perRow = 8;
+const perRow = 6;
 
-/** Lay out the wall: every tool on its own while stacked, or once destacked only your space, the picked tools merged into their apps and the ones it connects to. */
+/** Lay out the wall: every tool on its own while stacked, or once destacked every app your space holds with the picked tools it replaces, and every service it connects to. */
 function cellsOf(picks: readonly string[], isOpen: boolean): readonly Cell[] {
     // set every tool on its own while stacked
     if (!isOpen) {
@@ -271,30 +312,31 @@ function cellsOf(picks: readonly string[], isOpen: boolean): readonly Cell[] {
         }));
     }
 
-    // merge the picked tools into their apps, then the connections
+    // set every app your space holds with the picked tools it replaces, then every service it connects to
     const picked = tools.filter((tool) => picks.includes(tool.name));
-    const jobs = [
-        ...new Set(
-            picked.flatMap((tool) => {
-                const job = jobOf(tool);
 
-                return job === undefined ? [] : [job];
-            }),
-        ),
-    ];
-
-    // set the apps your tools merged into, then the services your space connects to
     return [
-        ...jobs.map((job): Cell => ({
+        ...spaceJobs.map((job): Cell => ({
             kind: "app",
             key: `app:${job}`,
             job,
             sources: picked.filter((tool) => jobOf(tool) === job),
         })),
-        ...picked
-            .filter((tool) => tool.kind === "connect")
-            .map((tool): Cell => ({ kind: "link", key: tool.name, tool })),
+        ...foundations.map((tool): Cell => ({
+            kind: "link",
+            key: tool.name,
+            tool,
+            isPicked: picks.includes(tool.name),
+        })),
     ];
+}
+
+/** Describe what a cell shows, so a cell that shows the same thing keeps its object across layouts. */
+function signatureOf(cell: Cell) {
+    // name the kind and key, then the tools an app took over or the pick of a tool or service
+    return cell.kind === "app"
+        ? `${cell.kind}:${cell.key}:${cell.sources.map((tool) => tool.name).join(",")}`
+        : `${cell.kind}:${cell.key}:${String(cell.isPicked)}`;
 }
 
 /** Return the key of the cell a cell grows out of: an app out of its first tool, and every other cell out of itself. */
@@ -330,8 +372,8 @@ export function ToolWall(properties: {
     isOpen: boolean;
     onPick: (name: string) => void;
 }) {
-    // hold the grid and where each cell sat at the last layout
-    let grid: HTMLUListElement | undefined;
+    // hold the wall and where each cell sat at the last layout
+    let wall: HTMLDivElement | undefined;
     let places = new Map<string, DOMRect>();
 
     // move each cell from where it sat to where it sits now, once the new layout has painted
@@ -339,32 +381,64 @@ export function ToolWall(properties: {
         () => ({ isOpen: properties.isOpen, picks: properties.picks }),
         () => {
             const frame = requestAnimationFrame(() => {
-                if (!grid) {
+                if (!wall) {
                     return;
                 }
-                places = move(grid, places);
+                places = move(wall, places);
             });
 
             return () => cancelAnimationFrame(frame);
         },
     );
 
+    // lay out the cells, keeping each unchanged cell's object so only changed cells render again
+    let previous = new Map<string, Cell>();
+    const cells = createMemo(() => {
+        const next = cellsOf(properties.picks, properties.isOpen).map((cell) => {
+            const kept = previous.get(cell.key);
+
+            return kept !== undefined && signatureOf(kept) === signatureOf(cell) ? kept : cell;
+        });
+        previous = new Map(next.map((cell) => [cell.key, cell]));
+
+        return next;
+    });
+    const list = (each: () => readonly Cell[]) => (
+        <For each={each()} keyed={(cell) => cell.key}>
+            {(cell) => (
+                <CellView cell={cell()} isOpen={properties.isOpen} onPick={properties.onPick} />
+            )}
+        </For>
+    );
+
     return (
         <div
+            ref={wall}
             data-component="ToolWall"
-            {...style.attrs(styles.wall, !properties.isOpen && styles.wallFull)}
+            {...style.attrs(styles.wall, properties.isOpen ? styles.wallOpen : styles.wallFull)}
         >
-            <ul ref={grid} {...style.attrs(styles.grid, properties.isOpen && styles.space)}>
-                {cellsOf(properties.picks, properties.isOpen).map((cell) => (
-                    <CellView cell={cell} isOpen={properties.isOpen} onPick={properties.onPick} />
-                ))}
-            </ul>
             {properties.isOpen ? (
                 <>
-                    <Outside picks={properties.picks} onPick={properties.onPick} />
-                    <Included />
+                    <section data-component="Space" {...style.attrs(styles.box)}>
+                        <span {...style.attrs(styles.boxBar)}>
+                            <Favicon icon="user" tint={color.mutedForeground} size={12} />
+                            destack.app/@florian
+                        </span>
+                        <ul {...style.attrs(styles.grid, styles.space)}>
+                            {list(() => cells().filter((cell) => cell.kind === "app"))}
+                        </ul>
+                        <Included />
+                    </section>
+                    <section {...style.attrs(styles.group)}>
+                        <span {...style.attrs(styles.groupName)}>Connected</span>
+                        <ul {...style.attrs(styles.grid, styles.space, styles.links)}>
+                            {list(() => cells().filter((cell) => cell.kind === "link"))}
+                        </ul>
+                    </section>
                 </>
-            ) : undefined}
+            ) : (
+                <ul {...style.attrs(styles.grid)}>{list(cells)}</ul>
+            )}
         </div>
     );
 }
@@ -381,83 +455,30 @@ const included: readonly (readonly [icon: string, name: string, line: string])[]
     ["source", "Forge", "every app's source, forkable"],
 ];
 
-/** Draw what every space includes besides its apps, in the room the replaced tools left. */
+/** Draw what every space includes besides its apps, as a band along the bottom of the space. */
 function Included() {
     return (
-        <section data-component="Included" {...style.attrs(styles.included)}>
-            <span {...style.attrs(styles.includedName)}>Included in every space</span>
-            <ul {...style.attrs(styles.includedGrid)}>
+        <div data-component="Included" {...style.attrs(styles.band)}>
+            <span {...style.attrs(styles.groupName)}>Included</span>
+            <ul {...style.attrs(styles.bandItems)}>
                 {included.map(([icon, name, line], index) => (
-                    <li {...style.attrs(styles.includedItem, styles.includedDelay(index))}>
-                        <Favicon icon={icon} tint={color.foreground} size={16} />
-                        <span {...style.attrs(styles.includedWords)}>
-                            <b>{name}</b>
-                            <span {...style.attrs(styles.includedLine)}>{line}</span>
-                        </span>
+                    <li title={line} {...style.attrs(styles.bandItem, styles.includedDelay(index))}>
+                        <Favicon icon={icon} tint={color.foreground} size={14} />
+                        {name}
                     </li>
                 ))}
             </ul>
-        </section>
-    );
-}
-
-/** Draw the tools outside your space as two strips of small logos: the ones you destacked struck through, and the rest still there to destack. */
-function Outside(properties: { picks: readonly string[]; onPick: (name: string) => void }) {
-    // split the tools into the ones you destacked and the ones you could add
-    const isDestacked = (tool: Tool) =>
-        properties.picks.includes(tool.name) && tool.kind !== "connect";
-    const destacked = () => tools.filter((tool) => isDestacked(tool));
-    const rest = () => tools.filter((tool) => !properties.picks.includes(tool.name));
-
-    return (
-        <div data-component="Outside" {...style.attrs(styles.behind)}>
-            <span {...style.attrs(styles.line)}>
-                <span {...style.attrs(styles.behindName)}>Destacked</span>
-                <Chips tools={destacked()} isStruck={true} onPick={properties.onPick} />
-            </span>
-            <span {...style.attrs(styles.line)}>
-                <span {...style.attrs(styles.behindName)}>Destack more</span>
-                <span {...style.attrs(styles.more)}>
-                    <Chips tools={rest()} isStruck={false} onPick={properties.onPick} />
-                </span>
-            </span>
         </div>
     );
 }
 
-/** Draw tools as small logo keys that pick or drop each one. */
-function Chips(properties: {
-    tools: readonly Tool[];
-    isStruck: boolean;
-    onPick: (name: string) => void;
-}) {
-    return (
-        <ul {...style.attrs(styles.strip)}>
-            {properties.tools.map((tool) => (
-                <li>
-                    <button
-                        type="button"
-                        title={tool.name}
-                        aria-label={tool.name}
-                        aria-pressed={properties.isStruck ? "true" : "false"}
-                        onClick={() => properties.onPick(tool.name)}
-                        {...style.attrs(styles.chip, properties.isStruck && styles.chipLeft)}
-                    >
-                        <ToolMark tool={tool} size={18} />
-                    </button>
-                </li>
-            ))}
-        </ul>
-    );
-}
-
 /** Move every cell of the grid from its last place to its new one, and return the new places. */
-function move(grid: HTMLUListElement, last: ReadonlyMap<string, DOMRect>) {
-    // measure the new places against the grid
-    const origin = grid.getBoundingClientRect();
+function move(wall: HTMLElement, last: ReadonlyMap<string, DOMRect>) {
+    // measure the new places against the wall
+    const origin = wall.getBoundingClientRect();
     const places = new Map<string, DOMRect>();
-    const isStill = isMotionReduced(grid);
-    const cells = [...grid.querySelectorAll<HTMLElement>("[data-key]")];
+    const isStill = isMotionReduced(wall);
+    const cells = [...wall.querySelectorAll<HTMLElement>("[data-key]")];
 
     // slide each cell in from where it, or the tool it grew out of, sat before
     cells.forEach((element, index) => {
@@ -525,7 +546,11 @@ function CellView(properties: { cell: Cell; isOpen: boolean; onPick: (name: stri
     const cell = () => properties.cell;
 
     return (
-        <li data-key={cell().key} data-from={originOf(cell())} {...style.attrs(styles.cell)}>
+        <li
+            data-key={cell().key}
+            data-from={originOf(cell())}
+            {...style.attrs(styles.cell, properties.isOpen && styles.spaceCell)}
+        >
             {contentOf(cell(), properties.onPick)}
         </li>
     );
@@ -537,7 +562,15 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
         const app = apps[cell.job];
 
         return (
-            <span data-component="SpaceApp" {...style.attrs(styles.face, styles.tool, styles.app)}>
+            <span
+                data-component="SpaceApp"
+                {...style.attrs(
+                    styles.face,
+                    styles.tool,
+                    styles.app,
+                    cell.sources.length > 0 && styles.picked,
+                )}
+            >
                 <span style={{ "background-color": app.tint }} {...style.attrs(styles.appIcon)}>
                     <Favicon icon={app.icon} tint="#ffffff" size={18} />
                 </span>
@@ -553,16 +586,14 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
         return (
             <button
                 type="button"
-                aria-pressed="true"
-                title={`Connected · ${statusOf(cell.tool) ?? ""}`}
+                aria-pressed={cell.isPicked ? "true" : "false"}
+                title={statusOf(cell.tool)}
                 onClick={() => onPick(cell.tool.name)}
-                {...style.attrs(styles.face, styles.tool, styles.link)}
+                {...style.attrs(styles.face, styles.link, !cell.isPicked && styles.linkIdle)}
             >
-                <ToolMark tool={cell.tool} size={28} />
+                <ToolMark tool={cell.tool} size={18} />
                 <span {...style.attrs(styles.toolName)}>{cell.tool.name}</span>
-                <span {...style.attrs(styles.sources)}>
-                    <span {...style.attrs(styles.dot)} />
-                </span>
+                {cell.isPicked ? <span {...style.attrs(styles.dot)} /> : undefined}
             </button>
         );
     }
@@ -575,20 +606,93 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
             {...style.attrs(styles.face, styles.tool, cell.isPicked && styles.picked)}
         >
             <ToolMark tool={cell.tool} size={28} />
-            <span {...style.attrs(styles.toolName)}>{cell.tool.name}</span>
+            <span {...style.attrs(styles.toolName, styles.toolNameWrapped)}>{cell.tool.name}</span>
         </button>
     );
 }
 
-/** Count what the picks add up to: tools and their logins while stacked, or apps and the one login once destacked. */
-export function countOf(picks: readonly string[], isOpen: boolean) {
-    // gather the picked tools and the apps they merge into
+/** Tally the picks a row to each job your space does: the picked tools that do it while stacked, and the app or service that takes it over once destacked. */
+export function tallyOf(picks: readonly string[]): readonly Entry[] {
+    // gather the picked tools
     const picked = tools.filter((tool) => picks.includes(tool.name));
-    const jobs = new Set(picked.flatMap((tool) => (tool.kind === "connect" ? [] : [tool.job])));
+
+    // set a row for each app, then one for each group of connections
+    return [
+        ...spaceJobs.map((job) =>
+            entryOf(
+                jobLabels[job],
+                picked.filter((tool) => jobOf(tool) === job),
+                apps[job],
+                (list) => `replaces ${list}`,
+                "included",
+            ),
+        ),
+        ...connections.map(([label, names, app, note, idle]) =>
+            entryOf(
+                label,
+                picked.filter((tool) => names.includes(tool.name)),
+                app,
+                note,
+                idle,
+            ),
+        ),
+    ];
+}
+
+/** Set one tally row: the tools you picked for a job while stacked, and what your space does in their place once destacked. */
+function entryOf(
+    label: string,
+    doers: readonly Tool[],
+    app: App,
+    note: (list: string) => string,
+    idle: string,
+): Entry {
+    // name the picked tools and count their logins
+    const logins = loginsOf(doers);
+    const [first] = doers;
+    const list = doers.length <= 2 ? listOf(doers) : `${doers.length} apps`;
+
+    return {
+        stacked: {
+            label,
+            mark:
+                first === undefined
+                    ? [{ placeholder: app.icon }]
+                    : doers.slice(0, 3).map((tool) => ({ icon: tool.icon, tint: tool.tint })),
+            name:
+                first === undefined
+                    ? "None"
+                    : doers.length === 1
+                      ? first.name
+                      : `${doers.length} apps`,
+            chips: [],
+            note:
+                first === undefined
+                    ? "pick one to compare"
+                    : `${logins} ${logins === 1 ? "login" : "logins"}`,
+        },
+        destacked: {
+            label,
+            mark: { icon: app.icon, tint: app.tint },
+            name: app.name,
+            chips: [],
+            note: first === undefined ? idle : note(list),
+        },
+    };
+}
+
+/** Total the picks: their tools and logins and their accounts and invoices while stacked, or one space with every app, one account and one invoice once destacked. */
+export function totalOf(picks: readonly string[], isOpen: boolean): readonly [string, string] {
+    // count the picked tools and the logins they need
+    const picked = tools.filter((tool) => picks.includes(tool.name));
+    const logins = loginsOf(picked);
 
     return isOpen
-        ? `${jobs.size} ${jobs.size === 1 ? "app" : "apps"}, 1 login`
-        : `${picked.length} tools, ${loginsOf(picked)} logins`;
+        ? [`${spaceJobs.length} apps, 1 space`, "1 account · 1 invoice"]
+        : [
+              `${picked.length} tools, ${logins} logins`,
+              `${logins} accounts · ${picked.length} invoices`,
+          ];
 }
 
 /** Write the prompt that sets up a space, brings in the picked tools it replaces, and connects the rest. */
@@ -638,85 +742,81 @@ const styles = style.create({
     wallFull: {
         gridTemplateRows: "minmax(0, 1fr)",
     },
-    behind: {
-        alignSelf: "start",
+    wallOpen: {
+        gridTemplateRows: "minmax(0, 1fr) auto",
+    },
+    box: {
+        borderColor: color.border,
+        borderRadius: "10px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr) auto",
+        gap: "0.875rem",
+        padding: "0.875rem",
+    },
+    boxBar: {
+        alignItems: "center",
+        color: color.mutedForeground,
+        display: "flex",
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        gap: "0.375rem",
+    },
+    band: {
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
         display: "grid",
         gap: "0.625rem",
-        minWidth: 0,
+        paddingTop: "0.75rem",
     },
-    line: {
-        alignItems: "center",
-        display: "grid",
-        gap: "0.75rem",
-        gridTemplateColumns: "6.5rem minmax(0, 1fr)",
-        minWidth: 0,
-    },
-    behindName: {
-        color: color.mutedForeground,
-        flexShrink: 0,
-        fontFamily: font.code,
-        fontSize: "0.625rem",
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-    },
-    more: {
+    bandItems: {
+        rowGap: "0.5rem",
         display: "flex",
-        flexGrow: 1,
-        maskImage: "linear-gradient(90deg, black calc(100% - 3rem), transparent)",
-        minWidth: 0,
-        overflow: "hidden",
-    },
-    strip: {
-        display: "flex",
-        flexWrap: "nowrap",
-        flexShrink: 1,
-        minWidth: 0,
-        overflow: "hidden",
-        gap: "0.125rem",
+        flexWrap: "wrap",
+        columnGap: "0.875rem",
         listStyle: "none",
         margin: 0,
         padding: 0,
     },
-    chip: {
+    bandItem: {
+        whiteSpace: "nowrap",
         alignItems: "center",
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
-        },
-        borderRadius: "6px",
-        borderWidth: 0,
-        cursor: "pointer",
+        animationDuration: "420ms",
+        animationFillMode: "both",
+        animationName: { default: rise, [media.motionReduce]: "none" },
+        animationTimingFunction: landing,
         display: "flex",
-        height: "1.625rem",
-        justifyContent: "center",
-        opacity: { default: 0.55, ":hover": { default: null, [media.hover]: 1 } },
-        position: "relative",
-        transition: `opacity 160ms ${landing}, background-color 160ms ${landing}`,
-        width: "1.625rem",
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        gap: "0.375rem",
     },
-    chipLeft: {
-        filter: "grayscale(1)",
-        opacity: { default: 0.35, ":hover": { default: null, [media.hover]: 1 } },
-        "::after": {
-            backgroundColor: color.foreground,
-            content: "''",
-            height: "1.5px",
-            left: "15%",
-            position: "absolute",
-            rotate: "-35deg",
-            top: "50%",
-            width: "70%",
-        },
+    group: {
+        alignContent: "start",
+        display: "grid",
+        gap: "0.75rem",
+        minWidth: 0,
+    },
+    groupName: {
+        color: color.mutedForeground,
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
     },
     grid: {
-        backgroundColor: color.background,
+        backgroundColor: color.border,
         borderColor: color.border,
         borderStyle: "solid",
         borderWidth: stroke.border,
         display: "grid",
         gap: stroke.border,
         gridAutoFlow: "row dense",
-        gridAutoRows: { default: "minmax(0, 1fr)", [media.maxMd]: "5rem" },
+        gridAutoRows: {
+            default: "minmax(5.75rem, 1fr)",
+            [media.maxMd]: "5rem",
+        },
         gridTemplateColumns: {
             default: `repeat(${perRow}, minmax(0, 1fr))`,
             [media.maxMd]: "repeat(4, minmax(0, 1fr))",
@@ -731,62 +831,39 @@ const styles = style.create({
         display: "grid",
         minHeight: 0,
         minWidth: 0,
-        boxShadow: `0 0 0 ${stroke.border} ${color.border}`,
     },
     space: {
+        backgroundColor: "transparent",
         borderWidth: 0,
+        gap: "0.75rem",
         gridAutoFlow: "row",
-        gridAutoRows: "6.9375rem",
-    },
-    included: {
-        alignSelf: "end",
-        borderTopColor: color.border,
-        borderTopStyle: "solid",
-        borderTopWidth: stroke.border,
-        display: "grid",
-        gap: "1rem",
-        paddingTop: "1.125rem",
-    },
-    includedName: {
-        color: color.mutedForeground,
-        fontFamily: font.code,
-        fontSize: "0.625rem",
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-    },
-    includedGrid: {
-        display: "grid",
-        rowGap: "1.125rem",
-        columnGap: "2rem",
+        gridAutoRows: { default: "minmax(5.75rem, 1fr)", [media.maxMd]: "5.75rem" },
         gridTemplateColumns: {
-            default: "repeat(4, minmax(0, 1fr))",
+            default: "repeat(5, minmax(0, 1fr))",
             [media.maxMd]: "repeat(2, minmax(0, 1fr))",
         },
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
+    },
+    linkIdle: {
+        backgroundColor: "transparent",
+        color: color.mutedForeground,
+        opacity: { default: 0.6, ":hover": { default: null, [media.hover]: 1 } },
+    },
+    links: {
+        gridAutoColumns: "max-content",
+        gridAutoRows: "2.75rem",
+        gridAutoFlow: { default: "column", [media.maxMd]: "row" },
+        gridTemplateColumns: { default: "none", [media.maxMd]: "repeat(2, minmax(0, 1fr))" },
+    },
+    spaceCell: {
+        borderColor: color.border,
+        borderRadius: "8px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        overflow: "hidden",
     },
     includedDelay: (index: number) => ({
         animationDelay: `${220 + index * 40}ms`,
     }),
-    includedItem: {
-        alignItems: "flex-start",
-        animationDuration: "420ms",
-        animationFillMode: "both",
-        animationName: { default: rise, [media.motionReduce]: "none" },
-        animationTimingFunction: landing,
-        display: "flex",
-        gap: "0.625rem",
-    },
-    includedWords: {
-        display: "grid",
-        fontSize: "0.8125rem",
-        gap: "0.125rem",
-    },
-    includedLine: {
-        color: color.mutedForeground,
-        fontSize: "0.75rem",
-    },
     face: {
         alignItems: "center",
         backgroundColor: "transparent",
@@ -824,6 +901,11 @@ const styles = style.create({
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
+    },
+    toolNameWrapped: {
+        lineHeight: 1.2,
+        textAlign: "center",
+        whiteSpace: "normal",
     },
     app: {
         backgroundColor: color.card,

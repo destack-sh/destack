@@ -2,7 +2,7 @@ import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { services, WeekApp } from "./week";
+import { LaunchBoard, services } from "./board";
 import { Inspector } from "../figure/inspector";
 import { Label } from "../entry/label";
 import { createSteps } from "../figure/stagger";
@@ -27,7 +27,7 @@ const destackable: Form = {
     },
 };
 
-/** Show the adjective at work: the same request answered as a chat artifact kept up by hand, or as an app in your space that works with the rest of it. */
+/** Show the adjective at work: a launch board asked of your agent, glued together from rented apps, or changed into your own Tasks app and wired to the rest of your space. */
 export function Adjective(properties: { isOpen: boolean }) {
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
@@ -57,20 +57,24 @@ export function Adjective(properties: { isOpen: boolean }) {
                 number={4}
                 title={
                     properties.isOpen
-                        ? "an app you can always remix"
-                        : "an app you can only regenerate"
+                        ? "an app you change yourself, wired into everything"
+                        : "an app only its vendor can change"
                 }
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>My week, in a chat</Label>
+                <Label>
+                    {properties.isOpen
+                        ? "A launch board, in your own Tasks"
+                        : "A launch board, on their roadmap"}
+                </Label>
                 <Window
                     title={<span {...style.attrs(styles.title)}>Chat</span>}
                     xstyle={styles.window}
                 >
                     <Inspector isOpenAt={isOpenAt} services={services}>
-                        <WeekApp isOpenAt={isOpenAt} />
+                        <LaunchBoard isOpenAt={isOpenAt} />
                     </Inspector>
                 </Window>
             </div>

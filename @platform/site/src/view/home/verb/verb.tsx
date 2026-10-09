@@ -130,10 +130,14 @@ export function Verb(properties: { isOpen: boolean }) {
                         : "seven siloed apps, seven separate rented stacks"
                 }
             >
-                <StackSwitch isOpen={properties.isOpen} isHinted />
+                <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>Your corner of the cloud</Label>
+                <Label>
+                    {isOpenAt(0)
+                        ? "Your own corner of the cloud"
+                        : "Seven rented apps, none of them truly yours"}
+                </Label>
                 <Inspector
                     isOpenAt={isOpenAt}
                     lighting={lighting}
@@ -150,7 +154,7 @@ export function Verb(properties: { isOpen: boolean }) {
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <Fade isOpen={isOpenAt(0)}>
                     <Label>
-                        {isOpenAt(0) ? "One space, one login" : "Seven sites, seven logins"}
+                        {isOpenAt(0) ? "One space, one stack" : "Seven sites, seven stacks"}
                     </Label>
                 </Fade>
                 <Ledger
