@@ -12,7 +12,6 @@ import { Scope } from "@destack/sync";
 import { createClient } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
 import type { Claim, Expiry, ObjectClaims } from "../claim/claim.ts";
-import { Moved } from "../moved/moved.ts";
 import type { Endpoint, Placement } from "../placement/placement.ts";
 import { type Identity, PublicKey } from "@destack/identity";
 import { createLocalJWKSet, errors, type JWTVerifyGetKey } from "jose";
@@ -302,8 +301,8 @@ export abstract class Directory {
                 const body = sent.body === null ? null : await sent.clone().arrayBuffer();
                 const from = await endpoint();
                 const response = await fetch(sent);
-                const moved = await Moved.read(response);
-                if (moved === undefined) {
+                const moved = await ServiceError.read(response, "MISDIRECTED_REQUEST");
+                if (moved === undefined || !("machine" in moved)) {
                     return response;
                 }
 

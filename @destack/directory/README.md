@@ -7,8 +7,7 @@ await directory.apply(operation, placement); // the PLC directory's POST /:did
 await directory.identity(spaceId); // the PLC directory's GET /:did/data
 await jwtVerify(token, directory.keys(spaceId)); // jose's createRemoteJWKSet, kept ten minutes
 await directory.place({ id: spaceId, scope: accountId, machine: cloudMachineId, epoch: 1 });
-const pages = directory.spaceClient(pagesService, spaceId, fetch); // resends once on a 421
-throw Moved.error({ scope: spaceId, machine: laptopMachineId }); // 421 Misdirected Request
+const pages = directory.spaceClient(pagesService, spaceId, fetch); // resends once on a 421 naming the machine
 ```
 
 ## Placements
