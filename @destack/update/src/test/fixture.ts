@@ -1,5 +1,5 @@
 import { generateKeyPairSync } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,9 @@ import { SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
 
 /** The command a fixture distribution's archive carries, by the platform's file name. */
 const COMMAND = process.platform === "win32" ? "destack.exe" : "destack";
+
+/** The version report the fixture command prints, as the compiled command does. */
+const REPORT = JSON.stringify({ version: "2026.9.1" });
 
 /** The Git commit every fixture distribution claims to be built from. */
 export const COMMIT = "2c9f1e7d5b3a8f60c4e1d2b7a9f0e3c5d8b1a4f6";
@@ -93,20 +96,15 @@ export class UpdateFixture implements AsyncDisposable {
         };
     }
 
-    /** Compile the fixture command reporting version 2026.9.1 and archive it as a distribution, returning the directory with both. */
+    /** Write the fixture command reporting version 2026.9.1 and archive it as a distribution, returning the directory with both. */
     static async compile(): Promise<string> {
-        // compile the command into a fresh directory
+        // write the command into a fresh directory: a shell script where one runs, else a compiled executable
         const directory = await mkdtemp(join(tmpdir(), "destack-update-fixture-"));
-        const result = await Bun.build({
-            entrypoints: [fileURLToPath(new URL("./command.ts", import.meta.url))],
-            compile: {
-                outfile: join(directory, COMMAND),
-                autoloadDotenv: false,
-                autoloadBunfig: false,
-            },
-        });
-        if (!result.success) {
-            throw new AggregateError(result.logs, "cannot compile update fixture");
+        const outfile = join(directory, COMMAND);
+        if (process.platform !== "win32") {
+            await writeFile(outfile, `#!/bin/sh\nprintf '%s\\n' '${REPORT}'\n`, { mode: 0o755 });
+        } else {
+            await UpdateFixture.#build(outfile);
         }
 
         // archive it with an empty desktop as a distribution
@@ -120,6 +118,17 @@ export class UpdateFixture implements AsyncDisposable {
         ]);
 
         return directory;
+    }
+
+    /** Compile the fixture command into an executable, where no shell script runs. */
+    static async #build(outfile: string): Promise<void> {
+        const result = await Bun.build({
+            entrypoints: [fileURLToPath(new URL("./command.ts", import.meta.url))],
+            compile: { outfile, autoloadDotenv: false, autoloadBunfig: false },
+        });
+        if (!result.success) {
+            throw new AggregateError(result.logs, "cannot compile update fixture");
+        }
     }
 
     /** Publish a compiled fixture as a version into a fresh repository and open its listener. */

@@ -35,11 +35,11 @@ export const distribution = defineObject({
         /** When the channel's repository was last checked. */
         checkedAt: field.time().optional(),
     },
-    permissions: ["read", "update"],
+    permissions: ["read", "update", "record"],
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
-        create: method.create(null, { isSystem: true }),
+        create: method.create("record", { isInternal: true }),
         /** Download and verify the channel's latest release when it is newer than the installed one. */
         stage: method.mutation({ permission: "update", prepared: Staging }),
         /** Restart the distribution into the staged release. */

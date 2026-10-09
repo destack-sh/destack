@@ -1,4 +1,5 @@
-import type { ObjectServer } from "@destack/object/server";
+import type { ObjectServer, Extension } from "@destack/object/server";
+import { distributionService } from "../service/index.ts";
 import type { Identifier } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
@@ -8,12 +9,33 @@ import { distribution } from "../object/index.ts";
 /** How often the distribution stages the channel's latest release: daily, as Sparkle checks by default. */
 const STAGE_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-/** The distribution a daemon hosts: the installed releases, and the restart activating a staged one. */
+/** The distribution a machine hosts: the installed releases, and the restart activating a staged one. */
 export interface DistributionHost {
     /** The installed distribution. */
     readonly distribution: Distribution;
-    /** Hand activation to a process outliving the daemon, which stops it, switches releases and starts it again. */
+    /** Hand activation to a process outliving the machine, which stops it, switches releases and starts it again. */
     activate(): void;
+}
+
+/** Serve a machine's distribution in the machine's own scope: staging and activating its releases, and recording and staging them daily where it runs an installed distribution. */
+export function implementDistributions(options: {
+    /** The machine, the scope of its distribution. */
+    readonly machine: Identifier<"machine">;
+    /** The installed distribution, absent for a development build. */
+    readonly host?: DistributionHost;
+}): Extension {
+    const { host } = options;
+
+    return {
+        service: distributionService,
+        objects: { distribution: serveDistributions(host) },
+        serve: (server) => ({
+            controllers:
+                host === undefined
+                    ? []
+                    : [new DistributionController(server, options.machine, host)],
+        }),
+    };
 }
 
 /** Stage releases through the installed distribution, and hand activation to the host. */
@@ -64,7 +86,7 @@ export class DistributionController implements Controller {
     /** The controller's name in reports. */
     readonly name = "distribution";
     /** The server keeping the distribution row. */
-    readonly #server: Pick<ObjectServer, "database" | "executeAsSystem">;
+    readonly #server: Pick<ObjectServer, "database" | "principal" | "execute">;
     /** This machine, the scope of its distribution. */
     readonly #machineId: Identifier<"machine">;
     /** The installed distribution. */
@@ -72,7 +94,7 @@ export class DistributionController implements Controller {
 
     /** Control the distribution of a machine. */
     constructor(
-        server: Pick<ObjectServer, "database" | "executeAsSystem">,
+        server: Pick<ObjectServer, "database" | "principal" | "execute">,
         machineId: Identifier<"machine">,
         host: DistributionHost,
     ) {
@@ -98,7 +120,8 @@ export class DistributionController implements Controller {
         const options = this.#host.distribution.options;
         const [recorded] =
             found === undefined
-                ? await this.#server.executeAsSystem(
+                ? await this.#server.execute(
+                      this.#server.principal,
                       distribution,
                       "create",
                       [
@@ -111,6 +134,7 @@ export class DistributionController implements Controller {
                           },
                       ],
                       now,
+                      this.name,
                   )
                 : [found];
         if (recorded === undefined) {
@@ -120,18 +144,20 @@ export class DistributionController implements Controller {
         }
 
         // stage the latest release
-        await this.#server.executeAsSystem(
+        await this.#server.execute(
+            this.#server.principal,
             distribution,
             "stage",
             [{ scope, target: recorded }],
             now,
+            this.name,
         );
 
         return STAGE_INTERVAL_MILLISECONDS;
     }
 }
 
-/** Read the host's distribution, refusing a daemon running no installed distribution, such as a development build. */
+/** Read the host's distribution, refusing a machine running no installed distribution, such as a development build. */
 function requireHost(host: DistributionHost | undefined): DistributionHost {
     if (host === undefined) {
         throw new ServiceError("PRECONDITION_FAILED", {

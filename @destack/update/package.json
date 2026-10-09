@@ -13,7 +13,8 @@
         "./object": "./src/object/index.ts",
         "./publish": "./src/publish/index.ts",
         "./server": "./src/server/index.ts",
-        "./test": "./src/test/index.ts"
+        "./test": "./src/test/index.ts",
+        "./service": "./src/service/index.ts"
     },
     "dependencies": {
         "@destack/account": "workspace:*",
@@ -25,7 +26,8 @@
         "@tufjs/models": "5.0.0",
         "tar": "7.5.22",
         "tuf-js": "6.0.0",
-        "@destack/error": "workspace:*"
+        "@destack/error": "workspace:*",
+        "@destack/package": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

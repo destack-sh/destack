@@ -18,7 +18,7 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "lib": ["ESNext"],
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
         "types": ["bun"]
     },
     "include": ["src", "tests", "*.config.ts"]
