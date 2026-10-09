@@ -9,7 +9,7 @@ import { palette } from "../../palette.stylex";
 import { appStyles, appText } from "../figure/app";
 import { media } from "@destack/style/media.stylex";
 
-/** The eleven services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
+/** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
     {
         stacked: {
@@ -152,7 +152,7 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { icon: "telemetry", tint: "#6d7f86" },
             name: "Telemetry",
             chips: ["events", "traces"],
-            note: "events and errors kept in your own space",
+            note: "events and errors in your space",
         },
     },
     {
@@ -185,6 +185,22 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Forge",
             chips: ["git"],
             note: "one pipeline for all apps",
+        },
+    },
+    {
+        stacked: {
+            label: "Payments",
+            mark: { logo: "stripe.svg" },
+            name: "Stripe",
+            chips: ["SDK", "webhook"],
+            note: "prices kept in their dashboard",
+        },
+        destacked: {
+            label: "Payments",
+            mark: { icon: "card", tint: "#5b7f2e" },
+            name: "Billing",
+            chips: ["plans"],
+            note: "plans and invoices in your space",
         },
     },
 ];
@@ -278,7 +294,7 @@ function checksOf(change: Change, isOpen: boolean) {
 }
 
 /**
- * Draw the Pages app with the launch plan open, every part named for the inspector, and the eleven services marked where they show.
+ * Draw the Pages app with the launch plan open, every part named for the inspector, and the twelve services marked where they show.
  *
  * While rented, the page shows where its vendors meet: vendor apps in its rail, an edit conflict, a key to paste, a failed automation, an embed behind seats, and a preview on another site.
  * Once owned, the same page sits among your other apps and holds its tasks, prices, agent, code and previews natively, with a column you added, each switching on the step of its service.
@@ -443,7 +459,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             Reminder Thu
                         </span>
                     </div>
-                    <p data-component="Paragraph" {...style.attrs(styles.text)}>
+                    <p data-component="Paragraph" data-service="12" {...style.attrs(styles.text)}>
                         Ship to the waitlist on Thursday.{" "}
                         <span data-component="Presence">
                             Pricing stays in step with billing
@@ -502,7 +518,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                     <span
                                         {...style.attrs(styles.quiet, styles.wide, styles.shrink)}
                                     >
-                                        from Tasks, also on the launch board
+                                        from Tasks
                                     </span>
                                     <span {...style.attrs(appStyles.tools)}>
                                         <Access isOpen={true} />

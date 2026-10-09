@@ -23,50 +23,43 @@ const apps = {
     tables: { name: "Tables", icon: "table", tint: "#4f8a5b" },
     canvas: { name: "Canvas", icon: "vector", tint: "#a0485f" },
     workflows: { name: "Workflows", icon: "sync", tint: "#4f8a5b" },
-    vault: { name: "Vault", icon: "vault", tint: "#12313c" },
     chat: { name: "Chat", icon: "chat", tint: "#4f8a5b" },
     mail: { name: "Mail", icon: "mail", tint: "#3d6fb0" },
 } satisfies Record<string, App>;
 
 /** The job each app does, as the tally labels its row. */
 const jobLabels: Record<Job, string> = {
-    pages: "Docs and sites",
+    pages: "Docs",
+    tables: "Databases",
     tasks: "Tasks",
-    calendar: "Booking",
-    files: "Files",
-    tables: "Tables",
-    canvas: "Design",
-    workflows: "Automation",
-    vault: "Passwords",
+    calendar: "Calendar",
     chat: "Chat",
     mail: "Mail",
+    files: "Files",
+    canvas: "Design",
+    workflows: "Automation",
 };
 
 /** A job a space's app does. */
 type Job = keyof typeof apps;
 
-/** The apps every space holds, in the order the space sets them. */
+/** The apps every space holds, one to each kind of thing it keeps, in the order the space sets them. */
 const spaceJobs: readonly Job[] = [
     "pages",
+    "tables",
     "tasks",
     "calendar",
-    "files",
-    "tables",
-    "canvas",
-    "workflows",
-    "vault",
     "chat",
     "mail",
+    "files",
+    "canvas",
 ];
 
-/** The tally's rows for the services your space connects to: the label, the services, and what your space does in their place. */
+/** The tally's rows for the services your space works with: the label, the services, and what your space does in their place. */
 const connections: readonly (readonly [label: string, names: readonly string[], app: App])[] = [
     ["Agents", ["ChatGPT", "Claude"], { name: "Agents", icon: "agent", tint: "#6b5ca5" }],
-    [
-        "Code and cloud",
-        ["GitHub", "AWS"],
-        { name: "Forge + Hosting", icon: "source", tint: "#c64a17" },
-    ],
+    ["Code", ["GitHub"], { name: "Forge", icon: "source", tint: "#c64a17" }],
+    ["Cloud", ["AWS"], { name: "Hosting", icon: "hosts", tint: "#2f7d8c" }],
 ];
 
 /** A tool's face on the wall: its icon, its name, and its tint. */
@@ -76,12 +69,12 @@ type Face = { icon: string; name: string; tint: string };
 type Tool =
     | (Face & { kind: "replace"; job: Job })
     | (Face & { kind: "both"; job: Job; status: string })
-    | (Face & { kind: "connect"; role: string; status: string });
+    | (Face & { kind: "connect"; status: string });
 
 /** The tools your space replaces with its own apps. */
 const replaced: readonly Tool[] = [
     { icon: "notion", name: "Notion", tint: "#000000", kind: "replace", job: "pages" },
-    { icon: "googledocs", name: "Google Docs", tint: "#4285f4", kind: "replace", job: "pages" },
+    { icon: "googledocs", name: "Docs", tint: "#4285f4", kind: "replace", job: "pages" },
     { icon: "framer", name: "Framer", tint: "#0a0a0a", kind: "replace", job: "pages" },
     { icon: "webflow", name: "Webflow", tint: "#146ef5", kind: "replace", job: "pages" },
     { icon: "linear", name: "Linear", tint: "#5e6ad2", kind: "replace", job: "tasks" },
@@ -91,13 +84,8 @@ const replaced: readonly Tool[] = [
     { icon: "calendly", name: "Calendly", tint: "#006bff", kind: "replace", job: "calendar" },
     { icon: "dropbox", name: "Dropbox", tint: "#0061ff", kind: "replace", job: "files" },
     { icon: "airtable", name: "Airtable", tint: "#18bfff", kind: "replace", job: "tables" },
-    {
-        icon: "googlesheets",
-        name: "Google Sheets",
-        tint: "#34a853",
-        kind: "replace",
-        job: "tables",
-    },
+    { icon: "googlesheets", name: "Sheets", tint: "#34a853", kind: "replace", job: "tables" },
+    { icon: "googleforms", name: "Forms", tint: "#7248b9", kind: "replace", job: "tables" },
     { icon: "hubspot", name: "HubSpot", tint: "#ff7a59", kind: "replace", job: "tables" },
     { icon: "slack", name: "Slack", tint: "#4a154b", kind: "replace", job: "chat" },
     { icon: "superhuman", name: "Superhuman", tint: "#000000", kind: "replace", job: "mail" },
@@ -108,7 +96,6 @@ const replaced: readonly Tool[] = [
     { icon: "granola", name: "Granola", tint: "#000000", kind: "replace", job: "pages" },
     { icon: "n8n", name: "n8n", tint: "#ea4b71", kind: "replace", job: "workflows" },
     { icon: "zapier", name: "Zapier", tint: "#ff4f00", kind: "replace", job: "workflows" },
-    { icon: "1password", name: "1Password", tint: "#3b66bc", kind: "replace", job: "vault" },
 ];
 
 /** The tools your space can replace or keep connected. */
@@ -123,7 +110,7 @@ const either: readonly Tool[] = [
     },
     {
         icon: "googlecalendar",
-        name: "Google Calendar",
+        name: "Calendar",
         tint: "#4285f4",
         kind: "both",
         job: "calendar",
@@ -131,7 +118,7 @@ const either: readonly Tool[] = [
     },
     {
         icon: "googledrive",
-        name: "Google Drive",
+        name: "Drive",
         tint: "#4285f4",
         kind: "both",
         job: "files",
@@ -146,7 +133,6 @@ const foundations: readonly Tool[] = [
         name: "ChatGPT",
         tint: "#000000",
         kind: "connect",
-        role: "Agent",
         status: "your agent",
     },
     {
@@ -154,7 +140,6 @@ const foundations: readonly Tool[] = [
         name: "Claude",
         tint: "#d97757",
         kind: "connect",
-        role: "Agent",
         status: "your agent",
     },
     {
@@ -162,7 +147,6 @@ const foundations: readonly Tool[] = [
         name: "GitHub",
         tint: "#181717",
         kind: "connect",
-        role: "Code",
         status: "mirrored",
     },
     {
@@ -170,7 +154,6 @@ const foundations: readonly Tool[] = [
         name: "AWS",
         tint: "#ff9900",
         kind: "connect",
-        role: "Cloud",
         status: "where it runs",
     },
 ];
@@ -192,10 +175,10 @@ const order: readonly string[] = [
     "Miro",
     "Zapier",
     "Gmail",
-    "Google Calendar",
-    "Google Drive",
-    "Google Docs",
-    "Google Sheets",
+    "Calendar",
+    "Drive",
+    "Docs",
+    "Sheets",
     "Calendly",
     "Framer",
     "Webflow",
@@ -203,7 +186,7 @@ const order: readonly string[] = [
     "Mailchimp",
     "Dropbox",
     "n8n",
-    "1Password",
+    "Forms",
     "ChatGPT",
     "Claude",
     "AWS",
@@ -232,10 +215,11 @@ export const firstPicks: readonly string[] = [
 
 /** The accounts that sign in to more than one tool, by the tools they cover. */
 const accounts: Record<string, string> = {
-    "Google Docs": "Google",
-    "Google Sheets": "Google",
-    "Google Calendar": "Google",
-    "Google Drive": "Google",
+    Docs: "Google",
+    Sheets: "Google",
+    Forms: "Google",
+    Calendar: "Google",
+    Drive: "Google",
     Gmail: "Google",
     Jira: "Atlassian",
     Trello: "Atlassian",
@@ -605,11 +589,12 @@ export function tallyOf(picks: readonly string[]): readonly Entry[] {
 
     // set a row for each app, then one for each group of connections
     return [
-        ...spaceJobs.map((job) =>
+        ...[...spaceJobs, "workflows" as const].map((job) =>
             entryOf(
                 jobLabels[job],
                 picked.filter((tool) => jobOf(tool) === job),
                 apps[job],
+                "replaces",
             ),
         ),
         ...connections.map(([label, names, app]) =>
@@ -617,15 +602,16 @@ export function tallyOf(picks: readonly string[]): readonly Entry[] {
                 label,
                 picked.filter((tool) => names.includes(tool.name)),
                 app,
+                "works with",
             ),
         ),
     ];
 }
 
 /** Set one tally row: the tools you picked for a job while stacked, and what your space does in their place once destacked. */
-function entryOf(label: string, doers: readonly Tool[], app: App): Entry {
-    // name the picked tools with the logins they need
-    const logins = `${loginsOf(doers)} ${loginsOf(doers) === 1 ? "login" : "logins"}`;
+function entryOf(label: string, doers: readonly Tool[], app: App, verb: string): Entry {
+    // name the picked tools, count the logins they need, and list them
+    const logins = loginsOf(doers);
     const [first] = doers;
 
     return {
@@ -639,17 +625,20 @@ function entryOf(label: string, doers: readonly Tool[], app: App): Entry {
                 first === undefined
                     ? "None"
                     : doers.length === 1
-                      ? `${first.name} · ${logins}`
-                      : `${doers.length} apps · ${logins}`,
-            chips: [],
-            note: "",
+                      ? first.name
+                      : `${doers.length} apps`,
+            chips: first === undefined ? [] : [`${logins} ${logins === 1 ? "login" : "logins"}`],
+            note:
+                first === undefined
+                    ? "pick one to compare"
+                    : doers.map((tool) => tool.name).join(", "),
         },
         destacked: {
             label,
             mark: { icon: app.icon, tint: app.tint },
             name: app.name,
             chips: [],
-            note: "",
+            note: first === undefined ? "included" : `${verb} ${listOf(doers)}`,
         },
     };
 }
@@ -813,7 +802,7 @@ const styles = style.create({
         gridAutoFlow: "row",
         gridAutoRows: { default: "minmax(5.75rem, 1fr)", [media.maxMd]: "5.75rem" },
         gridTemplateColumns: {
-            default: "repeat(5, minmax(0, 1fr))",
+            default: "repeat(4, minmax(0, 1fr))",
             [media.maxMd]: "repeat(2, minmax(0, 1fr))",
         },
     },

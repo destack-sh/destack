@@ -6,6 +6,7 @@ import { plate } from "./plate.stylex";
 import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
+import { screen } from "../../layout/screen.stylex";
 
 /** What marks an item: a vendor's logo under `/logos`, an icon under `/diagram` on a tinted tile, or an icon's empty outline where nothing does the job yet. */
 type ItemMark = { logo: string } | { icon: string; tint: string } | { placeholder: string };
@@ -333,6 +334,7 @@ const styles = style.create({
         transform: "perspective(40rem) rotateX(70deg)",
     },
     note: {
+        display: { default: null, [screen.short]: "none" },
         color: color.mutedForeground,
         fontSize: "0.8125rem",
         lineHeight: "1.125rem",

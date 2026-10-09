@@ -31,7 +31,7 @@ const noun: Form = {
     },
 };
 
-/** Show the noun at work: a docs app taken apart into the eleven services it runs on, rented one by one or built into one engine. */
+/** Show the noun at work: a docs app taken apart into the twelve services it runs on, rented one by one or built into one engine. */
 export function Noun(properties: { isOpen: boolean }) {
     // hold the service pointed at, in the app or in the ledger
     const [lit, setLit] = createSignal<number | undefined>(undefined);
@@ -76,7 +76,7 @@ export function Noun(properties: { isOpen: boolean }) {
                 title={
                     properties.isOpen
                         ? "one app, built on one engine"
-                        : "one app, wired to eleven vendors"
+                        : "one app, wired to twelve vendors"
                 }
             >
                 <StackSwitch isOpen={properties.isOpen} />
@@ -122,7 +122,7 @@ export function Noun(properties: { isOpen: boolean }) {
 /** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
 function keyOf(rented: number) {
     if (rented === services.length) {
-        return "Eleven vendors, glued together";
+        return "Twelve vendors, glued together";
     } else if (rented === 0) {
         return "One unified software engine";
     }

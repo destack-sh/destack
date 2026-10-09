@@ -12,6 +12,8 @@ export const screen = style.defineConsts({
     smallPhone: "@media (max-width: 399px)",
     /** Windows wide enough for the reader's side column. */
     reader: "@media (width >= 60rem)",
+    /** Desktop windows too short for a homepage section to hold every line of its figures, a section under about 820 pixels. */
+    short: "@media (min-width: 1100px) and (max-height: 880px)",
     /** Windows too narrow for the reader's side column. */
     belowReader: "@media (width < 60rem)",
 });
