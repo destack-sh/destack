@@ -262,7 +262,7 @@ const style = theme.variables(appearance, preferences);
 
 ## Styles
 
-`@destack/view/styles` loads a document's base styles: Preflight, the theme's element defaults and the StyleX rules.
+`@destack/view/styles` loads a document's base styles: Preflight, the theme's element defaults and the StyleX rules; import it from the app module that server and browser both load, as SolidStart's `app.tsx`, so the browser bundle carries it.
 
 ```tsx
 import "@destack/view/styles";
