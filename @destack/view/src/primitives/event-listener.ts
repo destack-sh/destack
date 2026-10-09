@@ -434,7 +434,9 @@ export function makeEventListenerStack(
         }
         stops = [];
     };
-    onCleanup(clear);
+    if (getOwner() !== null) {
+        onCleanup(clear);
+    }
 
     return [
         (type, handler, overwriteOptions) => {

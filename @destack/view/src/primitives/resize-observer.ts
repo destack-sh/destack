@@ -1,5 +1,5 @@
 import { isServer } from "@solidjs/web";
-import { type Accessor, createEffect, onCleanup, sharedConfig } from "solid-js";
+import { type Accessor, createEffect, getOwner, onCleanup, sharedConfig } from "solid-js";
 import {
     access,
     asArray,
@@ -85,7 +85,9 @@ export function makeResizeObserver(
         return { observe: () => {}, unobserve: () => {} };
     }
     const observer = new ResizeObserver(callback);
-    onCleanup(() => observer.disconnect());
+    if (getOwner() !== null) {
+        onCleanup(() => observer.disconnect());
+    }
 
     return {
         observe: (element) => observer.observe(element, options),

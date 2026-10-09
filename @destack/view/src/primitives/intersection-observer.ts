@@ -4,6 +4,7 @@ import {
     createEffect,
     createSignal,
     createStore,
+    getOwner,
     NotReadyError,
     onCleanup,
     runWithOwner,
@@ -125,7 +126,9 @@ export function makeIntersectionObserver(
     };
     const stop = (): void => instance.disconnect();
     start();
-    onCleanup(stop);
+    if (getOwner() !== null) {
+        onCleanup(stop);
+    }
 
     return { add, remove, start, stop, reset, instance };
 }
