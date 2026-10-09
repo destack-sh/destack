@@ -159,13 +159,13 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         // match by role, label, text, test id or CSS
         let matched: HTMLElement[];
         if ("role" in locator) {
-            matched = elements.filter((element) => isExposed(element) && isRole(element, locator));
+            matched = elements.filter((element) => isRole(element, locator) && isExposed(element));
         } else if ("label" in locator) {
             matched = elements.filter(
                 (element) =>
-                    isExposed(element) &&
                     isLabelled(element) &&
-                    computeAccessibleName(element) === locator.label,
+                    computeAccessibleName(element) === locator.label &&
+                    isExposed(element),
             );
         } else if ("text" in locator) {
             matched = elements.filter((element) => isInnermostText(element, locator.text));
