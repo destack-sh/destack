@@ -1,0 +1,44 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a0ec41-832f-73a1-9189-d235d17d71e1",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        ".": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./service": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./setting": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
+        "./view": {
+            "runtimes": ["browser"]
+        }
+    },
+    "declarations": {
+        "defineAlertRule": {
+            "describes": [
+                {
+                    "kind": "alert-rule",
+                    "function": "./inspect#describeAlertRule"
+                }
+            ]
+        }
+    },
+    "stamps": {
+        "defineAlertRule": {
+            "module": 1
+        }
+    }
+}
