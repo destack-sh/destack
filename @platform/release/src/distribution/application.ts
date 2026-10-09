@@ -1,6 +1,7 @@
 import { ReleaseChannel } from "@destack/daemon/process";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { run } from "./command.ts";
 
 /** Generate the native identity and artwork for a distribution or interactive run. */
@@ -14,7 +15,9 @@ export async function configureApplication(
     const icons = join(directory, "icons");
     await mkdir(icons, { recursive: true });
     const tauri = join(root, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
-    let artwork = join(root, `@platform/brand/icon/icon${identity.suffix}-rounded.svg`);
+    let artwork = fileURLToPath(
+        import.meta.resolve(`@platform/brand/icon/icon${identity.suffix}-rounded.svg`),
+    );
 
     // match the visual padding of native macOS applications
     if (process.platform === "darwin") {
@@ -25,7 +28,9 @@ export async function configureApplication(
                 "-module-cache-path",
                 join(directory, "swift"),
                 join(root, "@platform/release/src/apple/icon.swift"),
-                join(root, `@platform/brand/icon/icon${identity.suffix}-rounded.png`),
+                fileURLToPath(
+                    import.meta.resolve(`@platform/brand/icon/icon${identity.suffix}-rounded.png`),
+                ),
                 artwork,
             ],
             root,

@@ -975,6 +975,7 @@
         "@destack/service": "workspace:*",
         "@destack/update": "workspace:*",
         "@opentui/solid": "0.5.12",
+        "@platform/brand": "workspace:*",
         "@tufjs/models": "5.0.0",
         "magic-string": "1.4.1",
         "rolldown": "1.2.9",

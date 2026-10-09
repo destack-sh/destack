@@ -1,11 +1,14 @@
 import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { run } from "../distribution/command.ts";
 
 /** Repository containing the source artwork and native icon tools. */
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+
+/** The brand package's icon directory, resolved through its exports. */
+const BRAND_ICONS = dirname(fileURLToPath(import.meta.resolve("@platform/brand/icon/icon.svg")));
 
 /** Build stable, nightly and development icons from their vector artwork. */
 async function build(): Promise<void> {
@@ -34,7 +37,7 @@ async function buildIdentity(
 ): Promise<void> {
     // generate standard raster sizes
     const name = `destack${suffix}`;
-    const source = join(ROOT, `@platform/brand/icon/icon${suffix}-rounded.svg`);
+    const source = join(BRAND_ICONS, `icon${suffix}-rounded.svg`);
     const directory = join(temporary, name);
     await run(process.execPath, ["run", tauri, "icon", source, "--output", directory], ROOT);
     await cp(source, join(output, `${name}.svg`));
@@ -71,7 +74,7 @@ async function refreshBrand(
     for (const size of sizes) {
         const filename =
             size === 1024 ? `icon${suffix}-rounded.png` : `icon${suffix}-rounded-${size}.png`;
-        await cp(join(raster, `${size}x${size}.png`), join(ROOT, "@platform/brand/icon", filename));
+        await cp(join(raster, `${size}x${size}.png`), join(BRAND_ICONS, filename));
     }
 }
 

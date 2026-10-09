@@ -17,6 +17,7 @@
     },
     "dependencies": {
         "@destack/service": "workspace:*",
+        "@platform/brand": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/package": "workspace:*",
         "rolldown": "1.2.9",

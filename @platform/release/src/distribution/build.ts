@@ -151,7 +151,9 @@ async function bundleDesktop(
     // add the Linux menu artwork and installer
     if (platform.system === "linux") {
         await cp(
-            join(ROOT, `@platform/brand/icon/icon${channel.suffix}-rounded.svg`),
+            fileURLToPath(
+                import.meta.resolve(`@platform/brand/icon/icon${channel.suffix}-rounded.svg`),
+            ),
             join(application, "icon.svg"),
         );
         await writeFile(join(application, "install.sh"), LINUX_INSTALLER, { mode: 0o755 });
