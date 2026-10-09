@@ -10,8 +10,10 @@ attachments: [
 ]; // a Liveblocks room's features
 client
     .mutate(comment)
-    .create({ parent, body: { text: "@bob, shorten this", mentions }, selection }); // createThread with a mention
-client.mutate(comment).create({ parent, body: { text: "Done", mentions: [] }, threadId }); // createComment
+    // createThread with a mention
+    .create({ parent, body: { text: "@bob, shorten this", mentions }, selection });
+// createComment
+client.mutate(comment).create({ parent, body: { text: "Done", mentions: [] }, threadId });
 client.mutate(comment).resolve({ id: threadId }); // markThreadAsResolved
 ```
 

@@ -33,7 +33,7 @@ test.for(TEST_DIALECTS)(
         await call(reaction, "create", { ...host(article, draft.id), emoji: "👨🏻‍❤️‍💋‍👨🏼" });
         expect(
             await refusal(call(reaction, "create", { ...host(article, draft.id), emoji: "yes" })),
-        ).toEqual(["BAD_REQUEST", "invalid input to reaction.create"]);
+        ).toEqual(["BAD_REQUEST", "invalid input: emoji: invalid emoji"]);
         as("agent");
         await call(reaction, "create", { ...host(article, draft.id), emoji: "👍" });
         await call(reaction, "create", { ...host(comment, first.id), emoji: "🎉" });

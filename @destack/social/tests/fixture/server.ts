@@ -1,6 +1,6 @@
 import { LocaleTag } from "@destack/locale";
 import { MemoryBuild } from "@destack/package/test";
-import { anyone, principal } from "@destack/access";
+import { anyone, principal, Caller } from "@destack/access";
 import { Scope, type TrackerMessage, type Uplink } from "@destack/sync";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
@@ -18,8 +18,7 @@ import { TestDatabase } from "@destack/db/test";
 import type { CallableName, ObjectType } from "@destack/object";
 import { subscription } from "@destack/notification";
 import { serveActivities } from "@destack/notification/server";
-import { ServerCall } from "@destack/object";
-import { EphemeralStorage, ObjectServer } from "@destack/object/server";
+import { EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { aligned, type Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
@@ -88,35 +87,36 @@ export async function serveArticles(dialect: Dialect) {
     // keep the articles in a space of their own in the dialect's shared database, and presence in memory
     const storage = await durable(dialect);
     const spaceId = await openSpace(storage.database);
-    const server = await serveInstallation(storage.database, await openEphemeral(), spaceId);
+    const store = await serveInstallation(storage.database, await openEphemeral(), spaceId);
 
     // decide every call as the current actor
     let current: Actor = "alice";
 
     return {
-        server,
+        store,
         spaceId,
         /** Call a method as the current actor, replayable by request for durable objects and by writer for presence. */
         call: async <Type extends ObjectType, Name extends CallableName<Type>>(
             object: Type,
             name: Name,
-            input: object,
-        ) =>
-            server.call(
-                object,
-                name,
-                {
-                    spaceId,
-                    ...(object.storage === "durable"
-                        ? { requestId: RequestId.create() }
-                        : { writerId: `writer-${current}` }),
-                    ...input,
-                },
-                context(spaceId, current).context,
-            ),
+            input: Readonly<Record<string, unknown>>,
+        ) => {
+            // read through a query, or write through a one-call mutation, presence as the given writer or the actor's
+            const { writerId = `writer-${current}`, ...fields } = input;
+            const call = object.call(name, { spaceId, ...fields });
+            const caller = context(spaceId, current).context.caller();
+            const options =
+                object.storage === "durable" ? {} : { writerId: schema.string().parse(writerId) };
+
+            return object.method(name).mutates
+                ? store
+                      .mutate(caller, { id: RequestId.create(), calls: [call] }, options)
+                      .then(([result]) => result)
+                : store.query(caller, call);
+        },
         /** List the objects of a type the current actor may list, oldest first. */
         list: <Type extends ObjectType>(object: Type, input: object = {}) =>
-            list(server, spaceId, current, object, input),
+            list(store, spaceId, current, object, input),
         /** Refer to a host as its attachments' parent. */
         host: (object: ObjectType, id: string) => ({
             parent: { packageId: object.policy.definition.packageId, type: object.name, id },
@@ -126,9 +126,9 @@ export async function serveArticles(dialect: Dialect) {
             current = actor;
         },
         /** Expand the space's announcements batch by batch as their controller does, until none waits. */
-        expand: () => expand(server, storage.database, spaceId),
+        expand: () => expand(store, storage.database, spaceId),
         /** Follow the space's presence as the current actor's client and read every page like a transport. */
-        follow: () => follow(server, spaceId, current),
+        follow: () => follow(store, spaceId, current),
     };
 }
 
@@ -161,8 +161,8 @@ async function serveInstallation(
     database: DatabaseConnection,
     ephemeral: EphemeralStorage,
     spaceId: Identifier<"space">,
-): Promise<ObjectServer<typeof objects>> {
-    return new ObjectServer({
+): Promise<ObjectStore<typeof objects>> {
+    return new ObjectStore({
         principal: principal.installation.reference(spaceId, INSTALLATION),
         objects,
         database,
@@ -197,7 +197,7 @@ function unfetched(address: string) {
 
 /** List the objects of a type an actor may list in the space, oldest first. */
 async function list<Type extends ObjectType>(
-    server: ObjectServer<typeof objects>,
+    store: ObjectStore<typeof objects>,
     spaceId: string,
     actor: Actor,
     object: Type,
@@ -205,11 +205,9 @@ async function list<Type extends ObjectType>(
 ) {
     // list them as the actor
     const listed: ObjectType = object;
-    const page = await server.call(
-        listed,
-        "list",
-        { spaceId, ...input },
-        context(spaceId, actor).context,
+    const page = await store.query(
+        context(spaceId, actor).context.caller(),
+        listed.call("list", { spaceId, ...input }),
     );
 
     return ListPage.parse(page)
@@ -219,7 +217,7 @@ async function list<Type extends ObjectType>(
 
 /** Expand the space's announcements batch by batch as their controller does, until none waits. */
 async function expand(
-    server: ObjectServer<typeof objects>,
+    store: ObjectStore<typeof objects>,
     database: DatabaseConnection,
     spaceId: string,
 ): Promise<void> {
@@ -233,13 +231,12 @@ async function expand(
 
     // expand them until none waits
     for (let rows = await waiting(); rows.length > 0; rows = await waiting()) {
-        await server.execute(
-            server.principal,
-            notifications.announcement,
-            "expand",
-            rows.map((row) => ServerCall.of(row)),
-            Date.now(),
-        );
+        await store.mutate(Caller.of(store.principal, Date.now()), {
+            id: RequestId.create(),
+            calls: rows.map((row) =>
+                notifications.announcement.call("expand", notifications.announcement.target(row)),
+            ),
+        });
     }
 }
 
@@ -305,11 +302,11 @@ function durable(dialect: Dialect): Promise<TestDatabase> {
 export type Follower = ReturnType<typeof follow>;
 
 /** Follow the space's presence as an actor's client, returning the rows kept after each page. */
-function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Actor) {
+function follow(store: ObjectStore<typeof objects>, spaceId: string, actor: Actor) {
     // read the pages in the background into the rows kept, waking whoever waits for the next
     const { context: followed, controller } = context(spaceId, actor);
-    const pages = server.source.relayed(
-        server.source.ephemeralShape.subscription({
+    const pages = store.source.relayed(
+        store.source.ephemeralShape.subscription({
             name: "ephemeral",
             scope: spaceId,
             below: spaceId,

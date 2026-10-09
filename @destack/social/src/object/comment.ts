@@ -135,18 +135,25 @@ const answer: Action<Excerpt> = {
         // find the object the thread comments on, through its first comment when notified there
         const first =
             source.type === comment.name
-                ? await call.invoke(comment).get({ id: comment.identifier(source.id) })
+                ? await call.query(
+                      call.caller,
+                      comment.call("get", { id: comment.identifier(source.id) }),
+                  )
                 : undefined;
         const parent =
             first === undefined
                 ? { packageId: source.packageId, type: source.type, id: source.id }
                 : { packageId: first.parentPackageId, type: first.parentType, id: first.parentId };
 
-        return call.invoke(comment).create({
-            parent,
-            body: { text, mentions: [] },
-            threadId: payload.thread,
-        });
+        return call
+            .mutate(call.caller, [
+                comment.call("create", {
+                    parent,
+                    body: { text, mentions: [] },
+                    threadId: payload.thread,
+                }),
+            ])
+            .then(([result]) => result);
     },
 };
 

@@ -27,7 +27,7 @@ test.for(TEST_DIALECTS)(
             await refusal(
                 call(subscription, "create", { ...host(article, draft.id), reason: "author" }),
             ),
-        ).toEqual(["BAD_REQUEST", "invalid input to subscription.create"]);
+        ).toEqual(["BAD_REQUEST", 'invalid input: unrecognized key: "reason"']);
 
         // subscribe a thread's author to it and the mentioned to the article with their reasons
         as("alice");
