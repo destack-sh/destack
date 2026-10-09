@@ -48,7 +48,7 @@ function finding(filename: string, code: string) {
     return { code, message: "finding", severity: "error" as const, filename, labels: [] };
 }
 
-test("compile a browser package with views against DOM and the view JSX runtime", async () => {
+test("compile a browser package with views against DOM, the view JSX runtime and its asset types", async () => {
     const directory = await writePackage(
         ["browser"],
         { name: "@example/app", dependencies: { "@destack/view": "2026.9.0" } },
@@ -61,6 +61,7 @@ test("compile a browser package with views against DOM and the view JSX runtime"
                 lib: ["ESNext", "DOM", "DOM.Iterable"],
                 jsx: "preserve",
                 jsxImportSource: "@destack/view",
+                types: ["@destack/view/client"],
             },
             include: ["src", "tests", "*.config.ts"],
         });
