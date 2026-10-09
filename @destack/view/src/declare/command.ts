@@ -51,9 +51,9 @@ export function defineCommand<const Object extends ObjectType>(
     // stamp the declaring package and validate the name and method
     const owner = ModuleMetadata.require(module, "defineCommand").package;
     DeclarationName.parse(definition.name);
-    if (definition.object.methods[definition.method]?.isSystem === true) {
+    if (definition.object.methods[definition.method]?.isInternal === true) {
         throw new TypeError(
-            `command ${definition.name} calls the system method ${definition.method}`,
+            `command ${definition.name} calls the internal method ${definition.method}`,
         );
     }
 

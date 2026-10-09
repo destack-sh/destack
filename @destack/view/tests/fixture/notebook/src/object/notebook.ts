@@ -1,6 +1,6 @@
+import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { space } from "@destack/space/object";
 
 /** A shareable notebook in a space. */
 export const notebook = defineObject({
