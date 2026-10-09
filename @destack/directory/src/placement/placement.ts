@@ -8,7 +8,7 @@ import {
     sql,
     text,
 } from "@destack/db";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Digest, schema } from "@destack/schema";
 
 /** Where a space runs: the machine serving its databases at an epoch. */
 const PlacementSchema = defineSchema(
@@ -25,6 +25,20 @@ const PlacementSchema = defineSchema(
 );
 /** Where a space runs, and the projection of its row into the space's own database. */
 export const Placement = Object.assign(PlacementSchema, {
+    /** Pick the machine a space goes on among some by rendezvous hashing, none among none. */
+    async pick(spaceId: string, machines: readonly string[]): Promise<string | undefined> {
+        // keep the machine whose digest with the space scores highest
+        let best: { readonly machine: string; readonly score: string } | undefined;
+        for (const machine of machines) {
+            const score = await Digest.of(`${spaceId}:${machine}`);
+            if (best === undefined || score > best.score) {
+                best = { machine, score };
+            }
+        }
+
+        return best?.machine;
+    },
+
     /** Write a space's placement row into its database as its machine holds it, or remove it once the machine holds none. */
     async project(
         database: DatabaseConnection,

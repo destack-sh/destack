@@ -10,7 +10,7 @@ import { RECOVERY_MILLISECONDS } from "../src/directory/store.ts";
 
 /** A service a machine mounts, answering a space's placement. */
 const placements = defineService("placements", {
-    locate: defineProcedure({ authentication: "public", permission: null, audit: false })
+    locate: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
         .route({ method: "GET", path: "/placements/{scope}" })
         .input(schema.object({ scope: schema.string() }))
         .output(Placement),
