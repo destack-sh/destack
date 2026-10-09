@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 import { stroke } from "@destack/theme/tokens.stylex";
-import { type JSX, omit } from "@destack/view";
+import { type JSX } from "@destack/view";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The styles of an element out of sight but read by assistive technology. */
 const styles = style.create({
@@ -15,13 +16,8 @@ const styles = style.create({
 });
 
 /** The properties of a visually hidden element, the native span's attributes included. */
-export interface VisuallyHiddenProperties extends Omit<
-    JSX.HTMLAttributes<HTMLSpanElement>,
-    "class"
-> {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-}
+export type VisuallyHiddenProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> &
+    ElementPartProperties;
 
 /** Return the StyleX styles that take an element out of sight and leave it to assistive technology. */
 export function visuallyHiddenStyle(): style.Styles {
@@ -30,13 +26,5 @@ export function visuallyHiddenStyle(): style.Styles {
 
 /** Render content out of sight that assistive technology still reads, such as an icon button's name. */
 export function VisuallyHidden(properties: VisuallyHiddenProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <span
-            data-slot="visually-hidden"
-            {...rest}
-            {...style.attributes([styles.hidden, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("span", "visually-hidden", properties, styles.hidden);
 }

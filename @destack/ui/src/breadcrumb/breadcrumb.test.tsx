@@ -34,11 +34,11 @@ test("render a breadcrumb trail ending at the current page", () => {
     ));
     const separator = `<li role="presentation" aria-hidden="true" data-slot="breadcrumb-separator">${ICON}</li>`;
     expect(markup(container)).toBe(
-        '<nav aria-label="Breadcrumb" data-slot="breadcrumb"><ol data-slot="breadcrumb-list">' +
+        '<nav data-slot="breadcrumb" aria-label="Breadcrumb"><ol data-slot="breadcrumb-list">' +
             '<li data-slot="breadcrumb-item"><a data-slot="breadcrumb-link" href="/">Home</a></li>' +
             separator +
             `<li data-slot="breadcrumb-item"><span data-slot="breadcrumb-ellipsis">${ICON}<span>More</span></span></li>` +
             separator +
-            '<li data-slot="breadcrumb-item"><span aria-current="page" data-slot="breadcrumb-page">Groceries</span></li></ol></nav>',
+            '<li data-slot="breadcrumb-item"><span data-slot="breadcrumb-page" aria-current="page">Groceries</span></li></ol></nav>',
     );
 });

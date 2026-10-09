@@ -37,7 +37,7 @@ test("connect the label and description to the control by id", () => {
         '<div role="group" data-slot="field" data-orientation="vertical">' +
             '<label data-slot="field-label" for="id-1">Email</label>' +
             '<input data-slot="input" id="id-1" type="email" aria-describedby="id-2">' +
-            '<p id="id-2" data-slot="field-description">Used to sign in.</p></div>',
+            '<p data-slot="field-description" id="id-2">Used to sign in.</p></div>',
     );
 });
 
@@ -88,7 +88,7 @@ test("drop a cleared error from the control's descriptions", () => {
     expect(markup(container)).toBe(
         '<div role="group" data-slot="field" data-orientation="vertical">' +
             '<input data-slot="input" id="id-1" aria-describedby="id-2">' +
-            '<p id="id-2" data-slot="field-description">Shown on the page.</p></div>',
+            '<p data-slot="field-description" id="id-2">Shown on the page.</p></div>',
     );
 });
 

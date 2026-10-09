@@ -29,6 +29,7 @@ import {
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { TopLayer } from "../layer/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The widest a dialog grows. */
 const DIALOG_WIDTH = "32rem";
@@ -171,11 +172,9 @@ export interface DialogContentProperties extends Omit<
 /** The properties of an element of a dialog, the native element's attributes included. */
 export type DialogElementProperties<Target extends HTMLElement> = Omit<
     JSX.HTMLAttributes<Target>,
-    "class"
-> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+    "class" | "style"
+> &
+    ElementPartProperties;
 
 /** Read the dialog of the nearest dialog root, refusing elements outside one. */
 export function useDialog(): DialogControl {
@@ -302,46 +301,21 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
 
 /** Render the top of a dialog that holds its title and description. */
 export function DialogHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="dialog-header"
-            {...rest}
-            {...style.attributes([styles.header, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "dialog-header", properties, styles.header);
 }
 
 /** Render the bottom row of a dialog that holds its actions. */
 export function DialogFooter(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="dialog-footer"
-            {...rest}
-            {...style.attributes([styles.footer, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "dialog-footer", properties, styles.footer);
 }
 
 /** Render the title that names its dialog. */
 export function DialogTitle(properties: DialogElementProperties<HTMLHeadingElement>): JSX.Element {
     const control = useDialog();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <h2
-            id={control.titleId}
-            data-slot="dialog-title"
-            {...rest}
-            {...style.attributes(
-                [text.headline, styles.title, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("h2", "dialog-title", properties, [text.headline, styles.title], {
+        id: control.titleId,
+    });
 }
 
 /** Render the description that describes its dialog. */
@@ -350,18 +324,9 @@ export function DialogDescription(
 ): JSX.Element {
     // describe the dialog for as long as the description renders
     const control = useDialog();
-    const rest = omit(properties, "xstyle", "style");
     control.describe();
 
-    return (
-        <p
-            id={control.descriptionId}
-            data-slot="dialog-description"
-            {...rest}
-            {...style.attributes(
-                [text.footnote, styles.description, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("p", "dialog-description", properties, [text.footnote, styles.description], {
+        id: control.descriptionId,
+    });
 }

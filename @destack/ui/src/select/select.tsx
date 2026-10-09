@@ -7,6 +7,7 @@ import { Selection, type SelectionProperties, valuesOf } from "../selection/inde
 import { useFieldControl } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The styles of a select, its picker and its options. */
 const styles = style.create({
@@ -100,10 +101,7 @@ export interface SelectLook extends Omit<
 }
 
 /** The properties of an element of a select, the native element's attributes included. */
-export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
 /** Render a native select whose button and picker take the theme where the browser allows, a list box when multiple. */
 export function Select(properties: SelectProperties): JSX.Element {
@@ -192,30 +190,14 @@ function choose(select: HTMLSelectElement, values: readonly string[]): void {
 export function SelectTrigger(
     properties: SelectElementProperties<JSX.ButtonHTMLAttributes<HTMLButtonElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <button
-            data-slot="select-trigger"
-            {...rest}
-            {...style.attributes([styles.trigger, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("button", "select-trigger", properties, styles.trigger);
 }
 
 /** Render a copy of the chosen option inside a select's button. */
 export function SelectValue(
     properties: SelectElementProperties<JSX.HTMLAttributes<HTMLElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <selectedcontent
-            data-slot="select-value"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("selectedcontent", "select-value", properties, null);
 }
 
 /** Group the options a select's picker lists. */
@@ -227,58 +209,26 @@ export function SelectContent(properties: { readonly children?: JSX.Element }): 
 export function SelectItem(
     properties: SelectElementProperties<JSX.OptionHTMLAttributes<HTMLOptionElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <option
-            data-slot="select-item"
-            {...rest}
-            {...style.attributes([styles.item, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("option", "select-item", properties, styles.item);
 }
 
 /** Render a group of a select's options under a label. */
 export function SelectGroup(
     properties: SelectElementProperties<JSX.OptgroupHTMLAttributes<HTMLOptGroupElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <optgroup
-            data-slot="select-group"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("optgroup", "select-group", properties, null);
 }
 
 /** Render the label of a group of a select's options. */
 export function SelectLabel(
     properties: SelectElementProperties<JSX.HTMLAttributes<HTMLLegendElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <legend
-            data-slot="select-label"
-            {...rest}
-            {...style.attributes([text.caption, styles.label, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("legend", "select-label", properties, [text.caption, styles.label]);
 }
 
 /** Render a line between a select's options. */
 export function SelectSeparator(
     properties: SelectElementProperties<JSX.HTMLAttributes<HTMLHRElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <hr
-            data-slot="select-separator"
-            {...rest}
-            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("hr", "select-separator", properties, styles.separator);
 }

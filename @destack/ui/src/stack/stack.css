@@ -1,0 +1,42 @@
+/* space a stack's elements in the base layer below every component style */
+@layer base {
+    /* space the stacked elements, or every nested element of a recursive stack */
+    [data-slot="stack"] {
+        gap: var(--stack-space);
+    }
+    [data-slot="stack"][data-recursive] {
+        gap: 0;
+    }
+    [data-slot="stack"][data-recursive] * + * {
+        margin-block-start: var(--stack-space);
+    }
+
+    /* move the elements after the split to the end of the stack */
+    [data-slot="stack"][data-split-after="1"] > :nth-child(1) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="2"] > :nth-child(2) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="3"] > :nth-child(3) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="4"] > :nth-child(4) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="5"] > :nth-child(5) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="6"] > :nth-child(6) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="7"] > :nth-child(7) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="8"] > :nth-child(8) {
+        margin-block-end: auto;
+    }
+    [data-slot="stack"][data-split-after="9"] > :nth-child(9) {
+        margin-block-end: auto;
+    }
+}

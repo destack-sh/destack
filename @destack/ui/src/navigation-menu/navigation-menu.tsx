@@ -28,7 +28,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, rendered, renderPart } from "../part/index.ts";
 import { ListState } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
@@ -392,22 +392,16 @@ export function NavigationMenuList(
     // move between the top-level entries in the reading direction
     const control = useNavigationMenu();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <ul
-            data-slot="navigation-menu-list"
-            {...rest}
-            onKeyDown={(event) => {
-                // move between the top-level links and triggers
-                if (event.target instanceof Element && event.target.matches(TOP)) {
-                    control.list.focus.move(event, locale.direction);
-                }
-            }}
-            onFocusOut={(event) => control.list.focus.focusOut(event)}
-            {...style.attributes([styles.list, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("ul", "navigation-menu-list", properties, styles.list, {
+        onKeyDown: (event) => {
+            // move between the top-level links and triggers
+            if (event.target instanceof Element && event.target.matches(TOP)) {
+                control.list.focus.move(event, locale.direction);
+            }
+        },
+        onFocusOut: (event) => control.list.focus.focusOut(event),
+    });
 }
 
 /** The properties of a navigation menu's item, the native element's attributes included. */
@@ -543,17 +537,13 @@ export function NavigationMenuViewport(
     properties: NavigationMenuElementProperties<Omit<JSX.HTMLAttributes<HTMLDivElement>, "ref">>,
 ): JSX.Element {
     const control = useNavigationMenu();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            hidden={control.open() === undefined}
-            data-slot="navigation-menu-viewport"
-            {...rest}
-            ref={(element) => control.setViewport(element)}
-            {...style.attributes([styles.surface, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "navigation-menu-viewport", properties, styles.surface, {
+        get hidden() {
+            return control.open() === undefined;
+        },
+        ref: (element) => control.setViewport(element),
+    });
 }
 
 /** Render the arrow under the open item's trigger, through CSS anchor positioning. */
@@ -561,17 +551,13 @@ export function NavigationMenuIndicator(
     properties: NavigationMenuElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useNavigationMenu();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            aria-hidden="true"
-            hidden={control.open() === undefined}
-            data-slot="navigation-menu-indicator"
-            {...rest}
-            {...style.attributes([styles.indicator, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "navigation-menu-indicator", properties, styles.indicator, {
+        "aria-hidden": "true",
+        get hidden() {
+            return control.open() === undefined;
+        },
+    });
 }
 
 /** The properties of a link of a navigation menu, the native anchor's attributes included. */

@@ -37,7 +37,10 @@ export const timeFieldBesideDatePicker = defineExample({
         "a date picker beside a time field that schedule a note's reminder at a day and time",
     render: () => (
         <div {...style.attrs(styles.row)}>
-            <DatePicker aria-label="Remind on" defaultValue={{ year: 2026, month: 10, day: 9 }} />
+            <DatePicker
+                aria-label="Remind on"
+                defaultSelected={{ year: 2026, month: 10, day: 9 }}
+            />
             <TimeField aria-label="Remind at" defaultValue="09:00" />
         </div>
     ),

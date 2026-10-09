@@ -13,11 +13,11 @@ export interface CalendarSingle {
     /** Select one day, the default. */
     readonly mode?: "single";
     /** The selected day, which makes the selection controlled, undefined for none. */
-    readonly value?: PlainDate | undefined;
+    readonly selected?: PlainDate | undefined;
     /** The day selected at first when the selection is uncontrolled. */
-    readonly defaultValue?: PlainDate;
+    readonly defaultSelected?: PlainDate;
     /** Handle a day being selected. */
-    readonly onValueChange?: (value: PlainDate) => void;
+    readonly onSelect?: (selected: PlainDate) => void;
 }
 
 /** A calendar selecting any number of days, each click toggling one. */
@@ -25,11 +25,11 @@ export interface CalendarMultiple {
     /** Select any number of days. */
     readonly mode: "multiple";
     /** The selected days, which make the selection controlled. */
-    readonly value?: readonly PlainDate[];
+    readonly selected?: readonly PlainDate[];
     /** The days selected at first when the selection is uncontrolled. */
-    readonly defaultValue?: readonly PlainDate[];
+    readonly defaultSelected?: readonly PlainDate[];
     /** Handle the selected days changing. */
-    readonly onValueChange?: (value: readonly PlainDate[]) => void;
+    readonly onSelect?: (selected: readonly PlainDate[]) => void;
 }
 
 /** A calendar selecting a range, the first click choosing its start and the second its end. */
@@ -37,11 +37,11 @@ export interface CalendarRange {
     /** Select a range of days. */
     readonly mode: "range";
     /** The selected range, which makes the selection controlled, undefined for none. */
-    readonly value?: DateRange | undefined;
+    readonly selected?: DateRange | undefined;
     /** The range selected at first when the selection is uncontrolled. */
-    readonly defaultValue?: DateRange;
+    readonly defaultSelected?: DateRange;
     /** Handle the range changing. */
-    readonly onValueChange?: (value: DateRange) => void;
+    readonly onSelect?: (selected: DateRange) => void;
 }
 
 /** The selection of a calendar in any mode. */
@@ -126,12 +126,12 @@ export function isDays(value: CalendarValue): value is readonly PlainDate[] {
 /** Tell a selection's change handler its new value, typed for its mode. */
 export function report(selection: CalendarSelection, value: CalendarValue): void {
     if (selection.mode === "multiple") {
-        selection.onValueChange?.(isDays(value) ? value : []);
+        selection.onSelect?.(isDays(value) ? value : []);
     } else if (selection.mode === "range") {
         if (isRange(value)) {
-            selection.onValueChange?.(value);
+            selection.onSelect?.(value);
         }
     } else if (value !== undefined && !isDays(value) && !isRange(value)) {
-        selection.onValueChange?.(value);
+        selection.onSelect?.(value);
     }
 }

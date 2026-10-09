@@ -28,7 +28,14 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    type PartAttributes,
+    type PartEvent,
+    type Render,
+    rendered,
+    renderPart,
+} from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
 import { Sheet, SheetContent, SheetTitle } from "../sheet/index.ts";
@@ -356,10 +363,8 @@ export interface SidebarProperties extends Omit<
 }
 
 /** The properties of an element of a sidebar, the native element's attributes included. */
-export type SidebarElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type SidebarElementProperties<Attributes> = Omit<Attributes, "class"> &
+    ElementPartProperties;
 
 /** The properties of a sidebar menu button, a link with `href` and a button otherwise. */
 export type SidebarMenuButtonProperties = SidebarElementProperties<
@@ -434,7 +439,7 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
     );
 }
 
-/** Render the sidebar: a column beside the content on wide screens and a sheet on narrow ones. */
+/** Render the sidebar: a column beside the content on wide screens and a sheet on narrow ones, always a column when it cannot collapse. */
 export function Sidebar(properties: SidebarProperties): JSX.Element {
     // read the state and the look
     const control = useSidebar();
@@ -449,7 +454,7 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
 
     return (
         <Show
-            when={!control.isMobile()}
+            when={!control.isMobile() || sidebar.collapsible === "none"}
             fallback={
                 <Sheet
                     open={control.isMobileOpen()}
@@ -528,79 +533,43 @@ export function SidebarRail(
     // read the sidebar and the locale
     const control = useSidebar();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <button
-            type="button"
-            tabindex={-1}
-            aria-label={locale.render(t`Toggle sidebar`)}
-            data-slot="sidebar-rail"
-            {...rest}
-            onClick={() => control.toggle()}
-            {...style.attributes([styles.rail, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("button", "sidebar-rail", properties, styles.rail, {
+        type: "button",
+        tabindex: -1,
+        get "aria-label"() {
+            return locale.render(t`Toggle sidebar`);
+        },
+        onClick: () => control.toggle(),
+    });
 }
 
 /** Render the main content beside the sidebar. */
 export function SidebarInset(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <main
-            data-slot="sidebar-inset"
-            {...rest}
-            {...style.attributes([styles.inset, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("main", "sidebar-inset", properties, styles.inset);
 }
 
 /** Render the top of the sidebar. */
 export function SidebarHeader(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="sidebar-header"
-            {...rest}
-            {...style.attributes([styles.header, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "sidebar-header", properties, styles.header);
 }
 
 /** Render the bottom of the sidebar. */
 export function SidebarFooter(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="sidebar-footer"
-            {...rest}
-            {...style.attributes([styles.footer, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "sidebar-footer", properties, styles.footer);
 }
 
 /** Render the scrolling middle of the sidebar that holds its groups. */
 export function SidebarContent(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="sidebar-content"
-            {...rest}
-            {...style.attributes([styles.content, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "sidebar-content", properties, styles.content);
 }
 
 /** Render a search or filter field of the sidebar, an input sized to it. */
@@ -618,32 +587,16 @@ export function SidebarInput(properties: InputProperties): JSX.Element {
 export function SidebarSeparator(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            role="separator"
-            data-slot="sidebar-separator"
-            {...rest}
-            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "sidebar-separator", properties, styles.separator, {
+        role: "separator",
+    });
 }
 
 /** Render a group of the sidebar's menus. */
 export function SidebarGroup(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            role="group"
-            data-slot="sidebar-group"
-            {...rest}
-            {...style.attributes([styles.group, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "sidebar-group", properties, styles.group, { role: "group" });
 }
 
 /** Render the label of a group, faded while the sidebar shows only icons. */
@@ -651,23 +604,12 @@ export function SidebarGroupLabel(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useSidebar();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="sidebar-group-label"
-            {...rest}
-            {...style.attributes(
-                [
-                    text.caption,
-                    styles.groupLabel,
-                    !control.isOpen() && !control.isMobile() && styles.fade,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "sidebar-group-label", properties, () => [
+        text.caption,
+        styles.groupLabel,
+        !control.isOpen() && !control.isMobile() && styles.fade,
+    ]);
 }
 
 /** Render a button in the corner of a group, such as one that adds an entry. */
@@ -689,45 +631,21 @@ export function SidebarGroupAction(properties: ButtonProperties): JSX.Element {
 export function SidebarGroupContent(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="sidebar-group-content"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "sidebar-group-content", properties, null);
 }
 
 /** Render a list of menu entries. */
 export function SidebarMenu(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLUListElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <ul
-            data-slot="sidebar-menu"
-            {...rest}
-            {...style.attributes([styles.menu, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("ul", "sidebar-menu", properties, styles.menu);
 }
 
 /** Render one entry of a menu. */
 export function SidebarMenuItem(
     properties: SidebarElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <li
-            data-slot="sidebar-menu-item"
-            {...rest}
-            {...style.attributes([styles.menuItem, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("li", "sidebar-menu-item", properties, styles.menuItem);
 }
 
 /** Render an entry's button, or its link with `href`, with a tooltip naming it while the sidebar shows only icons. */
@@ -869,48 +787,21 @@ export function SidebarMenuAction(properties: ButtonProperties): JSX.Element {
 export function SidebarMenuBadge(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="sidebar-menu-badge"
-            {...rest}
-            {...style.attributes(
-                [text.caption, styles.menuBadge, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "sidebar-menu-badge", properties, [text.caption, styles.menuBadge]);
 }
 
 /** Render a nested list of an entry's sub-entries. */
 export function SidebarMenuSub(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLUListElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <ul
-            data-slot="sidebar-menu-sub"
-            {...rest}
-            {...style.attributes([styles.menuSub, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("ul", "sidebar-menu-sub", properties, styles.menuSub);
 }
 
 /** Render one sub-entry. */
 export function SidebarMenuSubItem(
     properties: SidebarElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <li
-            data-slot="sidebar-menu-sub-item"
-            {...rest}
-            {...style.attributes([styles.menuItem, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("li", "sidebar-menu-sub-item", properties, styles.menuItem);
 }
 
 /** Render a sub-entry's link, marked as the current page when active. */

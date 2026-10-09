@@ -125,6 +125,8 @@ export interface TooltipContentProperties extends Omit<
     readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
     readonly align?: Align;
+    /** The gap from the trigger in pixels, 4 by default. */
+    readonly sideOffset?: number;
     /** The StyleX styles applied after the tooltip's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -183,7 +185,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
     // read the tooltip and its placement
     const tooltip = useTooltip();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "xstyle", "style");
+    const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
 
     // show and hide the tooltip as it opens and closes
     createEffect(tooltip.isOpen, (isOpen) => tooltip.sync(isOpen));
@@ -208,6 +210,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
                         text.caption,
                         styles.content,
                         Position.beside(content.side, content.align),
+                        Position.offset(content.sideOffset),
                         content.xstyle,
                     ],
                     content.style,

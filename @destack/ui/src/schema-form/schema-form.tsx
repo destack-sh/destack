@@ -242,8 +242,8 @@ function DateControl(properties: FieldControlProperties<SchemaTextField>): JSX.E
     return (
         <Labelled field={field} held={properties.held}>
             <DatePicker
-                value={dayOf(properties.held.value())}
-                onValueChange={(day) =>
+                selected={dayOf(properties.held.value())}
+                onSelect={(day) =>
                     properties.held.set(day === undefined ? clearedOf(field) : Day.key(day))
                 }
             />
@@ -289,7 +289,7 @@ function MomentControl(properties: FieldControlProperties<SchemaTextField>): JSX
                 <DatePicker
                     aria-label={locale.render(t`Date`)}
                     {...(start === undefined ? {} : { defaultValue: start.day })}
-                    onValueChange={(next) => {
+                    onSelect={(next) => {
                         day = next;
                         write();
                     }}

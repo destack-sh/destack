@@ -96,3 +96,17 @@ test("show the next tooltip of a group at once while the last one just hid", asy
     flush();
     expect(pinTooltip.hasAttribute("data-popover-open")).toBe(true);
 });
+
+test("set a tooltip's gap from its trigger", () => {
+    stubPopovers();
+    render(() => (
+        <Tooltip>
+            <TooltipTrigger>Archive</TooltipTrigger>
+            <TooltipContent sideOffset={8}>Archive note</TooltipContent>
+        </Tooltip>
+    ));
+
+    expect(find(document.body, "[data-slot=tooltip-content]").getAttribute("style")).toBe(
+        "--x-margin: 8px;",
+    );
+});

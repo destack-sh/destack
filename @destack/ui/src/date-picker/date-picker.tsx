@@ -73,7 +73,7 @@ export interface DatePickerLook {
     /** The text a multiple date picker's trigger shows before a day is chosen, a generic prompt by default. */
     readonly placeholder?: string;
     /** Report whether a day cannot be chosen. */
-    readonly isDisabled?: (day: PlainDate) => boolean;
+    readonly disabled?: (day: PlainDate) => boolean;
     /** The look of a multiple date picker's trigger, outline by default. */
     readonly variant?: ButtonVariant;
     /** The name of the picker, such as the field it fills, which a multiple picker's chosen days follow. */
@@ -97,15 +97,15 @@ export interface DatePickerPreset {
 }
 
 /** A date picker typing or picking one day. */
-export interface DatePickerSingle extends Omit<CalendarSingle, "onValueChange"> {
+export interface DatePickerSingle extends Omit<CalendarSingle, "onSelect"> {
     /** Handle the day changing, undefined once the typed day is missing or impossible. */
-    readonly onValueChange?: (value: PlainDate | undefined) => void;
+    readonly onSelect?: (selected: PlainDate | undefined) => void;
 }
 
 /** A date picker typing or picking a range, its start first. */
-export interface DatePickerRange extends Omit<CalendarRange, "onValueChange"> {
+export interface DatePickerRange extends Omit<CalendarRange, "onSelect"> {
     /** Handle the range changing, undefined once the typed start is missing or impossible. */
-    readonly onValueChange?: (value: DateRange | undefined) => void;
+    readonly onSelect?: (selected: DateRange | undefined) => void;
 }
 
 /** The selection of a date picker in any mode. */
@@ -136,9 +136,9 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
     // read the popover and the chosen days
     const popover = usePopover();
     const [value, setValue] = createControllableSignal<CalendarValue>({
-        isControlled: () => "value" in properties,
-        value: () => properties.value,
-        defaultValue: properties.defaultValue,
+        isControlled: () => "selected" in properties,
+        value: () => properties.selected,
+        defaultValue: properties.defaultSelected,
         onChange: (next) => report(properties, next),
     });
 
@@ -201,7 +201,7 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
                 </Show>
                 <Calendar
                     {...selectionOf(properties.mode, value(), change)}
-                    isDisabled={properties.isDisabled ?? (() => false)}
+                    disabled={properties.disabled ?? (() => false)}
                 />
             </PopoverContent>
         </>
@@ -347,20 +347,20 @@ function selectionOf(
     if (mode === "multiple") {
         return {
             mode,
-            value: isDays(value) ? value : [],
-            onValueChange: (days) => change(days, false),
+            selected: isDays(value) ? value : [],
+            onSelect: (days) => change(days, false),
         };
     } else if (mode === "range") {
         return {
             mode,
-            value: isRange(value) ? value : undefined,
-            onValueChange: (range) => change(range, range.to !== undefined),
+            selected: isRange(value) ? value : undefined,
+            onSelect: (range) => change(range, range.to !== undefined),
         };
     } else {
         return {
             mode: "single",
-            value: singleOf(value),
-            onValueChange: (day) => change(day, true),
+            selected: singleOf(value),
+            onSelect: (day) => change(day, true),
         };
     }
 }
@@ -402,14 +402,14 @@ function singleOf(value: CalendarValue): PlainDate | undefined {
 function report(selection: DatePickerSelection, value: CalendarValue): void {
     // the chosen days
     if (selection.mode === "multiple") {
-        selection.onValueChange?.(isDays(value) ? value : []);
+        selection.onSelect?.(isDays(value) ? value : []);
     }
     // the range, none without a start
     else if (selection.mode === "range") {
-        selection.onValueChange?.(isRange(value) ? value : undefined);
+        selection.onSelect?.(isRange(value) ? value : undefined);
     }
     // the day, none once cleared
     else {
-        selection.onValueChange?.(singleOf(value));
+        selection.onSelect?.(singleOf(value));
     }
 }

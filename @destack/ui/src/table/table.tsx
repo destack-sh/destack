@@ -2,7 +2,8 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, omit } from "@destack/view";
+import { type JSX } from "@destack/view";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The styles of a table and its elements. */
 const styles = style.create({
@@ -53,27 +54,15 @@ const styles = style.create({
 });
 
 /** The properties of an element of a table, the native element's attributes included. */
-export type TableElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type TableElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
 /** Render a native table that scrolls sideways when wider than its container. */
 export function Table(
     properties: TableElementProperties<JSX.HTMLAttributes<HTMLTableElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
     return (
         <div data-slot="table-container" {...style.attrs(styles.container)}>
-            <table
-                data-slot="table"
-                {...rest}
-                {...style.attributes(
-                    [text.footnote, styles.table, properties.xstyle],
-                    properties.style,
-                )}
-            />
+            {renderPart("table", "table", properties, [text.footnote, styles.table])}
         </div>
     );
 }
@@ -82,103 +71,47 @@ export function Table(
 export function TableHeader(
     properties: TableElementProperties<JSX.HTMLAttributes<HTMLTableSectionElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <thead
-            data-slot="table-header"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("thead", "table-header", properties, null);
 }
 
 /** Render the body rows of a table. */
 export function TableBody(
     properties: TableElementProperties<JSX.HTMLAttributes<HTMLTableSectionElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <tbody
-            data-slot="table-body"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("tbody", "table-body", properties, null);
 }
 
 /** Render the footer rows of a table, such as totals. */
 export function TableFooter(
     properties: TableElementProperties<JSX.HTMLAttributes<HTMLTableSectionElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <tfoot
-            data-slot="table-footer"
-            {...rest}
-            {...style.attributes([styles.footer, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("tfoot", "table-footer", properties, styles.footer);
 }
 
 /** Render a row of a table. */
 export function TableRow(
     properties: TableElementProperties<JSX.HTMLAttributes<HTMLTableRowElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <tr
-            data-slot="table-row"
-            {...rest}
-            {...style.attributes([styles.row, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("tr", "table-row", properties, styles.row);
 }
 
 /** Render a header cell that names its column or row. */
 export function TableHead(
     properties: TableElementProperties<JSX.ThHTMLAttributes<HTMLTableCellElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <th
-            data-slot="table-head"
-            {...rest}
-            {...style.attributes([styles.head, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("th", "table-head", properties, styles.head);
 }
 
 /** Render a data cell. */
 export function TableCell(
     properties: TableElementProperties<JSX.TdHTMLAttributes<HTMLTableCellElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <td
-            data-slot="table-cell"
-            {...rest}
-            {...style.attributes([styles.cell, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("td", "table-cell", properties, styles.cell);
 }
 
 /** Render the caption that names a table. */
 export function TableCaption(
     properties: TableElementProperties<JSX.HTMLAttributes<HTMLTableCaptionElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <caption
-            data-slot="table-caption"
-            {...rest}
-            {...style.attributes([styles.caption, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("caption", "table-caption", properties, styles.caption);
 }

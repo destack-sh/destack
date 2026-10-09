@@ -2,6 +2,7 @@ import * as style from "@destack/style";
 import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The variant of an alert that sets none. */
 const DEFAULTS: Required<Pick<AlertProperties, "variant">> = { variant: "default" };
@@ -64,10 +65,8 @@ const AlertContext = createContext<() => AlertVariant>(() => "default");
 export type AlertVariant = "default" | "destructive";
 
 /** The properties of an element of an alert, the native element's attributes included. */
-export type AlertElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type AlertElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
+    ElementPartProperties;
 
 /** The properties of an alert, the native element's attributes included. */
 export interface AlertProperties extends AlertElementProperties {
@@ -98,30 +97,15 @@ export function Alert(properties: AlertProperties): JSX.Element {
 
 /** Render the title of an alert on one line. */
 export function AlertTitle(properties: AlertElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="alert-title"
-            {...rest}
-            {...style.attributes([styles.title, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "alert-title", properties, styles.title);
 }
 
 /** Render the description under an alert's title. */
 export function AlertDescription(properties: AlertElementProperties): JSX.Element {
     const variant = useContext(AlertContext);
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="alert-description"
-            {...rest}
-            {...style.attributes(
-                [styles.description, descriptions[variant()], properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "alert-description", properties, () => [
+        styles.description,
+        descriptions[variant()],
+    ]);
 }

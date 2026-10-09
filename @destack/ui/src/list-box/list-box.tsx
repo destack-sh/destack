@@ -21,6 +21,7 @@ import { AutocompleteContext, type AutocompleteControl } from "../autocomplete/i
 import { Collection, CollectionBuilder, type CollectionSection } from "../collection/index.ts";
 import { Focus, GridDelegate, ListDelegate, type Orientation } from "../focus/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The key of the section of options outside any section. */
 const UNSECTIONED = "";
@@ -281,10 +282,8 @@ interface ListBoxSectionControl {
 }
 
 /** The properties of an element of a list box, the native element's attributes included. */
-export type ListBoxElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type ListBoxElementProperties<Attributes> = Omit<Attributes, "class"> &
+    ElementPartProperties;
 
 /** The properties of a list box: its selection, layout and focus, the native element's attributes included. */
 export type ListBoxProperties = ListBoxElementProperties<
@@ -449,19 +448,18 @@ export function ListBoxSectionHeading(
         throw new TypeError("a list box section heading needs a list box section around it");
     }
     section.label();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            id={`${section.key}-heading`}
-            aria-hidden="true"
-            data-slot="list-box-section-heading"
-            {...rest}
-            {...style.attributes(
-                [text.caption, styles.heading, properties.xstyle],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "list-box-section-heading",
+        properties,
+        [text.caption, styles.heading],
+        {
+            get id() {
+                return `${section.key}-heading`;
+            },
+            "aria-hidden": "true",
+        },
     );
 }
 
@@ -547,16 +545,10 @@ export function ListBoxEmpty(
     properties: ListBoxElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useListBox();
-    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={control.collection.size() === 0}>
-            <div
-                role="presentation"
-                data-slot="list-box-empty"
-                {...rest}
-                {...style.attributes([styles.note, properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "list-box-empty", properties, styles.note, { role: "presentation" })}
         </Show>
     );
 }
@@ -565,16 +557,7 @@ export function ListBoxEmpty(
 export function ListBoxLoading(
     properties: ListBoxElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            role="status"
-            data-slot="list-box-loading"
-            {...rest}
-            {...style.attributes([styles.note, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "list-box-loading", properties, styles.note, { role: "status" });
 }
 
 /** Render a line between sections of options, hidden while a search filters them. */
@@ -582,16 +565,12 @@ export function ListBoxSeparator(
     properties: ListBoxElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useListBox();
-    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={!control.isSearching()}>
-            <div
-                role="separator"
-                data-slot="list-box-separator"
-                {...rest}
-                {...style.attributes([styles.separator, properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "list-box-separator", properties, styles.separator, {
+                role: "separator",
+            })}
         </Show>
     );
 }

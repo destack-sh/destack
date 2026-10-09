@@ -34,6 +34,7 @@ import {
     type SwipeRelease,
     swipeStyle,
 } from "../swipe/index.ts";
+import { renderPart } from "../part/index.ts";
 
 /** The share of the viewport a drawer grows to at most. */
 const DRAWER_EXTENT = "80vh";
@@ -112,9 +113,9 @@ export interface DrawerProperties extends DialogProperties {
     /** The snap point the drawer rests at, which makes it controlled. */
     readonly activeSnapPoint?: DrawerSnapPoint;
     /** The snap point the drawer rests at first when uncontrolled, the largest by default. */
-    readonly defaultSnapPoint?: DrawerSnapPoint;
+    readonly defaultActiveSnapPoint?: DrawerSnapPoint;
     /** Handle a drag settling the drawer at another snap point. */
-    readonly onSnapPointChange?: (point: DrawerSnapPoint) => void;
+    readonly onActiveSnapPointChange?: (point: DrawerSnapPoint) => void;
 }
 
 /** The edge and snap points of a drawer, which its content reads. */
@@ -134,10 +135,10 @@ export class DrawerControl {
         const [active, setActive] = createControllableSignal<DrawerSnapPoint | undefined>({
             isControlled: () => properties.activeSnapPoint !== undefined,
             value: () => properties.activeSnapPoint,
-            defaultValue: properties.defaultSnapPoint,
+            defaultValue: properties.defaultActiveSnapPoint,
             onChange: (point) => {
                 if (point !== undefined) {
-                    properties.onSnapPointChange?.(point);
+                    properties.onActiveSnapPointChange?.(point);
                 }
             },
         });
@@ -208,8 +209,8 @@ export function Drawer(properties: DrawerProperties): JSX.Element {
         "direction",
         "snapPoints",
         "activeSnapPoint",
-        "defaultSnapPoint",
-        "onSnapPointChange",
+        "defaultActiveSnapPoint",
+        "onActiveSnapPointChange",
     );
 
     return (
@@ -276,16 +277,7 @@ export function DrawerContent(properties: DrawerContentProperties): JSX.Element 
 
 /** Render the bar a drawer shows at its top edge as the place to drag it by. */
 export function DrawerHandle(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="drawer-handle"
-            aria-hidden="true"
-            {...rest}
-            {...style.attributes([styles.handle, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "drawer-handle", properties, styles.handle, { "aria-hidden": "true" });
 }
 
 /** Render the top of a drawer that holds its title and description. */

@@ -16,6 +16,7 @@ import {
     useContext,
 } from "@destack/view";
 import { useFieldControl } from "../field/control.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The characters a code takes when its owner allows no others. */
 const DIGITS = "[0-9]";
@@ -215,10 +216,8 @@ export interface InputOTPProperties extends Omit<
 }
 
 /** The properties of an element of a one-time code input, the native element's attributes included. */
-export type InputOTPElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type InputOTPElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
+    ElementPartProperties;
 
 /** The properties of a one-time code input's slot. */
 export interface InputOTPSlotProperties extends InputOTPElementProperties {
@@ -278,15 +277,7 @@ export function InputOTP(properties: InputOTPProperties): JSX.Element {
 
 /** Render slots side by side, joined into one box. */
 export function InputOTPGroup(properties: InputOTPElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="input-otp-group"
-            {...rest}
-            {...style.attributes([styles.group, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "input-otp-group", properties, styles.group);
 }
 
 /** Render one character of the code, with a blinking caret while it waits for it. */
@@ -323,18 +314,12 @@ export function InputOTPSlot(properties: InputOTPSlotProperties): JSX.Element {
 
 /** Render a mark between groups of slots. */
 export function InputOTPSeparator(properties: InputOTPElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="input-otp-separator"
-            role="separator"
-            {...rest}
-            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
-        >
-            <Icon name="minus" />
-        </div>
-    );
+    return renderPart("div", "input-otp-separator", properties, styles.separator, {
+        role: "separator",
+        get children() {
+            return <Icon name="minus" />;
+        },
+    });
 }
 
 /** Read the control of the nearest one-time code input. */

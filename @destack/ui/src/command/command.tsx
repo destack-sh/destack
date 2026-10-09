@@ -3,7 +3,7 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, omit, Show, useLocale } from "@destack/view";
+import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
 import {
     AutocompleteContext,
     AutocompleteControl,
@@ -31,9 +31,24 @@ import {
     useListBox,
 } from "../list-box/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
+import { renderPart } from "../part/index.ts";
+
+/** The distance of a command dialog from the viewport's top, so it holds still as its results change. */
+const DIALOG_OFFSET = "12vh";
+
+/** The widest a command dialog grows, room for a result's title and excerpt. */
+const DIALOG_WIDTH = "40rem";
 
 /** The styles of a command and its elements. */
 const styles = style.create({
+    dialog: {
+        width: `min(100% - 2 * ${space[4]}, ${DIALOG_WIDTH})`,
+        marginBlockStart: DIALOG_OFFSET,
+        marginBlockEnd: "auto",
+        padding: 0,
+        gap: 0,
+        overflow: "hidden",
+    },
     command: {
         display: "flex",
         flexDirection: "column",
@@ -47,7 +62,10 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         gap: space[2],
-        height: size[3],
+        height: {
+            default: size[3],
+            [style.when.ancestor('[data-slot="command-dialog"]')]: size[4],
+        },
         paddingInline: space[3],
         borderBottomStyle: "solid",
         borderBottomWidth: stroke.border,
@@ -62,10 +80,20 @@ const styles = style.create({
         "::placeholder": { color: color.mutedForeground },
     },
     list: {
-        maxHeight: `calc(8 * ${size[3]})`,
+        maxHeight: {
+            default: `calc(8 * ${size[3]})`,
+            [style.when.ancestor('[data-slot="command-dialog"]')]:
+                `min(28rem, 100dvh - 2 * ${DIALOG_OFFSET})`,
+        },
         overflowX: "hidden",
         overflowY: "auto",
         padding: space[1],
+    },
+    item: {
+        paddingBlock: {
+            default: null,
+            [style.when.ancestor('[data-slot="command-dialog"]')]: space[3],
+        },
     },
     shortcut: {
         marginInlineStart: "auto",
@@ -98,8 +126,9 @@ export type CommandElementProperties<Attributes> = Omit<Attributes, "class"> & {
 /** The properties of a command option. */
 export type CommandItemProperties = ListBoxItemProperties;
 
-/** The properties of a command dialog. */
-export interface CommandDialogProperties extends DialogProperties {
+/** The properties of a command dialog: its open state and its command's search, filtering and highlight. */
+export interface CommandDialogProperties
+    extends Omit<DialogProperties, "children">, Omit<CommandProperties, "title"> {
     /** The title assistive technology announces, a generic one by default. */
     readonly title?: string;
     /** The description assistive technology announces, a generic one by default. */
@@ -178,20 +207,17 @@ export function CommandInput(
     // take the search field's attributes from the command's search
     const autocomplete = useAutocomplete();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div data-slot="command-input-wrapper" {...style.attrs(styles.search)}>
             <Icon name="magnifying-glass" />
-            <input
-                data-slot="command-input"
-                {...autocomplete.input(() => locale.direction)}
-                {...rest}
-                {...style.attributes(
-                    [text.callout, styles.input, properties.xstyle],
-                    properties.style,
-                )}
-            />
+            {renderPart(
+                "input",
+                "command-input",
+                properties,
+                [text.callout, styles.input],
+                merge(autocomplete.input(() => locale.direction)),
+            )}
         </div>
     );
 }
@@ -249,7 +275,13 @@ export function CommandGroupHeading(
 
 /** Render an option that the search filters and a click or Enter chooses. */
 export function CommandItem(properties: CommandItemProperties): JSX.Element {
-    return <ListBoxItem data-slot="command-item" {...properties} />;
+    return (
+        <ListBoxItem
+            data-slot="command-item"
+            {...properties}
+            xstyle={[styles.item, properties.xstyle]}
+        />
+    );
 }
 
 /** Render a line between groups of options while the search is empty. */
@@ -263,35 +295,36 @@ export function CommandSeparator(
 export function CommandShortcut(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <span
-            data-slot="command-shortcut"
-            {...rest}
-            {...style.attributes(
-                [text.caption, styles.shortcut, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("span", "command-shortcut", properties, [text.caption, styles.shortcut]);
 }
 
-/** Render a command in a modal dialog, titled for assistive technology. */
+/** Render a command in a modal dialog near the viewport's top, titled for assistive technology. */
 export function CommandDialog(properties: CommandDialogProperties): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "title", "description", "children");
+    const command = omit(
+        properties,
+        "open",
+        "defaultOpen",
+        "onOpenChange",
+        "modal",
+        "title",
+        "description",
+    );
 
     return (
-        <Dialog {...rest}>
-            <DialogContent showCloseButton={false}>
+        <Dialog {...properties}>
+            <DialogContent
+                data-slot="command-dialog"
+                showCloseButton={false}
+                xstyle={[style.defaultMarker(), styles.dialog]}
+            >
                 <DialogTitle xstyle={visuallyHiddenStyle()}>
                     {properties.title ?? locale.render(t`Command palette`)}
                 </DialogTitle>
                 <DialogDescription xstyle={visuallyHiddenStyle()}>
                     {properties.description ?? locale.render(t`Search for a command to run`)}
                 </DialogDescription>
-                <Command>{properties.children}</Command>
+                <Command {...command} />
             </DialogContent>
         </Dialog>
     );

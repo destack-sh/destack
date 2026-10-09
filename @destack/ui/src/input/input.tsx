@@ -10,9 +10,10 @@ import {
     weight,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, omit } from "@destack/view";
+import { type JSX, merge } from "@destack/view";
 import { useFieldControl } from "../field/control.ts";
 import { useJoin } from "../join/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The styles of an input and of every control that looks like one. */
 const styles = style.create({
@@ -64,29 +65,22 @@ export function inputStyle(options: InputStyleOptions = {}): style.Styles {
 }
 
 /** The properties of an input, the native input's attributes included. */
-export interface InputProperties extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "class"> {
-    /** The StyleX styles applied after the input's styles. */
-    readonly xstyle?: style.Styles;
-}
+export type InputProperties = Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "class"> &
+    ElementPartProperties;
 
 /** Render a native input, tied to the label, descriptions and state of its field. */
 export function Input(properties: InputProperties): JSX.Element {
     // take the id, descriptions and state of the nearest field
     const field = useFieldControl();
     const join = useJoin();
-    const rest = omit(properties, "xstyle", "style");
     const isInvalid = (): boolean =>
         field?.isInvalid() === true || properties["aria-invalid"] === "true";
 
-    return (
-        <input
-            data-slot="input"
-            {...field?.attributes()}
-            {...rest}
-            {...style.attributes(
-                [inputStyle({ invalid: isInvalid() }), styles.input, join(), properties.xstyle],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "input",
+        "input",
+        properties,
+        () => [inputStyle({ invalid: isInvalid() }), styles.input, join()],
+        merge(() => field?.attributes() ?? {}),
     );
 }

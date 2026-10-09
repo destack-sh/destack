@@ -78,5 +78,5 @@ test("render an item as a link that keeps the item's role and closes the menu wh
         link.dataset["slot"],
         link.textContent,
         find(container, "[data-slot=dropdown-menu-trigger]").getAttribute("aria-expanded"),
-    ]).toEqual(["#settings", "menu-item", "Settings", "false"]);
+    ]).toEqual(["#settings", "dropdown-menu-item", "Settings", "false"]);
 });

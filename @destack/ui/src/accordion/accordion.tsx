@@ -15,6 +15,7 @@ import {
 import { Selection, type SelectionProperties } from "../selection/index.ts";
 import { followToggle, refuseDisabled } from "../disclosure/index.ts";
 import { ListState } from "../focus/index.ts";
+import { renderPart } from "../part/index.ts";
 
 /** The open items of the nearest accordion, null outside one. */
 const AccordionContext = createContext<AccordionControl | null>(null);
@@ -296,17 +297,10 @@ export function AccordionContent(
     properties: AccordionElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const item = useContext(AccordionItemContext);
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="accordion-content"
-            data-state={item?.isOpen() === true ? "open" : "closed"}
-            {...rest}
-            {...style.attributes(
-                [text.footnote, styles.content, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "accordion-content", properties, [text.footnote, styles.content], {
+        get "data-state"() {
+            return item?.isOpen() === true ? "open" : "closed";
+        },
+    });
 }

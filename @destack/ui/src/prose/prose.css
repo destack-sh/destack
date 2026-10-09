@@ -52,9 +52,15 @@
         letter-spacing: var(--destack-text-headline-letter-spacing);
     }
 
+    /* set the first paragraph of a lead-in prose as its lead: larger and muted */
+    [data-slot="prose"][data-lead] > :where(p:first-of-type) {
+        color: var(--destack-color-muted-foreground);
+        font-size: var(--destack-text-title3-font-size);
+        line-height: var(--destack-text-title3-line-height);
+    }
+
     /* break long words in running text rather than overflow */
     [data-slot="prose"] :where(p, li, blockquote, td, th) {
-        margin-block: 0;
         overflow-wrap: anywhere;
     }
 
@@ -101,7 +107,7 @@
         padding: 0.1em 0.35em;
         border-radius: var(--destack-radius-1);
         background-color: var(--destack-color-muted);
-        font-family: var(--destack-text-code-family);
+        font-family: var(--destack-font-code);
         font-size: 0.875em;
     }
 
@@ -113,7 +119,7 @@
         border: var(--destack-stroke-border) solid var(--destack-color-border);
         border-radius: var(--destack-radius-3);
         background-color: var(--destack-color-muted);
-        font-family: var(--destack-text-code-family);
+        font-family: var(--destack-font-code);
         font-size: var(--destack-text-footnote-font-size);
         line-height: var(--destack-text-footnote-line-height);
     }
@@ -158,7 +164,7 @@
 
     [data-slot="prose"] :where(th) {
         background-color: var(--destack-color-muted);
-        font-weight: 600;
+        font-weight: var(--destack-weight-semibold);
     }
 
     /* fit images to the column */
@@ -219,7 +225,7 @@
         align-items: center;
         gap: var(--destack-space-2);
         color: var(--prose-alert);
-        font-weight: 600;
+        font-weight: var(--destack-weight-semibold);
     }
 
     [data-slot="prose"] :where(.markdown-alert-tip) {

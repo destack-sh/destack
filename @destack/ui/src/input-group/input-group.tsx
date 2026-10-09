@@ -16,6 +16,7 @@ import { Input, type InputProperties } from "../input/index.ts";
 import { JoinContext, useJoin } from "../join/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
 import { addonMarker, controlMarker, multilineMarker } from "./marker.stylex.ts";
+import { renderPart } from "../part/index.ts";
 
 /** The alignment of an addon that sets none. */
 const ADDON_DEFAULTS: Required<Pick<InputGroupAddonProperties, "align">> = {
@@ -213,14 +214,7 @@ export function InputGroupButton(properties: InputGroupButtonProperties): JSX.El
 export function InputGroupText(
     properties: InputGroupElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <span
-            {...rest}
-            {...style.attributes([text.callout, styles.text, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("span", "input-group-text", properties, [text.callout, styles.text]);
 }
 
 /** Render a group's input, tied to its field like any input. */

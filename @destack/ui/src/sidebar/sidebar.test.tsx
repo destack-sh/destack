@@ -13,13 +13,13 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from "./index.ts";
-import { classes, draw, stubPopovers } from "@destack/view/test";
+import { classes, render, stubPopovers } from "@destack/view/test";
 
 /** Render a page with a sidebar of notebooks, collapsing to its icons. */
 function drawPage(changes: boolean[]): HTMLElement {
     onTestFinished(() => localStorage.clear());
 
-    return draw(() => (
+    return render(() => (
         <SidebarProvider onOpenChange={(open) => changes.push(open)}>
             <Sidebar collapsible="icon">
                 <SidebarContent>
@@ -42,7 +42,7 @@ function drawPage(changes: boolean[]): HTMLElement {
                 <SidebarTrigger />
             </SidebarInset>
         </SidebarProvider>
-    ));
+    )).container;
 }
 
 test("collapse the sidebar from its trigger, reporting the change", () => {
@@ -118,7 +118,7 @@ test("name a menu button in a tooltip only while the sidebar shows its icons", (
 });
 
 test("show placeholder rows through the shared skeleton while entries load", () => {
-    const container = draw(() => (
+    const { container } = render(() => (
         <SidebarProvider>
             <SidebarMenuSkeleton showIcon />
         </SidebarProvider>
@@ -128,4 +128,49 @@ test("show placeholder rows through the shared skeleton while entries load", () 
             skeleton.getAttribute("data-sidebar"),
         ),
     ).toEqual(["menu-skeleton-icon", "menu-skeleton-text"]);
+});
+
+test("keep a sidebar that cannot collapse as a column on narrow screens, where others turn into sheets", async () => {
+    // answer every media query as a phone's narrow screen does, for this test alone
+    const original = window.matchMedia;
+    window.matchMedia = (query: string) => {
+        const list = original.call(window, query);
+        Object.defineProperty(list, "matches", { value: true });
+
+        return list;
+    };
+    onTestFinished(() => {
+        window.matchMedia = original;
+    });
+
+    // render one sidebar that cannot collapse and one that collapses off canvas
+    const { container } = render(() => (
+        <>
+            <SidebarProvider>
+                <Sidebar collapsible="none">
+                    <SidebarContent>Settings</SidebarContent>
+                </Sidebar>
+            </SidebarProvider>
+            <SidebarProvider>
+                <Sidebar collapsible="offcanvas">
+                    <SidebarContent>Notebooks</SidebarContent>
+                </Sidebar>
+            </SidebarProvider>
+        </>
+    ));
+    await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+    });
+    flush();
+
+    // show the settings column in place, and the notebooks as the phone's sheet titled for assistive technology
+    expect(
+        [...container.querySelectorAll("[data-slot=sidebar]")].map((sidebar) => [
+            sidebar.textContent,
+            sidebar.getAttribute("data-mobile"),
+        ]),
+    ).toEqual([
+        ["Settings", null],
+        ["SidebarNotebooks", "true"],
+    ]);
 });

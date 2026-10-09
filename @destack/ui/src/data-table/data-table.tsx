@@ -276,13 +276,13 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
     });
     const virtualizer = createVirtualizer({
         count: () => rows().length,
-        itemHeight: properties.rowHeight ?? 0,
-        scrollElement: scroller,
+        estimateSize: () => properties.rowHeight ?? 0,
+        getScrollElement: scroller,
     });
     const shown = createMemo(() =>
         properties.rowHeight === undefined
             ? rows().map((row, index) => ({ row, index, start: 0, end: 0 }))
-            : virtualizer.items().flatMap((item) => {
+            : virtualizer.getVirtualItems().flatMap((item) => {
                   const row = rows()[item.index];
 
                   return row === undefined
@@ -291,7 +291,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
               }),
     );
     const before = (): number => shown()[0]?.start ?? 0;
-    const after = (): number => virtualizer.height() - (shown().at(-1)?.end ?? 0);
+    const after = (): number => virtualizer.getTotalSize() - (shown().at(-1)?.end ?? 0);
 
     // move one focused cell through the headers and rows, bringing a row out of view into it
     const headerWidths = createMemo(() => headerGroups().map((group) => group.headers.length));
@@ -302,7 +302,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         reveal: (key) => {
             const body = cellOf(key).row - headerGroups().length;
             if (properties.rowHeight !== undefined && body >= 0) {
-                virtualizer.reveal(body);
+                virtualizer.scrollToIndex(body);
             }
         },
     });

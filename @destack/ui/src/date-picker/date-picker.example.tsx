@@ -12,7 +12,7 @@ export const datePickerDueDay = defineExample({
     render: () => {
         const [due, setDue] = createSignal<PlainDate>();
 
-        return <DatePicker aria-label="Due date" value={due()} onValueChange={setDue} />;
+        return <DatePicker aria-label="Due date" selected={due()} onSelect={setDue} />;
     },
 });
 
@@ -49,7 +49,7 @@ export const datePickerTrip = defineExample({
         <DatePicker
             mode="range"
             aria-label="Trip"
-            defaultValue={{ from: Day.parse("2026-10-12"), to: Day.parse("2026-10-16") }}
+            defaultSelected={{ from: Day.parse("2026-10-12"), to: Day.parse("2026-10-16") }}
         />
     ),
 });
@@ -63,7 +63,7 @@ export const datePickerDaysOff = defineExample({
         <DatePicker
             mode="multiple"
             aria-label="Days off"
-            defaultValue={[Day.parse("2026-10-05"), Day.parse("2026-10-06")]}
+            defaultSelected={[Day.parse("2026-10-05"), Day.parse("2026-10-06")]}
         />
     ),
 });
@@ -74,6 +74,6 @@ export const datePickerDueDayOpen = defineExample({
     name: "due-day-open",
     description: "the due day picker with its calendar open below its fields",
     render: () => (
-        <DatePicker aria-label="Due date" defaultValue={Day.parse("2026-10-12")} defaultOpen />
+        <DatePicker aria-label="Due date" defaultSelected={Day.parse("2026-10-12")} defaultOpen />
     ),
 });

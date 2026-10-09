@@ -25,6 +25,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The orientation of a carousel that sets none. */
 const DEFAULTS: Required<Pick<CarouselProperties, "orientation">> = { orientation: "horizontal" };
@@ -276,16 +277,14 @@ export interface CarouselProperties extends Omit<
     /** Handle another slide being shown, by a button, a key or a person's scrolling. */
     readonly onIndexChange?: (index: number) => void;
     /** Receive the carousel's commands and state once it mounts. */
-    readonly api?: (api: CarouselApi) => void;
+    readonly setApi?: (api: CarouselApi) => void;
     /** The StyleX styles applied after the carousel's styles. */
     readonly xstyle?: style.Styles;
 }
 
 /** The properties of an element of a carousel, the native element's attributes included. */
-export type CarouselElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type CarouselElementProperties<Attributes> = Omit<Attributes, "class"> &
+    ElementPartProperties;
 
 /** Read the carousel around an element, refusing elements outside one. */
 function useCarousel(): CarouselControl {
@@ -311,7 +310,7 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
         "onIndexChange",
         "loop",
         "autoplay",
-        "api",
+        "setApi",
         "xstyle",
         "style",
     );
@@ -326,7 +325,7 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
         () => control.index(),
         (index) => control.scroll(index),
     );
-    properties.api?.(control.api());
+    properties.setApi?.(control.api());
 
     return (
         <CarouselContext value={control}>
@@ -361,20 +360,19 @@ export function CarouselContent(
     >,
 ): JSX.Element {
     const control = useCarousel();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="carousel-content"
-            aria-live={control.isPlaying() ? "off" : "polite"}
-            {...rest}
-            ref={(element) => control.setViewport(element)}
-            onScroll={(event) => control.follow(event.currentTarget)}
-            {...style.attributes(
-                [styles.viewport, viewports[control.orientation()], properties.xstyle],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "carousel-content",
+        properties,
+        () => [styles.viewport, viewports[control.orientation()]],
+        {
+            get "aria-live"() {
+                return control.isPlaying() ? "off" : "polite";
+            },
+            ref: (element) => control.setViewport(element),
+            onScroll: (event) => control.follow(event.currentTarget),
+        },
     );
 }
 
@@ -386,18 +384,16 @@ export function CarouselItem(
     const control = useCarousel();
     const locale = useLocale();
     const index = control.register();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            role="group"
-            aria-roledescription={locale.render(t`slide`)}
-            aria-label={locale.render(t`${index + 1} of ${control.count()}`)}
-            data-slot="carousel-item"
-            {...rest}
-            {...style.attributes([styles.item, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "carousel-item", properties, styles.item, {
+        role: "group",
+        get "aria-roledescription"() {
+            return locale.render(t`slide`);
+        },
+        get "aria-label"() {
+            return locale.render(t`${index + 1} of ${control.count()}`);
+        },
+    });
 }
 
 /** Render the button that moves to the previous slide, disabled on the first. */
@@ -485,30 +481,34 @@ export function CarouselDots(
     // read the slides and the one shown
     const control = useCarousel();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            role="group"
-            aria-label={locale.render(t`Slides`)}
-            data-slot="carousel-dots"
-            {...rest}
-            {...style.attributes([styles.dots, properties.xstyle], properties.style)}
-        >
-            <For each={Array.from({ length: control.count() }, (_, index) => index)}>
-                {(index) => (
-                    <button
-                        type="button"
-                        aria-label={locale.render(t`Go to slide ${index + 1}`)}
-                        aria-current={control.index() === index ? "true" : undefined}
-                        data-slot="carousel-dot"
-                        onClick={() => control.go(index)}
-                        {...style.attrs(styles.dot, control.index() === index && styles.current)}
-                    />
-                )}
-            </For>
-        </div>
-    );
+    return renderPart("div", "carousel-dots", properties, styles.dots, {
+        role: "group",
+        get "aria-label"() {
+            return locale.render(t`Slides`);
+        },
+        get children() {
+            return (
+                <>
+                    <For each={Array.from({ length: control.count() }, (_, index) => index)}>
+                        {(index) => (
+                            <button
+                                type="button"
+                                aria-label={locale.render(t`Go to slide ${index + 1}`)}
+                                aria-current={control.index() === index ? "true" : undefined}
+                                data-slot="carousel-dot"
+                                onClick={() => control.go(index)}
+                                {...style.attrs(
+                                    styles.dot,
+                                    control.index() === index && styles.current,
+                                )}
+                            />
+                        )}
+                    </For>
+                </>
+            );
+        },
+    });
 }
 
 /** Read the slides a key moves by, mirroring left and right in right-to-left text. */

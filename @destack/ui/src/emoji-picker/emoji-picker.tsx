@@ -37,24 +37,38 @@ import { RadioGroup, RadioGroupItem } from "../radio-group/index.ts";
 /** The emoji in each row of a picker's grid by default. */
 const COLUMNS = 9;
 
-/** The skin tones emoji take, the default first, numbered as the emoji data numbers them. */
-const TONES = [0, 1, 2, 3, 4, 5] as const;
+/** The skin tones emoji take, the default first, in the order the emoji data lists an emoji's variants. */
+const SKIN_TONES = ["none", "light", "medium-light", "medium", "medium-dark", "dark"] as const;
 
 /** The skin tone after each one, the last wrapping to the default. */
-const NEXT_TONES = [1, 2, 3, 4, 5, 0] as const;
+const NEXT_TONES = {
+    none: "light",
+    light: "medium-light",
+    "medium-light": "medium",
+    medium: "medium-dark",
+    "medium-dark": "dark",
+    dark: "none",
+} as const;
 
 /** The hand drawn for each skin tone. */
-const TONE_HANDS = ["✋", "✋🏻", "✋🏼", "✋🏽", "✋🏾", "✋🏿"] as const;
+const TONE_HANDS = {
+    none: "✋",
+    light: "✋🏻",
+    "medium-light": "✋🏼",
+    medium: "✋🏽",
+    "medium-dark": "✋🏾",
+    dark: "✋🏿",
+} as const;
 
 /** The name of each skin tone. */
-const TONE_NAMES = [
-    t`Default skin tone`,
-    t`Light skin tone`,
-    t`Medium-light skin tone`,
-    t`Medium skin tone`,
-    t`Medium-dark skin tone`,
-    t`Dark skin tone`,
-] as const;
+const TONE_NAMES = {
+    none: t`Default skin tone`,
+    light: t`Light skin tone`,
+    "medium-light": t`Medium-light skin tone`,
+    medium: t`Medium skin tone`,
+    "medium-dark": t`Medium-dark skin tone`,
+    dark: t`Dark skin tone`,
+} as const;
 
 /** The groups of the emoji data people pick from, in order, with their names, the skin tone components left out. */
 const CATEGORIES = [
@@ -103,8 +117,8 @@ const EMOJI_LOCALES: Readonly<
     "zh-Hant": () => import("emojibase-data/zh-hant/compact.json", { with: { type: "json" } }),
 };
 
-/** A skin tone, 0 for the default yellow. */
-export type SkinTone = (typeof TONES)[number];
+/** A skin tone, none for the default yellow. */
+export type SkinTone = (typeof SKIN_TONES)[number];
 
 /** An emoji a picker offers, in the chosen skin tone. */
 export interface EmojiEntry {
@@ -136,9 +150,9 @@ type PickableEmoji = EmojiData & { readonly group: number; readonly order: numbe
 /** The skin tone and grid an emoji picker's parts share. */
 interface EmojiPickerControl {
     /** The chosen skin tone. */
-    readonly tone: Accessor<SkinTone>;
+    readonly skinTone: Accessor<SkinTone>;
     /** Choose a skin tone. */
-    readonly setTone: (tone: SkinTone) => void;
+    readonly setSkinTone: (skinTone: SkinTone) => void;
     /** The grid of the emoji the search finds. */
     readonly grid: GridListControl<EmojiEntry>;
     /** Render a cell of the grid. */
@@ -203,7 +217,7 @@ export interface EmojiPickerProperties extends GridListElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onChange">
 > {
     /** Report the emoji a person picked with a click or Enter. */
-    readonly onPick: (entry: EmojiEntry) => void;
+    readonly onEmojiSelect: (entry: EmojiEntry) => void;
     /** The search, which makes it controlled. */
     readonly search?: string;
     /** The search at first while uncontrolled, empty by default. */
@@ -217,11 +231,11 @@ export interface EmojiPickerProperties extends GridListElementProperties<
     /** Render the active emoji where the footer shows it, undefined while none is, its emoji and name by default. */
     readonly activeCell?: (entry: EmojiEntry | undefined) => JSX.Element;
     /** The skin tone, which makes it controlled. */
-    readonly tone?: SkinTone;
+    readonly skinTone?: SkinTone;
     /** The skin tone at first while uncontrolled, the default yellow by default. */
-    readonly defaultTone?: SkinTone;
+    readonly defaultSkinTone?: SkinTone;
     /** Handle each change of the skin tone. */
-    readonly onToneChange?: (tone: SkinTone) => void;
+    readonly onSkinToneChange?: (skinTone: SkinTone) => void;
 }
 
 /** The styles of an emoji picker's layout. */
@@ -245,24 +259,24 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     const locale = useLocale();
     const rest = omit(
         properties,
-        "onPick",
+        "onEmojiSelect",
         "search",
         "defaultSearch",
         "onSearchChange",
         "columns",
         "cell",
         "activeCell",
-        "tone",
-        "defaultTone",
-        "onToneChange",
+        "skinTone",
+        "defaultSkinTone",
+        "onSkinToneChange",
         "xstyle",
         "style",
     );
-    const [tone, setTone] = createControllableSignal<SkinTone>({
-        isControlled: () => properties.tone !== undefined,
-        value: () => properties.tone ?? 0,
-        defaultValue: properties.defaultTone ?? 0,
-        onChange: (next) => properties.onToneChange?.(next),
+    const [skinTone, setSkinTone] = createControllableSignal<SkinTone>({
+        isControlled: () => properties.skinTone !== undefined,
+        value: () => properties.skinTone ?? "none",
+        defaultValue: properties.defaultSkinTone ?? "none",
+        onChange: (next) => properties.onSkinToneChange?.(next),
     });
 
     // load the emoji once and lay out the ones the search finds in the chosen tone
@@ -271,16 +285,21 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     const grid = new GridListControl<EmojiEntry>({
         load: emoji,
         sections: () =>
-            layOutEmoji(emoji.value(), autocomplete.search().trim().toLowerCase(), tone(), locale),
+            layOutEmoji(
+                emoji.value(),
+                autocomplete.search().trim().toLowerCase(),
+                skinTone(),
+                locale,
+            ),
         key: (entry) => entry.emoji,
         text: (entry) => entry.label,
         columns: () => properties.columns ?? COLUMNS,
         autocomplete,
-        onAction: (entry) => properties.onPick(entry),
+        onAction: (entry) => properties.onEmojiSelect(entry),
     });
     const control: EmojiPickerControl = {
-        tone,
-        setTone,
+        skinTone,
+        setSkinTone,
         grid,
         cell: (cell) => (properties.cell ?? EmojiPickerEmoji)(cell),
         activeCell: (entry) =>
@@ -397,15 +416,15 @@ export function EmojiPickerSkinTone(
             aria-label={locale.render(t`Skin tone`)}
             data-slot="emoji-picker-skin-tone"
             orientation="horizontal"
-            value={String(picker.tone())}
-            onValueChange={(value) => picker.setTone(toneOf(value))}
+            value={picker.skinTone()}
+            onValueChange={(value) => picker.setSkinTone(skinToneOf(value))}
             {...rest}
             xstyle={[styles.tones, properties.xstyle]}
         >
-            <For each={TONES}>
+            <For each={SKIN_TONES}>
                 {(tone) => (
                     <RadioGroupItem
-                        value={String(tone)}
+                        value={tone}
                         aria-label={locale.render(TONE_NAMES[tone])}
                         xstyle={styles.tone}
                     >
@@ -434,10 +453,10 @@ export function EmojiPickerSkinToneSelector(
             data-slot="emoji-picker-skin-tone-selector"
             aria-label={locale.render(t`Change the skin tone`)}
             {...rest}
-            onClick={() => picker.setTone(NEXT_TONES[picker.tone()])}
+            onClick={() => picker.setSkinTone(NEXT_TONES[picker.skinTone()])}
             {...style.attributes([styles.selector, properties.xstyle], properties.style)}
         >
-            {properties.children ?? TONE_HANDS[picker.tone()]}
+            {properties.children ?? TONE_HANDS[picker.skinTone()]}
         </button>
     );
 }
@@ -479,8 +498,8 @@ function useEmojiPicker(): EmojiPickerControl {
 }
 
 /** Read the skin tone of a radio's value, refusing a value of no tone. */
-function toneOf(value: string): SkinTone {
-    const tone = TONES.find((entry) => String(entry) === value);
+function skinToneOf(value: string): SkinTone {
+    const tone = SKIN_TONES.find((entry) => entry === value);
     if (tone === undefined) {
         throw new TypeError(`no skin tone ${value}`);
     }
@@ -509,7 +528,10 @@ function layOutEmoji(
         items: found
             .filter((entry) => entry.group === category.group)
             .map((entry) => ({
-                emoji: (tone === 0 ? undefined : entry.skins?.[tone - 1]?.unicode) ?? entry.unicode,
+                emoji:
+                    (tone === "none"
+                        ? undefined
+                        : entry.skins?.[SKIN_TONES.indexOf(tone) - 1]?.unicode) ?? entry.unicode,
                 label: entry.label,
             })),
     }));

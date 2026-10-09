@@ -20,7 +20,14 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { type PartAttributes, type PartEvent, type Render, rendered } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    type PartAttributes,
+    type PartEvent,
+    type Render,
+    rendered,
+    renderPart,
+} from "../part/index.ts";
 import type { Direction } from "@destack/locale";
 import { ListState } from "../focus/index.ts";
 import { type Align, type Point, Position, type Side } from "../position/index.ts";
@@ -321,10 +328,8 @@ export interface MenuRadioControl {
 export type MenuElementProperties<Target extends HTMLElement> = Omit<
     JSX.HTMLAttributes<Target>,
     "class"
-> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+> &
+    ElementPartProperties;
 
 /** The properties of a menu's content. */
 export interface MenuContentProperties extends Omit<
@@ -335,6 +340,8 @@ export interface MenuContentProperties extends Omit<
     readonly side?: Side;
     /** The edge of the trigger it lines up with, start by default. */
     readonly align?: Align;
+    /** The gap from the trigger in pixels, 4 by default. */
+    readonly sideOffset?: number;
 }
 
 /** The properties of a menu item. */
@@ -402,7 +409,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
     const control = useMenu();
     const locale = useLocale();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "xstyle", "style");
+    const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
     createEffect(control.isOpen, (isOpen) => control.sync(isOpen));
 
     // place a context menu at its point
@@ -433,6 +440,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                         text.footnote,
                         styles.content,
                         Position.beside(content.side, content.align),
+                        Position.offset(content.sideOffset),
                         position(),
                         content.xstyle,
                     ],
@@ -659,46 +667,17 @@ export function MenuLabel(
 
 /** Render a group of related items. */
 export function MenuGroup(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            role="group"
-            data-slot="menu-group"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "menu-group", properties, null, { role: "group" });
 }
 
 /** Render a line between groups of items. */
 export function MenuSeparator(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            role="separator"
-            data-slot="menu-separator"
-            {...rest}
-            {...style.attributes([styles.separator, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "menu-separator", properties, styles.separator, { role: "separator" });
 }
 
 /** Render the keyboard shortcut of an item at its end. */
 export function MenuShortcut(properties: MenuElementProperties<HTMLSpanElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <span
-            data-slot="menu-shortcut"
-            {...rest}
-            {...style.attributes(
-                [text.caption, styles.shortcut, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("span", "menu-shortcut", properties, [text.caption, styles.shortcut]);
 }
 
 /** Render the item that opens a submenu on hover, Enter, Space or the arrow key toward it. */

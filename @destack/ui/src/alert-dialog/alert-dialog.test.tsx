@@ -46,7 +46,7 @@ test("render an alert dialog that only its buttons or a close request close", ()
     // the cancel button takes the focus on open, and the action closes the dialog
     expect(before).toBe(
         '<dialog id="id-1" data-slot="alert-dialog-content" data-state="open" closedby="closerequest" aria-labelledby="id-2" role="alertdialog" open="">' +
-            '<h2 id="id-2" data-slot="alert-dialog-title">Delete note?</h2>' +
+            '<h2 data-slot="alert-dialog-title" id="id-2">Delete note?</h2>' +
             '<button data-slot="alert-dialog-cancel" data-variant="outline" data-size="default" autofocus="">Cancel</button>' +
             '<button data-slot="alert-dialog-action" data-variant="destructive" data-size="default">Delete</button></dialog>',
     );

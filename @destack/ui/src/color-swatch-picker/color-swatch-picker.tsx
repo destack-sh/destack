@@ -14,7 +14,7 @@ import {
 const COLUMNS = 9;
 
 /** The properties of a swatch picker, the native element's attributes included. */
-export interface SwatchPickerProperties extends ListBoxElementProperties<
+export interface ColorSwatchPickerProperties extends ListBoxElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "onFocusOut">
 > {
     /** The chosen swatch, which makes the choice controlled, undefined for none. */
@@ -34,7 +34,7 @@ export interface SwatchPickerProperties extends ListBoxElementProperties<
 }
 
 /** The properties of a swatch, the option's included. */
-export interface SwatchPickerItemProperties extends Omit<ListBoxItemProperties, "value"> {
+export interface ColorSwatchPickerItemProperties extends Omit<ListBoxItemProperties, "value"> {
     /** The preset the swatch shows and stands for. */
     readonly value: AccentPreset;
 }
@@ -62,7 +62,7 @@ const fills = style.create({
 });
 
 /** Render the theme's swatches as a list box in a grid layout. */
-export function SwatchPicker(properties: SwatchPickerProperties): JSX.Element {
+export function ColorSwatchPicker(properties: ColorSwatchPickerProperties): JSX.Element {
     // offer the given presets in the theme's order unless the caller lays out its own swatches
     const rest = omit(
         properties,
@@ -88,7 +88,7 @@ export function SwatchPicker(properties: SwatchPickerProperties): JSX.Element {
     // choose one swatch at a time, the focus moving selecting it
     return (
         <ListBox
-            data-slot="swatch-picker"
+            data-slot="color-swatch-picker"
             layout="grid"
             columns={properties.columns ?? COLUMNS}
             selectionBehavior="replace"
@@ -111,23 +111,23 @@ export function SwatchPicker(properties: SwatchPickerProperties): JSX.Element {
             xstyle={[styles.picker, properties.xstyle]}
         >
             {properties.children ?? (
-                <For each={presets()}>{(preset) => <SwatchPickerItem value={preset} />}</For>
+                <For each={presets()}>{(preset) => <ColorSwatchPickerItem value={preset} />}</For>
             )}
             <Show when={properties.name !== undefined || properties.form !== undefined}>
-                <SwatchPickerInput name={properties.name} form={properties.form} />
+                <ColorSwatchPickerInput name={properties.name} form={properties.form} />
             </Show>
         </ListBox>
     );
 }
 
 /** Render one swatch of the nearest swatch picker, an option filled with its preset's color and ringed while chosen. */
-export function SwatchPickerItem(properties: SwatchPickerItemProperties): JSX.Element {
+export function ColorSwatchPickerItem(properties: ColorSwatchPickerItemProperties): JSX.Element {
     const rest = omit(properties, "xstyle", "children");
 
     return (
         <ListBoxItem
             aria-label={properties.value}
-            data-slot="swatch-picker-item"
+            data-slot="color-swatch-picker-item"
             data-swatch={properties.value}
             {...rest}
             xstyle={[
@@ -142,7 +142,7 @@ export function SwatchPickerItem(properties: SwatchPickerItemProperties): JSX.El
 }
 
 /** Render the hidden input that carries the nearest swatch picker's chosen swatch into its form, none while none is chosen. */
-function SwatchPickerInput(properties: {
+function ColorSwatchPickerInput(properties: {
     /** The form field name. */
     readonly name: string | undefined;
     /** The id of the form. */

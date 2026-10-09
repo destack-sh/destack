@@ -39,6 +39,7 @@ const styles = style.create({
         positionArea: "none",
     },
     at: (left: string, top: string) => ({ left, top }),
+    offset: (margin: string) => ({ margin }),
 });
 
 /** The area beside the anchor each side and alignment places an overlay in, flipping when it overflows. */
@@ -91,6 +92,11 @@ export const Position = {
     /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment, such as a modal dialog that fades itself. */
     area(side: Side, align: Align): style.CompiledStyles {
         return areas[`${side}-${align}`];
+    },
+
+    /** Return the StyleX styles that set an overlay's gap from its anchor in pixels, none to keep its own. */
+    offset(pixels: number | undefined): style.Styles {
+        return pixels === undefined ? null : styles.offset(`${String(pixels)}px`);
     },
 
     /** Return the StyleX styles that place an overlay at a point in the viewport. */

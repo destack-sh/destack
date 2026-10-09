@@ -38,10 +38,10 @@ function selected(container: Element): string[] {
 
 test("start weeks on the locale's first day and name the month in its language", () => {
     const american = drawIn("en-US", () => (
-        <Calendar defaultValue={day("2026-10-04")} today={day("2026-10-04")} />
+        <Calendar defaultSelected={day("2026-10-04")} today={day("2026-10-04")} />
     ));
     const austrian = drawIn("de-AT", () => (
-        <Calendar defaultValue={day("2026-10-04")} today={day("2026-10-04")} />
+        <Calendar defaultSelected={day("2026-10-04")} today={day("2026-10-04")} />
     ));
     expect([
         american.querySelector("h2")?.textContent,
@@ -58,7 +58,7 @@ test("start weeks on the locale's first day and name the month in its language",
 
 test("mark today and the selected day, naming each day by its full date", () => {
     const container = drawIn("en-US", () => (
-        <Calendar defaultValue={day("2026-10-12")} today={day("2026-10-04")} />
+        <Calendar defaultSelected={day("2026-10-12")} today={day("2026-10-04")} />
     ));
     const cell = (key: string) => container.querySelector(`[data-day="${key}"]`);
     expect([
@@ -75,8 +75,8 @@ test("select a day on click, ignoring disabled days, and report it", () => {
     const container = drawIn("en-US", () => (
         <Calendar
             defaultMonth={day("2026-10-01")}
-            isDisabled={(entry) => Day.key(entry) === "2026-10-02"}
-            onValueChange={(entry) => changes.push(entry)}
+            disabled={(entry) => Day.key(entry) === "2026-10-02"}
+            onSelect={(entry) => changes.push(entry)}
         />
     ));
     click(container, "2026-10-02");
@@ -93,7 +93,7 @@ test("select a range from its start to a later end, marking the start, middle an
         <Calendar
             mode="range"
             defaultMonth={day("2026-10-01")}
-            onValueChange={(range) => changes.push(range)}
+            onSelect={(range) => changes.push(range)}
         />
     ));
     click(container, "2026-10-05");
@@ -122,7 +122,7 @@ test("toggle several days in multiple mode", () => {
         <Calendar
             mode="multiple"
             defaultMonth={day("2026-10-01")}
-            onValueChange={(days) => changes.push(days.map((entry) => Day.key(entry)))}
+            onSelect={(days) => changes.push(days.map((entry) => Day.key(entry)))}
         />
     ));
     click(container, "2026-10-05");
@@ -153,7 +153,7 @@ function captions(container: Element): string[] {
 
 test("show months side by side, moving them together", () => {
     const container = drawIn("en-US", () => (
-        <Calendar months={2} defaultMonth={day("2026-10-01")} today={day("2026-10-04")} />
+        <Calendar numberOfMonths={2} defaultMonth={day("2026-10-01")} today={day("2026-10-04")} />
     ));
     const before = captions(container);
     container.querySelector<HTMLElement>("[data-slot=calendar-next]")?.click();
@@ -189,8 +189,8 @@ test("refuse days and months outside the earliest and latest days", () => {
 test("number weeks by ISO 8601 and leave neighbouring months' days empty", () => {
     const container = drawIn("en-GB", () => (
         <Calendar
-            weekNumbers
-            outsideDays={false}
+            showWeekNumber
+            showOutsideDays={false}
             defaultMonth={day("2027-01-01")}
             today={day("2026-10-04")}
         />

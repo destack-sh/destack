@@ -10,6 +10,7 @@ import {
     createEffect,
     For,
     type JSX,
+    merge,
     omit,
     Show,
     untrack,
@@ -17,7 +18,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { AutocompleteContext, AutocompleteControl } from "../autocomplete/index.ts";
-import { badgeStyle } from "../badge/index.ts";
+import { badgeVariants } from "../badge/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import { useFieldControl } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
@@ -36,6 +37,7 @@ import {
 } from "../list-box/index.ts";
 import { Position } from "../position/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
+import { renderPart } from "../part/index.ts";
 
 /** The combobox of the nearest combobox root, null outside one. */
 const ComboboxContext = createContext<ComboboxControl | null>(null);
@@ -268,35 +270,37 @@ export function ComboboxInput(
     const control = useCombobox();
     const locale = useLocale();
     const field = useFieldControl();
-    const rest = omit(properties, "xstyle", "style");
     const isInvalid = (): boolean =>
         field?.isInvalid() === true || properties["aria-invalid"] === "true";
 
-    return (
-        <input
-            role="combobox"
-            aria-expanded={control.isOpen() ? "true" : "false"}
-            aria-controls={control.list.id}
-            aria-autocomplete="list"
-            aria-activedescendant={control.isOpen() ? control.list.focus.descendant() : undefined}
-            autocomplete="off"
-            data-slot="combobox-input"
-            {...field?.attributes()}
-            {...rest}
-            ref={(element) => control.setInput(element)}
-            value={control.autocomplete.search()}
-            onInput={(event) => {
+    return renderPart(
+        "input",
+        "combobox-input",
+        properties,
+        () => [inputStyle({ invalid: isInvalid() }), styles.input],
+        merge(() => field?.attributes() ?? {}, {
+            role: "combobox",
+            get "aria-expanded"() {
+                return control.isOpen() ? "true" : "false";
+            },
+            "aria-controls": control.list.id,
+            "aria-autocomplete": "list",
+            get "aria-activedescendant"() {
+                return control.isOpen() ? control.list.focus.descendant() : undefined;
+            },
+            autocomplete: "off",
+            ref: (element: HTMLInputElement) => control.setInput(element),
+            get value() {
+                return control.autocomplete.search();
+            },
+            onInput: (event: InputEvent & { readonly currentTarget: HTMLInputElement }) => {
                 // filter by the typed text and show the matches
                 control.autocomplete.type(event.currentTarget.value);
                 control.open(true);
-            }}
-            onKeyDown={(event) => steer(event, control, locale.direction)}
-            onBlur={() => control.open(false)}
-            {...style.attributes(
-                [inputStyle({ invalid: isInvalid() }), styles.input, properties.xstyle],
-                properties.style,
-            )}
-        />
+            },
+            onKeyDown: (event: KeyboardEvent) => steer(event, control, locale.direction),
+            onBlur: () => control.open(false),
+        } as const),
     );
 }
 
@@ -488,7 +492,7 @@ export function ComboboxChip(properties: ComboboxChipProperties): JSX.Element {
                 data-slot="combobox-chip"
                 {...rest}
                 {...style.attributes(
-                    [badgeStyle({ variant: "secondary" }), properties.xstyle],
+                    [badgeVariants({ variant: "secondary" }), properties.xstyle],
                     properties.style,
                 )}
             >

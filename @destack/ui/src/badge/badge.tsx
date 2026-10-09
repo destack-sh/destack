@@ -50,7 +50,7 @@ export type BadgeVariant = "default" | "secondary" | "destructive" | "outline" |
 
 /** The properties of a badge, the native span's attributes included. */
 export interface BadgeProperties
-    extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class">, BadgeStyleOptions {
+    extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class">, BadgeVariantProperties {
     /** The StyleX styles applied after the badge's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with the badge's attributes, the native span by default. */
@@ -58,13 +58,13 @@ export interface BadgeProperties
 }
 
 /** The variant of a badge's styles. */
-export interface BadgeStyleOptions {
+export interface BadgeVariantProperties {
     /** The look, default by default. */
     readonly variant?: BadgeVariant;
 }
 
 /** Return the StyleX styles of a badge in a variant, for links and other elements that look like badges. */
-export function badgeStyle(options: BadgeStyleOptions): style.Styles {
+export function badgeVariants(options: BadgeVariantProperties): style.Styles {
     return [text.caption, styles.badge, variants[options.variant ?? DEFAULTS.variant]];
 }
 
@@ -80,7 +80,7 @@ export function Badge(properties: BadgeProperties): JSX.Element {
                 return badge.variant;
             },
         },
-        () => style.attributes([badgeStyle(badge), badge.xstyle], badge.style),
+        () => style.attributes([badgeVariants(badge), badge.xstyle], badge.style),
     );
 
     return rendered(badge.render, part, rest, () => <span {...part} {...rest} />);

@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 import { color, motion, radius, space } from "@destack/theme/tokens.stylex";
 import { type Accessor, createContext, type JSX, omit, useContext } from "@destack/view";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The maximum of a progress bar that sets none. */
 const MAXIMUM = 100;
@@ -74,10 +75,8 @@ export interface ProgressProperties extends Omit<JSX.HTMLAttributes<HTMLDivEleme
 }
 
 /** The properties of a progress bar's indicator, the native element's attributes included. */
-export type ProgressIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
-    /** The StyleX styles applied after the indicator's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type ProgressIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
+    ElementPartProperties;
 
 /** Render a progress bar around its indicator, indeterminate without a value. */
 export function Progress(properties: ProgressProperties): JSX.Element {
@@ -131,29 +130,31 @@ export function ProgressIndicator(properties: ProgressIndicatorProperties): JSX.
     if (progress === null) {
         throw new TypeError("a progress indicator needs a progress bar around it");
     }
-    const rest = omit(properties, "xstyle", "style");
     const share = (): number | undefined => {
         const value = progress.value();
 
         return value === undefined ? undefined : (value / progress.max()) * 100;
     };
 
-    return (
-        <div
-            data-slot="progress-indicator"
-            data-state={progress.state()}
-            data-value={progress.value()}
-            data-max={progress.max()}
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.indicator,
-                    share() === undefined ? styles.indeterminate : fills.fill(share() ?? 0),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "progress-indicator",
+        properties,
+        () => [
+            styles.indicator,
+            share() === undefined ? styles.indeterminate : fills.fill(share() ?? 0),
+        ],
+        {
+            get "data-state"() {
+                return progress.state();
+            },
+            get "data-value"() {
+                return progress.value();
+            },
+            get "data-max"() {
+                return progress.max();
+            },
+        },
     );
 }
 

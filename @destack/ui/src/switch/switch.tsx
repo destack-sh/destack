@@ -18,7 +18,13 @@ import {
     ToggleState,
 } from "../toggle-state/index.ts";
 import { useFieldControl } from "../field/control.ts";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    type PartAttributes,
+    type Render,
+    rendered,
+    renderPart,
+} from "../part/index.ts";
 
 /** The distance a checked thumb travels: the track's inner width less the thumb. */
 const TRAVEL = `calc(${size[2]} - 2 * ${stroke.border} - ${space[4]})`;
@@ -97,10 +103,8 @@ export interface SwitchProperties
 }
 
 /** The properties of a switch's thumb, the native element's attributes included. */
-export type SwitchThumbProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> & {
-    /** The StyleX styles applied after the thumb's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type SwitchThumbProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> &
+    ElementPartProperties;
 
 /** Render a button exposed as an on and off switch around its thumb, which a click, Space or Enter flips and a form submits through a hidden checkbox. */
 export function Switch(properties: SwitchProperties): JSX.Element {
@@ -182,25 +186,23 @@ export function SwitchThumb(properties: SwitchThumbProperties): JSX.Element {
         throw new TypeError("a switch thumb needs a switch around it");
     }
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <span
-            data-slot="switch-thumb"
-            data-state={control.isChecked() ? "checked" : "unchecked"}
-            data-disabled={control.isDisabled() ? "" : undefined}
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.thumb,
-                    control.isChecked() &&
-                        (locale.direction === "rtl"
-                            ? styles.thumbCheckedReversed
-                            : styles.thumbChecked),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "span",
+        "switch-thumb",
+        properties,
+        () => [
+            styles.thumb,
+            control.isChecked() &&
+                (locale.direction === "rtl" ? styles.thumbCheckedReversed : styles.thumbChecked),
+        ],
+        {
+            get "data-state"() {
+                return control.isChecked() ? "checked" : "unchecked";
+            },
+            get "data-disabled"() {
+                return control.isDisabled() ? "" : undefined;
+            },
+        },
     );
 }

@@ -28,6 +28,7 @@ import {
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { TopLayer } from "../layer/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The side and alignment of a popover that sets neither. */
 const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align">> = {
@@ -327,6 +328,8 @@ export interface PopoverContentProperties extends Omit<
     readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
     readonly align?: Align;
+    /** The gap from the trigger in pixels, 4 by default. */
+    readonly sideOffset?: number;
     /** The StyleX styles applied after the popover's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -394,7 +397,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
     // read the popover and its placement
     const popover = usePopover();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "xstyle", "style", "onToggle");
+    const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style", "onToggle");
     const modalRest = omit(rest, "tabindex");
 
     // show and hide the popover as it opens and closes
@@ -429,6 +432,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                                 text.callout,
                                 styles.content,
                                 Position.beside(content.side, content.align),
+                                Position.offset(content.sideOffset),
                                 content.xstyle,
                             ],
                             content.style,
@@ -470,24 +474,16 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
 export type PopoverElementProperties<Target extends HTMLElement> = Omit<
     JSX.HTMLAttributes<Target>,
     "class"
-> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+> &
+    ElementPartProperties;
 
 /** Render an element the popover is placed beside in place of its trigger. */
 export function PopoverAnchor(properties: PopoverElementProperties<HTMLDivElement>): JSX.Element {
     const popover = usePopover();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="popover-anchor"
-            {...rest}
-            ref={(element) => popover.setAnchor(element)}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "popover-anchor", properties, null, {
+        ref: (element) => popover.setAnchor(element),
+    });
 }
 
 /** Render a button that closes its popover. */
@@ -509,15 +505,7 @@ export function PopoverClose(properties: PopoverTriggerProperties): JSX.Element 
 
 /** Render the top of a popover that holds its title and description. */
 export function PopoverHeader(properties: PopoverElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="popover-header"
-            {...rest}
-            {...style.attributes([styles.header, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "popover-header", properties, styles.header);
 }
 
 /** Render the title that names its popover. */
@@ -526,17 +514,13 @@ export function PopoverTitle(
 ): JSX.Element {
     // label the popover for as long as the title renders
     const popover = usePopover();
-    const rest = omit(properties, "xstyle", "style");
     popover.title();
 
-    return (
-        <h2
-            id={`${popover.id}-title`}
-            data-slot="popover-title"
-            {...rest}
-            {...style.attributes([text.callout, styles.title, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("h2", "popover-title", properties, [text.callout, styles.title], {
+        get id() {
+            return `${popover.id}-title`;
+        },
+    });
 }
 
 /** Render the description that describes its popover. */
@@ -545,18 +529,11 @@ export function PopoverDescription(
 ): JSX.Element {
     // describe the popover for as long as the description renders
     const popover = usePopover();
-    const rest = omit(properties, "xstyle", "style");
     popover.describe();
 
-    return (
-        <p
-            id={`${popover.id}-description`}
-            data-slot="popover-description"
-            {...rest}
-            {...style.attributes(
-                [text.footnote, styles.description, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("p", "popover-description", properties, [text.footnote, styles.description], {
+        get id() {
+            return `${popover.id}-description`;
+        },
+    });
 }

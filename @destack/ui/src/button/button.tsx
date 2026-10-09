@@ -7,6 +7,9 @@ import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { useJoin } from "../join/index.ts";
 import { Spinner } from "../spinner/index.ts";
 
+/** The sizes that set their text in the footnote style. */
+const FOOTNOTE_SIZES: ReadonlySet<ButtonSize> = new Set(["xs", "icon-xs"]);
+
 /** The variant and size of a button that sets neither. */
 const DEFAULTS: Required<Pick<ButtonProperties, "variant" | "size">> = {
     variant: "default",
@@ -122,9 +125,6 @@ const sizes = style.create({
 /** The look of a button, from most to least prominent. */
 export type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 
-/** The sizes that set their text in the footnote style. */
-const FOOTNOTE_SIZES: ReadonlySet<ButtonSize> = new Set(["xs", "icon-xs"]);
-
 /** The height and padding of a button, with square sizes for a lone icon. */
 export type ButtonSize =
     | "default"
@@ -138,7 +138,7 @@ export type ButtonSize =
 
 /** The properties of a button, the native button's attributes included. */
 export interface ButtonProperties
-    extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class">, ButtonStyleOptions {
+    extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class">, ButtonVariantProperties {
     /** The part's name for styling, `button` by default, which a part built on a button sets to its own. */
     readonly "data-slot"?: string;
     /** The StyleX styles applied after the button's styles. */
@@ -150,7 +150,7 @@ export interface ButtonProperties
 }
 
 /** The variant and size of a button's styles. */
-export interface ButtonStyleOptions {
+export interface ButtonVariantProperties {
     /** The look, default by default. */
     readonly variant?: ButtonVariant;
     /** The height and padding, default by default. */
@@ -158,7 +158,7 @@ export interface ButtonStyleOptions {
 }
 
 /** Return the StyleX styles of a button in a variant and size, for links and other elements that look like buttons. */
-export function buttonStyle(options: ButtonStyleOptions): style.Styles {
+export function buttonVariants(options: ButtonVariantProperties): style.Styles {
     const height = options.size ?? DEFAULTS.size;
 
     return [
@@ -216,7 +216,7 @@ export function Button(properties: ButtonProperties): JSX.Element {
                 );
             },
         },
-        () => style.attributes([buttonStyle(button), join(), button.xstyle], button.style),
+        () => style.attributes([buttonVariants(button), join(), button.xstyle], button.style),
     );
 
     return rendered(button.render, part, rest, () => <button {...part} {...rest} />);

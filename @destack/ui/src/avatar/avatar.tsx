@@ -12,6 +12,7 @@ import {
     Show,
     useContext,
 } from "@destack/view";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The size of an avatar that sets none. */
 const DEFAULTS: Required<Pick<AvatarProperties, "size">> = { size: "default" };
@@ -110,10 +111,7 @@ interface AvatarImageState {
 export type AvatarSize = "sm" | "default" | "lg";
 
 /** The properties of an element of an avatar, the native element's attributes included. */
-export type AvatarElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type AvatarElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
 /** The properties of an avatar, the native element's attributes included. */
 export interface AvatarProperties extends AvatarElementProperties<
@@ -191,18 +189,10 @@ export function AvatarFallback(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
     const state = useAvatar();
-    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={state.status() !== "loaded"}>
-            <span
-                data-slot="avatar-fallback"
-                {...rest}
-                {...style.attributes(
-                    [text.footnote, styles.fallback, properties.xstyle],
-                    properties.style,
-                )}
-            />
+            {renderPart("span", "avatar-fallback", properties, [text.footnote, styles.fallback])}
         </Show>
     );
 }
@@ -211,30 +201,16 @@ export function AvatarFallback(
 export function AvatarBadge(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <span
-            data-slot="avatar-badge"
-            {...rest}
-            {...style.attributes([styles.badge, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("span", "avatar-badge", properties, styles.badge);
 }
 
 /** Render avatars overlapping in a row. */
 export function AvatarGroup(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
     return (
         <AvatarGroupContext value={true}>
-            <div
-                data-slot="avatar-group"
-                {...rest}
-                {...style.attributes([styles.group, properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "avatar-group", properties, styles.group)}
         </AvatarGroupContext>
     );
 }
@@ -243,18 +219,7 @@ export function AvatarGroup(
 export function AvatarGroupCount(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="avatar-group-count"
-            {...rest}
-            {...style.attributes(
-                [text.footnote, styles.count, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "avatar-group-count", properties, [text.footnote, styles.count]);
 }
 
 /** Read the image state of the nearest avatar. */

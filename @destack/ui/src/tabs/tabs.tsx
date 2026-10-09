@@ -21,7 +21,13 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    type PartAttributes,
+    type Render,
+    rendered,
+    renderPart,
+} from "../part/index.ts";
 import { ListState, type Orientation } from "../focus/index.ts";
 
 /** The orientation and activation of tabs that set neither. */
@@ -178,10 +184,7 @@ export interface TabsProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>,
 }
 
 /** The properties of an element of a set of tabs, the native element's attributes included. */
-export type TabsElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type TabsElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
 /** The properties of a tab or a tab's panel. */
 export type TabsValueProperties<Attributes> = TabsElementProperties<Omit<Attributes, "value">> & {
@@ -237,7 +240,6 @@ export function TabsList(
     // move the focus among the list's tabs, selecting them when activation is automatic
     const control = useTabs();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
     const move = (event: KeyboardEvent) => {
         // move among the list's tabs, selecting the one moved to when activation is automatic
         const target = control.list.focus.move(event, locale.direction);
@@ -246,20 +248,22 @@ export function TabsList(
         }
     };
 
-    return (
-        <div
-            role="tablist"
-            data-slot="tabs-list"
-            data-orientation={control.properties.orientation}
-            aria-orientation={control.properties.orientation}
-            {...rest}
-            onKeyDown={move}
-            onFocusOut={(event) => control.list.focus.focusOut(event)}
-            {...style.attributes(
-                [styles.list, lists[control.properties.orientation], properties.xstyle],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "tabs-list",
+        properties,
+        () => [styles.list, lists[control.properties.orientation]],
+        {
+            role: "tablist",
+            get "data-orientation"() {
+                return control.properties.orientation;
+            },
+            get "aria-orientation"() {
+                return control.properties.orientation;
+            },
+            onKeyDown: move,
+            onFocusOut: (event) => control.list.focus.focusOut(event),
+        },
     );
 }
 

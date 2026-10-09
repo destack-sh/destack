@@ -18,7 +18,7 @@ export const calendarTripDays = defineExample({
     render: () => {
         const [trip, setTrip] = createSignal<DateRange | undefined>(undefined);
 
-        return <Calendar mode="range" value={trip()} onValueChange={setTrip} isDisabled={isPast} />;
+        return <Calendar mode="range" selected={trip()} onSelect={setTrip} disabled={isPast} />;
     },
 });
 
@@ -29,7 +29,7 @@ export const calendarLateOctober = defineExample({
     description:
         "a calendar at the end of October with the thirtieth selected and the fourth as today",
     render: () => (
-        <Calendar defaultValue={Day.parse("2026-10-30")} today={Day.parse("2026-10-04")} />
+        <Calendar defaultSelected={Day.parse("2026-10-30")} today={Day.parse("2026-10-04")} />
     ),
 });
 
@@ -41,8 +41,8 @@ export const calendarStayTwoMonths = defineExample({
     render: () => (
         <Calendar
             mode="range"
-            months={2}
-            defaultValue={{ from: Day.parse("2026-10-28"), to: Day.parse("2026-11-03") }}
+            numberOfMonths={2}
+            defaultSelected={{ from: Day.parse("2026-10-28"), to: Day.parse("2026-11-03") }}
             today={Day.parse("2026-10-04")}
         />
     ),
@@ -57,8 +57,8 @@ export const calendarBirthday = defineExample({
     render: () => (
         <Calendar
             captionLayout="dropdown"
-            weekNumbers
-            outsideDays={false}
+            showWeekNumber
+            showOutsideDays={false}
             max={Day.parse("2026-10-04")}
             today={Day.parse("2026-10-04")}
             defaultMonth={Day.parse("1990-06-01")}

@@ -5,6 +5,7 @@ import { children, createUniqueId, For, type JSX, merge, omit, Show } from "@des
 import { Label, type LabelProperties } from "../label/index.ts";
 import { FieldContext, FieldControl, useFieldControl } from "./control.ts";
 import { Separator } from "../separator/index.ts";
+import { renderPart } from "../part/index.ts";
 
 /** The width of a field group above which responsive fields lay out in a row. */
 const RESPONSIVE_QUERY = "@container field-group (min-width: 28rem)";
@@ -202,20 +203,11 @@ export function FieldDescription(
 ): JSX.Element {
     // describe the field's control for as long as the description renders
     const id = createUniqueId();
-    const rest = omit(properties, "xstyle", "style");
     useFieldControl()?.describe(id, () => true);
 
-    return (
-        <p
-            id={id}
-            data-slot="field-description"
-            {...rest}
-            {...style.attributes(
-                [text.footnote, styles.description, properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("p", "field-description", properties, [text.footnote, styles.description], {
+        id,
+    });
 }
 
 /** Render the nearest field's errors as an alert, or nothing when there are none. */
@@ -258,15 +250,7 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
 
 /** Render a fieldset that groups related fields. */
 export function FieldSet(properties: FieldElementProperties<HTMLFieldSetElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <fieldset
-            data-slot="field-set"
-            {...rest}
-            {...style.attributes([styles.set, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("fieldset", "field-set", properties, styles.set);
 }
 
 /** Render the legend of a fieldset as a heading or a label. */
@@ -289,50 +273,23 @@ export function FieldLegend(properties: FieldLegendProperties): JSX.Element {
 
 /** Render a stack of fields that responsive fields measure their width against. */
 export function FieldGroup(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="field-group"
-            {...rest}
-            {...style.attributes([styles.group, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "field-group", properties, styles.group);
 }
 
 /** Render a column beside a control that holds its label and description. */
 export function FieldContent(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="field-content"
-            {...rest}
-            {...style.attributes([styles.content, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "field-content", properties, styles.content);
 }
 
 /** Render the title of a field as text instead of a label. */
 export function FieldTitle(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
     const control = useFieldControl();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="field-label"
-            {...rest}
-            {...style.attributes(
-                [
-                    text.callout,
-                    styles.title,
-                    control?.isDisabled() === true && styles.disabled,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "field-label", properties, () => [
+        text.callout,
+        styles.title,
+        control?.isDisabled() === true && styles.disabled,
+    ]);
 }
 
 /** Render a line between fields, with optional text in its middle. */

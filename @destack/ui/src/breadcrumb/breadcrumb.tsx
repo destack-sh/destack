@@ -7,7 +7,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, motion, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, rendered, renderPart } from "../part/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a breadcrumb and its elements. */
@@ -56,46 +56,26 @@ export function Breadcrumb(
     properties: BreadcrumbElementProperties<JSX.HTMLAttributes<HTMLElement>>,
 ): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <nav
-            aria-label={locale.render(t`Breadcrumb`)}
-            data-slot="breadcrumb"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("nav", "breadcrumb", properties, null, {
+        get "aria-label"() {
+            return locale.render(t`Breadcrumb`);
+        },
+    });
 }
 
 /** Render the ordered list of the trail. */
 export function BreadcrumbList(
     properties: BreadcrumbElementProperties<JSX.OlHTMLAttributes<HTMLOListElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <ol
-            data-slot="breadcrumb-list"
-            {...rest}
-            {...style.attributes([text.footnote, styles.list, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("ol", "breadcrumb-list", properties, [text.footnote, styles.list]);
 }
 
 /** Render one step of the trail. */
 export function BreadcrumbItem(
     properties: BreadcrumbElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <li
-            data-slot="breadcrumb-item"
-            {...rest}
-            {...style.attributes([styles.item, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("li", "breadcrumb-item", properties, styles.item);
 }
 
 /** The properties of the link to a page of a trail, the native anchor's attributes included. */
@@ -120,16 +100,9 @@ export function BreadcrumbLink(properties: BreadcrumbLinkProperties): JSX.Elemen
 export function BreadcrumbPage(
     properties: BreadcrumbElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <span
-            aria-current="page"
-            data-slot="breadcrumb-page"
-            {...rest}
-            {...style.attributes([styles.page, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("span", "breadcrumb-page", properties, styles.page, {
+        "aria-current": "page",
+    });
 }
 
 /** Render the mark between two steps, a chevron pointing along the text by default. */
@@ -162,16 +135,15 @@ export function BreadcrumbEllipsis(
     properties: BreadcrumbElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <span
-            data-slot="breadcrumb-ellipsis"
-            {...rest}
-            {...style.attributes([styles.ellipsis, properties.xstyle], properties.style)}
-        >
-            <Icon name="dots-three" />
-            <span {...style.attrs(visuallyHiddenStyle())}>{locale.render(t`More`)}</span>
-        </span>
-    );
+    return renderPart("span", "breadcrumb-ellipsis", properties, styles.ellipsis, {
+        get children() {
+            return (
+                <>
+                    <Icon name="dots-three" />
+                    <span {...style.attrs(visuallyHiddenStyle())}>{locale.render(t`More`)}</span>
+                </>
+            );
+        },
+    });
 }

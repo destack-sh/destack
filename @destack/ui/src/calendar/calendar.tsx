@@ -20,7 +20,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
-import { buttonStyle } from "../button/index.ts";
+import { buttonVariants } from "../button/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import type { Direction } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
@@ -115,19 +115,19 @@ const styles = style.create({
 /** The properties a calendar reads itself instead of passing them to its element. */
 const CALENDAR_OPTIONS = [
     "mode",
-    "value",
-    "defaultValue",
-    "onValueChange",
+    "selected",
+    "defaultSelected",
+    "onSelect",
     "defaultMonth",
-    "isDisabled",
+    "disabled",
     "weekStartsOn",
     "today",
-    "months",
+    "numberOfMonths",
     "min",
     "max",
     "captionLayout",
-    "weekNumbers",
-    "outsideDays",
+    "showWeekNumber",
+    "showOutsideDays",
     "xstyle",
     "style",
 ] as const;
@@ -152,17 +152,20 @@ const MOVES: Readonly<Record<string, (day: PlainDate, isShift: boolean) => Plain
 };
 
 /** The month, limits and look of a calendar in any mode, the native element's attributes included. */
-export interface CalendarLook extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "ref"> {
+export interface CalendarLook extends Omit<
+    JSX.HTMLAttributes<HTMLDivElement>,
+    "class" | "ref" | "onSelect"
+> {
     /** The month shown at first, the selection's or today's by default. */
     readonly defaultMonth?: PlainDate;
     /** Report whether a day cannot be selected. */
-    readonly isDisabled?: (day: PlainDate) => boolean;
+    readonly disabled?: (day: PlainDate) => boolean;
     /** The weekday weeks start on, 1 for Monday to 7 for Sunday, the locale's by default. */
     readonly weekStartsOn?: number;
     /** The day the calendar counts as today, the local clock's by default. */
     readonly today?: PlainDate;
     /** The months shown side by side, one by default. */
-    readonly months?: number;
+    readonly numberOfMonths?: number;
     /** The earliest day that can be selected or shown. */
     readonly min?: PlainDate;
     /** The latest day that can be selected or shown. */
@@ -170,9 +173,9 @@ export interface CalendarLook extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "
     /** How each month's caption reads: its name, or a month and a year picker, its name by default. */
     readonly captionLayout?: "label" | "dropdown";
     /** Whether a column numbers each week by ISO 8601. */
-    readonly weekNumbers?: boolean;
+    readonly showWeekNumber?: boolean;
     /** Whether the days of neighbouring months fill the first and last weeks, true by default. */
-    readonly outsideDays?: boolean;
+    readonly showOutsideDays?: boolean;
     /** The StyleX styles applied after the calendar's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -201,9 +204,9 @@ class CalendarControl {
     constructor(properties: CalendarProperties, firstDay: Accessor<number>) {
         // follow the controlled selection or the calendar's own
         const [value, setValue] = createControllableSignal<CalendarValue>({
-            isControlled: () => "value" in properties,
-            value: () => properties.value,
-            defaultValue: properties.defaultValue,
+            isControlled: () => "selected" in properties,
+            value: () => properties.selected,
+            defaultValue: properties.defaultSelected,
             onChange: (next) => report(properties, next),
         });
         const start = untrack(() =>
@@ -248,7 +251,7 @@ class CalendarControl {
 
     /** The number of months shown side by side. */
     count(): number {
-        return Math.max(this.properties.months ?? 1, 1);
+        return Math.max(this.properties.numberOfMonths ?? 1, 1);
     }
 
     /** The months shown, from the first. */
@@ -262,7 +265,7 @@ class CalendarControl {
     isUnavailable(day: PlainDate): boolean {
         return (
             Day.isOutside(day, this.properties.min, this.properties.max) ||
-            this.properties.isDisabled?.(day) === true
+            this.properties.disabled?.(day) === true
         );
     }
 
@@ -393,8 +396,8 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
                                 focus={control.focus}
                                 stateOf={(day) => stateOf(properties, control.value(), day)}
                                 today={today()}
-                                weekNumbers={properties.weekNumbers === true}
-                                outsideDays={properties.outsideDays !== false}
+                                weekNumbers={properties.showWeekNumber === true}
+                                outsideDays={properties.showOutsideDays !== false}
                                 isDisabled={(day) => control.isUnavailable(day)}
                                 onSelect={(day) => control.select(day)}
                             />
@@ -628,7 +631,7 @@ function CalendarHeader(properties: {
                 disabled={!properties.canMove(-1)}
                 onClick={() => properties.onMove(-1)}
                 {...style.attrs(
-                    buttonStyle({ variant: "ghost", size: "icon-sm" }),
+                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
                     styles.navigation,
                 )}
             >
@@ -641,7 +644,7 @@ function CalendarHeader(properties: {
                 disabled={!properties.canMove(1)}
                 onClick={() => properties.onMove(1)}
                 {...style.attrs(
-                    buttonStyle({ variant: "ghost", size: "icon-sm" }),
+                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
                     styles.navigation,
                 )}
             >
@@ -693,7 +696,7 @@ function CalendarCell(properties: {
                 onFocus={() => properties.focus.focusIn(properties.day)}
                 onClick={() => properties.onSelect(properties.day)}
                 {...style.attrs(
-                    buttonStyle({ variant: "ghost", size: "icon" }),
+                    buttonVariants({ variant: "ghost", size: "icon" }),
                     styles.day,
                     isOutside() && styles.outside,
                     properties.isToday && styles.today,

@@ -28,15 +28,15 @@ function createList(element: HTMLElement): Virtualizer {
 
         return createVirtualizer({
             count: () => 100,
-            itemHeight: ITEM_HEIGHT,
-            scrollElement: () => element,
+            estimateSize: () => ITEM_HEIGHT,
+            getScrollElement: () => element,
         });
     });
 }
 
 /** Read the first and last index of the items a virtualizer renders. */
 function range(list: Virtualizer): readonly [number | undefined, number | undefined] {
-    const items = list.items();
+    const items = list.getVirtualItems();
 
     return [items[0]?.index, items.at(-1)?.index];
 }
@@ -52,7 +52,7 @@ test("render the visible items with eight to spare on either side as the element
     flush();
 
     // the top shows items 0 to 4 and the scrolled view items 20 to 24, each with the overscan
-    expect({ top, scrolled: range(list), height: list.height() }).toEqual({
+    expect({ top, scrolled: range(list), height: list.getTotalSize() }).toEqual({
         top: [0, 12],
         scrolled: [12, 32],
         height: 100 * ITEM_HEIGHT,
@@ -67,7 +67,11 @@ test("follow the item count and wait for the element before rendering items", ()
     const list = createRoot((dispose) => {
         onTestFinished(dispose);
 
-        return createVirtualizer({ count, itemHeight: ITEM_HEIGHT, scrollElement: scroller });
+        return createVirtualizer({
+            count,
+            estimateSize: () => ITEM_HEIGHT,
+            getScrollElement: scroller,
+        });
     });
     flush();
     const detached = range(list);
@@ -75,7 +79,7 @@ test("follow the item count and wait for the element before rendering items", ()
     setCount(3);
     flush();
 
-    expect({ detached, attached: range(list), height: list.height() }).toEqual({
+    expect({ detached, attached: range(list), height: list.getTotalSize() }).toEqual({
         detached: [undefined, undefined],
         attached: [0, 2],
         height: 3 * ITEM_HEIGHT,

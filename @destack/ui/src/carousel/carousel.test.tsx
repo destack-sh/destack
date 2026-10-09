@@ -51,7 +51,7 @@ test("follow a controlled index, reporting each move the API, buttons or keys as
             aria-label="Photos"
             index={index()}
             onIndexChange={(next) => changes.push(next)}
-            api={(handed) => (api = handed)}
+            setApi={(handed) => (api = handed)}
         >
             <CarouselContent>
                 <CarouselItem>Lisbon</CarouselItem>

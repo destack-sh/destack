@@ -4,7 +4,7 @@ import { createContext, type JSX, merge, omit, useContext, useLocale } from "@de
 import { type PartAttributes, type Render, rendered } from "../part/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
 import { ListState, type Orientation } from "../focus/index.ts";
-import { toggleStyle, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
+import { toggleVariants, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
 
 /** The orientation of a toggle group that sets none. */
 const DEFAULTS: Required<Pick<ToggleGroupProperties, "orientation">> = {
@@ -162,7 +162,7 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
         () =>
             style.attributes(
                 [
-                    toggleStyle({
+                    toggleVariants({
                         variant: control.properties.variant ?? "default",
                         size: control.properties.size ?? "default",
                         pressed: isPressed(),

@@ -5,6 +5,7 @@ import { text } from "@destack/theme/text";
 import { type JSX, merge, omit } from "@destack/view";
 import { JoinContext, useJoin } from "../join/index.ts";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The orientation of a button group that sets none. */
 const DEFAULTS: Required<Pick<ButtonGroupProperties, "orientation">> = {
@@ -52,10 +53,8 @@ const orientations = style.create({
 export type ButtonGroupOrientation = "horizontal" | "vertical";
 
 /** The properties of an element of a button group, the native element's attributes included. */
-export type ButtonGroupElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type ButtonGroupElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
+    ElementPartProperties;
 
 /** The properties of a button group, the native element's attributes included. */
 export interface ButtonGroupProperties extends ButtonGroupElementProperties {
@@ -87,18 +86,12 @@ export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
 /** Render a label or icon joined to a group's buttons. */
 export function ButtonGroupText(properties: ButtonGroupElementProperties): JSX.Element {
     const join = useJoin();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="button-group-text"
-            {...rest}
-            {...style.attributes(
-                [text.callout, styles.text, join(), properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "button-group-text", properties, () => [
+        text.callout,
+        styles.text,
+        join(),
+    ]);
 }
 
 /** Render a line between a group's buttons, vertical by default. */

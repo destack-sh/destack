@@ -5,8 +5,14 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { createControllableSignal, For, type JSX, merge, omit, useLocale } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
-import { buttonStyle, type ButtonSize } from "../button/index.ts";
+import {
+    type ElementPartProperties,
+    type PartAttributes,
+    type Render,
+    rendered,
+    renderPart,
+} from "../part/index.ts";
+import { buttonVariants, type ButtonSize } from "../button/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a pagination and its elements. */
@@ -34,10 +40,8 @@ const styles = style.create({
 });
 
 /** The properties of an element of a pagination, the native element's attributes included. */
-export type PaginationElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type PaginationElementProperties<Attributes> = Omit<Attributes, "class"> &
+    ElementPartProperties;
 
 /** The properties of a link to a page. */
 export type PaginationLinkProperties = PaginationElementProperties<
@@ -56,46 +60,26 @@ export function Pagination(
     properties: PaginationElementProperties<JSX.HTMLAttributes<HTMLElement>>,
 ): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <nav
-            aria-label={locale.render(t`Pagination`)}
-            data-slot="pagination"
-            {...rest}
-            {...style.attributes([styles.pagination, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("nav", "pagination", properties, styles.pagination, {
+        get "aria-label"() {
+            return locale.render(t`Pagination`);
+        },
+    });
 }
 
 /** Render the list of a pagination's links. */
 export function PaginationContent(
     properties: PaginationElementProperties<JSX.HTMLAttributes<HTMLUListElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <ul
-            data-slot="pagination-content"
-            {...rest}
-            {...style.attributes([styles.content, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("ul", "pagination-content", properties, styles.content);
 }
 
 /** Render one entry of a pagination's list. */
 export function PaginationItem(
     properties: PaginationElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <li
-            data-slot="pagination-item"
-            {...rest}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("li", "pagination-item", properties, null);
 }
 
 /** Render a link to a page, marked as the current page when active. */
@@ -114,7 +98,7 @@ export function PaginationLink(properties: PaginationLinkProperties): JSX.Elemen
         () =>
             style.attributes(
                 [
-                    buttonStyle({
+                    buttonVariants({
                         variant: properties.active === true ? "outline" : "ghost",
                         size: properties.size ?? "icon",
                     }),
@@ -174,18 +158,19 @@ export function PaginationEllipsis(
     properties: PaginationElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <span
-            data-slot="pagination-ellipsis"
-            {...rest}
-            {...style.attributes([styles.ellipsis, properties.xstyle], properties.style)}
-        >
-            <Icon name="dots-three" />
-            <span {...style.attrs(visuallyHiddenStyle())}>{locale.render(t`More pages`)}</span>
-        </span>
-    );
+    return renderPart("span", "pagination-ellipsis", properties, styles.ellipsis, {
+        get children() {
+            return (
+                <>
+                    <Icon name="dots-three" />
+                    <span {...style.attrs(visuallyHiddenStyle())}>
+                        {locale.render(t`More pages`)}
+                    </span>
+                </>
+            );
+        },
+    });
 }
 
 /** The page list's entries: a page number, or a gap of left-out pages. */

@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { expect, test } from "@destack/test";
 import { markup, render } from "@destack/view/test";
-import { Item, ItemContent, ItemGroup, ItemTitle, itemStyle } from "./index.ts";
+import { Item, ItemContent, ItemGroup, ItemTitle, itemVariants } from "./index.ts";
 
 test("list a group's items and leave a lone item without a role", () => {
     const { container } = render(() => (
@@ -28,7 +28,7 @@ test("style a link like an item, adding a hover background", () => {
     const { container } = render(() => (
         <>
             <Item variant="muted" />
-            <a href="/notes/trip" {...style.attrs(itemStyle({ variant: "muted" }))} />
+            <a href="/notes/trip" {...style.attrs(itemVariants({ variant: "muted" }))} />
         </>
     ));
     const [item, link] = [...container.children];

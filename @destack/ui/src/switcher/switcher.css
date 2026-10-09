@@ -1,0 +1,46 @@
+/* size a switcher's elements in the base layer below every component style */
+@layer base {
+    /* grow every element to an equal share, and to the full width once the container is narrower than the threshold */
+    [data-slot="switcher"] > * {
+        flex-grow: 1;
+        flex-basis: calc((var(--switcher-threshold) - 100%) * 999);
+    }
+
+    /* stack every element once there are more than the limit */
+    [data-slot="switcher"][data-limit="1"] > :nth-last-child(n + 2),
+    [data-slot="switcher"][data-limit="1"] > :nth-last-child(n + 2) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="2"] > :nth-last-child(n + 3),
+    [data-slot="switcher"][data-limit="2"] > :nth-last-child(n + 3) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="3"] > :nth-last-child(n + 4),
+    [data-slot="switcher"][data-limit="3"] > :nth-last-child(n + 4) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="4"] > :nth-last-child(n + 5),
+    [data-slot="switcher"][data-limit="4"] > :nth-last-child(n + 5) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="5"] > :nth-last-child(n + 6),
+    [data-slot="switcher"][data-limit="5"] > :nth-last-child(n + 6) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="6"] > :nth-last-child(n + 7),
+    [data-slot="switcher"][data-limit="6"] > :nth-last-child(n + 7) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="7"] > :nth-last-child(n + 8),
+    [data-slot="switcher"][data-limit="7"] > :nth-last-child(n + 8) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="8"] > :nth-last-child(n + 9),
+    [data-slot="switcher"][data-limit="8"] > :nth-last-child(n + 9) ~ * {
+        flex-basis: 100%;
+    }
+    [data-slot="switcher"][data-limit="9"] > :nth-last-child(n + 10),
+    [data-slot="switcher"][data-limit="9"] > :nth-last-child(n + 10) ~ * {
+        flex-basis: 100%;
+    }
+}

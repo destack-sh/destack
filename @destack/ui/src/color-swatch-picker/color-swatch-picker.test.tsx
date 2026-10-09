@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import type { AccentPreset } from "@destack/theme";
-import { SwatchPicker } from "./index.ts";
+import { ColorSwatchPicker } from "./index.ts";
 
 /** List the preset of each chosen swatch of a container. */
 function checked(container: Element): string[] {
@@ -14,7 +14,7 @@ function checked(container: Element): string[] {
 test("offer the given swatches as options, holding a controlled choice and reporting a person's", () => {
     const chosen: AccentPreset[] = [];
     const { container } = render(() => (
-        <SwatchPicker
+        <ColorSwatchPicker
             presets={["teal", "orange", "plum"]}
             value="orange"
             onValueChange={(value) => chosen.push(value)}
@@ -34,7 +34,7 @@ test("offer the given swatches as options, holding a controlled choice and repor
 test("submit the chosen swatch through a hidden input of its name, none while none is chosen", () => {
     const { container } = render(() => (
         <form>
-            <SwatchPicker name="color" presets={["teal", "plum"]} aria-label="Color" />
+            <ColorSwatchPicker name="color" presets={["teal", "plum"]} aria-label="Color" />
         </form>
     ));
     const submitted = () =>

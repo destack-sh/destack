@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 import { color, motion, radius } from "@destack/theme/tokens.stylex";
-import { type JSX, omit } from "@destack/view";
+import { type JSX } from "@destack/view";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The fade a skeleton repeats while its content loads. */
 const pulse = style.keyframes({
@@ -21,20 +22,10 @@ const styles = style.create({
 });
 
 /** The properties of a skeleton, the native element's attributes included. */
-export interface SkeletonProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
-    /** The StyleX styles applied after the skeleton's styles, usually its size. */
-    readonly xstyle?: style.Styles;
-}
+export type SkeletonProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
+    ElementPartProperties;
 
 /** Render a pulsing placeholder in the shape of content that is still loading. */
 export function Skeleton(properties: SkeletonProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="skeleton"
-            {...rest}
-            {...style.attributes([styles.skeleton, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "skeleton", properties, styles.skeleton);
 }

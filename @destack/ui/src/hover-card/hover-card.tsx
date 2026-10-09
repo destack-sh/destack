@@ -59,6 +59,8 @@ export interface HoverCardContentProperties extends Omit<
     readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
     readonly align?: Align;
+    /** The gap from the trigger in pixels, 4 by default. */
+    readonly sideOffset?: number;
     /** The StyleX styles applied after the hover card's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -107,7 +109,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     // read the hover card and its placement
     const card = useHoverCard();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "xstyle", "style");
+    const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
 
     // show and hide the card as it opens and closes
     createEffect(card.isOpen, (isOpen) => card.sync(isOpen));
@@ -127,7 +129,12 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                 onPointerEnter={() => card.open()}
                 onPointerLeave={() => card.closeLater()}
                 {...style.attributes(
-                    [styles.content, Position.beside(content.side, content.align), content.xstyle],
+                    [
+                        styles.content,
+                        Position.beside(content.side, content.align),
+                        Position.offset(content.sideOffset),
+                        content.xstyle,
+                    ],
                     content.style,
                 )}
             />

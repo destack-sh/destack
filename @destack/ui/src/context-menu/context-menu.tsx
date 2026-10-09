@@ -1,5 +1,4 @@
-import * as style from "@destack/style";
-import { type JSX, omit } from "@destack/view";
+import { type JSX } from "@destack/view";
 import {
     Menu,
     MenuCheckboxItem,
@@ -22,6 +21,7 @@ import {
     type MenuRadioItemProperties,
     type MenuRootProperties,
 } from "../menu/index.ts";
+import { renderPart } from "../part/index.ts";
 
 /** Hold the open state of a menu that a right click or the context menu key opens. */
 export function ContextMenu(properties: MenuRootProperties): JSX.Element {
@@ -33,21 +33,15 @@ export function ContextMenuTrigger(
     properties: Omit<MenuElementProperties<HTMLDivElement>, "ref" | "onContextMenu">,
 ): JSX.Element {
     const control = useMenu();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="context-menu-trigger"
-            {...rest}
-            ref={(element) => control.setTrigger(element)}
-            onContextMenu={(event) => {
-                // open at the pointer and focus the first item
-                event.preventDefault();
-                control.open("first", { x: event.clientX, y: event.clientY });
-            }}
-            {...style.attributes([properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "context-menu-trigger", properties, null, {
+        ref: (element) => control.setTrigger(element),
+        onContextMenu: (event) => {
+            // open at the pointer and focus the first item
+            event.preventDefault();
+            control.open("first", { x: event.clientX, y: event.clientY });
+        },
+    });
 }
 
 /** Render the menu at the point it opened at. */

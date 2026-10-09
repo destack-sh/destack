@@ -60,7 +60,7 @@ test("type a day into a date picker's field, then pick another from its calendar
     stubPopovers();
     const changes: (PlainDate | undefined)[] = [];
     const container = drawIn("en-US", () => (
-        <DatePicker aria-label="Due date" onValueChange={(value) => changes.push(value)} />
+        <DatePicker aria-label="Due date" onSelect={(value) => changes.push(value)} />
     ));
     const group = container.querySelector("[data-slot=date-picker]");
     type(container, "[data-segment=month]", "0", "3", "0", "7", "2", "0", "2", "7");
@@ -91,7 +91,7 @@ test("type a range's start and end, then pick a range from the calendar, keeping
     stubPopovers();
     const changes: (DateRange | undefined)[] = [];
     const container = drawIn("en-US", () => (
-        <DatePicker mode="range" aria-label="Trip" onValueChange={(value) => changes.push(value)} />
+        <DatePicker mode="range" aria-label="Trip" onSelect={(value) => changes.push(value)} />
     ));
     const [start, end] = container.querySelectorAll("[data-slot=date-field]");
     type(
@@ -163,7 +163,7 @@ test("choose a preset beside the calendar, closing the popover and showing the d
 test("choose several days from a multiple date picker's trigger, named by the picker's name and the count", () => {
     stubPopovers();
     const container = drawIn("en-US", () => (
-        <DatePicker mode="multiple" aria-label="Off days" defaultValue={[day("2026-10-05")]} />
+        <DatePicker mode="multiple" aria-label="Off days" defaultSelected={[day("2026-10-05")]} />
     ));
     const trigger = container.querySelector("[data-slot=date-picker-trigger]");
     const one = labelledName(trigger);

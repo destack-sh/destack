@@ -11,7 +11,7 @@ import {
     weight,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createContext, type JSX, omit, onCleanup, useContext, useLocale } from "@destack/view";
+import { createContext, type JSX, onCleanup, useContext, useLocale } from "@destack/view";
 import { ListState } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
 import {
@@ -36,6 +36,7 @@ import {
     type MenuRadioItemProperties,
     type MenuRootProperties,
 } from "../menu/index.ts";
+import { renderPart } from "../part/index.ts";
 
 /** The selector of a menubar's triggers. */
 const TRIGGER = "[data-slot=menubar-trigger]";
@@ -156,23 +157,19 @@ export function Menubar(properties: MenuElementProperties<HTMLDivElement>): JSX.
     // share one bar with its menus and read the text direction
     const control = new MenubarControl();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
 
     return (
         <MenubarContext value={control}>
-            <div
-                role="menubar"
-                data-slot="menubar"
-                {...rest}
-                onKeyDown={(event) => {
+            {renderPart("div", "menubar", properties, styles.menubar, {
+                role: "menubar",
+                onKeyDown: (event) => {
                     // move between the triggers, leaving keys from inside a menu to the menu
                     if (event.target instanceof Element && event.target.matches(TRIGGER)) {
                         control.list.focus.move(event, locale.direction);
                     }
-                }}
-                onFocusOut={(event) => control.list.focus.focusOut(event)}
-                {...style.attributes([styles.menubar, properties.xstyle], properties.style)}
-            />
+                },
+                onFocusOut: (event) => control.list.focus.focusOut(event),
+            })}
         </MenubarContext>
     );
 }
@@ -197,7 +194,6 @@ export function MenubarTrigger(
     // read the bar and the menu the trigger opens
     const bar = useMenubar();
     const menu = useMenu();
-    const rest = omit(properties, "xstyle", "style");
     let element: HTMLElement | undefined;
     bar.list.add({
         key: menu.id,
@@ -206,43 +202,45 @@ export function MenubarTrigger(
         element: () => element,
     });
 
-    return (
-        <button
-            type="button"
-            id={menu.triggerId}
-            role="menuitem"
-            aria-haspopup="menu"
-            aria-expanded={menu.isOpen() ? "true" : "false"}
-            aria-controls={menu.id}
-            tabindex={bar.list.focus.isActive(menu.id) ? 0 : -1}
-            data-slot="menubar-trigger"
-            {...rest}
-            ref={(trigger) => {
+    return renderPart(
+        "button",
+        "menubar-trigger",
+        properties,
+        () => [text.footnote, styles.trigger, menu.isOpen() && styles.open],
+        {
+            type: "button",
+            id: menu.triggerId,
+            role: "menuitem",
+            "aria-haspopup": "menu",
+            get "aria-expanded"() {
+                return menu.isOpen() ? "true" : "false";
+            },
+            "aria-controls": menu.id,
+            get tabindex() {
+                return bar.list.focus.isActive(menu.id) ? 0 : -1;
+            },
+            ref: (trigger) => {
                 element = trigger;
                 menu.setTrigger(trigger);
-            }}
-            onClick={() => (menu.isOpen() ? menu.close(true) : menu.open("first"))}
-            onKeyDown={(event) => {
+            },
+            onClick: () => (menu.isOpen() ? menu.close(true) : menu.open("first")),
+            onKeyDown: (event) => {
                 // open on the down arrow key, focusing the first item
                 if (event.key === "ArrowDown") {
                     event.preventDefault();
                     menu.open("first");
                 }
-            }}
-            onFocus={() => bar.list.focus.focusIn(menu.id)}
-            onPointerEnter={(event) => {
+            },
+            onFocus: () => bar.list.focus.focusIn(menu.id),
+            onPointerEnter: (event) => {
                 // follow the pointer to this menu while another one is open
                 if (bar.isOpen() && !menu.isOpen()) {
                     bar.closeAll();
                     event.currentTarget.focus();
                     menu.open("none");
                 }
-            }}
-            {...style.attributes(
-                [text.footnote, styles.trigger, menu.isOpen() && styles.open, properties.xstyle],
-                properties.style,
-            )}
-        />
+            },
+        },
     );
 }
 

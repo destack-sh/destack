@@ -24,3 +24,13 @@ test("expose a semantic separator with its orientation", () => {
     );
     expect(new Set(classes(container)).size).toBe(2);
 });
+
+test("render another element with the separator's attributes", () => {
+    const { container } = render(() => (
+        <Separator decorative={false} render={(part) => <hr {...part} />} />
+    ));
+
+    expect(markup(container)).toBe(
+        '<hr data-slot="separator" data-orientation="horizontal" role="separator">',
+    );
+});

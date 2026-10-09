@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { markup, render } from "@destack/view/test";
-import { forwarded, type PartAttributes, rendered } from "./index.ts";
+import { forwarded, mergeProperties, type PartAttributes, rendered, renderPart } from "./index.ts";
 
 /** The properties of a test part: attributes any element takes, and options only the part reads. */
 const PROPERTIES = {
@@ -53,6 +53,38 @@ test("render a part's own element, or the caller's element with the part's and t
 
     expect(markup(container)).toBe(
         '<button data-slot="button" role="link" tabindex="0">Own</button>' +
-            '<a href="#notes" id="save" aria-label="Save note" data-testid="save" data-slot="button" role="link" tabindex="0">Save</a>',
+            '<a href="#notes" data-slot="button" role="link" tabindex="0" id="save" aria-label="Save note" data-testid="save">Save</a>',
     );
+});
+
+test("render an element part on its own tag or on the element its caller renders, with its slot and the caller's attributes", () => {
+    const { container } = render(() => (
+        <>
+            {renderPart("div", "card-header", { id: "header", title: "Header" }, null)}
+            {renderPart("div", "card-header", { render: (part) => <section {...part} /> }, null, {
+                id: "own",
+            })}
+        </>
+    ));
+
+    expect(markup(container)).toBe(
+        '<div data-slot="card-header" id="header" title="Header"></div>' +
+            '<section data-slot="card-header" id="own"></section>',
+    );
+});
+
+test("merge a part's attributes under its caller's, running both sides' handlers, the caller's first", () => {
+    const calls: string[] = [];
+    const merged = mergeProperties(
+        { id: "own", title: "Own", onClick: () => calls.push("part") },
+        { id: "theirs", title: undefined, onClick: () => calls.push("caller") },
+    );
+    merged.onClick();
+
+    // the caller's id and undefined title win, and both handlers run
+    expect({ id: merged.id, title: merged.title, calls }).toEqual({
+        id: "theirs",
+        title: undefined,
+        calls: ["caller", "part"],
+    });
 });

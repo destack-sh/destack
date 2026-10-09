@@ -21,6 +21,7 @@ import type { AutocompleteControl } from "../autocomplete/index.ts";
 import { Collection, type CollectionOptions, type CollectionState } from "../collection/index.ts";
 import { Focus, GridDelegate, type GridRow } from "../focus/index.ts";
 import { createVirtualizer, type Virtualizer } from "../virtualizer/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The height a row is estimated at before it is measured, in pixels. */
 const ROW_HEIGHT = 36;
@@ -107,9 +108,9 @@ export class GridListControl<Item> {
         this.#setViewport = setViewport;
         this.#virtualizer = createVirtualizer({
             count: () => this.delegate.rows().length,
-            itemHeight: ROW_HEIGHT,
-            scrollElement: viewport,
-            initialHeight: UNMEASURED_ROWS * ROW_HEIGHT,
+            estimateSize: () => ROW_HEIGHT,
+            getScrollElement: viewport,
+            initialRect: { width: 0, height: UNMEASURED_ROWS * ROW_HEIGHT },
         });
 
         // focus the first item virtually, bringing each moved-to row into view
@@ -153,7 +154,7 @@ export class GridListControl<Item> {
 
     /** The rows the viewport shows with some to spare, every row without a viewport. */
     window(): GridListWindow {
-        const items = this.#virtualizer.items();
+        const items = this.#virtualizer.getVirtualItems();
         const [first, last] = [items[0], items.at(-1)];
 
         return this.#viewport() === undefined || first === undefined || last === undefined
@@ -163,19 +164,20 @@ export class GridListControl<Item> {
 
     /** The height in pixels of the rows before and after the window, which spacers stand in for. */
     spacers(): { readonly before: number; readonly after: number } {
-        const items = this.#virtualizer.items();
+        const items = this.#virtualizer.getVirtualItems();
         if (this.#viewport() === undefined) {
             return { before: 0, after: 0 };
         }
 
         return {
             before: items[0]?.start ?? 0,
-            after: this.#virtualizer.height() - (items.at(-1)?.end ?? 0),
+            after: this.#virtualizer.getTotalSize() - (items.at(-1)?.end ?? 0),
         };
     }
 
     /** Measure a rendered row's element, which holds its row in `data-index`. */
-    readonly measure = (element: Element | undefined): void => this.#virtualizer.measure(element);
+    readonly measure = (element: Element | undefined): void =>
+        this.#virtualizer.measureElement(element);
 
     /** Follow the element that scrolls the rows once it mounts, until it unmounts. */
     observe(element: () => HTMLElement | undefined): void {
@@ -195,7 +197,7 @@ export class GridListControl<Item> {
     #reveal(key: string): void {
         const place = this.delegate.place(key);
         if (this.#viewport() !== undefined && place !== undefined) {
-            this.#virtualizer.reveal(place.row);
+            this.#virtualizer.scrollToIndex(place.row);
         }
     }
 }
@@ -219,10 +221,8 @@ export interface GridListWindow {
 }
 
 /** The properties of an element of a grid list, the native element's attributes included. */
-export type GridListElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type GridListElementProperties<Attributes> = Omit<Attributes, "class"> &
+    ElementPartProperties;
 
 /** The properties of a section heading of a grid list, the native element's attributes included. */
 export interface GridListSectionHeaderProperties extends GridListElementProperties<
@@ -335,18 +335,12 @@ export function GridListViewport(
 ): JSX.Element {
     // measure the viewport once it mounts so the list renders the rows in view
     const control = useGridList();
-    const rest = omit(properties, "xstyle", "style");
     let element: HTMLDivElement | undefined;
     control.observe(() => element);
 
-    return (
-        <div
-            data-slot="grid-list-viewport"
-            {...rest}
-            ref={(viewport) => (element = viewport)}
-            {...style.attributes([styles.viewport, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "grid-list-viewport", properties, styles.viewport, {
+        ref: (viewport) => (element = viewport),
+    });
 }
 
 /** Render a section's heading in a grid list. */
@@ -369,15 +363,7 @@ export function GridListSectionHeader(properties: GridListSectionHeaderPropertie
 
 /** Render a row of a grid list. */
 export function GridListRow(properties: GridListRowProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="grid-list-row"
-            {...rest}
-            {...style.attributes([styles.row, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "grid-list-row", properties, styles.row);
 }
 
 /** Render a cell's element of a grid list, marked while focused. */
@@ -402,16 +388,10 @@ export function GridListLoading(
     properties: GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useGridList();
-    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={control.state() === "loading"}>
-            <div
-                role="status"
-                data-slot="grid-list-loading"
-                {...rest}
-                {...style.attributes([styles.note, properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "grid-list-loading", properties, styles.note, { role: "status" })}
         </Show>
     );
 }
@@ -421,15 +401,10 @@ export function GridListEmpty(
     properties: GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useGridList();
-    const rest = omit(properties, "xstyle", "style");
 
     return (
         <Show when={control.isEmpty()}>
-            <div
-                data-slot="grid-list-empty"
-                {...rest}
-                {...style.attributes([styles.note, properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "grid-list-empty", properties, styles.note)}
         </Show>
     );
 }

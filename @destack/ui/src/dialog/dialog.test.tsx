@@ -52,8 +52,8 @@ test("open a modal dialog from its trigger, named by its title and described by 
     expect(markup(container)).toBe(
         '<button data-slot="dialog-trigger" data-variant="default" data-size="default" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1">Rename</button>' +
             '<dialog id="id-1" data-slot="dialog-content" data-state="open" closedby="any" aria-labelledby="id-2" aria-describedby="id-3" open="">' +
-            '<h2 id="id-2" data-slot="dialog-title">Rename note</h2>' +
-            '<p id="id-3" data-slot="dialog-description">Pick a new title.</p>' +
+            '<h2 data-slot="dialog-title" id="id-2">Rename note</h2>' +
+            '<p data-slot="dialog-description" id="id-3">Pick a new title.</p>' +
             `${CLOSE_BUTTON}</dialog>`,
     );
 });

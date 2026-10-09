@@ -18,6 +18,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { type FieldControl, useFieldControl } from "../field/control.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The range a slider covers without its own minimum and maximum, the native default. */
 const RANGE = { min: 0, max: 100 };
@@ -253,10 +254,7 @@ export interface SliderProperties extends Omit<
 }
 
 /** The properties of an element of a slider, the native element's attributes included. */
-export type SliderElementProperties<Attributes> = Omit<Attributes, "class"> & {
-    /** The StyleX styles applied after the element's styles. */
-    readonly xstyle?: style.Styles;
-};
+export type SliderElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
 /** The properties of a slider's thumb, the native range input's attributes included. */
 export interface SliderThumbProperties extends SliderElementProperties<
@@ -347,19 +345,20 @@ export function SliderTrack(
     properties: SliderElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useSlider();
-    const rest = omit(properties, "xstyle", "style");
 
-    return (
-        <div
-            data-slot="slider-track"
-            data-orientation={control.properties.orientation ?? "horizontal"}
-            data-disabled={control.properties.disabled === true ? "" : undefined}
-            {...rest}
-            {...style.attributes(
-                [styles.track, control.isVertical() && styles.verticalTrack, properties.xstyle],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "slider-track",
+        properties,
+        () => [styles.track, control.isVertical() && styles.verticalTrack],
+        {
+            get "data-orientation"() {
+                return control.properties.orientation ?? "horizontal";
+            },
+            get "data-disabled"() {
+                return control.properties.disabled === true ? "" : undefined;
+            },
+        },
     );
 }
 
@@ -369,7 +368,6 @@ export function SliderRange(
 ): JSX.Element {
     // span from the lower thumb or the start up to the highest thumb
     const control = useSlider();
-    const rest = omit(properties, "xstyle", "style");
     const from = (): string => {
         const values = control.values();
 
@@ -377,23 +375,22 @@ export function SliderRange(
     };
     const to = (): string => `${100 - control.share(control.values().at(-1) ?? control.min())}%`;
 
-    return (
-        <div
-            data-slot="slider-range"
-            data-orientation={control.properties.orientation ?? "horizontal"}
-            data-disabled={control.properties.disabled === true ? "" : undefined}
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.range,
-                    control.isVertical()
-                        ? styles.verticalSpan(from(), to())
-                        : styles.span(from(), to()),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "slider-range",
+        properties,
+        () => [
+            styles.range,
+            control.isVertical() ? styles.verticalSpan(from(), to()) : styles.span(from(), to()),
+        ],
+        {
+            get "data-orientation"() {
+                return control.properties.orientation ?? "horizontal";
+            },
+            get "data-disabled"() {
+                return control.properties.disabled === true ? "" : undefined;
+            },
+        },
     );
 }
 

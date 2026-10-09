@@ -47,7 +47,7 @@ test("pick the emoji a search finds in the chosen skin tone, and show the empty 
     // search for waving and pick it in the darkest tone
     const picked: string[] = [];
     const { container } = render(() => (
-        <EmojiPicker onPick={(entry) => picked.push(entry.emoji)}>
+        <EmojiPicker onEmojiSelect={(entry) => picked.push(entry.emoji)}>
             <EmojiPickerSearch />
             <EmojiPickerSkinTone />
             <EmojiPickerContent />
@@ -70,7 +70,7 @@ test("pick the emoji a search finds in the chosen skin tone, and show the empty 
 test("name and find emoji in the reader's language, a regional locale falling back to its language", async () => {
     const { container } = render(() => (
         <LocaleContext value={Localization.of(Locale.parse("de-AT"), [])}>
-            <EmojiPicker defaultSearch="tschüss" onPick={() => undefined}>
+            <EmojiPicker defaultSearch="tschüss" onEmojiSelect={() => undefined}>
                 <EmojiPickerContent />
             </EmojiPicker>
         </LocaleContext>
@@ -85,7 +85,7 @@ test("move the active emoji through the rows and columns from the search, show i
     // search the faces, laid out three to a row
     const picked: string[] = [];
     const { container } = render(() => (
-        <EmojiPicker columns={3} onPick={(entry) => picked.push(entry.label)}>
+        <EmojiPicker columns={3} onEmojiSelect={(entry) => picked.push(entry.label)}>
             <EmojiPickerSearch />
             <EmojiPickerContent />
             <EmojiPickerFooter />

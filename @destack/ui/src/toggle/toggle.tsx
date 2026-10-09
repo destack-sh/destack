@@ -71,7 +71,7 @@ export type ToggleVariant = "default" | "outline";
 export type ToggleSize = "default" | "sm" | "lg";
 
 /** The variant, size and state of a toggle's styles. */
-export interface ToggleStyleOptions {
+export interface ToggleVariantProperties {
     /** The look, default by default. */
     readonly variant?: ToggleVariant;
     /** The height and padding, default by default. */
@@ -84,7 +84,7 @@ export interface ToggleStyleOptions {
 export interface ToggleProperties
     extends
         Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "onClick">,
-        ToggleStyleOptions {
+        ToggleVariantProperties {
     /** Whether the toggle starts on when its state is uncontrolled. */
     readonly defaultPressed?: boolean;
     /** Handle the toggle turning on or off. */
@@ -96,7 +96,7 @@ export interface ToggleProperties
 }
 
 /** Return the StyleX styles of a toggle in a variant, size and state, for toggle groups and other buttons that toggle. */
-export function toggleStyle(options: ToggleStyleOptions): style.Styles {
+export function toggleVariants(options: ToggleVariantProperties): style.Styles {
     return [
         text.callout,
         styles.toggle,
@@ -145,7 +145,7 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
         () =>
             style.attributes(
                 [
-                    toggleStyle({
+                    toggleVariants({
                         variant: properties.variant ?? "default",
                         size: properties.size ?? "default",
                         pressed: isPressed(),

@@ -11,7 +11,7 @@ import {
     ItemMedia,
     ItemSeparator,
     ItemTitle,
-    itemStyle,
+    itemVariants,
 } from "./item.tsx";
 
 /** A notebook's recent notes, one archivable and one opened by a link. */
@@ -36,7 +36,7 @@ export const itemRecentNotes = defineExample({
                 </ItemActions>
             </Item>
             <ItemSeparator />
-            <a href="/notes/trip" role="listitem" {...style.attrs(itemStyle({ size: "sm" }))}>
+            <a href="/notes/trip" role="listitem" {...style.attrs(itemVariants({ size: "sm" }))}>
                 <ItemContent>
                     <ItemTitle>Trip to Lisbon</ItemTitle>
                 </ItemContent>

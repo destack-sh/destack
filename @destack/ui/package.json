@@ -23,12 +23,13 @@
         "./chart": "./src/chart/index.ts",
         "./chart/*": "./src/chart/module/*.ts",
         "./checkbox": "./src/checkbox/index.ts",
+        "./code-block": "./src/code-block/index.ts",
         "./collapsible": "./src/collapsible/index.ts",
         "./collection": "./src/collection/index.ts",
         "./combobox": "./src/combobox/index.ts",
+        "./color-swatch-picker": "./src/color-swatch-picker/index.ts",
         "./command": "./src/command/index.ts",
         "./context-menu": "./src/context-menu/index.ts",
-        "./cover-image": "./src/cover-image/index.ts",
         "./data-table": "./src/data-table/index.ts",
         "./date-field": "./src/date-field/index.ts",
         "./date-picker": "./src/date-picker/index.ts",
@@ -53,6 +54,7 @@
         "./menubar": "./src/menubar/index.ts",
         "./navigation-menu": "./src/navigation-menu/index.ts",
         "./pagination": "./src/pagination/index.ts",
+        "./part": "./src/part/index.ts",
         "./popover": "./src/popover/index.ts",
         "./position": "./src/position/index.ts",
         "./progress": "./src/progress/index.ts",
@@ -70,7 +72,6 @@
         "./slider": "./src/slider/index.ts",
         "./sortable": "./src/sortable/index.ts",
         "./spinner": "./src/spinner/index.ts",
-        "./swatch-picker": "./src/swatch-picker/index.ts",
         "./switch": "./src/switch/index.ts",
         "./table": "./src/table/index.ts",
         "./tabs": "./src/tabs/index.ts",
@@ -83,7 +84,14 @@
         "./tooltip": "./src/tooltip/index.ts",
         "./tree": "./src/tree/index.ts",
         "./virtualizer": "./src/virtualizer/index.ts",
-        "./visually-hidden": "./src/visually-hidden/index.ts"
+        "./visually-hidden": "./src/visually-hidden/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./cluster": "./src/cluster/index.ts",
+        "./grid": "./src/grid/index.ts",
+        "./center": "./src/center/index.ts",
+        "./switcher": "./src/switcher/index.ts",
+        "./cover": "./src/cover/index.ts",
+        "./content": "./src/content/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -100,7 +108,9 @@
         "@tanstack/charts": "1.0.0",
         "@tanstack/table-core": "9.2.6",
         "@tanstack/virtual-core": "3.17.11",
-        "emojibase-data": "17.0.0"
+        "@types/hast": "3.0.5",
+        "emojibase-data": "17.0.0",
+        "property-information": "7.2.0"
     },
     "devDependencies": {
         "@destack/package": "workspace:*",

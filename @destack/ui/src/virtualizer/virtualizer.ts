@@ -8,24 +8,24 @@ const OVERSCAN = 8;
 export interface VirtualizerOptions {
     /** The number of items. */
     readonly count: Accessor<number>;
-    /** The height each item is estimated at before it is measured, in pixels. */
-    readonly itemHeight: number;
-    /** The element that scrolls the items, undefined until it is created. */
-    readonly scrollElement: Accessor<HTMLElement | undefined>;
-    /** The height the element is taken to have before it is measured, in pixels, none when absent. */
-    readonly initialHeight?: number;
+    /** Estimate the height of an item before it is measured, in pixels. */
+    readonly estimateSize: (index: number) => number;
+    /** Read the element that scrolls the items, undefined until it is created. */
+    readonly getScrollElement: Accessor<HTMLElement | undefined>;
+    /** The size the element is taken to have before it is measured, in pixels, none when absent. */
+    readonly initialRect?: virtual.Rect;
 }
 
 /** The items of a long list a virtualizer renders and the room they take. */
 export interface Virtualizer {
-    /** The items in or near the visible range. */
-    readonly items: Accessor<readonly virtual.VirtualItem[]>;
-    /** The height of every item together, in pixels. */
-    readonly height: Accessor<number>;
+    /** Read the items in or near the visible range. */
+    readonly getVirtualItems: Accessor<readonly virtual.VirtualItem[]>;
+    /** Read the height of every item together, in pixels. */
+    readonly getTotalSize: Accessor<number>;
     /** Measure a rendered item's element, which holds its index in `data-index`. */
-    readonly measure: (element: Element | undefined) => void;
+    readonly measureElement: (element: Element | undefined) => void;
     /** Scroll an item into view. */
-    readonly reveal: (index: number) => void;
+    readonly scrollToIndex: (index: number) => void;
 }
 
 /** Follow which items of a long list are in view as its element scrolls, so only those render. */
@@ -34,12 +34,10 @@ export function createVirtualizer(options: VirtualizerOptions): Virtualizer {
     const [revision, setRevision] = createSignal(0, { ownedWrite: true });
     const virtualizer = new virtual.Virtualizer<HTMLElement, Element>({
         count: untrack(options.count),
-        estimateSize: () => options.itemHeight,
-        getScrollElement: () => untrack(options.scrollElement) ?? null,
+        estimateSize: options.estimateSize,
+        getScrollElement: () => untrack(options.getScrollElement) ?? null,
         overscan: OVERSCAN,
-        ...(options.initialHeight === undefined
-            ? {}
-            : { initialRect: { width: 0, height: options.initialHeight } }),
+        ...(options.initialRect === undefined ? {} : { initialRect: options.initialRect }),
         measureElement: virtual.measureElement,
         observeElementRect: virtual.observeElementRect,
         observeElementOffset: virtual.observeElementOffset,
@@ -49,7 +47,7 @@ export function createVirtualizer(options: VirtualizerOptions): Virtualizer {
 
     // follow the item count and attach to the scrolling element once it exists
     createEffect(
-        () => ({ count: options.count(), element: options.scrollElement() }),
+        () => ({ count: options.count(), element: options.getScrollElement() }),
         ({ count, element }) => {
             // take the count and wait for the element before measuring
             virtualizer.setOptions({ ...virtualizer.options, count });
@@ -64,21 +62,21 @@ export function createVirtualizer(options: VirtualizerOptions): Virtualizer {
     );
 
     return {
-        items: () => {
+        getVirtualItems: () => {
             revision();
 
             return virtualizer.getVirtualItems();
         },
-        height: () => {
+        getTotalSize: () => {
             revision();
 
             return virtualizer.getTotalSize();
         },
-        measure: (element) => {
+        measureElement: (element) => {
             if (element !== undefined) {
                 virtualizer.measureElement(element);
             }
         },
-        reveal: (index) => virtualizer.scrollToIndex(index, { align: "auto" }),
+        scrollToIndex: (index) => virtualizer.scrollToIndex(index, { align: "auto" }),
     };
 }

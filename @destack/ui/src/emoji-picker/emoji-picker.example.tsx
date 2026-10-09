@@ -16,7 +16,7 @@ export const emojiPickerReaction = defineExample({
     description:
         "a reaction picked from every emoji by category, with a search, the skin tones and a note while nothing matches",
     render: () => (
-        <EmojiPicker onPick={() => undefined}>
+        <EmojiPicker onEmojiSelect={() => undefined}>
             <EmojiPickerSearch />
             <EmojiPickerSkinTone />
             <EmojiPickerContent />
@@ -31,7 +31,7 @@ export const emojiPickerCompact = defineExample({
     description:
         "a compact picker whose footer shows the active emoji beside a button cycling the skin tone",
     render: () => (
-        <EmojiPicker columns={7} onPick={() => undefined}>
+        <EmojiPicker columns={7} onEmojiSelect={() => undefined}>
             <EmojiPickerSearch />
             <EmojiPickerContent />
             <EmojiPickerFooter>
@@ -52,7 +52,7 @@ export const emojiPickerParts = defineExample({
 
         return (
             <>
-                <EmojiPicker onPick={(entry) => setPicked(entry.emoji)}>
+                <EmojiPicker onEmojiSelect={(entry) => setPicked(entry.emoji)}>
                     <EmojiPickerSearch />
                     <EmojiPickerContent />
                     <EmojiPickerFooter />
@@ -69,7 +69,7 @@ export const emojiPickerEmpty = defineExample({
     name: "empty",
     description: "a picker whose search finds no emoji, showing its note",
     render: () => (
-        <EmojiPicker defaultSearch="qqqqq" onPick={() => undefined}>
+        <EmojiPicker defaultSearch="qqqqq" onEmojiSelect={() => undefined}>
             <EmojiPickerSearch />
             <EmojiPickerContent />
         </EmojiPicker>

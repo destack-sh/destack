@@ -105,7 +105,7 @@ export interface IconPickerProperties extends GridListElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onChange">
 > {
     /** Report the icon a person picked with a click or Enter. */
-    readonly onPick: (icon: IconName) => void;
+    readonly onIconSelect: (icon: IconName) => void;
     /** The search, which makes it controlled. */
     readonly search?: string;
     /** The search at first while uncontrolled, empty by default. */
@@ -126,7 +126,7 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
     const locale = useLocale();
     const rest = omit(
         properties,
-        "onPick",
+        "onIconSelect",
         "search",
         "defaultSearch",
         "onSearchChange",
@@ -146,7 +146,7 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
         text: (icon) => icon,
         columns: () => properties.columns ?? COLUMNS,
         autocomplete,
-        onAction: (icon) => properties.onPick(icon),
+        onAction: (icon) => properties.onIconSelect(icon),
     });
     const control: IconPickerControl = {
         grid,

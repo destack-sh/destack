@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import * as style from "@destack/style";
-import { Button, buttonStyle } from "./index.ts";
+import { Button, buttonVariants } from "./index.ts";
 import { classes, markup, render } from "@destack/view/test";
 
 test("render a native button with its variant, size and attributes", () => {
@@ -33,7 +33,10 @@ test("style a link like a button of the same variant and size", () => {
     const { container } = render(() => (
         <>
             <Button variant="outline" size="sm" />
-            <a href="/pricing" {...style.attrs(buttonStyle({ variant: "outline", size: "sm" }))} />
+            <a
+                href="/pricing"
+                {...style.attrs(buttonVariants({ variant: "outline", size: "sm" }))}
+            />
         </>
     ));
 
@@ -54,7 +57,7 @@ test("render a link with the button's part attributes, its native button's attri
         </Button>
     ));
     expect(markup(container)).toBe(
-        '<a href="/notes" aria-label="Open notes" data-slot="button" data-variant="outline" data-size="default">Notes</a>',
+        '<a href="/notes" data-slot="button" data-variant="outline" data-size="default" aria-label="Open notes">Notes</a>',
     );
 });
 

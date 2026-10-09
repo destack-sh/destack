@@ -21,9 +21,9 @@ test("place a drawer against its direction, with a handle above a bottom drawer'
     expect(markup(container)).toBe(
         '<dialog id="id-1" data-slot="drawer-content" data-state="closed" closedby="any" aria-labelledby="id-2" data-side="bottom">' +
             '<div data-slot="drawer-handle" aria-hidden="true"></div>' +
-            '<h2 id="id-2" data-slot="drawer-title">Share</h2></dialog>' +
+            '<h2 data-slot="drawer-title" id="id-2">Share</h2></dialog>' +
             '<dialog id="id-3" data-slot="drawer-content" data-state="closed" closedby="any" aria-labelledby="id-4" data-side="right">' +
-            '<h2 id="id-4" data-slot="drawer-title">Details</h2></dialog>',
+            '<h2 data-slot="drawer-title" id="id-4">Details</h2></dialog>',
     );
 });
 
@@ -78,7 +78,7 @@ test("settle a dragged drawer at the nearest snap point, carry a flick on, and c
         <Drawer
             defaultOpen
             snapPoints={[0.5, 1]}
-            onSnapPointChange={(point) => points.push(point)}
+            onActiveSnapPointChange={(point) => points.push(point)}
             onOpenChange={(open) => changes.push(open)}
         >
             <DrawerContent>

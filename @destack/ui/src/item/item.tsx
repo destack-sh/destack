@@ -4,9 +4,10 @@ import { color, motion, radius, size, space, stroke, weight } from "@destack/the
 import { text } from "@destack/theme/text";
 import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
+import { renderPart } from "../part/index.ts";
 
 /** The variant and size of an item that sets neither. */
-const DEFAULTS: Required<ItemStyleOptions> = { variant: "default", size: "default" };
+const DEFAULTS: Required<ItemVariantProperties> = { variant: "default", size: "default" };
 
 /** The variant of an item's media that sets none. */
 const MEDIA_DEFAULTS: Required<Pick<ItemMediaProperties, "variant">> = { variant: "default" };
@@ -165,7 +166,7 @@ export type ItemElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement
 };
 
 /** The variant and size of an item's styles. */
-export interface ItemStyleOptions {
+export interface ItemVariantProperties {
     /** The look, default by default. */
     readonly variant?: ItemVariant;
     /** The gap and padding, default by default. */
@@ -173,7 +174,7 @@ export interface ItemStyleOptions {
 }
 
 /** The properties of an item, the native element's attributes included. */
-export interface ItemProperties extends ItemElementProperties, ItemStyleOptions {}
+export interface ItemProperties extends ItemElementProperties, ItemVariantProperties {}
 
 /** The properties of an item's media, the native element's attributes included. */
 export interface ItemMediaProperties extends ItemElementProperties {
@@ -182,7 +183,7 @@ export interface ItemMediaProperties extends ItemElementProperties {
 }
 
 /** Return the StyleX styles of an item in a variant and size, for links that look like items. */
-export function itemStyle(options: ItemStyleOptions): style.Styles {
+export function itemVariants(options: ItemVariantProperties): style.Styles {
     const variant = options.variant ?? DEFAULTS.variant;
 
     return [
@@ -218,16 +219,9 @@ export function Item(properties: ItemProperties): JSX.Element {
 
 /** Render items as a list. */
 export function ItemGroup(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
     return (
         <ItemGroupContext value={true}>
-            <div
-                data-slot="item-group"
-                role="list"
-                {...rest}
-                {...style.attributes([styles.group, properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "item-group", properties, styles.group, { role: "list" })}
         </ItemGroupContext>
     );
 }
@@ -264,80 +258,32 @@ export function ItemMedia(properties: ItemMediaProperties): JSX.Element {
 
 /** Render the title and description of an item, taking the row's free width. */
 export function ItemContent(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="item-content"
-            {...rest}
-            {...style.attributes([styles.content, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "item-content", properties, styles.content);
 }
 
 /** Render the title of an item. */
 export function ItemTitle(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="item-title"
-            {...rest}
-            {...style.attributes([styles.title, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "item-title", properties, styles.title);
 }
 
 /** Render the description under an item's title, cut to two lines. */
 export function ItemDescription(
     properties: ItemElementProperties<JSX.HTMLAttributes<HTMLParagraphElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <p
-            data-slot="item-description"
-            {...rest}
-            {...style.attributes([styles.description, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("p", "item-description", properties, styles.description);
 }
 
 /** Render the buttons at the end of an item. */
 export function ItemActions(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="item-actions"
-            {...rest}
-            {...style.attributes([styles.actions, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "item-actions", properties, styles.actions);
 }
 
 /** Render a full-width row above an item's media and content. */
 export function ItemHeader(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="item-header"
-            {...rest}
-            {...style.attributes([styles.edge, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "item-header", properties, styles.edge);
 }
 
 /** Render a full-width row below an item's media and content. */
 export function ItemFooter(properties: ItemElementProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <div
-            data-slot="item-footer"
-            {...rest}
-            {...style.attributes([styles.edge, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "item-footer", properties, styles.edge);
 }
